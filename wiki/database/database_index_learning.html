@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Page와 Heap에서 시작해 B-Tree, Hash, GIN 인덱스까지 연결한 데이터베이스 학습 기록">
+  <title>Database · Page, Heap과 Index</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <style>
+    .article { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; margin-top: 22px; }
+    .toc { position: sticky; top: 22px; align-self: start; max-height: calc(100vh - 44px); overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: var(--shadow); }
+    .toc strong { display: block; margin-bottom: 10px; color: var(--green); }
+    .toc a { display: block; padding: 5px 0; color: var(--muted); font-size: .84rem; text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { color: var(--blue); text-decoration: underline; }
+    .content { min-width: 0; }
+    .content section { scroll-margin-top: 18px; }
+    .content h2 { line-height: 1.35; }
+    .content h3 { margin-top: 22px; }
+    .content p + p, .content p + pre, .content pre + p, .content ul + p { margin-top: 14px; }
+    .content ul { margin: 13px 0 0; padding-left: 22px; }
+    pre { overflow-x: auto; margin: 15px 0 0; padding: 18px; color: #eaf0ff; border-radius: 14px; background: #172033; font: .9rem/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    blockquote { margin: 16px 0 0; padding: 14px 17px; border-left: 4px solid var(--blue); border-radius: 0 12px 12px 0; background: var(--blue-soft); }
+    blockquote p { margin: 0; font-weight: 750; }
+    .flow { color: var(--muted); font-weight: 700; }
+    @media (max-width: 820px) { .article { grid-template-columns: 1fr; } .toc { position: static; max-height: none; } }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><span>Database</span><span class="separator">›</span><span aria-current="page">Page·Heap·Index</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Database fundamentals</span>
+      <h1>Page, Heap과<br>Database Index</h1>
+      <p class="summary">DB의 실제 데이터가 어디에 저장되는지부터 시작해 Sequential Scan, B-Tree, Hash, GIN이 검색 범위를 어떻게 줄이는지 연결한 학습 기록이다.</p>
+      <div class="callout"><strong>이 문서의 기준</strong><br>직접 질문하며 이해한 범위만 정리했다. 핵심은 “Page는 저장 단위, Heap은 정렬되지 않은 저장 방식, Index는 별도의 탐색 구조”라는 연결이다.</div>
+    </header>
+
+    <div class="article">
+      <aside class="toc" aria-label="문서 목차">
+        <strong>목차</strong>
+        <a href="#page">1. Page</a><a href="#heap">2. Heap</a><a href="#sequential-scan">3. Sequential Scan</a><a href="#index">4. Index</a><a href="#btree">5. 기본 Index와 B-Tree</a><a href="#btree-search">6. B-Tree 탐색 구조</a><a href="#duplicate-range">7. 중복·UNIQUE·범위 검색</a><a href="#hash">8. Hash Index</a><a href="#gin">9. GIN</a><a href="#summary">10. 전체 흐름</a>
+      </aside>
+
+      <article class="content">
+        <section id="page">
+          <h2>1. DB의 실제 데이터는 Page 단위로 저장된다</h2>
+          <p>DB는 Row 하나하나를 독립적으로 디스크에서 읽고 쓰는 것이 아니라, <strong>Page라는 고정 크기 묶음 단위</strong>로 데이터를 관리한다. PostgreSQL은 기본적으로 8KB Page를 사용한다.</p>
+          <pre>Table
+
+Page 0                 Page 1
+┌──────────────┐       ┌──────────────┐
+│ Row          │       │ Row          │
+│ Row          │       │ Row          │
+│ Row          │       └──────────────┘
+└──────────────┘</pre>
+          <blockquote><p>Page 단위로 읽는다는 말은 Page 0 → Page 1 → Page 2 순서로 무조건 읽는다는 뜻이 아니다.</p></blockquote>
+          <p>필요한 Page 번호를 안다면 그 Page를 바로 요청할 수 있다.</p>
+          <pre>Page 812 필요
+    ↓
+메모리에 있나?
+    ├─ 있음 → 바로 사용
+    └─ 없음 → 디스크에서 Page 812를 메모리로 가져옴</pre>
+          <p>즉 Page는 FIFO Queue가 아니라 <strong>저장·관리 단위</strong>다.</p>
+        </section>
+
+        <section id="heap">
+          <h2>2. Heap이란 무엇인가</h2>
+          <p>PostgreSQL의 일반적인 Table은 <strong>Heap-organized table</strong>이다. 여기서 Heap은 Min Heap이나 Max Heap이 아니라, <strong>Row를 특정 컬럼 값에 따라 정렬해서 배치하지 않는 테이블 저장 방식</strong>을 뜻한다.</p>
+          <pre>입력: id=10, id=3, id=500, id=7
+
+Heap Page 0       Heap Page 1
+10                7
+3
+500</pre>
+          <p><code>id=7</code>이면 몇 번 Page에 있다는 값 기반 배치 규칙이 Heap 자체에는 없다.</p>
+          <pre>Table
+  ↓
+Heap 방식으로 조직됨
+  ↓
+여러 Heap Page
+  ↓
+각 Heap Page 안에 Row(Tuple)</pre>
+          <ul><li><strong>Heap</strong>: Table 전체의 저장 조직 방식</li><li><strong>Heap Page</strong>: Heap을 구성하는 실제 Page</li><li><strong>Row/Tuple</strong>: Page 안의 실제 데이터</li></ul>
+        </section>
+
+        <section id="sequential-scan">
+          <h2>3. 인덱스가 없다면: Sequential Scan</h2>
+          <p>Heap은 특정 컬럼 기준으로 정렬되어 있지 않다.</p>
+          <pre>Page 0: age=31, 45, 22
+Page 1: age=18, 67, 45
+Page 2: age=52, 29, 40</pre>
+          <p><code>WHERE age = 45</code>를 실행해도 Heap만 가지고는 45가 어느 Page에 있는지 알 수 없다. 따라서 Page 0, Page 1, Page 2…를 읽으며 Row를 검사해야 한다. 이것이 <strong>Sequential Scan</strong>이다.</p>
+        </section>
+
+        <section id="index">
+          <h2>4. 인덱스는 별도의 빠른 탐색 구조다</h2>
+          <p>인덱스는 Table과 별도로 만들어지며, 개념적으로 <strong>검색 값 → 실제 Row 위치</strong>를 연결한다.</p>
+          <pre>조건
+↓
+Index
+↓
+Row 위치
+↓
+Heap Page
+↓
+실제 Row</pre>
+          <p>SQL에서 보통 사용할 인덱스를 직접 지정하지 않는다. 예를 들어 <code>SELECT * FROM users WHERE age = 45;</code>를 실행하면 Optimizer가 Sequential Scan과 Index Scan 중 더 저렴하다고 판단한 방법을 선택한다.</p>
+        </section>
+
+        <section id="btree">
+          <h2>5. 일반적으로 말하는 Index는 B-Tree다</h2>
+          <p>PostgreSQL에서 별도 방식을 지정하지 않고 <code>CREATE INDEX idx_age ON users(age);</code>라고 만들면 기본적으로 B-Tree Index가 생성된다.</p>
+          <pre>Index
+├─ B-Tree
+├─ Hash
+├─ GIN
+├─ GiST
+└─ ...</pre>
+          <p>B-Tree는 <strong>컬럼 값을 정렬하고 범위를 여러 갈래로 나누어</strong> 원하는 위치까지 빠르게 내려가는 Tree다.</p>
+          <pre>            [30 | 60]
+           /    |    \
+       &lt;30    30~60   &gt;60
+
+45는 30보다 크고 60보다 작음
+→ 가운데 범위로 이동</pre>
+          <p>처음부터 값을 하나씩 찾는 대신 필요 없는 범위를 계속 버린다.</p>
+        </section>
+
+        <section id="btree-search">
+          <h2>6. B-Tree의 Root, Internal, Leaf와 Page</h2>
+          <pre>Root
+ ↓
+Internal
+ ↓
+Leaf</pre>
+          <h3>Root / Internal Page</h3>
+          <p>어느 Page로 내려갈지 결정하는 길 안내 역할을 한다.</p>
+          <pre>[20 | 40 | 70]
+
+&lt;20      → Page A
+20~40    → Page B
+40~70    → Page C
+&gt;=70     → Page D</pre>
+          <h3>Leaf Page</h3>
+          <p>마지막 검색 대상인 인덱스 엔트리가 있다.</p>
+          <pre>age=40 → TID
+age=42 → TID
+age=45 → TID
+age=47 → TID</pre>
+          <blockquote><p>Root/Internal은 어디로 갈지 안내하고, Leaf는 실제 key와 Row 위치를 제공한다.</p></blockquote>
+          <p>Tree에서 더 이상 자식이 없는 마지막 Node를 나무의 잎에 빗대어 Leaf라고 한다. Leaf가 수천 개라면 원하는 값이 어느 Leaf에 있는지 처음에는 모르므로 Root → Internal → Leaf 순서로 찾아간다. Root Page는 자주 쓰이기 때문에 메모리에 있을 가능성이 높다.</p>
+          <h3>B-Tree Node와 Page의 관계</h3>
+          <p>B-Tree의 Node는 실제 DB에서 대체로 Index Page 하나에 대응한다고 생각할 수 있다. Page 하나에는 key 하나가 아니라 여러 key와 pointer가 함께 들어간다.</p>
+          <pre>Index Page
+┌──────────────────────┐
+│ 20 → child Page      │
+│ 40 → child Page      │
+│ 70 → child Page      │
+│ ...                  │
+└──────────────────────┘</pre>
+          <p>DB가 Page 단위로 읽으므로 Page 하나에 많은 key를 넣는 편이 효율적이다. 한 Node에서 많은 자식 Page로 분기하면 Tree 높이가 낮아지고 Root에서 Leaf까지 읽을 Page 수도 줄어든다. 그래서 B-Tree는 DB의 Page 단위 저장과 I/O 방식에 잘 맞는다.</p>
+          <h3><code>=</code> 검색 흐름</h3>
+          <pre>Root Page
+↓ 45가 속한 범위 선택
+Internal Page
+↓ 범위를 더 좁힘
+Leaf Page
+↓ age=45 발견
+TID 획득
+↓
+실제 Heap Row로 이동</pre>
+        </section>
+
+        <section id="duplicate-range">
+          <h2>7. 중복, UNIQUE와 범위 검색</h2>
+          <h3>중복 값</h3>
+          <p>인덱스 컬럼이 UNIQUE가 아니면 같은 key를 가진 여러 엔트리가 존재할 수 있다. <code>WHERE age = 30</code>이면 첫 30을 찾은 뒤 같은 값이 이어지는 부분을 읽는다.</p>
+          <pre>29
+30 ← 시작
+30
+30
+30
+31 ← 종료</pre>
+          <h3>UNIQUE Index</h3>
+          <p>UNIQUE라면 동일한 key를 가진 Row가 둘 이상 존재할 수 없다. <code>id=123</code>을 하나 찾으면 같은 값을 더 찾을 필요 없이 종료한다. 즉 중복을 검색하며 제거해서 빠른 것이 아니라, <strong>애초에 중복이 없다는 보장</strong>을 이용한다.</p>
+          <h3>범위 검색</h3>
+          <p>B-Tree는 정렬되어 있어 <code>=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>BETWEEN</code> 검색에 사용할 수 있다. <code>age BETWEEN 30 AND 50</code>이면 Tree로 30이 있는 Leaf까지 빠르게 간 뒤, 범위를 벗어날 때까지 인접 엔트리를 순서대로 읽는다.</p>
+          <pre>Tree → 범위 시작점까지 빠르게 이동
+
+Leaf → 30, 35, 40, 45, 50
+                         51에서 종료</pre>
+          <p>B-Tree 전체를 처음부터 순차 탐색하는 것이 아니라, 시작 위치까지 빠르게 이동한 후 필요한 구간만 순차적으로 읽는 것이다.</p>
+        </section>
+
+        <section id="hash">
+          <h2>8. Hash Index</h2>
+          <p>B-Tree가 “이 값은 어느 범위에 있지?”를 묻는다면 Hash는 “이 값을 계산하면 어느 Bucket이지?”를 묻는다.</p>
+          <pre>값
+↓
+hash 함수
+↓
+hash code
+↓
+Bucket 결정
+↓
+해당 Bucket Page</pre>
+          <h3>Hash 값은 메모리 주소가 아니다</h3>
+          <p><code>hash("kim") → 837291</code>에서 837291은 RAM 주소가 아니다. 이 값으로 논리적인 Bucket 번호를 정하고, 인덱스의 메타정보와 배치 규칙으로 그 Bucket이 사용하는 Index Page를 찾는다.</p>
+          <pre>hash → Bucket → Index Page</pre>
+          <h3>Bucket과 Page</h3>
+          <ul><li><strong>Bucket</strong>: Hash Index가 해시값을 묶는 논리적 분류 단위</li><li><strong>Page</strong>: 내용이 저장되는 실제 단위</li></ul>
+          <pre>Bucket 42
+↓
+Primary Page
+↓ 필요하면
+Overflow Page</pre>
+          <h3>저장한 위치를 다시 찾는 원리</h3>
+          <pre>인덱스 생성: "kim" → hash("kim") → Bucket 42 → 엔트리 저장
+나중의 조회: "kim" → 같은 hash() → 같은 Bucket 42</pre>
+          <p>저장과 조회에 같은 Hash 함수를 쓰기 때문에 같은 논리적 위치를 다시 계산할 수 있다.</p>
+          <h3>Bucket Page 안에서도 비교한다</h3>
+          <p>Bucket Page에는 여러 엔트리가 들어간다. 따라서 Page까지 도착한 뒤 원하는 hash code와 일치하는 엔트리를 검사한다.</p>
+          <pre>전체 수백만 건
+↓ hash
+특정 Bucket
+↓
+Page 내부의 소수 엔트리 검사</pre>
+          <h3>Hash Collision</h3>
+          <p>서로 다른 값이 같은 hash 결과를 가질 수 있다. 같은 hash code 후보가 여러 개라면 실제 Heap Row로 가서 원래 조건이 맞는지 다시 확인할 수 있다. Hash Index도 정답을 즉시 확정하기보다는 <strong>검사할 후보를 아주 적게 줄이는 역할</strong>을 한다.</p>
+          <h3>B-Tree와 Hash의 차이</h3>
+          <pre>B-Tree                         Hash
+값의 순서를 유지              값을 hash code로 변환
+=, &gt;, &lt;, BETWEEN             주로 = 검색
+범위 탐색 가능                원래 값의 순서가 사라짐</pre>
+          <p>예를 들어 20, 21, 22가 전혀 다른 순서의 Bucket에 들어갈 수 있으므로 Hash는 <code>BETWEEN 20 AND 30</code> 같은 범위 검색에 적합하지 않다.</p>
+        </section>
+
+        <section id="gin">
+          <h2>9. GIN의 기본 개념</h2>
+          <p>GIN은 <strong>역색인(Inverted Index)</strong> 계열이며, 한 Column 안에 여러 요소가 들어 있는 경우에 적합하다.</p>
+          <pre>Row 1 → [python, ai]
+Row 2 → [java, spring]
+Row 3 → [python, django]
+
+GIN
+python → Row 1, Row 3
+ai     → Row 1
+java   → Row 2
+spring → Row 2
+django → Row 3</pre>
+          <blockquote><p>“이 Row의 값은 무엇인가?”가 아니라 “이 요소가 들어 있는 Row들은 어디인가?”를 빠르게 찾는다.</p></blockquote>
+          <p>배열, JSONB, 전문 검색 등에 사용할 수 있다.</p>
+        </section>
+
+        <section id="summary">
+          <h2>10. 오늘 이해한 전체 흐름</h2>
+          <pre>실제 Table Row
+↓
+Heap Page 안에 저장
+
+Heap
+↓
+특정 key 기준으로 정렬되지 않은 Table 저장 구조
+
+인덱스가 없으면
+↓
+Heap Page들을 훑으며 조건 검사
+
+인덱스가 있으면
+↓
+Optimizer가 사용 여부 판단
+
+B-Tree: Root → Internal → Leaf → key/TID → Heap Page → Row
+
+Hash: value → hash(value) → Bucket → Index Page → TID → Row</pre>
+          <div class="callout"><strong>핵심 한 문장</strong><br>DB의 실제 데이터는 Page에 저장되고, 일반 Table은 특정 key 순서가 없는 Heap 구조로 Page를 사용한다. 인덱스는 Heap 전체를 뒤지지 않도록 별도 탐색 구조를 만들며, B-Tree는 정렬과 범위 분할로 원하는 Leaf Page를 찾아가고 Hash는 값을 계산해 원하는 Bucket Page의 후보로 바로 좁힌다.</div>
+        </section>
+      </article>
+    </div>
+    <footer class="footer">Database 학습 문서 · 직접 이해한 흐름을 기준으로 정리</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

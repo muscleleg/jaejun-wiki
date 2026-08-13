@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PyTorch 첫 학습 원리 — y = 3x + 2 찾기</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #5e687d;
+      --line: #dce2eb;
+      --blue: #3157d5;
+      --blue-soft: #edf2ff;
+      --green: #14765a;
+      --green-soft: #eaf8f3;
+      --orange: #a45116;
+      --orange-soft: #fff4e8;
+      --red: #ad3445;
+      --code: #172033;
+      --shadow: 0 18px 55px rgba(31, 42, 68, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, #e7edff 0, transparent 27rem),
+        radial-gradient(circle at 95% 20%, #e5f8f1 0, transparent 24rem),
+        var(--bg);
+      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.75;
+      word-break: keep-all;
+    }
+
+    a { color: var(--blue); }
+    code, pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    code {
+      padding: 0.1em 0.38em;
+      border-radius: 0.35em;
+      background: #eef1f6;
+      font-size: 0.92em;
+    }
+
+    .wrap {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 42px 0 80px;
+    }
+    header {
+      padding: 42px;
+      color: white;
+      border-radius: 26px;
+      background: linear-gradient(135deg, #172033, #284ab7 62%, #16735c);
+      box-shadow: var(--shadow);
+    }
+    header .label {
+      display: inline-flex;
+      padding: 6px 11px;
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 999px;
+      font-size: 13px;
+      letter-spacing: .04em;
+      background: rgba(255,255,255,.10);
+    }
+    h1 { margin: 14px 0 10px; font-size: clamp(31px, 5vw, 51px); line-height: 1.15; }
+    header p { max-width: 760px; margin: 0; color: #e8edff; font-size: 17px; }
+
+    nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 22px 0;
+    }
+    nav a {
+      padding: 8px 12px;
+      color: #344158;
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.8);
+      font-size: 14px;
+    }
+    .breadcrumb { margin: 0 0 15px; color: var(--muted); font-size: 13px; }
+    .breadcrumb a { padding: 0; color: var(--blue); border: 0; border-radius: 0; background: transparent; font-weight: 750; }
+    .breadcrumb .separator { opacity: .45; }
+    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(40,74,183,.25); font-size: 13px; font-weight: 800; text-decoration: none; }
+
+    section {
+      margin-top: 22px;
+      padding: 32px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--paper);
+      box-shadow: 0 8px 30px rgba(31, 42, 68, 0.06);
+    }
+    h2 { margin: 0 0 12px; font-size: 27px; line-height: 1.3; }
+    h3 { margin: 28px 0 8px; font-size: 19px; }
+    p { margin: 9px 0; }
+    .summary { color: var(--muted); font-size: 16px; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 9px;
+      margin: 22px 0 4px;
+    }
+    .flow div {
+      position: relative;
+      min-height: 92px;
+      padding: 14px;
+      border: 1px solid #cfd8ee;
+      border-radius: 14px;
+      background: var(--blue-soft);
+      font-size: 14px;
+    }
+    .flow strong { display: block; color: #2647b4; margin-bottom: 5px; }
+
+    .code-card {
+      overflow: hidden;
+      margin: 18px 0;
+      border-radius: 17px;
+      background: var(--code);
+      box-shadow: 0 12px 28px rgba(19, 27, 45, .16);
+    }
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      color: #cdd6ea;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      font-size: 13px;
+    }
+    pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      color: #eef3ff;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    pre code { padding: 0; color: inherit; background: transparent; font-size: inherit; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 13px;
+      margin-top: 16px;
+    }
+    .note {
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fafbfc;
+    }
+    .note strong { display: block; margin-bottom: 6px; }
+    .note p { margin: 0; color: var(--muted); }
+
+    .formula {
+      margin: 15px 0;
+      padding: 18px;
+      text-align: center;
+      border: 1px solid #cfd8ee;
+      border-radius: 15px;
+      background: var(--blue-soft);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 17px;
+    }
+    .fraction {
+      display: inline-grid;
+      grid-template-rows: auto auto;
+      align-items: center;
+      min-width: 3.2em;
+      margin: 0 .3em;
+      vertical-align: middle;
+      text-align: center;
+      line-height: 1.25;
+    }
+    .fraction .numerator {
+      padding: 0 .35em .18em;
+      border-bottom: 1.5px solid currentColor;
+    }
+    .fraction .denominator { padding: .18em .35em 0; }
+    .callout {
+      margin: 17px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--green);
+      border-radius: 12px;
+      background: var(--green-soft);
+    }
+    .warning {
+      margin: 17px 0;
+      padding: 16px 18px;
+      border-left: 5px solid var(--orange);
+      border-radius: 12px;
+      background: var(--orange-soft);
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--line); }
+    th { color: #3c4a64; background: #f6f8fb; }
+    footer { padding: 28px 4px 0; color: var(--muted); text-align: center; }
+
+    @media (max-width: 760px) {
+      .wrap { width: min(100% - 18px, 1040px); padding-top: 10px; }
+      header, section { padding: 23px; border-radius: 18px; }
+      .flow, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로">
+      <a href="../../index.html">⌂ 학습 홈</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../wiki.html">기술 위키</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../roadmaps/roadmap_pytorch.html">PyTorch</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <span aria-current="page">수동 선형회귀</span>
+    </nav>
+    <header>
+      <span class="label">PyTorch Tutorial · 2026-08-10</span>
+      <h1>데이터에서 <code>y = 3x + 2</code>를 찾아내기</h1>
+      <p>랜덤한 기울기와 절편에서 출발해, 예측 오차를 측정하고 Gradient를 이용해 두 값을 한 번 수정하는 과정을 코드 한 줄씩 이해합니다.</p>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#goal">전체 목표</a>
+      <a href="#code">전체 코드</a>
+      <a href="#parameters">w와 b</a>
+      <a href="#loss">오차와 MSE</a>
+      <a href="#change-rate">평균변화율과 미분</a>
+      <a href="#gradient">Gradient</a>
+      <a href="#update">값 수정</a>
+    </nav>
+
+    <section id="goal">
+      <h2>1. 이 프로그램이 하려는 일</h2>
+      <p class="summary">컴퓨터에는 정답 공식의 <code>3</code>과 <code>2</code>를 직접 알려주지 않고, 입력과 정답의 쌍만 보여줍니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>입력 x</th><th>정답 y</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>2</td></tr>
+          <tr><td>1</td><td>5</td></tr>
+          <tr><td>2</td><td>8</td></tr>
+          <tr><td>3</td><td>11</td></tr>
+        </tbody>
+      </table></div>
+      <p>프로그램은 다음 예측식의 <code>w</code>와 <code>b</code>를 조절합니다.</p>
+      <div class="formula">y_pred = x × w + b</div>
+      <div class="grid">
+        <div class="note"><strong>w</strong><p>예측 직선의 기울기입니다. 최종적으로 3에 가까워져야 합니다.</p></div>
+        <div class="note"><strong>b</strong><p>x가 0일 때의 시작점입니다. 최종적으로 2에 가까워져야 합니다.</p></div>
+      </div>
+      <div class="flow" aria-label="학습 과정">
+        <div><strong>① 예측</strong>xw+b를 계산</div>
+        <div><strong>② 비교</strong>정답과 차이 계산</div>
+        <div><strong>③ Loss</strong>틀린 정도를 하나로 합침</div>
+        <div><strong>④ Gradient</strong>수정 방향 계산</div>
+        <div><strong>⑤ Update</strong>w와 b를 조금 이동</div>
+      </div>
+    </section>
+
+    <section id="code">
+      <h2>2. 현재까지 작성한 전체 코드</h2>
+      <p class="summary">원문의 마지막 <code>b.grad글</code>은 실행할 수 없는 오타이므로 <code>b.grad</code>로 수정했습니다.</p>
+      <div class="code-card">
+        <div class="code-head"><span>linear_regression_step.py</span><span>학습 1회</span></div>
+        <pre><code>import torch
+
+x = torch.tensor([
+    [0.0],
+    [1.0],
+    [2.0],
+    [3.0],
+])
+
+y = torch.tensor([
+    [2.0],
+    [5.0],
+    [8.0],
+    [11.0],
+])
+
+w = torch.randn(1, requires_grad=True)
+b = torch.randn(1, requires_grad=True)
+
+y_pred = x * w + b
+
+print("w:", w)
+print("b:", b)
+print("예측값:", y_pred)
+print("실제 정답:", y)
+
+errors = y_pred - y
+print("예측 오차:", errors)
+
+squared_errors = errors ** 2
+loss = squared_errors.mean()
+
+print("오차의 제곱:", squared_errors)
+print("평균 오차 loss:", loss)
+
+loss.backward()
+
+print("w의 gradient:", w.grad)
+print("b의 gradient:", b.grad)
+
+learning_rate = 0.01
+
+with torch.no_grad():
+    w -= learning_rate * w.grad
+    b -= learning_rate * b.grad
+
+print("수정된 w:", w)
+print("수정된 b:", b)</code></pre>
+      </div>
+      <div class="warning"><strong>현재 코드는 학습을 한 번만 수행합니다.</strong> 정답에 가까워지려면 이후 이 과정을 반복하고, 매 반복마다 이전 Gradient를 0으로 초기화해야 합니다. 반복 학습은 다음 단계에서 구현합니다.</div>
+    </section>
+
+    <section id="parameters">
+      <h2>3. 랜덤한 w와 b에서 시작한다</h2>
+      <div class="code-card">
+        <pre><code>w = torch.randn(1, requires_grad=True)
+b = torch.randn(1, requires_grad=True)</code></pre>
+      </div>
+      <p><code>torch.randn(1)</code>의 숫자 <code>1</code>은 초기값 1이 아니라, <strong>랜덤한 숫자를 한 개 만들라</strong>는 뜻입니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>부분</th><th>뜻</th></tr></thead>
+        <tbody>
+          <tr><td><code>w</code></td><td>학습하면서 바꿀 기울기</td></tr>
+          <tr><td><code>b</code></td><td>학습하면서 바꿀 시작점</td></tr>
+          <tr><td><code>requires_grad=True</code></td><td>이 값이 Loss에 어떤 영향을 주었는지 추적하고 Gradient를 계산할 대상으로 표시</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong><code>requires_grad=True</code>가 값을 자동으로 바꾸지는 않습니다.</strong> 계산 기록을 남겨 두었다가 <code>loss.backward()</code>가 수정 방향을 계산할 수 있게 합니다. 실제 수정은 뒤의 Update 코드가 수행합니다.</div>
+
+      <h3>첫 번째 예측</h3>
+      <div class="code-card"><pre><code>y_pred = x * w + b</code></pre></div>
+      <p>같은 <code>w</code>와 <code>b</code>를 데이터 네 개에 각각 적용합니다.</p>
+      <pre><code>x=0 → 0×w+b
+x=1 → 1×w+b
+x=2 → 2×w+b
+x=3 → 3×w+b</code></pre>
+    </section>
+
+    <section id="loss">
+      <h2>4. 예측이 얼마나 틀렸는지 측정한다</h2>
+      <div class="code-card"><pre><code>errors = y_pred - y</code></pre></div>
+      <p>오차가 양수면 예측이 정답보다 크고, 음수면 작으며, 0이면 정확합니다.</p>
+
+      <h3>왜 오차를 제곱하는가?</h3>
+      <p>오차를 그대로 더하면 음수와 양수가 서로 지워질 수 있습니다.</p>
+      <div class="formula"><span class="fraction"><span class="numerator">−2 + 2</span><span class="denominator">2</span></span> = 0</div>
+      <p>두 예측 모두 2만큼 틀렸는데도 오차가 0처럼 보입니다. 제곱하면 모든 값이 양수가 됩니다.</p>
+      <div class="formula"><span class="fraction"><span class="numerator">(−2)² + 2²</span><span class="denominator">2</span></span> = <span class="fraction"><span class="numerator">4 + 4</span><span class="denominator">2</span></span> = 4</div>
+      <div class="code-card"><pre><code>squared_errors = errors ** 2
+loss = squared_errors.mean()</code></pre></div>
+      <p>이 Loss를 <strong>평균제곱오차(MSE)</strong>라고 합니다.</p>
+      <div class="grid">
+        <div class="note"><strong>분산</strong><p>각 값이 평균에서 얼마나 떨어졌는지 제곱한 뒤 평균냅니다.</p></div>
+        <div class="note"><strong>MSE</strong><p>각 예측값이 정답에서 얼마나 떨어졌는지 제곱한 뒤 평균냅니다.</p></div>
+      </div>
+      <div class="callout">둘 다 <strong>차이 → 제곱 → 평균</strong> 구조를 사용하지만, 분산은 평균과 비교하고 MSE는 정답과 비교합니다.</div>
+
+      <h3>별도의 Loss 함수에 넣지 않았는데 왜 이것이 함수인가?</h3>
+      <p>일반 애플리케이션 개발에 익숙하면 “특정 함수에 값을 전달해야 Loss가 계산된다”고 생각하기 쉽습니다. 하지만 아래에 순서대로 작성한 Tensor 연산 전체가 이미 하나의 Loss 함수를 구성합니다.</p>
+      <div class="code-card"><pre><code>y_pred = x * w + b
+errors = y_pred - y
+squared_errors = errors ** 2
+loss = squared_errors.mean()</code></pre></div>
+      <p>이 코드를 하나의 수학식으로 합치면 다음과 같습니다.</p>
+      <div class="formula">Loss(w,b) = mean((xw + b − y)²)</div>
+      <p>명시적인 Python 함수로 감싸도 의미는 같습니다.</p>
+      <div class="code-card"><pre><code>def calculate_loss(x, y, w, b):
+    y_pred = x * w + b
+    errors = y_pred - y
+    squared_errors = errors ** 2
+
+    return squared_errors.mean()
+
+
+loss = calculate_loss(x, y, w, b)</code></pre></div>
+
+      <h3>일반 숫자와 PyTorch Tensor의 차이</h3>
+      <div class="grid">
+        <div class="note"><strong>Java 등의 일반 숫자</strong><p>계산이 끝나면 보통 최종 숫자만 남습니다. <code>double loss = 7.5</code>만으로는 그 숫자가 어떤 연산을 거쳐 만들어졌는지 거슬러 올라갈 수 없습니다.</p></div>
+        <div class="note"><strong>자동미분을 추적하는 Tensor</strong><p>최종 숫자뿐 아니라 자신을 만든 연산과 이전 Tensor의 연결 관계도 가지고 있습니다. 이 관계를 계산 그래프라고 합니다.</p></div>
+      </div>
+      <div class="formula">w,b → xw+b → 예측−정답 → 제곱 → 평균 → loss</div>
+      <p>출력에서 보이는 <code>grad_fn=&lt;MeanBackward0&gt;</code>는 이 Loss Tensor가 평균 연산으로 만들어졌고, 이전 계산으로 거슬러 올라갈 기록을 가지고 있다는 표시입니다.</p>
+      <div class="callout"><strong>개발자 관점의 핵심 전환</strong> — PyTorch에서는 미리 정의된 특별한 Loss 함수만 역전파할 수 있는 것이 아닙니다. <code>requires_grad=True</code>인 Tensor들로 수행한 연산 자체가 동적으로 함수와 계산 그래프를 만들고, 최종 스칼라 Tensor의 <code>backward()</code>가 그 그래프를 사용합니다.</div>
+    </section>
+
+    <section id="change-rate">
+      <h2>5. 평균변화율에서 순간변화율로</h2>
+      <p class="summary">Gradient를 이해하려면 먼저 두 점 사이의 평균변화율과 한 점에서의 순간변화율을 구분해야 합니다.</p>
+
+      <h3>두 점 사이의 평균변화율</h3>
+      <p>다음과 같이 단순한 Loss 함수 하나를 생각합니다.</p>
+      <div class="formula">Loss(w) = (w − 3)²</div>
+      <p><code>w=1</code>일 때 Loss는 4이고, <code>w=2</code>일 때 Loss는 1입니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>대상</th><th>처음</th><th>나중</th><th>변화량</th></tr></thead>
+        <tbody>
+          <tr><td>w</td><td>1</td><td>2</td><td>+1</td></tr>
+          <tr><td>Loss</td><td>4</td><td>1</td><td>−3</td></tr>
+        </tbody>
+      </table></div>
+      <div class="formula">평균변화율 = <span class="fraction"><span class="numerator">Loss 변화량</span><span class="denominator">w 변화량</span></span> = <span class="fraction"><span class="numerator">−3</span><span class="denominator">1</span></span> = −3</div>
+      <p><code>−3</code>은 이 구간에서 <code>w</code>가 증가할 때 Loss가 감소했다는 뜻입니다.</p>
+
+      <h3>두 번째 점을 기준점에 점점 가깝게 가져온다</h3>
+      <p>기준점 <code>w=1</code>은 그대로 두고, 비교할 두 번째 점을 점점 가까이 가져옵니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>비교 구간</th><th>평균변화율</th></tr></thead>
+        <tbody>
+          <tr><td>1 → 2</td><td>−3</td></tr>
+          <tr><td>1 → 1.1</td><td>−3.9</td></tr>
+          <tr><td>1 → 1.01</td><td>−3.99</td></tr>
+          <tr><td>1 → 1.001</td><td>−3.999</td></tr>
+        </tbody>
+      </table></div>
+      <p>두 점의 간격을 0에 한없이 가깝게 줄이면 변화율은 <code>−4</code>에 가까워집니다. 이것을 <strong><code>w=1</code>이라는 한 점에서의 순간변화율 또는 미분값</strong>이라고 합니다.</p>
+      <div class="formula">w=1에서 <span class="fraction"><span class="numerator">dLoss</span><span class="denominator">dw</span></span> = −4</div>
+
+      <h3>왼쪽에서 접근해도 같은가?</h3>
+      <p><code>w=0.9999</code>처럼 기준점의 왼쪽에서도 접근할 수 있습니다.</p>
+      <div class="grid">
+        <div class="note"><strong>왼쪽에서 접근</strong><p>w 변화량은 음수, Loss 변화량은 양수이므로 변화율은 음수이며 약 −4.0001이 됩니다.</p></div>
+        <div class="note"><strong>오른쪽에서 접근</strong><p>w 변화량은 양수, Loss 변화량은 음수이므로 변화율은 음수이며 약 −3.9999가 됩니다.</p></div>
+      </div>
+      <p>양쪽에서 같은 값 <code>−4</code>에 가까워지므로 이 점에서 미분할 수 있습니다. 접근하는 쪽은 달라도 변화량의 부호까지 함께 나누기 때문에 같은 순간변화율을 얻습니다.</p>
+      <div class="callout"><strong>PyTorch가 실제로 w를 조금씩 움직여 보는 것은 아닙니다.</strong> 작은 간격으로 접근하는 설명은 순간변화율의 의미를 이해하기 위한 것입니다. PyTorch의 자동미분은 저장된 계산식에 미분 규칙을 적용해 현재 순간변화율을 바로 계산합니다.</div>
+
+      <h3>실제 실습 데이터에서 평균변화율과 w.grad 구분하기</h3>
+      <p>실제 데이터 네 개를 사용하고 현재 값을 <code>w=1</code>, <code>b=1</code>로 놓으면 예측, 오차, Loss는 다음과 같습니다.</p>
+      <div class="code-card"><pre><code>y_pred = [1, 2, 3, 4]
+y      = [2, 5, 8, 11]
+errors = [-1, -3, -5, -7]
+
+loss = (1² + 3² + 5² + 7²) / 4
+     = 21</code></pre></div>
+      <p><code>b=1</code>은 고정하고 <code>w</code>만 <code>1 → 1.1</code>로 움직이면 새로운 Loss는 <code>19.335</code>가 됩니다.</p>
+      <div class="formula">평균변화율 = <span class="fraction"><span class="numerator">19.335 − 21</span><span class="denominator">1.1 − 1</span></span> = −16.65</div>
+      <p>하지만 <code>−16.65</code>는 <code>0.1</code>이라는 구간에서 계산한 평균변화율이지, 정확한 <code>w.grad</code>는 아닙니다. 움직이는 크기를 바꾸면 평균변화율도 달라집니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>w의 비교 구간</th><th>w 변화량</th><th>평균변화율</th></tr></thead>
+        <tbody>
+          <tr><td>1 → 1.1</td><td>0.1</td><td>−16.65</td></tr>
+          <tr><td>1 → 1.01</td><td>0.01</td><td>−16.965</td></tr>
+          <tr><td>1 → 1.001</td><td>0.001</td><td>−16.9965</td></tr>
+        </tbody>
+      </table></div>
+      <p>이동량을 0에 한없이 가깝게 줄이면 평균변화율은 <code>−17</code>에 가까워집니다. 이 극한값이 현재 <code>w=1</code>, <code>b=1</code>에서의 순간변화율입니다.</p>
+      <div class="formula">w.grad = <span class="fraction"><span class="numerator">∂Loss</span><span class="denominator">∂w</span></span> = lim(Δw→0) <span class="fraction"><span class="numerator">Loss(w+Δw,b) − Loss(w,b)</span><span class="denominator">Δw</span></span> = −17</div>
+      <div class="grid">
+        <div class="note"><strong>평균변화율</strong><p>실제로 선택한 이동 구간에 따라 값이 달라집니다.</p></div>
+        <div class="note"><strong>순간변화율 · w.grad</strong><p>이동량을 0에 가깝게 보냈을 때 수렴하는 현재 한 점의 변화율입니다.</p></div>
+      </div>
+
+      <h3>학습할 값이 여러 개라면 각각 구한다</h3>
+      <p>실제 Loss는 <code>w</code>와 <code>b</code> 두 값에 의해 결정됩니다.</p>
+      <div class="formula">Loss(w, b)</div>
+      <div class="grid">
+        <div class="note"><strong>w에 대한 순간변화율</strong><p>b는 고정하고 w만 아주 조금 변한다고 보았을 때 Loss가 변하는 비율입니다. PyTorch는 이를 <code>w.grad</code>에 저장합니다.</p></div>
+        <div class="note"><strong>b에 대한 순간변화율</strong><p>w는 고정하고 b만 아주 조금 변한다고 보았을 때 Loss가 변하는 비율입니다. PyTorch는 이를 <code>b.grad</code>에 저장합니다.</p></div>
+      </div>
+      <div class="formula">Gradient = [w에 대한 순간변화율, b에 대한 순간변화율]</div>
+      <p>즉 Gradient는 특별한 별개의 숫자가 아니라, <strong>학습할 값 각각의 순간변화율을 모아 놓은 것</strong>입니다.</p>
+    </section>
+
+    <section id="gradient">
+      <h2>6. backward()가 Gradient를 계산한다</h2>
+      <div class="code-card"><pre><code>loss.backward()
+
+print(w.grad)
+print(b.grad)</code></pre></div>
+      <p><code>backward()</code>는 어떤 외부 함수에 Loss를 다시 전달하는 호출이 아닙니다. 현재 <code>loss</code> Tensor 자신이 기억하고 있는 계산 그래프에서 출발해 앞의 계산을 거꾸로 따라가며, <code>w</code>와 <code>b</code> 각각에 대한 Loss의 순간변화율을 계산합니다.</p>
+      <div class="flow" style="grid-template-columns: repeat(5, 1fr)" aria-label="역전파 방향">
+        <div><strong>loss</strong>평균 오차</div>
+        <div><strong>squared_errors</strong>오차 제곱</div>
+        <div><strong>errors</strong>예측−정답</div>
+        <div><strong>y_pred</strong>xw+b</div>
+        <div><strong>w, b</strong>조절 대상</div>
+      </div>
+      <div class="callout"><strong><code>backward()</code>는 w와 b를 움직이지 않습니다.</strong> 실행 전후의 <code>w</code>와 <code>b</code>는 그대로이고, 계산 결과인 <code>w.grad</code>와 <code>b.grad</code>만 채워집니다.</div>
+      <div class="warning"><strong>반환값이 아니라 <code>.grad</code>에 저장합니다.</strong> <code>result = loss.backward()</code>의 <code>result</code>는 <code>None</code>입니다. 계산된 변화율은 <code>requires_grad=True</code>로 표시한 학습 대상의 <code>w.grad</code>, <code>b.grad</code>에 각각 저장됩니다.</div>
+
+      <h3>부호는 어느 방향으로 움직일지 알려준다</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Gradient</th><th>Loss를 줄이는 방향</th></tr></thead>
+        <tbody>
+          <tr><td>음수</td><td>해당 값을 증가시킵니다.</td></tr>
+          <tr><td>양수</td><td>해당 값을 감소시킵니다.</td></tr>
+          <tr><td>0</td><td>현재 위치에서 기울기가 평평합니다.</td></tr>
+        </tbody>
+      </table></div>
+      <p>예를 들어 <code>w.grad=-31.4925</code>라면, 현재 위치에서 <code>w</code>를 조금 증가시킬 때 Loss가 감소한다는 뜻입니다.</p>
+      <div class="callout"><strong>w와 w.grad는 다릅니다.</strong><br><code>w</code>는 예측 직선의 기울기이고, <code>w.grad</code>는 그 기울기 <code>w</code>를 바꿀 때 Loss가 변하는 방향과 정도입니다.</div>
+    </section>
+
+    <section id="update">
+      <h2>7. 학습률만큼 w와 b를 수정한다</h2>
+      <div class="code-card"><pre><code>learning_rate = 0.01
+
+with torch.no_grad():
+    w -= learning_rate * w.grad
+    b -= learning_rate * b.grad</code></pre></div>
+      <div class="formula">새 값 = 현재 값 − 학습률 × Gradient</div>
+      <p>Gradient는 현재 위치에서의 경사를 계산하고, <code>learning_rate</code>는 그 방향으로 실제로 얼마나 이동할지 사람이 정한 값입니다.</p>
+      <p><code>w.grad=-31.4925</code>, 학습률이 <code>0.01</code>이라면:</p>
+      <div class="formula">w의 변화량 = −0.01 × (−31.4925) = +0.314925</div>
+      <p>Gradient가 음수이므로 빼기와 만나 양수가 되고, <code>w</code>는 약 0.315 증가합니다.</p>
+
+      <h3>Gradient가 음수면 왜 w가 증가하는가?</h3>
+      <p>업데이트 식을 그대로 펼치면 부호의 의미가 보입니다.</p>
+      <div class="formula">새 w = 현재 w − learning_rate × w.grad</div>
+      <p><code>w.grad</code>가 음수이면 음수를 빼게 되므로 실제 계산은 더하기가 됩니다.</p>
+      <div class="code-card"><pre><code>현재 w = 1
+learning_rate = 0.1
+w.grad = -4
+
+새 w = 1 - 0.1 * (-4)
+     = 1 + 0.4
+     = 1.4</code></pre></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>w.grad</th><th>업데이트 결과</th><th>Loss를 줄이기 위한 움직임</th></tr></thead>
+        <tbody>
+          <tr><td>음수</td><td>음수를 빼므로 w가 증가</td><td>오른쪽으로 이동</td></tr>
+          <tr><td>양수</td><td>양수를 빼므로 w가 감소</td><td>왼쪽으로 이동</td></tr>
+          <tr><td>0에 가까움</td><td>w가 거의 변하지 않음</td><td>현재 지점 주변에 머묾</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>최적점에 가까워지면 이동량도 작아진다</h3>
+      <p>학습률이 같더라도 Gradient의 크기가 작아지면 실제 업데이트 크기도 작아집니다.</p>
+      <div class="code-card"><pre><code>w.grad = -4.0  → w 변화량 = +0.4
+w.grad = -2.0  → w 변화량 = +0.2
+w.grad = -0.2  → w 변화량 = +0.02
+w.grad ≈  0    → w가 거의 움직이지 않음</code></pre></div>
+      <p>현재 선형회귀 MSE는 아래로 볼록한 그릇 모양이므로 최솟값에 가까워질수록 Gradient가 0에 가까워집니다. 만약 한 번에 너무 멀리 이동해 최적점을 지나치면 Gradient의 부호가 양수로 바뀌고, 다음 업데이트에서 <code>w</code>를 다시 감소시키는 방향으로 움직입니다.</p>
+      <div class="warning"><strong>Gradient 0이 언제나 낮은 Loss를 보장하는 것은 아닙니다.</strong> 일반적인 복잡한 함수에서는 Gradient가 0인 곳이 최솟값, 최댓값 또는 안장점일 수 있습니다. 지금의 단순한 선형회귀 MSE에서는 Loss가 볼록하므로 Gradient가 0인 지점이 전체 최솟값입니다.</div>
+
+      <h3>왜 <code>torch.no_grad()</code>를 사용하는가?</h3>
+      <p><code>w</code>와 <code>b</code>를 수정하는 행위 자체는 학습할 계산식에 포함할 필요가 없습니다. <code>torch.no_grad()</code>는 이 수정 구간을 자동미분 기록에서 제외합니다.</p>
+
+      <h3><code>w.grad</code>는 w의 변화율이 아니다</h3>
+      <div class="formula">w.grad = w를 바꿀 때 Loss가 변하는 순간변화율</div>
+      <p><code>w</code>는 모델이 조정할 값이고, <code>w.grad</code>는 현재 <code>w</code> 위치에서 Loss 그래프가 어느 방향으로 얼마나 가파른지를 나타냅니다. 정답 <code>y</code>, 예측값 <code>y_pred</code>, 현재 Loss 값과도 서로 다른 숫자입니다.</p>
+      <div class="callout"><strong><code>y=2</code>는 계산 결과가 아니라 맞혀야 하는 정답 데이터입니다.</strong><br><code>w=1</code>, <code>x=1</code>이면 현재 예측은 <code>y_pred=wx=1</code>입니다. 학습 전부터 <code>y_pred=y</code>인 것이 아니며, 두 값의 차이로 Loss를 만든 뒤 w를 조정해 예측을 정답에 가까이 보냅니다.</div>
+
+      <h3><code>Loss=(wx-y)²</code>의 Gradient를 문자로 유도한다</h3>
+      <p>임의의 숫자를 대입해 맞는지 확인하는 데서 멈추지 않고, 문자 그대로 전개해 공식을 유도합니다. 시작점은 <code>w</code>를 정확히 0이 아니라 0에 가까워지는 값 <code>h</code>만큼 움직였을 때의 변화율입니다.</p>
+      <div class="formula">lim(h→0) <span class="fraction"><span class="numerator">((w+h)x-y)² − (wx-y)²</span><span class="denominator">h</span></span></div>
+
+      <h4>1단계 · 움직인 뒤의 오차를 정리한다</h4>
+      <p>첫 번째 괄호에서 분배법칙을 적용합니다.</p>
+      <div class="code-card"><pre><code>(w + h)x - y
+= wx + hx - y
+= (wx - y) + hx</code></pre></div>
+      <p>따라서 전체 변화율은 다음과 같습니다.</p>
+      <div class="formula">lim(h→0) <span class="fraction"><span class="numerator">((wx-y)+hx)² − (wx-y)²</span><span class="denominator">h</span></span></div>
+
+      <h4>2단계 · 반복되는 기존 오차를 A로 치환한다</h4>
+      <p>식을 보기 쉽게 만들기 위해 기존 오차인 <code>wx-y</code>를 잠시 <code>A</code>라고 둡니다.</p>
+      <div class="formula">A = wx − y</div>
+      <p>그러면 식은 다음처럼 단순해집니다.</p>
+      <div class="formula">lim(h→0) <span class="fraction"><span class="numerator">(A+hx)² − A²</span><span class="denominator">h</span></span></div>
+
+      <h4>3단계 · 제곱 공식을 사용해 전개한다</h4>
+      <div class="formula">(A+hx)² = A² + 2Ahx + h²x²</div>
+      <p>이를 원래 식에 넣습니다.</p>
+      <div class="formula">lim(h→0) <span class="fraction"><span class="numerator">A² + 2Ahx + h²x² − A²</span><span class="denominator">h</span></span></div>
+      <p>앞의 <code>A²</code>와 뒤의 <code>−A²</code>가 서로 사라집니다.</p>
+      <div class="formula">lim(h→0) <span class="fraction"><span class="numerator">2Ahx + h²x²</span><span class="denominator">h</span></span></div>
+
+      <h4>4단계 · h를 약분한 뒤 0으로 보낸다</h4>
+      <p>분자의 각 항과 분모에 공통으로 들어 있는 <code>h</code>를 약분합니다.</p>
+      <div class="formula">lim(h→0) (2Ax + hx²)</div>
+      <div class="callout"><strong>이때 h는 아직 정확히 0이 아닙니다.</strong><br>0이 아닌 h로 먼저 약분한 뒤, 약분이 끝난 식에서 h가 0에 한없이 가까워질 때의 값을 구합니다. 따라서 0으로 나누는 계산이 아닙니다.</div>
+      <p>이제 <code>h→0</code>이면 <code>hx²→0</code>이므로 다음만 남습니다.</p>
+      <div class="formula">2Ax + 0x² = 2Ax</div>
+
+      <h4>5단계 · A를 원래 오차로 되돌린다</h4>
+      <p><code>A=wx-y</code>였으므로 다시 대입합니다.</p>
+      <div class="formula">2Ax = 2(wx-y)x</div>
+      <div class="formula"><span class="fraction"><span class="numerator">d</span><span class="denominator">dw</span></span>(wx-y)² = 2(wx-y)x</div>
+      <div class="formula">Gradient = 2 × error × x = 2(wx-y)x</div>
+      <p>이 공식은 특정 숫자에서만 성립하는 것이 아니라, 모델이 <code>y_pred=wx</code>이고 Loss가 제곱오차일 때 임의의 <code>w</code>, <code>x</code>, <code>y</code>에 적용됩니다. 모델이나 Loss가 달라지면 Gradient 식도 달라집니다.</p>
+
+      <h3>학습률은 Loss의 일부가 아니라 Gradient의 반영 비율이다</h3>
+      <div class="formula">w의 이동량 = −learning_rate × w.grad</div>
+      <p><code>learning_rate=0.1</code>은 현재 Loss의 10%를 더한다는 뜻이 아닙니다. <strong>Loss 변화율의 반대 방향으로, 그 크기의 0.1배만큼 w를 이동</strong>한다는 뜻입니다.</p>
+      <div class="code-card"><pre><code>w = 1.2
+w.grad = -1.6
+learning_rate = 0.1
+
+이동량 = -0.1 * (-1.6) = +0.16
+새 w = 1.2 + 0.16 = 1.36</code></pre></div>
+
+      <h3>왜 Gradient를 0으로 지우고 다시 계산하는가?</h3>
+      <p>PyTorch의 <code>backward()</code>는 새 Gradient로 교체하지 않고 기존 <code>.grad</code>에 더합니다.</p>
+      <div class="formula">w.grad += 이번 backward가 계산한 Gradient</div>
+      <div class="code-card"><pre><code>기존 w.grad = -2.0
+현재 위치의 새 Gradient = -1.6
+
+초기화 없이 backward → -3.6
+zero_() 뒤 backward → -1.6</code></pre></div>
+      <p>여러 계산이나 여러 미니배치의 영향을 의도적으로 합칠 때 누적이 필요합니다. 매 학습 단계에서 현재 Gradient만 사용할 때는 업데이트 전후의 적절한 위치에서 <code>zero_()</code> 또는 Optimizer의 <code>zero_grad()</code>로 지웁니다.</p>
+
+      <h3><code>w -= ...</code>와 <code>w = w - ...</code>의 차이</h3>
+      <p><code>torch.no_grad()</code> 안에서 <code>w = w - ...</code>를 실행하면 오른쪽 계산으로 새 Tensor를 만들고 이름 <code>w</code>가 그 Tensor를 가리키게 됩니다. 새 Tensor는 자동미분 추적이 꺼져 있어 다음의 <code>w.grad</code>가 <code>None</code>이 될 수 있습니다.</p>
+      <div class="grid">
+        <div class="note"><strong><code>w = w - ...</code></strong><p>새 Tensor로 이름을 다시 연결합니다.</p></div>
+        <div class="note"><strong><code>w -= ...</code></strong><p>기존 leaf Tensor의 값을 in-place로 수정해 <code>requires_grad=True</code> 상태를 유지합니다.</p></div>
+      </div>
+
+      <h3>반복문 출력의 시점을 구분한다</h3>
+      <p>Loss를 계산한 뒤 w를 업데이트하고 둘을 함께 출력하면, <strong>수정 전 Loss와 수정 후 w</strong>가 같은 줄에 표시됩니다.</p>
+      <div class="code-card"><pre><code>y_pred = w * x
+loss = (y_pred - y) ** 2  # 현재 w로 계산한 수정 전 Loss
+loss.backward()
+
+with torch.no_grad():
+    w -= learning_rate * w.grad  # 이제 w는 수정 후 값
+
+print(w, loss)  # 수정 후 w, 수정 전 Loss</code></pre></div>
+      <p>예를 들어 첫 반복의 출력이 <code>w=1.2, loss=1.0</code>이라면 Loss 1.0은 <code>w=1.0</code>에서 계산된 값입니다. <code>w=1.2</code>의 Loss 0.64는 다음 forward에서 계산됩니다.</p>
+
+      <h3>오늘 직접 확인한 한 파라미터 학습 기록</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Gradient를 계산한 w</th><th>그 위치의 Loss</th><th>w.grad</th><th>학습률 0.1 적용 후 w</th></tr></thead>
+        <tbody>
+          <tr><td>1.00</td><td>1.0000</td><td>−2.00</td><td>1.20</td></tr>
+          <tr><td>1.20</td><td>0.6400</td><td>−1.60</td><td>1.36</td></tr>
+          <tr><td>1.36</td><td>0.4096</td><td>−1.28</td><td>다음 업데이트 전</td></tr>
+        </tbody>
+      </table></div>
+      <p><code>w</code>가 정답을 만드는 값 2에 가까워지면서 Loss와 <code>|w.grad|</code>가 함께 작아졌습니다. 여기서 <code>w.grad</code>는 자동으로 현재 w를 따라 바뀌는 속성이 아닙니다. 기존 값을 지우고 현재 w로 새 forward와 <code>backward()</code>를 실행해야 현재 위치의 값이 저장됩니다.</p>
+
+      <div class="warning">
+        <strong>현재 검증한 범위와 다음에 이어서 할 일</strong>
+        <p><code>w</code> 하나를 사용하는 <code>y=wx</code>에서 Loss 감소, Gradient 재계산, 반복 학습과 손계산 <code>2(wx-y)x</code>의 일치를 확인했습니다. 선형회귀 전체 실습은 이후 <code>b</code>, 여러 데이터의 평균 Loss, <code>Optimizer</code> 비교까지 확장합니다. 지금은 Transformer Attention 구현으로 복귀합니다.</p>
+      </div>
+    </section>
+
+    <footer>
+      PyTorch 기초 실습 · 첫 번째 수동 Gradient Descent 기록
+    </footer>
+  </div>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

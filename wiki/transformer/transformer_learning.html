@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="코드 셀 단위로 배우는 Transformer 구현 학습 문서">
+  <title>Transformer 학습 문서</title>
+  <style>
+    :root {
+      --ink: #18211d;
+      --muted: #667069;
+      --paper: #f6f3eb;
+      --panel: #fffdf7;
+      --line: #d9d5c8;
+      --green: #176b4d;
+      --green-soft: #dcecdf;
+      --orange: #d56a3a;
+      --code: #17211d;
+      --code-ink: #eaf3ec;
+      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
+        var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.7;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 76px 0 52px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--green);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      font-size: clamp(2.6rem, 7vw, 5.7rem);
+      font-weight: 800;
+      letter-spacing: -0.065em;
+      line-height: 1.02;
+    }
+
+    .lead {
+      max-width: 680px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .doc-link {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 9px 13px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
+    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
+    .breadcrumb .separator { opacity: .45; }
+    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 56px;
+      padding: 52px 0 100px;
+    }
+
+    nav {
+      position: sticky;
+      top: 28px;
+      align-self: start;
+    }
+
+    nav p {
+      margin: 0 0 13px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    nav a {
+      display: block;
+      margin: 2px 0;
+      padding: 9px 12px;
+      color: var(--muted);
+      border-left: 2px solid transparent;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    nav a:hover, nav a:focus-visible {
+      color: var(--green);
+      border-left-color: var(--green);
+      outline: none;
+    }
+
+    nav .current {
+      color: var(--ink);
+      font-weight: 750;
+      border-left-color: var(--orange);
+    }
+
+    main { min-width: 0; }
+
+    .cell-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--orange);
+      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .cell-label::before {
+      width: 9px;
+      height: 9px;
+      content: "";
+      background: var(--orange);
+      border-radius: 50%;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      line-height: 1.13;
+    }
+
+    h3 {
+      margin: 52px 0 14px;
+      font-size: 1.28rem;
+      letter-spacing: -0.02em;
+    }
+
+    p { margin: 0 0 18px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .summary {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.03rem;
+    }
+
+    .code-card {
+      position: relative;
+      overflow: hidden;
+      margin: 30px 0;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 13px 18px;
+      color: #9db0a4;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    pre {
+      margin: 0;
+      padding: 24px;
+      overflow-x: auto;
+      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+      tab-size: 4;
+    }
+
+    .kw { color: #f1a567; }
+    .type { color: #80d6a6; }
+    .fn { color: #e7d17d; }
+    .num { color: #a9bff7; }
+    .comment { color: #819389; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 28px 0 8px;
+    }
+
+    .flow-item {
+      position: relative;
+      min-height: 134px;
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .flow-item:not(:last-child)::after {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -16px;
+      width: 21px;
+      height: 21px;
+      content: "→";
+      color: var(--green);
+      background: var(--paper);
+      text-align: center;
+      line-height: 19px;
+    }
+
+    .flow-item strong { display: block; margin-bottom: 9px; }
+    .flow-item span { color: var(--muted); font-size: 0.86rem; }
+
+    .shape {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 7px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 5px;
+      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .explain-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .note {
+      padding: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .note .number {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--orange);
+      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .note strong { display: block; margin-bottom: 7px; }
+    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+    .formula {
+      margin: 30px 0;
+      padding: 28px;
+      background: var(--green-soft);
+      border-left: 4px solid var(--green);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .formula .math {
+      display: block;
+      margin-bottom: 10px;
+      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
+        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .reasoning {
+      margin: 52px 0 0;
+      padding: 30px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .reasoning h3 { margin-top: 0; }
+
+    .equivalence {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 14px;
+      margin: 24px 0 30px;
+    }
+
+    .equivalence article {
+      padding: 20px;
+      background: var(--paper);
+      border-radius: 10px;
+    }
+
+    .equivalence strong { display: block; margin-bottom: 10px; }
+    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
+
+    .path-map {
+      display: grid;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .path-row {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 15px 17px;
+      background: var(--green-soft);
+      border-radius: 9px;
+    }
+
+    .path-row strong { color: var(--green); }
+    .path-row code { font-size: 0.83rem; }
+
+    .caution {
+      margin: 24px 0 0;
+      padding: 17px 19px;
+      color: var(--muted);
+      background: #f4eadf;
+      border-left: 3px solid var(--orange);
+      border-radius: 0 9px 9px 0;
+      font-size: 0.9rem;
+    }
+
+    table {
+      width: 100%;
+      margin: 20px 0;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
+    td { font-size: 0.92rem; }
+    tr:last-child td { border-bottom: 0; }
+
+    .checkpoint {
+      margin-top: 52px;
+      padding: 28px;
+      color: white;
+      background: var(--green);
+      border-radius: 16px;
+    }
+
+    .checkpoint h3 { margin: 0 0 18px; }
+    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+    summary { cursor: pointer; font-weight: 700; }
+    details p { margin: 12px 0 0; color: #dcecdf; }
+
+    .cell-start {
+      margin-top: 92px;
+      padding-top: 72px;
+      border-top: 2px solid var(--line);
+    }
+
+    .concept-figure {
+      margin: 28px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .trig-axis { stroke: #667069; stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
+    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
+    .trig-point { fill: #d56a3a; }
+    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
+    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
+    .position-radius { stroke: #d56a3a; stroke-width: 3; }
+    .position-point { fill: #d56a3a; }
+    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .wave-axis { stroke: #667069; stroke-width: 1.5; }
+    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
+    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
+    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
+    .wave-sin-dot { fill: #176b4d; }
+    .wave-cos-dot { fill: #d56a3a; }
+    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    footer {
+      padding: 24px 0 42px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 800px) {
+      header { padding-top: 48px; }
+      .layout { grid-template-columns: 1fr; gap: 30px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      nav .current { border-bottom-color: var(--orange); }
+      .flow { grid-template-columns: 1fr 1fr; }
+      .flow-item:not(:last-child)::after { display: none; }
+      .equivalence { grid-template-columns: 1fr; }
+      .equals { justify-self: center; }
+    }
+
+    @media (max-width: 540px) {
+      .page { width: min(100% - 24px, 1120px); }
+      .flow, .explain-grid { grid-template-columns: 1fr; }
+      .reasoning { padding: 22px; }
+      .path-row { grid-template-columns: 1fr; gap: 4px; }
+      pre { padding: 18px; font-size: 0.78rem; }
+      th, td { padding: 11px 10px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <header>
+    <div class="page">
+      <nav class="breadcrumb" aria-label="문서 경로">
+        <a href="../../index.html">⌂ 학습 홈</a>
+        <span class="separator" aria-hidden="true">›</span>
+        <a href="../../wiki.html">기술 위키</a>
+        <span class="separator" aria-hidden="true">›</span>
+        <span aria-current="page">Transformer 코드 학습</span>
+      </nav>
+      <p class="eyebrow">Transformer from scratch · 학습 노트</p>
+      <h1>Transformer,<br>주제별 학습 문서</h1>
+      <p class="lead">긴 단일 문서를 주제별 하위 문서로 나누었습니다. 각 문서의 기존 설명과 예제는 생략 없이 그대로 유지합니다.</p>
+      <a class="doc-link" href="../math/transformer_math_learning.html">트랜스포머 수학 상위 문서 →</a>
+    </div>
+  </header>
+
+  <div class="page layout">
+        <nav aria-label="문서 목차">
+      <p>Transformer topics</p>
+      <a href="#token-embedding">01 · Token Embedding</a>
+      <a href="#positional-encoding">02 · Positional Encoding</a>
+      <a href="#scaled-dot-product-attention">03 · Scaled Dot-Product Attention</a>
+      <a href="../math/transformer_math_learning.html">수학 개념 상위 문서 ↗</a>
+    </nav>
+
+    <main>
+      <section id="token-embedding">
+        <span id="flow"></span><span id="line-by-line"></span><span id="embedding-init"></span><span id="why-scale"></span><span id="shapes"></span><span id="checkpoint"></span>
+        <div class="cell-label">Topic 01</div>
+        <h2>Token Embedding</h2>
+        <p class="summary">토큰 번호를 벡터로 바꾸고, 임베딩 초기화·<code>√d_model</code> 스케일·Shape을 이해합니다.</p>
+        <a class="doc-link" href="transformer_token_embedding_learning.html">Token Embedding 문서 열기 →</a>
+      </section>
+      <section id="positional-encoding">
+        <span id="div-term"></span><span id="trig-math-reference"></span><span id="sin-cos-pair"></span><span id="positional-shapes"></span><span id="positional-checkpoint"></span><span id="sin-cos-overlap"></span><span id="why-position"></span>
+        <div class="cell-label">Topic 02</div>
+        <h2>Positional Encoding</h2>
+        <p class="summary">위치마다 달라지는 sin·cos 벡터와 여러 회전 속도가 위치 정보가 되는 과정을 이해합니다.</p>
+        <a class="doc-link" href="transformer_positional_encoding_learning.html">Positional Encoding 문서 열기 →</a>
+      </section>
+      <section id="scaled-dot-product-attention">
+        <div class="cell-label">Topic 03</div>
+        <h2>Scaled Dot-Product Attention</h2>
+        <p class="summary">Q·K 내적, <code>√d_k</code> Scaling, Padding/Causal Mask, Softmax와 Value 가중합을 이해합니다.</p>
+        <a class="doc-link" href="transformer_attention_learning.html">Attention 문서 열기 →</a>
+      </section>
+      <section>
+        <div class="caution"><strong>내용 보존 원칙</strong> — 기존 Transformer 문서의 14개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 내용을 요약해 대체하지 않고 하위 문서의 위치만 안내합니다.</div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
+  </footer>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

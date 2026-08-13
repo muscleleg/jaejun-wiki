@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>회원 이탈 예측으로 이해하는 머신러닝 실무 기초</title>
+  <style>
+    :root { --ink:#172033; --muted:#61708a; --line:#dce3ee; --paper:#f5f7fb; --card:#fff; --blue:#2457a7; --blue-soft:#eef5ff; --green-soft:#edf9f3; --orange-soft:#fff5e8; --red-soft:#fff0f0; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; line-height:1.75; }
+    .wrap { width:min(1080px, calc(100% - 30px)); margin:34px auto 70px; }
+    .hero, section, nav { background:var(--card); border:1px solid var(--line); border-radius:18px; }
+    .hero { padding:42px; background:linear-gradient(135deg,#13233e,#2457a7); color:white; }
+    .hero span { font-size:13px; letter-spacing:.08em; opacity:.8; text-transform:uppercase; }
+    .hero h1 { margin:10px 0 12px; font-size:clamp(30px,5vw,48px); line-height:1.18; }
+    .hero p { max-width:820px; margin:0; color:#dce9ff; }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; padding:14px 18px; position:sticky; top:8px; z-index:10; }
+    nav a { padding:7px 11px; border-radius:999px; color:var(--blue); background:var(--blue-soft); text-decoration:none; font-size:13px; font-weight:700; }
+    .breadcrumb { margin:0 0 15px; padding:0; position:static; color:var(--muted); background:transparent; border:0; border-radius:0; font-size:13px; }
+    .breadcrumb a { padding:0; border-radius:0; background:transparent; }
+    .breadcrumb .separator { opacity:.45; }
+    .breadcrumb [aria-current="page"] { color:var(--ink); font-weight:800; }
+    .home-fab { position:fixed; right:18px; bottom:18px; z-index:50; padding:10px 14px; color:white; border-radius:999px; background:var(--blue); box-shadow:0 8px 24px rgba(36,87,167,.25); font-size:13px; font-weight:800; text-decoration:none; }
+    section { margin:16px 0; padding:30px; }
+    h2 { margin:0 0 8px; font-size:26px; }
+    h3 { margin:28px 0 8px; font-size:19px; }
+    p { margin:8px 0 14px; }
+    code { padding:.12em .36em; border-radius:6px; background:#eef1f6; font-family:"SFMono-Regular",Consolas,monospace; }
+    .muted { color:var(--muted); }
+    .callout, .warning { margin:16px 0; padding:16px 18px; border-radius:14px; }
+    .callout { background:var(--blue-soft); border-left:5px solid var(--blue); }
+    .warning { background:var(--orange-soft); border-left:5px solid #e38a28; }
+    .flow { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:10px; margin:16px 0; }
+    .flow div { min-height:94px; padding:15px; border:1px solid var(--line); border-radius:13px; background:#fbfcff; }
+    .flow strong { display:block; margin-bottom:5px; color:var(--blue); }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; }
+    th, td { padding:11px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f0f4fa; }
+    .formula { margin:14px 0; padding:17px; text-align:center; border:1px solid #cfdaee; border-radius:14px; background:var(--blue-soft); font-family:"SFMono-Regular",Consolas,monospace; }
+    .fraction { display:inline-grid; grid-template-rows:auto auto; min-width:3em; margin:0 .3em; vertical-align:middle; text-align:center; line-height:1.25; }
+    .fraction .top { padding:0 .35em .17em; border-bottom:1.5px solid currentColor; }
+    .fraction .bottom { padding:.17em .35em 0; }
+    .status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+    .card { padding:18px; border:1px solid var(--line); border-radius:14px; background:#fbfcff; }
+    .card h3 { margin-top:0; }
+    .tag { display:inline-block; margin:3px 3px 3px 0; padding:4px 8px; border-radius:999px; background:#eef1f6; color:#465570; font-size:12px; }
+    @media (max-width:700px) { .hero, section { padding:22px; } nav { position:static; } }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로">
+      <a href="../../index.html">⌂ 학습 홈</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../wiki.html">기술 위키</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../roadmaps/roadmap_machine_learning.html">Machine Learning</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <span aria-current="page">회원 이탈 평가</span>
+    </nav>
+    <header class="hero">
+      <span>Machine Learning field note · 2026-08-12</span>
+      <h1>회원 이탈 예측으로 이해하는 머신러닝 실무 기초</h1>
+      <p>회사 동료와의 대화에서 나온 Loss, Precision, Recall, AUC를 출발점으로 머신러닝 실무가 문제 정의·데이터·학습·평가·반복 실험으로 연결되는 과정을 정리한다.</p>
+    </header>
+
+    <nav aria-label="목차">
+      <a href="../../pytorch_professional_roadmap.html">← 학습 로드맵</a>
+      <a href="#origin">출발점</a>
+      <a href="#problem">문제 정의</a>
+      <a href="#learning">학습</a>
+      <a href="#evaluation">평가</a>
+      <a href="#experiment">실무 반복</a>
+      <a href="#corrections">정확히 구분하기</a>
+      <a href="#next">다음 학습</a>
+    </nav>
+
+    <section id="origin">
+      <h2>이 문서의 출발점</h2>
+      <p>머신러닝 실무는 논문과 수식을 완전히 이해한 뒤 새로운 알고리즘을 직접 구현하는 일만을 뜻하지 않는다. 이미 알려진 방법을 조사하고 현재 문제에 적용한 뒤, 동일한 조건에서 지표와 오류를 비교해 개선하는 작업도 큰 비중을 차지한다.</p>
+      <div class="warning"><strong>대화의 위치</strong><br>동료 한 명의 경험은 머신러닝 직무 전체를 대표하는 객관적 근거가 아닙니다. 여기서는 그 대화를 학습 질문을 발견한 계기로 사용하며, 개별 업무 설명을 일반 법칙으로 단정하지 않습니다.</div>
+      <div class="callout"><strong>현재 바뀐 관점</strong><br>실무의 핵심은 모든 이론을 먼저 완주하는 것이 아니라, 문제를 정확히 정의하고 검증 가능한 Baseline을 만든 뒤 지표와 오류 사례에 근거해 다음 실험을 선택하는 것입니다.</div>
+    </section>
+
+    <section id="problem">
+      <h2>1. 회원 이탈을 머신러닝 문제로 바꾼다</h2>
+      <h3>Feature와 Label</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>구분</th><th>회원 이탈 예시</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>Feature <code>X</code></td><td>최근 접속 이후 일수, 로그인 횟수, 가입 기간, 결제 금액, 문의 횟수</td><td>예측에 사용하는 입력 정보</td></tr>
+          <tr><td>Label <code>y</code></td><td>이탈 <code>1</code>, 비이탈 <code>0</code></td><td>모델이 맞혀야 하는 실제 정답</td></tr>
+        </tbody>
+      </table></div>
+      <div class="formula">Feature(X) → Model → Prediction → Label(y)과 비교</div>
+
+      <h3>Feature와 Label만 정하면 끝나는 것이 아니다</h3>
+      <div class="flow">
+        <div><strong>예측 대상</strong>어떤 회원을 대상으로 하는가?</div>
+        <div><strong>기준 시점</strong>언제까지의 정보만 Feature로 쓰는가?</div>
+        <div><strong>예측 기간</strong>앞으로 며칠 이내의 이탈을 예측하는가?</div>
+        <div><strong>업무 조치</strong>예측 후 쿠폰·상담 등 무엇을 실행하는가?</div>
+        <div><strong>오류 비용</strong>FP와 FN 중 어느 실수가 더 비싼가?</div>
+      </div>
+      <p>예를 들어 이탈을 “향후 30일 동안 접속하지 않음”으로 정의한다면 예측 시점 이후의 30일은 Label을 만드는 데 사용해야 합니다. 이 미래 정보를 Feature에 섞으면 모델이 실제 예측 시점에 알 수 없는 정보를 본 것이므로 데이터 누수가 됩니다.</p>
+    </section>
+
+    <section id="learning">
+      <h2>2. Weight와 Loss로 모델을 학습한다</h2>
+      <p>사람이 Feature별 Weight를 일일이 정하는 것이 아니라, 모델이 학습 과정에서 Loss를 줄이는 방향으로 Weight를 조정합니다.</p>
+      <div class="formula">예측값 = Feature₁ × Weight₁ + Feature₂ × Weight₂ + ···</div>
+      <div class="flow">
+        <div><strong>1. 입력</strong>Feature를 모델에 넣는다.</div>
+        <div><strong>2. 예측</strong>현재 Weight로 결과를 계산한다.</div>
+        <div><strong>3. Loss</strong>Prediction과 Label의 차이를 수치화한다.</div>
+        <div><strong>4. 학습</strong>Loss가 감소하는 방향으로 Weight를 수정한다.</div>
+        <div><strong>5. 반복</strong>새 Weight로 다시 예측하고 평가한다.</div>
+      </div>
+      <div class="callout"><strong>실무자가 직접 조절하는 것</strong><br>학습된 Weight 자체를 한 칸씩 손으로 바꾸기보다 Feature, 데이터 구성, 모델 종류, Hyperparameter, Loss, Class weight와 Threshold 등을 선택하고 실험합니다.</div>
+
+      <h3>학습을 오래 한다고 무조건 좋아지지 않는다</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>분할</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>Train</td><td>Weight를 실제로 학습시키는 데이터</td></tr>
+          <tr><td>Validation</td><td>학습 중 일반화 성능, Hyperparameter와 Threshold를 선택하는 데이터</td></tr>
+          <tr><td>Test</td><td>선택을 모두 끝낸 뒤 마지막 성능을 평가하는 데이터</td></tr>
+        </tbody>
+      </table></div>
+      <p>Train 성능만 계속 좋아지고 Validation 성능이 나빠지면 학습 데이터를 외우는 Overfitting을 의심합니다. Test 결과를 보면서 Threshold나 모델을 반복 선택하면 Test도 선택 과정에 오염됩니다.</p>
+    </section>
+
+    <section id="evaluation">
+      <h2>3. 확률을 Threshold로 판정하고 결과를 평가한다</h2>
+      <p>이진 분류기는 이탈 여부를 바로 출력하기보다 이탈 점수 또는 확률을 만들 수 있습니다. Threshold가 <code>0.5</code>라면 그 이상을 이탈로 판정합니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th></th><th>실제 이탈</th><th>실제 비이탈</th></tr></thead>
+        <tbody>
+          <tr><th>이탈로 예측</th><td>TP · 정확히 발견</td><td>FP · 잘못 경보</td></tr>
+          <tr><th>비이탈로 예측</th><td>FN · 이탈을 놓침</td><td>TN · 정확히 제외</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>TP·FP·TN·FN을 읽는 고정 규칙</strong><br><code>P / N = 모델이 Positive / Negative 중 무엇으로 예측했는가</code><br><code>T / F = 그 예측이 실제 정답과 같았는가</code></div>
+      <p><code>Positive</code>는 좋다는 뜻이 아니라 이 문제에서 찾아내기로 정한 대상입니다. 스팸 탐지에서는 스팸, 질병 검사에서는 질병 있음, 불량품 검사에서는 불량품을 Positive로 정할 수 있습니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>이름</th><th>모델의 예측</th><th>예측이 맞았는가?</th></tr></thead>
+        <tbody>
+          <tr><td>TP</td><td>Positive</td><td>맞음 · 실제도 Positive</td></tr>
+          <tr><td>FP</td><td>Positive</td><td>틀림 · 실제는 Negative</td></tr>
+          <tr><td>TN</td><td>Negative</td><td>맞음 · 실제도 Negative</td></tr>
+          <tr><td>FN</td><td>Negative</td><td>틀림 · 실제는 Positive</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>문제가 바뀌어도 같은 규칙을 적용하는 샘플</h3>
+      <div class="status-grid">
+        <article class="card">
+          <h3>회원 이탈</h3>
+          <p><code>TP</code> 이탈로 예측 → 실제 이탈<br><code>FP</code> 이탈로 예측 → 실제 비이탈<br><code>TN</code> 비이탈로 예측 → 실제 비이탈<br><code>FN</code> 비이탈로 예측 → 실제 이탈</p>
+        </article>
+        <article class="card">
+          <h3>스팸 탐지</h3>
+          <p><code>TP</code> 스팸으로 예측 → 실제 스팸<br><code>FP</code> 스팸으로 예측 → 실제 정상<br><code>TN</code> 정상으로 예측 → 실제 정상<br><code>FN</code> 정상으로 예측 → 실제 스팸</p>
+        </article>
+        <article class="card">
+          <h3>질병 검사</h3>
+          <p><code>TP</code> 질병 있음으로 예측 → 실제 질병 있음<br><code>FP</code> 질병 있음으로 예측 → 실제 질병 없음<br><code>TN</code> 질병 없음으로 예측 → 실제 질병 없음<br><code>FN</code> 질병 없음으로 예측 → 실제 질병 있음</p>
+        </article>
+        <article class="card">
+          <h3>불량품 검사</h3>
+          <p><code>TP</code> 불량품으로 예측 → 실제 불량품<br><code>FP</code> 불량품으로 예측 → 실제 정상 제품<br><code>TN</code> 정상 제품으로 예측 → 실제 정상 제품<br><code>FN</code> 정상 제품으로 예측 → 실제 불량품</p>
+        </article>
+      </div>
+
+      <h3>Precision · Recall · Accuracy · F1</h3>
+      <div class="formula">Precision = <span class="fraction"><span class="top">TP</span><span class="bottom">TP + FP</span></span> = 이탈이라고 예측한 사람 중 실제 이탈자 비율</div>
+      <div class="formula">Recall = <span class="fraction"><span class="top">TP</span><span class="bottom">TP + FN</span></span> = 실제 이탈자 중 찾아낸 비율</div>
+      <div class="formula">Accuracy = <span class="fraction"><span class="top">TP + TN</span><span class="bottom">전체 데이터</span></span></div>
+      <div class="formula">F1 = <span class="fraction"><span class="top">2 × Precision × Recall</span><span class="bottom">Precision + Recall</span></span></div>
+      <p>실제 이탈자가 10명, 비이탈자가 90명일 때 전부 비이탈이라고 예측해도 Accuracy는 90%입니다. 그러므로 Positive가 적은 문제에서는 Accuracy만으로 모델을 평가하면 안 됩니다.</p>
+
+      <h3>Threshold를 바꾸면 무엇이 달라지는가?</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>변경</th><th>일반적인 영향</th><th>비즈니스 의미</th></tr></thead>
+        <tbody>
+          <tr><td>Threshold를 높임</td><td>Precision 상승 가능, Recall 하락 가능</td><td>확실한 대상만 조치하지만 실제 이탈자를 더 놓칠 수 있음</td></tr>
+          <tr><td>Threshold를 낮춤</td><td>Recall 상승 가능, Precision 하락 가능</td><td>더 많은 이탈자를 찾지만 불필요한 조치가 늘 수 있음</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>지표는 업무 비용과 연결해야 합니다.</strong><br>쿠폰 비용이 매우 크면 FP를 줄이는 Precision이 중요할 수 있고, 고가 고객의 이탈을 놓치는 손해가 크면 FN을 줄이는 Recall이 중요할 수 있습니다.</div>
+    </section>
+
+    <section id="experiment">
+      <h2>4. 실제 업무는 지표를 근거로 한 반복 실험에 가깝다</h2>
+      <div class="flow">
+        <div><strong>1. 현재 평가</strong>Baseline과 오류를 확인한다.</div>
+        <div><strong>2. 문제 발견</strong>어떤 집단에서 무엇을 틀리는지 찾는다.</div>
+        <div><strong>3. 가설</strong>성능 저하의 원인을 하나 정한다.</div>
+        <div><strong>4. 조사·변경</strong>Feature·알고리즘·설정을 하나 바꾼다.</div>
+        <div><strong>5. 비교</strong>같은 Split과 Metric에서 다시 평가한다.</div>
+      </div>
+      <p>비교 가능한 실험을 위해 데이터 Split, Seed, Metric을 고정하고 한 번에 한 요인을 바꿉니다. “새 알고리즘을 사용했더니 좋아졌다”가 아니라 어떤 조건에서 어떤 지표가 얼마나 변했고 어떤 오류가 남았는지 기록해야 합니다.</p>
+      <div class="formula">문제 정의 → 데이터 준비 → Baseline → 학습 → 평가 → 오류 분석 → 가설 → 실험 → 비교</div>
+    </section>
+
+    <section id="corrections">
+      <h2>5. 오늘 내용에서 정확히 구분할 부분</h2>
+      <div class="status-grid">
+        <article class="card">
+          <h3>Loss와 Metric</h3>
+          <p>Loss는 Weight 학습에 사용하는 목적함수이고, Metric은 모델을 업무 관점에서 평가하는 수치입니다. 둘이 같을 필요는 없습니다.</p>
+        </article>
+        <article class="card">
+          <h3>Weight와 Hyperparameter</h3>
+          <p>Weight는 모델이 학습하고, Learning rate·Tree depth·Threshold 같은 Hyperparameter나 운영 기준은 사람이 실험으로 선택합니다.</p>
+        </article>
+        <article class="card">
+          <h3>F1과 조화평균</h3>
+          <p>같은 거리의 평균속도 예시는 조화평균이 등장하는 사례이지 F1 공식의 직접적인 증명은 아닙니다. F1은 Precision과 Recall 중 하나만 낮아도 점수가 크게 낮아지도록 조화평균을 사용합니다.</p>
+        </article>
+        <article class="card">
+          <h3>AUC와 Threshold</h3>
+          <p>AUC가 높다고 특정 Threshold의 실제 업무 성과가 자동으로 좋다는 뜻은 아닙니다. 순위 능력과 최종 판정 성능을 구분해야 합니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>6. 아직 학습하지 않은 다음 항목</h2>
+      <p class="muted">아래 내용은 오늘 이해 완료로 표시하지 않고, 회원 이탈 미니 프로젝트에서 하나씩 검증합니다.</p>
+      <div>
+        <span class="tag">ROC Curve</span><span class="tag">ROC-AUC</span><span class="tag">PR-AUC</span><span class="tag">Calibration</span><span class="tag">Class Weight</span><span class="tag">Over/Undersampling</span><span class="tag">Logistic Regression</span><span class="tag">Decision Tree</span><span class="tag">Random Forest</span><span class="tag">Gradient Boosting</span><span class="tag">Cross Validation</span><span class="tag">Feature Engineering</span>
+      </div>
+      <h3>대표 실습의 비교 순서</h3>
+      <div class="formula">Dummy → Logistic Regression → Decision Tree → Random Forest 또는 Gradient Boosting</div>
+      <p>모든 알고리즘을 각각 별도 챕터로 외우지 않습니다. 동일한 Split과 Metric에서 대표 Baseline을 비교하고, Threshold와 불균형 처리 방법을 하나씩 바꾸면서 결과를 설명합니다.</p>
+      <div class="callout"><strong>로드맵 연결</strong><br>Scaled Dot-Product Attention 검증은 완료되었습니다. 머신러닝 축으로 전환할 때 진행할 첫 대표 실습 후보는 “작은 회원 이탈 이진 분류”입니다. 문제 정의 → Logistic Baseline → Confusion Matrix → Precision/Recall/F1 → Threshold 변경 → 불균형 처리 순서로 진행합니다.</div>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

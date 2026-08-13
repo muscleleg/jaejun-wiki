@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pandas DataFrame.drop의 axis, inplace와 행·열 삭제 동작을 예제로 정리한 학습 문서">
+  <title>Pandas · DataFrame.drop()</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <style>
+    .article { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; margin-top: 22px; }
+    .toc { position: sticky; top: 22px; align-self: start; max-height: calc(100vh - 44px); overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: var(--shadow); }
+    .toc strong { display: block; margin-bottom: 10px; color: var(--green); }
+    .toc a { display: block; padding: 5px 0; color: var(--muted); font-size: .84rem; text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { color: var(--blue); text-decoration: underline; }
+    .content { min-width: 0; }
+    .content section { scroll-margin-top: 18px; }
+    .content h3 { margin-top: 20px; }
+    .content p + p, .content p + pre, .content pre + p { margin-top: 14px; }
+    pre { overflow-x: auto; margin: 15px 0 0; padding: 18px; color: #eaf0ff; border-radius: 14px; background: #172033; font: .9rem/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    blockquote { margin: 16px 0 0; padding: 14px 17px; border-left: 4px solid var(--blue); border-radius: 0 12px 12px 0; background: var(--blue-soft); }
+    blockquote p { margin: 0; font-weight: 750; }
+    .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .compare > div { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfc; }
+    @media (max-width: 820px) { .article { grid-template-columns: 1fr; } .toc { position: static; max-height: none; } }
+    @media (max-width: 600px) { .compare { grid-template-columns: 1fr; } }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><span>Pandas·데이터 전처리</span><span class="separator">›</span><span aria-current="page">DataFrame.drop()</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Pandas data preprocessing</span>
+      <h1>DataFrame.drop()</h1>
+      <p class="summary">행 또는 열을 삭제할 때 <code>axis</code>가 무엇을 가리키는지, 원본을 유지하는 방식과 직접 수정하는 방식이 어떻게 다른지 정리한다.</p>
+      <div class="callout"><strong>핵심 문장</strong><br><code>axis=0</code>이면 행, <code>axis=1</code>이면 열을 삭제한다. <code>inplace=False</code>는 새 DataFrame을 반환하고, <code>inplace=True</code>는 원본을 수정한다.</div>
+    </header>
+
+    <div class="article">
+      <aside class="toc" aria-label="문서 목차">
+        <strong>목차</strong>
+        <a href="#meaning">1. drop()의 역할</a><a href="#axis">2. axis</a><a href="#column">3. 열 삭제</a><a href="#row">4. 행 삭제</a><a href="#multiple">5. 여러 개 삭제</a><a href="#inplace-false">6. inplace=False</a><a href="#inplace-true">7. inplace=True</a><a href="#assignment">8. 다시 대입하기</a><a href="#index">9. 삭제 후 index</a><a href="#recap">10. 최종 압축</a>
+      </aside>
+
+      <article class="content">
+        <section id="meaning">
+          <h2>1. <code>drop()</code>은 무엇을 하는가</h2>
+          <p><code>drop()</code>은 DataFrame에서 <strong>행(row)</strong> 또는 <strong>열(column)</strong>을 삭제할 때 사용한다. 머신러닝 전처리에서는 필요 없는 컬럼을 제거하는 일이 많아 자주 사용한다.</p>
+          <pre>df.drop(...)</pre>
+        </section>
+
+        <section id="axis">
+          <h2>2. <code>axis</code>는 어디에서 삭제할지 정한다</h2>
+          <pre>axis=0  # 행
+axis=1  # 열</pre>
+          <p>지금 단계에서는 <strong>0은 행, 1은 열</strong>이라고 기억하면 된다.</p>
+          <pre>import pandas as pd
+
+df = pd.DataFrame({
+    'Name': ['철수', '영희', '민수'],
+    'Age': [20, 25, 30],
+    'Gender': ['M', 'F', 'M']
+})
+
+# 출력
+  Name  Age Gender
+0   철수   20      M
+1   영희   25      F
+2   민수   30      M</pre>
+        </section>
+
+        <section id="column">
+          <h2>3. 열 삭제</h2>
+          <pre>df.drop('Age', axis=1)</pre>
+          <blockquote><p><code>Age</code>라는 이름을 열(column) 쪽에서 찾아 삭제하라.</p></blockquote>
+          <pre>  Name Gender
+0   철수      M
+1   영희      F
+2   민수      M</pre>
+          <p><code>'Age'</code>는 무엇을 삭제할지, <code>axis=1</code>은 열에서 찾으라는 뜻이다.</p>
+        </section>
+
+        <section id="row">
+          <h2>4. 행 삭제</h2>
+          <pre>df.drop(1, axis=0)</pre>
+          <blockquote><p>index가 <code>1</code>인 행을 삭제하라.</p></blockquote>
+          <pre>  Name  Age Gender
+0   철수   20      M
+2   민수   30      M</pre>
+          <p><code>1</code>은 삭제할 index, <code>axis=0</code>은 행 쪽에서 찾으라는 뜻이다.</p>
+        </section>
+
+        <section id="multiple">
+          <h2>5. 여러 개를 삭제할 때는 리스트를 전달한다</h2>
+          <h3>열 여러 개 삭제</h3>
+          <pre>df.drop(['Age', 'Gender'], axis=1)
+
+  Name
+0   철수
+1   영희
+2   민수</pre>
+          <h3>행 여러 개 삭제</h3>
+          <pre>df.drop([0, 2], axis=0)
+
+  Name  Age Gender
+1   영희   25      F</pre>
+        </section>
+
+        <section id="inplace-false">
+          <h2>6. 기본값 <code>inplace=False</code></h2>
+          <p>원본 DataFrame을 바꾸지 않고 변경된 <strong>새 DataFrame을 반환</strong>한다.</p>
+          <pre>new_df = df.drop('Age', axis=1)</pre>
+          <div class="compare">
+            <div><strong>원본 <code>df</code></strong><pre>Name  Age  Gender
+철수   20   M
+영희   25   F
+민수   30   M</pre></div>
+            <div><strong>새 <code>new_df</code></strong><pre>Name  Gender
+철수   M
+영희   F
+민수   M</pre></div>
+          </div>
+          <p>강의에서 이를 강조한 이유는 원본을 바로 파괴하지 않는 습관을 들이기 위해서다. 잘못 삭제했더라도 원본이 남고, 단계별 전처리 결과를 확인하기도 편하다.</p>
+          <pre>원본 데이터
+   ↓
+전처리된 데이터
+   ↓
+또 다른 전처리 결과</pre>
+        </section>
+
+        <section id="inplace-true">
+          <h2>7. <code>inplace=True</code>는 원본을 직접 수정한다</h2>
+          <pre>df.drop('Age', axis=1, inplace=True)</pre>
+          <p>실행 후에는 원래 <code>Age</code>가 있던 상태가 <code>df</code>에 남지 않는다. 그리고 가장 중요한 점은 반환값이 <code>None</code>이라는 것이다.</p>
+          <pre># 정상: 원본을 직접 수정
+df.drop('Age', axis=1, inplace=True)
+
+# 잘못된 사용
+df = df.drop('Age', axis=1, inplace=True)
+
+# 오른쪽 반환값이 None이므로 결과적으로
+df = None</pre>
+          <blockquote><p>원본을 수정하려면 대입하지 말고 <code>inplace=True</code>로 호출한다.</p></blockquote>
+        </section>
+
+        <section id="assignment">
+          <h2>8. <code>df = df.drop(...)</code>은 어떻게 동작하는가</h2>
+          <pre>df = df.drop('Age', axis=1)</pre>
+          <p>이 코드는 <code>inplace=False</code> 방식이다.</p>
+          <pre>기존 df
+  ↓
+drop() 실행
+  ↓
+Age가 제거된 새로운 DataFrame 생성
+  ↓
+그 새로운 DataFrame을 다시 df가 가리킴</pre>
+          <p>최종적으로는 <code>df</code>가 바뀐 것처럼 보이지만, <code>df.drop(..., inplace=True)</code>와 내부 동작은 다르다.</p>
+        </section>
+
+        <section id="index">
+          <h2>9. 행을 삭제해도 index는 자동 재정렬되지 않는다</h2>
+          <pre># 원래 index: 0, 1, 2, 3, 4
+df.drop([0, 1, 2], axis=0)
+
+# 결과
+  Name
+3 준호
+4 수진</pre>
+          <p><code>drop()</code>은 행만 삭제할 뿐 index 번호를 다시 매겨주지 않는다. 따라서 결과가 자동으로 <code>0, 1</code>로 바뀌지 않는다.</p>
+        </section>
+
+        <section id="recap">
+          <h2>10. 오늘 배운 내용 압축</h2>
+          <pre>df.drop('Age', axis=1)
+# Age 열 삭제
+
+df.drop(1, axis=0)
+# index 1인 행 삭제
+
+new_df = df.drop('Age', axis=1)
+# 원본 유지, 새로운 결과 반환
+
+df.drop('Age', axis=1, inplace=True)
+# 원본 자체 수정</pre>
+          <div class="warning"><strong>절대 헷갈리지 말 것</strong><br><code>df = df.drop('Age', axis=1, inplace=True)</code>라고 쓰면 <code>df</code>가 <code>None</code>이 된다.</div>
+        </section>
+      </article>
+    </div>
+    <footer class="footer">Pandas 학습 문서 · DataFrame 전처리 기초</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLM-5.2 GPU 최적화 아티클 학습</title>
+  <style>
+    :root {
+      --bg: #f3f5f8; --surface: #fff; --ink: #172033; --muted: #667085;
+      --line: #dce2eb; --blue: #3457d5; --blue-soft: #edf2ff;
+      --green: #13745a; --green-soft: #eaf8f2; --orange: #aa5a18;
+      --orange-soft: #fff3e5; --navy: #19243d;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; color: var(--ink); background:
+        radial-gradient(circle at 8% 0%, #e3eaff 0, transparent 29rem),
+        radial-gradient(circle at 94% 16%, #e4f7ef 0, transparent 25rem), var(--bg);
+      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.7; word-break: keep-all;
+    }
+    a { color: var(--blue); }
+    code { padding: .1em .35em; border-radius: .35em; background: #eef1f6; font-family: "SFMono-Regular", Consolas, monospace; }
+    .wrap { width: min(1080px, calc(100% - 28px)); margin: 0 auto; padding: 34px 0 80px; }
+    .hero { padding: 42px; color: #fff; border-radius: 26px; background: linear-gradient(135deg, var(--navy), #354ec0 60%, #13745a); }
+    .hero span { display: inline-block; padding: 5px 10px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; background: rgba(255,255,255,.1); font-size: 13px; }
+    h1 { margin: 14px 0 10px; font-size: clamp(34px, 5vw, 54px); line-height: 1.15; }
+    .hero p { max-width: 800px; margin: 0; color: #e8edfb; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+    nav a { padding: 8px 11px; color: #344158; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.86); font-size: 14px; }
+    .breadcrumb { margin: 0 0 15px; color: var(--muted); font-size: 13px; }
+    .breadcrumb a { padding: 0; color: var(--blue); border: 0; border-radius: 0; background: transparent; font-weight: 750; }
+    .breadcrumb .separator { opacity: .45; }
+    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(52,87,213,.25); font-size: 13px; font-weight: 800; text-decoration: none; }
+    section { margin-top: 20px; padding: 30px; border: 1px solid var(--line); border-radius: 21px; background: var(--surface); box-shadow: 0 8px 28px rgba(26,37,61,.06); }
+    h2 { margin: 0 0 10px; font-size: 28px; }
+    h3 { margin: 24px 0 8px; }
+    p { margin: 8px 0; }
+    .muted { color: var(--muted); }
+    .callout, .warning { margin: 16px 0; padding: 16px 18px; border-left: 5px solid var(--green); border-radius: 12px; background: var(--green-soft); }
+    .warning { border-color: var(--orange); background: var(--orange-soft); }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
+    .card { padding: 17px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfc; }
+    .card h3 { margin: 0 0 7px; font-size: 18px; }
+    .card p, .card li { color: var(--muted); font-size: 14px; }
+    .card ul { margin: 8px 0 0; padding-left: 20px; }
+    table { width: 100%; margin-top: 14px; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { background: #f5f7fa; color: #465570; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; margin-top: 15px; }
+    .flow div { padding: 14px; border: 1px solid #cfdaee; border-radius: 13px; background: var(--blue-soft); font-size: 14px; }
+    .flow strong { display: block; color: #2d4cb8; }
+    .formula { margin: 14px 0; padding: 17px; text-align: center; border: 1px solid #cfdaee; border-radius: 14px; background: var(--blue-soft); font-family: "SFMono-Regular", Consolas, monospace; }
+    .fraction { display: inline-grid; grid-template-rows: auto auto; min-width: 3em; margin: 0 .3em; vertical-align: middle; text-align: center; line-height: 1.25; }
+    .fraction .top { padding: 0 .35em .17em; border-bottom: 1.5px solid currentColor; }
+    .fraction .bottom { padding: .17em .35em 0; }
+    .tag { display: inline-block; margin: 3px 3px 3px 0; padding: 4px 8px; border-radius: 999px; background: #eef1f6; color: #465570; font-size: 12px; }
+    @media (max-width: 760px) { .grid, .flow { grid-template-columns: 1fr; } section, .hero { padding: 23px; } }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260813-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로">
+      <a href="../../index.html">⌂ 학습 홈</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../wiki.html">기술 위키</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <a href="../../roadmaps/roadmap_llm_systems.html">현업 아티클</a>
+      <span class="separator" aria-hidden="true">›</span>
+      <span aria-current="page">GLM-5.2 GPU 최적화</span>
+    </nav>
+    <header class="hero">
+      <span>현업 아티클 01 · Field note</span>
+      <h1>GLM-5.2 GPU 최적화 글을 이해하기</h1>
+      <p>최적화 글을 읽고 감탄하는 데서 끝내지 않는다. 주장과 근거를 분리하고, 이해를 막는 선수지식을 찾고, 작은 계산과 실험으로 확인한 뒤 원문을 다시 읽는다.</p>
+    </header>
+
+    <nav aria-label="목차">
+      <a href="../../pytorch_professional_roadmap.html">← 학습 로드맵</a>
+      <a href="#protocol">읽는 방법</a>
+      <a href="#glm52">사례 01 · GLM-5.2</a>
+      <a href="#forward-basics">포워드·Hidden State·Logits</a>
+      <a href="#mtp">MTP 검증 흐름</a>
+      <a href="#prerequisites">선수지식 지도</a>
+      <a href="#verification">검증 노트</a>
+    </nav>
+
+    <section id="protocol">
+      <h2>아티클 한 편을 공부로 바꾸는 절차</h2>
+      <div class="flow">
+        <div><strong>1. 핵심 주장</strong>무엇이 왜 느렸는가?</div>
+        <div><strong>2. 근거</strong>어떤 수치와 profiler 결과가 있는가?</div>
+        <div><strong>3. 빈칸</strong>결론을 막는 개념은 무엇인가?</div>
+        <div><strong>4. 검증</strong>작은 계산·코드로 무엇을 확인할까?</div>
+        <div><strong>5. 재독</strong>원문을 자기 말로 복원한다.</div>
+      </div>
+      <div class="warning"><strong>모든 용어를 공부하지 않는다.</strong><br>한 번에 핵심 연결 하나만 고른다. 지금 Transformer를 구현하는 동안에는 행렬곱, 추론, 메모리 병목처럼 현재 코드와 연결되는 개념을 먼저 본다. SASS 커널 작성은 이후 확장 트랙이다.</div>
+    </section>
+
+    <section id="glm52">
+      <h2>사례 01 · GPU 커널 새로 짜서 GLM-5.2 속도 10배 올리기</h2>
+      <p class="muted">제공된 원문 기준 · Hands-on · 2026-07-11 · 원문 URL은 아직 기록되지 않음</p>
+      <div class="callout"><strong>글의 중심 주장</strong><br>대규모 LLM의 batch-1 토큰 생성은 순수 FLOPS보다 가중치 메모리 전송에 묶이기 쉽다. 커널 최적화는 포워드 한 번의 비용을 낮추고, MTP는 한 번의 가중치 읽기로 여러 토큰을 확정해 그 비용을 나눠 쓴다는 주장이다.</div>
+
+      <h3>문제 → 병목 → 변경 → 결과</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>구분</th><th>원문의 내용</th><th>학습할 질문</th></tr></thead>
+        <tbody>
+          <tr><td>문제</td><td>753B MoE 모델의 batch-1 추론이 HBM 이론 한계보다 크게 느림</td><td>왜 토큰 생성은 연산보다 메모리에 묶이는가?</td></tr>
+          <tr><td>병목</td><td>낮은 SM 점유율, 파이프라인 직렬화, 레지스터 압박, 작은 커널 다수</td><td>Occupancy와 대역폭 사용률은 어떻게 연결되는가?</td></tr>
+          <tr><td>커널 변경</td><td>Split-K, TMEM/tcgen05, quantization-GEMM fusion</td><td>병렬성·메모리 왕복·중첩 실행이 왜 시간을 줄이는가?</td></tr>
+          <tr><td>알고리즘 변경</td><td>MTP로 한 번의 메인 모델 검증에서 여러 토큰 확정</td><td>Acceptance length가 토큰당 비용을 어떻게 나누는가?</td></tr>
+          <tr><td>결과 주장</td><td>Greedy 약 100 tok/s에서 MTP 적용 후 약 600 tok/s</td><td>같은 품질·조건인지, 커널과 MTP의 기여를 어떻게 분리했는가?</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>이 글의 핵심을 한 문장으로 다시 쓰기</h3>
+      <div class="formula">토큰당 비용 ≈ <span class="fraction"><span class="top">포워드 1회의 메모리·실행 비용</span><span class="bottom">한 포워드에서 확정한 평균 토큰 수</span></span></div>
+      <p>커널 최적화는 분자를 줄이고, MTP는 분모를 키우려는 접근이라고 읽을 수 있다. 이것은 원문을 이해하기 위한 개념 모델이며 실제 시스템의 모든 비용을 포함한 정확한 공식은 아니다.</p>
+    </section>
+
+    <section id="forward-basics">
+      <h2>기초 연결 · 포워드, Hidden State, Logits</h2>
+      <p class="muted">이 글에서 말하는 포워드 한 번이 실제로 무엇을 출력하는지 먼저 연결합니다.</p>
+
+      <h3>포워드란 무엇인가?</h3>
+      <p>포워드(forward)는 입력 토큰을 모델의 첫 연산부터 마지막 출력층까지 한 방향으로 통과시켜 결과를 계산하는 과정입니다. 생성 모델의 추론에서는 현재까지의 토큰들을 입력하고 다음 토큰을 고르는 데 필요한 점수를 계산합니다.</p>
+      <div class="flow" aria-label="LLM 포워드 흐름">
+        <div><strong>입력 Token</strong>현재까지 생성된 문장</div>
+        <div><strong>Embedding</strong>토큰 번호를 벡터로 변환</div>
+        <div><strong>Transformer</strong>여러 Layer에서 문맥 계산</div>
+        <div><strong>LM Head</strong>단어장 차원으로 변환</div>
+        <div><strong>Logits</strong>다음 토큰별 점수</div>
+      </div>
+      <div class="callout"><strong>학습과 추론의 차이</strong><br>학습에서는 <code>forward → loss → backward</code>가 이어집니다. 이 글은 생성 추론 성능을 다루므로 포워드로 점수를 계산한 뒤 토큰을 선택하며, 가중치를 학습시키는 <code>backward()</code>는 수행하지 않습니다.</div>
+
+      <h3>Hidden State는 모델 내부의 문맥 표현이다</h3>
+      <p>Transformer Layer들을 통과한 각 토큰에는 <code>d_model</code>개의 숫자로 이루어진 내부 벡터가 남습니다. 이것이 Hidden State입니다.</p>
+      <div class="formula">hidden_states shape = [batch, sequence, d_model]</div>
+      <p>예를 들어 <code>d_model=4096</code>이라면 마지막 위치의 Hidden State는 숫자 4096개입니다. 이것은 단어별 확률이 아니라, 현재 문맥을 모델 내부 차원으로 표현한 값입니다.</p>
+
+      <h3>Logits는 Hidden State를 단어장 차원으로 바꾼 결과다</h3>
+      <p>마지막 출력층인 LM Head가 Hidden State를 <code>vocab_size</code>개의 점수로 변환합니다.</p>
+      <div class="formula">logits = LM Head(hidden_state)</div>
+      <div class="formula">[d_model] × [d_model, vocab_size] → [vocab_size]</div>
+      <p><code>d_model=4096</code>, <code>vocab_size=100,000</code>이라면 다음과 같이 바뀝니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>값</th><th>Shape</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td>마지막 Hidden State</td><td><code>[4096]</code></td><td>현재 문맥의 내부 표현</td></tr>
+          <tr><td>Logits</td><td><code>[100,000]</code></td><td>단어장 토큰 10만 개 각각의 다음 토큰 점수</td></tr>
+        </tbody>
+      </table></div>
+      <div class="warning"><strong>Hidden State와 Logits는 동일하지 않습니다.</strong><br>Hidden State는 모델 내부 표현이고, Logits는 그 표현을 단어장 차원으로 투영한 점수입니다. Logits도 아직 확률이 아니며, Softmax를 적용한 뒤 토큰별 확률로 해석할 수 있습니다.</div>
+      <div class="formula">Hidden State → LM Head → Logits → Softmax/선택 → 다음 Token</div>
+
+      <h3>일반적인 생성에서는 왜 포워드를 반복하는가?</h3>
+      <div class="card">
+        <p><code>"나는 오늘 학교에"</code> → 포워드 → <code>"갔다"</code> 선택</p>
+        <p><code>"나는 오늘 학교에 갔다"</code> → 다시 포워드 → <code>"."</code> 선택</p>
+      </div>
+      <p>일반적인 Autoregressive decoding은 토큰 하나를 확정할 때마다 다음 입력이 달라지므로 포워드를 반복합니다. 이 글의 MTP 설명은 작은 모델이 미래 토큰 후보를 만들고 메인 모델이 여러 후보를 함께 검증해, 메인 모델 포워드 한 번당 확정하는 평균 토큰 수를 늘리는 접근입니다.</p>
+    </section>
+
+    <section id="mtp">
+      <h2>MTP · 미래 토큰 후보를 한 번에 검증하는 흐름</h2>
+      <p class="muted">확정된 토큰이 <code>[나는]</code>뿐이고, 최종적으로 <code>[나는] [학교에] [갔다]</code>가 만들어지는 상황을 따라갑니다.</p>
+
+      <div class="warning"><strong>먼저 용어를 구분합니다.</strong><br>MTP는 넓게는 <em>Multi-Token Prediction</em>, 즉 미래의 여러 토큰을 예측하는 방식을 뜻합니다. 작은 Draft가 후보를 먼저 만들고 큰 모델이 한꺼번에 검증하는 실행 방식은 <em>Speculative decoding</em>입니다. 이 글에서는 MTP가 만든 여러 후보를 speculative하게 검증하는 흐름으로 연결해 설명하지만, 모든 MTP가 반드시 별도의 작은 Draft 모델을 사용한다는 뜻은 아닙니다.</div>
+
+      <h3>1. 지금 확정된 문장은 <code>[나는]</code>뿐이다</h3>
+      <div class="formula">확정된 Prefix = [나는]</div>
+      <p><code>[학교에]</code>와 <code>[갔다]</code>는 아직 정답이 아닙니다. 작은 Draft가 빠르게 추측해서 만든 임시 후보입니다.</p>
+      <div class="formula">Draft의 임시 후보 = [학교에] [갔다]</div>
+      <p>Draft도 순서를 무시하는 것은 아닙니다. 먼저 <code>[나는]</code>을 보고 <code>[학교에]</code>를 추측하고, 이어서 임시 문장 <code>[나는] [학교에]</code>를 보고 <code>[갔다]</code>를 추측합니다.</p>
+
+      <h3>2. 큰 모델은 후보 Token ID를 자기 방식으로 다시 계산한다</h3>
+      <p>작은 모델의 Hidden State를 가져다 쓰는 것이 아닙니다. 작은 모델이 내놓은 <strong>Token ID 후보</strong>를 큰 모델이 자신의 Embedding, Transformer Layer, LM Head로 처리하여 자신의 Logits를 계산합니다.</p>
+      <div class="flow" aria-label="Draft 후보와 Main 모델 검증 흐름">
+        <div><strong>확정 Prefix</strong><code>[나는]</code></div>
+        <div><strong>Draft 추측</strong><code>[학교에] [갔다]</code></div>
+        <div><strong>Main 1회 Forward</strong>후보 위치들을 병렬 계산</div>
+        <div><strong>Token 비교</strong>Main 예측과 Draft 후보 비교</div>
+        <div><strong>Prefix 확정</strong>앞에서부터 연속으로 맞은 후보만 채택</div>
+      </div>
+
+      <h3>3. 큰 모델의 한 번의 Forward 자체가 검증이다</h3>
+      <p>핵심은 후보를 병렬 계산한 뒤 큰 모델을 다시 순차 실행하는 것이 아니라는 점입니다. 아래 두 계산이 <strong>큰 모델의 한 번의 Forward 안에서 위치별로 함께</strong> 수행됩니다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>검증할 Draft 후보</th><th>큰 모델이 사용하는 문맥</th><th>큰 모델에게 묻는 것</th></tr></thead>
+        <tbody>
+          <tr><td><code>[학교에]</code></td><td><code>[나는]</code></td><td><code>[나는]</code> 다음 토큰으로 <code>[학교에]</code>가 맞는가?</td></tr>
+          <tr><td><code>[갔다]</code></td><td><code>[나는] [학교에]</code></td><td><code>[나는] [학교에]</code> 다음 토큰으로 <code>[갔다]</code>가 맞는가?</td></tr>
+        </tbody>
+      </table></div>
+      <p>Causal Mask 때문에 첫 번째 위치는 뒤의 후보를 볼 수 없습니다. 두 번째 위치는 앞의 임시 후보 <code>[학교에]</code>까지는 볼 수 있지만 미래 후보는 볼 수 없습니다. 따라서 각 위치는 Autoregressive 규칙을 지키면서도 GPU에서는 여러 위치의 행렬 연산을 한꺼번에 수행할 수 있습니다.</p>
+      <div class="callout"><strong>가장 중요한 문장</strong><br>앞 후보가 맞을 것이라고 임시로 가정하고 뒤 위치까지 모두 병렬 계산한 다음, 계산이 끝나면 앞에서부터 확인하여 연속으로 맞은 구간만 확정합니다.</div>
+
+      <h3>4. 앞에서부터 맞은 구간만 확정한다</h3>
+      <p>큰 모델의 예측도 <code>[학교에] [갔다]</code>라면 두 후보를 모두 확정합니다.</p>
+      <div class="formula">Draft [학교에, 갔다] = Main [학교에, 갔다] → 두 토큰 확정</div>
+      <p>큰 모델의 예측이 <code>[학교에] [간다]</code>라면 첫 후보만 맞습니다. <code>[학교에]</code>는 확정하고, 처음 불일치한 <code>[갔다]</code>부터 뒤의 후보는 버립니다.</p>
+      <div class="formula">Draft [학교에, 갔다] ≠ Main [학교에, 간다] → [학교에]만 확정</div>
+      <p>첫 후보부터 틀렸다면 뒤쪽 계산은 틀린 임시 문맥을 전제로 했으므로 전부 버립니다. 반대로 첫 후보가 맞았다면 두 번째 위치가 사용한 임시 문맥은 실제 문맥과 같아지므로 그 결과도 검증에 사용할 수 있습니다.</p>
+
+      <h3>5. Draft는 모든 미래가 아니라 짧은 후보 묶음만 제안한다</h3>
+      <p>작은 모델이 완성될 문장 전체를 미리 제공할 필요는 없습니다. 한 번에 제안할 후보 개수 <code>k</code>를 정하고, 그만큼만 임시로 생성합니다.</p>
+      <div class="formula">현재 확정 [나는] + Draft 후보 2개 [학교에, 갔다]</div>
+      <p>큰 모델이 두 후보를 모두 승인하면 우선 <code>[나는] [학교에] [갔다]</code>까지 확정합니다. 그다음에는 Draft가 새로운 후보 묶음을 만들거나, 필요에 따라 큰 모델이 직접 다음 토큰을 생성할 수 있습니다. 이 과정을 반복하므로 Draft가 문장의 끝까지 한꺼번에 알아야 하는 구조가 아닙니다.</p>
+
+      <h3>검증 Forward에서 다음 토큰까지 얻을 수 있다</h3>
+      <p>큰 모델은 Draft 후보들을 검증하는 동안 마지막 후보 다음에 올 토큰의 Logits도 계산할 수 있습니다. 모든 후보가 승인되면 큰 모델이 직접 예측한 이 토큰을 하나 더 채택할 수 있는데, 이를 흔히 <strong>Bonus token</strong>이라고 부릅니다.</p>
+      <div class="formula">Draft 후보 [학교에, 갔다] + Main의 추가 예측 [.] → [학교에, 갔다, .] 확정 가능</div>
+      <div class="warning"><strong>후보 개수도 조절 대상입니다.</strong><br>후보가 너무 적으면 큰 모델 Forward 횟수를 충분히 줄이지 못합니다. 너무 많으면 앞부분에서 틀렸을 때 버리는 뒤쪽 계산이 많아집니다. 따라서 Draft 비용, 후보 적중률, 평균 Acceptance length를 보고 적당한 후보 묶음 크기를 선택합니다.</div>
+
+      <h3>6. 왜 빨라질 수 있는가?</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>일반 생성</th><th>Draft + 병렬 검증</th></tr></thead>
+        <tbody>
+          <tr><td>Main Forward → <code>[학교에]</code> 확정<br>Main Forward → <code>[갔다]</code> 확정</td><td>작은 Draft가 후보 생성<br>Main Forward 1회 → 두 후보를 함께 검증</td></tr>
+        </tbody>
+      </table></div>
+      <p>큰 모델의 가중치를 읽는 작업이 비싸다면, 한 번 읽고 한 위치만 계산하는 것보다 여러 후보 위치를 함께 계산해 여러 토큰을 확정하는 편이 유리할 수 있습니다. 검증이 끝난 뒤 하는 일은 이미 계산된 Main 예측과 Draft Token ID를 앞에서부터 비교하는 것이므로, 큰 모델을 다시 순차 Forward하는 비용과는 다릅니다.</p>
+      <div class="warning"><strong>항상 빨라지는 것은 아닙니다.</strong><br>Draft가 충분히 싸고, 후보가 자주 맞아 Acceptance length가 길며, 큰 모델의 1회 Forward 비용이 큰 상황에서 이득이 커집니다. 후보가 자주 틀리면 미리 계산한 뒤쪽 위치를 버리므로 이득이 줄어듭니다.</div>
+
+      <h3>이 예시를 한 문장으로 복원하기</h3>
+      <div class="callout"><code>[나는]</code>만 확정된 상태에서 Draft가 <code>[학교에] [갔다]</code>를 임시로 제안하고, 큰 모델은 한 번의 병렬 Forward로 “나는→학교에”와 “나는 학교에→갔다”를 동시에 계산한 뒤, 앞에서부터 맞은 후보만 실제 문장으로 확정합니다.</div>
+    </section>
+
+    <section id="prerequisites">
+      <h2>이 글을 이해하기 위한 선수지식 지도</h2>
+      <p class="muted">전부 선행하지 않는다. 위에서부터 현재 질문에 필요한 가지 하나만 선택한다.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>Level 1 · 지금 연결할 기초</h3>
+          <span class="tag">Tensor Shape</span><span class="tag">행렬곱</span><span class="tag">Autoregressive decoding</span>
+          <ul><li>행렬곱이 어떤 계산량과 메모리 읽기를 만드는가</li><li>왜 다음 토큰마다 모델 forward가 필요한가</li><li>Latency와 throughput의 차이</li></ul>
+        </article>
+        <article class="card">
+          <h3>Level 2 · 성능 모델</h3>
+          <span class="tag">FLOPS</span><span class="tag">Bandwidth</span><span class="tag">Arithmetic intensity</span>
+          <ul><li>연산 병목과 메모리 병목 구분</li><li>HBM 용량과 대역폭 차이</li><li>가중치 바이트 ÷ 대역폭으로 하한 계산</li></ul>
+        </article>
+        <article class="card">
+          <h3>Level 3 · GPU 실행 구조</h3>
+          <span class="tag">SM</span><span class="tag">Warp</span><span class="tag">CTA</span><span class="tag">Occupancy</span>
+          <ul><li>많은 SM이 동시에 일해야 하는 이유</li><li>레지스터 사용량이 동시 CTA 수를 줄이는 과정</li><li>로드와 연산을 겹치는 파이프라이닝</li></ul>
+        </article>
+        <article class="card">
+          <h3>Level 4 · 커널 최적화</h3>
+          <span class="tag">GEMM</span><span class="tag">Split-K</span><span class="tag">Fusion</span><span class="tag">Quantization</span>
+          <ul><li>K축 분할로 병렬 작업 수를 늘리는 이유</li><li>작은 커널 사이 HBM 왕복을 fusion으로 줄이는 이유</li><li>FP8/FP4가 바이트와 수치오차에 미치는 영향</li></ul>
+        </article>
+        <article class="card">
+          <h3>Level 5 · 추론 알고리즘</h3>
+          <span class="tag">MoE</span><span class="tag">MTP</span><span class="tag">Speculative decoding</span>
+          <ul><li>Top-k expert가 실제 읽는 가중치를 줄이는 과정</li><li>Draft와 verifier의 역할</li><li>Acceptance length와 품질·속도 trade-off</li></ul>
+        </article>
+        <article class="card">
+          <h3>Level 6 · 프로덕션 런타임</h3>
+          <span class="tag">CUDA Graph</span><span class="tag">AllReduce</span><span class="tag">CPU↔GPU sync</span>
+          <ul><li>커널 실행 오버헤드와 동기화</li><li>Tensor Parallel 통신</li><li>KV cache·batching·routing이 서빙에 미치는 영향</li></ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="verification">
+      <h2>검증 노트 · 원문 수치를 그대로 믿지 않는 방법</h2>
+      <h3>바로 다시 계산할 수 있는 부분</h3>
+      <div class="formula">이론 전송 시간 = <span class="fraction"><span class="top">6.65 GB</span><span class="bottom">8 TB/s</span></span> ≈ 0.831 ms</div>
+      <div class="formula">60% 유효 대역폭의 전송 시간 = <span class="fraction"><span class="top">6.65 GB</span><span class="bottom">4.8 TB/s</span></span> ≈ 1.385 ms</div>
+      <div class="warning"><strong>첫 번째 검증 질문</strong><br>제공된 글은 두 번째 값을 약 1.1 ms라고 적었다. 단순 나눗셈으로는 약 1.385 ms이므로 GB/TB 단위 정의, 실제 트래픽, 반올림 또는 다른 가정이 있는지 원문 자료와 프로파일을 확인해야 한다.</div>
+
+      <h3>추가 근거가 필요한 주장</h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>주장</th><th>확인에 필요한 자료</th><th>현재 상태</th></tr></thead>
+        <tbody>
+          <tr><td>GLM-5.2 753B, top-8, 랭크당 6.65GB 트래픽</td><td>모델 구성, expert 크기, 정밀도, TP 배치 방식</td><td>원문 주장</td></tr>
+          <tr><td>B300의 연산량·HBM 대역폭 수치</td><td>NVIDIA 공식 아키텍처·제품 문서</td><td>미검증</td></tr>
+          <tr><td>53µs → 127µs → 37µs</td><td>커널 코드, 입력 shape, profiler trace, 비교 조건</td><td>원문 측정 주장</td></tr>
+          <tr><td>100 tok/s → 600 tok/s</td><td>모델·하드웨어·sampling·품질·batch 조건</td><td>원문 측정 주장</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>첫 번째로 공부할 작은 단위</h3>
+      <div class="callout"><strong>추천 시작점: 메모리 대역폭 하한 계산</strong><br>행렬곱 커널 작성부터 시작하지 않는다. 먼저 ‘한 토큰을 만들 때 읽는 가중치 바이트 수 ÷ 초당 전송 바이트’가 왜 최소 시간을 주는지 작은 숫자로 계산한다. 그다음 연산량과 비교해 메모리 병목인지 판별하는 Arithmetic Intensity로 확장한다.</div>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>
