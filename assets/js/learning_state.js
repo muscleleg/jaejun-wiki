@@ -8,8 +8,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 3,
       total: 6,
-      current: "Q Projection과 nn.Linear의 직접 행렬곱 일치 검증",
-      next: "같은 입력에서 K·V Projection을 만들고 값 비교"
+      current: "Q·K·V Projection부터 Value 가중합까지 연결·검산",
+      next: "view와 transpose로 Head 축 분리 실습"
     },
     {
       id: "pytorch",

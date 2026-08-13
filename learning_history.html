@@ -55,7 +55,7 @@
       <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
         <div class="stat">학습 기록이 있는 날<strong>4일</strong></div>
-        <div class="stat">확인된 공부시간<strong>2시간 20분</strong></div>
+        <div class="stat">확인된 공부시간<strong>4시간 34분</strong></div>
         <div class="stat">최근 학습일<strong>2026-08-13</strong></div>
       </div>
     </header>
@@ -66,7 +66,10 @@
       <div class="timeline">
         <article class="day">
           <time datetime="2026-08-13">2026년 08월 13일</time>
-          <div class="topic"><h3>Q Projection과 <code>nn.Linear</code> 내부 계산 확인</h3><p>입력 <code>x=[1, 2, 2]</code>를 <code>nn.Linear(2, 2, bias=False)</code>에 통과시켜 Query를 만들었다. Linear가 마지막 벡터 차원만 변환하므로 Shape은 <code>[1, 2, 2]</code>로 유지되지만 값과 역할은 달라진다는 점을 확인했다. 또한 <code>x @ weight.T</code>를 직접 계산하고 <code>torch.allclose()</code>가 <code>True</code>임을 확인해 Linear의 결과와 직접 행렬곱이 같다는 것을 검증했다.</p></div>
+          <div class="topic"><h3>Q·K·V Projection과 <code>nn.Linear</code> 내부 계산 확인</h3><p>입력 <code>x=[1, 2, 2]</code>를 서로 다른 <code>nn.Linear(2, 2, bias=False)</code>에 통과시켜 Q·K·V를 만들었다. Linear가 마지막 벡터 차원만 변환하므로 Shape은 유지되지만, 각 Projection이 별도의 가중치를 사용해 값과 역할은 달라진다는 점을 확인했다. 또한 <code>x @ weight.T</code>를 직접 계산하고 <code>torch.allclose()</code>가 <code>True</code>임을 확인해 Linear의 결과와 직접 행렬곱이 같다는 것을 검증했다.</p></div>
+          <div class="topic"><h3>Score Scaling에서 평균 0과 분산의 연결 복습</h3><p><code>QKᵀ</code>로 <code>[1,2,2]</code> Score를 만들고 현재 <code>d_k=2</code>임을 확인했다. 분산은 <code>Var(X)=E[(X-E[X])²]</code>이며, 초기화 분포의 기댓값을 0으로 두었기 때문에 <code>Var(X)=E[X²]</code>로 단순화된다는 빠졌던 연결고리를 바로잡았다. 각 곱의 평균 0·분산 1과 독립성을 근사하면 Score의 실제 값이 <code>d_k</code>가 아니라 분산이 <code>d_k</code>, 표준편차가 <code>√d_k</code>가 되므로 이를 나누어 약 1 규모로 맞춘다는 점을 정리했다.</p></div>
+          <div class="topic"><h3>Softmax와 <code>dim=-1</code>의 의미 확인</h3><p><code>scaled_scores</code>에 마지막 차원 Softmax를 적용해 <code>attention_weights</code>를 만들었다. Shape <code>[1,2,2]</code>에서 각 행은 하나의 Query가 두 Key를 참고하는 비율이고, <code>dim=-1</code>은 Key 방향으로 행별 정규화하므로 각 행의 합이 1이 된다. 실제 결과 <code>[0.5084,0.4916]</code>, <code>[0.4306,0.5694]</code>를 통해 Query1은 Key1을, Query2는 Key2를 조금 더 참고한다는 것을 확인했다.</p></div>
+          <div class="topic"><h3><code>attention_weights @ value</code>를 실제 숫자로 검산</h3><p>Attention weight의 Shape이 3차원인 이유는 맨 앞의 Batch 차원 때문이며, <code>value[0,0]</code>은 Token1의 한 좌표가 아니라 Value 벡터 전체라는 점을 구분했다. 첫 번째 Query에 대해 <code>0.5084×Value1 + 0.4916×Value2</code>를 직접 계산해 <code>[-0.0971,0.0557]</code>을 얻고 <code>output[0,0]</code>과 일치함을 확인했다. Attention은 Value들의 가중합이므로 두 항 사이에는 뺄셈이 아니라 덧셈을 사용한다.</p></div>
         </article>
         <article class="day">
           <time datetime="2026-08-12">2026년 08월 12일</time>
@@ -93,6 +96,20 @@
       <h2>공부시간</h2>
       <p class="summary">시간이 사용자에게 확인된 세션만 누적한다.</p>
       <article class="session">
+        <div class="session-head"><div><time datetime="2026-08-13">2026년 08월 13일</time><h3>오후 8시 – 오후 10시 14분</h3></div><div class="duration">2시간 14분</div></div>
+        <div class="session-body">
+          <strong>이 시간에 한 공부</strong>
+          <ul>
+            <li>초반 약 40분 동안 위키 문서와 학습 자료 구조 정리</li>
+            <li><code>nn.Linear</code>로 Q·K·V Projection을 만들고 직접 행렬곱과 비교</li>
+            <li><code>QKᵀ</code>의 Shape, 평균 0과 분산, <code>√d_k</code> Scaling 복습</li>
+            <li><code>dim=-1</code> Softmax로 Query별 Key 참고 비율 계산</li>
+            <li><code>attention_weights @ value</code>의 첫 번째 Query 출력을 실제 숫자로 검산</li>
+            <li>다음 시작점을 Multi-Head Attention의 Head 분리로 확정</li>
+          </ul>
+        </div>
+      </article>
+      <article class="session">
         <div class="session-head"><div><time datetime="2026-08-12">2026년 08월 12일</time><h3>오후 7시 30분 – 오후 9시 50분</h3></div><div class="duration">2시간 20분</div></div>
         <div class="session-body">
           <strong>이 시간에 한 공부</strong>
@@ -106,7 +123,7 @@
           </ul>
         </div>
       </article>
-      <div class="note"><strong>시간이 없는 기록</strong><br>2026년 8월 10일, 11일과 13일은 학습 내용만 보존하고 공부시간은 추정하지 않았다.</div>
+      <div class="note"><strong>시간이 없는 기록</strong><br>2026년 8월 10일과 11일은 학습 내용만 보존하고 공부시간은 추정하지 않았다.</div>
     </section>
   </main>
   <a class="home-link" href="index.html" aria-label="학습 홈으로 돌아가기">⌂ 학습 홈</a>
