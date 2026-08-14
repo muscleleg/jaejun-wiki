@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tensor 원소, 토큰 벡터, 차원, bytes와 메모리 사용량을 구분하는 참조 문서">
+  <title>Tensor 원소·차원·bytes와 메모리</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260814-8">
+</head>
+<body class="wiki-reference reference-note">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../roadmaps/roadmap_llm_systems.html">LLM 시스템·최적화</a><span class="separator">›</span><span aria-current="page">Tensor 원소와 bytes</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">LLM 시스템 참조</span>
+      <h1>Tensor 원소·차원·bytes와 메모리</h1>
+      <p class="summary">“FP32는 4 bytes”가 Token 하나, 차원 하나, 가중치 하나 중 무엇을 뜻하는지 Shape부터 구분한다.</p>
+      <div class="hero-actions"><a class="button" href="#token-vector">토큰 벡터</a><a class="button secondary" href="#attention-tensors">Attention Tensor</a><a class="button secondary" href="#calculation">계산과 bytes</a><a class="button secondary" href="llm_precision_formats_learning.html">정밀도 아티클로 돌아가기</a></div>
+    </header>
+
+    <section id="token-vector">
+      <h2>핵심 결론</h2>
+      <div class="formula">FP32 Tensor 원소 숫자 1개 = 4 bytes</div>
+      <p>여기서 “원소 하나”는 Tensor 안의 숫자 하나다. Token 자체가 4 bytes라는 뜻은 아니다.</p>
+      <pre><code>Token1의 x / Q / K / V 벡터
+= [차원1, 차원2, 차원3]
+= [FP32 숫자, FP32 숫자, FP32 숫자]
+= [4 bytes, 4 bytes, 4 bytes]</code></pre>
+      <p>Embedding을 거친 Token1의 벡터가 3차원이라면 숫자 원소가 3개이고, 각 원소를 FP32로 저장하면 총 12 bytes다.</p>
+    </section>
+
+    <section id="shape">
+      <h2>Shape으로 보는 저장량</h2>
+      <p>입력이나 Hidden State, Q·K·V는 보통 다음 Shape을 가진다.</p>
+      <div class="formula">[batch, token, dimension]</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Shape 축</th><th>의미</th><th>메모리 계산에서 하는 일</th></tr></thead>
+        <tbody>
+          <tr><td>batch</td><td>문장을 몇 개 동시에 계산하는가</td><td>문장 수만큼 Tensor 원소가 늘어난다.</td></tr>
+          <tr><td>token</td><td>문장 안 Token 개수</td><td>Token마다 벡터 하나가 생긴다.</td></tr>
+          <tr><td>dimension</td><td>벡터 안 숫자 원소 개수</td><td>각 숫자가 FP32라면 각각 4 bytes를 쓴다.</td></tr>
+        </tbody>
+      </table></div>
+      <p><code>x.shape = [1, 2, 4096]</code>이라면 FP32 숫자가 <code>1 × 2 × 4096</code>개다. 따라서 전체 <code>x</code> Tensor는 약 <code>1 × 2 × 4096 × 4 bytes</code>를 사용한다.</p>
+      <div class="caution"><strong>Token ID는 별개다.</strong><br>입력 Token ID는 정수 하나다. Token ID를 Embedding으로 조회한 다음에야 여러 차원 숫자로 된 <code>x</code> 벡터가 생긴다. “차원 하나당 4 bytes”라는 설명은 이 벡터 원소를 FP32로 저장할 때의 이야기다.</div>
+    </section>
+
+    <section id="weights">
+      <h2>가중치 7B와 Token 벡터는 다른 메모리다</h2>
+      <p>7B 모델의 <code>7B</code>는 Token 수가 아니라, 모델 내부의 모든 학습된 가중치 행렬과 그 밖의 파라미터에 저장된 숫자를 합쳐 약 70억 개라는 뜻이다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>대상</th><th>무엇이 몇 개 있는가?</th><th>FP32일 때</th></tr></thead>
+        <tbody>
+          <tr><td>가중치 7B</td><td>모델 내부의 학습된 숫자 약 70억 개</td><td>약 70억 × 4 bytes = 약 28GB</td></tr>
+          <tr><td>Token 하나의 4096차원 Q 벡터</td><td>숫자 4096개</td><td>약 4096 × 4 bytes = 약 16KB</td></tr>
+          <tr><td>Token 하나의 K와 V 벡터</td><td>각각 숫자 4096개라고 단순화</td><td>약 2 × 4096 × 4 bytes = 약 32KB</td></tr>
+        </tbody>
+      </table></div>
+      <div class="caution"><strong>가중치 숫자란 무엇인가?</strong><br><code>W_Q</code>, <code>W_K</code>, <code>W_V</code>와 FFN의 <code>W₁</code>, <code>W₂</code> 같은 행렬의 각 칸에 저장된 숫자다. <a href="model_parameters_7b_learning.html">7B 모델의 파라미터와 가중치 숫자표</a>에서 입력·중간 결과와 구분한다.</div>
+      <p>실제 Multi-Head Attention에서는 Head 수와 <code>head_dim</code>으로 나뉘지만, 한 Layer에서 모든 Head의 차원을 합치면 보통 이 단순화와 같은 방식으로 원소 수를 셀 수 있다. GQA/MQA 같은 구조에서는 K·V 원소 수가 더 줄어들 수 있다.</p>
+    </section>
+
+    <section id="attention-tensors">
+      <h2>Attention 중간 결과도 각 칸이 숫자 하나다</h2>
+      <p>FP32로 계산 결과를 저장한다고 가정하면, Attention에서 새로 나오는 Tensor의 각 칸도 FP32 숫자 하나이므로 4 bytes다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>계산</th><th>결과 Shape</th><th>한 칸의 의미</th><th>FP32 저장량</th></tr></thead>
+        <tbody>
+          <tr><td><code>Q @ Kᵀ</code></td><td><code>[token, token]</code></td><td>한 Query가 한 Key를 얼마나 맞는지 나타내는 Score 숫자 하나</td><td>4 bytes</td></tr>
+          <tr><td><code>softmax(scores)</code></td><td><code>[token, token]</code></td><td>한 Query가 한 Key를 참고하는 비율 숫자 하나</td><td>4 bytes</td></tr>
+          <tr><td><code>attention_weights @ V</code></td><td><code>[token, value dimension]</code></td><td>참고한 뒤 만들어진 Output 벡터의 차원값 하나</td><td>4 bytes</td></tr>
+        </tbody>
+      </table></div>
+      <pre><code>scores            = [토큰 수, 토큰 수]
+attention_weights = [토큰 수, 토큰 수]
+output            = [토큰 수, value 차원]</code></pre>
+      <p>예를 들어 Token이 2개이고 Value 차원이 1024라면 <code>scores</code>와 <code>attention_weights</code>는 각각 <code>[2, 2]</code>, <code>output</code>은 <code>[2, 1024]</code>다. 이 Tensor들 안의 각 칸이 FP32라면 각각 4 bytes를 사용한다.</p>
+      <div class="caution"><strong>이름을 구분한다.</strong><br><code>Q @ Kᵀ</code>의 결과가 <code>scores</code>다. 마지막 <code>attention_weights @ V</code>의 결과는 Score가 아니라 새 <code>output</code> 벡터다.</div>
+      <p>BF16·FP16으로 저장하면 같은 Shape이라도 각 칸은 보통 2 bytes가 된다. 따라서 Tensor의 메모리는 <strong>원소 개수 × 원소당 bytes</strong>로 생각하면 된다.</p>
+    </section>
+
+    <section id="calculation">
+      <h2>4 bytes는 곱셈 단위가 아니다</h2>
+      <p>Q Projection의 한 출력 차원은 다음처럼 숫자를 곱하고 더해 만든다.</p>
+      <div class="formula">q₁ = x₁w₁₁ + x₂w₂₁ + ··· + x<sub>d</sub>w<sub>d1</sub></div>
+      <p><code>x1</code>과 <code>w11</code>이 FP32라면 각각 메모리에서 4 bytes를 차지한다. GPU는 두 숫자를 읽어 산술 곱셈을 수행하고, 결과는 보통 다시 FP32 숫자 하나로 계산·저장한다.</p>
+      <div class="caution"><strong>따라서</strong> <code>4 bytes × 4 bytes = 16 bytes</code>가 되는 것은 아니다. bytes는 숫자를 담는 저장 단위이고, 곱셈은 그 숫자값으로 하는 산술 연산이다.</div>
+      <p>다만 FP32도 표현 가능한 숫자 범위가 유한하다. 곱셈·합산 결과가 너무 크면 <code>inf</code>가 되고, 너무 작으면 0으로 사라질 수 있다. 정밀도 형식이 낮아질수록 이 overflow·underflow·반올림 오차를 더 신경 써야 한다.</p>
+    </section>
+
+    <section id="next">
+      <h2>다음 연결</h2>
+      <div class="grid">
+        <article class="card"><h3>정밀도 형식</h3><p>같은 Tensor 원소를 FP32가 아닌 BF16·FP16·FP8·INT4로 저장하면 bytes, 범위, 세밀함이 어떻게 바뀌는지 연결한다.</p><a href="llm_precision_formats_learning.html">LLM 정밀도 형식과 양자화 →</a></article>
+        <article class="card"><h3>7B 파라미터</h3><p>7B의 70억 개가 입력값이나 벡터 종류가 아니라 모델 내부의 학습된 숫자라는 점을 구분한다.</p><a href="model_parameters_7b_learning.html">7B 모델의 파라미터와 가중치 숫자표 →</a></article>
+        <article class="card"><h3>Attention</h3><p>Q·K·V가 실제로 어떤 Shape으로 생성되고, K·V가 왜 cache로 남는지 현재 손코딩 코드와 연결한다.</p><a href="../transformer/transformer_attention_learning.html">Scaled Dot-Product Attention →</a></article>
+      </div>
+    </section>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260813"></script>
+</body>
+</html>

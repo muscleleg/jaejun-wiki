@@ -1,15 +1,15 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-13",
-  overall: { done: 7, total: 23 },
+  updated: "2026-08-14",
+  overall: { done: 8, total: 23 },
   tracks: [
     {
       id: "transformer",
       title: "Transformer 손코딩",
       href: "roadmaps/roadmap_transformer.html",
-      done: 3,
+      done: 4,
       total: 6,
-      current: "Q·K·V Projection부터 Value 가중합까지 연결·검산",
-      next: "view와 transpose로 Head 축 분리 실습"
+      current: "Multi-Head Attention Head split·별도 계산·merge 검증",
+      next: "Output Projection W_O와 nn.Module로 전체 모듈화"
     },
     {
       id: "pytorch",

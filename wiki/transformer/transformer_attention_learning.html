@@ -996,6 +996,46 @@ torch.allclose(manual_output_1, output[<span class="num">0</span>, <span class="
         <div class="caution"><strong><code>+</code>를 사용해야 하는 이유</strong> — Attention은 각 Value를 참고 비율대로 모으는 <strong>가중합</strong>입니다. 두 번째 항 앞에 <code>-</code>를 쓰면 Value2의 기여를 빼는 전혀 다른 연산이 되어 <code>attention_weights @ value</code>와 일치하지 않습니다.</div>
         <div class="caution"><strong>이번 실습의 결론</strong> — <code>attention_weights @ value</code>는 각 Query가 Token별 Attention weight를 해당 Token의 Value 벡터 전체에 곱한 뒤 모두 더하여, 문맥이 반영된 새로운 출력 벡터를 만드는 연산입니다.</div>
 
+        <h3>두 번째 Query가 첫 번째 Value도 사용하는 이유</h3>
+        <p>Attention weight를 Batch 차원을 빼고 <code>[Query, Key]</code> 행렬로 보면 각 칸의 위치는 다음과 같습니다.</p>
+        <div class="code-card" aria-label="Query와 Key별 Attention weight 위치">
+          <div class="code-head"><span>Attention weight 위치</span><span>행은 Query, 열은 Key</span></div>
+          <pre><code>             Key1   Key2
+Query1        a1     a2
+Query2        a3     a4</code></pre>
+        </div>
+        <div class="path-map" aria-label="두 번째 Query의 Attention weight 의미">
+          <div class="path-row"><strong><code>a3</code></strong><code>Q2와 K1에서 시작해 만들어진 비율</code></div>
+          <div class="path-row"><strong><code>a4</code></strong><code>Q2와 K2에서 시작해 만들어진 비율</code></div>
+          <div class="path-row"><strong><code>attention_weights[0,1,0]</code></strong><code>첫 Batch의 Q2 → K1 비율 = a3 = 0.4306</code></div>
+          <div class="path-row"><strong><code>attention_weights[0,1,1]</code></strong><code>첫 Batch의 Q2 → K2 비율 = a4 = 0.5694</code></div>
+        </div>
+        <p>정확히는 <code>a1</code>부터 <code>a4</code>까지가 원래의 <code>qᵢ·kⱼ</code> 내적값 그 자체는 아닙니다. 내적 Score를 <code>√d_k</code>로 나누고 각 행에 Softmax까지 적용한 뒤 얻은 참고 비율입니다.</p>
+        <div class="formula">
+          <span class="math">QKᵀ → √d_k로 Scaling → 행별 Softmax → attention_weights</span>
+        </div>
+        <p><code>Q2</code>는 두 번째 Token이 만든 Query입니다. 그렇다고 두 번째 Token만 참고하는 것은 아닙니다. <code>Q2</code>는 <code>K1</code>과 비교해 Token1을 얼마나 참고할지 정하고, <code>K2</code>와 비교해 Token2를 얼마나 참고할지 정합니다.</p>
+
+        <div class="code-card" aria-label="두 번째 Query 출력을 직접 계산하는 코드">
+          <div class="code-head"><span>두 번째 출력 수동 검산</span><span>Q2의 행 a3, a4 사용</span></div>
+          <pre><code>manual_output_2 = (
+    attention_weights[<span class="num">0</span>, <span class="num">1</span>, <span class="num">0</span>] * value[<span class="num">0</span>, <span class="num">0</span>]
+    + attention_weights[<span class="num">0</span>, <span class="num">1</span>, <span class="num">1</span>] * value[<span class="num">0</span>, <span class="num">1</span>]
+)
+
+print(<span class="str">"직접 계산한 두 번째 출력:"</span>, manual_output_2)
+print(<span class="str">"matmul로 계산한 두 번째 출력:"</span>, output[<span class="num">0</span>, <span class="num">1</span>])
+print(<span class="str">"같은가:"</span>, torch.allclose(manual_output_2, output[<span class="num">0</span>, <span class="num">1</span>]))
+<span class="comment"># 예상: True</span></code></pre>
+        </div>
+        <div class="formula">
+          <span class="math">Output₂ = a₃ × Value₁ + a₄ × Value₂</span>
+          <span class="math">= 0.4306 × [0.1052, -0.3093] + 0.5694 × [-0.3062, 0.4331]</span>
+          <span class="math">≈ [-0.1291, 0.1135]</span>
+        </div>
+        <p>여기서 <code>a3</code>는 Token1의 <code>Value</code> 벡터 전체에, <code>a4</code>는 Token2의 <code>Value</code> 벡터 전체에 곱해집니다. <code>Q2</code>의 계산에 <code>Value1</code>이 들어가더라도 첫 번째 출력이 되는 것이 아닙니다. Token1의 정보를 두 번째 Token의 새 표현인 <code>Output2</code>로 가져오는 것입니다.</p>
+        <div class="caution"><strong>이번에 풀린 혼동</strong> — <code>attention_weights[0,1]</code>은 두 번째 Query의 행입니다. 따라서 <code>[a3,a4]</code>를 사용해 <code>a3×V1 + a4×V2</code>를 계산하며, 그 결과는 두 번째 Token의 문맥 반영 출력인 <code>Output2</code>가 됩니다.</div>
+
         <div class="code-card" aria-label="두 토큰의 Value 가중합 예시">
           <div class="code-head"><span>숫자 예시</span><span>각 행이 새로운 벡터 하나를 생성</span></div>
           <pre><code>attention_weights = [
@@ -1158,6 +1198,328 @@ tensor([[[-<span class="num">0.1083</span>, -<span class="num">0.1418</span>],
          [ <span class="num">0.1798</span>,  <span class="num">0.4593</span>]]])</code></pre>
         </div>
         <div class="caution"><strong>오늘 확인한 결론</strong> — 원본 <code>x</code>는 서로 다른 학습 가능한 가중치와 곱해져 Q·K·V 관점의 벡터가 됩니다. <code>QKᵀ</code>의 한 칸은 <code>d_k</code>개 곱의 합이고, 현재는 <code>d_k=2</code>이므로 Score를 <code>√2</code>로 나눕니다. 이 나눗셈은 실제 Score를 1로 만드는 것이 아니라 Score 분포의 표준편차를 약 1 규모로 맞추기 위한 것입니다.</div>
+      </section>
+
+      <section id="multi-head-attention">
+        <div class="section-kicker">2026-08-14 · Multi-Head Attention 실습</div>
+        <h2>Head별 Attention 계산과 다시 합치기</h2>
+        <p>오늘은 Single-head Attention을 여러 Head로 나누어 계산한 뒤, 다시 원래 Token 벡터 Shape으로 합치는 흐름을 작은 Tensor로 확인했다. 이 문서의 예제는 Head 분리와 Shape을 보기 위해 Q·K·V 결과를 직접 선언한 단순화된 실험이다.</p>
+
+        <h3>오늘 완성한 전체 흐름</h3>
+        <div class="path-map" aria-label="Multi-Head Attention 전체 흐름">
+          <div class="path-row"><strong>1</strong><code>Q·K·V 준비</code></div>
+          <div class="path-row"><strong>2</strong><code>각 Token의 특징 차원을 Head별 조각으로 분리</code></div>
+          <div class="path-row"><strong>3</strong><code>Head별 Q @ Kᵀ → √head_dim Scaling → Softmax</code></div>
+          <div class="path-row"><strong>4</strong><code>Attention Weight @ Value</code></div>
+          <div class="path-row"><strong>5</strong><code>같은 Token의 Head 결과를 다시 모아 d_model로 병합</code></div>
+        </div>
+
+        <h3>1. Query를 현재 셀에서 다시 선언하기</h3>
+        <div class="code-card" aria-label="Multi-Head 실습 Query 선언">
+          <div class="code-head"><span>실습용 Query</span><span>Token 2개 · 차원 2개</span></div>
+          <pre><code>import torch
+
+query = torch.tensor([[
+    [<span class="num">0.1</span>, <span class="num">0.2</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.3</span>, <span class="num">0.4</span>],  <span class="comment"># Token 2</span>
+]])
+
+print(<span class="string">"query:"</span>)
+print(query)
+print(<span class="string">"query shape:"</span>, query.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Query 기본 Shape">
+          <div class="path-row"><strong>query</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+          <div class="path-row"><strong>Token 1</strong><code>[0.1, 0.2]</code></div>
+          <div class="path-row"><strong>Token 2</strong><code>[0.3, 0.4]</code></div>
+        </div>
+        <p>실제 모델에서는 <code>Q = x @ W_Q</code>로 만들어지지만, 이번 셀에서는 Head Shape에 집중하기 위해 Query 결과값을 직접 만들었다.</p>
+
+        <h3>2. Head 수와 Head 차원 계산</h3>
+        <div class="code-card" aria-label="Head 차원 계산 코드">
+          <div class="code-head"><span>Head 크기 계산</span><span><code>d_model = num_heads × head_dim</code></span></div>
+          <pre><code>batch_size, token_count, d_model = query.shape
+
+num_heads = <span class="num">2</span>
+head_dim = d_model // num_heads
+
+print(<span class="string">"batch_size:"</span>, batch_size)
+print(<span class="string">"token_count:"</span>, token_count)
+print(<span class="string">"d_model:"</span>, d_model)
+print(<span class="string">"num_heads:"</span>, num_heads)
+print(<span class="string">"head_dim:"</span>, head_dim)</code></pre>
+        </div>
+        <p>현재는 <code>d_model=2</code>, <code>num_heads=2</code>이므로 <code>head_dim=1</code>이다.</p>
+
+        <h3>3. <code>view()</code>로 Head별 조각 만들기</h3>
+        <div class="code-card" aria-label="Query를 Head별로 분리하는 코드">
+          <div class="code-head"><span>Head split</span><span>숫자는 그대로, Shape만 변경</span></div>
+          <pre><code>query_split = query.view(
+    batch_size,
+    token_count,
+    num_heads,
+    head_dim,
+)
+
+print(<span class="string">"query_split:"</span>)
+print(query_split)
+print(<span class="string">"query_split shape:"</span>, query_split.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="view 전후 Shape">
+          <div class="path-row"><strong>변경 전</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+          <div class="path-row"><strong>변경 후</strong><code>[batch, token, num_heads, head_dim] = [1, 2, 2, 1]</code></div>
+        </div>
+        <p><code>view()</code>는 숫자의 값이나 순서를 계산으로 바꾸지 않고, 같은 숫자를 새로운 Shape으로 다시 해석한다. 이번 코드에서는 <code>d_model 2 = num_heads 2 × head_dim 1</code>이 되도록 Shape을 직접 지정했다.</p>
+        <div class="caution"><strong><code>view()</code>와 <code>reshape()</code></strong> — 이번 실습에서는 둘 다 같은 용도로 이해해도 된다. <code>view()</code>는 메모리가 연속적으로 배치되어 있어야 하고, <code>reshape()</code>는 필요하면 복사해서라도 Shape을 바꿀 수 있다.</div>
+
+        <h3>4. “Token 조각이 늘었다”는 감각</h3>
+        <p>Head로 나누었다고 문장의 Token 수가 늘어난 것은 아니다.</p>
+        <div class="equivalence">
+          <article><strong>그대로인 것</strong><p>Token 수 = 2개</p></article>
+          <div class="equals" aria-hidden="true">대신</div>
+          <article><strong>늘어난 것</strong><p>Token × Head 조합 = 2 × 2 = 4개의 조각</p></article>
+        </div>
+        <pre><code>Token 1
+  Head 1 조각 → [0.1]
+  Head 2 조각 → [0.2]
+
+Token 2
+  Head 1 조각 → [0.3]
+  Head 2 조각 → [0.4]</code></pre>
+        <p>따라서 “Token 하나를 Head 수만큼 조각내서 처리할 조각의 개수를 늘렸다”는 표현은 맞다. 다만 실제 Token 수와 전체 숫자 개수는 그대로다.</p>
+
+        <h3>5. <code>transpose(1, 2)</code>로 같은 Head끼리 모으기</h3>
+        <div class="code-card" aria-label="Head와 Token 축을 바꾸는 코드">
+          <div class="code-head"><span>축 순서 변경</span><span>Token 축과 Head 축 교환</span></div>
+          <pre><code>query_heads = query_split.transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+print(<span class="string">"query_heads:"</span>)
+print(query_heads)
+print(<span class="string">"query_heads shape:"</span>, query_heads.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="transpose 전후 축 의미">
+          <div class="path-row"><strong>전</strong><code>[batch, token, head, head_dim]</code></div>
+          <div class="path-row"><strong>후</strong><code>[batch, head, token, head_dim]</code></div>
+        </div>
+        <pre><code>Head 1
+  Token 1 → [0.1]
+  Token 2 → [0.3]
+
+Head 2
+  Token 1 → [0.2]
+  Token 2 → [0.4]</code></pre>
+        <p>각 Head가 모든 Token의 자기 담당 특징 조각을 한꺼번에 볼 수 있도록 축을 바꾼다. 현재는 Token 수도 Head 수도 2라 Shape 숫자는 우연히 전후 모두 <code>[1, 2, 2, 1]</code>로 보이지만, 축의 의미와 숫자 배치는 달라졌다.</p>
+
+        <h3>6. 4차원 Tensor에서 인덱스 일부만 지정하기</h3>
+        <p><code>query_heads</code>의 Shape은 다음과 같다.</p>
+        <div class="formula"><span class="math">[batch, head, token, head_dim] = [1, 2, 2, 1]</span></div>
+        <p>따라서 다음 코드는 4차원 전체를 선택한 것이 아니다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>]</code></pre>
+        <p>이는 <code>Batch 0</code>과 <code>Head 0</code>만 선택하고, 뒤의 Token과 <code>head_dim</code> 축은 남겨두는 코드다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>]
+== query_heads[<span class="num">0</span>, <span class="num">0</span>, :, :]
+
+결과 Shape: [token, head_dim] = [2, 1]
+결과값:
+[
+    [<span class="num">0.1</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.3</span>],  <span class="comment"># Token 2</span>
+]</code></pre>
+        <p>숫자 하나를 선택하려면 인덱스 4개가 필요하다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>]
+→ Batch 0, Head 0, Token 0, 차원 0
+→ <span class="num">0.1</span></code></pre>
+
+        <h3>7. Key와 Value도 같은 방식으로 분리하기</h3>
+        <div class="code-card" aria-label="Key와 Value 선언 및 Head 분리 코드">
+          <div class="code-head"><span>Key·Value split</span><span>Q와 동일한 축 흐름</span></div>
+          <pre><code>key = torch.tensor([[
+    [<span class="num">0.5</span>, <span class="num">0.6</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.7</span>, <span class="num">0.8</span>],  <span class="comment"># Token 2</span>
+]])
+
+value = torch.tensor([[
+    [<span class="num">10.0</span>, <span class="num">20.0</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">30.0</span>, <span class="num">40.0</span>],  <span class="comment"># Token 2</span>
+]])
+
+key_heads = key.view(
+    batch_size, token_count, num_heads, head_dim
+).transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+value_heads = value.view(
+    batch_size, token_count, num_heads, head_dim
+).transpose(<span class="num">1</span>, <span class="num">2</span>)</code></pre>
+        </div>
+        <p>Q·K·V는 모두 다음 Shape으로 정렬된다.</p>
+        <div class="formula"><span class="math">[batch, head, token, head_dim] = [1, 2, 2, 1]</span></div>
+        <p>예를 들면 Head 1의 Value는 Token 1의 <code>[10.0]</code>, Token 2의 <code>[30.0]</code>을 가지고, Head 2의 Value는 <code>[20.0]</code>, <code>[40.0]</code>을 가진다.</p>
+        <div class="caution"><strong>실습 중 오타</strong> — <code>[30.0, 40,0]</code>은 <code>[30.0, 40, 0]</code>처럼 숫자 3개로 해석된다. 다른 행의 숫자 2개와 길이가 달라 Tensor를 만들 수 없으므로 <code>[30.0, 40.0]</code>으로 고친다.</div>
+
+        <h3>8. Head별 <code>Q @ Kᵀ</code> Score</h3>
+        <div class="code-card" aria-label="Head별 Score 계산 코드">
+          <div class="code-head"><span>Head별 내적</span><span>각 Head마다 Query-Key 표 생성</span></div>
+          <pre><code>scores_heads = torch.matmul(
+    query_heads,
+    key_heads.transpose(-<span class="num">2</span>, -<span class="num">1</span>),
+)
+
+print(<span class="string">"scores_heads:"</span>)
+print(scores_heads)
+print(<span class="string">"scores_heads shape:"</span>, scores_heads.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Head별 Score Shape">
+          <div class="path-row"><strong>query_heads</strong><code>[batch, head, query_token, head_dim]</code></div>
+          <div class="path-row"><strong>key_heads.transpose(-2, -1)</strong><code>[batch, head, head_dim, key_token]</code></div>
+          <div class="path-row"><strong>scores_heads</strong><code>[batch, head, query_token, key_token] = [1, 2, 2, 2]</code></div>
+        </div>
+        <p>Single-head에서는 <code>[batch, query_token, key_token]</code>였던 Score에 Head 축이 하나 추가됐다. 지금은 <code>2 × 2</code> Score 표가 Head마다 하나씩, 총 2개 생겼다.</p>
+
+        <h3>9. 왜 <code>√head_dim</code>으로 나누는가</h3>
+        <div class="code-card" aria-label="Head 차원 기준 Score scaling 코드">
+          <div class="code-head"><span>Scaled Score</span><span>현재 <code>head_dim=1</code></span></div>
+          <pre><code>import math
+
+scaled_scores_heads = scores_heads / math.sqrt(head_dim)
+
+print(<span class="string">"head_dim:"</span>, head_dim)
+print(<span class="string">"scaled_scores_heads:"</span>)
+print(scaled_scores_heads)</code></pre>
+        </div>
+        <p>Head 하나의 Score는 <code>head_dim</code>개의 곱을 더해 만든다.</p>
+        <div class="formula"><span class="math">Score = q₁k₁ + q₂k₂ + ··· + q<sub>head_dim</sub>k<sub>head_dim</sub></span></div>
+        <p>Q·K 원소의 분산이 대략 1이라고 가정하면 Score의 분산은 <code>head_dim</code>, 표준편차는 <code>√head_dim</code> 규모로 커진다. 따라서 <code>Score / √head_dim</code>으로 표준편차를 다시 약 1 규모로 맞춘다. 이번 예제는 <code>head_dim=1</code>이라 <code>√1=1</code>이고 값이 바뀌지 않는다.</p>
+        <div class="caution"><strong>초기화와 Scaling은 서로 다른 연산이다.</strong><br><code>1 / √d_model</code> 규모의 가중치 초기화는 많은 입력을 곱하고 더해 만든 Q·K 원소 하나의 크기를 안정화하는 쪽이다. <code>Score / √head_dim</code>은 Head 안에서 여러 Q·K 곱을 더해 커진 최종 Score의 표준편차를 안정화하는 쪽이다. Embedding에서 <code>√d_model</code>을 곱한 것을 취소하는 연산이 아니다.</div>
+
+        <h3>10. Head별 Softmax와 <code>dim=-1</code></h3>
+        <div class="code-card" aria-label="Head별 Softmax 코드">
+          <div class="code-head"><span>Attention Weight</span><span>마지막 Key 축의 합 = 1</span></div>
+          <pre><code>attention_weights_heads = torch.softmax(
+    scaled_scores_heads,
+    dim=-<span class="num">1</span>,
+)
+
+print(<span class="string">"attention_weights_heads:"</span>)
+print(attention_weights_heads)
+print(<span class="string">"shape:"</span>, attention_weights_heads.shape)
+print(
+    <span class="string">"Key 방향 합:"</span>,
+    attention_weights_heads.sum(dim=-<span class="num">1</span>),
+)</code></pre>
+        </div>
+        <p>Shape은 여전히 <code>[batch, head, query_token, key_token]</code>이다. <code>dim=-1</code>은 마지막 축인 Key 방향으로 Softmax를 적용한다는 뜻이다.</p>
+        <pre><code>예시 한 Head:
+[
+    [<span class="num">0.3</span>, <span class="num">0.7</span>],  <span class="comment"># Query 1이 Key 1·2를 참고하는 비율</span>
+    [<span class="num">0.4</span>, <span class="num">0.6</span>],  <span class="comment"># Query 2가 Key 1·2를 참고하는 비율</span>
+]
+
+sum(dim=-<span class="num">1</span>)
+→ [<span class="num">0.3</span> + <span class="num">0.7</span>, <span class="num">0.4</span> + <span class="num">0.6</span>]
+→ [<span class="num">1</span>, <span class="num">1</span>]</code></pre>
+        <p>합산 전 Shape이 <code>[batch, head, query_token, key_token]</code>이면 마지막 Key 축을 합산한 결과는 <code>[batch, head, query_token]</code>이다. 즉 각 Query가 Key에 배정한 비율의 합이 1인지 확인하는 검산이다.</p>
+
+        <h3>11. Attention Weight와 Value의 가중합</h3>
+        <div class="code-card" aria-label="Head별 Value 가중합 코드">
+          <div class="code-head"><span>Value 가중합</span><span>각 Head의 출력 벡터 생성</span></div>
+          <pre><code>head_outputs = torch.matmul(
+    attention_weights_heads,
+    value_heads,
+)
+
+print(<span class="string">"head_outputs:"</span>)
+print(head_outputs)
+print(<span class="string">"head_outputs shape:"</span>, head_outputs.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Value 가중합 Shape">
+          <div class="path-row"><strong>attention_weights_heads</strong><code>[batch, head, query_token, key_token]</code></div>
+          <div class="path-row"><strong>value_heads</strong><code>[batch, head, key_token, head_dim]</code></div>
+          <div class="path-row"><strong>head_outputs</strong><code>[batch, head, query_token, head_dim] = [1, 2, 2, 1]</code></div>
+        </div>
+        <p>Query Token 0의 Weight가 <code>a₀₀</code>, <code>a₀₁</code>이라면:</p>
+        <div class="formula"><span class="math">Output₀ = a₀₀ × Value₀ + a₀₁ × Value₁</span></div>
+        <p>Value가 여러 차원이라면 각 차원에 같은 Attention Weight를 곱한 뒤 더한다. 관련도가 Value 안으로 들어가는 것이 아니라, 관련도를 가중치로 사용해 Value 벡터들을 섞어 새로운 출력 벡터를 만드는 것이다.</p>
+
+        <h3>12. Head 결과를 Token 기준으로 다시 모으기</h3>
+        <div class="code-card" aria-label="Head 결과의 축을 되돌리는 코드">
+          <div class="code-head"><span>Head 축 되돌리기</span><span>Token별 Head 조각을 이웃하게 배치</span></div>
+          <pre><code>outputs_by_token = head_outputs.transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+print(<span class="string">"outputs_by_token:"</span>)
+print(outputs_by_token)
+print(<span class="string">"outputs_by_token shape:"</span>, outputs_by_token.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Head 출력 재배치 Shape">
+          <div class="path-row"><strong>변경 전</strong><code>[batch, head, token, head_dim]</code></div>
+          <div class="path-row"><strong>변경 후</strong><code>[batch, token, head, head_dim]</code></div>
+        </div>
+        <p>Head별로 흩어져 있던 결과를 같은 Token 아래에 모은다.</p>
+        <pre><code>Token 1
+  Head 1 결과 조각
+  Head 2 결과 조각
+
+Token 2
+  Head 1 결과 조각
+  Head 2 결과 조각</code></pre>
+
+        <h3>13. Head 조각을 다시 하나의 Token 벡터로 합치기</h3>
+        <div class="code-card" aria-label="Head 조각을 d_model로 병합하는 코드">
+          <div class="code-head"><span>Head merge</span><span><code>head × head_dim → d_model</code></span></div>
+          <pre><code>multi_head_output = outputs_by_token.reshape(
+    batch_size,
+    token_count,
+    d_model,
+)
+
+print(<span class="string">"multi_head_output:"</span>)
+print(multi_head_output)
+print(<span class="string">"multi_head_output shape:"</span>, multi_head_output.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Multi-Head 출력 병합 Shape">
+          <div class="path-row"><strong>병합 전</strong><code>[batch, token, head, head_dim] = [1, 2, 2, 1]</code></div>
+          <div class="path-row"><strong>병합 후</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+        </div>
+        <p><code>num_heads × head_dim = d_model</code>이므로 각 Token의 Head 조각들을 다시 붙이면 원래 Token 벡터와 같은 폭으로 돌아온다.</p>
+
+        <h3>오늘의 최종 Shape 흐름</h3>
+        <pre><code>query
+[batch, token, d_model]
+
+↓ view
+
+[batch, token, num_heads, head_dim]
+
+↓ transpose(1, 2)
+
+query_heads
+[batch, head, token, head_dim]
+
+↓ Q @ Kᵀ
+
+scores_heads
+[batch, head, query_token, key_token]
+
+↓ √head_dim으로 Scaling → Softmax
+
+attention_weights_heads
+[batch, head, query_token, key_token]
+
+↓ attention_weights @ value
+
+head_outputs
+[batch, head, query_token, head_dim]
+
+↓ transpose(1, 2) → reshape
+
+multi_head_output
+[batch, token, d_model]</code></pre>
+
+        <div class="caution"><strong>오늘의 결론</strong> — 각 Token의 특징 차원을 여러 Head 조각으로 나누고, Head마다 독립적으로 Token 간 관련도와 Value 가중합을 계산한 뒤, 같은 Token의 Head 결과들을 다시 하나의 <code>d_model</code> 벡터로 합치는 것이 Multi-Head Attention이다.</div>
+        <div class="equivalence">
+          <article><strong>오늘 완성</strong><p>Head 분리 → Head별 Score·Softmax·Value 가중합 → Head 병합</p></article>
+          <div class="equals" aria-hidden="true">다음</div>
+          <article><strong>아직 남음</strong><p>합쳐진 결과의 Output Projection <code>W_O</code>, <code>nn.Module</code>로 묶기, Mask·Dropout 연결</p></article>
+        </div>
       </section>
     </main>
   </div>
