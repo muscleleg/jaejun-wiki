@@ -19,6 +19,20 @@
       <div class="detail-actions"><a href="transformer_learning.html">← Transformer 상위 문서</a><a href="transformer_attention_learning.html#multi-head-attention">전체 Multi-Head 원문 ↗</a><a href="transformer_projection_learning.html">QKV Projection →</a></div>
     </header>
 
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">이 문서의 이해도</h2>
+      <p>읽은 분량이 아니라, 개념을 자기 말로 설명하고 작은 예시로 검증한 체크포인트만 반영한다. 체크는 학습 대화와 실행 결과를 바탕으로 에이전트가 갱신한다.</p>
+      <div class="bar" role="progressbar" aria-label="Multi-Head Attention 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span style="width:100%"></span></div>
+      <div class="meter-label"><span>검증 완료 5 / 5</span><strong>100%</strong></div>
+      <ul>
+        <li class="done">✓ view/reshape가 Token을 쪼개는 것이 아니라 특징 차원을 나누는 것임을 설명했다.</li>
+        <li class="done">✓ [batch, token, head, head_dim]과 transpose 이후 Shape을 예측했다.</li>
+        <li class="done">✓ Head별 Attention 결과를 다시 병합해 원래 순서를 보존함을 설명했다.</li>
+        <li class="done">✓ Positional Encoding이 Head 분리로 사라지지 않는 이유를 설명했다.</li>
+        <li class="done">✓ Output Projection W_O가 여러 관점을 섞는 이유를 설명하고 직접 검증했다.</li>
+      </ul>
+    </section>
+
     <section class="detail-section">
       <h2>무엇을 나누는가?</h2>
       <p>Multi-Head Attention은 Token 자체를 여러 Token으로 쪼개지 않는다. 각 Token의 특징 벡터 차원을 여러 Head 조각으로 나눈다.</p>
@@ -71,6 +85,57 @@ Head 2 결과 = [c, d]
       <p>보통 Shape은 유지된다.</p>
       <div class="formula-box"><code>[batch, token, d_model] → W_O → [batch, token, d_model]</code></div>
       <p>Shape이 같아도 표현의 의미는 다를 수 있다. 병합 직후에는 Head별 결과가 나란히 있고, (W_O) 이후에는 여러 Head의 정보가 조합된 표현이 된다.</p>
+      <h3>직접 검증: <code>nn.Linear</code>와 수동 행렬곱</h3>
+      <p><code>bias=False</code>인 Output Projection은 각 Token 벡터에 <code>W_O</code>를 곱하는 연산이다. 따라서 같은 Token을 수동으로 계산한 값과 <code>nn.Linear</code>의 결과를 비교할 수 있다.</p>
+      <pre><code>projected_output = output_projection(multi_head_output)
+
+manual_output = (
+    multi_head_output[0, 0]
+    @ output_projection.weight.T
+)
+
+torch.allclose(
+    manual_output,
+    projected_output[0, 0],
+)
+# True</code></pre>
+      <div class="caution"><strong>이번에 확인한 것</strong> — <code>multi_head_output[0, 0]</code>은 <code>[batch, token, :]</code>에서 0번째 Batch의 0번째 Token 벡터다. 이 벡터를 <code>W_O.T</code>와 직접 곱한 결과가 <code>projected_output[0, 0]</code>과 같으므로, Output Projection이 단순 병합 뒤에 실제로 적용된다는 것을 확인했다.</div>
+    </section>
+
+    <section class="detail-section">
+      <h2><code>nn.Module</code> 안에 Projection 등록하기</h2>
+      <p>수동으로 따로 만들었던 Q·K·V Projection과 Output Projection을 하나의 모듈 안에 등록하면, Transformer의 한 Attention 객체로 묶어 관리할 수 있다.</p>
+      <pre><code>class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super().__init__()
+
+        assert d_model % num_heads == 0
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
+
+        self.query_projection = nn.Linear(
+            d_model, d_model, bias=False
+        )
+        self.key_projection = nn.Linear(
+            d_model, d_model, bias=False
+        )
+        self.value_projection = nn.Linear(
+            d_model, d_model, bias=False
+        )
+        self.output_projection = nn.Linear(
+            d_model, d_model, bias=False
+        )</code></pre>
+      <div class="detail-grid">
+        <div><strong><code>assert d_model % num_heads == 0</code></strong><span>특징 차원을 Head 수로 똑같이 나눌 수 있는지 먼저 검증한다.</span></div>
+        <div><strong><code>nn.Linear(d_model, d_model)</code></strong><span>각 Token의 <code>d_model</code>개 특징을 받아 다시 <code>d_model</code>개 특징을 출력한다. Token 개수를 바꾸는 층은 아니다.</span></div>
+      </div>
+      <p>예를 들어 <code>d_model=2</code>, <code>num_heads=2</code>이면:</p>
+      <pre><code>head_dim = d_model // num_heads
+         = 2 // 2
+         = 1</code></pre>
+      <p>여기서 <code>head_dim=1</code>은 각 Head가 각 Token에서 담당하는 <strong>특징 차원 수</strong>가 1이라는 뜻이다. Token이 1개로 줄어든다는 뜻은 아니다.</p>
     </section>
 
     <section class="detail-section">

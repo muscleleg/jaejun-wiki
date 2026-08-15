@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="프로그래머스 게임 맵 최단거리 문제에서 배운 BFS, 격자 탐색과 거리 기록">
+  <title>코딩 테스트 23 · 게임 맵 최단거리</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/coding-test.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-1">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="index.html">코딩 테스트</a><span class="separator">›</span><span aria-current="page">게임 맵 최단거리</span></nav>
+    <header class="hero"><span class="eyebrow">Coding test · Problem 23</span><h1>게임 맵<br>최단거리</h1><p class="summary">DFS 다음에 BFS를 처음 적용한 문제다. 같은 거리의 칸을 먼저 처리하는 Queue의 성질과, 격자에 거리를 직접 기록하는 방법을 확인한다.</p><div class="problem-tags"><span>Level 2</span><span>BFS</span><span>최단거리</span><span>2차원 격자</span></div><div class="hero-actions"><a class="button secondary" href="https://school.programmers.co.kr/learn/courses/30/lessons/1844" target="_blank" rel="noopener noreferrer">프로그래머스 문제 열기 ↗</a></div></header>
+    <div class="problem-layout">
+      <aside class="problem-nav"><strong>이 문제 복습</strong><a href="#core">핵심 개념</a><a href="#bfs">BFS 흐름</a><a href="#grid">상하좌우·범위</a><a href="#distance">방문·거리 기록</a><a href="#mistakes">헷갈렸던 지점</a><a href="#code">최종 코드</a><a href="#checklist">BFS 체크리스트</a><a href="index.html">← 전체 문제</a></aside>
+      <article class="problem-content">
+        <section id="core"><h2>이 문제에서 연습한 핵심</h2><ul><li>BFS(Breadth-First Search, 너비 우선 탐색)</li><li><code>collections.deque</code>의 FIFO Queue</li><li>동일 가중치 격자의 최단거리</li><li>2차원 좌표의 상하좌우 탐색</li><li>방문 여부와 거리를 하나의 격자에 기록</li></ul></section>
+
+        <section id="bfs"><h2>BFS는 왜 최단거리를 보장하는가?</h2><p>DFS가 한 경로를 깊게 내려간다면, BFS는 현재 거리에서 갈 수 있는 칸을 먼저 모두 처리하고 다음 거리로 넘어간다.</p><pre><code>from collections import deque
+
+queue = deque()
+queue.append((0, 0))
+
+while queue:
+    row, col = queue.popleft()</code></pre><p><code>append()</code>는 Queue 뒤에 넣고 <code>popleft()</code>는 앞에서 꺼낸다. 이 FIFO 순서 때문에 가까운 칸이 먼 칸보다 먼저 처리된다.</p><div class="callout"><strong>동일한 이동 비용이라는 전제</strong><br>모든 칸을 한 번 이동하는 비용이 같기 때문에, 도착점에 처음 도착했을 때의 거리가 최단거리다.</div></section>
+
+        <section id="grid"><h2>상하좌우 탐색과 범위 체크</h2><p>현재 좌표를 기준으로 네 방향의 다음 좌표를 계산한다.</p><pre><code>d_row = [-1, 0, 1, 0]
+d_col = [0, 1, 0, -1]
+
+for i in range(4):
+    n_row = row + d_row[i]
+    n_col = col + d_col[i]</code></pre><p>현재 <code>row</code>, <code>col</code>을 직접 수정하면 첫 번째 방향을 탐색한 뒤 바뀐 좌표를 기준으로 다음 방향을 계산하게 된다. 따라서 다음 좌표는 반드시 별도 변수에 저장한다.</p><pre><code># 잘못된 방식
+row = row + d_row[i]
+col = col + d_col[i]
+
+# 올바른 방식
+n_row = row + d_row[i]
+n_col = col + d_col[i]</code></pre><p>범위는 양쪽 방향을 모두 확인해야 한다.</p><pre><code>if 0 <= n_row < n and 0 <= n_col < m:</code></pre><div class="warning">Python에서는 <code>-1</code>이 마지막 원소를 가리키는 유효한 인덱스다. <code>n_row &lt; n</code>만 검사하면 음수 좌표가 통과할 수 있으므로 하한 <code>0</code>도 반드시 검사한다.</div></section>
+
+        <section id="distance"><h2>방문 여부와 거리 기록을 함께 저장하기</h2><p>이 문제에서는 별도 <code>visited</code> 배열을 만들지 않고 <code>maps</code> 자체에 방문 여부와 거리를 기록한다.</p><pre><code>if maps[n_row][n_col] != 1:
+    continue
+
+maps[n_row][n_col] = maps[row][col] + 1</code></pre><ul><li><code>1</code>: 아직 방문하지 않은 길</li><li><code>0</code>: 벽</li><li><code>2</code> 이상: 방문했고 시작점에서의 거리가 기록된 칸</li></ul><p>처음 길의 값이 <code>1</code>이므로 다음 칸은 현재 칸의 거리보다 1 큰 값으로 기록한다.</p><p>도착점에 처음 도달하면 BFS의 순서상 최단거리이므로 바로 반환할 수 있다.</p><pre><code>if n_row == n - 1 and n_col == m - 1:
+    return maps[n_row][n_col]</code></pre><p><code>return maps[row][col] + 1</code>도 같은 값이지만, 이미 도착점에 기록한 값을 반환하는 쪽이 읽기 쉽다.</p></section>
+
+        <section id="mistakes"><h2>헷갈렸던 지점과 실패한 접근</h2><div class="warning"><strong>1. <code>row</code>, <code>col</code>을 직접 수정</strong><br>방향을 바꿀 때 기준 좌표가 오염된다. 항상 <code>n_row</code>, <code>n_col</code>을 별도로 만든다.</div><div class="warning"><strong>2. 음수 인덱스 범위 체크 누락</strong><br><code>n_row &lt; n</code>만으로는 부족하다. <code>0 &lt;= n_row &lt; n</code>과 <code>0 &lt;= n_col &lt; m</code>을 함께 검사한다.</div><div class="warning"><strong>3. 방문 처리 누락</strong><br>방문한 칸을 다시 Queue에 넣으면 같은 칸을 반복 탐색한다. 방문 시점에 거리 값을 기록해 다시 들어오지 않게 한다.</div><div class="warning"><strong>4. <code>answer += 1</code>로 거리 세기</strong><br>같은 거리의 칸이 여러 개이면 <code>popleft()</code> 횟수와 이동 거리가 달라진다. Queue에서 꺼낸 횟수가 아니라 각 칸에 부모 거리 + 1을 기록해야 한다.</div></section>
+
+        <section id="code"><h2>최종 코드</h2><pre><code>from collections import deque
+
+def solution(maps):
+    n, m = len(maps), len(maps[0])
+
+    d_row = [-1, 0, 1, 0]
+    d_col = [0, 1, 0, -1]
+
+    queue = deque()
+    queue.append((0, 0))
+
+    while queue:
+        row, col = queue.popleft()
+
+        for i in range(4):
+            n_row = row + d_row[i]
+            n_col = col + d_col[i]
+
+            if 0 &lt;= n_row &lt; n and 0 &lt;= n_col &lt; m:
+                if maps[n_row][n_col] != 1:
+                    continue
+
+                maps[n_row][n_col] = maps[row][col] + 1
+
+                if n_row == n - 1 and n_col == m - 1:
+                    return maps[n_row][n_col]
+
+                queue.append((n_row, n_col))
+
+    return -1</code></pre></section>
+
+        <section id="compare"><h2>DFS와 BFS 비교</h2><div class="status-list"><div class="status-row"><strong>DFS</strong><span>한 경로를 깊게 탐색한다. 재귀나 Stack으로 구현하며 타겟 넘버처럼 선택지가 갈라지는 모든 경우를 확인하는 데 적합하다.</span></div><div class="status-row"><strong>BFS</strong><span>같은 깊이·거리를 먼저 탐색한다. Queue의 FIFO 순서를 이용하며 동일 가중치 그래프의 최단거리에 적합하다.</span></div></div><pre><code>DFS: root → a → c → d → b → e → f
+BFS: root → a → b → c → d → e → f</code></pre><p>타겟 넘버에서 DFS를 배웠다면, 이번 문제에서는 “옆으로 먼저 전부 탐색한다”는 BFS 감각을 추가한 것이다.</p></section>
+
+        <section id="checklist"><h2>BFS 체크리스트</h2><ol><li>Queue를 만들었는가?</li><li>시작점을 Queue에 넣었는가?</li><li><code>popleft()</code>로 현재 노드를 꺼내는가?</li><li>다음 좌표를 별도 변수로 만드는가?</li><li>범위를 <code>0 &lt;= x &lt; n</code> 형태로 검사하는가?</li><li>방문 여부를 확인하는가?</li><li>방문 처리 후 Queue에 넣는가?</li><li>최단거리라면 거리 값을 함께 저장하는가?</li></ol></section>
+
+        <nav class="problem-pager" aria-label="이전 및 다음 문제"><a href="22-target-number.html">← 타겟 넘버</a><a href="index.html">전체 문제 목록 →</a></nav>
+      </article>
+    </div>
+    <footer class="footer">코딩 테스트 학습 기록 · 23 / 23 · BFS까지</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

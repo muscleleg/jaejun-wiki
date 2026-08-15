@@ -8,8 +8,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 4,
       total: 6,
-      current: "Multi-Head Attention Head split·별도 계산·merge 검증",
-      next: "Output Projection W_O와 nn.Module로 전체 모듈화"
+      current: "Multi-Head Attention과 Output Projection W_O를 수동·Linear 계산으로 검증",
+      next: "Q·K·V·W_O를 nn.Module로 묶고 forward Shape 검증"
     },
     {
       id: "pytorch",
