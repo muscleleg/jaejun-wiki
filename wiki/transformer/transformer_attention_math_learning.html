@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer Attention의 Score, Scaling, Mask, Softmax와 Value 가중합을 주제별로 정리한 문서">
+  <title>Transformer · Attention 수학과 흐름</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><span aria-current="page">Attention 수학</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Transformer detail · Attention</span>
+      <h1>Scaled Dot-Product<br>Attention의 계산 흐름</h1>
+      <p class="lead">Q·K 내적에서 시작해 Scaling, Mask, Softmax, Value 가중합으로 이어지는 한 번의 Attention을 세부적으로 다시 찾는다.</p>
+      <div class="detail-actions"><a href="transformer_learning.html">← Transformer 상위 문서</a><a href="transformer_attention_learning.html">전체 Attention 실습 원문 ↗</a><a href="transformer_multi_head_attention_learning.html">Multi-Head 세부 문서 →</a></div>
+    </header>
+
+    <section class="detail-section">
+      <h2>전체 흐름</h2>
+      <div class="shape-flow">
+        <div><strong>1. Score</strong><code>scores = Q @ Kᵀ</code><br><span>Query와 모든 Key의 관련도</span></div>
+        <div><strong>2. Scaling</strong><code>scores / √d_k</code><br><span>Score 분포의 규모 안정화</span></div>
+        <div><strong>3. Mask + Softmax</strong><code>attention_weights</code><br><span>볼 수 없는 위치를 제외하고 비율화</span></div>
+        <div><strong>4. Value 가중합</strong><code>attention_weights @ V</code><br><span>관련도에 따라 Value를 섞은 출력</span></div>
+      </div>
+      <div class="formula-box"><strong>기본 Shape</strong><code>Q: [batch, query_token, d_k] · K: [batch, key_token, d_k] · V: [batch, key_token, d_v]</code><code>Score: [batch, query_token, key_token] · Output: [batch, query_token, d_v]</code></div>
+    </section>
+
+    <section class="detail-section">
+      <h2>Q·K 내적과 Scaling</h2>
+      <p>Score 한 칸은 하나의 Query와 하나의 Key 벡터를 내적한 값이다.</p>
+      <div class="formula-box"><strong>한 칸의 Score</strong><code>Sᵢⱼ = qᵢ₁kⱼ₁ + qᵢ₂kⱼ₂ + ··· + qᵢdₖkⱼdₖ</code></div>
+      <p>초기 상태에서 각 곱의 평균이 0에 가깝고 분산이 약 1이며 서로 독립이라고 단순화하면, <code>d_k</code>개를 더한 Score의 분산은 약 <code>d_k</code>, 표준편차는 약 <code>√d_k</code> 규모가 된다.</p>
+      <div class="formula-box"><strong>Scaling</strong><code>scaled_scores = scores / math.sqrt(d_k)</code><span>임베딩에서 했던 스케일을 취소하는 것이 아니라, Q·K 곱을 여러 개 합쳐 커진 Score 분포를 안정화하는 연산이다.</span></div>
+      <p>Multi-Head에서는 전체 <code>d_model</code>이 아니라 Head 하나의 마지막 차원인 <code>head_dim</code>을 사용한다.</p>
+    </section>
+
+    <section class="detail-section">
+      <h2>Mask와 Softmax</h2>
+      <p>Mask는 Q나 K를 지우는 것이 아니라, 이미 계산된 Score 행렬에서 볼 수 없는 칸을 숨긴다.</p>
+      <pre><code>scores = scores.masked_fill(
+    mask == 0,
+    float("-inf"),
+)
+attention_weights = torch.softmax(scores, dim=-1)</code></pre>
+      <div class="detail-grid">
+        <div><strong>Padding Mask</strong><span>길이를 맞추려고 넣은 PAD Token을 참고하지 않게 한다.</span></div>
+        <div><strong>Causal Mask</strong><span>현재 Query가 미래의 Key Token을 보지 못하게 한다.</span></div>
+      </div>
+      <p><code>dim=-1</code>은 마지막 축인 Key 방향이다. 각 Query가 모든 Key에 배정한 비율을 따로 계산하므로 행별 합이 1이 된다.</p>
+      <pre><code>[0.3, 0.7] → 1
+[0.4, 0.6] → 1</code></pre>
+      <p><code>e<sup>-∞</sup></code>는 0에 가까우므로 Mask된 칸의 Softmax 비율은 0이 된다.</p>
+    </section>
+
+    <section class="detail-section">
+      <h2>Attention Weight와 Value</h2>
+      <p>Attention Weight는 Query가 각 Key를 얼마나 참고할지 나타내는 비율이다. 이 비율을 Value 벡터에 곱해 더한다.</p>
+      <div class="formula-box"><strong>첫 번째 Query의 출력</strong><code>Output₁ = a₁₁ × Value₁ + a₁₂ × Value₂ + ···</code></div>
+      <p>따라서 Output은 “관련도 숫자” 자체가 아니라, 관련도를 가중치로 사용해 Value 벡터를 섞은 새로운 벡터다.</p>
+      <div class="caution"><strong>여기까지의 핵심</strong> — Score는 Query-Key 관련도, Softmax 결과는 Key별 참고 비율, Value 가중합 결과는 그 비율을 반영한 새로운 Token 표현이다.</div>
+      <ul class="reference-list">
+        <li><a href="transformer_attention_learning.html#scaled-dot-product-attention">전체 원문에서 Score·Scaling·Mask·Softmax 흐름 보기</a></li>
+        <li><a href="transformer_attention_learning.html#multi-head-attention">Head별로 같은 계산을 반복하는 부분 보기</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

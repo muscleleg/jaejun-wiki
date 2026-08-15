@@ -1214,6 +1214,51 @@ tensor([[[-<span class="num">0.1083</span>, -<span class="num">0.1418</span>],
           <div class="path-row"><strong>5</strong><code>같은 Token의 Head 결과를 다시 모아 d_model로 병합</code></div>
         </div>
 
+        <section class="reasoning" id="head-order-and-position">
+          <h3>Head로 나눴다가 합쳐도 순서가 유지되는가?</h3>
+          <p>Multi-Head Attention은 Token 자체를 여러 Token으로 쪼개는 연산이 아니다. 각 Token이 가진 <strong>특징 차원</strong>을 여러 Head 조각으로 나누어 같은 Token에 대해 여러 관점의 Attention을 계산하는 연산이다.</p>
+
+          <div class="path-map" aria-label="Token과 특징 차원의 구분">
+            <div class="path-row"><strong>원래</strong><code>[batch, token, d_model] = [3, 4, 4]</code></div>
+            <div class="path-row"><strong>의미</strong><code>문장 3개 · 문장마다 Token 4개 · Token마다 특징 4개</code></div>
+            <div class="path-row"><strong>Head 설정</strong><code>num_heads=2, head_dim=2</code></div>
+          </div>
+
+          <p>한 Token의 특징 벡터가 <code>[0, 1, 2, 3]</code>이라면 Head 분리는 다음처럼 해석된다.</p>
+          <pre><code>Token 1 = [0, 1, 2, 3]
+
+Head 1 조각 = [0, 1]
+Head 2 조각 = [2, 3]</code></pre>
+
+          <p><code>view()</code>는 숫자를 정렬하거나 섞지 않고 새로운 Shape으로 해석한다. <code>transpose(1, 2)</code>도 Token 축과 Head 축의 위치만 바꾼다. Attention 계산을 마친 뒤 축을 다시 되돌리고 <code>reshape()</code>하면 Head 조각은 원래 순서로 이어진다.</p>
+          <pre><code>Head 1 결과 = [a, b]
+Head 2 결과 = [c, d]
+
+다시 병합 → [a, b, c, d]</code></pre>
+
+          <div class="formula">
+            <span class="math">[batch, token, d_model]</span>
+            <span><code>→ [batch, token, num_heads, head_dim]</code><br><code>→ [batch, head, token, head_dim]</code><br><code>→ 다시 [batch, token, d_model]</code></span>
+          </div>
+
+          <h3>포지셔널 인코딩은 Head 계산에서 사라진 것처럼 보이는 이유</h3>
+          <p>포지셔널 인코딩은 Head 분리 직전에 다시 더하는 값이 아니다. 보통 Token Embedding에 먼저 더해져 <code>x</code>가 되고, 그 <code>x</code>가 Q·K·V Projection의 입력이 된다.</p>
+          <pre><code>x = token_embedding + positional_encoding
+
+query = query_projection(x)
+key = key_projection(x)
+value = value_projection(x)</code></pre>
+
+          <p>따라서 이후의 Q·K·V와 Head 조각에는 이미 다음 정보가 함께 들어 있다.</p>
+          <div class="equivalence">
+            <article><strong>Token 의미</strong><p>어떤 단어·토큰인가</p></article>
+            <div class="equals" aria-hidden="true">+</div>
+            <article><strong>위치 정보</strong><p>문장 안에서 몇 번째 위치인가</p></article>
+          </div>
+
+          <div class="caution"><strong>핵심 정리</strong> — Head 분리는 Token 순서를 없애지 않는다. Token 축은 계속 유지되고, 각 Token의 특징 차원만 Head별로 나뉜다. 포지셔널 인코딩도 버려지는 것이 아니라 <code>x</code>에 더해진 뒤 Q·K·V Projection을 거쳐 각 Head의 계산에 간접적으로 포함된다.</div>
+        </section>
+
         <h3>1. Query를 현재 셀에서 다시 선언하기</h3>
         <div class="code-card" aria-label="Multi-Head 실습 Query 선언">
           <div class="code-head"><span>실습용 Query</span><span>Token 2개 · 차원 2개</span></div>
@@ -1520,6 +1565,91 @@ multi_head_output
           <div class="equals" aria-hidden="true">다음</div>
           <article><strong>아직 남음</strong><p>합쳐진 결과의 Output Projection <code>W_O</code>, <code>nn.Module</code>로 묶기, Mask·Dropout 연결</p></article>
         </div>
+
+        <section class="reasoning" id="multi-head-summary-in-my-words">
+          <h3>내 표현으로 다시 정리하기</h3>
+          <p>지금까지의 흐름을 내가 이해한 말로 다시 연결하면 다음과 같다. 먼저 입력 <code>x</code>를 서로 다른 가중치 표에 통과시켜 Q·K·V를 만든다.</p>
+          <pre><code>x → W_Q → Q
+x → W_K → K
+x → W_V → V</code></pre>
+          <div class="path-map" aria-label="Q K V Linear의 역할">
+            <div class="path-row"><strong>Q</strong><code>무엇을 찾을지 표현하는 중간 벡터</code></div>
+            <div class="path-row"><strong>K</strong><code>각 Token이 어떤 정보인지 표현하는 중간 벡터</code></div>
+            <div class="path-row"><strong>V</strong><code>관련도가 높을 때 실제로 가져올 정보</code></div>
+          </div>
+
+          <p>그 다음 Token을 쪼개는 것이 아니라, 각 Token의 특징 차원을 여러 Head로 나눈다. 예를 들어 하나의 Token이 <code>[0, 1, 2, 3]</code>이고 Head가 2개라면 다음처럼 나뉜다.</p>
+          <pre><code>Head 1 조각 = [0, 1]
+Head 2 조각 = [2, 3]</code></pre>
+          <p>각 Head는 담당한 특징 조각을 사용해 독립적으로 다음 계산을 한다.</p>
+          <pre><code>Q @ Kᵀ
+→ Scaling
+→ Softmax
+→ Attention Weight @ V</code></pre>
+          <p>그래서 Head마다 서로 다른 관련도와 Value 가중합이 만들어질 수 있다. 다만 가중치가 아직 랜덤인 초기 상태에서는 그 출력에 학습된 의미가 생긴 것은 아니다. 학습이 진행되면 각 Head가 서로 다른 패턴이나 관점을 잘 포착하도록 조정될 수 있다.</p>
+
+          <h4>Head 결과와 <code>multi_head_output</code></h4>
+          <p>Head별 결과가 다음처럼 나왔다고 하자.</p>
+          <pre><code>Head 1 결과 = [a, b]
+Head 2 결과 = [c, d]</code></pre>
+          <p>축을 Token 기준으로 되돌린 뒤 <code>reshape()</code>하면:</p>
+          <pre><code>multi_head_output = [a, b, c, d]</code></pre>
+          <p>이 결과는 여러 Head의 결과를 원래 <code>d_model</code> 폭에 맞춰 단순히 이어 붙인 중간 표현이다. <code>reshape()</code>는 값을 새로 계산하거나 의미를 부여하지 않고, 숫자의 배치와 Shape을 다시 해석한다.</p>
+          <div class="caution"><strong>순서는 유지된다.</strong> Token 축은 계속 Token 축으로 남고, <code>view()</code>와 <code>transpose()</code>는 정해진 축의 위치만 바꾼다. 다시 축을 되돌린 뒤 <code>reshape()</code>하면 Head 1 조각과 Head 2 조각이 원래 특징 차원 순서대로 이어진다. 따라서 Multi-Head Attention은 Token을 여러 Token으로 늘리는 작업이 아니다.</div>
+
+          <h4>왜 <code>multi_head_output</code>에 다시 Output Linear를 적용하는가?</h4>
+          <p><code>multi_head_output</code>은 다음처럼 Head 결과가 나란히 있는 상태다.</p>
+          <pre><code>Head 1 정보 | Head 2 정보 | ...</code></pre>
+          <p>여기에 Output Projection <code>W_O</code>를 적용하면 단순히 이어 붙은 정보가 학습된 가중치로 다시 조합된다.</p>
+          <pre><code>multi_head_output → W_O → projected_output</code></pre>
+          <p>예를 들어 출력 한 차원은 Head 1의 정보와 Head 2의 정보를 함께 사용해 만들어질 수 있다.</p>
+          <pre><code>새로운 출력 1
+= Head 1 정보 일부
++ Head 2 정보 일부</code></pre>
+          <p>따라서 <code>reshape()</code>와 <code>Output Linear</code>는 서로 다른 역할을 한다.</p>
+          <div class="path-map" aria-label="Reshape와 Output Linear의 차이">
+            <div class="path-row"><strong>reshape</strong><code>값을 바꾸지 않고 Head 결과를 원래 폭으로 이어 붙임</code></div>
+            <div class="path-row"><strong>W_O Linear</strong><code>이어 붙인 특징들을 학습된 가중치로 다시 섞고 변환함</code></div>
+          </div>
+          <p>Output Projection은 보통 Shape을 바꾸지 않는다.</p>
+          <div class="formula">
+            <span class="math">[batch, token, d_model]</span>
+            <span><code>→ W_O → [batch, token, d_model]</code></span>
+          </div>
+
+          <h4>Linear가 의미를 부여한다는 말의 정확한 뜻</h4>
+          <p>Linear가 각 행에 사람이 정한 의미를 직접 넣는 것은 아니다. 입력 특징들을 서로 다른 비율로 섞어 새로운 특징을 만든다.</p>
+          <pre><code>x = [x₁, x₂]
+
+y₁ = x₁ × w₁₁ + x₂ × w₁₂
+y₂ = x₁ × w₂₁ + x₂ × w₂₂</code></pre>
+          <p>각 출력 차원은 입력 차원들의 새로운 조합이다. 학습이 끝난 뒤 이 조합이 유용한 패턴을 담게 되면 사람이 그 의미를 해석할 수 있지만, 처음부터 특정 행이 문법·위치·주제 같은 의미로 고정되어 있는 것은 아니다.</p>
+
+          <h4>Q·K·V와 <code>W_O</code>는 어떻게 학습되는가?</h4>
+          <p>Q·K·V와 <code>W_O</code>가 각각 정답을 직접 맞추는 것은 아니다. 최종 예측에서 계산한 Loss가 전체 연산을 거꾸로 통과하면서 모든 가중치에 Gradient를 전달한다.</p>
+          <pre><code>최종 logits
+→ Loss
+→ loss.backward()
+→ W_Q, W_K, W_V, W_O 모두 Gradient 계산
+→ Optimizer가 모든 가중치 업데이트</code></pre>
+          <p>따라서 Q·K·V Projection과 Output Projection은 서로 따로 정답을 맞추는 것이 아니라, 최종 예측 Loss를 함께 줄이는 방향으로 학습된다.</p>
+
+          <h4>포지셔널 인코딩은 어디에 있는가?</h4>
+          <p>포지셔널 인코딩은 Multi-Head 단계에서 사라진 것이 아니다. Attention보다 앞에서 Token Embedding에 이미 더해져 <code>x</code>가 되고, 그 <code>x</code>가 Q·K·V Projection의 입력이 된다.</p>
+          <pre><code>x = token_embedding + positional_encoding
+
+query = query_projection(x)
+key = key_projection(x)
+value = value_projection(x)</code></pre>
+          <p>그러므로 이후의 Q·K·V와 Head 결과에는 다음 정보가 함께 들어 있다.</p>
+          <div class="equivalence">
+            <article><strong>Token 의미</strong><p>어떤 단어·Token인가</p></article>
+            <div class="equals" aria-hidden="true">+</div>
+            <article><strong>위치 정보</strong><p>문장 안에서 몇 번째 위치인가</p></article>
+          </div>
+
+          <div class="caution"><strong>최종 요약</strong> — Q·K·V Linear로 입력을 서로 다른 관점의 표현으로 바꾸고, 각 특징 차원을 여러 Head로 나누어 독립적으로 Attention을 계산한다. Head 결과를 <code>reshape()</code>로 다시 이어 붙이면 <code>multi_head_output</code>이 되지만, 이것은 Head 결과를 단순히 나열한 중간 표현이다. 그래서 <code>W_O</code>를 적용해 여러 Head의 정보를 학습된 방식으로 다시 섞고, 다음 Transformer 층이 사용할 공통 표현으로 변환한다. 이 모든 가중치는 최종 예측 Loss에서 나온 Gradient로 함께 학습된다.</div>
+        </section>
       </section>
     </main>
   </div>
