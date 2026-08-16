@@ -7,7 +7,7 @@
   <title>학습 코드 상세 · Kubernetes Function Calling</title>
   <link rel="stylesheet" href="../../assets/css/portal.css">
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260816-2">
 </head>
 <body class="wiki-reference">
   <main class="wrap">
@@ -15,15 +15,37 @@
     <header class="hero">
       <span class="eyebrow">Project code study · training pipeline</span>
       <h1>BF16 LoRA 학습 코드를<br>처음부터 끝까지 읽기</h1>
-      <p class="summary">학습 스크립트의 각 코드가 왜 필요한지, 어떤 데이터와 템플릿을 거쳐 LoRA adapter가 만들어지는지, 저장된 결과를 어떻게 vLLM으로 사용하는지 실행 순서대로 기록한다.</p>
-      <div class="hero-actions"><a class="button" href="#source">전체 코드 보기</a><a class="button secondary" href="k8s-function-calling-training-code-explained.html">코드 블록별 해설</a><a class="button secondary" href="ko-k8s-function-calling.html#training">프로젝트 학습</a><a class="button secondary" href="k8s-function-calling-dataset.html">데이터셋 상세</a></div>
+      <p class="summary">어떤 파일이 학습에 참여하는지 먼저 확인하고, 실제 실행 순서대로 데이터·템플릿·모델·LoRA·Trainer·저장을 읽은 뒤 전체 원본 코드로 돌아보는 문서다.</p>
+      <div class="hero-actions"><a class="button" href="#files">학습 순서부터 보기</a><a class="button secondary" href="#entry">단계별 코드 읽기</a><a class="button secondary" href="#source">전체 코드 보기</a><a class="button secondary" href="k8s-function-calling-training-code-explained.html">코드 블록별 해설</a></div>
       <div class="stats"><div class="stat">학습 스크립트<strong>train_runpod_bf16_lora.py</strong></div><div class="stat">기법<strong>BF16 + LoRA</strong></div><div class="stat">Trainable<strong>17,432,576개</strong></div><div class="stat">비율<strong>전체의 1.003%</strong></div></div>
     </header>
 
-    <nav aria-label="문서 목차"><a href="#overview">전체 흐름</a><a href="#source">전체 코드</a><a href="#entry">진입·설정</a><a href="#data">데이터</a><a href="#template">템플릿·마스크</a><a href="#model">모델·LoRA</a><a href="#trainer">학습·저장</a><a href="#serve">병합·서빙</a></nav>
+    <nav aria-label="문서 목차"><a href="#files">파일 지도</a><a href="#overview">실행 흐름</a><a href="#entry">진입·설정</a><a href="#data">데이터</a><a href="#template">템플릿·마스크</a><a href="#model">모델·LoRA</a><a href="#trainer">학습·저장</a><a href="#serve">병합·서빙</a><a href="#source">전체 코드</a></nav>
+
+    <section id="files">
+      <h2>1. 어떤 파일들로 학습하는가</h2>
+      <p>이 프로젝트의 학습은 Python 파일 하나만 실행하는 작업이 아니다. 도구 계약과 정답 데이터를 먼저 만들고, 템플릿과 YAML 설정을 학습 스크립트에 연결해 adapter를 만든다.</p>
+      <pre class="project-flowline"><code>도구 Schema
+→ 데이터 생성 코드 → train.jsonl·valid.jsonl
+→ Qwen chat template + 학습 YAML
+→ train_runpod_bf16_lora.py
+→ final_adapter → merged_bf16 → 동일 holdout 평가</code></pre>
+      <div class="table-scroll"><table><thead><tr><th>순서</th><th>파일·산출물</th><th>학습에서 맡은 역할</th></tr></thead><tbody>
+        <tr><td>1</td><td><a href="k8s-function-calling-tools.html"><code>schemas/kubernetes_tools.json</code></a></td><td>모델이 선택할 5개 도구와 인자 계약의 원본</td></tr>
+        <tr><td>2</td><td><a href="k8s-function-calling-dataset.html"><code>scripts/generate_training_data.py</code></a></td><td>한국어 요청과 tool-call·no-call 정답 생성</td></tr>
+        <tr><td>3</td><td><a href="k8s-function-calling-dataset.html#split"><code>data/train.jsonl</code>, <code>data/valid.jsonl</code></a></td><td>학습 800건과 validation 100건</td></tr>
+        <tr><td>4</td><td><a href="#template"><code>configs/qwen3_tool_training.jinja</code></a></td><td><code>messages</code>와 <code>tools</code>를 Qwen 학습 문자열로 직렬화</td></tr>
+        <tr><td>5</td><td><a href="#config"><code>configs/runpod_bf16_lora.yaml</code></a></td><td>모델 revision, 데이터 경로, LoRA·SFT 수치 지정</td></tr>
+        <tr><td>6</td><td><a href="#entry"><code>scripts/train_runpod_bf16_lora.py</code></a></td><td>검증·모델 로딩·LoRA 연결·학습·저장을 순서대로 실행</td></tr>
+        <tr><td>7</td><td><a href="#save"><code>final_adapter</code>, metrics, manifest</a></td><td>학습된 LoRA와 재현·검증 기록</td></tr>
+        <tr><td>8</td><td><a href="#serve"><code>scripts/merge_peft_adapter.py</code></a></td><td>원본 BF16 모델과 adapter를 merged 모델로 결합</td></tr>
+        <tr><td>9</td><td><a href="k8s-function-calling-evaluation-code.html"><code>evaluate_runpod_bf16.py</code>, <code>scoring.py</code></a></td><td>같은 holdout에서 Function Calling 성공률 계산</td></tr>
+      </tbody></table></div>
+      <div class="caution"><strong>실제 가중치가 업데이트되는 지점</strong><br>앞 단계는 학습 입력과 설정을 준비한다. LoRA 파라미터의 값이 실제로 바뀌는 호출은 학습 스크립트 안의 <code>trainer.train()</code>이다.</div>
+    </section>
 
     <section id="overview">
-      <h2>1. 코드 전체 흐름</h2>
+      <h2>2. 학습 스크립트의 실제 실행 흐름</h2>
       <pre><code>스크립트 실행
 → logging 설정과 main() 호출
 → CLI 옵션·YAML 설정 읽기
@@ -42,469 +64,6 @@
 → final_adapter·tokenizer·metrics 저장
 → adapter 병합 후 vLLM 평가</code></pre>
       <p>중요한 점은 이 파일 하나가 Kubernetes API를 실행하는 코드가 아니라는 것이다. 이 스크립트는 모델이 한국어 요청을 도구 호출로 변환하는 확률을 학습하고, 그 결과물을 저장하는 역할만 담당한다.</p>
-    </section>
-
-    <section id="source">
-      <h2>2. 원본 학습 스크립트 전체</h2>
-      <p>아래는 이 프로젝트에서 실제 실행한 <code>scripts/train_runpod_bf16_lora.py</code>의 전체 소스다. 1행부터 412행까지를 의미 단위별 박스로 나눴지만 코드는 빠뜨리지 않았고, 각 박스를 클릭하면 해당 코드의 상세 설명으로 이동한다.</p>
-      <div class="caution"><strong>읽는 방법</strong><br>연한 테두리의 코드 박스 전체가 링크다. 코드를 클릭하면 줄별 해설 페이지로 이동하고, 그 페이지의 “원본 코드로 돌아가기” 링크를 누르면 같은 블록으로 돌아온다. 아래 표는 빠르게 범위를 찾고 싶은 경우를 위한 보조 인덱스다. 이 구조를 다른 코드에도 적용하는 원칙은 <a href="../learning-methods/linked_code_learning_documentation.html">클릭형 코드 학습 문서화</a>에 정리했다.</div>
-      <div class="source-code-stack" aria-label="train_runpod_bf16_lora.py 전체 소스, 의미 단위별 링크">
-        <a id="source-entry" class="code-source-block" href="k8s-function-calling-training-code-explained.html#entry">
-          <span class="code-source-heading"><strong>1–55행 · 실행 옵션과 YAML 설정</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>#!/usr/bin/env python3
-&quot;&quot;&quot;RunPod CUDA BF16 LoRA training for Korean Kubernetes tool calling.&quot;&quot;&quot;
-
-from __future__ import annotations
-
-import argparse
-import hashlib
-import json
-import logging
-import platform
-import sys
-from datetime import datetime, timezone
-from importlib.metadata import version
-from pathlib import Path
-from typing import Any
-
-LOGGER = logging.getLogger(&quot;runpod_bf16_lora&quot;)
-PROJECT_DIR = Path(__file__).resolve().parent.parent
-
-
-def parse_args() -&gt; argparse.Namespace:
-    # 터미널에서 전달한 --config, --resume, --validate-only 옵션을 한 객체로 모은다.
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        &quot;--config&quot;,
-        type=Path,
-        default=PROJECT_DIR / &quot;configs&quot; / &quot;runpod_bf16_lora.yaml&quot;,
-    )
-    parser.add_argument(
-        &quot;--resume&quot;,
-        default=&quot;auto&quot;,
-        help=&quot;auto, none, or a checkpoint directory&quot;,
-    )
-    parser.add_argument(
-        &quot;--validate-only&quot;,
-        action=&quot;store_true&quot;,
-        help=&quot;Validate CUDA, dependencies, data, tokenizer, and masks without loading weights.&quot;,
-    )
-    return parser.parse_args()
-
-
-def resolve_path(value: str | Path) -&gt; Path:
-    path = Path(value)
-    return path if path.is_absolute() else PROJECT_DIR / path
-
-
-def load_config(path: Path) -&gt; dict[str, Any]:
-    import yaml
-
-    # YAML 설정 파일을 읽어 Python 딕셔너리로 변환한다.
-    with path.open(encoding=&quot;utf-8&quot;) as handle:
-        config = yaml.safe_load(handle)
-    if not isinstance(config, dict):
-        raise ValueError(f&quot;configuration must be an object: {path}&quot;)
-    return config</code></pre>
-        </a>
-        <a id="source-data" class="code-source-block" href="k8s-function-calling-training-code-explained.html#data">
-          <span class="code-source-heading"><strong>56–106행 · 데이터 구조 검증과 checksum</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
-def validate_record(record: dict[str, Any], path: Path, line_number: int) -&gt; None:
-    messages = record.get(&quot;messages&quot;)
-    tools = record.get(&quot;tools&quot;)
-    location = f&quot;{path}:{line_number}&quot;
-    if not isinstance(messages, list) or len(messages) &lt; 2:
-        raise ValueError(f&quot;{location}: messages must contain user and assistant turns&quot;)
-    if not isinstance(tools, list) or not tools:
-        raise ValueError(f&quot;{location}: tools must be a non-empty list&quot;)
-    if messages[-1].get(&quot;role&quot;) != &quot;assistant&quot;:
-        raise ValueError(f&quot;{location}: final message must have assistant role&quot;)
-    assistant = messages[-1]
-    if not assistant.get(&quot;tool_calls&quot;) and not assistant.get(&quot;content&quot;):
-        raise ValueError(f&quot;{location}: assistant needs a tool call or no-call content&quot;)
-    for call in assistant.get(&quot;tool_calls&quot;, []):
-        function = call.get(&quot;function&quot;, {})
-        if not function.get(&quot;name&quot;):
-            raise ValueError(f&quot;{location}: tool call is missing function.name&quot;)
-        arguments = function.get(&quot;arguments&quot;)
-        if not isinstance(arguments, (dict, str)):
-            raise ValueError(f&quot;{location}: function.arguments must be an object or JSON string&quot;)
-        if isinstance(arguments, str):
-            json.loads(arguments)
-
-
-def load_jsonl(path: Path) -&gt; list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    with path.open(encoding=&quot;utf-8&quot;) as handle:
-        for line_number, line in enumerate(handle, 1):
-            if not line.strip():
-                raise ValueError(f&quot;{path}:{line_number}: blank line&quot;)
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f&quot;{path}:{line_number}: invalid JSON: {exc}&quot;) from exc
-            validate_record(record, path, line_number)
-            records.append(record)
-    if not records:
-        raise ValueError(f&quot;empty dataset: {path}&quot;)
-    return records
-
-
-def file_sha256(path: Path) -&gt; str:
-    digest = hashlib.sha256()
-    with path.open(&quot;rb&quot;) as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b&quot;&quot;):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-</code></pre>
-        </a>
-        <a id="source-gpu" class="code-source-block" href="k8s-function-calling-training-code-explained.html#gpu">
-          <span class="code-source-heading"><strong>107–144행 · CUDA·BF16·GPU 메모리</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>def require_cuda_bf16() -&gt; None:
-    import torch
-
-    if not torch.cuda.is_available():
-        raise RuntimeError(&quot;CUDA is unavailable. Run this on a RunPod NVIDIA GPU pod.&quot;)
-    if not torch.cuda.is_bf16_supported():
-        raise RuntimeError(&quot;This experiment requires a CUDA GPU with native BF16 support.&quot;)
-    if torch.cuda.device_count() != 1:
-        LOGGER.warning(&quot;Detected %d GPUs; this pipeline intentionally uses GPU 0 only.&quot;, torch.cuda.device_count())
-    LOGGER.info(
-        &quot;host=%s python=%s torch=%s cuda=%s bf16_supported=true&quot;,
-        platform.node(),
-        sys.version.split()[0],
-        torch.__version__,
-        torch.version.cuda,
-    )
-
-
-def log_gpu(stage: str) -&gt; None:
-    import torch
-
-    # 실행 단계별 GPU 메모리 상태를 기록한다. stage는 startup 같은 시점의 이름표다.
-    free_bytes, total_bytes = torch.cuda.mem_get_info()
-    # CUDA가 반환하는 바이트 값을 사람이 읽기 쉬운 GiB 단위로 바꾸기 위한 값이다.
-    gib = 1024**3
-    LOGGER.info(
-        &quot;gpu stage=%s name=%s free=%.2fGiB total=%.2fGiB allocated=%.2fGiB &quot;
-        &quot;reserved=%.2fGiB peak_allocated=%.2fGiB&quot;,
-        stage,
-        torch.cuda.get_device_name(0),
-        free_bytes / gib,
-        total_bytes / gib,
-        torch.cuda.memory_allocated() / gib,
-        torch.cuda.memory_reserved() / gib,
-        torch.cuda.max_memory_allocated() / gib,
-    )
-
-</code></pre>
-        </a>
-        <a id="source-mask" class="code-source-block" href="k8s-function-calling-training-code-explained.html#mask">
-          <span class="code-source-heading"><strong>145–187행 · assistant mask smoke test</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>def validate_assistant_masks(tokenizer, records: list[dict[str, Any]]) -&gt; None:
-    # 각 데이터의 마지막 메시지는 assistant 모범 답안이다. 그 답안에 tool_calls가
-    # 있으면 도구 호출 예제, 없으면 도구를 호출하지 않는 no-call 예제로 분류한다.
-    tool_rows = [row for row in records if row[&quot;messages&quot;][-1].get(&quot;tool_calls&quot;)]
-    no_call_rows = [row for row in records if not row[&quot;messages&quot;][-1].get(&quot;tool_calls&quot;)]
-    # 두 종류의 대표 예제를 검사할 수 없으면 학습을 시작하지 않고 중단한다.
-    if len(tool_rows) &lt; 2 or not no_call_rows:
-        raise ValueError(&quot;mask validation requires at least two tool-call and one no-call examples&quot;)
-    # 800개 전체를 검사하는 학습 루프가 아니다. 도구 호출 2건과 no-call 1건을
-    # 골라 채팅 템플릿의 assistant 마스킹 기능을 빠르게 점검하는 스모크 테스트다.
-    for category, row in (
-        (&quot;tool&quot;, tool_rows[0]),
-        (&quot;tool&quot;, tool_rows[1]),
-        (&quot;no_call&quot;, no_call_rows[0]),
-    ):
-        # 한 row에는 messages(질문과 모범 답안)와 tools(전체 도구 후보)가 있다.
-        # 템플릿으로 Qwen 대화 형식을 만들고 토큰 ID와 assistant 위치 마스크를 받는다.
-        rendered = tokenizer.apply_chat_template(
-            row[&quot;messages&quot;],
-            tools=row[&quot;tools&quot;],
-            # 템플릿 결과 문자열을 바로 정수 토큰 ID로 변환한다.
-            tokenize=True,
-            # ID 목록만 받지 않고 input_ids와 각종 마스크를 딕셔너리로 받는다.
-            return_dict=True,
-            # 전체 토큰 중 assistant 모범 답안 위치를 1로 표시한 배열도 요청한다.
-            return_assistant_tokens_mask=True,
-        )
-        mask = rendered.get(&quot;assistant_masks&quot;)
-        # 마스크가 없거나 모두 0이면 assistant 정답 토큰이 학습 대상으로 표시되지 않았다.
-        if not mask or sum(mask) == 0:
-            raise RuntimeError(f&quot;assistant mask is empty for {category} example&quot;)
-        # 모든 입력 토큰에는 대응하는 마스크 값이 정확히 하나씩 있어야 한다.
-        if len(mask) != len(rendered[&quot;input_ids&quot;]):
-            raise RuntimeError(f&quot;assistant mask length mismatch for {category} example&quot;)
-        # 이진 마스크의 길이는 전체 토큰 수, 합계는 assistant 정답 토큰 수다.
-        LOGGER.info(
-            &quot;assistant_mask category=%s total_tokens=%d assistant_tokens=%d&quot;,
-            category,
-            len(mask),
-            sum(mask),
-        )
-
-</code></pre>
-        </a>
-        <a id="source-prepare" class="code-source-block" href="k8s-function-calling-training-code-explained.html#prepare">
-          <span class="code-source-heading"><strong>188–275행 · resume·revision·tokenizer·template</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>def resolve_resume(output_dir: Path, requested: str) -&gt; str | None:
-    from transformers.trainer_utils import get_last_checkpoint
-
-    normalized = requested.strip().lower()
-    if normalized in {&quot;&quot;, &quot;none&quot;, &quot;false&quot;, &quot;0&quot;}:
-        return None
-    if normalized == &quot;auto&quot;:
-        checkpoint = get_last_checkpoint(str(output_dir)) if output_dir.exists() else None
-        LOGGER.info(&quot;automatic resume checkpoint=%s&quot;, checkpoint)
-        return checkpoint
-    checkpoint = resolve_path(requested)
-    if not checkpoint.is_dir():
-        raise ValueError(f&quot;resume checkpoint does not exist: {checkpoint}&quot;)
-    return str(checkpoint)
-
-
-def main() -&gt; None:
-    # 실행 옵션을 읽은 뒤, --config가 가리키는 YAML을 딕셔너리로 불러온다.
-    args = parse_args()
-    config = load_config(args.config)
-
-    # PyTorch는 모델 텐서, GPU 연산, BF16 학습과 기울기 계산을 담당한다.
-    import torch
-    from datasets import Dataset
-    from huggingface_hub import HfApi
-    from peft import LoraConfig
-    from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback, set_seed
-    from trl import SFTConfig, SFTTrainer
-
-    require_cuda_bf16()
-    if str(config[&quot;dtype&quot;]).lower() != &quot;bfloat16&quot;:
-        raise ValueError(&quot;BF16 LoRA experiment requires dtype: bfloat16&quot;)
-    # 난수 생성기의 출발점을 고정해 데이터 셔플과 초기화 조건을 재현하기 쉽게 한다.
-    set_seed(int(config[&quot;seed&quot;]))
-    log_gpu(&quot;startup&quot;)
-
-    # 설정의 데이터 폴더를 실제 경로로 바꾸고 JSONL을 Python 레코드 목록으로 읽는다.
-    data_dir = resolve_path(config[&quot;data_dir&quot;])
-    train_records = load_jsonl(data_dir / &quot;train.jsonl&quot;)
-    valid_records = load_jsonl(data_dir / &quot;valid.jsonl&quot;)
-    LOGGER.info(&quot;dataset train=%d valid=%d&quot;, len(train_records), len(valid_records))
-    if len(train_records) != 800 or len(valid_records) != 100:
-        raise ValueError(&quot;expected exactly 800 train and 100 validation records&quot;)
-
-    # main 같은 가변 revision이 현재 가리키는 정확한 Hugging Face 커밋 SHA를 조회한다.
-    # Docker의 latest를 불변 digest로 확정하는 것과 비슷하며 실험 재현성을 높인다.
-    requested_revision = str(config[&quot;model_revision&quot;])
-    resolved_revision = HfApi().model_info(
-        config[&quot;model_id&quot;], revision=requested_revision
-    ).sha
-    LOGGER.info(&quot;model revision requested=%s resolved=%s&quot;, requested_revision, resolved_revision)
-    # 모델과 같은 고정 revision의 토크나이저를 불러온다.
-    tokenizer = AutoTokenizer.from_pretrained(
-        config[&quot;model_id&quot;], revision=resolved_revision, use_fast=True
-    )
-    # 배치 안의 입력 길이를 맞출 전용 PAD가 없으면 기존 EOS를 PAD 역할로 재사용한다.
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    # Jinja 파일의 내용을 문자열로 읽어, messages와 tools를 Qwen용 대화 문자열로
-    # 조립하는 규칙으로 등록한다. 토큰 사전이나 모델 가중치를 바꾸는 작업은 아니다.
-    chat_template_path = resolve_path(config[&quot;chat_template_path&quot;])
-    tokenizer.chat_template = chat_template_path.read_text(encoding=&quot;utf-8&quot;)
-    validate_assistant_masks(tokenizer, train_records)
-    # 학습 800건과 검증 100건 모두에 템플릿을 적용해 각 예제의 전체 토큰 수를 구한다.
-    lengths = [
-        len(tokenizer.apply_chat_template(row[&quot;messages&quot;], tools=row[&quot;tools&quot;]))
-        for row in train_records + valid_records
-    ]
-    # Python에서 True는 1이므로, max_length를 초과한 비교 결과의 합은 초과 예제 수다.
-    too_long = sum(length &gt; int(config[&quot;max_length&quot;]) for length in lengths)
-    # 가장 짧고 긴 예제, 허용 길이, 잘릴 가능성이 있는 예제 수를 기록한다.
-    LOGGER.info(
-        &quot;rendered_tokens min=%d max=%d max_length=%d truncated_examples=%d&quot;,
-        min(lengths),
-        max(lengths),
-        config[&quot;max_length&quot;],
-        too_long,
-    )
-    if too_long:
-        raise ValueError(
-            f&quot;{too_long} examples exceed max_length={config[&#x27;max_length&#x27;]}; &quot;
-            &quot;increase max_length so assistant targets are not truncated&quot;
-        )
-
-    if args.validate_only:
-        LOGGER.info(&quot;validation complete; BF16 model weights were not loaded&quot;)
-        return
-</code></pre>
-        </a>
-        <a id="source-model" class="code-source-block" href="k8s-function-calling-training-code-explained.html#model">
-          <span class="code-source-heading"><strong>276–301행 · Qwen 로딩과 LoRA 설정</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>    # Qwen3는 앞의 토큰을 보고 다음 토큰을 생성하는 decoder-only 모델이므로
-    # Hugging Face의 CausalLM용 자동 클래스가 config를 읽어 Qwen3 모델을 구성한다.
-    # 이 시점에 토크나이저가 아니라 실제 17억 개 규모의 모델 가중치를 불러온다.
-    model = AutoModelForCausalLM.from_pretrained(
-        # Hugging Face에서 가져올 모델 저장소(예: Qwen/Qwen3-1.7B)다.
-        config[&quot;model_id&quot;],
-        # 토크나이저와 동일한 고정 커밋 SHA를 사용해 모델 버전을 일치시킨다.
-        revision=resolved_revision,
-        # PyTorch 전체가 아니라 지금 로드하는 모델 가중치를 BF16으로 준비한다.
-        # BF16은 가중치 하나를 16비트로 표현하며 4/8비트 양자화는 아니다.
-        dtype=torch.bfloat16,
-        # 빈 문자열은 모델 최상위(모델 전체), 0은 첫 번째 CUDA GPU를 뜻한다.
-        # 따라서 모델을 나누지 않고 전체를 RunPod의 GPU 0에 올린다.
-        device_map={&quot;&quot;: 0},
-    )
-    model.config.use_cache = False
-    log_gpu(&quot;model_loaded&quot;)
-
-    peft_config = LoraConfig(
-        task_type=&quot;CAUSAL_LM&quot;,
-        r=int(config[&quot;lora_r&quot;]),
-        lora_alpha=int(config[&quot;lora_alpha&quot;]),
-        lora_dropout=float(config[&quot;lora_dropout&quot;]),
-        target_modules=config[&quot;lora_target_modules&quot;],
-        bias=&quot;none&quot;,
-    )</code></pre>
-        </a>
-        <a id="source-manifest" class="code-source-block" href="k8s-function-calling-training-code-explained.html#manifest">
-          <span class="code-source-heading"><strong>302–334행 · manifest와 실험 기록</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>    output_dir = resolve_path(config[&quot;output_dir&quot;])
-    output_dir.mkdir(parents=True, exist_ok=True)
-    properties = torch.cuda.get_device_properties(0)
-    manifest = {
-        &quot;created_at&quot;: datetime.now(timezone.utc).isoformat(),
-        &quot;training_method&quot;: &quot;bf16_lora&quot;,
-        &quot;quantization&quot;: None,
-        &quot;model_id&quot;: config[&quot;model_id&quot;],
-        &quot;requested_revision&quot;: requested_revision,
-        &quot;resolved_revision&quot;: resolved_revision,
-        &quot;config&quot;: config,
-        &quot;chat_template&quot;: {
-            &quot;path&quot;: str(chat_template_path),
-            &quot;sha256&quot;: file_sha256(chat_template_path),
-        },
-        &quot;dataset&quot;: {
-            split: {
-                &quot;path&quot;: str(data_dir / f&quot;{split}.jsonl&quot;),
-                &quot;sha256&quot;: file_sha256(data_dir / f&quot;{split}.jsonl&quot;),
-                &quot;records&quot;: len(records),
-            }
-            for split, records in ((&quot;train&quot;, train_records), (&quot;valid&quot;, valid_records))
-        },
-        &quot;packages&quot;: {
-            package: version(package)
-            for package in (&quot;torch&quot;, &quot;transformers&quot;, &quot;trl&quot;, &quot;peft&quot;, &quot;accelerate&quot;, &quot;datasets&quot;)
-        },
-        &quot;gpu&quot;: {&quot;name&quot;: properties.name, &quot;total_memory_bytes&quot;: properties.total_memory},
-    }
-    (output_dir / &quot;training_manifest.json&quot;).write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + &quot;\n&quot;, encoding=&quot;utf-8&quot;
-    )
-</code></pre>
-        </a>
-        <a id="source-config" class="code-source-block" href="k8s-function-calling-training-code-explained.html#config">
-          <span class="code-source-heading"><strong>335–370행 · SFTConfig 학습 수치</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>    training_args = SFTConfig(
-        output_dir=str(output_dir),
-        num_train_epochs=float(config[&quot;num_train_epochs&quot;]),
-        per_device_train_batch_size=int(config[&quot;per_device_train_batch_size&quot;]),
-        per_device_eval_batch_size=int(config[&quot;per_device_eval_batch_size&quot;]),
-        gradient_accumulation_steps=int(config[&quot;gradient_accumulation_steps&quot;]),
-        learning_rate=float(config[&quot;learning_rate&quot;]),
-        warmup_ratio=float(config[&quot;warmup_ratio&quot;]),
-        weight_decay=float(config[&quot;weight_decay&quot;]),
-        lr_scheduler_type=config[&quot;lr_scheduler_type&quot;],
-        optim=config[&quot;optim&quot;],
-        max_grad_norm=float(config[&quot;max_grad_norm&quot;]),
-        max_length=int(config[&quot;max_length&quot;]),
-        assistant_only_loss=bool(config[&quot;assistant_only_loss&quot;]),
-        gradient_checkpointing=bool(config[&quot;gradient_checkpointing&quot;]),
-        gradient_checkpointing_kwargs={&quot;use_reentrant&quot;: False},
-        packing=bool(config[&quot;packing&quot;]),
-        bf16=True,
-        fp16=False,
-        tf32=True,
-        eval_strategy=&quot;steps&quot;,
-        eval_steps=int(config[&quot;eval_steps&quot;]),
-        save_strategy=&quot;steps&quot;,
-        save_steps=int(config[&quot;save_steps&quot;]),
-        save_total_limit=int(config[&quot;save_total_limit&quot;]),
-        logging_steps=int(config[&quot;logging_steps&quot;]),
-        logging_first_step=True,
-        report_to=config[&quot;report_to&quot;],
-        seed=int(config[&quot;seed&quot;]),
-        data_seed=int(config[&quot;seed&quot;]),
-        eos_token=&quot;&lt;|im_end|&gt;&quot;,
-        chat_template_path=str(chat_template_path),
-        remove_unused_columns=True,
-        skip_memory_metrics=False,
-    )
-</code></pre>
-        </a>
-        <a id="source-trainer" class="code-source-block" href="k8s-function-calling-training-code-explained.html#trainer">
-          <span class="code-source-heading"><strong>371–389행 · callback·SFTTrainer</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>    class GpuMemoryCallback(TrainerCallback):
-        def on_log(self, args, state, control, logs=None, **kwargs):
-            if logs is not None and torch.cuda.is_available():
-                gib = 1024**3
-                free_bytes, _ = torch.cuda.mem_get_info()
-                logs[&quot;gpu_allocated_gib&quot;] = round(torch.cuda.memory_allocated() / gib, 3)
-                logs[&quot;gpu_reserved_gib&quot;] = round(torch.cuda.memory_reserved() / gib, 3)
-                logs[&quot;gpu_peak_allocated_gib&quot;] = round(torch.cuda.max_memory_allocated() / gib, 3)
-                logs[&quot;gpu_free_gib&quot;] = round(free_bytes / gib, 3)
-
-    trainer = SFTTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=Dataset.from_list(train_records),
-        eval_dataset=Dataset.from_list(valid_records),
-        processing_class=tokenizer,
-        peft_config=peft_config,
-        callbacks=[GpuMemoryCallback()],
-    )</code></pre>
-        </a>
-        <a id="source-save" class="code-source-block" href="k8s-function-calling-training-code-explained.html#save">
-          <span class="code-source-heading"><strong>390–412행 · 학습 실행과 저장</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>    trainer.model.print_trainable_parameters()
-    resume_checkpoint = resolve_resume(output_dir, args.resume)
-    LOGGER.info(&quot;starting training resume=%s output=%s&quot;, resume_checkpoint, output_dir)
-    train_result = trainer.train(resume_from_checkpoint=resume_checkpoint)
-    trainer.save_model(str(output_dir / &quot;final_adapter&quot;))
-    tokenizer.save_pretrained(str(output_dir / &quot;final_adapter&quot;))
-    trainer.save_state()
-    trainer.log_metrics(&quot;train&quot;, train_result.metrics)
-    trainer.save_metrics(&quot;train&quot;, train_result.metrics)
-    eval_metrics = trainer.evaluate()
-    trainer.log_metrics(&quot;eval&quot;, eval_metrics)
-    trainer.save_metrics(&quot;eval&quot;, eval_metrics)
-    log_gpu(&quot;finished&quot;)
-
-
-if __name__ == &quot;__main__&quot;:
-    # Python 표준 logging 모듈의 전역 출력 수준과 표시 형식을 먼저 설정한다.
-    logging.basicConfig(
-        level=logging.INFO,
-        format=&quot;%(asctime)s %(levelname)s %(name)s: %(message)s&quot;,
-    )
-    # 이 파일을 직접 실행했을 때만 위에서 정의한 전체 학습 절차를 시작한다.
-    main()</code></pre>
-        </a>
-      </div>
-      <h3 id="source-map">코드 → 해설 연결</h3>
-      <div class="table-scroll"><table><thead><tr><th>코드 범위</th><th>이 코드가 하는 일</th><th>이어 읽을 문서</th></tr></thead><tbody>
-        <tr><td><code>1–55행</code></td><td>실행 옵션, 상대 경로, YAML 설정을 읽는다.</td><td><a href="k8s-function-calling-training-code-explained.html#entry">코드 블록 상세 설명</a></td></tr>
-        <tr><td><code>56–106행</code></td><td>JSONL 한 행을 검증하고 데이터 checksum을 계산한다.</td><td><a href="k8s-function-calling-training-code-explained.html#data">코드 블록 상세 설명</a> · <a href="k8s-function-calling-dataset.html#record">데이터셋 한 행</a></td></tr>
-        <tr><td><code>107–144행</code></td><td>CUDA·BF16 가능 여부와 단계별 GPU 메모리를 확인한다.</td><td><a href="k8s-function-calling-training-code-explained.html#gpu">코드 블록 상세 설명</a> · <a href="k8s-function-calling-environment.html#roles">RunPod 환경</a></td></tr>
-        <tr><td><code>145–187행</code></td><td>tool-call/no-call 예제로 assistant 토큰 마스크를 smoke test한다.</td><td><a href="k8s-function-calling-training-code-explained.html#mask">코드 블록 상세 설명</a> · <a href="../llm-systems/function_calling_tool_contract_learning.html#contract">Function Calling 계약</a></td></tr>
-        <tr><td><code>188–275행</code></td><td>checkpoint·revision·tokenizer·Jinja template과 길이를 준비한다.</td><td><a href="k8s-function-calling-training-code-explained.html#prepare">코드 블록 상세 설명</a> · <a href="k8s-function-calling-dataset.html#record">데이터 계약</a></td></tr>
-        <tr><td><code>276–301행</code></td><td>Qwen3-1.7B BF16을 올리고 LoRA 장착 규칙을 만든다.</td><td><a href="k8s-function-calling-training-code-explained.html#model">코드 블록 상세 설명</a> · <a href="../llm-systems/lora_adapters_qwen_learning.html#lora">LoRA 개념</a></td></tr>
-        <tr><td><code>302–334행</code></td><td>출력 폴더와 model·data·template·GPU manifest를 저장한다.</td><td><a href="k8s-function-calling-training-code-explained.html#manifest">코드 블록 상세 설명</a></td></tr>
-        <tr><td><code>335–370행</code></td><td>SFT epoch·batch·gradient·learning rate·정밀도·checkpoint 정책을 설정한다.</td><td><a href="k8s-function-calling-training-code-explained.html#config">코드 블록 상세 설명</a></td></tr>
-        <tr><td><code>371–389행</code></td><td>GPU callback을 붙이고 SFTTrainer에 dataset·tokenizer·LoRA를 주입한다.</td><td><a href="k8s-function-calling-training-code-explained.html#trainer">코드 블록 상세 설명</a> · <a href="../llm-systems/lora_adapters_qwen_learning.html#lora">adapter 위치</a></td></tr>
-        <tr><td><code>390–412행</code></td><td>학습을 실행하고 adapter·tokenizer·state·metrics를 저장한다.</td><td><a href="k8s-function-calling-training-code-explained.html#save">코드 블록 상세 설명</a> · <a href="#serve">병합·vLLM 서빙</a></td></tr>
-      </tbody></table></div>
     </section>
 
     <section id="entry">
@@ -808,12 +367,485 @@ bash scripts/run_runpod_bf16_eval.sh</code></pre>
       <p>vLLM은 merged 모델을 GPU에 올리고 OpenAI-compatible API를 제공한다. 클라이언트는 OpenAI SDK를 사용하지만 모델은 외부 OpenAI 모델이 아니라 RunPod에 올라간 Qwen이다. 서버는 <code>messages</code>와 <code>tools</code>를 받아 chat template을 적용하고, 반환된 <code>tool_calls</code>를 평가기가 채점한다.</p>
       <div class="caution"><strong>토크나이저와 모델 병합은 별개다.</strong><br>모델 가중치 병합이 성공해도 PAD·EOS·chat template을 올바르게 보존하지 않으면 학습과 추론의 문자열이 달라진다. 따라서 merged 모델을 평가할 때도 같은 입력 계약을 확인해야 한다.</div>
     </section>
+    <section id="source">
+      <h2>12. 전체 원본 코드로 다시 확인하기</h2>
+      <p>아래는 이 프로젝트에서 실제 실행한 <code>scripts/train_runpod_bf16_lora.py</code>의 전체 소스다. 1행부터 412행까지를 의미 단위별 박스로 나눴지만 코드는 빠뜨리지 않았고, 각 박스를 클릭하면 해당 코드의 상세 설명으로 이동한다.</p>
+      <div class="caution"><strong>읽는 방법</strong><br>연한 테두리의 코드 박스 전체가 링크다. 코드를 클릭하면 줄별 해설 페이지로 이동하고, 그 페이지의 “원본 코드로 돌아가기” 링크를 누르면 같은 블록으로 돌아온다. 아래 표는 빠르게 범위를 찾고 싶은 경우를 위한 보조 인덱스다.</div>
+      <div class="source-code-stack" aria-label="train_runpod_bf16_lora.py 전체 소스, 의미 단위별 링크">
+        <a id="source-entry" class="code-source-block" href="k8s-function-calling-training-code-explained.html#entry">
+          <span class="code-source-heading"><strong>1–55행 · 실행 옵션과 YAML 설정</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>#!/usr/bin/env python3
+&quot;&quot;&quot;RunPod CUDA BF16 LoRA training for Korean Kubernetes tool calling.&quot;&quot;&quot;
 
-    <section id="files">
-      <h2>12. 다시 구현할 때 읽을 파일 순서</h2>
-      <div class="table-scroll"><table><thead><tr><th>순서</th><th>파일</th><th>먼저 확인할 것</th></tr></thead><tbody><tr><td>1</td><td><code>schemas/kubernetes_tools.json</code></td><td>모델이 선택할 도구와 인자 계약</td></tr><tr><td>2</td><td><code>configs/qwen3_tool_training.jinja</code></td><td>messages·tools를 Qwen 문자열로 만드는 규칙</td></tr><tr><td>3</td><td><code>configs/runpod_bf16_lora.yaml</code></td><td>모델 revision·데이터·LoRA·SFT 수치</td></tr><tr><td>4</td><td><code>scripts/generate_training_data.py</code></td><td>한국어 요청과 tool-call/no-call 정답 생성</td></tr><tr><td>5</td><td><code>scripts/train_runpod_bf16_lora.py</code></td><td>검증·모델 로딩·LoRA·Trainer·저장</td></tr><tr><td>6</td><td><code>scripts/merge_peft_adapter.py</code></td><td>adapter와 원본을 merged BF16으로 결합</td></tr><tr><td>7</td><td><code>ko_k8s_fc/evaluate_runpod_bf16.py</code>, <code>ko_k8s_fc/scoring.py</code></td><td>OpenAI SDK 호출과 Full success 계산</td></tr></tbody></table></div>
-      <p>이 순서를 따르면 “데이터가 어떤 계약을 만들고 → 템플릿이 어떤 문자열을 만들고 → assistant 정답만 어떻게 학습하고 → LoRA가 어디에 붙고 → 어떤 파일로 저장되어 → 평가 서버에서 어떻게 호출되는가”를 한 번에 복원할 수 있다.</p>
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import platform
+import sys
+from datetime import datetime, timezone
+from importlib.metadata import version
+from pathlib import Path
+from typing import Any
+
+LOGGER = logging.getLogger(&quot;runpod_bf16_lora&quot;)
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+
+
+def parse_args() -&gt; argparse.Namespace:
+    # 터미널에서 전달한 --config, --resume, --validate-only 옵션을 한 객체로 모은다.
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        &quot;--config&quot;,
+        type=Path,
+        default=PROJECT_DIR / &quot;configs&quot; / &quot;runpod_bf16_lora.yaml&quot;,
+    )
+    parser.add_argument(
+        &quot;--resume&quot;,
+        default=&quot;auto&quot;,
+        help=&quot;auto, none, or a checkpoint directory&quot;,
+    )
+    parser.add_argument(
+        &quot;--validate-only&quot;,
+        action=&quot;store_true&quot;,
+        help=&quot;Validate CUDA, dependencies, data, tokenizer, and masks without loading weights.&quot;,
+    )
+    return parser.parse_args()
+
+
+def resolve_path(value: str | Path) -&gt; Path:
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_DIR / path
+
+
+def load_config(path: Path) -&gt; dict[str, Any]:
+    import yaml
+
+    # YAML 설정 파일을 읽어 Python 딕셔너리로 변환한다.
+    with path.open(encoding=&quot;utf-8&quot;) as handle:
+        config = yaml.safe_load(handle)
+    if not isinstance(config, dict):
+        raise ValueError(f&quot;configuration must be an object: {path}&quot;)
+    return config</code></pre>
+        </a>
+        <a id="source-data" class="code-source-block" href="k8s-function-calling-training-code-explained.html#data">
+          <span class="code-source-heading"><strong>56–106행 · 데이터 구조 검증과 checksum</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+
+def validate_record(record: dict[str, Any], path: Path, line_number: int) -&gt; None:
+    messages = record.get(&quot;messages&quot;)
+    tools = record.get(&quot;tools&quot;)
+    location = f&quot;{path}:{line_number}&quot;
+    if not isinstance(messages, list) or len(messages) &lt; 2:
+        raise ValueError(f&quot;{location}: messages must contain user and assistant turns&quot;)
+    if not isinstance(tools, list) or not tools:
+        raise ValueError(f&quot;{location}: tools must be a non-empty list&quot;)
+    if messages[-1].get(&quot;role&quot;) != &quot;assistant&quot;:
+        raise ValueError(f&quot;{location}: final message must have assistant role&quot;)
+    assistant = messages[-1]
+    if not assistant.get(&quot;tool_calls&quot;) and not assistant.get(&quot;content&quot;):
+        raise ValueError(f&quot;{location}: assistant needs a tool call or no-call content&quot;)
+    for call in assistant.get(&quot;tool_calls&quot;, []):
+        function = call.get(&quot;function&quot;, {})
+        if not function.get(&quot;name&quot;):
+            raise ValueError(f&quot;{location}: tool call is missing function.name&quot;)
+        arguments = function.get(&quot;arguments&quot;)
+        if not isinstance(arguments, (dict, str)):
+            raise ValueError(f&quot;{location}: function.arguments must be an object or JSON string&quot;)
+        if isinstance(arguments, str):
+            json.loads(arguments)
+
+
+def load_jsonl(path: Path) -&gt; list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    with path.open(encoding=&quot;utf-8&quot;) as handle:
+        for line_number, line in enumerate(handle, 1):
+            if not line.strip():
+                raise ValueError(f&quot;{path}:{line_number}: blank line&quot;)
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f&quot;{path}:{line_number}: invalid JSON: {exc}&quot;) from exc
+            validate_record(record, path, line_number)
+            records.append(record)
+    if not records:
+        raise ValueError(f&quot;empty dataset: {path}&quot;)
+    return records
+
+
+def file_sha256(path: Path) -&gt; str:
+    digest = hashlib.sha256()
+    with path.open(&quot;rb&quot;) as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b&quot;&quot;):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+</code></pre>
+        </a>
+        <a id="source-gpu" class="code-source-block" href="k8s-function-calling-training-code-explained.html#gpu">
+          <span class="code-source-heading"><strong>107–144행 · CUDA·BF16·GPU 메모리</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+
+def require_cuda_bf16() -&gt; None:
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError(&quot;CUDA is unavailable. Run this on a RunPod NVIDIA GPU pod.&quot;)
+    if not torch.cuda.is_bf16_supported():
+        raise RuntimeError(&quot;This experiment requires a CUDA GPU with native BF16 support.&quot;)
+    if torch.cuda.device_count() != 1:
+        LOGGER.warning(&quot;Detected %d GPUs; this pipeline intentionally uses GPU 0 only.&quot;, torch.cuda.device_count())
+    LOGGER.info(
+        &quot;host=%s python=%s torch=%s cuda=%s bf16_supported=true&quot;,
+        platform.node(),
+        sys.version.split()[0],
+        torch.__version__,
+        torch.version.cuda,
+    )
+
+
+def log_gpu(stage: str) -&gt; None:
+    import torch
+
+    # 실행 단계별 GPU 메모리 상태를 기록한다. stage는 startup 같은 시점의 이름표다.
+    free_bytes, total_bytes = torch.cuda.mem_get_info()
+    # CUDA가 반환하는 바이트 값을 사람이 읽기 쉬운 GiB 단위로 바꾸기 위한 값이다.
+    gib = 1024**3
+    LOGGER.info(
+        &quot;gpu stage=%s name=%s free=%.2fGiB total=%.2fGiB allocated=%.2fGiB &quot;
+        &quot;reserved=%.2fGiB peak_allocated=%.2fGiB&quot;,
+        stage,
+        torch.cuda.get_device_name(0),
+        free_bytes / gib,
+        total_bytes / gib,
+        torch.cuda.memory_allocated() / gib,
+        torch.cuda.memory_reserved() / gib,
+        torch.cuda.max_memory_allocated() / gib,
+    )
+
+</code></pre>
+        </a>
+        <a id="source-mask" class="code-source-block" href="k8s-function-calling-training-code-explained.html#mask">
+          <span class="code-source-heading"><strong>145–187행 · assistant mask smoke test</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+
+def validate_assistant_masks(tokenizer, records: list[dict[str, Any]]) -&gt; None:
+    # 각 데이터의 마지막 메시지는 assistant 모범 답안이다. 그 답안에 tool_calls가
+    # 있으면 도구 호출 예제, 없으면 도구를 호출하지 않는 no-call 예제로 분류한다.
+    tool_rows = [row for row in records if row[&quot;messages&quot;][-1].get(&quot;tool_calls&quot;)]
+    no_call_rows = [row for row in records if not row[&quot;messages&quot;][-1].get(&quot;tool_calls&quot;)]
+    # 두 종류의 대표 예제를 검사할 수 없으면 학습을 시작하지 않고 중단한다.
+    if len(tool_rows) &lt; 2 or not no_call_rows:
+        raise ValueError(&quot;mask validation requires at least two tool-call and one no-call examples&quot;)
+    # 800개 전체를 검사하는 학습 루프가 아니다. 도구 호출 2건과 no-call 1건을
+    # 골라 채팅 템플릿의 assistant 마스킹 기능을 빠르게 점검하는 스모크 테스트다.
+    for category, row in (
+        (&quot;tool&quot;, tool_rows[0]),
+        (&quot;tool&quot;, tool_rows[1]),
+        (&quot;no_call&quot;, no_call_rows[0]),
+    ):
+        # 한 row에는 messages(질문과 모범 답안)와 tools(전체 도구 후보)가 있다.
+        # 템플릿으로 Qwen 대화 형식을 만들고 토큰 ID와 assistant 위치 마스크를 받는다.
+        rendered = tokenizer.apply_chat_template(
+            row[&quot;messages&quot;],
+            tools=row[&quot;tools&quot;],
+            # 템플릿 결과 문자열을 바로 정수 토큰 ID로 변환한다.
+            tokenize=True,
+            # ID 목록만 받지 않고 input_ids와 각종 마스크를 딕셔너리로 받는다.
+            return_dict=True,
+            # 전체 토큰 중 assistant 모범 답안 위치를 1로 표시한 배열도 요청한다.
+            return_assistant_tokens_mask=True,
+        )
+        mask = rendered.get(&quot;assistant_masks&quot;)
+        # 마스크가 없거나 모두 0이면 assistant 정답 토큰이 학습 대상으로 표시되지 않았다.
+        if not mask or sum(mask) == 0:
+            raise RuntimeError(f&quot;assistant mask is empty for {category} example&quot;)
+        # 모든 입력 토큰에는 대응하는 마스크 값이 정확히 하나씩 있어야 한다.
+        if len(mask) != len(rendered[&quot;input_ids&quot;]):
+            raise RuntimeError(f&quot;assistant mask length mismatch for {category} example&quot;)
+        # 이진 마스크의 길이는 전체 토큰 수, 합계는 assistant 정답 토큰 수다.
+        LOGGER.info(
+            &quot;assistant_mask category=%s total_tokens=%d assistant_tokens=%d&quot;,
+            category,
+            len(mask),
+            sum(mask),
+        )
+
+</code></pre>
+        </a>
+        <a id="source-prepare" class="code-source-block" href="k8s-function-calling-training-code-explained.html#prepare">
+          <span class="code-source-heading"><strong>188–275행 · resume·revision·tokenizer·template</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+
+def resolve_resume(output_dir: Path, requested: str) -&gt; str | None:
+    from transformers.trainer_utils import get_last_checkpoint
+
+    normalized = requested.strip().lower()
+    if normalized in {&quot;&quot;, &quot;none&quot;, &quot;false&quot;, &quot;0&quot;}:
+        return None
+    if normalized == &quot;auto&quot;:
+        checkpoint = get_last_checkpoint(str(output_dir)) if output_dir.exists() else None
+        LOGGER.info(&quot;automatic resume checkpoint=%s&quot;, checkpoint)
+        return checkpoint
+    checkpoint = resolve_path(requested)
+    if not checkpoint.is_dir():
+        raise ValueError(f&quot;resume checkpoint does not exist: {checkpoint}&quot;)
+    return str(checkpoint)
+
+
+def main() -&gt; None:
+    # 실행 옵션을 읽은 뒤, --config가 가리키는 YAML을 딕셔너리로 불러온다.
+    args = parse_args()
+    config = load_config(args.config)
+
+    # PyTorch는 모델 텐서, GPU 연산, BF16 학습과 기울기 계산을 담당한다.
+    import torch
+    from datasets import Dataset
+    from huggingface_hub import HfApi
+    from peft import LoraConfig
+    from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback, set_seed
+    from trl import SFTConfig, SFTTrainer
+
+    require_cuda_bf16()
+    if str(config[&quot;dtype&quot;]).lower() != &quot;bfloat16&quot;:
+        raise ValueError(&quot;BF16 LoRA experiment requires dtype: bfloat16&quot;)
+    # 난수 생성기의 출발점을 고정해 데이터 셔플과 초기화 조건을 재현하기 쉽게 한다.
+    set_seed(int(config[&quot;seed&quot;]))
+    log_gpu(&quot;startup&quot;)
+
+    # 설정의 데이터 폴더를 실제 경로로 바꾸고 JSONL을 Python 레코드 목록으로 읽는다.
+    data_dir = resolve_path(config[&quot;data_dir&quot;])
+    train_records = load_jsonl(data_dir / &quot;train.jsonl&quot;)
+    valid_records = load_jsonl(data_dir / &quot;valid.jsonl&quot;)
+    LOGGER.info(&quot;dataset train=%d valid=%d&quot;, len(train_records), len(valid_records))
+    if len(train_records) != 800 or len(valid_records) != 100:
+        raise ValueError(&quot;expected exactly 800 train and 100 validation records&quot;)
+
+    # main 같은 가변 revision이 현재 가리키는 정확한 Hugging Face 커밋 SHA를 조회한다.
+    # Docker의 latest를 불변 digest로 확정하는 것과 비슷하며 실험 재현성을 높인다.
+    requested_revision = str(config[&quot;model_revision&quot;])
+    resolved_revision = HfApi().model_info(
+        config[&quot;model_id&quot;], revision=requested_revision
+    ).sha
+    LOGGER.info(&quot;model revision requested=%s resolved=%s&quot;, requested_revision, resolved_revision)
+    # 모델과 같은 고정 revision의 토크나이저를 불러온다.
+    tokenizer = AutoTokenizer.from_pretrained(
+        config[&quot;model_id&quot;], revision=resolved_revision, use_fast=True
+    )
+    # 배치 안의 입력 길이를 맞출 전용 PAD가 없으면 기존 EOS를 PAD 역할로 재사용한다.
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    # Jinja 파일의 내용을 문자열로 읽어, messages와 tools를 Qwen용 대화 문자열로
+    # 조립하는 규칙으로 등록한다. 토큰 사전이나 모델 가중치를 바꾸는 작업은 아니다.
+    chat_template_path = resolve_path(config[&quot;chat_template_path&quot;])
+    tokenizer.chat_template = chat_template_path.read_text(encoding=&quot;utf-8&quot;)
+    validate_assistant_masks(tokenizer, train_records)
+    # 학습 800건과 검증 100건 모두에 템플릿을 적용해 각 예제의 전체 토큰 수를 구한다.
+    lengths = [
+        len(tokenizer.apply_chat_template(row[&quot;messages&quot;], tools=row[&quot;tools&quot;]))
+        for row in train_records + valid_records
+    ]
+    # Python에서 True는 1이므로, max_length를 초과한 비교 결과의 합은 초과 예제 수다.
+    too_long = sum(length &gt; int(config[&quot;max_length&quot;]) for length in lengths)
+    # 가장 짧고 긴 예제, 허용 길이, 잘릴 가능성이 있는 예제 수를 기록한다.
+    LOGGER.info(
+        &quot;rendered_tokens min=%d max=%d max_length=%d truncated_examples=%d&quot;,
+        min(lengths),
+        max(lengths),
+        config[&quot;max_length&quot;],
+        too_long,
+    )
+    if too_long:
+        raise ValueError(
+            f&quot;{too_long} examples exceed max_length={config[&#x27;max_length&#x27;]}; &quot;
+            &quot;increase max_length so assistant targets are not truncated&quot;
+        )
+
+    if args.validate_only:
+        LOGGER.info(&quot;validation complete; BF16 model weights were not loaded&quot;)
+        return
+</code></pre>
+        </a>
+        <a id="source-model" class="code-source-block" href="k8s-function-calling-training-code-explained.html#model">
+          <span class="code-source-heading"><strong>276–301행 · Qwen 로딩과 LoRA 설정</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+    # Qwen3는 앞의 토큰을 보고 다음 토큰을 생성하는 decoder-only 모델이므로
+    # Hugging Face의 CausalLM용 자동 클래스가 config를 읽어 Qwen3 모델을 구성한다.
+    # 이 시점에 토크나이저가 아니라 실제 17억 개 규모의 모델 가중치를 불러온다.
+    model = AutoModelForCausalLM.from_pretrained(
+        # Hugging Face에서 가져올 모델 저장소(예: Qwen/Qwen3-1.7B)다.
+        config[&quot;model_id&quot;],
+        # 토크나이저와 동일한 고정 커밋 SHA를 사용해 모델 버전을 일치시킨다.
+        revision=resolved_revision,
+        # PyTorch 전체가 아니라 지금 로드하는 모델 가중치를 BF16으로 준비한다.
+        # BF16은 가중치 하나를 16비트로 표현하며 4/8비트 양자화는 아니다.
+        dtype=torch.bfloat16,
+        # 빈 문자열은 모델 최상위(모델 전체), 0은 첫 번째 CUDA GPU를 뜻한다.
+        # 따라서 모델을 나누지 않고 전체를 RunPod의 GPU 0에 올린다.
+        device_map={&quot;&quot;: 0},
+    )
+    model.config.use_cache = False
+    log_gpu(&quot;model_loaded&quot;)
+
+    peft_config = LoraConfig(
+        task_type=&quot;CAUSAL_LM&quot;,
+        r=int(config[&quot;lora_r&quot;]),
+        lora_alpha=int(config[&quot;lora_alpha&quot;]),
+        lora_dropout=float(config[&quot;lora_dropout&quot;]),
+        target_modules=config[&quot;lora_target_modules&quot;],
+        bias=&quot;none&quot;,
+    )</code></pre>
+        </a>
+        <a id="source-manifest" class="code-source-block" href="k8s-function-calling-training-code-explained.html#manifest">
+          <span class="code-source-heading"><strong>302–334행 · manifest와 실험 기록</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>    output_dir = resolve_path(config[&quot;output_dir&quot;])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    properties = torch.cuda.get_device_properties(0)
+    manifest = {
+        &quot;created_at&quot;: datetime.now(timezone.utc).isoformat(),
+        &quot;training_method&quot;: &quot;bf16_lora&quot;,
+        &quot;quantization&quot;: None,
+        &quot;model_id&quot;: config[&quot;model_id&quot;],
+        &quot;requested_revision&quot;: requested_revision,
+        &quot;resolved_revision&quot;: resolved_revision,
+        &quot;config&quot;: config,
+        &quot;chat_template&quot;: {
+            &quot;path&quot;: str(chat_template_path),
+            &quot;sha256&quot;: file_sha256(chat_template_path),
+        },
+        &quot;dataset&quot;: {
+            split: {
+                &quot;path&quot;: str(data_dir / f&quot;{split}.jsonl&quot;),
+                &quot;sha256&quot;: file_sha256(data_dir / f&quot;{split}.jsonl&quot;),
+                &quot;records&quot;: len(records),
+            }
+            for split, records in ((&quot;train&quot;, train_records), (&quot;valid&quot;, valid_records))
+        },
+        &quot;packages&quot;: {
+            package: version(package)
+            for package in (&quot;torch&quot;, &quot;transformers&quot;, &quot;trl&quot;, &quot;peft&quot;, &quot;accelerate&quot;, &quot;datasets&quot;)
+        },
+        &quot;gpu&quot;: {&quot;name&quot;: properties.name, &quot;total_memory_bytes&quot;: properties.total_memory},
+    }
+    (output_dir / &quot;training_manifest.json&quot;).write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + &quot;\n&quot;, encoding=&quot;utf-8&quot;
+    )
+</code></pre>
+        </a>
+        <a id="source-config" class="code-source-block" href="k8s-function-calling-training-code-explained.html#config">
+          <span class="code-source-heading"><strong>335–370행 · SFTConfig 학습 수치</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+    training_args = SFTConfig(
+        output_dir=str(output_dir),
+        num_train_epochs=float(config[&quot;num_train_epochs&quot;]),
+        per_device_train_batch_size=int(config[&quot;per_device_train_batch_size&quot;]),
+        per_device_eval_batch_size=int(config[&quot;per_device_eval_batch_size&quot;]),
+        gradient_accumulation_steps=int(config[&quot;gradient_accumulation_steps&quot;]),
+        learning_rate=float(config[&quot;learning_rate&quot;]),
+        warmup_ratio=float(config[&quot;warmup_ratio&quot;]),
+        weight_decay=float(config[&quot;weight_decay&quot;]),
+        lr_scheduler_type=config[&quot;lr_scheduler_type&quot;],
+        optim=config[&quot;optim&quot;],
+        max_grad_norm=float(config[&quot;max_grad_norm&quot;]),
+        max_length=int(config[&quot;max_length&quot;]),
+        assistant_only_loss=bool(config[&quot;assistant_only_loss&quot;]),
+        gradient_checkpointing=bool(config[&quot;gradient_checkpointing&quot;]),
+        gradient_checkpointing_kwargs={&quot;use_reentrant&quot;: False},
+        packing=bool(config[&quot;packing&quot;]),
+        bf16=True,
+        fp16=False,
+        tf32=True,
+        eval_strategy=&quot;steps&quot;,
+        eval_steps=int(config[&quot;eval_steps&quot;]),
+        save_strategy=&quot;steps&quot;,
+        save_steps=int(config[&quot;save_steps&quot;]),
+        save_total_limit=int(config[&quot;save_total_limit&quot;]),
+        logging_steps=int(config[&quot;logging_steps&quot;]),
+        logging_first_step=True,
+        report_to=config[&quot;report_to&quot;],
+        seed=int(config[&quot;seed&quot;]),
+        data_seed=int(config[&quot;seed&quot;]),
+        eos_token=&quot;&lt;|im_end|&gt;&quot;,
+        chat_template_path=str(chat_template_path),
+        remove_unused_columns=True,
+        skip_memory_metrics=False,
+    )
+</code></pre>
+        </a>
+        <a id="source-trainer" class="code-source-block" href="k8s-function-calling-training-code-explained.html#trainer">
+          <span class="code-source-heading"><strong>371–389행 · callback·SFTTrainer</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>
+
+    class GpuMemoryCallback(TrainerCallback):
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            if logs is not None and torch.cuda.is_available():
+                gib = 1024**3
+                free_bytes, _ = torch.cuda.mem_get_info()
+                logs[&quot;gpu_allocated_gib&quot;] = round(torch.cuda.memory_allocated() / gib, 3)
+                logs[&quot;gpu_reserved_gib&quot;] = round(torch.cuda.memory_reserved() / gib, 3)
+                logs[&quot;gpu_peak_allocated_gib&quot;] = round(torch.cuda.max_memory_allocated() / gib, 3)
+                logs[&quot;gpu_free_gib&quot;] = round(free_bytes / gib, 3)
+
+    trainer = SFTTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=Dataset.from_list(train_records),
+        eval_dataset=Dataset.from_list(valid_records),
+        processing_class=tokenizer,
+        peft_config=peft_config,
+        callbacks=[GpuMemoryCallback()],
+    )</code></pre>
+        </a>
+        <a id="source-save" class="code-source-block" href="k8s-function-calling-training-code-explained.html#save">
+          <span class="code-source-heading"><strong>390–412행 · 학습 실행과 저장</strong><span>이 부분 자세히 보기 ↗</span></span>
+          <pre><code>    trainer.model.print_trainable_parameters()
+    resume_checkpoint = resolve_resume(output_dir, args.resume)
+    LOGGER.info(&quot;starting training resume=%s output=%s&quot;, resume_checkpoint, output_dir)
+    train_result = trainer.train(resume_from_checkpoint=resume_checkpoint)
+    trainer.save_model(str(output_dir / &quot;final_adapter&quot;))
+    tokenizer.save_pretrained(str(output_dir / &quot;final_adapter&quot;))
+    trainer.save_state()
+    trainer.log_metrics(&quot;train&quot;, train_result.metrics)
+    trainer.save_metrics(&quot;train&quot;, train_result.metrics)
+    eval_metrics = trainer.evaluate()
+    trainer.log_metrics(&quot;eval&quot;, eval_metrics)
+    trainer.save_metrics(&quot;eval&quot;, eval_metrics)
+    log_gpu(&quot;finished&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    # Python 표준 logging 모듈의 전역 출력 수준과 표시 형식을 먼저 설정한다.
+    logging.basicConfig(
+        level=logging.INFO,
+        format=&quot;%(asctime)s %(levelname)s %(name)s: %(message)s&quot;,
+    )
+    # 이 파일을 직접 실행했을 때만 위에서 정의한 전체 학습 절차를 시작한다.
+    main()</code></pre>
+        </a>
+      </div>
+      <h3 id="source-map">코드 → 해설 연결</h3>
+      <div class="table-scroll"><table><thead><tr><th>코드 범위</th><th>이 코드가 하는 일</th><th>이어 읽을 문서</th></tr></thead><tbody>
+        <tr><td><code>1–55행</code></td><td>실행 옵션, 상대 경로, YAML 설정을 읽는다.</td><td><a href="k8s-function-calling-training-code-explained.html#entry">코드 블록 상세 설명</a></td></tr>
+        <tr><td><code>56–106행</code></td><td>JSONL 한 행을 검증하고 데이터 checksum을 계산한다.</td><td><a href="k8s-function-calling-training-code-explained.html#data">코드 블록 상세 설명</a> · <a href="k8s-function-calling-dataset.html#record">데이터셋 한 행</a></td></tr>
+        <tr><td><code>107–144행</code></td><td>CUDA·BF16 가능 여부와 단계별 GPU 메모리를 확인한다.</td><td><a href="k8s-function-calling-training-code-explained.html#gpu">코드 블록 상세 설명</a> · <a href="k8s-function-calling-environment.html#roles">RunPod 환경</a></td></tr>
+        <tr><td><code>145–187행</code></td><td>tool-call/no-call 예제로 assistant 토큰 마스크를 smoke test한다.</td><td><a href="k8s-function-calling-training-code-explained.html#mask">코드 블록 상세 설명</a> · <a href="../llm-systems/function_calling_tool_contract_learning.html#contract">Function Calling 계약</a></td></tr>
+        <tr><td><code>188–275행</code></td><td>checkpoint·revision·tokenizer·Jinja template과 길이를 준비한다.</td><td><a href="k8s-function-calling-training-code-explained.html#prepare">코드 블록 상세 설명</a> · <a href="k8s-function-calling-dataset.html#record">데이터 계약</a></td></tr>
+        <tr><td><code>276–301행</code></td><td>Qwen3-1.7B BF16을 올리고 LoRA 장착 규칙을 만든다.</td><td><a href="k8s-function-calling-training-code-explained.html#model">코드 블록 상세 설명</a> · <a href="../llm-systems/lora_adapters_qwen_learning.html#lora">LoRA 개념</a></td></tr>
+        <tr><td><code>302–334행</code></td><td>출력 폴더와 model·data·template·GPU manifest를 저장한다.</td><td><a href="k8s-function-calling-training-code-explained.html#manifest">코드 블록 상세 설명</a></td></tr>
+        <tr><td><code>335–370행</code></td><td>SFT epoch·batch·gradient·learning rate·정밀도·checkpoint 정책을 설정한다.</td><td><a href="k8s-function-calling-training-code-explained.html#config">코드 블록 상세 설명</a></td></tr>
+        <tr><td><code>371–389행</code></td><td>GPU callback을 붙이고 SFTTrainer에 dataset·tokenizer·LoRA를 주입한다.</td><td><a href="k8s-function-calling-training-code-explained.html#trainer">코드 블록 상세 설명</a> · <a href="../llm-systems/lora_adapters_qwen_learning.html#lora">adapter 위치</a></td></tr>
+        <tr><td><code>390–412행</code></td><td>학습을 실행하고 adapter·tokenizer·state·metrics를 저장한다.</td><td><a href="k8s-function-calling-training-code-explained.html#save">코드 블록 상세 설명</a> · <a href="#serve">병합·vLLM 서빙</a></td></tr>
+      </tbody></table></div>
     </section>
+
 
     <footer class="footer">프로젝트 상세 문서 · 학습 코드 해설</footer>
   </main>
