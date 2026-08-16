@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Function Calling 평가 파일의 의미 단위별 코드와 채점·서빙·결과 저장 동작을 자세히 설명하는 문서">
+  <title>평가 코드 블록별 해설 · Kubernetes Function Calling</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#projects">개인 프로젝트</a><span class="separator">›</span><a href="ko-k8s-function-calling.html">Kubernetes Function Calling</a><span class="separator">›</span><a href="k8s-function-calling-evaluation-code.html">평가 코드 상세</a><span class="separator">›</span><span aria-current="page">코드 블록별 해설</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Project code study · linked evaluation explanations</span>
+      <h1>평가 코드를 클릭해서<br>채점 흐름 이해하기</h1>
+      <p class="summary">평가 원본 코드의 의미 단위마다 “무엇을 호출하고, 무엇을 검증하고, 어떤 결과를 저장하는가”를 설명한다. 코드 박스에서 이 페이지로 이동한 뒤 같은 원본 블록으로 돌아갈 수 있다.</p>
+      <div class="hero-actions"><a class="button" href="k8s-function-calling-evaluation-code.html#source">원본 평가 코드로 돌아가기</a><a class="button secondary" href="ko-k8s-function-calling.html#evaluation">평가 결과</a></div>
+      <div class="stats"><div class="stat">핵심 소스<strong>Python 4개 + Shell 1개</strong></div><div class="stat">평가 집합<strong>Holdout 100건</strong></div><div class="stat">채점<strong>CaseScore</strong></div><div class="stat">최종 지표<strong>Full success</strong></div></div>
+    </header>
+
+    <nav aria-label="문서 목차"><a href="#evaluate">최종 평가</a><a href="#baseline">Baseline</a><a href="#score">채점기</a><a href="#tools">도구 계약</a><a href="#runner">RunPod 러너</a><a href="#results">결과 저장</a></nav>
+
+    <section id="intro">
+      <h2>읽는 방법</h2>
+      <p><a href="k8s-function-calling-evaluation-code.html#source">원본 평가 코드 페이지</a>에서 연속된 코드 패널의 한 블록을 클릭하면 이 페이지의 해당 절로 이동한다. 이곳의 코드는 이해를 위한 발췌이고, 실행 가능한 전체 코드는 원본 페이지에 둔다.</p>
+      <pre><code>원본 평가 코드 블록 클릭
+  → 특정 파일·줄 범위 설명
+  → 요청·파싱·채점·저장의 책임 확인
+  → 원본 코드의 같은 블록으로 복귀</code></pre>
+    </section>
+
+    <section id="evaluate">
+      <h2>1. evaluate_runpod_bf16.py · 최종 평가</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-evaluate-cli">원본 evaluate_runpod_bf16.py로 돌아가기 ↗</a>
+      <h3 id="eval-cli">CLI와 입력 계약</h3>
+      <pre><code>parser.add_argument("--dataset", type=Path, required=True)
+parser.add_argument("--dataset-sha256", required=True)
+parser.add_argument("--output-dir", type=Path, required=True)
+parser.add_argument("--run-id", required=True)
+parser.add_argument("--base-url", required=True)
+parser.add_argument("--model", required=True)
+parser.add_argument("--metadata-json", type=Path, required=True)</code></pre>
+      <p>최종 평가기는 dataset, 기대 checksum, 모델 alias, 서버 metadata를 필수 인자로 받는다. 임시 실행처럼 기본값에 의존하지 않고, 어떤 holdout과 어떤 서버를 평가했는지 실행 명령에 드러나게 만든다.</p>
+      <h3 id="eval-call">OpenAI SDK 호출</h3>
+      <pre><code>response = client.chat.completions.create(
+    model=model,
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": case.prompt},
+    ],
+    tools=TOOLS,
+    tool_choice="auto",
+    temperature=0,
+    max_tokens=256,
+    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+)</code></pre>
+      <p>OpenAI SDK 형식으로 요청하지만 실제 endpoint는 RunPod의 vLLM이다. <code>tools</code>는 모델이 선택할 수 있는 전체 계약이고, <code>tool_choice=&quot;auto&quot;</code>는 호출과 no-call을 모두 허용한다. Base와 Tuned가 같은 요청을 받도록 조건을 고정한다.</p>
+      <h3 id="eval-parse">응답 추출과 예외 처리</h3>
+      <pre><code>message = response.choices[0].message
+calls = [
+    ActualCall(
+        name=call.function.name,
+        arguments_json=call.function.arguments,
+    )
+    for call in (message.tool_calls or [])
+]
+score = score_case(case, calls)
+
+except Exception as exc:
+    score = score_case(case, [], error=f"{type(exc).__name__}: {exc}")</code></pre>
+      <p>모델의 응답을 실행하지 않고 함수명과 인자 JSON만 <code>ActualCall</code>로 변환한다. 서버 오류도 버리지 않고 오류가 붙은 <code>CaseScore</code>로 남긴다. 그래서 API 장애와 모델이 의도적으로 no-call한 결과를 구분할 수 있다.</p>
+    </section>
+
+    <section id="baseline">
+      <h2>2. evaluate_baseline.py · 입력 정규화</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-baseline-cli">원본 evaluate_baseline.py로 돌아가기 ↗</a>
+      <h3 id="base-cli">CLI와 baseline 입력</h3>
+      <pre><code>parser.add_argument("--dataset", type=Path, default=Path("evaluation/baseline_cases.jsonl"))
+parser.add_argument("--base-url", default=os.getenv("OPENAI_BASE_URL", "http://vllm-host:8080/v1"))
+parser.add_argument("--model", default=os.getenv("MODEL_NAME", "ko-k8s-fc-base"))</code></pre>
+      <p>baseline 평가기는 기본 dataset·endpoint·모델 이름을 받을 수 있는 비교용 CLI다. 최종 RunPod 평가기는 실행 조건을 명시적으로 받지만, 이 파일은 기존 baseline 실험과 held-out 형식을 함께 읽는 입구 역할을 한다.</p>
+      <h3 id="base-normalize">데이터 행 정규화</h3>
+      <pre><code>if "prompt" in value:
+    return value
+
+messages = value["messages"]
+user_messages = [m for m in messages if m.get("role") == "user"]
+assistant_messages = [m for m in messages if m.get("role") == "assistant"]
+if len(user_messages) != 1 or len(assistant_messages) != 1:
+    raise ValueError(...)
+
+tool_calls = assistant_messages[0].get("tool_calls", [])
+expected = {"name": function["name"], "arguments": arguments}</code></pre>
+      <p>기존 baseline 데이터는 짧은 <code>prompt/expected</code> 형식일 수도 있고 학습용 <code>messages/tools</code> 형식일 수도 있다. <code>_normalize_dataset_row()</code>는 둘을 평가기가 사용하는 하나의 <code>EvaluationCase</code> 계약으로 바꾼다.</p>
+      <p>이 단계는 모델 성능을 올리는 전처리가 아니라, 데이터 표현의 차이 때문에 점수가 달라지지 않게 입력 계약을 통일하는 단계다.</p>
+      <h3 id="base-call">baseline 모델 호출</h3>
+      <pre><code>response = client.chat.completions.create(
+    model=model,
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": case.prompt},
+    ],
+    tools=TOOLS,
+    tool_choice="auto",
+    temperature=0,
+    max_tokens=256,
+)</code></pre>
+      <p>정규화된 <code>EvaluationCase</code>는 최종 평가와 같은 OpenAI-compatible 요청으로 모델에 전달된다. baseline과 tuned의 차이를 비교하려면 도구 목록과 생성 조건을 동일하게 유지해야 한다.</p>
+    </section>
+
+    <section id="score">
+      <h2>3. scoring.py · 한 건을 계약별로 분해</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-score-types">원본 scoring.py로 돌아가기 ↗</a>
+      <h3 id="score-types">결과 자료형</h3>
+      <pre><code>@dataclass
+class ActualCall:
+    name: str
+    arguments_json: str
+
+@dataclass
+class CaseScore:
+    case_id: str
+    call_decision_correct: bool
+    tool_selection_correct: bool | None
+    json_valid: bool | None
+    schema_valid: bool | None
+    arguments_exact: bool | None
+    no_call_correct: bool | None
+    full_success: bool</code></pre>
+      <p>한 건의 결과를 Boolean 하나로 끝내지 않고 호출 결정, 도구명, JSON, Schema, 인자, no-call을 각각 저장한다. 그래야 Full success가 낮을 때 어느 계약에서 실패했는지 역추적할 수 있다.</p>
+      <h3 id="score-parse">호출·JSON·Schema·인자 채점</h3>
+      <pre><code>expects_call = case.expected is not None
+emitted_call = bool(actual_calls)
+call_decision_correct = expects_call == emitted_call and error is None
+
+if len(actual_calls) == 1:
+    arguments = json.loads(actual.arguments_json)
+    json_valid = isinstance(arguments, dict)
+    jsonschema.validate(arguments, TOOL_SCHEMAS[actual.name])
+    arguments_exact = arguments == expected.arguments
+
+full_success = (
+    error is None
+    and call_decision_correct
+    and tool_selection_correct
+    and json_valid
+    and schema_valid
+    and arguments_exact
+)</code></pre>
+      <p>기대 호출이 있으면 정확히 하나의 호출인지부터 확인하고, 인자 JSON을 dict로 파싱한 뒤 canonical Schema를 검증하고 기대 dict와 exact match한다. 모든 조건이 참이어야 Full success다.</p>
+      <h3 id="score-case">no-call과 CaseScore 완성</h3>
+      <pre><code>if not expects_call:
+    no_call_correct = not actual_calls and error is None
+    full_success = no_call_correct</code></pre>
+      <p>지원하지 않는 변경 작업이나 일반 질문은 도구를 호출하지 않는 것이 정답이다. no-call 행에는 도구명이나 인자 exact match를 억지로 적용하지 않고, 실제 호출이 없고 오류도 없는지만 평가한다.</p>
+      <h3 id="score-aggregate">전체 집계</h3>
+      <pre><code>return {
+    "call_decision_accuracy": ...,
+    "tool_selection_accuracy": ...,
+    "json_validity": ...,
+    "schema_validity": ...,
+    "arguments_exact_match": ...,
+    "no_call_accuracy": ...,
+    "full_success": ...,
+    "by_category": ...,
+}</code></pre>
+      <p><code>summarize()</code>는 100개의 <code>CaseScore</code>를 Base·Tuned 비교표에 사용할 지표로 변환한다. Full success 외에도 argument precision·recall·F1과 category별 성공률을 보존한다.</p>
+    </section>
+
+    <section id="tools">
+      <h2>4. tools.py · 호출 계약과 검증 계약의 동일성</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-tools">원본 tools.py로 돌아가기 ↗</a>
+      <pre><code>SCHEMA_PATH = ROOT / "schemas" / "kubernetes_tools.json"
+SCHEMAS = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+TOOLS = SCHEMAS["tools"]
+TOOL_SCHEMAS = {
+    tool["function"]["name"]: tool["function"]["parameters"]
+    for tool in TOOLS
+}</code></pre>
+      <p>모델 호출에 준 <code>TOOLS</code>와 채점 때 사용한 <code>TOOL_SCHEMAS</code>가 같은 원본 JSON Schema에서 나온다. 호출 계약과 검증 계약이 서로 다른 파일이면 모델을 잘못 채점할 수 있으므로 하나의 원본을 재사용한다.</p>
+    </section>
+
+    <section id="runner">
+      <h2>5. run_runpod_bf16_eval.sh · 서버와 평가 연결</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-runner-checks">원본 RunPod 러너로 돌아가기 ↗</a>
+      <h3 id="runner-checks">환경과 재현성 확인</h3>
+      <pre><code>MODEL=...
+MODEL_ALIAS=...
+RUN_LABEL=...
+SERVER_PORT=8000
+MAX_MODEL_LEN=4096
+GPU_MEMORY_UTILIZATION=0.85
+EXPECTED_DATASET_SHA256=...
+
+actual_sha256="$(sha256sum "$DATASET" | awk '{print $1}')"
+[[ "$actual_sha256" == "$EXPECTED_DATASET_SHA256" ]] || exit 1</code></pre>
+      <p>러너는 모델 alias, dataset checksum, 서버 포트와 GPU 사용률을 변수로 고정한다. 특히 checksum이 다르면 같은 holdout 비교가 아니므로 서버를 띄우기 전에 중단한다.</p>
+      <h3 id="runner-revision">모델 revision과 실행 디렉터리</h3>
+      <pre><code>resolved_model_revision="$MODEL_REVISION"
+RUN_ID="${timestamp}_${safe_label}"
+RUN_DIR="$OUTPUT_DIR/$RUN_ID"
+METADATA_PATH="$RUN_DIR/server_metadata.json"
+mkdir -p "$RUN_DIR"</code></pre>
+      <p>원격 모델은 revision을 기록하고, 로컬 merged 모델은 디렉터리 내용의 hash를 사용한다. 실행마다 별도 디렉터리를 만들어 서버 로그·metadata·평가 결과가 섞이지 않게 한다.</p>
+      <h3 id="runner-server">vLLM 시작과 health 확인</h3>
+      <pre><code>python -m vllm.entrypoints.openai.api_server \
+  --model "$MODEL" \
+  --served-model-name "$MODEL_ALIAS" \
+  --dtype bfloat16 \
+  --enable-auto-tool-choice \
+  --tool-call-parser hermes \
+  --reasoning-parser qwen3 &gt;"$SERVER_LOG" 2&gt;&amp;1 &amp;
+
+until curl -fsS "http://$SERVER_HOST:$SERVER_PORT/health"; do
+  sleep 5
+done</code></pre>
+      <p>셸 파일은 서버를 백그라운드로 시작한 뒤 <code>/health</code>를 polling한다. <code>/v1/models</code>에서 alias도 확인해 SDK가 요청할 모델명과 실제 서버 모델이 일치하는지 검증한다.</p>
+      <h3 id="runner-metadata">server metadata 기록</h3>
+      <pre><code>python - "$MODEL" "$MODEL_ALIAS" "$resolved_model_revision" "$vllm_version" \
+  "$SERVER_HOST" "$SERVER_PORT" "$MAX_MODEL_LEN" "$GPU_MEMORY_UTILIZATION" \
+  "$LOG_PATH" "$RUN_ID" "$rendered_server_command" &gt;"$METADATA_PATH" &lt;&lt;'PY'
+print(json.dumps({"run_id": run_id, "model_revision": revision,
+                  "dtype": "bfloat16", "vllm_version": vllm_version,
+                  "tool_call_parser": "hermes"}, indent=2))
+PY</code></pre>
+      <p>평가 결과만 남기지 않고 모델 revision, dtype, vLLM 버전, parser와 실행 명령을 metadata로 저장한다. 같은 숫자를 다시 만들 수 있는 실행 조건의 증거다.</p>
+      <h3 id="runner-eval">평가 호출과 정리</h3>
+      <pre><code>python -m ko_k8s_fc.evaluate_runpod_bf16 \
+  --dataset "$DATASET" \
+  --dataset-sha256 "$EXPECTED_DATASET_SHA256" \
+  --output-dir "$RUN_DIR" \
+  --run-id "$RUN_ID" \
+  --base-url "http://$SERVER_HOST:$SERVER_PORT/v1" \
+  --model "$MODEL_ALIAS" \
+  --metadata-json "$METADATA_PATH"
+
+cleanup() { kill "$SERVER_PID" 2&gt;/dev/null || true; }
+trap cleanup EXIT INT TERM</code></pre>
+      <p>최종 Python 평가기를 서버 metadata와 함께 호출하고, 종료 시 <code>trap</code>으로 vLLM 프로세스를 정리한다. 그래서 같은 RunPod pod에서 Base와 Tuned를 순서대로 평가해도 이전 서버가 남아 결과를 오염시키지 않는다.</p>
+    </section>
+
+    <section id="results">
+      <h2>6. 결과 파일과 공정 비교</h2>
+      <a class="code-jump" href="k8s-function-calling-evaluation-code.html#source-evaluate-output">원본 결과 저장 코드로 돌아가기 ↗</a>
+      <h3 id="eval-output">details·summary 저장</h3>
+      <pre><code>details_path = output_dir / f"{run_id}_details.jsonl"
+summary_path = output_dir / f"{run_id}_summary.json"
+
+report = {
+    "run_id": run_id,
+    "model": model,
+    "dataset_sha256": dataset_sha256,
+    "inference": {...},
+    "server": metadata,
+    "metrics": summarize(scores),
+}</code></pre>
+      <p><code>details.jsonl</code>은 어떤 요청에서 무엇이 틀렸는지 복원하는 파일이고, <code>summary.json</code>은 비교표를 만드는 집계 파일이다. 서버 metadata와 inference 조건도 함께 저장하므로 결과 숫자만 남기지 않는다.</p>
+      <p>Base와 Tuned는 같은 holdout checksum, 같은 <code>temperature=0</code>, 같은 도구 Schema, 같은 채점기를 사용한다. 따라서 36% → 96%라는 변화는 평가 조건의 변화가 아니라 모델 출력 계약의 변화로 해석할 수 있다.</p>
+    </section>
+
+    <footer class="footer">평가 코드 블록별 해설 · 호출·채점·서빙·결과 저장</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

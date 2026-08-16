@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="한국어 Kubernetes Function Calling 프로젝트의 학습·검증·holdout 데이터 구성과 평가 계약">
+  <title>데이터셋 · Kubernetes Function Calling</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#projects">개인 프로젝트</a><span class="separator">›</span><a href="ko-k8s-function-calling.html">Kubernetes Function Calling</a><span class="separator">›</span><span aria-current="page">데이터셋</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Project data · split and contract</span>
+      <h1>어떤 데이터를<br>학습하고 평가했는가</h1>
+      <p class="summary">한국어 Kubernetes 조회 요청을 결정론적으로 생성하고, 학습·검증·최종 holdout을 분리했다. 모델이 도구를 고르는 경우와 호출하지 않아야 하는 경우를 모두 포함한다.</p>
+      <div class="hero-actions"><a class="button" href="ko-k8s-function-calling.html#training">프로젝트 학습</a><a class="button secondary" href="k8s-function-calling-tools.html">도구 계약</a></div>
+      <div class="stats"><div class="stat">전체<strong>1,000건</strong></div><div class="stat">Train<strong>800건</strong></div><div class="stat">Validation<strong>100건</strong></div><div class="stat">Holdout<strong>100건</strong></div></div>
+    </header>
+
+    <nav aria-label="문서 목차"><a href="#purpose">목적</a><a href="#split">분할</a><a href="#record">한 행의 구조</a><a href="#holdout">Holdout</a><a href="#limits">한계</a></nav>
+
+    <section id="purpose">
+      <h2>1. 데이터의 목적</h2>
+      <p>한 행은 한국어 사용자 요청과 전체 다섯 도구 목록, 정답 assistant 응답으로 이루어진 단일 턴 예제다. 조회 요청에는 정확한 도구 호출을 넣고, 삭제·재시작·일반 질문처럼 허용된 도구가 없는 요청에는 <code>no-call</code> 응답을 넣었다.</p>
+      <div class="wiki-links"><div class="wiki-link"><strong>호출 예제</strong><span>자연어에서 도구명과 필요한 인자를 추출하는 문제</span></div><div class="wiki-link"><strong>No-call 예제</strong><span>모든 문장에 도구를 억지로 호출하지 않는지 확인하는 문제</span></div><div class="wiki-link"><strong>같은 Schema</strong><span>데이터 생성과 실제 평가가 <code>schemas/kubernetes_tools.json</code>을 공유</span></div><div class="wiki-link"><strong>단일 턴</strong><span>이번 실험은 한 요청당 최대 한 번의 도구 호출만 평가</span></div></div>
+    </section>
+
+    <section id="split">
+      <h2>2. Train·Validation·Holdout 분할</h2>
+      <div class="table-scroll"><table><thead><tr><th>분할</th><th>전체</th><th>list_pods</th><th>get_pod</th><th>get_pod_logs</th><th>list_deployments</th><th>get_events</th><th>no_call</th></tr></thead><tbody><tr><td>Train</td><td>800</td><td>96</td><td>152</td><td>192</td><td>80</td><td>160</td><td>120</td></tr><tr><td>Validation</td><td>100</td><td>12</td><td>19</td><td>24</td><td>10</td><td>20</td><td>15</td></tr><tr><td>Holdout</td><td>100</td><td>12</td><td>19</td><td>24</td><td>10</td><td>20</td><td>15</td></tr></tbody></table></div>
+      <p>각 split은 문장 단위로 분리되어 있고, 생성된 holdout 100건은 학습과 검증에 넣지 않았다. 별도로 초기 33건 smoke test도 모든 학습 split에서 제외했다.</p>
+    </section>
+
+    <section id="record">
+      <h2>3. 한 행의 구조</h2>
+      <pre><code>{
+  "id": "train-list-pods-0001",
+  "category": "list_pods",
+  "tools": ["list_pods", "get_pod", "get_pod_logs", "list_deployments", "get_events"],
+  "messages": [
+    {"role": "user", "content": "운영계 파드 목록을 보여줘"},
+    {"role": "assistant", "tool_calls": [{
+      "function": {"name": "list_pods", "arguments": {"namespace": "production"}}
+    }]}
+  ]
+}</code></pre>
+      <p>학습 데이터 안의 <code>arguments</code>는 객체로 보관한다. Qwen chat template이 이를 직렬화하고, API 평가 단계에서는 모델이 반환한 JSON 문자열을 다시 파싱해 Schema와 정답 인자를 검사한다.</p>
+      <pre><code>{
+  "category": "no_call",
+  "messages": [
+    {"role": "user", "content": "파드를 삭제해줘"},
+    {"role": "assistant", "content": "지원하지 않는 변경 작업입니다."}
+  ]
+}</code></pre>
+    </section>
+
+    <section id="holdout">
+      <h2>4. 왜 학습 전에 Holdout을 고정했는가</h2>
+      <p>파인튜닝 전 원본 모델과 파인튜닝 후 모델을 같은 100건에 보내야 모델 변화만 비교할 수 있다. 그래서 먼저 base BF16 모델을 평가하고, 학습·adapter 병합 뒤 같은 데이터와 같은 추론 조건으로 tuned 모델을 다시 평가했다.</p>
+      <div class="table-scroll"><table><thead><tr><th>조건</th><th>사용 데이터</th><th>목적</th></tr></thead><tbody><tr><td>학습</td><td>Train 800</td><td>LoRA adapter 업데이트</td></tr><tr><td>검증</td><td>Validation 100</td><td>학습 중 상태 확인</td></tr><tr><td>최종 비교</td><td>Holdout 100</td><td>Base와 Tuned의 동일 조건 비교</td></tr><tr><td>초기 smoke test</td><td>고정 33건</td><td>초기 파이프라인과 빠른 오류 확인</td></tr></tbody></table></div>
+    </section>
+
+    <section id="limits">
+      <h2>5. 데이터셋의 한계</h2>
+      <p>Holdout의 문장은 학습 문장과 겹치지 않지만, 모두 같은 템플릿과 분포에서 생성됐다. 따라서 96%라는 결과는 이 과제 분포에서의 일반화이며, 실제 운영자가 작성한 새로운 표현까지 잘 처리한다는 증거는 아니다.</p>
+      <p>다음 평가에서는 실제 사용자 표현, 오타, 생략, 여러 의도가 섞인 요청을 별도 수집해 외부 일반화 성능을 확인해야 한다.</p>
+    </section>
+
+    <footer class="footer">프로젝트 상세 문서 · 데이터 계약과 평가 분할</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

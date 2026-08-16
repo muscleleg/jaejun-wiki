@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="BF16 모델을 OpenAI-compatible vLLM으로 서빙하고 llama.cpp·llama-server·Ollama와의 역할을 구분하는 참조 문서">
+  <title>LLM 서빙 계층과 정밀도 선택</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#llm-systems">LLM 시스템·에이전트</a><span class="separator">›</span><span aria-current="page">LLM 서빙 계층과 정밀도</span></nav>
+    <header class="hero">
+      <span class="eyebrow">LLM systems · serving</span>
+      <h1>모델 파일·추론 엔진·API 서버를<br>분리해서 이해하기</h1>
+      <p class="summary">BF16·INT4 같은 숫자 형식, llama.cpp 같은 추론 엔진, llama-server·Ollama·vLLM 같은 서버 계층을 한 프로젝트 안에서 구분한다.</p>
+      <div class="hero-actions"><a class="button" href="../projects/ko-k8s-function-calling.html#training">프로젝트 적용</a><a class="button secondary" href="../external-articles/llm_precision_formats_learning.html">정밀도 상세</a></div>
+    </header>
+    <nav aria-label="문서 목차"><a href="#precision">정밀도</a><a href="#layers">계층</a><a href="#openai-compatible">OpenAI API</a><a href="#project">프로젝트 적용</a></nav>
+    <section id="precision">
+      <h2>1. BF16과 INT4는 같은 종류의 선택이 아니다</h2>
+      <div class="table-scroll"><table><thead><tr><th>항목</th><th>BF16</th><th>INT4</th></tr></thead><tbody><tr><td>표현</td><td>부동소수점 16-bit</td><td>16개 단계로 실수를 근사하는 4-bit 정수</td></tr><tr><td>목적</td><td>학습·추론에서 범위와 메모리의 절충</td><td>추론 메모리 절약</td></tr><tr><td>일반적인 사용</td><td>학습·추론</td><td>추론 중심</td></tr><tr><td>주의</td><td>양자화 오차가 없음</td><td>scale·outlier·근사 오차가 생김</td></tr></tbody></table></div>
+      <p>비트 형식의 수학은 <a href="../external-articles/llm_precision_formats_learning.html">LLM 정밀도 형식과 양자화</a>에서, 7B weight 메모리는 <a href="model_parameters_7b_learning.html#memory">7B 파라미터 문서</a>에서 이어 본다.</p>
+    </section>
+    <section id="layers">
+      <h2>2. 모델·엔진·서버의 계층</h2>
+      <pre><code>모델 weight / format
+  ├─ Hugging Face safetensors (BF16 등)
+  └─ GGUF
+        ↓
+추론 엔진
+  ├─ llama.cpp
+  └─ vLLM
+        ↓
+API 서버
+  ├─ llama-server
+  ├─ Ollama API
+  └─ vLLM OpenAI-compatible API
+        ↓
+클라이언트
+  └─ curl / OpenAI SDK / 애플리케이션</code></pre>
+      <p>llama.cpp는 C/C++ 기반 추론 엔진이고, llama-server는 그 엔진을 HTTP 서버로 노출하는 실행 방식이다. Ollama는 모델 관리와 API 경험을 감싼 별도 런타임이다. 어떤 엔진과 서버를 선택할지는 모델 형식·GPU·지연시간·운영 방식에 따라 달라진다.</p>
+    </section>
+    <section id="openai-compatible">
+      <h2>3. OpenAI-compatible API의 의미</h2>
+      <p>OpenAI SDK를 사용한다는 말은 OpenAI의 모델을 사용한다는 뜻이 아니다. vLLM이 같은 요청·응답 모양을 제공하므로 클라이언트 코드를 재사용한다는 뜻이다.</p>
+      <pre><code>client = OpenAI(base_url="http://server:8000/v1", api_key="local")
+response = client.chat.completions.create(
+    model="local-model",
+    messages=[...], tools=available_tools,
+    tool_choice="auto", temperature=0,
+)</code></pre>
+      <p>Qwen의 도구 호출 텍스트를 API 객체로 변환하려면 vLLM의 auto tool choice와 적절한 tool-call parser가 필요하다.</p>
+    </section>
+    <section id="project">
+      <h2>5. 적용 사례로 이동하기</h2>
+      <p>특정 GPU 환경과 모델 alias를 포함한 실행 기록은 범용 개념 문서에 넣지 않는다. 실제 환경에서의 서빙·평가 순서는 <a href="../projects/ko-k8s-function-calling.html#evaluation">프로젝트 평가 단계</a>에서 확인한다.</p>
+    </section>
+    <footer class="footer">LLM 시스템 참조 · 정밀도 → 엔진 → 서버 → 클라이언트</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

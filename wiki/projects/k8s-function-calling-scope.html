@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="한국어 Kubernetes Function Calling 프로젝트에서 제공한 다섯 조회 도구와 모델 출력 계약">
+  <title>구현 범위 · 도구와 출력 명세</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#projects">개인 프로젝트</a><span class="separator">›</span><a href="ko-k8s-function-calling.html">Kubernetes Function Calling</a><span class="separator">›</span><span aria-current="page">구현 범위 · 도구와 출력</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Project scope · tool contract</span>
+      <h1>무엇을 제공했고<br>무엇을 출력하게 했는가</h1>
+      <p class="summary">이 프로젝트의 모델에게 공개한 다섯 개의 Kubernetes 조회 도구, 각 인자의 범위, 예상되는 OpenAI-compatible 출력과 범위 밖 요청을 한 문서에 고정한다.</p>
+      <div class="hero-actions"><a class="button" href="ko-k8s-function-calling.html">프로젝트 허브</a><a class="button secondary" href="../llm-systems/function_calling_tool_contract_learning.html">범용 도구 계약</a></div>
+    </header>
+
+    <nav aria-label="문서 목차"><a href="#boundary">책임 경계</a><a href="#tools">도구 목록</a><a href="#outputs">출력 계약</a><a href="#nocall">No-call</a><a href="#limits">범위 밖</a></nav>
+
+    <section id="boundary">
+      <h2>1. 이 프로젝트의 책임 경계</h2>
+      <pre><code>한국어 사용자 요청
+        ↓
+Qwen3-1.7B Function Calling 라우터
+        ↓
+도구명 + arguments를 담은 tool_calls 후보
+        ↓
+서버의 allowlist·JSON Schema·권한 검증
+        ↓
+실제 Kubernetes handler (이번 프로젝트에서는 연결하지 않음)</code></pre>
+      <p>모델이 Kubernetes를 조회한 것이 아니다. 모델은 아래 계약에 맞는 호출 후보를 생성하는 부분까지만 담당했다. 서버 실행과 보안 경계의 일반 원리는 <a href="../llm-systems/function_calling_tool_contract_learning.html#boundary">Function Calling과 도구 계약</a>에서 설명한다.</p>
+    </section>
+
+    <section id="tools">
+      <h2>2. 제공한 다섯 도구</h2>
+      <p>다섯 도구의 원본 계약은 <code>schemas/kubernetes_tools.json</code>에 있고, 학습 데이터와 평가 요청에서 동일한 전체 도구 목록을 사용했다.</p>
+      <div class="table-scroll"><table><thead><tr><th>도구</th><th>목적</th><th>인자</th><th>정답에 넣는 기준</th></tr></thead><tbody>
+        <tr><td><code>list_pods</code></td><td>네임스페이스의 파드 목록 조회</td><td><code>namespace?</code>, <code>label_selector?</code></td><td>사용자가 말한 namespace·label만 포함</td></tr>
+        <tr><td><code>get_pod</code></td><td>특정 파드의 상세 상태 조회</td><td><code>pod_name</code>, <code>namespace?</code></td><td><code>pod_name</code>은 필수</td></tr>
+        <tr><td><code>get_pod_logs</code></td><td>특정 파드의 로그 조회</td><td><code>pod_name</code>, <code>namespace?</code>, <code>container?</code>, <code>tail_lines?</code>, <code>previous?</code></td><td>말한 옵션만 포함하고 기본값은 임의로 추가하지 않음</td></tr>
+        <tr><td><code>list_deployments</code></td><td>네임스페이스의 Deployment 목록 조회</td><td><code>namespace?</code>, <code>label_selector?</code></td><td>Deployment와 selector 의미를 구분</td></tr>
+        <tr><td><code>get_events</code></td><td>Kubernetes 이벤트 조회</td><td><code>namespace?</code>, <code>resource_kind?</code>, <code>resource_name?</code>, <code>event_type?</code></td><td><code>Pod/Deployment</code>, <code>Normal/Warning</code> enum 준수</td></tr>
+      </tbody></table></div>
+      <div class="caution"><strong>물음표(?)의 의미</strong><br>Schema에서 선택적인 필드라는 뜻이다. 사용자가 말하지 않은 선택 필드를 모델이 마음대로 채우면 실행 결과가 같아도 이 프로젝트의 strict exact match에서는 실패할 수 있다.</div>
+    </section>
+
+    <section id="outputs">
+      <h2>3. 모델이 만들어야 하는 출력</h2>
+      <p>OpenAI-compatible 응답에서 애플리케이션이 읽는 핵심은 <code>choices[0].message.tool_calls</code>다. 이번 프로젝트의 정답은 한 요청당 도구 호출 하나였다.</p>
+      <pre><code>{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [{
+        "type": "function",
+        "function": {
+          "name": "list_pods",
+          "arguments": "{\"namespace\":\"production\"}"
+        }
+      }]
+    },
+    "finish_reason": "tool_calls"
+  }]
+}</code></pre>
+      <p>학습 데이터 안에서는 <code>arguments</code>를 객체로 보관하고, API 응답을 평가할 때는 JSON 문자열을 다시 파싱한다. 따라서 출력 검사는 “함수명이 맞는가 → JSON인가 → Schema인가 → 정답 인자와 같은가” 순서로 나뉜다.</p>
+    </section>
+
+    <section id="nocall">
+      <h2>4. 호출하지 않아야 하는 출력</h2>
+      <p>제공한 도구가 조회 전용이므로 삭제·재시작·스케일 변경·일반 개념 질문에는 도구를 호출하지 않는 것이 정답이다.</p>
+      <pre><code>{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "지원하지 않는 변경 작업입니다.",
+      "tool_calls": null
+    },
+    "finish_reason": "stop"
+  }]
+}</code></pre>
+      <p>이 no-call 예시가 있어야 모델이 모든 Kubernetes 문장에 가장 가까운 조회 도구를 억지로 호출하지 않는지도 평가할 수 있다.</p>
+    </section>
+
+    <section id="limits">
+      <h2>5. 구현 범위 밖</h2>
+      <div class="table-scroll"><table><thead><tr><th>범위 밖</th><th>이유</th><th>다음 확장</th></tr></thead><tbody><tr><td>실제 Kubernetes API 실행</td><td>이번 목표는 라우팅·인자 생성 검증</td><td>검증된 handler 연결</td></tr><tr><td>RBAC·namespace 권한</td><td>모델 출력만으로 권한을 판단할 수 없음</td><td>서버 정책과 사용자 권한 결합</td></tr><tr><td>여러 도구 연속 호출</td><td>이번 평가는 한 번의 호출</td><td>결과 재전송 Agent Loop</td></tr><tr><td>장애 원인 추론·자동 복구</td><td>관찰·계획·실행·검증이 필요한 별도 문제</td><td>외부 아티클의 Agent Loop 개념과 연결</td></tr></tbody></table></div>
+    </section>
+
+    <footer class="footer">프로젝트 상세 문서 · 도구 계약과 출력 명세</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

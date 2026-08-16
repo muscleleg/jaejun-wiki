@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LLM Function Calling의 Schema·tool_calls·서버 실행 경계를 정리한 개념 참조 문서">
+  <title>LLM Function Calling과 도구 계약</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#llm-systems">LLM 시스템·에이전트</a><span class="separator">›</span><span aria-current="page">Function Calling과 도구 계약</span></nav>
+    <header class="hero">
+      <span class="eyebrow">LLM systems · tool contract</span>
+      <h1>Function Calling은<br>실행이 아니라 계약이다</h1>
+      <p class="summary">모델은 도구 후보를 고르고 인자를 생성한다. 실제 실행·권한·검증·결과 처리는 애플리케이션 서버가 맡는다.</p>
+      <div class="hero-actions"><a class="button" href="../../wiki.html#llm-systems">LLM 시스템 목차</a><a class="button secondary" href="llm_serving_stack_learning.html">서빙 경계</a></div>
+    </header>
+    <nav aria-label="문서 목차"><a href="#contract">계약</a><a href="#schema">Schema</a><a href="#boundary">경계</a><a href="#loop">Loop</a></nav>
+    <section id="contract">
+      <h2>1. 입력과 출력의 계약</h2>
+      <p>요청 시 모델은 사용자 메시지와 선택 가능한 <code>tools</code> 목록을 함께 본다. 응답은 일반 텍스트이거나 함수 호출 후보일 수 있다.</p>
+      <pre><code>사용자: "문서 R-1042의 상세 내용을 보여줘"
+tools: [read_resource, list_resources, ...]
+↓
+assistant.message.tool_calls[0]
+  function.name = "read_resource"
+  function.arguments = {"resource_id": "R-1042", "format": "detail"}</code></pre>
+      <p>이 출력은 “<code>read_resource</code>를 실행하라”는 신뢰할 수 있는 명령이 아니라, 서버가 검증할 구조화된 제안이다.</p>
+    </section>
+    <section id="schema">
+      <h2>2. Schema가 제한하는 것</h2>
+      <p>Schema는 함수의 이름·설명·인자 타입·필수값·허용 enum을 고정한다. 예시 시스템에서는 조회 함수만 허용하고 <code>additionalProperties: false</code>로 알 수 없는 키를 막을 수 있다.</p>
+      <pre><code>{
+  "name": "read_resource",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "resource_id": {"type": "string"},
+      "format": {"type": "string", "enum": ["summary", "detail"]}
+    },
+    "required": ["resource_id"],
+    "additionalProperties": false
+  }
+}</code></pre>
+      <p>JSON으로 파싱되는 것과 Schema를 만족하는 것은 다르다. 문자열이 JSON이어도 필수값이 없거나 잘못된 enum이면 실행 전에 거절해야 한다.</p>
+    </section>
+    <section id="boundary">
+      <h2>3. 모델·서버·실행기의 경계</h2>
+      <div class="wiki-links"><div class="wiki-link"><strong>LLM</strong><span>자연어 문맥을 보고 함수명과 인자 토큰을 생성</span></div><div class="wiki-link"><strong>Parser</strong><span>생성 텍스트를 API의 <code>tool_calls</code> 객체로 구조화</span></div><div class="wiki-link"><strong>Server</strong><span>allowlist·JSON·Schema·권한 범위를 검증</span></div><div class="wiki-link"><strong>Handler</strong><span>검증된 인자로 외부 API를 실제 호출</span></div></div>
+      <div class="caution"><strong>권한 경계</strong><br>도구 설명을 프롬프트에 넣었다고 모델에게 실행 권한이 생기는 것은 아니다. 실행기는 반드시 모델 출력과 독립적으로 권한을 확인해야 한다.</div>
+    </section>
+    <section id="loop">
+      <h2>4. 한 번의 호출과 Agent Loop</h2>
+      <pre><code>한 번의 호출:
+user → model(tool_call) → server 실행 → 결과 반환
+
+Agent Loop:
+user → model(tool_call) → server 실행
+     → tool result를 다시 model에 전달
+     → 다음 호출 또는 최종 답변</code></pre>
+      <p>한 번의 호출만 사용하는 시스템과 여러 도구를 순서대로 사용하며 상태·재시도·종료 조건을 관리하는 시스템은 다르다. 후자는 <a href="../external-articles/loop_engineering_agentic_loop_learning.html">Loop Engineering / Agentic Loop</a>에서 다룬다.</p>
+    </section>
+    <section id="conclusion">
+      <h2>5. 재사용 가능한 결론</h2>
+      <div class="callout">Function Calling 품질은 함수명을 맞히는 것만이 아니라, 도구 계약·생략 가능한 인자·검증 정책·실행 권한을 함께 설계하는 문제다.</div>
+    </section>
+    <footer class="footer">LLM 시스템 참조 · 자연어 → 도구 계약 → 검증 → 실행</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

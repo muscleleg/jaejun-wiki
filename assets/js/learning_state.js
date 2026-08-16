@@ -1,5 +1,5 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-14",
+  updated: "2026-08-16",
   overall: { done: 8, total: 23 },
   tracks: [
     {
@@ -8,8 +8,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 4,
       total: 6,
-      current: "Multi-Head Attention과 Output Projection W_O를 수동·Linear 계산으로 검증",
-      next: "Q·K·V·W_O를 nn.Module로 묶고 forward Shape 검증"
+      current: "Multi-Head Attention을 nn.Module로 묶고 Head별 Score·Scaling 검증",
+      next: "scaled_scores_heads에 Softmax를 적용하고 Key 방향 합 확인"
     },
     {
       id: "pytorch",

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Qwen Decoder-only Transformer의 QKV·o_proj·MLP와 LoRA adapter가 소형 Function Calling 모델을 조정하는 방식을 정리한 참조 문서">
+  <title>Qwen 구조와 LoRA Adapter</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-4">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html#llm-systems">LLM 시스템·에이전트</a><span class="separator">›</span><span aria-current="page">Qwen 구조와 LoRA Adapter</span></nav>
+    <header class="hero">
+      <span class="eyebrow">LLM systems · model adaptation</span>
+      <h1>Qwen의 Linear에<br>LoRA를 붙인다는 것</h1>
+      <p class="summary">Qwen 원본 Transformer를 새로 작성하지 않고, Attention·MLP Linear에 작은 저랭크 보정 행렬을 붙여 Function Calling 행동을 조정한 과정을 연결한다.</p>
+      <div class="hero-actions"><a class="button" href="../projects/ko-k8s-function-calling.html#training">프로젝트 적용</a><a class="button secondary" href="model_parameters_7b_learning.html">7B 파라미터</a></div>
+    </header>
+    <nav aria-label="문서 목차"><a href="#qwen">Qwen Block</a><a href="#linear">Linear들</a><a href="#lora">LoRA</a><a href="#project">프로젝트 연결</a></nav>
+    <section id="qwen">
+      <h2>1. Qwen Decoder-only Block</h2>
+      <pre><code>hidden state
+  → Q/K/V Linear
+  → Multi-Head Attention
+  → o_proj
+  → residual + normalization
+  → gate/up/down MLP
+  → residual + normalization
+  → 다음 Block</code></pre>
+      <p>Decoder-only 언어 모델은 사용자가 직접 Transformer 코드를 고쳐야 하는 구조가 아니다. <code>AutoModelForCausalLM</code> 같은 공통 입구가 기존 config와 가중치를 읽고, 학습 wrapper가 그 모델에 adapter를 장착한다.</p>
+    </section>
+    <section id="linear">
+      <h2>2. QKV·o_proj·MLP는 모두 Linear 계층이다</h2>
+      <div class="table-scroll"><table><thead><tr><th>부분</th><th>역할</th><th>프로젝트에서의 의미</th></tr></thead><tbody><tr><td>q_proj·k_proj·v_proj</td><td>입력 표현을 Query·Key·Value로 투영</td><td>어떤 정보에 주목할지 계산하는 입력을 만든다.</td></tr><tr><td>o_proj</td><td>Head별 결과를 이어 붙인 뒤 학습된 행렬로 다시 조합</td><td>여러 관점을 다음 Block 표현으로 섞는다.</td></tr><tr><td>gate/up/down_proj</td><td>MLP 내부의 확장·게이트·축소 변환</td><td>Attention 외의 표현 변환에도 adapter를 적용한다.</td></tr></tbody></table></div>
+      <p>Transformer의 Multi-Head 계산은 <a href="../transformer/transformer_multi_head_attention_learning.html">Multi-Head Attention 문서</a>와 연결한다. 7B가 무엇을 세는지는 <a href="model_parameters_7b_learning.html">파라미터와 가중치 문서</a>에서 확인한다.</p>
+    </section>
+    <section id="lora">
+      <h2>3. LoRA는 원본에 작은 보정을 더한다</h2>
+      <pre><code>원래: y = xW
+LoRA: y = xW + x(BA) · α/r
+학습: W는 고정, A와 B만 업데이트</code></pre>
+      <p><code>W</code> 전체를 바꾸는 대신 작은 rank <code>r</code> 행렬 <code>A</code>, <code>B</code>가 표현의 특정 방향을 보정한다. 그래서 base model의 언어·추론 능력을 재사용하면서 좁은 도구 출력 행동을 조정할 수 있다.</p>
+      <div class="callout"><strong>하이퍼파라미터를 읽는 법</strong><br><code>r</code>은 보정 행렬의 rank, <code>alpha</code>는 보정 크기, dropout은 과적합을 줄이기 위한 확률이다. 어떤 값을 선택했는지는 개별 프로젝트의 실험 기록에서 따로 비교해야 한다.</div>
+    </section>
+    <section id="project">
+      <h2>5. 적용 사례로 이동하기</h2>
+      <p>이 문서는 특정 모델의 학습 설정이나 프로젝트 코드를 복사하지 않는다. 실제 LoRA 학습을 어떤 문제에 적용했는지는 <a href="../projects/ko-k8s-function-calling.html#training">프로젝트 학습 단계</a>에서 확인한다.</p>
+    </section>
+    <footer class="footer">LLM 시스템 참조 · 기존 가중치 + 저랭크 보정</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>
