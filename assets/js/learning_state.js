@@ -8,8 +8,9 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 4,
       total: 6,
-      current: "Multi-Head Attention을 nn.Module로 묶고 Head별 Score·Scaling 검증",
-      next: "scaled_scores_heads에 Softmax를 적용하고 Key 방향 합 확인"
+      current: "Multi-Head Attention 전체 forward 구현과 최종 Shape 검증 완료",
+      next: "축 변환 미니 실습 후 Residual 연결과 LayerNorm 시작",
+      reinforcement: "view·transpose·reshape의 축과 값 위치를 작은 Tensor로 재연습"
     },
     {
       id: "pytorch",

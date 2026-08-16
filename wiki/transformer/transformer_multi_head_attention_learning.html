@@ -150,6 +150,63 @@ math.sqrt(1) = 1
 
 scaled_scores_heads = scores_heads / 1</code></pre>
       <p>현재 실습은 <code>d_model=2</code>, <code>num_heads=2</code>이므로 <code>head_dim=1</code>이다. 따라서 Scaling 코드는 실행되지만 숫자에는 변화가 보이지 않는다. Scaling 연산이 잘못된 것이 아니라, 나눌 기준값이 1인 작은 예시를 사용한 것이다.</p>
+      <h3>Head별 Softmax와 Key 방향 합</h3>
+      <pre><code>attention_weights_heads = torch.softmax(
+    scaled_scores_heads,
+    dim=-1,
+)
+
+# Shape: [batch, head, query_token, key_token]
+#        [1,     2,    2,           2]
+
+print(attention_weights_heads.sum(dim=-1))
+# tensor([[[1., 1.],
+#          [1., 1.]]])</code></pre>
+      <p>여기서 <strong>Head 축</strong>이 서로 다른 계산 관점이고, Head 안의 각 <strong>행</strong>은 하나의 Query Token이다. 한 행 안의 값들은 그 Query가 Key Token들에 각각 얼마나 비중을 두는지를 나타낸다.</p>
+      <pre><code>Head 1
+Query 1 → [Key 1 비중 0.3783, Key 2 비중 0.6217]
+Query 2 → [Key 1 비중 0.6100, Key 2 비중 0.3900]
+
+Head 2
+Query 1 → [Key 1 비중 0.5386, Key 2 비중 0.4614]
+Query 2 → [Key 1 비중 0.4220, Key 2 비중 0.5780]</code></pre>
+      <div class="caution"><strong>왜 합이 1인지 확인하는가?</strong> — <code>dim=-1</code>은 마지막 축인 Key 방향에 Softmax를 적용한다. 따라서 각 Head의 각 Query 행에서 Key 비중을 모두 더하면 1이어야 한다. 이는 “각 관점에서 한 Query가 어느 Key에 얼마나 비중을 배분했는가”가 정상적인 비율로 만들어졌는지 확인하는 검사다.</div>
+      <h3>Value 가중합부터 <code>W_O</code>까지 모듈 안에서 완성</h3>
+      <pre><code>head_outputs = torch.matmul(
+    attention_weights_heads,
+    value_heads,
+)
+# [batch, head, token, head_dim]
+# [1, 2, 2, 1]
+
+outputs_by_token = head_outputs.transpose(1, 2)
+# [batch, token, head, head_dim]
+# [1, 2, 2, 1]
+
+multi_head_output = outputs_by_token.reshape(
+    batch_size,
+    token_count,
+    self.d_model,
+)
+# [batch, token, d_model]
+# [1, 2, 2]
+
+projected_output = self.output_projection(
+    multi_head_output
+)
+# [batch, token, d_model]
+# [1, 2, 2]</code></pre>
+      <p><code>head_outputs.transpose(1, 2)</code>는 Head별로 모여 있던 결과를 같은 Token의 Head 결과끼리 이웃하도록 다시 정렬한다. 그다음 <code>reshape()</code>가 <code>head × head_dim</code>을 <code>d_model</code>로 병합하고, <code>W_O</code>가 나란히 붙은 Head 정보를 학습된 비율로 다시 조합한다.</p>
+      <pre><code>multi_head_output:
+tensor([[[-0.1418, -0.0712],
+         [-0.2561, -0.0701]]])
+shape: [1, 2, 2]
+
+projected_output:
+tensor([[[-0.0200,  0.0252],
+         [-0.0737,  0.0376]]])
+shape: [1, 2, 2]</code></pre>
+      <div class="caution"><strong>완료 검증</strong> — <code>W_O</code>를 통과하면서 값은 달라졌지만 <code>d_model → d_model</code> Linear이므로 Shape은 <code>[batch, token, d_model]=[1,2,2]</code>로 유지됐다. 이 결과로 Multi-Head Attention의 전체 계산을 하나의 <code>nn.Module.forward()</code> 안에서 연결했다.</div>
     </section>
 
     <section class="detail-section">
