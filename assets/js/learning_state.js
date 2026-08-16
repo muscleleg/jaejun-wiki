@@ -9,8 +9,8 @@ window.LEARNING_STATE = {
       done: 4,
       total: 6,
       current: "Multi-Head Attention 전체 forward 구현과 최종 Shape 검증 완료",
-      next: "축 변환 미니 실습 후 Residual 연결과 LayerNorm 시작",
-      reinforcement: "view·transpose·reshape의 축과 값 위치를 작은 Tensor로 재연습"
+      next: "Residual 결과에 LayerNorm을 적용하고 Token별 마지막 차원 통계 확인",
+      reinforcement: "transpose(1,2)로 Head별 묶음이 Token별 묶음으로 바뀌는 값 위치 검증 완료"
     },
     {
       id: "pytorch",
