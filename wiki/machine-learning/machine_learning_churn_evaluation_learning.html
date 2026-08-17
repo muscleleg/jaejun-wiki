@@ -72,8 +72,10 @@
       <a href="#problem">문제 정의</a>
       <a href="#learning">학습</a>
       <a href="#evaluation">평가</a>
+      <a href="#dummy-baseline">Dummy Baseline</a>
       <a href="#experiment">실무 반복</a>
       <a href="#corrections">정확히 구분하기</a>
+      <a href="machine_learning_churn_data_quality_learning.html">데이터 품질 실습</a>
       <a href="#next">다음 학습</a>
     </nav>
 
@@ -192,8 +194,74 @@
       <div class="callout"><strong>지표는 업무 비용과 연결해야 합니다.</strong><br>쿠폰 비용이 매우 크면 FP를 줄이는 Precision이 중요할 수 있고, 고가 고객의 이탈을 놓치는 손해가 크면 FN을 줄이는 Recall이 중요할 수 있습니다.</div>
     </section>
 
+    <section id="dummy-baseline">
+      <h2>4. 아무 패턴도 배우지 않는 Dummy Baseline</h2>
+      <p>일반적인 모델은 <code>X</code>를 예측으로 바꾸는 계산 구조를 가진다. 학습할 때는 <code>X_train</code>으로 만든 예측과 정답지 <code>y_train</code>의 오차가 줄어들도록 그 구조 안의 가중치를 조절한다. 모델마다 표현할 수 있는 패턴의 형태가 다르며, <code>y</code>는 입력이 아니라 예측과 비교할 정답이다.</p>
+      <div class="warning"><strong>DummyClassifier는 예외적인 기준 모델입니다.</strong><br>Feature <code>X</code>의 패턴을 학습하거나 일반 모델처럼 Feature 가중치를 맞추지 않습니다. <code>y_train</code>의 정답 분포만 사용해, 실제 모델이 최소한 넘어야 할 기준을 만듭니다.</div>
+
+      <h3><code>most_frequent</code>와 <code>stratified</code></h3>
+      <div class="table-scroll"><table>
+        <thead><tr><th>전략</th><th>동작</th></tr></thead>
+        <tbody>
+          <tr><td><code>most_frequent</code></td><td><code>y_train</code>에서 가장 많은 클래스 하나로 모든 예측을 고정한다.</td></tr>
+          <tr><td><code>stratified</code></td><td><code>y_train</code>의 클래스 비율을 확률로 사용해 무작위로 예측한다. 매번 클래스 개수를 정확히 같은 비율로 보장한다는 뜻은 아니다.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>학습 데이터에서 선택하고 Validation에서 평가한다</h3>
+      <pre><code>from sklearn.dummy import DummyClassifier
+
+dummy_model = DummyClassifier(
+    strategy="most_frequent"
+)
+
+dummy_model.fit(
+    X_train,
+    y_train,
+)</code></pre>
+      <div class="table-scroll"><table>
+        <thead><tr><th>확인 항목</th><th>실제 결과</th><th>해석</th></tr></thead>
+        <tbody>
+          <tr><td><code>classes_</code></td><td><code>['No', 'Yes']</code></td><td>정답에 존재하는 두 클래스</td></tr>
+          <tr><td><code>class_prior_</code></td><td><code>[0.73464679, 0.26535321]</code></td><td>Train의 No·Yes 비율</td></tr>
+        </tbody>
+      </table></div>
+      <p><code>y_train</code>에서 <code>No</code>가 가장 많았으므로 <code>most_frequent</code>는 <code>X_valid</code> 1,409개를 모두 <code>No</code>로 예측했다.</p>
+      <pre><code>dummy_predictions = dummy_model.predict(
+    X_valid
+)
+
+pd.Series(dummy_predictions).value_counts()
+# No    1409</code></pre>
+      <div class="callout"><strong>Train과 Validation의 역할 구분</strong><br>가장 많은 정답이 <code>No</code>라는 선택은 <code>y_train</code>에서 한다. 그렇게 정한 규칙을 <code>X_valid</code>에 적용한 뒤, 실제 정답 <code>y_valid</code>와 비교해 성능을 평가한다.</div>
+
+      <h3><code>predict()</code> 결과가 1차원인 이유</h3>
+      <p>scikit-learn의 단일 Target 분류에서 <code>predict()</code>는 보통 NumPy <code>ndarray</code>를 반환하며 Shape은 <code>(n_samples,)</code>다. Feature가 19개여도 고객 한 명마다 최종 정답 하나를 예측하므로 입력 Feature 수와 예측 출력 차원은 별개다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>출력</th><th>일반적인 Shape</th></tr></thead>
+        <tbody>
+          <tr><td>단일 Target <code>predict()</code></td><td><code>(n_samples,)</code></td></tr>
+          <tr><td>여러 Target을 동시에 예측하는 Multi-output</td><td><code>(n_samples, n_outputs)</code></td></tr>
+          <tr><td>이진 분류 <code>predict_proba()</code></td><td>보통 <code>(n_samples, 2)</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>Pandas <code>Series</code>는 1차원 값에 Label Index와 이름을 함께 가진다. <code>pd.Series(dummy_predictions).value_counts()</code>는 NumPy 배열을 Series로 감싼 뒤 값별 개수를 세기 위한 코드다. NumPy만 사용한다면 <code>np.unique(dummy_predictions, return_counts=True)</code>로도 확인할 수 있다.</p>
+
+      <h3>Accuracy를 직접 계산해 기준을 재현한다</h3>
+      <pre><code>correct_predictions = (
+    dummy_predictions == y_valid.to_numpy()
+)
+
+dummy_accuracy = correct_predictions.mean()</code></pre>
+      <p>비교 결과는 예측이 맞으면 <code>True</code>, 틀리면 <code>False</code>인 Boolean 배열이다. 평균을 구할 때 <code>True=1</code>, <code>False=0</code>으로 계산되므로 전체 중 맞힌 비율이 Accuracy가 된다.</p>
+      <div class="formula">Dummy Accuracy = 0.7345635202271115 = 73.45635202271114%</div>
+      <div class="callout"><strong>사용자의 말로 해석</strong><br><code>y_train</code>에서 No가 가장 많아 <code>most_frequent</code>가 모든 예측을 No로 고정했다. 그래서 Validation에서는 실제 No인 비율만큼 맞았고 Accuracy가 약 73.456%가 나왔다.</div>
+      <div class="success"><strong>Dummy 챕터 완료</strong><br>무조건 다수 클래스만 예측해도 얻는 Accuracy를 실제로 재현했다. 이 값은 새 모델이 넘어야 할 최소 비교 기준이지, 회원 이탈 패턴을 학습한 결과가 아니다.</div>
+      <div class="callout"><strong>다음 단계</strong><br>문자형 Feature와 숫자형 Feature를 서로 다르게 처리하는 전처리 Pipeline을 이해한 뒤 Logistic Regression을 같은 Train/Validation Split에서 학습한다. Accuracy뿐 아니라 Precision과 Recall도 Dummy와 비교한다.</div>
+    </section>
+
     <section id="experiment">
-      <h2>4. 실제 업무는 지표를 근거로 한 반복 실험에 가깝다</h2>
+      <h2>5. 실제 업무는 지표를 근거로 한 반복 실험에 가깝다</h2>
       <div class="flow">
         <div><strong>1. 현재 평가</strong>Baseline과 오류를 확인한다.</div>
         <div><strong>2. 문제 발견</strong>어떤 집단에서 무엇을 틀리는지 찾는다.</div>
@@ -206,7 +274,7 @@
     </section>
 
     <section id="corrections">
-      <h2>5. 오늘 내용에서 정확히 구분할 부분</h2>
+      <h2>6. 오늘 내용에서 정확히 구분할 부분</h2>
       <div class="status-grid">
         <article class="card">
           <h3>Loss와 Metric</h3>
@@ -228,7 +296,7 @@
     </section>
 
     <section id="next">
-      <h2>6. 아직 학습하지 않은 다음 항목</h2>
+      <h2>7. 아직 학습하지 않은 다음 항목</h2>
       <p class="muted">아래 내용은 오늘 이해 완료로 표시하지 않고, 회원 이탈 미니 프로젝트에서 하나씩 검증합니다.</p>
       <div>
         <span class="tag">ROC Curve</span><span class="tag">ROC-AUC</span><span class="tag">PR-AUC</span><span class="tag">Calibration</span><span class="tag">Class Weight</span><span class="tag">Over/Undersampling</span><span class="tag">Logistic Regression</span><span class="tag">Decision Tree</span><span class="tag">Random Forest</span><span class="tag">Gradient Boosting</span><span class="tag">Cross Validation</span><span class="tag">Feature Engineering</span>
@@ -236,7 +304,7 @@
       <h3>대표 실습의 비교 순서</h3>
       <div class="formula">Dummy → Logistic Regression → Decision Tree → Random Forest 또는 Gradient Boosting</div>
       <p>모든 알고리즘을 각각 별도 챕터로 외우지 않습니다. 동일한 Split과 Metric에서 대표 Baseline을 비교하고, Threshold와 불균형 처리 방법을 하나씩 바꾸면서 결과를 설명합니다.</p>
-      <div class="callout"><strong>로드맵 연결</strong><br>Scaled Dot-Product Attention 검증은 완료되었습니다. 머신러닝 축으로 전환할 때 진행할 첫 대표 실습 후보는 “작은 회원 이탈 이진 분류”입니다. 문제 정의 → Logistic Baseline → Confusion Matrix → Precision/Recall/F1 → Threshold 변경 → 불균형 처리 순서로 진행합니다.</div>
+      <div class="callout"><strong>실제 데이터 점검으로 연결</strong><br>회원 이탈 공개 데이터의 구조·자료형·숨은 공백·결측·중복·Label 비율을 직접 확인했습니다. <a href="machine_learning_churn_data_quality_learning.html">회원 이탈 데이터 품질 점검 문서</a>에서 <code>isna()</code>, 공백 문자열, 불리언 인덱싱, <code>fillna()</code>와 <code>value_counts(normalize=True)</code>의 실제 검증 과정을 이어서 봅니다.</div>
     </section>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>

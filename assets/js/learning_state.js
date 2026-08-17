@@ -1,16 +1,16 @@
 window.LEARNING_STATE = {
   updated: "2026-08-17",
-  overall: { done: 9, total: 23 },
+  overall: { done: 10, total: 23 },
   coaching: {
-    recentEvidence: "Multi-Head Attention과 TransformerBlock.forward()를 직접 구현했다. 입력·출력 Shape [1,2,2], Token별 평균은 사실상 0, 분산은 1임을 확인했다. Q가 K와 비교해 참고 비율을 만들고 그 비율로 V를 섞어 현재 Token의 문맥을 만든다는 Attention 흐름과 두 Residual·FFN의 역할을 자기 말로 설명했다.",
-    diagnosis: "TransformerBlock 완료 관문을 닫았으므로 Transformer 집중을 더 이어가기보다, 계획했던 데이터 기반 관문으로 전환할 시점이다.",
+    recentEvidence: "데이터 이해와 분할을 마친 뒤 most_frequent Dummy를 fit했다. y_train의 No 비율 0.73464679를 확인하고 Validation 1,409개를 모두 No로 예측해 Accuracy 73.456%가 실제 Validation의 No 비율과 같아지는 과정을 직접 설명하고 계산했다.",
+    diagnosis: "Dummy 챕터는 완료했지만 재현 가능한 Baseline 관문 전체는 아직 끝나지 않았다. 범주형·수치형 전처리 Pipeline을 만든 뒤 Logistic Regression을 같은 Split과 Accuracy·Precision·Recall로 비교해야 한다.",
     warning: "Tiny Decoder LM은 Transformer의 다음 구현 항목이지만, 데이터 분할·Baseline 평가와 PyTorch 학습 구조를 연결하기 전까지 시작을 보류한다.",
-    completionGate: "회원 이탈 데이터 위치와 파일 확인 → Pandas로 shape·dtypes·결측·중복·Label 분포 점검 → Train/Validation 분할 → Dummy·Logistic Regression을 같은 Metric으로 비교",
+    completionGate: "완료: 데이터 품질·분할·Dummy Accuracy 73.456% 재현 → 현재: 범주형·수치형 전처리 Pipeline → Logistic Regression을 같은 Split의 Accuracy·Precision·Recall로 비교",
     scheduledRotation: "현재: Machine Learning 회원 이탈 Baseline → 다음: PyTorch nn.Module·Optimizer → 이후: Tiny Decoder LM 복귀"
   },
   rotation: {
     trigger: "회원 이탈 Dummy·Logistic Baseline 비교와 결과 설명 완료",
-    next: "회원 이탈 데이터 위치·파일 확인 후 Pandas 구조와 품질 점검",
+    next: "범주형·수치형 Feature를 구분하고 ColumnTransformer·Pipeline의 역할 확인",
     after: "PyTorch nn.Module·Optimizer로 y=3x+2 재구현",
     returnTo: "Tiny Decoder LM"
   },
@@ -38,10 +38,10 @@ window.LEARNING_STATE = {
       id: "machine-learning",
       title: "Machine Learning 실습",
       href: "roadmaps/roadmap_machine_learning.html",
-      done: 1,
+      done: 2,
       total: 6,
-      current: "활성 트랙 · 회원 이탈 실제 데이터 관문 시작",
-      next: "데이터 위치·파일 확인 후 Pandas로 shape·dtypes·결측·중복·Label 분포 점검"
+      current: "데이터 분할·Dummy Accuracy 73.456% 재현 완료 · Logistic 전처리 단계",
+      next: "ColumnTransformer·Pipeline 구성 → Logistic을 같은 Validation의 Accuracy·Precision·Recall로 비교"
     },
     {
       id: "llm-systems",
