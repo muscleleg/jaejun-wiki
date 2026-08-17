@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer LayerNorm이 Token별 마지막 차원의 평균을 0, 분산과 표준편차를 1에 가깝게 맞추는 계산을 실제 숫자로 설명한 학습 문서">
+  <title>Transformer · LayerNorm</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><span aria-current="page">LayerNorm</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Transformer detail · LayerNorm</span>
+      <h1>Token마다 값의 규모를<br>다시 정리하기</h1>
+      <p class="lead">Residual로 원본과 Attention 정보를 더한 뒤, 각 Token이 가진 마지막 특징 차원을 따로 정규화하는 이유와 계산을 현재 실습 숫자로 따라간다.</p>
+      <div class="detail-actions"><a href="transformer_learning.html">← Transformer 상위 문서</a><a href="transformer_residual_learning.html">Residual 연결 복습</a><a href="transformer_ffn_learning.html">다음: FFN →</a></div>
+    </header>
+
+    <section class="detail-section" id="meaning">
+      <h2>LayerNorm은 무엇을 정리하는가?</h2>
+      <p>입력 Shape이 <code>[batch, token, d_model]</code>이면 LayerNorm은 보통 마지막 <code>d_model</code> 차원에 적용된다.</p>
+      <pre><code>Token 1의 차원값들끼리 평균·분산 계산
+Token 2의 차원값들끼리 평균·분산 계산
+
+Batch 전체를 한 번에 정규화하지 않음
+문장의 모든 Token을 한 번에 정규화하지 않음</code></pre>
+      <p>Attention과 Residual을 여러 층 거치면서 Token 벡터의 값 규모가 달라질 수 있다. LayerNorm은 각 Token을 다음 층이 다루기 쉬운 규모로 정리한다.</p>
+      <div class="formula-box"><strong>정규화의 두 단계</strong><code>1. 각 값에서 Token 평균을 뺀다 → 평균을 0으로</code><code>2. Token 표준편차로 나눈다 → 표준편차를 1로</code></div>
+    </section>
+
+    <section class="detail-section" id="current-number">
+      <h2>현재 Token 1 숫자로 시작</h2>
+      <p>Residual 뒤 첫 번째 Token은 다음과 같다.</p>
+      <pre><code>Token 1 = [0.9800, 0.0252]</code></pre>
+      <p>두 차원의 평균은:</p>
+      <pre><code>(0.9800 + 0.0252) / 2
+= 0.5026</code></pre>
+      <p>각 값에서 평균을 뺀다.</p>
+      <pre><code>0.9800 - 0.5026 =  0.4774
+0.0252 - 0.5026 = -0.4774
+
+평균을 뺀 결과 = [0.4774, -0.4774]</code></pre>
+      <p>두 값의 새 평균은 0이다.</p>
+      <pre><code>(0.4774 + -0.4774) / 2 = 0</code></pre>
+    </section>
+
+    <section class="detail-section" id="standard-deviation">
+      <h2>왜 표준편차가 <code>0.4774</code>인가?</h2>
+      <p>평균을 뺀 두 값을 제곱한다.</p>
+      <pre><code> 0.4774² = 0.22791076
+-0.4774² = 0.22791076</code></pre>
+      <p>두 제곱값의 평균이 분산이다. LayerNorm은 여기서 원소 개수로 나누는 분산을 사용한다.</p>
+      <pre><code>분산
+= (0.22791076 + 0.22791076) / 2
+= 0.22791076</code></pre>
+      <p>표준편차는 분산의 제곱근이다.</p>
+      <pre><code>표준편차
+= √0.22791076
+= 0.4774</code></pre>
+    </section>
+
+    <section class="detail-section" id="divide-by-standard-deviation">
+      <h2>표준편차로 나누면 왜 <code>[1, -1]</code>인가?</h2>
+      <p>평균을 뺀 각 값을 방금 구한 표준편차 <code>0.4774</code>로 나눈다.</p>
+      <pre><code>첫 번째 값
+=  0.4774 / 0.4774
+= 1
+
+두 번째 값
+= -0.4774 / 0.4774
+= -1</code></pre>
+      <p>따라서:</p>
+      <pre><code>[0.4774, -0.4774]
+→ 표준편차 0.4774로 나눔
+→ [1, -1]</code></pre>
+      <p>표준편차로 나누는 이유는 나눈 결과의 표준편차를 1로 만들기 위해서다.</p>
+      <pre><code>[1, -1]의 평균 = 0
+
+분산
+= (1² + (-1)²) / 2
+= 1
+
+표준편차
+= √1
+= 1</code></pre>
+      <div class="caution"><strong>현재 작은 예제의 특징</strong> — 차원이 두 개이고 두 값이 평균을 기준으로 정확히 대칭이므로 결과가 깔끔하게 <code>[1,-1]</code>이 된다. 더 많은 차원에서는 각 값이 반드시 ±1이 되는 것이 아니라, Token 전체 차원값의 평균이 0, 분산이 1에 가까워진다.</div>
+    </section>
+
+    <section class="detail-section" id="pytorch-detail">
+      <h2>실제 PyTorch에서 달라지는 작은 부분</h2>
+      <p><code>nn.LayerNorm</code>은 표준편차가 0일 때 나눗셈이 깨지는 것을 막기 위해 아주 작은 <code>eps</code>를 분산에 더한다. 따라서 출력은 정확한 1이 아니라 1에 매우 가까운 값일 수 있다.</p>
+      <p>또한 정규화 뒤에는 학습 가능한 <code>γ</code>와 <code>β</code>로 크기와 위치를 다시 조정한다. 기본 초기값에서는 보통 <code>γ=1</code>, <code>β=0</code>에서 시작한다.</p>
+      <pre><code>normalized = (x - mean) / sqrt(variance + eps)
+output = γ × normalized + β</code></pre>
+      <h3>실제 출력의 <code>2.9802e-08</code>은 무엇인가?</h3>
+      <pre><code>Token별 평균:
+tensor([[0.0000e+00, 2.9802e-08]],
+       grad_fn=&lt;MeanBackward1&gt;)</code></pre>
+      <p><code>2.9802e-08</code>은 과학적 표기법이다.</p>
+      <pre><code>2.9802e-08
+= 2.9802 × 10⁻⁸
+= 0.000000029802
+≈ 0</code></pre>
+      <p>따라서 첫 번째 Token의 평균은 정확히 표시된 0이고, 두 번째 Token의 평균도 사실상 0이다. PyTorch의 기본 <code>float32</code>가 모든 실수를 무한히 정확하게 저장하지 못하므로 평균·분산·제곱근·나눗셈 과정에서 아주 작은 반올림 오차가 남은 것이다.</p>
+      <pre><code>token_means = normalized_output.mean(dim=-1)
+
+torch.allclose(
+    token_means,
+    torch.zeros_like(token_means),
+)
+# True</code></pre>
+      <p><code>torch.allclose()</code>는 두 Tensor가 완전히 같은 비트인지가 아니라, 허용 가능한 작은 오차 범위에서 같은지 검사한다.</p>
+      <div class="caution"><strong><code>grad_fn</code>은 오차 표시가 아니다</strong> — <code>grad_fn=&lt;MeanBackward1&gt;</code>은 평균 계산이 Autograd 계산 그래프에 연결되어 역전파할 수 있다는 뜻이다. 평균값이 잘못됐다는 경고가 아니다.</div>
+      <h3>이번 실습에서 실제로 확인한 전체 결과</h3>
+      <pre><code>normalized_output:
+tensor([[[ 1.0000, -1.0000],
+         [-1.0000,  1.0000]]],
+       grad_fn=&lt;NativeLayerNormBackward0&gt;)
+
+shape: torch.Size([1, 2, 2])
+
+Token별 평균:
+tensor([[0.0000e+00, 2.9802e-08]],
+       grad_fn=&lt;MeanBackward1&gt;)
+
+Token별 분산:
+tensor([[1.0000, 1.0000]],
+       grad_fn=&lt;VarBackward0&gt;)</code></pre>
+      <p>사용자가 직접 해석한 흐름은 다음과 같다. 첫 번째 Token이 <code>[1,-1]</code>이고 평균이 0이므로:</p>
+      <pre><code>분산
+= ((1 - 0)² + (-1 - 0)²) / 2
+= (1 + 1) / 2
+= 1</code></pre>
+      <p>두 번째 Token은 <code>[-1,1]</code>로 순서만 반대이므로 같은 계산에서 분산 1이 나온다. 즉 Shape은 <code>[1,2,2]</code>로 유지됐고, 각 Token의 마지막 차원에서 평균은 사실상 0, 분산은 1에 가까워졌다.</p>
+      <div class="caution"><strong><code>eps</code>와 출력 표시를 구분한다</strong> — 실제 계산에는 <code>variance + eps</code>가 들어가므로 내부 값이 수학적인 1과 아주 조금 다를 수 있다. 이번 출력의 <code>1.0000</code>은 소수 넷째 자리까지 반올림해 표시된 값이다.</div>
+      <div class="caution"><strong>현재 검증 완료</strong> — LayerNorm 출력의 Token별 평균이 <code>[0, 0.000000029802]</code>로 나와 둘 다 사실상 0임을 확인했고, <code>unbiased=False</code>로 구한 Token별 분산도 <code>[1.0000, 1.0000]</code>임을 계산과 출력으로 확인했다.</div>
+    </section>
+
+    <section class="detail-section" id="second-layernorm">
+      <h2>FFN 뒤 두 번째 LayerNorm도 같은 원리다</h2>
+      <p>FFN의 두 번째 Residual 결과에도 새 LayerNorm 모듈을 만들고 실제 값을 넣었다.</p>
+      <pre><code>layer_norm_2 = nn.LayerNorm(d_model)
+block_output = layer_norm_2(ffn_residual_output)
+
+입력:
+[[[ 0.4207, -0.5063],
+  [-1.4502,  1.3765]]]
+
+출력:
+[[[ 1.0000, -1.0000],
+  [-1.0000,  1.0000]]]</code></pre>
+      <pre><code>shape: [1, 2, 2]
+Token별 평균: [0, -2.9802e-08] ≈ [0, 0]
+Token별 분산 (unbiased=False): [1, 1]</code></pre>
+      <p>첫 번째 LayerNorm과 마찬가지로 각 Token의 마지막 차원을 따로 정돈했고 Shape은 유지됐다. 사용자는 LayerNorm 모듈을 만드는 코드와 실제 Tensor를 넣어 호출하는 코드를 구분하고, 내부에서 평균을 0에 가깝게 만들고 표준편차를 1에 가깝게 맞추는 흐름을 연결했다.</p>
+      <div class="caution"><strong>과대 해석하지 않는다</strong> — 현재 출력은 LayerNorm의 기본 <code>γ=1</code>, <code>β=0</code> 상태에서 확인한 결과다. 학습으로 <code>γ</code>와 <code>β</code>가 바뀐 뒤 최종 출력이 반드시 평균 0·분산 1이어야 하는 것은 아니라는 설명은 아직 재검증 전이다.</div>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260815"></script>
+</body>
+</html>

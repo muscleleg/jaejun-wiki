@@ -67,9 +67,9 @@
       <h1>학습 기록</h1>
       <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
-        <div class="stat">학습 기록이 있는 날<strong>7일</strong></div>
-        <div class="stat">기록된 공부시간<strong>약 14시간 30분</strong></div>
-        <div class="stat">최근 학습일<strong>2026-08-16</strong></div>
+        <div class="stat">학습 기록이 있는 날<strong>8일</strong></div>
+        <div class="stat">기록된 공부시간<strong>약 17시간 45분</strong></div>
+        <div class="stat">최근 학습일<strong>2026-08-17</strong></div>
       </div>
     </header>
 
@@ -85,6 +85,15 @@
       <h2>날짜별 학습 기록</h2>
       <p class="summary">기존 홈에 있던 기록을 내용 생략 없이 날짜별로 옮겼다.</p>
       <div class="timeline">
+        <article class="day">
+          <time datetime="2026-08-17">2026년 08월 17일</time>
+          <div class="topic"><h3>LayerNorm을 실제 숫자와 연결</h3><p>첫 Residual 결과의 Token별 평균을 빼고 표준편차로 나누면 각 Token의 마지막 특징 차원이 평균 0, 분산 1에 가까워진다는 흐름을 확인했다. <code>2.9802e-08</code>은 정확한 0을 Float로 계산하면서 생긴 매우 작은 오차이므로 사실상 0으로 해석했다. 두 번째 Residual 뒤에도 같은 이유로 별도의 <code>nn.LayerNorm(d_model)</code>이 필요하다고 먼저 예측하고 실행 결과로 검증했다.</p></div>
+          <div class="topic"><h3>FFN의 확장·GELU·축소 의미</h3><p><code>nn.Linear(2,4)</code>는 층을 만드는 것이고, <code>expanded_output = ffn_expand(normalized_output)</code>은 그 층에 실제 Tensor를 넣어 실행하는 것임을 구분했다. 첫 Linear는 Token마다 더 넓은 중간 특징 공간을 만들고, GELU는 음수를 곧바로 노이즈로 판정하는 것이 아니라 학습된 중간 반응의 전달 정도를 부드럽게 조절하며, 두 번째 Linear는 <code>4 → 2</code>로 돌아오면서 현재 표현에 더할 수정값을 만든다고 이해했다.</p></div>
+          <div class="topic"><h3>두 번째 Residual과 Dropout</h3><p><code>x + Attention</code>을 정돈한 <code>normalized_output</code>에 FFN이 만든 <code>contracted_output</code>을 다시 더해 현재 표현이 사라지지 않게 한다고 설명했다. Dropout은 훈련 중 일부 원소를 확률적으로 0으로 만들고 살아남은 값을 보정하지만 Shape은 유지하며, <code>eval()</code>에서는 무작위 제거가 꺼져 같은 입력에 같은 결과가 나오는 것을 확인했다.</p></div>
+          <div class="topic"><h3><code>TransformerBlock.forward()</code> 완성</h3><p>Attention → Attention Dropout → 첫 Residual → LayerNorm → FFN 확장 → GELU → 축소 → FFN Dropout → 두 번째 Residual → LayerNorm을 하나의 클래스에 연결했다. 입력과 최종 출력 Shape이 모두 <code>[1,2,2]</code>로 유지되고, 최종 Token별 평균은 사실상 0, <code>unbiased=False</code> 분산은 1임을 확인했다.</p></div>
+          <div class="topic"><h3>Attention이 입력에 추가하는 정보 설명</h3><p>각 Token의 Q가 질의 역할을 하고 K와 비교해 다른 Token을 얼마나 참고할지 비율을 만든 뒤, 그 비율로 V를 섞어 현재 Token의 문맥 정보를 만든다고 설명했다. 첫 Residual은 이 문맥 정보를 원래 <code>x</code>와 합쳐 기존 의미를 보존하고, 두 번째 Residual은 정규화된 현재 표현과 FFN 수정값을 합쳐 기존 표현을 보존한다.</p></div>
+          <div class="topic"><h3>다음 학습 트랙을 Machine Learning으로 전환</h3><p>TransformerBlock의 구현·Shape·설명 완료 조건을 모두 충족해 Transformer 로드맵 6개 중 5개를 닫았다. 최근 Transformer 집중은 이 마일스톤을 완성하기 위한 생산적인 집중이었지만, 다음 Tiny Decoder LM에 바로 들어가기 전에 실제 데이터 분할·Baseline·Metric·일반화 경험과 PyTorch 학습 구조를 보강하기로 했다. 현재 순서는 회원 이탈 데이터 Baseline → <code>nn.Module</code>·Optimizer → Tiny Decoder LM 복귀다.</p></div>
+        </article>
         <article class="day">
           <time datetime="2026-08-16">2026년 08월 16일</time>
           <div class="topic"><h3>Score 분산과 <code>√head_dim</code> Scaling의 연결 완성</h3><p><code>head_dim=2</code>인 한 Score를 <code>Score=A+B</code>로 두고, <code>(A+B)²=A²+2AB+B²</code>를 여러 Score에 걸쳐 평균내는 과정을 따라갔다. 평균 0·분산 1·독립이라는 전제에서는 <code>A²</code>와 <code>B²</code>의 평균이 각각 1이고 <code>AB</code>의 평균이 0에 가까워져 Score 분산이 2, 표준편차가 <code>√2</code>가 된다는 점을 확인했다.</p></div>
@@ -149,6 +158,10 @@
     <section id="study-time">
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
+      <article class="session">
+        <div class="session-head"><div><time datetime="2026-08-17">2026년 08월 17일</time><h3>총 학습시간</h3></div><div class="duration">약 3시간 15분</div></div>
+        <div class="session-body"><strong>이날 한 공부</strong><ul><li>Residual 결과에 LayerNorm을 적용하고 Token별 평균 0·분산 1 확인</li><li>부동소수점 오차 <code>2.9802e-08</code>을 사실상 0으로 해석</li><li>FFN의 <code>d_model → d_ff → d_model</code> 흐름과 Linear 생성·실행 구분</li><li>GELU가 음수를 노이즈로 판정하는 것이 아니라 중간 반응의 전달 정도를 조절한다는 점 정리</li><li>두 번째 Residual·LayerNorm과 Dropout의 <code>train()/eval()</code> 차이 검증</li><li><code>TransformerBlock.forward()</code> 전체 연결과 Shape·Token별 통계 검증</li><li>Q·K의 참고 비율로 V를 섞어 현재 Token의 문맥을 만든다는 Attention 역할 설명</li><li>다음 순서를 ML Baseline → PyTorch Module·Optimizer → Tiny Decoder LM으로 확정</li></ul></div>
+      </article>
       <article class="session">
         <div class="session-head"><div><time datetime="2026-08-16">2026년 08월 16일</time><h3>총 학습시간</h3></div><div class="duration">약 2시간 40분</div></div>
         <div class="session-body"><strong>이날 한 공부</strong><ul><li>Score 평균의 제곱과 Score 제곱의 평균 구분</li><li><code>[2,0,0,-2]</code> 예제로 분산 2와 표준편차 <code>√2</code> 계산</li><li><code>head_dim</code> 증가와 Score 집단의 퍼짐, 통계적 전제 정리</li><li>Multi-Head Attention 전체 <code>forward()</code>와 Output Projection 완성</li><li><code>transpose(1,2)</code>의 Head별 묶음 → Token별 묶음 변환 검증</li><li><code>x + projected_output</code> Residual 연결과 Batch 입력 의미 확인</li></ul></div>
