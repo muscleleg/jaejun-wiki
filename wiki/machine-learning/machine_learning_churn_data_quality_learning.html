@@ -40,6 +40,9 @@
     th { background:#f0f4fa; }
     .table-scroll { overflow-x:auto; }
     .formula { margin:16px 0; padding:18px; text-align:center; border:1px solid #cfdaee; border-radius:14px; background:var(--blue-soft); font-family:"SFMono-Regular",Consolas,monospace; }
+    .fraction { display:inline-grid; grid-template-rows:auto auto; min-width:3em; margin:0 .3em; vertical-align:middle; text-align:center; line-height:1.25; }
+    .fraction .top { padding:0 .35em .17em; border-bottom:1.5px solid currentColor; }
+    .fraction .bottom { padding:.17em .35em 0; }
     .home-fab { position:fixed; right:18px; bottom:18px; z-index:50; padding:10px 14px; color:white; border-radius:999px; background:var(--green); box-shadow:0 8px 24px rgba(23,107,77,.25); font-size:13px; font-weight:800; text-decoration:none; }
     @media (max-width:700px) { .hero, section { padding:22px; } nav { position:static; } }
   </style>
@@ -70,6 +73,8 @@
       <a href="#normalize">normalize 구분</a>
       <a href="#checkpoint">완료와 다음 단계</a>
       <a href="#split">Feature·Label과 분할</a>
+      <a href="#one-hot-contract">Contract One-Hot</a>
+      <a href="#standard-scaler">StandardScaler</a>
     </nav>
 
     <section id="structure">
@@ -267,6 +272,178 @@ X_train, X_valid, y_train, y_valid = train_test_split(
       <div class="success"><strong>데이터 이해와 분할 완료</strong><br>원본 구조·자료형·결측·중복·Label 분포 확인부터 Feature·Label 분리, Train·Validation 분리와 Label 비율 검증까지 마쳤다.</div>
       <div class="callout"><strong>다음 단계</strong><br>아무 학습도 하지 않고 항상 <code>No</code>만 예측하는 Dummy Baseline을 만들어 Accuracy 약 73.46%가 재현되는지 확인한다. 그다음 Logistic Regression을 같은 Split과 Metric에서 비교한다.</div>
       <div class="success"><strong>이어서 검증 완료</strong><br><code>most_frequent</code> Dummy가 Validation 1,409개를 모두 No로 예측해 Accuracy 73.456%를 만드는 과정을 재현했다. 자세한 계산과 NumPy 예측 배열 설명은 <a href="machine_learning_churn_evaluation_learning.html#dummy-baseline">Dummy Baseline 문서</a>에서 이어진다.</div>
+    </section>
+
+    <section id="one-hot-contract">
+      <h2>9. 문자열 범주를 숫자 열로 펼치는 One-Hot Encoding</h2>
+      <p><code>Contract</code>는 계약 유형을 담은 범주형 Feature다. Train 데이터에는 다음 세 종류가 있었다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>원래 값</th><th>Train 개수</th></tr></thead>
+        <tbody>
+          <tr><td><code>Month-to-month</code></td><td>3,102</td></tr>
+          <tr><td><code>Two year</code></td><td>1,359</td></tr>
+          <tr><td><code>One year</code></td><td>1,173</td></tr>
+        </tbody>
+      </table></div>
+      <p>Logistic Regression 같은 모델에 이 문자열을 그대로 넣는 대신, <code>OneHotEncoder</code>로 각 종류를 독립된 숫자 열로 펼쳤다.</p>
+      <pre><code>from sklearn.preprocessing import OneHotEncoder
+
+contract_encoder = OneHotEncoder(
+    sparse_output=False,
+    handle_unknown="ignore",
+)
+
+contract_encoded = contract_encoder.fit_transform(
+    X_train[["Contract"]]
+)</code></pre>
+
+      <h3>왜 대괄호를 두 번 쓰는가?</h3>
+      <p><code>X_train[["Contract"]]</code>는 열 하나를 고르더라도 2차원 DataFrame 형태를 유지한다. Encoder는 <code>[행, 열]</code> 구조의 입력을 받으므로 <code>X_train["Contract"]</code>로 만든 1차원 Series가 아니라 이 형태를 사용했다.</p>
+
+      <h3><code>fit_transform()</code>이 한 일</h3>
+      <div class="flow">
+        <div><strong><code>fit</code></strong>Train의 <code>Contract</code> 열을 보고 어떤 종류가 있는지 학습한다.</div>
+        <div><strong><code>transform</code></strong>각 문자열을 학습한 종류에 대응하는 0과 1의 행으로 바꾼다.</div>
+      </div>
+      <p>실제로 학습된 출력 열 이름은 다음과 같았다.</p>
+      <pre><code>contract_encoder.get_feature_names_out(
+    ["Contract"]
+)
+
+# ['Contract_Month-to-month',
+#  'Contract_One year',
+#  'Contract_Two year']</code></pre>
+      <div class="table-scroll"><table>
+        <thead><tr><th>원래 Contract</th><th>Month-to-month</th><th>One year</th><th>Two year</th></tr></thead>
+        <tbody>
+          <tr><td><code>Month-to-month</code></td><td><strong>1</strong></td><td>0</td><td>0</td></tr>
+          <tr><td><code>One year</code></td><td>0</td><td><strong>1</strong></td><td>0</td></tr>
+          <tr><td><code>Two year</code></td><td>0</td><td>0</td><td><strong>1</strong></td></tr>
+        </tbody>
+      </table></div>
+      <p>실제 앞의 다섯 행도 다음처럼 0과 1로 변환됐다.</p>
+      <pre><code>[[1. 0. 0.]
+ [1. 0. 0.]
+ [0. 0. 1.]
+ [0. 0. 1.]
+ [1. 0. 0.]]</code></pre>
+      <div class="callout"><strong>사용자의 언어로 읽기</strong><br>원래 <code>Contract</code> 열 하나에 문자열 세 종류가 들어 있었다. One-Hot Encoding을 하니 계약 종류별 열 세 개가 생기고, 각 고객은 자신에게 해당하는 열만 <code>1</code>, 나머지는 <code>0</code>이 됐다.</div>
+      <p><code>sparse_output=False</code>를 사용했으므로 이번 출력은 값을 바로 볼 수 있는 일반적인 밀집 NumPy 배열이다. <code>handle_unknown="ignore"</code>는 Validation에 Train에서 보지 못한 새 범주가 있어도 오류를 내지 않도록 하는 설정이지만, 새 범주를 직접 넣은 동작은 아직 별도 실험으로 검증하지 않았다.</p>
+      <div class="warning"><strong>아직 전처리 전체가 끝난 것은 아니다.</strong><br>이번에는 <code>Contract</code> 한 열로 One-Hot Encoder의 입출력 계약만 검증했다. 다음에는 모든 범주형 열에 One-Hot Encoding을 적용하고 숫자형 열의 처리와 함께 <code>ColumnTransformer</code>로 묶어야 한다.</div>
+
+      <h3><code>ColumnTransformer</code>의 Tuple은 데이터가 아니라 작업 명세다</h3>
+      <pre><code>preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "categorical",
+            OneHotEncoder(
+                sparse_output=False,
+                handle_unknown="ignore",
+            ),
+            categorical_features,
+        ),
+        (
+            "numeric",
+            "passthrough",
+            numeric_features,
+        ),
+    ]
+)</code></pre>
+      <p><code>transformers</code>에 넣는 각 Tuple은 다음 세 부분으로 읽는다.</p>
+      <div class="formula">(<strong>작업명</strong>, <strong>적용할 작업</strong>, <strong>컬럼 리스트</strong>)</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>위치</th><th>예시</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>1. 작업명</td><td><code>"categorical"</code></td><td>이 변환 단계를 구별하기 위한 이름</td></tr>
+          <tr><td>2. 작업</td><td><code>OneHotEncoder(...)</code></td><td>선택된 열에 실행할 변환기</td></tr>
+          <tr><td>3. 컬럼 리스트</td><td><code>categorical_features</code></td><td>전체 표가 나중에 들어왔을 때 이 작업이 가져갈 열을 지정하는 선택자</td></tr>
+        </tbody>
+      </table></div>
+      <p>여기서 <code>categorical_features</code>나 <code>numeric_features</code>는 실제 고객 데이터가 아니다. <code>['gender', 'Partner', ...]</code>처럼 열 이름만 담은 목록이다. 즉 <code>ColumnTransformer</code>를 만드는 순간에는 “어떤 열에 어떤 작업을 할지”만 등록한다.</p>
+      <p>실제 데이터는 이후 다음 호출에서 들어간다.</p>
+      <pre><code>transformed_X_train = preprocessor.fit_transform(
+    X_train
+)</code></pre>
+      <div class="flow">
+        <div><strong>1. 전체 표 입력</strong><code>X_train</code> 전체가 <code>fit_transform()</code>에 들어간다.</div>
+        <div><strong>2. 열 선택</strong>각 Tuple의 컬럼 리스트를 이용해 해당 열들만 고른다.</div>
+        <div><strong>3. 작업 적용</strong>범주형 열에는 One-Hot을, 숫자형 열에는 지정한 작업을 실행한다.</div>
+        <div><strong>4. 결과 결합</strong>각 작업의 출력을 하나의 숫자 배열로 옆으로 이어 붙인다.</div>
+      </div>
+      <div class="callout"><strong>사용자가 구분한 핵심</strong><br><code>(작업명, 작업, 컬럼 리스트)</code>의 컬럼 리스트는 데이터 자체가 아니다. 나중에 <code>preprocessor.fit_transform(X_train)</code>으로 전체 표를 넣었을 때 어떤 열을 선택할지 미리 적어 둔 명세다.</div>
+
+      <h3><code>fit</code>은 출력 칸을 정하고, <code>transform</code>은 그 칸을 그대로 사용한다</h3>
+      <p><code>ColumnTransformer</code> 자체의 핵심 역할은 컬럼 리스트에 따라 열을 나누고 각 작업으로 보내는 것이다. 실제 범주 종류를 학습하는 것은 내부의 <code>OneHotEncoder</code>다.</p>
+      <div class="flow">
+        <div><strong><code>preprocessor.fit(X_train)</code></strong>ColumnTransformer가 범주형 열 15개를 OneHotEncoder로 보내고, Encoder의 <code>fit</code>이 각 열에 어떤 범주가 있는지 저장한다.</div>
+        <div><strong>고정 출력 칸 생성</strong>학습한 범주마다 출력 열의 이름·개수·순서를 고정한다.</div>
+        <div><strong><code>preprocessor.transform(X_valid)</code></strong>Validation은 범주를 다시 정하지 않고 Train에서 저장한 출력 칸을 그대로 사용해 0과 1로 바뀐다.</div>
+      </div>
+
+      <h3>Train과 Validation을 따로 <code>fit</code>하면 왜 안 되는가?</h3>
+      <p>Train의 <code>Contract</code>에 세 종류가 있다고 하자.</p>
+      <pre><code>Train에서 fit한 Contract 범주
+→ [Month-to-month, One year, Two year]
+
+Two year
+→ [0, 0, 1]</code></pre>
+      <p>그런데 Validation에 우연히 <code>One year</code> 행이 없고, Validation에 새 Encoder를 따로 <code>fit</code>했다고 가정하면 범주 집합이 두 개뿐이다.</p>
+      <pre><code>Validation만 따로 fit한 Contract 범주
+→ [Month-to-month, Two year]
+
+Two year
+→ [0, 1]</code></pre>
+      <p>같은 <code>Two year</code>인데도 출력 열의 개수와 위치가 달라졌다. Train에서 세 번째 칸을 <code>Two year</code>로 배운 모델에 두 번째 칸이 <code>Two year</code>인 새 배열을 넣으면, 모델이 학습한 Feature의 의미와 입력의 의미가 맞지 않는다.</p>
+      <div class="warning"><strong>원인은 행 개수나 행 순서가 아니다.</strong><br>Train과 Validation의 행 수가 다르거나 무작위로 섞였기 때문에 One-Hot 위치가 달라지는 것이 아니다. 각각 따로 <code>fit</code>하면서 발견한 <strong>범주 집합이 달라졌기 때문</strong>이다.</div>
+      <div class="callout"><strong>사용자가 이해한 고정 규칙</strong><br>Train에서 <code>fit</code>해 모든 범주형 열의 출력 칸을 먼저 정한다. Validation과 이후 데이터에는 <code>transform</code>만 적용해 그 칸의 의미를 계속 유지한다.</div>
+      <p>현재 설정의 <code>handle_unknown="ignore"</code>는 Validation에 Train에서 전혀 보지 못한 범주가 나타났을 때 새 출력 칸을 만들지 않고, 그 Feature 묶음을 모두 0으로 처리해 이미 고정된 Shape을 유지한다.</p>
+    </section>
+
+    <section id="standard-scaler">
+      <h2>10. 숫자형 Feature의 크기를 맞추는 StandardScaler</h2>
+      <p>현재 숫자형 Feature 네 개는 값이 움직이는 범위와 표준편차가 서로 크게 달랐다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Feature</th><th>평균</th><th>표준편차</th><th>최솟값 ~ 최댓값</th></tr></thead>
+        <tbody>
+          <tr><td><code>SeniorCitizen</code></td><td>0.163294</td><td>0.369667</td><td>0 ~ 1</td></tr>
+          <tr><td><code>tenure</code></td><td>32.485091</td><td>24.568744</td><td>0 ~ 72</td></tr>
+          <tr><td><code>MonthlyCharges</code></td><td>64.929961</td><td>30.138105</td><td>18.4 ~ 118.75</td></tr>
+          <tr><td><code>TotalCharges</code></td><td>2299.334682</td><td>2279.204278</td><td>0 ~ 8684.8</td></tr>
+        </tbody>
+      </table></div>
+      <p>예를 들어 <code>SeniorCitizen</code>은 0과 1 사이인데 <code>TotalCharges</code>는 수천까지 간다. 이 값들을 그대로 사용하면 단위와 크기가 다른 숫자들이 한 모델 안에 함께 들어간다. 이번 실습에서는 각 숫자형 열을 자신의 평균과 표준편차 기준으로 바꾸는 <code>StandardScaler</code>를 확인했다.</p>
+
+      <h3><code>fit</code>과 <code>transform</code></h3>
+      <pre><code>from sklearn.preprocessing import StandardScaler
+
+numeric_scaler = StandardScaler()
+
+scaled_numeric_train = numeric_scaler.fit_transform(
+    X_train[numeric_features]
+)</code></pre>
+      <div class="flow">
+        <div><strong><code>fit</code></strong>Train의 숫자형 열마다 평균과 표준편차를 계산해 저장한다.</div>
+        <div><strong><code>transform</code></strong>저장한 Train 평균과 표준편차로 각 값을 변환한다.</div>
+      </div>
+      <div class="formula">변환값 = <span class="fraction"><span class="top">원래 값 − Train 열 평균</span><span class="bottom">Train 열 표준편차</span></span></div>
+      <p>Validation에도 Validation 자체의 평균과 표준편차를 새로 <code>fit</code>하지 않는다. Train에서 저장한 기준으로 <code>transform</code>해야 학습할 때와 같은 좌표계를 유지할 수 있다.</p>
+
+      <h3>실제 변환 결과</h3>
+      <pre><code>scaled_numeric_train.mean(axis=0)
+# [ 7.44089837e-17, -1.00893537e-17,
+#  -2.40252735e-16,  2.52233843e-17]
+
+scaled_numeric_train.std(axis=0)
+# [1., 1., 1., 1.]</code></pre>
+      <p><code>e-17</code>과 <code>e-16</code> 수준의 평균은 부동소수점 계산 오차 때문에 생긴 매우 작은 값이므로 사실상 0이다. 출력으로는 네 열 모두 평균이 사실상 0, 표준편차가 1이 된 것을 확인했다.</p>
+
+      <div class="warning"><strong>아직 이해 완료로 처리하지 않은 수학 질문</strong><br>코드 출력이 평균 0·표준편차 1이 되는 것은 확인했지만, “왜 평균을 빼도 표준편차는 원래의 <code>σ</code>로 남고, 다시 <code>σ</code>로 나누면 표준편차가 정확히 1이 되는가?”를 분산 공식에서 형식적으로 연결하는 과정은 아직 납득하지 못했다.</div>
+      <h3>다음 복습에서 증명할 두 단계</h3>
+      <div class="flow">
+        <div><strong>1. 중심 이동</strong><code>y = x − μ</code>일 때 새 평균은 0이고 표준편차는 왜 여전히 <code>σ</code>인가?</div>
+        <div><strong>2. 크기 조절</strong><code>z = y / σ</code>일 때 분산이 왜 1이고 표준편차도 왜 1인가?</div>
+      </div>
+      <p>다음 세션에서는 작은 숫자 집합 하나에 평균·분산·표준편차 공식을 직접 대입해 두 단계를 계산한 뒤에만 이해 완료로 표시한다. 이 증명을 마친 후 StandardScaler를 <code>ColumnTransformer</code>의 숫자형 작업으로 통합한다.</p>
     </section>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>

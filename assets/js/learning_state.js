@@ -2,15 +2,15 @@ window.LEARNING_STATE = {
   updated: "2026-08-17",
   overall: { done: 10, total: 23 },
   coaching: {
-    recentEvidence: "데이터 이해와 분할을 마친 뒤 most_frequent Dummy를 fit했다. y_train의 No 비율 0.73464679를 확인하고 Validation 1,409개를 모두 No로 예측해 Accuracy 73.456%가 실제 Validation의 No 비율과 같아지는 과정을 직접 설명하고 계산했다.",
-    diagnosis: "Dummy 챕터는 완료했지만 재현 가능한 Baseline 관문 전체는 아직 끝나지 않았다. 범주형·수치형 전처리 Pipeline을 만든 뒤 Logistic Regression을 같은 Split과 Accuracy·Precision·Recall로 비교해야 한다.",
+    recentEvidence: "숫자형 네 열의 값 범위가 서로 다름을 확인하고 StandardScaler.fit_transform을 실행했다. 변환 뒤 열별 평균은 부동소수점 오차 수준으로 0, 표준편차는 [1,1,1,1]인 출력까지 확인했다.",
+    diagnosis: "StandardScaler의 코드 동작은 확인했지만 수학적 이해는 완료되지 않았다. 평균을 뺄 때 표준편차가 유지되고 σ로 나눌 때 1이 되는 이유를 분산 공식과 작은 숫자로 증명한 뒤 전처리 통합을 계속한다.",
     warning: "Tiny Decoder LM은 Transformer의 다음 구현 항목이지만, 데이터 분할·Baseline 평가와 PyTorch 학습 구조를 연결하기 전까지 시작을 보류한다.",
-    completionGate: "완료: 데이터 품질·분할·Dummy Accuracy 73.456% 재현 → 현재: 범주형·수치형 전처리 Pipeline → Logistic Regression을 같은 Split의 Accuracy·Precision·Recall로 비교",
+    completionGate: "완료: 데이터 품질·분할·Dummy Accuracy·One-Hot·StandardScaler 출력 검증 → 현재: StandardScaler의 평균 0·표준편차 1 증명 → 전처리 통합과 Logistic Regression 비교",
     scheduledRotation: "현재: Machine Learning 회원 이탈 Baseline → 다음: PyTorch nn.Module·Optimizer → 이후: Tiny Decoder LM 복귀"
   },
   rotation: {
     trigger: "회원 이탈 Dummy·Logistic Baseline 비교와 결과 설명 완료",
-    next: "범주형·수치형 Feature를 구분하고 ColumnTransformer·Pipeline의 역할 확인",
+    next: "작은 숫자 집합으로 (x−μ)/σ의 평균 0·표준편차 1을 분산 공식에서 증명",
     after: "PyTorch nn.Module·Optimizer로 y=3x+2 재구현",
     returnTo: "Tiny Decoder LM"
   },
@@ -40,8 +40,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_machine_learning.html",
       done: 2,
       total: 6,
-      current: "데이터 분할·Dummy Accuracy 73.456% 재현 완료 · Logistic 전처리 단계",
-      next: "ColumnTransformer·Pipeline 구성 → Logistic을 같은 Validation의 Accuracy·Precision·Recall로 비교"
+      current: "StandardScaler 출력 검증 · 평균 0·표준편차 1 수학은 미해결",
+      next: "중심 이동·σ 나눗셈 증명 → Scaler를 ColumnTransformer에 통합"
     },
     {
       id: "llm-systems",
