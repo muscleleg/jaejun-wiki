@@ -73,6 +73,7 @@
       <a href="#learning">학습</a>
       <a href="#evaluation">평가</a>
       <a href="#dummy-baseline">Dummy Baseline</a>
+      <a href="#logistic-evaluation">Logistic 평가 읽기</a>
       <a href="#experiment">실무 반복</a>
       <a href="#corrections">정확히 구분하기</a>
       <a href="machine_learning_churn_data_quality_learning.html">데이터 품질 실습</a>
@@ -183,6 +184,11 @@
       <div class="formula">F1 = <span class="fraction"><span class="top">2 × Precision × Recall</span><span class="bottom">Precision + Recall</span></span></div>
       <p>실제 이탈자가 10명, 비이탈자가 90명일 때 전부 비이탈이라고 예측해도 Accuracy는 90%입니다. 그러므로 Positive가 적은 문제에서는 Accuracy만으로 모델을 평가하면 안 됩니다.</p>
 
+      <h3>같은 모델도 Yes 기준으로 무엇을 묻느냐가 다르다</h3>
+      <p>이탈을 <code>Yes</code>로 정하면, Recall은 <strong>실제로 이탈한 Yes 고객들 중 모델이 Yes로 찾아낸 비율</strong>이다. 따라서 실제 Yes인데 예측 No로 나온 <code>FN</code>이 많으면 Recall이 낮아진다. 이 지표는 “이탈자를 얼마나 놓치지 않았는가?”를 묻는다.</p>
+      <p>Precision은 <strong>모델이 Yes라고 예측한 고객들 중 실제로 Yes였던 비율</strong>이다. 따라서 실제 No인데 예측 Yes로 나온 <code>FP</code>이 많으면 Precision이 낮아진다. 이 지표는 “이탈이라고 경고한 대상이 얼마나 믿을 만한가?”를 묻는다.</p>
+      <div class="callout"><strong>무엇을 우선할지는 오류의 비용으로 정한다.</strong><br>실제 이탈자를 놓치는 손해가 크면 Recall을 우선한다. 실제로 이탈하지 않을 고객에게 할인·상담 같은 유지 조치를 잘못 주는 비용이 크면 Precision을 우선한다. 두 오류의 비용이 비슷하면 Precision과 Recall이 모두 높고 서로 한쪽만 낮지 않게 보는 F1을 중심 지표로 둘 수 있다.</div>
+
       <h3>Threshold를 바꾸면 무엇이 달라지는가?</h3>
       <div class="table-scroll"><table>
         <thead><tr><th>변경</th><th>일반적인 영향</th><th>비즈니스 의미</th></tr></thead>
@@ -258,6 +264,81 @@ dummy_accuracy = correct_predictions.mean()</code></pre>
       <div class="callout"><strong>사용자의 말로 해석</strong><br><code>y_train</code>에서 No가 가장 많아 <code>most_frequent</code>가 모든 예측을 No로 고정했다. 그래서 Validation에서는 실제 No인 비율만큼 맞았고 Accuracy가 약 73.456%가 나왔다.</div>
       <div class="success"><strong>Dummy 챕터 완료</strong><br>무조건 다수 클래스만 예측해도 얻는 Accuracy를 실제로 재현했다. 이 값은 새 모델이 넘어야 할 최소 비교 기준이지, 회원 이탈 패턴을 학습한 결과가 아니다.</div>
       <div class="callout"><strong>다음 단계</strong><br>문자형 Feature와 숫자형 Feature를 서로 다르게 처리하는 전처리 Pipeline을 이해한 뒤 Logistic Regression을 같은 Train/Validation Split에서 학습한다. Accuracy뿐 아니라 Precision과 Recall도 Dummy와 비교한다.</div>
+    </section>
+
+    <section id="logistic-evaluation">
+      <h2>4-1. Logistic Regression 결과를 표로 읽기</h2>
+      <p>같은 Train/Validation 분할에서 전처리된 Feature를 Logistic Regression에 학습시킨 뒤, Validation 예측을 실제 정답과 비교했다. Accuracy는 <code>80.55%</code>로 Dummy Baseline <code>73.46%</code>보다 약 <code>7.10%p</code> 높다. 다만 Accuracy 하나로는 실제 이탈자를 얼마나 놓쳤는지 알 수 없으므로, 혼동 행렬을 함께 읽는다.</p>
+
+      <h3><code>confusion_matrix</code>를 DataFrame 표로 만든 이유</h3>
+      <pre><code>from sklearn.metrics import confusion_matrix
+
+confusion = pd.DataFrame(
+    confusion_matrix(
+        y_valid,
+        logistic_predictions,
+        labels=["No", "Yes"],
+    ),
+    index=["실제 No", "실제 Yes"],
+    columns=["예측 No", "예측 Yes"],
+)</code></pre>
+      <p><code>confusion_matrix(y_valid, logistic_predictions)</code>에서 첫 번째 입력 <code>y_valid</code>는 실제 정답이므로 <strong>행</strong>이 되고, 두 번째 입력 <code>logistic_predictions</code>는 모델 예측이므로 <strong>열</strong>이 된다. <code>labels=["No", "Yes"]</code>는 두 클래스의 행·열 순서를 No, Yes로 고정한다. <code>index</code>와 <code>columns</code>는 계산을 바꾸지 않고 사람이 읽을 표의 행·열 제목을 붙인다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th></th><th>예측 No</th><th>예측 Yes</th></tr></thead>
+        <tbody>
+          <tr><th>실제 No</th><td>926</td><td>109</td></tr>
+          <tr><th>실제 Yes</th><td>165</td><td>209</td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><code>926</code>: 실제 No를 No로 맞춘 수</li>
+        <li><code>109</code>: 실제 No를 Yes로 잘못 경고한 수 (<code>FP</code>)</li>
+        <li><code>165</code>: 실제 Yes를 No로 놓친 수 (<code>FN</code>)</li>
+        <li><code>209</code>: 실제 Yes를 Yes로 찾아낸 수 (<code>TP</code>)</li>
+      </ul>
+      <p>Accuracy는 전체 네 칸 중 정답인 대각선 두 칸을 더한 비율이다.</p>
+      <div class="formula">Accuracy = <span class="fraction"><span class="top">926 + 209</span><span class="bottom">926 + 109 + 165 + 209</span></span> = <span class="fraction"><span class="top">1,135</span><span class="bottom">1,409</span></span> ≈ 80.55%</div>
+
+      <h3>Yes를 기준으로 행과 열을 다르게 읽는다</h3>
+      <p>실제 Yes 행은 실제 이탈자 전체 <code>165 + 209 = 374</code>명이다. 이 행에서 예측 Yes <code>209</code>명을 고르면 “실제 이탈자 중 찾아낸 비율”이 된다.</p>
+      <div class="formula">Yes Recall = <span class="fraction"><span class="top">209</span><span class="bottom">165 + 209</span></span> ≈ 55.88%</div>
+      <p>반대로 예측 Yes 열은 모델이 이탈이라고 경고한 전체 <code>109 + 209 = 318</code>명이다. 이 열에서 실제 Yes <code>209</code>명을 고르면 “이탈이라고 한 예측을 얼마나 믿을 수 있는가”가 된다.</p>
+      <div class="formula">Yes Precision = <span class="fraction"><span class="top">209</span><span class="bottom">109 + 209</span></span> ≈ 65.72%</div>
+      <div class="callout"><strong>행 하나나 열 하나는 전체 모집단이 아니다.</strong><br>실제 Yes 행은 실제 Yes라는 조건으로 자른 374명이고, 예측 Yes 열은 모델이 Yes라고 한 조건으로 자른 318명이다. 네 칸을 모두 더한 <code>1,409</code>명이 전체 Validation 모집단이다.</div>
+
+      <h3>F1은 한쪽만 높은 상태를 그대로 좋다고 보지 않는다</h3>
+      <p>이번 Yes Precision과 Recall의 단순 평균은 약 <code>60.80%</code>이고, F1은 약 <code>60.40%</code>다.</p>
+      <div class="formula">Yes F1 = <span class="fraction"><span class="top">2 × 65.72 × 55.88</span><span class="bottom">65.72 + 55.88</span></span> ≈ 60.40%</div>
+      <p>F1은 Precision과 Recall의 조화평균이다. 한쪽만 높고 다른 쪽이 낮으면 단순 평균보다 낮은 쪽의 문제를 더 반영한다. 따라서 단순 평균과 F1이 비슷하면서 둘 다 높다면, Precision과 Recall이 모두 높고 균형도 비교적 맞는 상태다. 반대로 둘이 비슷해도 값 자체가 낮으면 좋은 모델이라는 뜻은 아니다.</p>
+
+      <h3><code>classification_report</code>는 클래스별 표를 한 번에 보여 준다</h3>
+      <pre><code>from sklearn.metrics import classification_report
+
+print(
+    classification_report(
+        y_valid,
+        logistic_predictions,
+        labels=["No", "Yes"],
+        digits=3,
+    )
+)</code></pre>
+      <div class="table-scroll"><table>
+        <thead><tr><th>행</th><th>precision</th><th>recall</th><th>f1-score</th><th>support</th></tr></thead>
+        <tbody>
+          <tr><th>No</th><td>0.849</td><td>0.895</td><td>0.871</td><td>1,035</td></tr>
+          <tr><th>Yes</th><td>0.657</td><td>0.559</td><td>0.604</td><td>374</td></tr>
+          <tr><th>accuracy</th><td colspan="3">0.806</td><td>1,409</td></tr>
+          <tr><th>macro avg</th><td>0.753</td><td>0.727</td><td>0.738</td><td>1,409</td></tr>
+          <tr><th>weighted avg</th><td>0.798</td><td>0.806</td><td>0.800</td><td>1,409</td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><code>support</code>: 각 행의 실제 정답 개수다. No는 1,035명, Yes는 374명이다.</li>
+        <li><code>accuracy</code>: 클래스 구분 없이 전체 1,409명 중 맞춘 비율이다.</li>
+        <li><code>macro avg</code>: No와 Yes를 같은 비중으로 단순 평균한다. 예를 들어 Precision은 <code>(0.849 + 0.657) / 2 = 0.753</code>이다.</li>
+        <li><code>weighted avg</code>: 실제 정답 수(<code>support</code>)가 많은 클래스에 더 큰 비중을 준다. 이번 Precision은 <code>0.849 × (1035 / 1409) + 0.657 × (374 / 1409) ≈ 0.798</code>이다.</li>
+      </ul>
+      <div class="warning"><strong>어떤 평균이 “더 좋은가”는 고정되어 있지 않다.</strong><br>클래스 수가 적은 Yes도 No와 똑같이 중요하면 macro average가 그 차이를 더 잘 드러낸다. 실제 고객 수 비중대로 전체 성능을 요약하고 싶다면 weighted average가 맞는다. 이탈자를 놓치거나 잘못 경고하는 비용을 판단할 때는 평균 하나만 보지 말고 Yes Precision·Recall과 혼동 행렬도 함께 본다.</div>
     </section>
 
     <section id="experiment">
