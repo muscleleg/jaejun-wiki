@@ -1,17 +1,17 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-19",
-  overall: { done: 10, total: 23 },
+  updated: "2026-08-20",
+  overall: { done: 12, total: 23 },
   coaching: {
-    recentEvidence: "Logistic Regression을 전처리된 Train (5634,45)으로 학습해 Validation Accuracy 80.55%를 확인했고, Dummy 73.46%보다 7.10%p 높았다. Confusion Matrix에서 Yes Recall 55.88%·Precision 65.72%·F1 60.40%를 직접 계산하고, classification report의 macro·weighted 평균도 인원수 가중치와 연결해 읽었다.",
-    diagnosis: "첫 Logistic Baseline의 학습과 지표 해석은 끝났다. StandardScaler 수학 전개는 작은 숫자로 따라갔지만 아직 자기 말로 완전히 설명한 증거가 없어 복습 참조로 유지한다. 현재 다음 질문은 모델 확률과 Threshold를 바꾸면 Recall·Precision이 어떻게 trade-off되는가다.",
-    warning: "Tiny Decoder LM은 Transformer의 다음 구현 항목이지만, 데이터 분할·Baseline 평가와 PyTorch 학습 구조를 연결하기 전까지 시작을 보류한다.",
-    completionGate: "완료: 데이터 품질·분할·Dummy Accuracy·One-Hot·StandardScaler 통합 검증·Logistic 평가 → 현재: 예측 확률과 Threshold에 따른 Precision·Recall trade-off 비교 → 복습: StandardScaler 평균 0·표준편차 1 수학 설명",
-    scheduledRotation: "현재: Machine Learning 회원 이탈 Baseline → 다음: PyTorch nn.Module·Optimizer → 이후: Tiny Decoder LM 복귀"
+    recentEvidence: "기본 DecisionTree의 깊이 22·잎 1,106개와 Train 99.8048%·Validation 72.8886%를 확인했다. max_depth=3·5·7과 min_samples_leaf=10을 같은 split에서 비교했고, Tree 중 깊이 5가 Validation 79.8439%로 최고였지만 Logistic 80.5536%보다 낮았다.",
+    diagnosis: "회원 이탈 scikit-learn Baseline 단위를 닫았다. 데이터·평가와 Transformer 내부 이해는 쌓였지만, AI/ML 엔지니어 결과물에 필요한 PyTorch 학습 루프와 저장·복원·추론 전달 증거는 아직 비어 있다. StandardScaler 수학 전개와 Recall·Precision 축 읽기는 복습 참조로 유지한다.",
+    warning: "Transformer 내부 학습만 더 깊게 들어가기 전에, PyTorch Module·Optimizer를 회원 이탈 MLP와 최소 추론 전달까지 연결해 작은 end-to-end 프로젝트 하나를 먼저 닫는다.",
+    completionGate: "완료: 회원 이탈 scikit-learn Baseline → 현재: PyTorch nn.Module·Optimizer로 y=3x+2 학습 루프 구현 → 연결: 같은 split의 MLP 비교·저장/복원·간단한 추론 API → 이후: Tiny Decoder LM 복귀",
+    scheduledRotation: "현재: PyTorch nn.Module·Optimizer → 다음: 회원 이탈 MLP·최소 전달 → 이후: Tiny Decoder LM"
   },
   rotation: {
-    trigger: "회원 이탈 Baseline의 Threshold 비교와 Tree 모델 비교 완료",
-    next: "Logistic Regression의 predict_proba()를 확인하고 Threshold를 바꿔 Precision·Recall 변화를 비교",
-    after: "PyTorch nn.Module·Optimizer로 y=3x+2 재구현",
+    trigger: "회원 이탈 Baseline의 Threshold·Tree 복잡도 비교 완료",
+    next: "PyTorch nn.Module과 Optimizer로 y=3x+2의 forward·loss·backward·step 흐름 재구현",
+    after: "같은 회원 이탈 split에 MLP를 연결하고 저장·복원·간단한 추론 API로 최소 전달 검증",
     returnTo: "Tiny Decoder LM"
   },
   tracks: [
@@ -31,17 +31,17 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_pytorch.html",
       done: 2,
       total: 6,
-      current: "Loss 계산 그래프, Autograd와 수동 SGD 검증",
-      next: "회원 이탈 Baseline 완료 뒤 nn.Module과 Optimizer로 y=3x+2 재구현"
+      current: "Loss 계산 그래프·Autograd·수동 SGD 완료, nn.Module·Optimizer 학습 시작",
+      next: "nn.Module과 Optimizer로 y=3x+2의 학습 루프를 직접 구현"
     },
     {
       id: "machine-learning",
       title: "Machine Learning 실습",
       href: "roadmaps/roadmap_machine_learning.html",
-      done: 2,
+      done: 4,
       total: 6,
-      current: "Logistic Baseline과 분류 지표 해석 완료 · StandardScaler 수학 전개는 복습 참조",
-      next: "predict_proba()와 Threshold로 Precision·Recall trade-off 비교"
+      current: "회원 이탈 scikit-learn Baseline 완료: Threshold·Tree 과적합·제약 비교 검증",
+      next: "PyTorch 학습 루프를 만든 뒤 같은 회원 이탈 split에 MLP를 연결"
     },
     {
       id: "llm-systems",
