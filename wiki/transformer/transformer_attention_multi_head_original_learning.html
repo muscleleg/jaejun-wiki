@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="코드 셀 단위로 배우는 Transformer 구현 학습 문서">
+  <title>Transformer · Scaled Dot-Product Attention</title>
+  <style>
+    :root {
+      --ink: #18211d;
+      --muted: #667069;
+      --paper: #f6f3eb;
+      --panel: #fffdf7;
+      --line: #d9d5c8;
+      --green: #176b4d;
+      --green-soft: #dcecdf;
+      --orange: #d56a3a;
+      --code: #17211d;
+      --code-ink: #eaf3ec;
+      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
+        var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.7;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 76px 0 52px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--green);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      font-size: clamp(2.6rem, 7vw, 5.7rem);
+      font-weight: 800;
+      letter-spacing: -0.065em;
+      line-height: 1.02;
+    }
+
+    .lead {
+      max-width: 680px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .doc-link {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 9px 13px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
+    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
+    .breadcrumb .separator { opacity: .45; }
+    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 56px;
+      padding: 52px 0 100px;
+    }
+
+    nav {
+      position: sticky;
+      top: 28px;
+      align-self: start;
+    }
+
+    nav p {
+      margin: 0 0 13px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    nav a {
+      display: block;
+      margin: 2px 0;
+      padding: 9px 12px;
+      color: var(--muted);
+      border-left: 2px solid transparent;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    nav a:hover, nav a:focus-visible {
+      color: var(--green);
+      border-left-color: var(--green);
+      outline: none;
+    }
+
+    nav .current {
+      color: var(--ink);
+      font-weight: 750;
+      border-left-color: var(--orange);
+    }
+
+    main { min-width: 0; }
+
+    .cell-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--orange);
+      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .cell-label::before {
+      width: 9px;
+      height: 9px;
+      content: "";
+      background: var(--orange);
+      border-radius: 50%;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      line-height: 1.13;
+    }
+
+    h3 {
+      margin: 52px 0 14px;
+      font-size: 1.28rem;
+      letter-spacing: -0.02em;
+    }
+
+    p { margin: 0 0 18px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .summary {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.03rem;
+    }
+
+    .code-card {
+      position: relative;
+      overflow: hidden;
+      margin: 30px 0;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .code-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 13px 18px;
+      color: #9db0a4;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    pre {
+      margin: 0;
+      padding: 24px;
+      overflow-x: auto;
+      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+      tab-size: 4;
+    }
+
+    .kw { color: #f1a567; }
+    .type { color: #80d6a6; }
+    .fn { color: #e7d17d; }
+    .num { color: #a9bff7; }
+    .comment { color: #819389; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 28px 0 8px;
+    }
+
+    .flow-item {
+      position: relative;
+      min-height: 134px;
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .flow-item:not(:last-child)::after {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -16px;
+      width: 21px;
+      height: 21px;
+      content: "→";
+      color: var(--green);
+      background: var(--paper);
+      text-align: center;
+      line-height: 19px;
+    }
+
+    .flow-item strong { display: block; margin-bottom: 9px; }
+    .flow-item span { color: var(--muted); font-size: 0.86rem; }
+
+    .shape {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 7px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 5px;
+      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .explain-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .note {
+      padding: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .note .number {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--orange);
+      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .note strong { display: block; margin-bottom: 7px; }
+    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+    .formula {
+      margin: 30px 0;
+      padding: 28px;
+      background: var(--green-soft);
+      border-left: 4px solid var(--green);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .formula .math {
+      display: block;
+      margin-bottom: 10px;
+      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
+        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .reasoning {
+      margin: 52px 0 0;
+      padding: 30px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .reasoning h3 { margin-top: 0; }
+
+    .equivalence {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 14px;
+      margin: 24px 0 30px;
+    }
+
+    .equivalence article {
+      padding: 20px;
+      background: var(--paper);
+      border-radius: 10px;
+    }
+
+    .equivalence strong { display: block; margin-bottom: 10px; }
+    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
+
+    .path-map {
+      display: grid;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .path-row {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 15px 17px;
+      background: var(--green-soft);
+      border-radius: 9px;
+    }
+
+    .path-row strong { color: var(--green); }
+    .path-row code { font-size: 0.83rem; }
+
+    .caution {
+      margin: 24px 0 0;
+      padding: 17px 19px;
+      color: var(--muted);
+      background: #f4eadf;
+      border-left: 3px solid var(--orange);
+      border-radius: 0 9px 9px 0;
+      font-size: 0.9rem;
+    }
+
+    table {
+      width: 100%;
+      margin: 20px 0;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
+    td { font-size: 0.92rem; }
+    tr:last-child td { border-bottom: 0; }
+
+    .checkpoint {
+      margin-top: 52px;
+      padding: 28px;
+      color: white;
+      background: var(--green);
+      border-radius: 16px;
+    }
+
+    .checkpoint h3 { margin: 0 0 18px; }
+    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+    summary { cursor: pointer; font-weight: 700; }
+    details p { margin: 12px 0 0; color: #dcecdf; }
+
+    .cell-start {
+      margin-top: 92px;
+      padding-top: 72px;
+      border-top: 2px solid var(--line);
+    }
+
+    .concept-figure {
+      margin: 28px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .trig-axis { stroke: #667069; stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
+    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
+    .trig-point { fill: #d56a3a; }
+    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
+    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
+    .position-radius { stroke: #d56a3a; stroke-width: 3; }
+    .position-point { fill: #d56a3a; }
+    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .wave-axis { stroke: #667069; stroke-width: 1.5; }
+    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
+    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
+    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
+    .wave-sin-dot { fill: #176b4d; }
+    .wave-cos-dot { fill: #d56a3a; }
+    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    footer {
+      padding: 24px 0 42px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 800px) {
+      header { padding-top: 48px; }
+      .layout { grid-template-columns: 1fr; gap: 30px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      nav .current { border-bottom-color: var(--orange); }
+      .flow { grid-template-columns: 1fr 1fr; }
+      .flow-item:not(:last-child)::after { display: none; }
+      .equivalence { grid-template-columns: 1fr; }
+      .equals { justify-self: center; }
+    }
+
+    @media (max-width: 540px) {
+      .page { width: min(100% - 24px, 1120px); }
+      .flow, .explain-grid { grid-template-columns: 1fr; }
+      .reasoning { padding: 22px; }
+      .path-row { grid-template-columns: 1fr; gap: 4px; }
+      pre { padding: 18px; font-size: 0.78rem; }
+      th, td { padding: 11px 10px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_attention_learning.html">Attention</a><span class="separator">›</span><a href="transformer_multi_head_attention_learning.html">Multi-Head Attention</a><span class="separator">›</span><span aria-current="page">계산 상세</span></nav><header><p class="eyebrow">Multi-Head Attention · 심화 계산</p><h1>Multi-Head Attention 계산 상세</h1><p class="lead">Q·K·V를 Head로 나누고 Attention을 계산한 뒤 Token 기준으로 다시 합치는 Shape 흐름을 자세히 따라간다.</p></header><p><a class="doc-link" href="transformer_multi_head_attention_learning.html">← Multi-Head Attention 학습 경로</a></p><section id="multi-head-attention">
+<p>이 예제는 Head 분리와 Shape 확인에 집중하기 위해 Projection 계산 대신 Q·K·V 결과를 직접 선언한 단순화된 실험이다. 실제 Transformer에서는 같은 입력을 서로 다른 <code>nn.Linear</code>에 통과시켜 Q·K·V를 만든 뒤 이 흐름으로 들어온다.</p>
+<h3>오늘 완성한 전체 흐름</h3>
+        <div class="path-map" aria-label="Multi-Head Attention 전체 흐름">
+          <div class="path-row"><strong>1</strong><code>Q·K·V 준비</code></div>
+          <div class="path-row"><strong>2</strong><code>각 Token의 특징 차원을 Head별 조각으로 분리</code></div>
+          <div class="path-row"><strong>3</strong><code>Head별 Q @ Kᵀ → √head_dim Scaling → Softmax</code></div>
+          <div class="path-row"><strong>4</strong><code>Attention Weight @ Value</code></div>
+          <div class="path-row"><strong>5</strong><code>같은 Token의 Head 결과를 다시 모아 d_model로 병합</code></div>
+        </div>
+
+        <section class="reasoning" id="head-order-and-position">
+          <h3>Head로 나눴다가 합쳐도 순서가 유지되는가?</h3>
+          <p>Multi-Head Attention은 Token 자체를 여러 Token으로 쪼개는 연산이 아니다. 각 Token이 가진 <strong>특징 차원</strong>을 여러 Head 조각으로 나누어 같은 Token에 대해 여러 관점의 Attention을 계산하는 연산이다.</p>
+
+          <div class="path-map" aria-label="Token과 특징 차원의 구분">
+            <div class="path-row"><strong>원래</strong><code>[batch, token, d_model] = [3, 4, 4]</code></div>
+            <div class="path-row"><strong>의미</strong><code>문장 3개 · 문장마다 Token 4개 · Token마다 특징 4개</code></div>
+            <div class="path-row"><strong>Head 설정</strong><code>num_heads=2, head_dim=2</code></div>
+          </div>
+
+          <p>한 Token의 특징 벡터가 <code>[0, 1, 2, 3]</code>이라면 Head 분리는 다음처럼 해석된다.</p>
+          <pre><code>Token 1 = [0, 1, 2, 3]
+
+Head 1 조각 = [0, 1]
+Head 2 조각 = [2, 3]</code></pre>
+
+          <p><code>view()</code>는 숫자를 정렬하거나 섞지 않고 새로운 Shape으로 해석한다. <code>transpose(1, 2)</code>도 Token 축과 Head 축의 위치만 바꾼다. Attention 계산을 마친 뒤 축을 다시 되돌리고 <code>reshape()</code>하면 Head 조각은 원래 순서로 이어진다.</p>
+          <pre><code>Head 1 결과 = [a, b]
+Head 2 결과 = [c, d]
+
+다시 병합 → [a, b, c, d]</code></pre>
+
+          <div class="formula">
+            <span class="math">[batch, token, d_model]</span>
+            <span><code>→ [batch, token, num_heads, head_dim]</code><br><code>→ [batch, head, token, head_dim]</code><br><code>→ 다시 [batch, token, d_model]</code></span>
+          </div>
+
+          <h3>포지셔널 인코딩은 Head 계산에서 사라진 것처럼 보이는 이유</h3>
+          <p>포지셔널 인코딩은 Head 분리 직전에 다시 더하는 값이 아니다. 보통 Token Embedding에 먼저 더해져 <code>x</code>가 되고, 그 <code>x</code>가 Q·K·V Projection의 입력이 된다.</p>
+          <pre><code>x = token_embedding + positional_encoding
+
+query = query_projection(x)
+key = key_projection(x)
+value = value_projection(x)</code></pre>
+
+          <p>따라서 이후의 Q·K·V와 Head 조각에는 이미 다음 정보가 함께 들어 있다.</p>
+          <div class="equivalence">
+            <article><strong>Token 의미</strong><p>어떤 단어·토큰인가</p></article>
+            <div class="equals" aria-hidden="true">+</div>
+            <article><strong>위치 정보</strong><p>문장 안에서 몇 번째 위치인가</p></article>
+          </div>
+
+          <div class="caution"><strong>핵심 정리</strong> — Head 분리는 Token 순서를 없애지 않는다. Token 축은 계속 유지되고, 각 Token의 특징 차원만 Head별로 나뉜다. 포지셔널 인코딩도 버려지는 것이 아니라 <code>x</code>에 더해진 뒤 Q·K·V Projection을 거쳐 각 Head의 계산에 간접적으로 포함된다.</div>
+        </section>
+<h3>1. Query를 현재 셀에서 다시 선언하기</h3>
+        <div class="code-card" aria-label="Multi-Head 실습 Query 선언">
+          <div class="code-head"><span>실습용 Query</span><span>Token 2개 · 차원 2개</span></div>
+          <pre><code>import torch
+
+query = torch.tensor([[
+    [<span class="num">0.1</span>, <span class="num">0.2</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.3</span>, <span class="num">0.4</span>],  <span class="comment"># Token 2</span>
+]])
+
+print(<span class="string">"query:"</span>)
+print(query)
+print(<span class="string">"query shape:"</span>, query.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Query 기본 Shape">
+          <div class="path-row"><strong>query</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+          <div class="path-row"><strong>Token 1</strong><code>[0.1, 0.2]</code></div>
+          <div class="path-row"><strong>Token 2</strong><code>[0.3, 0.4]</code></div>
+        </div>
+        <p>실제 모델에서는 <code>Q = x @ W_Q</code>로 만들어지지만, 이번 셀에서는 Head Shape에 집중하기 위해 Query 결과값을 직접 만들었다.</p>
+
+        <h3>2. Head 수와 Head 차원 계산</h3>
+        <div class="code-card" aria-label="Head 차원 계산 코드">
+          <div class="code-head"><span>Head 크기 계산</span><span><code>d_model = num_heads × head_dim</code></span></div>
+          <pre><code>batch_size, token_count, d_model = query.shape
+
+num_heads = <span class="num">2</span>
+head_dim = d_model // num_heads
+
+print(<span class="string">"batch_size:"</span>, batch_size)
+print(<span class="string">"token_count:"</span>, token_count)
+print(<span class="string">"d_model:"</span>, d_model)
+print(<span class="string">"num_heads:"</span>, num_heads)
+print(<span class="string">"head_dim:"</span>, head_dim)</code></pre>
+        </div>
+        <p>현재는 <code>d_model=2</code>, <code>num_heads=2</code>이므로 <code>head_dim=1</code>이다.</p>
+
+        <h3>3. <code>view()</code>로 Head별 조각 만들기</h3>
+        <div class="code-card" aria-label="Query를 Head별로 분리하는 코드">
+          <div class="code-head"><span>Head split</span><span>숫자는 그대로, Shape만 변경</span></div>
+          <pre><code>query_split = query.view(
+    batch_size,
+    token_count,
+    num_heads,
+    head_dim,
+)
+
+print(<span class="string">"query_split:"</span>)
+print(query_split)
+print(<span class="string">"query_split shape:"</span>, query_split.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="view 전후 Shape">
+          <div class="path-row"><strong>변경 전</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+          <div class="path-row"><strong>변경 후</strong><code>[batch, token, num_heads, head_dim] = [1, 2, 2, 1]</code></div>
+        </div>
+        <p><code>view()</code>는 숫자의 값이나 순서를 계산으로 바꾸지 않고, 같은 숫자를 새로운 Shape으로 다시 해석한다. 이번 코드에서는 <code>d_model 2 = num_heads 2 × head_dim 1</code>이 되도록 Shape을 직접 지정했다.</p>
+        <div class="caution"><strong><code>view()</code>와 <code>reshape()</code></strong> — 이번 실습에서는 둘 다 같은 용도로 이해해도 된다. <code>view()</code>는 메모리가 연속적으로 배치되어 있어야 하고, <code>reshape()</code>는 필요하면 복사해서라도 Shape을 바꿀 수 있다.</div>
+
+        <h3>4. “Token 조각이 늘었다”는 감각</h3>
+        <p>Head로 나누었다고 문장의 Token 수가 늘어난 것은 아니다.</p>
+        <div class="equivalence">
+          <article><strong>그대로인 것</strong><p>Token 수 = 2개</p></article>
+          <div class="equals" aria-hidden="true">대신</div>
+          <article><strong>늘어난 것</strong><p>Token × Head 조합 = 2 × 2 = 4개의 조각</p></article>
+        </div>
+        <pre><code>Token 1
+  Head 1 조각 → [0.1]
+  Head 2 조각 → [0.2]
+
+Token 2
+  Head 1 조각 → [0.3]
+  Head 2 조각 → [0.4]</code></pre>
+        <p>따라서 “Token 하나를 Head 수만큼 조각내서 처리할 조각의 개수를 늘렸다”는 표현은 맞다. 다만 실제 Token 수와 전체 숫자 개수는 그대로다.</p>
+
+        <h3>5. <code>transpose(1, 2)</code>로 같은 Head끼리 모으기</h3>
+        <div class="code-card" aria-label="Head와 Token 축을 바꾸는 코드">
+          <div class="code-head"><span>축 순서 변경</span><span>Token 축과 Head 축 교환</span></div>
+          <pre><code>query_heads = query_split.transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+print(<span class="string">"query_heads:"</span>)
+print(query_heads)
+print(<span class="string">"query_heads shape:"</span>, query_heads.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="transpose 전후 축 의미">
+          <div class="path-row"><strong>전</strong><code>[batch, token, head, head_dim]</code></div>
+          <div class="path-row"><strong>후</strong><code>[batch, head, token, head_dim]</code></div>
+        </div>
+        <pre><code>Head 1
+  Token 1 → [0.1]
+  Token 2 → [0.3]
+
+Head 2
+  Token 1 → [0.2]
+  Token 2 → [0.4]</code></pre>
+        <p>각 Head가 모든 Token의 자기 담당 특징 조각을 한꺼번에 볼 수 있도록 축을 바꾼다. 현재는 Token 수도 Head 수도 2라 Shape 숫자는 우연히 전후 모두 <code>[1, 2, 2, 1]</code>로 보이지만, 축의 의미와 숫자 배치는 달라졌다.</p>
+
+        <h3>6. 4차원 Tensor에서 인덱스 일부만 지정하기</h3>
+        <p><code>query_heads</code>의 Shape은 다음과 같다.</p>
+        <div class="formula"><span class="math">[batch, head, token, head_dim] = [1, 2, 2, 1]</span></div>
+        <p>따라서 다음 코드는 4차원 전체를 선택한 것이 아니다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>]</code></pre>
+        <p>이는 <code>Batch 0</code>과 <code>Head 0</code>만 선택하고, 뒤의 Token과 <code>head_dim</code> 축은 남겨두는 코드다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>]
+== query_heads[<span class="num">0</span>, <span class="num">0</span>, :, :]
+
+결과 Shape: [token, head_dim] = [2, 1]
+결과값:
+[
+    [<span class="num">0.1</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.3</span>],  <span class="comment"># Token 2</span>
+]</code></pre>
+        <p>숫자 하나를 선택하려면 인덱스 4개가 필요하다.</p>
+        <pre><code>query_heads[<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>]
+→ Batch 0, Head 0, Token 0, 차원 0
+→ <span class="num">0.1</span></code></pre>
+
+        <h3>7. Key와 Value도 같은 방식으로 분리하기</h3>
+        <div class="code-card" aria-label="Key와 Value 선언 및 Head 분리 코드">
+          <div class="code-head"><span>Key·Value split</span><span>Q와 동일한 축 흐름</span></div>
+          <pre><code>key = torch.tensor([[
+    [<span class="num">0.5</span>, <span class="num">0.6</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">0.7</span>, <span class="num">0.8</span>],  <span class="comment"># Token 2</span>
+]])
+
+value = torch.tensor([[
+    [<span class="num">10.0</span>, <span class="num">20.0</span>],  <span class="comment"># Token 1</span>
+    [<span class="num">30.0</span>, <span class="num">40.0</span>],  <span class="comment"># Token 2</span>
+]])
+
+key_heads = key.view(
+    batch_size, token_count, num_heads, head_dim
+).transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+value_heads = value.view(
+    batch_size, token_count, num_heads, head_dim
+).transpose(<span class="num">1</span>, <span class="num">2</span>)</code></pre>
+        </div>
+        <p>Q·K·V는 모두 다음 Shape으로 정렬된다.</p>
+        <div class="formula"><span class="math">[batch, head, token, head_dim] = [1, 2, 2, 1]</span></div>
+        <p>예를 들면 Head 1의 Value는 Token 1의 <code>[10.0]</code>, Token 2의 <code>[30.0]</code>을 가지고, Head 2의 Value는 <code>[20.0]</code>, <code>[40.0]</code>을 가진다.</p>
+        <div class="caution"><strong>실습 중 오타</strong> — <code>[30.0, 40,0]</code>은 <code>[30.0, 40, 0]</code>처럼 숫자 3개로 해석된다. 다른 행의 숫자 2개와 길이가 달라 Tensor를 만들 수 없으므로 <code>[30.0, 40.0]</code>으로 고친다.</div>
+
+        <h3>8. Head별 <code>Q @ Kᵀ</code> Score</h3>
+        <div class="code-card" aria-label="Head별 Score 계산 코드">
+          <div class="code-head"><span>Head별 내적</span><span>각 Head마다 Query-Key 표 생성</span></div>
+          <pre><code>scores_heads = torch.matmul(
+    query_heads,
+    key_heads.transpose(-<span class="num">2</span>, -<span class="num">1</span>),
+)
+
+print(<span class="string">"scores_heads:"</span>)
+print(scores_heads)
+print(<span class="string">"scores_heads shape:"</span>, scores_heads.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Head별 Score Shape">
+          <div class="path-row"><strong>query_heads</strong><code>[batch, head, query_token, head_dim]</code></div>
+          <div class="path-row"><strong>key_heads.transpose(-2, -1)</strong><code>[batch, head, head_dim, key_token]</code></div>
+          <div class="path-row"><strong>scores_heads</strong><code>[batch, head, query_token, key_token] = [1, 2, 2, 2]</code></div>
+        </div>
+        <p>Single-head에서는 <code>[batch, query_token, key_token]</code>였던 Score에 Head 축이 하나 추가됐다. 지금은 <code>2 × 2</code> Score 표가 Head마다 하나씩, 총 2개 생겼다.</p>
+
+        <h3>9. 왜 <code>√head_dim</code>으로 나누는가</h3>
+        <div class="code-card" aria-label="Head 차원 기준 Score scaling 코드">
+          <div class="code-head"><span>Scaled Score</span><span>현재 <code>head_dim=1</code></span></div>
+          <pre><code>import math
+
+scaled_scores_heads = scores_heads / math.sqrt(head_dim)
+
+print(<span class="string">"head_dim:"</span>, head_dim)
+print(<span class="string">"scaled_scores_heads:"</span>)
+print(scaled_scores_heads)</code></pre>
+        </div>
+        <p>Head 하나의 Score는 <code>head_dim</code>개의 곱을 더해 만든다.</p>
+        <div class="formula"><span class="math">Score = q₁k₁ + q₂k₂ + ··· + q<sub>head_dim</sub>k<sub>head_dim</sub></span></div>
+        <p>Q·K 원소의 분산이 대략 1이라고 가정하면 Score의 분산은 <code>head_dim</code>, 표준편차는 <code>√head_dim</code> 규모로 커진다. 따라서 <code>Score / √head_dim</code>으로 표준편차를 다시 약 1 규모로 맞춘다. 이번 예제는 <code>head_dim=1</code>이라 <code>√1=1</code>이고 값이 바뀌지 않는다.</p>
+        <div class="caution"><strong>초기화와 Scaling은 서로 다른 연산이다.</strong><br><code>1 / √d_model</code> 규모의 가중치 초기화는 많은 입력을 곱하고 더해 만든 Q·K 원소 하나의 크기를 안정화하는 쪽이다. <code>Score / √head_dim</code>은 Head 안에서 여러 Q·K 곱을 더해 커진 최종 Score의 표준편차를 안정화하는 쪽이다. Embedding에서 <code>√d_model</code>을 곱한 것을 취소하는 연산이 아니다.</div>
+
+        <h3>10. Head별 Softmax와 <code>dim=-1</code></h3>
+        <div class="code-card" aria-label="Head별 Softmax 코드">
+          <div class="code-head"><span>Attention Weight</span><span>마지막 Key 축의 합 = 1</span></div>
+          <pre><code>attention_weights_heads = torch.softmax(
+    scaled_scores_heads,
+    dim=-<span class="num">1</span>,
+)
+
+print(<span class="string">"attention_weights_heads:"</span>)
+print(attention_weights_heads)
+print(<span class="string">"shape:"</span>, attention_weights_heads.shape)
+print(
+    <span class="string">"Key 방향 합:"</span>,
+    attention_weights_heads.sum(dim=-<span class="num">1</span>),
+)</code></pre>
+        </div>
+        <p>Shape은 여전히 <code>[batch, head, query_token, key_token]</code>이다. <code>dim=-1</code>은 마지막 축인 Key 방향으로 Softmax를 적용한다는 뜻이다.</p>
+        <pre><code>예시 한 Head:
+[
+    [<span class="num">0.3</span>, <span class="num">0.7</span>],  <span class="comment"># Query 1이 Key 1·2를 참고하는 비율</span>
+    [<span class="num">0.4</span>, <span class="num">0.6</span>],  <span class="comment"># Query 2가 Key 1·2를 참고하는 비율</span>
+]
+
+sum(dim=-<span class="num">1</span>)
+→ [<span class="num">0.3</span> + <span class="num">0.7</span>, <span class="num">0.4</span> + <span class="num">0.6</span>]
+→ [<span class="num">1</span>, <span class="num">1</span>]</code></pre>
+        <p>합산 전 Shape이 <code>[batch, head, query_token, key_token]</code>이면 마지막 Key 축을 합산한 결과는 <code>[batch, head, query_token]</code>이다. 즉 각 Query가 Key에 배정한 비율의 합이 1인지 확인하는 검산이다.</p>
+
+        <h3>11. Attention Weight와 Value의 가중합</h3>
+        <div class="code-card" aria-label="Head별 Value 가중합 코드">
+          <div class="code-head"><span>Value 가중합</span><span>각 Head의 출력 벡터 생성</span></div>
+          <pre><code>head_outputs = torch.matmul(
+    attention_weights_heads,
+    value_heads,
+)
+
+print(<span class="string">"head_outputs:"</span>)
+print(head_outputs)
+print(<span class="string">"head_outputs shape:"</span>, head_outputs.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Value 가중합 Shape">
+          <div class="path-row"><strong>attention_weights_heads</strong><code>[batch, head, query_token, key_token]</code></div>
+          <div class="path-row"><strong>value_heads</strong><code>[batch, head, key_token, head_dim]</code></div>
+          <div class="path-row"><strong>head_outputs</strong><code>[batch, head, query_token, head_dim] = [1, 2, 2, 1]</code></div>
+        </div>
+        <p>Query Token 0의 Weight가 <code>a₀₀</code>, <code>a₀₁</code>이라면:</p>
+        <div class="formula"><span class="math">Output₀ = a₀₀ × Value₀ + a₀₁ × Value₁</span></div>
+        <p>Value가 여러 차원이라면 각 차원에 같은 Attention Weight를 곱한 뒤 더한다. 관련도가 Value 안으로 들어가는 것이 아니라, 관련도를 가중치로 사용해 Value 벡터들을 섞어 새로운 출력 벡터를 만드는 것이다.</p>
+
+        <h3>12. Head 결과를 Token 기준으로 다시 모으기</h3>
+        <div class="code-card" aria-label="Head 결과의 축을 되돌리는 코드">
+          <div class="code-head"><span>Head 축 되돌리기</span><span>Token별 Head 조각을 이웃하게 배치</span></div>
+          <pre><code>outputs_by_token = head_outputs.transpose(<span class="num">1</span>, <span class="num">2</span>)
+
+print(<span class="string">"outputs_by_token:"</span>)
+print(outputs_by_token)
+print(<span class="string">"outputs_by_token shape:"</span>, outputs_by_token.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Head 출력 재배치 Shape">
+          <div class="path-row"><strong>변경 전</strong><code>[batch, head, token, head_dim]</code></div>
+          <div class="path-row"><strong>변경 후</strong><code>[batch, token, head, head_dim]</code></div>
+        </div>
+        <p>Head별로 흩어져 있던 결과를 같은 Token 아래에 모은다.</p>
+        <pre><code>Token 1
+  Head 1 결과 조각
+  Head 2 결과 조각
+
+Token 2
+  Head 1 결과 조각
+  Head 2 결과 조각</code></pre>
+
+        <h3>13. Head 조각을 다시 하나의 Token 벡터로 합치기</h3>
+        <div class="code-card" aria-label="Head 조각을 d_model로 병합하는 코드">
+          <div class="code-head"><span>Head merge</span><span><code>head × head_dim → d_model</code></span></div>
+          <pre><code>multi_head_output = outputs_by_token.reshape(
+    batch_size,
+    token_count,
+    d_model,
+)
+
+print(<span class="string">"multi_head_output:"</span>)
+print(multi_head_output)
+print(<span class="string">"multi_head_output shape:"</span>, multi_head_output.shape)</code></pre>
+        </div>
+        <div class="path-map" aria-label="Multi-Head 출력 병합 Shape">
+          <div class="path-row"><strong>병합 전</strong><code>[batch, token, head, head_dim] = [1, 2, 2, 1]</code></div>
+          <div class="path-row"><strong>병합 후</strong><code>[batch, token, d_model] = [1, 2, 2]</code></div>
+        </div>
+        <p><code>num_heads × head_dim = d_model</code>이므로 각 Token의 Head 조각들을 다시 붙이면 원래 Token 벡터와 같은 폭으로 돌아온다.</p>
+
+        <h3>오늘의 최종 Shape 흐름</h3>
+        <pre><code>query
+[batch, token, d_model]
+
+↓ view
+
+[batch, token, num_heads, head_dim]
+
+↓ transpose(1, 2)
+
+query_heads
+[batch, head, token, head_dim]
+
+↓ Q @ Kᵀ
+
+scores_heads
+[batch, head, query_token, key_token]
+
+↓ √head_dim으로 Scaling → Softmax
+
+attention_weights_heads
+[batch, head, query_token, key_token]
+
+↓ attention_weights @ value
+
+head_outputs
+[batch, head, query_token, head_dim]
+
+↓ transpose(1, 2) → reshape
+
+multi_head_output
+[batch, token, d_model]</code></pre>
+
+        <div class="caution"><strong>오늘의 결론</strong> — 각 Token의 특징 차원을 여러 Head 조각으로 나누고, Head마다 독립적으로 Token 간 관련도와 Value 가중합을 계산한 뒤, 같은 Token의 Head 결과들을 다시 하나의 <code>d_model</code> 벡터로 합치는 것이 Multi-Head Attention이다.</div>
+        <div class="equivalence">
+          <article><strong>오늘 완성</strong><p>Head 분리 → Head별 Score·Softmax·Value 가중합 → Head 병합</p></article>
+          <div class="equals" aria-hidden="true">다음</div>
+          <article><strong>아직 남음</strong><p>합쳐진 결과의 Output Projection <code>W_O</code>, <code>nn.Module</code>로 묶기, Mask·Dropout 연결</p></article>
+        </div>
+        <div class="caution"><strong>후속 학습 상태 · 2026-08-17</strong> — 위의 “아직 남음”은 Head 병합을 처음 끝낸 당시의 상태다. 이후 Output Projection <code>W_O</code>와 전체 Multi-Head Attention을 <code>nn.Module.forward()</code>로 묶고, Transformer Block 안의 Attention·FFN Dropout까지 구현·검증했다. Mask의 Multi-Head Shape 연결은 Tiny Decoder LM에서 Causal Mask와 함께 다시 검증한다. <a href="transformer_ffn_learning.html#transformer-block-completion">완성한 Transformer Block 흐름 보기 →</a></div>
+<section class="reasoning" id="multi-head-summary-in-my-words">
+          <h3>내 표현으로 다시 정리하기</h3>
+          <p>지금까지의 흐름을 내가 이해한 말로 다시 연결하면 다음과 같다. 먼저 입력 <code>x</code>를 서로 다른 가중치 표에 통과시켜 Q·K·V를 만든다.</p>
+          <pre><code>x → W_Q → Q
+x → W_K → K
+x → W_V → V</code></pre>
+          <div class="path-map" aria-label="Q K V Linear의 역할">
+            <div class="path-row"><strong>Q</strong><code>무엇을 찾을지 표현하는 중간 벡터</code></div>
+            <div class="path-row"><strong>K</strong><code>각 Token이 어떤 정보인지 표현하는 중간 벡터</code></div>
+            <div class="path-row"><strong>V</strong><code>관련도가 높을 때 실제로 가져올 정보</code></div>
+          </div>
+
+          <p>그 다음 Token을 쪼개는 것이 아니라, 각 Token의 특징 차원을 여러 Head로 나눈다. 예를 들어 하나의 Token이 <code>[0, 1, 2, 3]</code>이고 Head가 2개라면 다음처럼 나뉜다.</p>
+          <pre><code>Head 1 조각 = [0, 1]
+Head 2 조각 = [2, 3]</code></pre>
+          <p>각 Head는 담당한 특징 조각을 사용해 독립적으로 다음 계산을 한다.</p>
+          <pre><code>Q @ Kᵀ
+→ Scaling
+→ Softmax
+→ Attention Weight @ V</code></pre>
+          <p>그래서 Head마다 서로 다른 관련도와 Value 가중합이 만들어질 수 있다. 다만 가중치가 아직 랜덤인 초기 상태에서는 그 출력에 학습된 의미가 생긴 것은 아니다. 학습이 진행되면 각 Head가 서로 다른 패턴이나 관점을 잘 포착하도록 조정될 수 있다.</p>
+
+          <h4>Head 결과와 <code>multi_head_output</code></h4>
+          <p>Head별 결과가 다음처럼 나왔다고 하자.</p>
+          <pre><code>Head 1 결과 = [a, b]
+Head 2 결과 = [c, d]</code></pre>
+          <p>축을 Token 기준으로 되돌린 뒤 <code>reshape()</code>하면:</p>
+          <pre><code>multi_head_output = [a, b, c, d]</code></pre>
+          <p>이 결과는 여러 Head의 결과를 원래 <code>d_model</code> 폭에 맞춰 단순히 이어 붙인 중간 표현이다. <code>reshape()</code>는 값을 새로 계산하거나 의미를 부여하지 않고, 숫자의 배치와 Shape을 다시 해석한다.</p>
+          <div class="caution"><strong>순서는 유지된다.</strong> Token 축은 계속 Token 축으로 남고, <code>view()</code>와 <code>transpose()</code>는 정해진 축의 위치만 바꾼다. 다시 축을 되돌린 뒤 <code>reshape()</code>하면 Head 1 조각과 Head 2 조각이 원래 특징 차원 순서대로 이어진다. 따라서 Multi-Head Attention은 Token을 여러 Token으로 늘리는 작업이 아니다.</div>
+
+          <h4>왜 <code>multi_head_output</code>에 다시 Output Linear를 적용하는가?</h4>
+          <p><code>multi_head_output</code>은 다음처럼 Head 결과가 나란히 있는 상태다.</p>
+          <pre><code>Head 1 정보 | Head 2 정보 | ...</code></pre>
+          <p>여기에 Output Projection <code>W_O</code>를 적용하면 단순히 이어 붙은 정보가 학습된 가중치로 다시 조합된다.</p>
+          <pre><code>multi_head_output → W_O → projected_output</code></pre>
+          <p>예를 들어 출력 한 차원은 Head 1의 정보와 Head 2의 정보를 함께 사용해 만들어질 수 있다.</p>
+          <pre><code>새로운 출력 1
+= Head 1 정보 일부
++ Head 2 정보 일부</code></pre>
+          <p>따라서 <code>reshape()</code>와 <code>Output Linear</code>는 서로 다른 역할을 한다.</p>
+          <div class="path-map" aria-label="Reshape와 Output Linear의 차이">
+            <div class="path-row"><strong>reshape</strong><code>값을 바꾸지 않고 Head 결과를 원래 폭으로 이어 붙임</code></div>
+            <div class="path-row"><strong>W_O Linear</strong><code>이어 붙인 특징들을 학습된 가중치로 다시 섞고 변환함</code></div>
+          </div>
+          <p>Output Projection은 보통 Shape을 바꾸지 않는다.</p>
+          <div class="formula">
+            <span class="math">[batch, token, d_model]</span>
+            <span><code>→ W_O → [batch, token, d_model]</code></span>
+          </div>
+
+          <h4>Linear가 의미를 부여한다는 말의 정확한 뜻</h4>
+          <p>Linear가 각 행에 사람이 정한 의미를 직접 넣는 것은 아니다. 입력 특징들을 서로 다른 비율로 섞어 새로운 특징을 만든다.</p>
+          <pre><code>x = [x₁, x₂]
+
+y₁ = x₁ × w₁₁ + x₂ × w₁₂
+y₂ = x₁ × w₂₁ + x₂ × w₂₂</code></pre>
+          <p>각 출력 차원은 입력 차원들의 새로운 조합이다. 학습이 끝난 뒤 이 조합이 유용한 패턴을 담게 되면 사람이 그 의미를 해석할 수 있지만, 처음부터 특정 행이 문법·위치·주제 같은 의미로 고정되어 있는 것은 아니다.</p>
+
+          <h4>Q·K·V와 <code>W_O</code>는 어떻게 학습되는가?</h4>
+          <p>Q·K·V와 <code>W_O</code>가 각각 정답을 직접 맞추는 것은 아니다. 최종 예측에서 계산한 Loss가 전체 연산을 거꾸로 통과하면서 모든 가중치에 Gradient를 전달한다.</p>
+          <pre><code>최종 logits
+→ Loss
+→ loss.backward()
+→ W_Q, W_K, W_V, W_O 모두 Gradient 계산
+→ Optimizer가 모든 가중치 업데이트</code></pre>
+          <p>따라서 Q·K·V Projection과 Output Projection은 서로 따로 정답을 맞추는 것이 아니라, 최종 예측 Loss를 함께 줄이는 방향으로 학습된다.</p>
+
+          <h4>포지셔널 인코딩은 어디에 있는가?</h4>
+          <p>포지셔널 인코딩은 Multi-Head 단계에서 사라진 것이 아니다. Attention보다 앞에서 Token Embedding에 이미 더해져 <code>x</code>가 되고, 그 <code>x</code>가 Q·K·V Projection의 입력이 된다.</p>
+          <pre><code>x = token_embedding + positional_encoding
+
+query = query_projection(x)
+key = key_projection(x)
+value = value_projection(x)</code></pre>
+          <p>그러므로 이후의 Q·K·V와 Head 결과에는 다음 정보가 함께 들어 있다.</p>
+          <div class="equivalence">
+            <article><strong>Token 의미</strong><p>어떤 단어·Token인가</p></article>
+            <div class="equals" aria-hidden="true">+</div>
+            <article><strong>위치 정보</strong><p>문장 안에서 몇 번째 위치인가</p></article>
+          </div>
+
+          <div class="caution"><strong>최종 요약</strong> — Q·K·V Linear로 입력을 서로 다른 관점의 표현으로 바꾸고, 각 특징 차원을 여러 Head로 나누어 독립적으로 Attention을 계산한다. Head 결과를 <code>reshape()</code>로 다시 이어 붙이면 <code>multi_head_output</code>이 되지만, 이것은 Head 결과를 단순히 나열한 중간 표현이다. 그래서 <code>W_O</code>를 적용해 여러 Head의 정보를 학습된 방식으로 다시 섞고, 다음 Transformer 층이 사용할 공통 표현으로 변환한다. 이 모든 가중치는 최종 예측 Loss에서 나온 Gradient로 함께 학습된다.</div>
+</section></main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>

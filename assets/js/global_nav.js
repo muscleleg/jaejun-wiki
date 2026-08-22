@@ -35,6 +35,15 @@
   document.body.appendChild(nav);
 
   if (currentPath.includes("/wiki/")) {
+    const hasHeading = document.querySelector("main h1");
+    const firstConceptHeading = document.querySelector("main h2");
+    if (!hasHeading && firstConceptHeading) {
+      const heading = document.createElement("h1");
+      heading.className = "generated-document-title";
+      heading.textContent = firstConceptHeading.textContent.trim();
+      firstConceptHeading.before(heading);
+      document.title = `${heading.textContent} · ${document.title}`;
+    }
     const tocScript = document.createElement("script");
     tocScript.src = new URL("assets/js/article_toc.js", projectRoot).href;
     document.body.appendChild(tocScript);

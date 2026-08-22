@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초">
+  <title>수학 · 기댓값과 임베딩 초기화</title>
+  <style>
+    :root {
+      --ink: #1d2228;
+      --muted: #687078;
+      --paper: #f4f1ea;
+      --panel: #fffdf8;
+      --line: #d8d3c8;
+      --blue: #225f78;
+      --blue-soft: #dcebf0;
+      --yellow: #e6aa36;
+      --red: #b84f42;
+      --code: #182126;
+      --code-ink: #edf4f6;
+      --shadow: 0 18px 48px rgba(28, 37, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .page { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      padding: 28px 0 62px;
+      color: white;
+      background: var(--blue);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 76px;
+      font-size: 0.85rem;
+    }
+
+    .topbar a {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+
+    .topbar a:hover, .topbar a:focus-visible { background: rgba(255,255,255,.12); outline: none; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 24px; color: #d8e9ee; font-size: .86rem; }
+    .breadcrumb a { padding: 0; color: white; border: 0; border-radius: 0; font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { background: transparent; text-decoration: underline; }
+    .breadcrumb .separator { opacity: .5; }
+    .breadcrumb [aria-current="page"] { color: white; font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(25,65,82,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { outline: 3px solid #b9dbe6; }
+    .eyebrow { margin: 0 0 14px; color: #b9dbe6; font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.7rem, 7vw, 5.8rem);
+      font-weight: 820;
+      letter-spacing: -.065em;
+      line-height: 1.02;
+    }
+
+    .lead { max-width: 700px; margin: 28px 0 0; color: #d8e9ee; font-size: 1.08rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 58px;
+      padding: 54px 0 100px;
+    }
+
+    nav { position: sticky; top: 28px; align-self: start; }
+    nav p { margin: 0 0 12px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    nav a { display: block; padding: 8px 11px; color: var(--muted); border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
+    nav a:hover, nav a:focus-visible { color: var(--blue); border-left-color: var(--blue); outline: none; }
+
+    main { min-width: 0; }
+    section { scroll-margin-top: 24px; }
+    section + section { margin-top: 76px; padding-top: 64px; border-top: 1px solid var(--line); }
+
+    .concept {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--red);
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h2 { margin: 0 0 16px; font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -.045em; line-height: 1.15; }
+    h3 { margin: 38px 0 12px; font-size: 1.2rem; }
+    h4 { margin: 30px 0 10px; color: var(--blue); font-size: 1.04rem; }
+    p { margin: 0 0 17px; }
+    .intro { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+
+    .plain {
+      margin: 25px 0;
+      padding: 23px 25px;
+      background: var(--blue-soft);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .plain strong { display: block; margin-bottom: 5px; color: var(--blue); }
+    .plain p { margin: 0; }
+
+    .formula {
+      margin: 22px 0;
+      padding: 22px;
+      overflow-x: auto;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      font: 600 clamp(.9rem, 2.5vw, 1.15rem)/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .steps { display: grid; gap: 10px; margin: 24px 0; counter-reset: step; }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      padding: 16px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .step::before {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      counter-increment: step;
+      content: counter(step);
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      border-radius: 50%;
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .step p { margin: 0; color: var(--muted); }
+    .step strong { color: var(--ink); }
+
+    .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+    .card { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .card strong { display: block; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .dots { margin-top: 16px; color: var(--blue); font: 800 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-spacing: 7px; }
+
+    table { width: 100%; margin: 22px 0; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .78rem; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .answer {
+      margin-top: 30px;
+      padding: 26px;
+      color: white;
+      background: var(--blue);
+      border-radius: 14px;
+    }
+
+    .answer strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
+    .answer p { margin: 0; color: #d8e9ee; }
+
+    .proof-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .proof-figure svg { display: block; width: min(100%, 640px); height: auto; margin: 0 auto; }
+    .proof-figure figcaption { max-width: 650px; margin: 16px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .proof-triangle { fill: #f5ddb0; stroke: #1d2228; stroke-width: 2; }
+    .proof-center { fill: #dcebf0; stroke: #225f78; stroke-width: 3; }
+    .proof-outline { fill: none; stroke: #1d2228; stroke-width: 3; }
+    .proof-label { fill: #1d2228; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-center-label { fill: #225f78; font: 800 25px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-right-angle { fill: none; stroke: #b84f42; stroke-width: 2; }
+
+    .concept-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .triangle-fill { fill: rgba(34, 95, 120, 0.08); }
+    .triangle-edge { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linejoin: round; }
+    .triangle-right { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+    .triangle-angle { fill: none; stroke: var(--yellow); stroke-width: 2.5; }
+    .triangle-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+    .triangle-title { fill: var(--blue); font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-note { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: var(--blue); stroke-width: 3; }
+    .trig-radius { stroke: var(--yellow); stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: var(--yellow); stroke-width: 2; }
+    .trig-point { fill: var(--yellow); }
+    .trig-label { fill: var(--ink); font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .diagram-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
+    .diagram-vector { fill: none; stroke: var(--blue); stroke-width: 4; }
+    .diagram-vector-alt { fill: none; stroke: var(--yellow); stroke-width: 4; }
+    .diagram-component { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
+    .diagram-arc { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-wave { fill: none; stroke: var(--blue); stroke-width: 3.5; }
+    .diagram-wave-alt { fill: none; stroke: var(--red); stroke-width: 3; }
+    .diagram-wave-slow { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-point { fill: var(--red); }
+    .diagram-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .formula span { display: block; }
+    .path-map { display: grid; gap: 9px; margin: 24px 0; }
+    .path-row { display: grid; grid-template-columns: minmax(110px, .6fr) 1.4fr; gap: 16px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .path-row strong { color: var(--blue); }
+    .caution { margin: 25px 0; padding: 22px 24px; background: #f7e7c8; border-left: 4px solid var(--yellow); border-radius: 0 12px 12px 0; }
+    .caution strong { color: #805713; }
+
+    footer { padding: 26px 0 44px; color: var(--muted); border-top: 1px solid var(--line); font-size: .82rem; }
+
+    @media (max-width: 780px) {
+      .topbar { margin-bottom: 50px; }
+      .layout { grid-template-columns: 1fr; gap: 26px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .page { width: calc(100% - 24px); }
+      header { padding-bottom: 46px; }
+      .topbar span { display: none; }
+      th, td { padding: 10px 9px; font-size: .82rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span>›</span><a href="../../wiki.html">기술 위키</a><span>›</span><a href="transformer_math_statistics_learning.html">통계 기초</a><span>›</span><span>기댓값과 임베딩 초기화</span></nav><header class="detail-header"><p class="eyebrow">수학 · 세부 문서</p><h1>기댓값과 임베딩 초기화</h1><p class="lead">상위 학습 흐름에서 기댓값과 임베딩 초기화에 필요한 계산·코드·검증 내용을 자세히 정리한다.</p></header><p><a href="transformer_math_statistics_learning.html">← 통계 기초 학습 경로</a></p><section id="expectation">
+        <span class="concept">Concept 05</span>
+        <h2><code>E[...]</code>는 기댓값을 계산하는 연산자다</h2>
+        <p class="intro"><code>E</code>는 영어 <em>Expectation</em>의 첫 글자입니다. 숫자나 변수가 아니라, 대괄호 안의 랜덤한 표현식이 확률적으로 평균 얼마가 되는지 계산하라는 연산 기호입니다.</p>
+
+        <div class="answer">
+          <strong>기댓값의 정의</strong>
+          <p>랜덤 변수가 가질 수 있는 모든 값에 각각의 발생 확률을 곱한 기여분을 모두 더한 값입니다. 가능한 값이 연속적으로 무한히 많은 경우에도 같은 원리를 확률밀도 전체에 적용합니다.</p>
+        </div>
+
+        <div class="formula">E[X] = Σ(가능한 값 × 그 값이 나올 확률)</div>
+
+        <div class="compare">
+          <article class="card">
+            <strong><code>√9</code></strong>
+            <p><code>√</code>는 제곱근 연산자이고 계산 결과는 <code>3</code>입니다.</p>
+          </article>
+          <article class="card">
+            <strong><code>E[X]</code></strong>
+            <p><code>E</code>는 기댓값 연산자이고 계산 결과는 확률분포를 고려한 하나의 숫자입니다.</p>
+          </article>
+        </div>
+
+        <div class="formula">E[X]      → X의 기댓값
+E[X²]     → X를 제곱한 값의 기댓값
+E[||W||²] → 랜덤 벡터 W의 길이 제곱에 대한 기댓값</div>
+
+        <h3>기댓값은 확률을 고려한 이론적인 평균이다</h3>
+        <p>가능한 각 결과에 그 결과가 나올 확률을 곱한 뒤 모두 더합니다.</p>
+        <div class="formula">E[X] = Σ(결과 × 그 결과가 나올 확률)</div>
+
+        <h3>가장 단순한 예제: 1 또는 2</h3>
+        <p>랜덤 변수 <code>X</code>가 <code>1</code> 또는 <code>2</code> 중 하나이고, 두 값이 나올 확률이 각각 <code>50%</code>라고 가정해봅시다.</p>
+        <div class="formula">X=1일 확률: 50%
+X=2일 확률: 50%
+
+결과 1의 기여분 = 1×0.5 = 0.5
+결과 2의 기여분 = 2×0.5 = 1.0
+
+E[X] = 0.5+1.0 = 1.5</div>
+
+        <div class="plain">
+          <strong>각 결과의 기댓값이 아니라 기여분이다</strong>
+          <p>“1의 기댓값이 0.5” 또는 “2의 기댓값이 1”이라고 표현하지 않습니다. <code>0.5</code>와 <code>1.0</code>은 각각의 결과가 전체 기댓값에 더하는 확률 가중 기여분이고, 이들을 모두 더한 <code>1.5</code>가 랜덤 변수 <code>X</code>의 기댓값입니다.</p>
+        </div>
+
+        <p>이 랜덤 선택을 여러 번 반복하면 <code>1, 2, 2, 1, 1, 2, ...</code>처럼 결과가 나오고, 실제 결과의 평균은 반복 횟수가 많아질수록 <code>1.5</code>에 가까워집니다.</p>
+
+        <p>공정한 주사위는 모든 눈의 확률이 <code>1/6</code>로 같으므로 기댓값이 단순 산술평균과 같은 모양이 됩니다.</p>
+        <div class="formula">E[X] = 1×(1/6) + 2×(1/6) + ... + 6×(1/6)
+     = (1+2+3+4+5+6)/6
+     = 3.5</div>
+
+        <p>기댓값 <code>3.5</code>가 실제 주사위 눈으로 나온다는 뜻은 아닙니다. 주사위를 매우 많이 던졌을 때 실제 결과의 평균이 이론적으로 <code>3.5</code>에 가까워진다는 뜻입니다.</p>
+
+        <h3>실제 평균과 기댓값의 차이</h3>
+        <div class="compare">
+          <article class="card">
+            <strong>실제 데이터 평균</strong>
+            <p>이미 관찰한 값들을 더해 개수로 나눕니다. 예: <code>[6,1,2,6]</code>의 평균은 <code>3.75</code>입니다.</p>
+          </article>
+          <article class="card">
+            <strong>기댓값 <code>E[X]</code></strong>
+            <p>실험하기 전에 확률분포를 이용해 계산한 이론적인 평균입니다. 공정한 주사위에서는 <code>3.5</code>입니다.</p>
+          </article>
+        </div>
+
+        <p>결과별 확률이 다르면 기댓값은 단순 평균과 달라집니다.</p>
+        <div class="formula">X=10일 확률: 80%
+X=20일 확률: 20%
+
+E[X] = 10×0.8 + 20×0.2 = 12</div>
+
+        <h3>임베딩 초기화에서 무엇이 랜덤한가?</h3>
+        <p>가중치 벡터 <code>W</code>는 정규분포에서 랜덤하게 뽑히므로 초기화할 때마다 달라집니다. 따라서 <code>W</code>로 계산한 <code>||W||²</code>도 매번 달라지는 랜덤한 값입니다.</p>
+        <div class="formula">첫 초기화: ||W₁||² = 0.8
+두 번째:   ||W₂||² = 1.2
+세 번째:   ||W₃||² = 1.0
+
+E[||W||²] = 가능한 모든 초기화와 확률을 고려한 이론적 평균</div>
+
+        <h3><code>E[wᵢ]=0</code>과 <code>E[||W||²]=1</code>은 모순이 아니다</h3>
+        <p>각 원소가 <code>+0.5</code> 또는 <code>-0.5</code>로 같은 확률로 초기화되는 4차원 벡터를 생각해봅시다.</p>
+        <div class="formula">E[wᵢ] = (+0.5)×0.5 + (-0.5)×0.5 = 0
+
+(+0.5)² = 0.25
+(-0.5)² = 0.25
+
+E[||W||²] = 0.25+0.25+0.25+0.25 = 1</div>
+
+        <div class="plain">
+          <strong>서로 다른 두 기댓값</strong>
+          <p><code>E[wᵢ]=0</code>은 각 원소가 양수와 음수로 0을 중심으로 분포한다는 뜻입니다. <code>E[||W||²]=1</code>은 원소들을 제곱해 더한 벡터 전체 크기가 평균적으로 1이라는 뜻입니다. 원래 값에서는 부호가 상쇄되지만 제곱하면 모두 양수가 되므로 두 조건이 동시에 가능합니다.</p>
+        </div>
+
+        <div class="formula">각 원소의 기댓값         E[wᵢ]      = 0
+벡터 길이 제곱의 기댓값 E[||W||²] = 1</div>
+
+        <div class="plain">
+          <strong>Transformer 코드와 연결</strong>
+          <p><code>mean=0.0</code>은 각 원소의 기댓값을 0으로 정하고, <code>std=1/√d_model</code>은 각 원소가 0 주변에서 퍼지는 정도를 정합니다. 이 설정으로 원본 임베딩 벡터 길이 제곱의 기댓값을 1로 맞춥니다.</p>
+        </div>
+
+        <h3>분포에서 뽑는 것과 실제 벡터를 평균내는 것은 다르다</h3>
+        <p>임베딩의 각 차원은 기댓값이 0인 같은 분포에서 랜덤 값 하나를 독립적으로 뽑습니다. 기댓값은 분포가 가진 이론적 성질이며, 초기화할 때 실제 벡터 원소를 더하거나 평균내서 0으로 만드는 과정이 아닙니다.</p>
+
+        <div class="formula">각 차원의 추출 규칙:
+E[w₁] = 0
+E[w₂] = 0
+...
+E[w_d] = 0
+
+한 번 뽑힌 실제 벡터:
+W = [0.21, -0.48, 0.07, -0.33]</div>
+
+        <div class="compare">
+          <article class="card">
+            <strong>기댓값이 0인 분포</strong>
+            <p>각 원소가 가질 수 있는 모든 값의 확률 가중 기여분을 더하면 0입니다. 양수와 음수의 기여가 이론적으로 상쇄됩니다.</p>
+          </article>
+          <article class="card">
+            <strong>실제 벡터의 원소 합</strong>
+            <p>한 번 뽑힌 <code>w₁+w₂+...+w_d</code>는 정확히 0일 필요가 없습니다. 이를 0으로 강제하는 초기화가 아닙니다.</p>
+          </article>
+        </div>
+
+        <div class="plain">
+          <strong>초기화에서 실제로 하는 일</strong>
+          <p>임베딩 행렬의 각 칸마다 기댓값이 0인 확률분포에서 랜덤 값 하나를 뽑습니다. 실제 기댓값을 계산하거나, 좌표를 더하거나, 차원 수로 나누는 연산은 하지 않습니다.</p>
+        </div>
+      </section>
+
+
+
+
+
+
+</main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>

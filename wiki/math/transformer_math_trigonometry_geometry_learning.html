@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초">
+  <title>수학 · 성분 분해와 코사인법칙</title>
+  <style>
+    :root {
+      --ink: #1d2228;
+      --muted: #687078;
+      --paper: #f4f1ea;
+      --panel: #fffdf8;
+      --line: #d8d3c8;
+      --blue: #225f78;
+      --blue-soft: #dcebf0;
+      --yellow: #e6aa36;
+      --red: #b84f42;
+      --code: #182126;
+      --code-ink: #edf4f6;
+      --shadow: 0 18px 48px rgba(28, 37, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .page { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      padding: 28px 0 62px;
+      color: white;
+      background: var(--blue);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 76px;
+      font-size: 0.85rem;
+    }
+
+    .topbar a {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+
+    .topbar a:hover, .topbar a:focus-visible { background: rgba(255,255,255,.12); outline: none; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 24px; color: #d8e9ee; font-size: .86rem; }
+    .breadcrumb a { padding: 0; color: white; border: 0; border-radius: 0; font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { background: transparent; text-decoration: underline; }
+    .breadcrumb .separator { opacity: .5; }
+    .breadcrumb [aria-current="page"] { color: white; font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(25,65,82,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { outline: 3px solid #b9dbe6; }
+    .eyebrow { margin: 0 0 14px; color: #b9dbe6; font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.7rem, 7vw, 5.8rem);
+      font-weight: 820;
+      letter-spacing: -.065em;
+      line-height: 1.02;
+    }
+
+    .lead { max-width: 700px; margin: 28px 0 0; color: #d8e9ee; font-size: 1.08rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 58px;
+      padding: 54px 0 100px;
+    }
+
+    nav { position: sticky; top: 28px; align-self: start; }
+    nav p { margin: 0 0 12px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    nav a { display: block; padding: 8px 11px; color: var(--muted); border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
+    nav a:hover, nav a:focus-visible { color: var(--blue); border-left-color: var(--blue); outline: none; }
+
+    main { min-width: 0; }
+    section { scroll-margin-top: 24px; }
+    section + section { margin-top: 76px; padding-top: 64px; border-top: 1px solid var(--line); }
+
+    .concept {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--red);
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h2 { margin: 0 0 16px; font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -.045em; line-height: 1.15; }
+    h3 { margin: 38px 0 12px; font-size: 1.2rem; }
+    h4 { margin: 30px 0 10px; color: var(--blue); font-size: 1.04rem; }
+    p { margin: 0 0 17px; }
+    .intro { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+
+    .plain {
+      margin: 25px 0;
+      padding: 23px 25px;
+      background: var(--blue-soft);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .plain strong { display: block; margin-bottom: 5px; color: var(--blue); }
+    .plain p { margin: 0; }
+
+    .formula {
+      margin: 22px 0;
+      padding: 22px;
+      overflow-x: auto;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      font: 600 clamp(.9rem, 2.5vw, 1.15rem)/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .steps { display: grid; gap: 10px; margin: 24px 0; counter-reset: step; }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      padding: 16px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .step::before {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      counter-increment: step;
+      content: counter(step);
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      border-radius: 50%;
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .step p { margin: 0; color: var(--muted); }
+    .step strong { color: var(--ink); }
+
+    .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+    .card { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .card strong { display: block; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .dots { margin-top: 16px; color: var(--blue); font: 800 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-spacing: 7px; }
+
+    table { width: 100%; margin: 22px 0; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .78rem; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .answer {
+      margin-top: 30px;
+      padding: 26px;
+      color: white;
+      background: var(--blue);
+      border-radius: 14px;
+    }
+
+    .answer strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
+    .answer p { margin: 0; color: #d8e9ee; }
+
+    .proof-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .proof-figure svg { display: block; width: min(100%, 640px); height: auto; margin: 0 auto; }
+    .proof-figure figcaption { max-width: 650px; margin: 16px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .proof-triangle { fill: #f5ddb0; stroke: #1d2228; stroke-width: 2; }
+    .proof-center { fill: #dcebf0; stroke: #225f78; stroke-width: 3; }
+    .proof-outline { fill: none; stroke: #1d2228; stroke-width: 3; }
+    .proof-label { fill: #1d2228; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-center-label { fill: #225f78; font: 800 25px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-right-angle { fill: none; stroke: #b84f42; stroke-width: 2; }
+
+    .concept-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .triangle-fill { fill: rgba(34, 95, 120, 0.08); }
+    .triangle-edge { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linejoin: round; }
+    .triangle-right { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+    .triangle-angle { fill: none; stroke: var(--yellow); stroke-width: 2.5; }
+    .triangle-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+    .triangle-title { fill: var(--blue); font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-note { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: var(--blue); stroke-width: 3; }
+    .trig-radius { stroke: var(--yellow); stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: var(--yellow); stroke-width: 2; }
+    .trig-point { fill: var(--yellow); }
+    .trig-label { fill: var(--ink); font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .diagram-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
+    .diagram-vector { fill: none; stroke: var(--blue); stroke-width: 4; }
+    .diagram-vector-alt { fill: none; stroke: var(--yellow); stroke-width: 4; }
+    .diagram-component { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
+    .diagram-arc { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-wave { fill: none; stroke: var(--blue); stroke-width: 3.5; }
+    .diagram-wave-alt { fill: none; stroke: var(--red); stroke-width: 3; }
+    .diagram-wave-slow { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-point { fill: var(--red); }
+    .diagram-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .formula span { display: block; }
+    .path-map { display: grid; gap: 9px; margin: 24px 0; }
+    .path-row { display: grid; grid-template-columns: minmax(110px, .6fr) 1.4fr; gap: 16px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .path-row strong { color: var(--blue); }
+    .caution { margin: 25px 0; padding: 22px 24px; background: #f7e7c8; border-left: 4px solid var(--yellow); border-radius: 0 12px 12px 0; }
+    .caution strong { color: #805713; }
+
+    footer { padding: 26px 0 44px; color: var(--muted); border-top: 1px solid var(--line); font-size: .82rem; }
+
+    @media (max-width: 780px) {
+      .topbar { margin-bottom: 50px; }
+      .layout { grid-template-columns: 1fr; gap: 26px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .page { width: calc(100% - 24px); }
+      header { padding-bottom: 46px; }
+      .topbar span { display: none; }
+      th, td { padding: 10px 9px; font-size: .82rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_math_trigonometry_learning.html">사인과 코사인</a><span class="separator">›</span><span aria-current="page">성분 분해와 코사인법칙</span></nav><header class="detail-header"><p class="eyebrow">수학 · 세부 문서</p><h1>성분 분해와 코사인법칙</h1><p class="lead">상위 학습 흐름에서 성분 분해와 코사인법칙에 필요한 계산·코드·검증 내용을 자세히 정리한다.</p></header><p><a href="transformer_math_trigonometry_learning.html">← 사인과 코사인 학습 경로</a></p><section><h3 id="trig-uses">5. 수학에서 사인과 코사인은 어디에 사용할까?</h3>
+        <p>가장 근본적인 용도는 <strong>각도와 길이를 서로 연결하는 것</strong>입니다. 직각삼각형에서 시작한 길이의 비율을 좌표로 확장하면 회전을 표현할 수 있고, 회전을 시간에 따라 기록하면 반복되는 파동이 됩니다. 또한 코사인은 두 벡터 사이의 방향 차이를 측정하는 데도 사용됩니다.</p>
+
+        <h4>5-1. 기울어진 길이를 가로 성분과 세로 성분으로 분해한다</h4>
+        <p>길이 <code>r</code>인 선이 가로축에서 <code>θ</code>만큼 기울어져 있다고 합시다. 이 선은 직각삼각형의 빗변입니다. 가로 길이는 <code>θ</code>의 인접한 변이고, 세로 길이는 맞은편 변이므로 다음과 같이 계산합니다.</p>
+        <div class="formula">
+          <span class="math">가로 성분 x = r × cos θ</span>
+          <span><code>세로 성분 y = r × sin θ</code></span>
+        </div>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 330" role="img" aria-labelledby="component-title component-desc">
+            <title id="component-title">기울어진 길이를 가로 성분과 세로 성분으로 분해하기</title>
+            <desc id="component-desc">길이 10이고 각도 30도인 화살표를 가로 길이 8.66과 세로 길이 5로 분해한다.</desc>
+            <defs>
+              <marker id="component-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#225f78" />
+              </marker>
+            </defs>
+
+            <line class="diagram-axis" x1="55" y1="270" x2="645" y2="270" />
+            <line class="diagram-axis" x1="80" y1="300" x2="80" y2="35" />
+            <line class="diagram-grid" x1="80" y1="120" x2="500" y2="120" />
+            <line class="diagram-grid" x1="500" y1="270" x2="500" y2="120" />
+
+            <line class="diagram-vector" x1="80" y1="270" x2="500" y2="120" marker-end="url(#component-arrow)" />
+            <line class="diagram-component" x1="80" y1="270" x2="500" y2="270" />
+            <line class="diagram-component" x1="500" y1="270" x2="500" y2="120" />
+            <path class="diagram-arc" d="M145 270 A65 65 0 0 0 141 248" />
+            <path class="triangle-right" d="M480 270 L480 250 L500 250" />
+            <circle class="diagram-point" cx="500" cy="120" r="6" />
+
+            <text class="diagram-label" x="278" y="289">가로 = 10 cos 30° ≈ 8.66</text>
+            <text class="diagram-label" x="516" y="202">세로 = 10 sin 30° = 5</text>
+            <text class="diagram-label" x="275" y="177" transform="rotate(-20 275 177)">전체 길이 r = 10</text>
+            <text class="diagram-label" x="137" y="249">30°</text>
+            <text class="diagram-muted" x="632" y="292">x</text>
+            <text class="diagram-muted" x="58" y="47">y</text>
+          </svg>
+          <figcaption>파란 화살표 하나를 빨간 점선 두 개로 나눴습니다. 가로 성분과 세로 성분은 서로 직각이며, 둘을 다시 합치면 원래 화살표가 됩니다.</figcaption>
+        </figure>
+
+        <p>예를 들어 길이가 <code>10</code>이고 각도가 <code>30°</code>라면 <code>cos 30°≈0.866</code>, <code>sin 30°=0.5</code>입니다.</p>
+        <div class="steps">
+          <div class="step"><p><strong>전체 길이</strong><br><code>r=10</code>은 직각삼각형의 빗변입니다.</p></div>
+          <div class="step"><p><strong>가로 길이</strong><br><code>x=10×cos 30°≈10×0.866=8.66</code></p></div>
+          <div class="step"><p><strong>세로 길이</strong><br><code>y=10×sin 30°=10×0.5=5</code></p></div>
+          <div class="step"><p><strong>길이 확인</strong><br><code>√(8.66²+5²)≈10</code>이므로 가로와 세로를 다시 합치면 원래 길이가 됩니다.</p></div>
+        </div>
+        <div class="plain">
+          <strong>여기서 ‘성분’이란?</strong>
+          <p>기울어진 길이 하나가 가로 방향으로 얼마나 기여하고 세로 방향으로 얼마나 기여하는지를 나눈 값입니다. 물리학에서는 힘과 속도를 방향별로 나눌 때, 컴퓨터 그래픽에서는 물체가 어느 방향으로 얼마나 이동했는지 계산할 때 사용합니다.</p>
+        </div>
+
+        <h4>5-2. 길이의 비율을 알면 각도를 거꾸로 구할 수 있다</h4>
+        <p><code>sin</code>과 <code>cos</code>는 각도를 넣어서 비율을 얻는 함수입니다. 반대로 비율에서 각도를 찾는 함수가 <code>arcsin</code>과 <code>arccos</code>입니다. 함수 이름 앞의 <code>arc</code>는 여기서 역함수라는 뜻으로 사용됩니다.</p>
+        <div class="formula">
+          <span class="math">θ → sin θ = 비율</span>
+          <span><code>비율 → arcsin(비율) = θ</code></span>
+        </div>
+        <p>예를 들어 빗변이 <code>10</code>, 맞은편 변이 <code>5</code>라면 사인 비율은 <code>5/10=0.5</code>입니다.</p>
+        <div class="formula">
+          <span class="math">sin θ = 5/10 = 0.5</span>
+          <span><code>θ = arcsin(0.5) = 30°</code></span>
+        </div>
+        <p>이 원리로 직접 접근하기 어려운 높이와 거리도 구할 수 있습니다. 예를 들어 관측 지점에서 건물 꼭대기까지의 거리와 올려다본 각도를 알면 건물의 높이 성분을 계산할 수 있습니다.</p>
+        <div class="plain">
+          <strong>각도 단위 주의</strong>
+          <p>수학 문제에서는 도(degree)를 자주 사용하지만, PyTorch의 <code>torch.sin()</code>과 <code>torch.cos()</code>는 라디안(radian)을 받습니다. <code>30°=π/6</code>, <code>90°=π/2</code>, <code>180°=π</code>입니다.</p>
+        </div>
+
+        <h4>5-3. 직각이 아닌 일반 삼각형의 변과 각도도 구한다</h4>
+        <p>사인과 코사인은 직각삼각형의 정의에서 시작하지만, 사인법칙과 코사인법칙을 이용하면 직각이 아닌 삼각형도 계산할 수 있습니다. 각 <code>A, B, C</code>의 맞은편 변을 각각 <code>a, b, c</code>라고 하면 다음이 성립합니다.</p>
+
+        <h4>그림을 보기 전: 인접변과 맞은편 변은 어떻게 정할까?</h4>
+        <p><strong>밑변이 항상 인접변이고 높이가 항상 맞은편 변인 것은 아닙니다.</strong> 인접변과 맞은편 변은 어느 각도를 기준으로 보느냐에 따라 이름이 바뀝니다. 먼저 기준으로 삼을 각도를 하나 선택해야 합니다.</p>
+
+        <div class="steps">
+          <div class="step"><p><strong>먼저 빗변을 찾는다.</strong><br>빗변은 직각의 맞은편에 있는 가장 긴 변입니다. 어느 각도를 기준으로 보더라도 빗변은 바뀌지 않습니다.</p></div>
+          <div class="step"><p><strong>기준 각도에 붙은 변을 본다.</strong><br>기준 각도에 붙어 있는 두 변 중 빗변을 제외한 변이 인접변입니다. ‘인접’은 옆에 붙어 있다는 뜻입니다.</p></div>
+          <div class="step"><p><strong>기준 각도와 닿지 않는 변을 찾는다.</strong><br>기준 각도에서 건너편에 있고 그 각도와 닿지 않는 변이 맞은편 변입니다.</p></div>
+        </div>
+
+        <div class="compare">
+          <article class="card">
+            <strong>아래 그림에서 각도 <code>C</code>를 기준으로 볼 때</strong>
+            <p><code>빗변 = CA = b</code><br><code>인접변 = CH = 밑변</code><br><code>맞은편 변 = AH = 높이</code></p>
+          </article>
+          <article class="card">
+            <strong>같은 직각삼각형에서 각도 <code>A</code>를 기준으로 볼 때</strong>
+            <p><code>빗변 = CA = b</code><br><code>인접변 = AH = 높이</code><br><code>맞은편 변 = CH = 밑변</code></p>
+          </article>
+        </div>
+
+        <div class="plain">
+          <strong>현재 5-3 그림의 기준은 각도 <code>C</code></strong>
+          <p>따라서 밑변 <code>CH</code>가 인접변이고 높이 <code>AH</code>가 맞은편 변입니다. 그래서 <code>cos C=CH/b</code>, <code>sin C=AH/b</code>가 됩니다.</p>
+        </div>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 390" role="img" aria-labelledby="cosine-law-title cosine-law-desc">
+            <title id="cosine-law-title">일반 삼각형에 높이를 내려 코사인법칙을 만드는 과정</title>
+            <desc id="cosine-law-desc">삼각형 ABC에서 꼭짓점 A로부터 밑변 CB에 높이를 내려 두 개의 직각삼각형으로 나누고, 가로 성분 b 코사인 C와 세로 성분 b 사인 C를 표시한다.</desc>
+
+            <path class="triangle-fill" d="M70 285 L610 285 L350 70 Z" />
+            <path class="triangle-edge" d="M70 285 L610 285 L350 70 Z" />
+            <line class="diagram-component" x1="350" y1="70" x2="350" y2="285" />
+            <path class="triangle-right" d="M350 265 L370 265 L370 285" />
+            <path class="diagram-arc" d="M133 285 A63 63 0 0 0 119 246" />
+
+            <circle class="diagram-point" cx="70" cy="285" r="5" />
+            <circle class="diagram-point" cx="610" cy="285" r="5" />
+            <circle class="diagram-point" cx="350" cy="70" r="5" />
+            <circle class="diagram-point" cx="350" cy="285" r="4" />
+
+            <text class="diagram-label" x="337" y="50">A</text>
+            <text class="diagram-label" x="620" y="291">B</text>
+            <text class="diagram-label" x="48" y="291">C</text>
+            <text class="diagram-label" x="340" y="309">H</text>
+            <text class="diagram-label" x="109" y="253">각 C</text>
+
+            <text class="triangle-title" x="164" y="152" transform="rotate(-38 164 152)">빗변 CA = b</text>
+            <text class="triangle-title" x="486" y="161" transform="rotate(40 486 161)">변 c</text>
+            <text class="triangle-title" x="321" y="354">전체 밑변 CB = a</text>
+
+            <line class="diagram-grid" x1="70" y1="326" x2="350" y2="326" />
+            <line class="diagram-grid" x1="350" y1="326" x2="610" y2="326" />
+            <line class="diagram-grid" x1="70" y1="317" x2="70" y2="335" />
+            <line class="diagram-grid" x1="350" y1="317" x2="350" y2="335" />
+            <line class="diagram-grid" x1="610" y1="317" x2="610" y2="335" />
+
+            <text class="diagram-label" x="125" y="320">인접변 CH = b cos C</text>
+            <text class="diagram-label" x="401" y="320">HB = a - b cos C</text>
+            <text class="diagram-label" x="365" y="183">맞은편 변 AH = b sin C</text>
+          </svg>
+          <figcaption>점 <code>A</code>에서 밑변으로 높이 <code>AH</code>를 내리면 일반 삼각형이 두 직각삼각형으로 나뉩니다. 왼쪽 삼각형에서 <code>CH=b cos C</code>, <code>AH=b sin C</code>를 얻고, 오른쪽 삼각형에 피타고라스를 적용합니다.</figcaption>
+        </figure>
+
+        <h4>4. 코사인으로 밑변의 왼쪽 부분 <code>CH</code>를 구한다</h4>
+        <p>왼쪽 직각삼각형 <code>CAH</code>에서 각도 <code>C</code>를 기준으로 보면 빗변은 <code>CA=b</code>, 인접변은 <code>CH</code>입니다.</p>
+        <div class="formula">
+          <span class="math">cos C = 인접변 / 빗변</span>
+          <span><code>cos C = CH / b</code></span>
+          <span><code>CH = b cos C</code></span>
+        </div>
+        <p><code>cos C</code>는 빗변 <code>b</code> 중 가로 방향이 차지하는 비율입니다. 여기에 실제 빗변 길이 <code>b</code>를 곱하면 실제 가로 길이 <code>CH</code>가 나옵니다.</p>
+
+        <h4>5. 사인으로 높이 <code>AH</code>를 구한다</h4>
+        <p>같은 직각삼각형에서 각도 <code>C</code>를 기준으로 맞은편 변은 높이 <code>AH</code>입니다.</p>
+        <div class="formula">
+          <span class="math">sin C = 맞은편 변 / 빗변</span>
+          <span><code>sin C = AH / b</code></span>
+          <span><code>AH = b sin C</code></span>
+        </div>
+        <p><code>sin C</code>는 빗변 <code>b</code> 중 세로 방향이 차지하는 비율입니다. 따라서 <code>b sin C</code>가 실제 높이 <code>AH</code>가 됩니다.</p>
+
+        <h4>6. 전체 밑변에서 <code>CH</code>를 빼서 <code>HB</code>를 구한다</h4>
+        <p>전체 밑변 <code>CB</code>의 길이는 처음부터 알고 있는 <code>a</code>입니다. 전체 밑변은 왼쪽의 <code>CH</code>와 오른쪽의 <code>HB</code>로 나뉩니다.</p>
+        <div class="formula">
+          <span class="math">CB = CH + HB</span>
+          <span><code>HB = CB - CH</code></span>
+          <span><code>HB = a - b cos C</code></span>
+        </div>
+        <p>즉 코사인으로 왼쪽 부분 <code>CH</code>를 알아냈기 때문에, 전체 길이 <code>a</code>에서 이를 빼서 남은 오른쪽 부분 <code>HB</code>도 알 수 있습니다.</p>
+
+        <h4>7. 오른쪽 직각삼각형에서 피타고라스로 <code>c</code>를 구한다</h4>
+        <p>이제 오른쪽 직각삼각형 <code>AHB</code>의 두 직각변을 모두 알고 있습니다.</p>
+        <div class="compare">
+          <article class="card"><strong>밑변</strong><p><code>HB = a - b cos C</code></p></article>
+          <article class="card"><strong>높이</strong><p><code>AH = b sin C</code></p></article>
+        </div>
+        <p>구하려는 변 <code>AB=c</code>는 이 직각삼각형의 빗변이므로 피타고라스를 적용합니다.</p>
+        <div class="formula">
+          <span class="math">c² = HB² + AH²</span>
+          <span><code>c² = (a - b cos C)² + (b sin C)²</code></span>
+          <span><code>c² = a² - 2ab cos C + b²cos²C + b²sin²C</code></span>
+          <span><code>sin²C + cos²C = 1</code></span>
+          <span><code>c² = a² + b² - 2ab cos C</code></span>
+        </div>
+        <div class="plain">
+          <strong>4→7의 전체 흐름</strong>
+          <p><code>cos C</code>로 <code>CH</code>를 구하고, <code>sin C</code>로 <code>AH</code>를 구합니다. 전체 밑변에서 <code>CH</code>를 빼 <code>HB</code>를 구한 뒤, 마지막으로 오른쪽 직각삼각형에 피타고라스를 적용해 <code>c</code>를 구합니다.</p>
+        </div>
+
+        <div class="formula">
+          <span class="math">사인법칙: a/sin A = b/sin B = c/sin C</span>
+          <span><code>코사인법칙: c² = a² + b² - 2ab cos C</code></span>
+        </div>
+        <p>코사인법칙에서 <code>C=90°</code>라면 <code>cos 90°=0</code>이므로 마지막 항이 사라집니다.</p>
+        <div class="formula">
+          <span class="math">c² = a² + b² - 2ab×0</span>
+          <span><code>c² = a² + b²</code></span>
+        </div>
+        <p>즉 피타고라스 정리는 코사인법칙에서 끼인각이 <code>90°</code>인 특별한 경우라고 볼 수 있습니다. 측량, 지도상의 거리 계산, 삼각형의 알려지지 않은 변과 각도를 구할 때 이 법칙들을 사용합니다.</p>
+
+
+</section></main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>

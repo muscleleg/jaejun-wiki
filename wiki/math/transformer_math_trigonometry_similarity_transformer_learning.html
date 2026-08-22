@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초">
+  <title>수학 · 코사인 유사도와 Transformer 위치 표현</title>
+  <style>
+    :root {
+      --ink: #1d2228;
+      --muted: #687078;
+      --paper: #f4f1ea;
+      --panel: #fffdf8;
+      --line: #d8d3c8;
+      --blue: #225f78;
+      --blue-soft: #dcebf0;
+      --yellow: #e6aa36;
+      --red: #b84f42;
+      --code: #182126;
+      --code-ink: #edf4f6;
+      --shadow: 0 18px 48px rgba(28, 37, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .page { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      padding: 28px 0 62px;
+      color: white;
+      background: var(--blue);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 76px;
+      font-size: 0.85rem;
+    }
+
+    .topbar a {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+
+    .topbar a:hover, .topbar a:focus-visible { background: rgba(255,255,255,.12); outline: none; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 24px; color: #d8e9ee; font-size: .86rem; }
+    .breadcrumb a { padding: 0; color: white; border: 0; border-radius: 0; font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { background: transparent; text-decoration: underline; }
+    .breadcrumb .separator { opacity: .5; }
+    .breadcrumb [aria-current="page"] { color: white; font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(25,65,82,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { outline: 3px solid #b9dbe6; }
+    .eyebrow { margin: 0 0 14px; color: #b9dbe6; font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.7rem, 7vw, 5.8rem);
+      font-weight: 820;
+      letter-spacing: -.065em;
+      line-height: 1.02;
+    }
+
+    .lead { max-width: 700px; margin: 28px 0 0; color: #d8e9ee; font-size: 1.08rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 58px;
+      padding: 54px 0 100px;
+    }
+
+    nav { position: sticky; top: 28px; align-self: start; }
+    nav p { margin: 0 0 12px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    nav a { display: block; padding: 8px 11px; color: var(--muted); border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
+    nav a:hover, nav a:focus-visible { color: var(--blue); border-left-color: var(--blue); outline: none; }
+
+    main { min-width: 0; }
+    section { scroll-margin-top: 24px; }
+    section + section { margin-top: 76px; padding-top: 64px; border-top: 1px solid var(--line); }
+
+    .concept {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--red);
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h2 { margin: 0 0 16px; font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -.045em; line-height: 1.15; }
+    h3 { margin: 38px 0 12px; font-size: 1.2rem; }
+    h4 { margin: 30px 0 10px; color: var(--blue); font-size: 1.04rem; }
+    p { margin: 0 0 17px; }
+    .intro { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+
+    .plain {
+      margin: 25px 0;
+      padding: 23px 25px;
+      background: var(--blue-soft);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .plain strong { display: block; margin-bottom: 5px; color: var(--blue); }
+    .plain p { margin: 0; }
+
+    .formula {
+      margin: 22px 0;
+      padding: 22px;
+      overflow-x: auto;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      font: 600 clamp(.9rem, 2.5vw, 1.15rem)/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .steps { display: grid; gap: 10px; margin: 24px 0; counter-reset: step; }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      padding: 16px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .step::before {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      counter-increment: step;
+      content: counter(step);
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      border-radius: 50%;
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .step p { margin: 0; color: var(--muted); }
+    .step strong { color: var(--ink); }
+
+    .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+    .card { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .card strong { display: block; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .dots { margin-top: 16px; color: var(--blue); font: 800 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-spacing: 7px; }
+
+    table { width: 100%; margin: 22px 0; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .78rem; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .answer {
+      margin-top: 30px;
+      padding: 26px;
+      color: white;
+      background: var(--blue);
+      border-radius: 14px;
+    }
+
+    .answer strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
+    .answer p { margin: 0; color: #d8e9ee; }
+
+    .proof-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .proof-figure svg { display: block; width: min(100%, 640px); height: auto; margin: 0 auto; }
+    .proof-figure figcaption { max-width: 650px; margin: 16px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .proof-triangle { fill: #f5ddb0; stroke: #1d2228; stroke-width: 2; }
+    .proof-center { fill: #dcebf0; stroke: #225f78; stroke-width: 3; }
+    .proof-outline { fill: none; stroke: #1d2228; stroke-width: 3; }
+    .proof-label { fill: #1d2228; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-center-label { fill: #225f78; font: 800 25px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-right-angle { fill: none; stroke: #b84f42; stroke-width: 2; }
+
+    .concept-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .triangle-fill { fill: rgba(34, 95, 120, 0.08); }
+    .triangle-edge { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linejoin: round; }
+    .triangle-right { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+    .triangle-angle { fill: none; stroke: var(--yellow); stroke-width: 2.5; }
+    .triangle-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+    .triangle-title { fill: var(--blue); font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-note { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: var(--blue); stroke-width: 3; }
+    .trig-radius { stroke: var(--yellow); stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: var(--yellow); stroke-width: 2; }
+    .trig-point { fill: var(--yellow); }
+    .trig-label { fill: var(--ink); font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .diagram-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
+    .diagram-vector { fill: none; stroke: var(--blue); stroke-width: 4; }
+    .diagram-vector-alt { fill: none; stroke: var(--yellow); stroke-width: 4; }
+    .diagram-component { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
+    .diagram-arc { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-wave { fill: none; stroke: var(--blue); stroke-width: 3.5; }
+    .diagram-wave-alt { fill: none; stroke: var(--red); stroke-width: 3; }
+    .diagram-wave-slow { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-point { fill: var(--red); }
+    .diagram-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .formula span { display: block; }
+    .path-map { display: grid; gap: 9px; margin: 24px 0; }
+    .path-row { display: grid; grid-template-columns: minmax(110px, .6fr) 1.4fr; gap: 16px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .path-row strong { color: var(--blue); }
+    .caution { margin: 25px 0; padding: 22px 24px; background: #f7e7c8; border-left: 4px solid var(--yellow); border-radius: 0 12px 12px 0; }
+    .caution strong { color: #805713; }
+
+    footer { padding: 26px 0 44px; color: var(--muted); border-top: 1px solid var(--line); font-size: .82rem; }
+
+    @media (max-width: 780px) {
+      .topbar { margin-bottom: 50px; }
+      .layout { grid-template-columns: 1fr; gap: 26px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .page { width: calc(100% - 24px); }
+      header { padding-bottom: 46px; }
+      .topbar span { display: none; }
+      th, td { padding: 10px 9px; font-size: .82rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_math_trigonometry_learning.html">사인과 코사인</a><span class="separator">›</span><span aria-current="page">코사인 유사도와 Transformer 위치 표현</span></nav><header class="detail-header"><p class="eyebrow">수학 · 세부 문서</p><h1>코사인 유사도와 Transformer 위치 표현</h1><p class="lead">상위 학습 흐름에서 코사인 유사도와 Transformer 위치 표현에 필요한 계산·코드·검증 내용을 자세히 정리한다.</p></header><p><a href="transformer_math_trigonometry_learning.html">← 사인과 코사인 학습 경로</a></p><section><h4>5-6. 두 벡터의 방향이 얼마나 비슷한지 측정한다</h4>
+        <p>두 벡터 <code>A</code>와 <code>B</code>를 내적하면 두 벡터의 길이와 사이각의 코사인이 연결됩니다.</p>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 300" role="img" aria-labelledby="cosine-vector-title cosine-vector-desc">
+            <title id="cosine-vector-title">코사인값에 따른 두 벡터의 방향 관계</title>
+            <desc id="cosine-vector-desc">같은 방향이면 코사인값 1, 직각이면 0, 반대 방향이면 마이너스 1인 세 경우를 비교한다.</desc>
+            <defs>
+              <marker id="vector-blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#225f78" />
+              </marker>
+              <marker id="vector-yellow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#e6aa36" />
+              </marker>
+            </defs>
+
+            <rect class="triangle-panel" x="12" y="12" width="212" height="276" rx="12" />
+            <rect class="triangle-panel" x="244" y="12" width="212" height="276" rx="12" />
+            <rect class="triangle-panel" x="476" y="12" width="212" height="276" rx="12" />
+
+            <text class="triangle-title" x="65" y="46">같은 방향</text>
+            <circle class="diagram-point" cx="75" cy="158" r="5" />
+            <line class="diagram-vector" x1="75" y1="158" x2="188" y2="158" marker-end="url(#vector-blue-arrow)" />
+            <line class="diagram-vector-alt" x1="75" y1="171" x2="188" y2="171" marker-end="url(#vector-yellow-arrow)" />
+            <text class="diagram-label" x="135" y="141">A</text>
+            <text class="diagram-label" x="135" y="196">B</text>
+            <text class="triangle-title" x="73" y="250">θ=0°</text>
+            <text class="triangle-label" x="59" y="273">cos θ = 1</text>
+
+            <text class="triangle-title" x="313" y="46">직각</text>
+            <circle class="diagram-point" cx="310" cy="190" r="5" />
+            <line class="diagram-vector" x1="310" y1="190" x2="423" y2="190" marker-end="url(#vector-blue-arrow)" />
+            <line class="diagram-vector-alt" x1="310" y1="190" x2="310" y2="77" marker-end="url(#vector-yellow-arrow)" />
+            <path class="triangle-right" d="M310 170 L330 170 L330 190" />
+            <text class="diagram-label" x="372" y="178">A</text>
+            <text class="diagram-label" x="287" y="103">B</text>
+            <text class="triangle-title" x="304" y="250">θ=90°</text>
+            <text class="triangle-label" x="291" y="273">cos θ = 0</text>
+
+            <text class="triangle-title" x="523" y="46">반대 방향</text>
+            <circle class="diagram-point" cx="582" cy="165" r="5" />
+            <line class="diagram-vector" x1="582" y1="158" x2="665" y2="158" marker-end="url(#vector-blue-arrow)" />
+            <line class="diagram-vector-alt" x1="582" y1="172" x2="499" y2="172" marker-end="url(#vector-yellow-arrow)" />
+            <text class="diagram-label" x="625" y="141">A</text>
+            <text class="diagram-label" x="512" y="198">B</text>
+            <text class="triangle-title" x="537" y="250">θ=180°</text>
+            <text class="triangle-label" x="518" y="273">cos θ = -1</text>
+          </svg>
+          <figcaption>코사인은 두 벡터의 길이가 아니라 방향 관계를 숫자 하나로 요약합니다. 같은 방향에 가까울수록 <code>1</code>, 직각이면 <code>0</code>, 반대 방향에 가까울수록 <code>-1</code>입니다.</figcaption>
+        </figure>
+
+        <div class="formula">
+          <span class="math">A·B = ‖A‖‖B‖ cos θ</span>
+          <span><code>cos θ = (A·B)/(‖A‖‖B‖)</code></span>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>코사인값</th><th>두 벡터의 관계</th><th>방향 해석</th></tr></thead>
+          <tbody>
+            <tr><td><code>1</code></td><td><code>θ=0°</code></td><td>같은 방향</td></tr>
+            <tr><td><code>0</code></td><td><code>θ=90°</code></td><td>서로 직각인 방향</td></tr>
+            <tr><td><code>-1</code></td><td><code>θ=180°</code></td><td>정반대 방향</td></tr>
+          </tbody>
+        </table></div>
+        <p>두 벡터의 길이를 나누어 제거하기 때문에 크기보다 방향을 비교할 수 있습니다. 머신러닝에서는 문장 임베딩이나 단어 임베딩이 의미상 얼마나 비슷한지 측정하는 <strong>코사인 유사도</strong>로 사용합니다.</p>
+
+        <h4>5-7. Transformer에서는 위치를 여러 회전 속도로 표현한다</h4>
+        <p>Transformer의 위치 인코딩에서는 토큰 위치 <code>position</code>을 각도로 바꾼 뒤 같은 각도의 <code>sin</code>과 <code>cos</code>를 한 쌍으로 저장합니다.</p>
+        <div class="formula">
+          <span class="math">θ = position × div_term[i]</span>
+          <span><code>위치 차원 쌍 = [sin θ, cos θ]</code></span>
+        </div>
+        <p><code>position</code>이 증가하면 원 위의 점이 회전합니다. 그리고 차원 쌍마다 <code>div_term[i]</code>가 다르기 때문에 어떤 쌍은 빠르게 회전하고 어떤 쌍은 천천히 회전합니다. 하나의 위치를 여러 주기의 패턴으로 동시에 표현하는 셈입니다.</p>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 340" role="img" aria-labelledby="multi-frequency-title multi-frequency-desc">
+            <title id="multi-frequency-title">Transformer 위치 인코딩의 서로 다른 사인파 주기</title>
+            <desc id="multi-frequency-desc">토큰 위치가 증가할 때 앞쪽 차원은 빠르게 반복하고 중간 차원은 보통 속도로, 뒤쪽 차원은 천천히 변한다.</desc>
+            <line class="diagram-axis" x1="90" y1="42" x2="90" y2="300" />
+            <line class="diagram-axis" x1="90" y1="300" x2="655" y2="300" />
+            <line class="diagram-grid" x1="90" y1="95" x2="655" y2="95" />
+            <line class="diagram-grid" x1="90" y1="180" x2="655" y2="180" />
+            <line class="diagram-grid" x1="90" y1="260" x2="655" y2="260" />
+
+            <path class="diagram-wave" d="M90 95 C110 62 130 62 150 95 C170 128 190 128 210 95 C230 62 250 62 270 95 C290 128 310 128 330 95 C350 62 370 62 390 95 C410 128 430 128 450 95 C470 62 490 62 510 95 C530 128 550 128 570 95 C590 62 610 62 630 95" />
+            <path class="diagram-wave-alt" d="M90 180 C160 135 230 135 300 180 C370 225 440 225 510 180 C565 145 610 140 650 166" />
+            <path class="diagram-wave-slow" d="M90 260 C230 210 370 210 510 260 C570 282 615 284 650 270" />
+
+            <text class="diagram-label" x="16" y="90">앞 차원</text>
+            <text class="diagram-muted" x="16" y="110">빠른 변화</text>
+            <text class="diagram-label" x="16" y="175">중간 차원</text>
+            <text class="diagram-muted" x="16" y="195">보통 변화</text>
+            <text class="diagram-label" x="16" y="255">뒤 차원</text>
+            <text class="diagram-muted" x="16" y="275">느린 변화</text>
+            <text class="diagram-muted" x="574" y="326">token position →</text>
+          </svg>
+          <figcaption>같은 위치 번호를 넣어도 차원 쌍마다 회전 속도가 다릅니다. 빠른 파동은 가까운 위치에서도 값이 크게 달라지고, 느린 파동은 먼 위치에 걸친 완만한 변화를 제공합니다.</figcaption>
+        </figure>
+
+        <div class="steps">
+          <div class="step"><p><strong>위치를 각도로 변환</strong><br><code>position×div_term[i]</code>로 현재 차원 쌍의 각도를 만듭니다.</p></div>
+          <div class="step"><p><strong>각도를 두 좌표로 변환</strong><br><code>[sin θ, cos θ]</code>로 원 위의 회전 상태를 저장합니다.</p></div>
+          <div class="step"><p><strong>서로 다른 속도를 함께 사용</strong><br>짧은 주기부터 긴 주기까지 여러 위치 패턴을 하나의 벡터에 담습니다.</p></div>
+        </div>
+
+        <div class="plain">
+          <strong>전체 흐름으로 기억하기</strong>
+          <p>직각삼각형에서는 각도와 길이의 비율을 연결합니다. 단위원에서는 그 비율이 좌표가 됩니다. 원을 계속 돌리면 반복되는 파동이 되고, 두 방향을 비교하면 코사인 유사도가 됩니다. Transformer는 이 가운데 좌표의 회전과 반복 성질을 위치 표현에 이용합니다.</p>
+        </div>
+
+        <div class="caution"><strong>기초 결론</strong> — 사인과 코사인은 각도에 따른 두 길이의 비율입니다. 단위원 좌표는 별개의 정의가 아니라, 그 직각삼각형의 빗변을 1로 만든 결과입니다.</div>
+</section></main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>

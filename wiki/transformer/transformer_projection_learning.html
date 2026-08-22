@@ -16,7 +16,7 @@
       <span class="eyebrow">Transformer detail · Projection</span>
       <h1>Q·K·V Projection과<br>Linear 가중치</h1>
       <p class="lead">같은 입력을 서로 다른 가중치 표에 통과시켜 Query·Key·Value 관점의 중간 표현을 만드는 과정을 정리한다.</p>
-      <div class="detail-actions"><a href="transformer_learning.html">← Transformer 상위 문서</a><a href="transformer_attention_learning.html#q-projection">전체 Projection 원문 ↗</a><a href="transformer_attention_math_learning.html">Attention 계산 →</a></div>
+      <div class="detail-actions"><a href="transformer_attention_learning.html#q-projection">← Attention 학습 경로</a><a href="transformer_learning.html">Transformer 상위 문서</a><a href="transformer_attention_math_learning.html">Attention 계산 →</a></div>
     </header>
 
     <section class="detail-section">
@@ -69,10 +69,110 @@ y₂ = x₁ × w₂₁ + x₂ × w₂₂</code></pre>
       <p>따라서 Q·K·V Projection은 Transformer의 Attention 구조 안에서 최종 Loss를 줄이는 방향으로 함께 조정된다.</p>
       <div class="caution"><strong>초기 상태 주의</strong> — 실습에서 Linear 가중치가 랜덤으로 초기화되어 있으면 Q·K·V 출력도 임의의 숫자다. 아직 학습되지 않았으므로 그 숫자에 완성된 의미가 있다고 해석하면 안 된다.</div>
       <ul class="reference-list">
-        <li><a href="transformer_attention_learning.html#q-projection">전체 원문에서 수동 행렬곱과 <code>nn.Linear</code> 비교 보기</a></li>
+        <li><a href="transformer_attention_learning.html#q-projection">Attention 전체 흐름으로 돌아가기</a></li>
         <li><a href="transformer_multi_head_attention_learning.html">Projection 결과를 Head별로 나누는 과정 보기</a></li>
       </ul>
     </section>
+    <section class="detail-section">
+      <h2>직접 실행하고 검산한 Projection 실습</h2>
+      <p>아래는 처음 학습할 때 사용한 실제 숫자·Shape·검산 코드를 그대로 보존한 기록이다.</p>
+    </section>
+      <section id="q-projection">
+        <div class="section-kicker">2026-08-13 · Multi-Head Attention 진입</div>
+        <h2>Q·K·V Projection과 Score 계산</h2>
+        <p>이전 실습에서는 <code>query</code>, <code>key</code>, <code>value</code>를 직접 만들었다. 이번에는 하나의 입력 <code>x</code>를 서로 다른 <code>nn.Linear</code>에 통과시켜 Query, Key, Value 역할의 벡터를 만들었다.</p>
+
+        <div class="code-card" aria-label="Q Projection 실습 코드">
+          <div class="code-head"><span>Q Projection</span><span>입력과 출력 Shape 확인</span></div>
+          <pre><code>import torch
+from torch import nn
+
+x = torch.tensor([[
+    [<span class="num">1.0</span>, <span class="num">0.0</span>],
+    [<span class="num">0.0</span>, <span class="num">1.0</span>],
+]])
+
+query_projection = nn.Linear(
+    in_features=<span class="num">2</span>,
+    out_features=<span class="num">2</span>,
+    bias=False,
+)
+
+query = query_projection(x)
+
+print(<span class="string">"query"</span>, query)
+print(<span class="string">"query shape"</span>, query.shape)</code></pre>
+        </div>
+
+        <div class="path-map" aria-label="Q Projection 전후 Shape">
+          <div class="path-row"><strong>입력 x</strong><code>[1, 2, 2]</code></div>
+          <div class="path-row"><strong>차원의 의미</strong><code>[문장 수, 토큰 수, 토큰 벡터 차원]</code></div>
+          <div class="path-row"><strong>Q Projection</strong><code>nn.Linear(2, 2)</code></div>
+          <div class="path-row"><strong>출력 query</strong><code>[1, 2, 2]</code></div>
+        </div>
+
+        <p><code>nn.Linear(2, 2)</code>는 마지막 차원의 2차원 벡터를 새로운 2차원 벡터로 변환한다. 따라서 입력과 출력의 Shape은 같지만, 가중치 행렬이 곱해졌으므로 원소 값과 역할은 달라진다.</p>
+
+        <h3><code>nn.Linear</code>의 계산을 직접 행렬곱과 비교</h3>
+        <div class="code-card" aria-label="Linear와 직접 행렬곱 비교 코드">
+          <div class="code-head"><span>동일성 확인</span><span><code>bias=False</code>인 경우</span></div>
+          <pre><code>manual_query = torch.matmul(
+    x,
+    query_projection.weight.T,
+)
+
+print(torch.allclose(query, manual_query))
+<span class="comment"># True</span></code></pre>
+        </div>
+        <p><code>bias=False</code>일 때 이번 실습의 계산은 다음과 같다.</p>
+        <div class="formula"><span class="math">query_projection(x) = x @ query_projection.weight.T</span></div>
+        <p><code>torch.allclose()</code>는 부동소수점의 미세한 계산 오차를 허용하면서 두 Tensor의 값이 거의 같은지 검사한다. PyTorch 연산을 직접 구현한 결과와 비교할 때 사용할 수 있다.</p>
+
+        <h3>같은 입력에서 Q·K·V가 서로 달라지는 이유</h3>
+        <div class="code-card" aria-label="서로 다른 Q K V Projection 코드">
+          <div class="code-head"><span>Q·K·V Projection</span><span>각자 별도의 가중치 사용</span></div>
+          <pre><code>query_projection = nn.Linear(<span class="num">2</span>, <span class="num">2</span>, bias=False)
+key_projection = nn.Linear(<span class="num">2</span>, <span class="num">2</span>, bias=False)
+value_projection = nn.Linear(<span class="num">2</span>, <span class="num">2</span>, bias=False)
+
+query = query_projection(x)
+key = key_projection(x)
+value = value_projection(x)</code></pre>
+        </div>
+        <div class="formula">
+          <span class="math">Q = XW_Qᵀ · K = XW_Kᵀ · V = XW_Vᵀ</span>
+          <span>입력과 출력 Shape은 모두 <code>[1,2,2]</code>지만 서로 다른 가중치 행렬을 사용하므로 값과 역할이 달라집니다.</span>
+        </div>
+        <p>초기에는 세 가중치가 각각 무작위로 초기화되고, 학습 중에는 Loss를 줄이는 방향으로 서로 다르게 조정됩니다. 따라서 같은 입력을 사용한다는 사실이 같은 출력값을 의미하지 않습니다.</p>
+
+        <h3>Projection 결과로 Score를 직접 계산</h3>
+        <div class="code-card" aria-label="Projection 결과로 Attention Score 계산">
+          <div class="code-head"><span>QKᵀ와 Scaling</span><span>현재 <code>d_k=2</code></span></div>
+          <pre><code>scores = torch.matmul(
+    query,
+    key.transpose(-<span class="num">2</span>, -<span class="num">1</span>),
+)
+
+d_k = query.size(-<span class="num">1</span>)
+scaled_scores = scores / math.sqrt(d_k)</code></pre>
+        </div>
+        <div class="path-map" aria-label="현재 Projection과 Score Shape">
+          <div class="path-row"><strong>query</strong><code>[1, 2, 2]</code></div>
+          <div class="path-row"><strong>key.transpose(-2, -1)</strong><code>[1, 2, 2]</code></div>
+          <div class="path-row"><strong>scores</strong><code>[1, 2, 2]</code></div>
+          <div class="path-row"><strong>d_k</strong><code>2</code></div>
+        </div>
+        <p>현재는 토큰 수와 차원 수가 모두 2라서 전치 전후 Shape이 우연히 같습니다. 그러나 전치의 의미는 <code>[token, dimension] → [dimension, token]</code>으로 바뀌어 각 Query와 모든 Key가 비교될 수 있게 하는 것입니다.</p>
+        <div class="code-card" aria-label="현재 실습의 scaled score 출력">
+          <div class="code-head"><span>실행 결과</span><span>무작위 가중치에 따라 값은 달라질 수 있음</span></div>
+          <pre><code>d_k: <span class="num">2</span>
+scaled scores:
+tensor([[[-<span class="num">0.1083</span>, -<span class="num">0.1418</span>],
+         [ <span class="num">0.1798</span>,  <span class="num">0.4593</span>]]])</code></pre>
+        </div>
+        <div class="caution"><strong>오늘 확인한 결론</strong> — 원본 <code>x</code>는 서로 다른 학습 가능한 가중치와 곱해져 Q·K·V 관점의 벡터가 됩니다. <code>QKᵀ</code>의 한 칸은 <code>d_k</code>개 곱의 합이고, 현재는 <code>d_k=2</code>이므로 Score를 <code>√2</code>로 나눕니다. 이 나눗셈은 실제 Score를 1로 만드는 것이 아니라 Score 분포의 표준편차를 약 1 규모로 맞추기 위한 것입니다.</div>
+      </section>
+
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
   <script src="../../assets/js/global_nav.js?v=20260820"></script>

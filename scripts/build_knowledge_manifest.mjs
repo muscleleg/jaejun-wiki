@@ -1,5 +1,5 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,12 @@ function extract(content, pattern) {
   return match ? decodeEntities(match[1]) : "";
 }
 
+function extractAll(content, pattern) {
+  return [...content.matchAll(pattern)]
+    .map((match) => decodeEntities(match[1]))
+    .filter(Boolean);
+}
+
 const files = (await collectHtmlFiles(articleRoot)).sort();
 const documents = [];
 
@@ -55,19 +61,49 @@ for (const file of files) {
   const content = await readFile(file, "utf8");
   const href = relative(wikiRoot, file).replaceAll("\\", "/");
   const categoryKey = href.split("/")[1];
-  const title = extract(content, /<title>([\s\S]*?)<\/title>/i)
-    || extract(content, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  const description = extract(content, /<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)
-    || extract(content, /<p[^>]*class=["'][^"']*(?:summary|lead)[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
+  const headings = extractAll(content, /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi);
+  const breadcrumbMatch = content.match(/<nav[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/nav>/i);
+  const breadcrumbContent = breadcrumbMatch?.[1] || "";
+  const breadcrumb = decodeEntities(breadcrumbContent);
+  const breadcrumbTitle = extractAll(breadcrumbContent, /<span[^>]*>([\s\S]*?)<\/span>/gi)
+    .filter((label) => label !== "›")
+    .at(-1) || "";
+  const title = extract(content, /<h1[^>]*>([\s\S]*?)<\/h1>/i)
+    || breadcrumbTitle
+    || extract(content, /<h2[^>]*>([\s\S]*?)<\/h2>/i)
+    || extract(content, /<title>([\s\S]*?)<\/title>/i);
+  const description = extract(content, /<p[^>]*class=["'][^"']*(?:summary|lead|intro)[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
+    || extract(content, /<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)
+    || headings.slice(1, 3).join(" · ")
+    || headings[0]
+    || title;
+  const parentLink = content.match(/<a[^>]+href=["']([^"']+\.html(?:#[^"']*)?)["'][^>]*>\s*←[^<]*학습 경로/i);
+  const breadcrumbParent = [...breadcrumbContent.matchAll(/<a[^>]+href=["']([^"']+\.html(?:#[^"']*)?)["']/gi)]
+    .map((match) => resolve(dirname(file), match[1].split("#")[0]))
+    .reverse()
+    .find((candidate) => {
+      const articleRelative = relative(articleRoot, candidate);
+      return candidate !== file
+        && articleRelative !== ".."
+        && !articleRelative.startsWith("../")
+        && !isAbsolute(articleRelative);
+    });
+  const parentHref = parentLink
+    ? relative(wikiRoot, resolve(dirname(file), parentLink[1].split("#")[0])).replaceAll("\\", "/")
+    : breadcrumbParent
+      ? relative(wikiRoot, breadcrumbParent).replaceAll("\\", "/")
+      : null;
 
   documents.push({
     id: href.replace(/\.html$/, "").replaceAll("/", "-"),
     title,
     description,
+    searchText: [breadcrumb, ...headings].filter(Boolean).join(" "),
     href,
     category: categoryLabels[categoryKey] || categoryKey,
     categoryKey,
     isCategoryIndex: file.endsWith("/index.html"),
+    parentHref,
   });
 }
 

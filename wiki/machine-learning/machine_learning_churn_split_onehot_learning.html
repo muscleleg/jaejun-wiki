@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="회원 이탈 데이터에서 숨은 공백, 결측값, 중복과 Label 비율을 실제 숫자로 확인한 학습 기록">
+  <title>Machine Learning · Train·Validation 분리와 One-Hot</title>
+  <style>
+    :root { --ink:#172033; --muted:#61708a; --line:#dce3ee; --paper:#f5f7fb; --card:#fff; --blue:#2457a7; --blue-soft:#eef5ff; --green:#176b4d; --green-soft:#edf9f3; --orange-soft:#fff5e8; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; line-height:1.75; }
+    .wrap { width:min(1080px, calc(100% - 30px)); margin:34px auto 70px; }
+    .hero, section, nav { background:var(--card); border:1px solid var(--line); border-radius:18px; }
+    .hero { padding:42px; }
+    .hero span { color:var(--green); font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .hero h1 { margin:10px 0 12px; font-size:clamp(30px,5vw,48px); line-height:1.18; }
+    .hero p { max-width:820px; margin:0; color:var(--muted); }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; padding:14px 18px; position:sticky; top:8px; z-index:10; }
+    nav a { padding:7px 11px; border-radius:999px; color:var(--blue); background:var(--blue-soft); text-decoration:none; font-size:13px; font-weight:700; }
+    .breadcrumb { margin:0 0 15px; padding:0; position:static; color:var(--muted); background:transparent; border:0; border-radius:0; font-size:13px; }
+    .breadcrumb a { padding:0; border-radius:0; background:transparent; }
+    .breadcrumb .separator { opacity:.45; }
+    .breadcrumb [aria-current="page"] { color:var(--ink); font-weight:800; }
+    section { margin:16px 0; padding:30px; }
+    h2 { margin:0 0 12px; font-size:26px; }
+    h3 { margin:28px 0 8px; font-size:19px; }
+    p { margin:8px 0 16px; }
+    code { padding:.12em .36em; border-radius:6px; background:#eef1f6; font-family:"SFMono-Regular",Consolas,monospace; }
+    pre { overflow:auto; margin:14px 0 20px; padding:18px; border-radius:14px; background:#172033; color:#f7f9fc; line-height:1.6; }
+    pre code { padding:0; color:inherit; background:transparent; }
+    .callout, .warning, .success { margin:18px 0; padding:18px 20px; border-radius:14px; }
+    .callout { background:var(--blue-soft); border-left:5px solid var(--blue); }
+    .warning { background:var(--orange-soft); border-left:5px solid #e38a28; }
+    .success { background:var(--green-soft); border-left:5px solid var(--green); }
+    .flow { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:18px 0; }
+    .flow div { padding:17px; border:1px solid var(--line); border-radius:14px; background:#fbfcff; }
+    .flow strong { display:block; margin-bottom:6px; color:var(--blue); }
+    table { width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:14px; }
+    th, td { padding:12px 14px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f0f4fa; }
+    .table-scroll { overflow-x:auto; }
+    .formula { margin:16px 0; padding:18px; text-align:center; border:1px solid #cfdaee; border-radius:14px; background:var(--blue-soft); font-family:"SFMono-Regular",Consolas,monospace; }
+    .fraction { display:inline-grid; grid-template-rows:auto auto; min-width:3em; margin:0 .3em; vertical-align:middle; text-align:center; line-height:1.25; }
+    .fraction .top { padding:0 .35em .17em; border-bottom:1.5px solid currentColor; }
+    .fraction .bottom { padding:.17em .35em 0; }
+    .home-fab { position:fixed; right:18px; bottom:18px; z-index:50; padding:10px 14px; color:white; border-radius:999px; background:var(--green); box-shadow:0 8px 24px rgba(23,107,77,.25); font-size:13px; font-weight:800; text-decoration:none; }
+    @media (max-width:700px) { .hero, section { padding:22px; } nav { position:static; } }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="wrap"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span>›</span><a href="../../wiki.html">기술 위키</a><span>›</span><a href="machine_learning_churn_data_quality_learning.html">회원 이탈 데이터 품질</a><span>›</span><span>Train·Validation 분리와 One-Hot</span></nav><header class="detail-header"><p class="eyebrow">Machine Learning · 세부 문서</p><h1>Train·Validation 분리와 One-Hot</h1><p class="lead">상위 학습 흐름에서 Train·Validation 분리와 One-Hot에 필요한 계산·코드·검증 내용을 자세히 정리한다.</p></header><p><a href="machine_learning_churn_data_quality_learning.html">← 데이터 품질 학습 경로</a></p><section id="split">
+      <h2>8. Feature·Label과 Train·Validation 분리까지 검증</h2>
+      <p>원본 품질 점검을 마친 뒤 위의 “다음 작은 챕터”도 이어서 완료했다. 먼저 모델이 사용할 입력 <code>X</code>와 맞혀야 하는 정답 <code>y</code>를 분리했다.</p>
+      <pre><code>X = df.drop(
+    columns=["customerID", "Churn"]
+)
+
+y = df["Churn"]</code></pre>
+      <div class="table-scroll"><table>
+        <thead><tr><th>대상</th><th>Shape</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>X</code></td><td><code>(7043, 19)</code></td><td>고객을 설명하는 Feature 19개</td></tr>
+          <tr><td><code>y</code></td><td><code>(7043,)</code></td><td>각 고객의 정답 <code>Churn</code></td></tr>
+        </tbody>
+      </table></div>
+      <p><code>customerID</code>는 고객을 구별하는 이름표이고, <code>Churn</code>은 모델이 맞혀야 하는 정답이므로 <code>X</code>에서 제외했다.</p>
+      <div class="success"><strong>사용자의 말로 정리한 학습과 검증</strong><br><code>X_train</code>을 모델에 넣어 나온 예측이 <code>y_train</code>과 가까워지도록 가중치를 조절한다. 학습 뒤에는 <code>X_valid</code>를 넣어 만든 예측을 <code>y_valid</code>와 비교해 처음 보는 데이터에서도 잘 작동하는지 확인한다. <code>y</code>는 입력이 아니라 정답지다.</div>
+
+      <h3>한 개 대괄호로 꺼낸 <code>y</code>는 Series다</h3>
+      <p><code>y = df["Churn"]</code>처럼 열 이름 하나를 대괄호 한 번으로 꺼내면 1차원 Pandas <code>Series</code>가 된다. 반면 <code>X</code>는 여러 Feature 열을 가진 2차원 <code>DataFrame</code>이다. 따라서 <code>train_test_split(X, y, ...)</code> 뒤에도 <code>X_train</code>·<code>X_valid</code>는 DataFrame, <code>y_train</code>·<code>y_valid</code>는 Series 형태를 유지한다.</p>
+      <div class="callout"><strong>분류기의 출력 Label은 <code>y_train</code>에서 온다.</strong><br><code>fit(X_train_processed, y_train)</code>은 전처리된 입력과 함께 Series 안의 <code>No</code>·<code>Yes</code> 정답을 받는다. 분류기는 이 Target 값들을 클래스라고 학습하므로 별도로 “출력 문자열은 No·Yes”라고 지정하지 않아도 <code>predict()</code>는 학습에서 본 클래스 중 하나를 반환한다.</div>
+
+      <h3><code>train_test_split()</code>은 아직 학습하지 않는다</h3>
+      <pre><code>from sklearn.model_selection import train_test_split
+
+X_train, X_valid, y_train, y_valid = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y,
+)</code></pre>
+      <p>이 함수는 모델을 학습하거나 값을 예측하지 않는다. 기존 7,043개 행을 Train과 Validation 두 묶음으로 나누되, 같은 고객의 <code>X</code>와 <code>y</code>가 서로 어긋나지 않게 함께 나눈다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>결과</th><th>Shape</th><th>뜻</th></tr></thead>
+        <tbody>
+          <tr><td><code>X_train</code></td><td><code>(5634, 19)</code></td><td>학습에 사용할 고객 5,634명과 Feature 19개</td></tr>
+          <tr><td><code>y_train</code></td><td><code>(5634,)</code></td><td>학습 고객 5,634명의 정답</td></tr>
+          <tr><td><code>X_valid</code></td><td><code>(1409, 19)</code></td><td>검증에 사용할 고객 1,409명과 Feature 19개</td></tr>
+          <tr><td><code>y_valid</code></td><td><code>(1409,)</code></td><td>검증 고객 1,409명의 정답</td></tr>
+        </tbody>
+      </table></div>
+      <div class="flow">
+        <div><strong><code>test_size=0.2</code></strong>전체의 약 20%를 Validation으로 떼고 나머지 약 80%를 Train으로 둔다.</div>
+        <div><strong><code>random_state=42</code></strong>무작위 분할 결과를 다시 실행해도 같게 만든다.</div>
+        <div><strong><code>stratify=y</code></strong><code>y</code>의 No·Yes 비율이 Train과 Validation에서 비슷하게 유지되도록 나눈다.</div>
+      </div>
+
+      <h3><code>stratify=y</code>가 보는 것은 Label뿐이다</h3>
+      <p>여기서 <code>y</code>는 이미 <code>df["Churn"]</code>으로 정한 Label이다. 따라서 <code>stratify=y</code>는 모든 <code>X</code> 열의 값 비율을 유지하지 않는다. <code>Churn</code>을 예측하는 기능도 아니며, 오직 분할할 때 No·Yes 비율만 참고한다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>묶음</th><th>No</th><th>Yes</th></tr></thead>
+        <tbody>
+          <tr><td>전체</td><td>73.463013%</td><td>26.536987%</td></tr>
+          <tr><td>Train</td><td>73.464679%</td><td>26.535321%</td></tr>
+          <tr><td>Validation</td><td>73.456352%</td><td>26.543648%</td></tr>
+        </tbody>
+      </table></div>
+      <p>세 묶음의 No·Yes 비율이 거의 같으므로 <code>stratify=y</code>가 의도대로 동작한 것을 확인했다.</p>
+
+      <div class="success"><strong>데이터 이해와 분할 완료</strong><br>원본 구조·자료형·결측·중복·Label 분포 확인부터 Feature·Label 분리, Train·Validation 분리와 Label 비율 검증까지 마쳤다.</div>
+      <div class="callout"><strong>다음 단계</strong><br>아무 학습도 하지 않고 항상 <code>No</code>만 예측하는 Dummy Baseline을 만들어 Accuracy 약 73.46%가 재현되는지 확인한다. 그다음 Logistic Regression을 같은 Split과 Metric에서 비교한다.</div>
+      <div class="success"><strong>이어서 검증 완료</strong><br><code>most_frequent</code> Dummy가 Validation 1,409개를 모두 No로 예측해 Accuracy 73.456%를 만드는 과정을 재현했다. 자세한 계산과 NumPy 예측 배열 설명은 <a href="machine_learning_churn_evaluation_learning.html#dummy-baseline">Dummy Baseline 문서</a>에서 이어진다.</div>
+    </section>
+
+    <section id="one-hot-contract">
+      <h2>9. 문자열 범주를 숫자 열로 펼치는 One-Hot Encoding</h2>
+      <p><code>Contract</code>는 계약 유형을 담은 범주형 Feature다. Train 데이터에는 다음 세 종류가 있었다.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>원래 값</th><th>Train 개수</th></tr></thead>
+        <tbody>
+          <tr><td><code>Month-to-month</code></td><td>3,102</td></tr>
+          <tr><td><code>Two year</code></td><td>1,359</td></tr>
+          <tr><td><code>One year</code></td><td>1,173</td></tr>
+        </tbody>
+      </table></div>
+      <p>Logistic Regression 같은 모델에 이 문자열을 그대로 넣는 대신, <code>OneHotEncoder</code>로 각 종류를 독립된 숫자 열로 펼쳤다.</p>
+      <pre><code>from sklearn.preprocessing import OneHotEncoder
+
+contract_encoder = OneHotEncoder(
+    sparse_output=False,
+    handle_unknown="ignore",
+)
+
+contract_encoded = contract_encoder.fit_transform(
+    X_train[["Contract"]]
+)</code></pre>
+
+      <h3>왜 대괄호를 두 번 쓰는가?</h3>
+      <p><code>X_train[["Contract"]]</code>는 열 하나를 고르더라도 2차원 DataFrame 형태를 유지한다. Encoder는 <code>[행, 열]</code> 구조의 입력을 받으므로 <code>X_train["Contract"]</code>로 만든 1차원 Series가 아니라 이 형태를 사용했다.</p>
+
+      <h3><code>fit_transform()</code>이 한 일</h3>
+      <div class="flow">
+        <div><strong><code>fit</code></strong>Train의 <code>Contract</code> 열을 보고 어떤 종류가 있는지 학습한다.</div>
+        <div><strong><code>transform</code></strong>각 문자열을 학습한 종류에 대응하는 0과 1의 행으로 바꾼다.</div>
+      </div>
+      <p>실제로 학습된 출력 열 이름은 다음과 같았다.</p>
+      <pre><code>contract_encoder.get_feature_names_out(
+    ["Contract"]
+)
+
+# ['Contract_Month-to-month',
+#  'Contract_One year',
+#  'Contract_Two year']</code></pre>
+      <div class="table-scroll"><table>
+        <thead><tr><th>원래 Contract</th><th>Month-to-month</th><th>One year</th><th>Two year</th></tr></thead>
+        <tbody>
+          <tr><td><code>Month-to-month</code></td><td><strong>1</strong></td><td>0</td><td>0</td></tr>
+          <tr><td><code>One year</code></td><td>0</td><td><strong>1</strong></td><td>0</td></tr>
+          <tr><td><code>Two year</code></td><td>0</td><td>0</td><td><strong>1</strong></td></tr>
+        </tbody>
+      </table></div>
+      <p>실제 앞의 다섯 행도 다음처럼 0과 1로 변환됐다.</p>
+      <pre><code>[[1. 0. 0.]
+ [1. 0. 0.]
+ [0. 0. 1.]
+ [0. 0. 1.]
+ [1. 0. 0.]]</code></pre>
+      <div class="callout"><strong>사용자의 언어로 읽기</strong><br>원래 <code>Contract</code> 열 하나에 문자열 세 종류가 들어 있었다. One-Hot Encoding을 하니 계약 종류별 열 세 개가 생기고, 각 고객은 자신에게 해당하는 열만 <code>1</code>, 나머지는 <code>0</code>이 됐다.</div>
+      <p><code>sparse_output=False</code>를 사용했으므로 이번 출력은 값을 바로 볼 수 있는 일반적인 밀집 NumPy 배열이다. <code>handle_unknown="ignore"</code>는 Validation에 Train에서 보지 못한 새 범주가 있어도 오류를 내지 않도록 하는 설정이지만, 새 범주를 직접 넣은 동작은 아직 별도 실험으로 검증하지 않았다.</p>
+      <div class="warning"><strong>아직 전처리 전체가 끝난 것은 아니다.</strong><br>이번에는 <code>Contract</code> 한 열로 One-Hot Encoder의 입출력 계약만 검증했다. 다음에는 모든 범주형 열에 One-Hot Encoding을 적용하고 숫자형 열의 처리와 함께 <code>ColumnTransformer</code>로 묶어야 한다.</div>
+
+      <h3><code>ColumnTransformer</code>의 Tuple은 데이터가 아니라 작업 명세다</h3>
+      <pre><code>preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "categorical",
+            OneHotEncoder(
+                sparse_output=False,
+                handle_unknown="ignore",
+            ),
+            categorical_features,
+        ),
+        (
+            "numeric",
+            "passthrough",
+            numeric_features,
+        ),
+    ]
+)</code></pre>
+      <p><code>transformers</code>에 넣는 각 Tuple은 다음 세 부분으로 읽는다.</p>
+      <div class="formula">(<strong>작업명</strong>, <strong>적용할 작업</strong>, <strong>컬럼 리스트</strong>)</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>위치</th><th>예시</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td>1. 작업명</td><td><code>"categorical"</code></td><td>이 변환 단계를 구별하기 위한 이름</td></tr>
+          <tr><td>2. 작업</td><td><code>OneHotEncoder(...)</code></td><td>선택된 열에 실행할 변환기</td></tr>
+          <tr><td>3. 컬럼 리스트</td><td><code>categorical_features</code></td><td>전체 표가 나중에 들어왔을 때 이 작업이 가져갈 열을 지정하는 선택자</td></tr>
+        </tbody>
+      </table></div>
+      <p>여기서 <code>categorical_features</code>나 <code>numeric_features</code>는 실제 고객 데이터가 아니다. <code>['gender', 'Partner', ...]</code>처럼 열 이름만 담은 목록이다. 즉 <code>ColumnTransformer</code>를 만드는 순간에는 “어떤 열에 어떤 작업을 할지”만 등록한다.</p>
+      <p>실제 데이터는 이후 다음 호출에서 들어간다.</p>
+      <pre><code>transformed_X_train = preprocessor.fit_transform(
+    X_train
+)</code></pre>
+      <div class="flow">
+        <div><strong>1. 전체 표 입력</strong><code>X_train</code> 전체가 <code>fit_transform()</code>에 들어간다.</div>
+        <div><strong>2. 열 선택</strong>각 Tuple의 컬럼 리스트를 이용해 해당 열들만 고른다.</div>
+        <div><strong>3. 작업 적용</strong>범주형 열에는 One-Hot을, 숫자형 열에는 지정한 작업을 실행한다.</div>
+        <div><strong>4. 결과 결합</strong>각 작업의 출력을 하나의 숫자 배열로 옆으로 이어 붙인다.</div>
+      </div>
+      <div class="callout"><strong>사용자가 구분한 핵심</strong><br><code>(작업명, 작업, 컬럼 리스트)</code>의 컬럼 리스트는 데이터 자체가 아니다. 나중에 <code>preprocessor.fit_transform(X_train)</code>으로 전체 표를 넣었을 때 어떤 열을 선택할지 미리 적어 둔 명세다.</div>
+
+      <h3><code>fit</code>은 출력 칸을 정하고, <code>transform</code>은 그 칸을 그대로 사용한다</h3>
+      <p><code>ColumnTransformer</code> 자체의 핵심 역할은 컬럼 리스트에 따라 열을 나누고 각 작업으로 보내는 것이다. 실제 범주 종류를 학습하는 것은 내부의 <code>OneHotEncoder</code>다.</p>
+      <div class="flow">
+        <div><strong><code>preprocessor.fit(X_train)</code></strong>ColumnTransformer가 범주형 열 15개를 OneHotEncoder로 보내고, Encoder의 <code>fit</code>이 각 열에 어떤 범주가 있는지 저장한다.</div>
+        <div><strong>고정 출력 칸 생성</strong>학습한 범주마다 출력 열의 이름·개수·순서를 고정한다.</div>
+        <div><strong><code>preprocessor.transform(X_valid)</code></strong>Validation은 범주를 다시 정하지 않고 Train에서 저장한 출력 칸을 그대로 사용해 0과 1로 바뀐다.</div>
+      </div>
+
+      <h3>Train과 Validation을 따로 <code>fit</code>하면 왜 안 되는가?</h3>
+      <p>Train의 <code>Contract</code>에 세 종류가 있다고 하자.</p>
+      <pre><code>Train에서 fit한 Contract 범주
+→ [Month-to-month, One year, Two year]
+
+Two year
+→ [0, 0, 1]</code></pre>
+      <p>그런데 Validation에 우연히 <code>One year</code> 행이 없고, Validation에 새 Encoder를 따로 <code>fit</code>했다고 가정하면 범주 집합이 두 개뿐이다.</p>
+      <pre><code>Validation만 따로 fit한 Contract 범주
+→ [Month-to-month, Two year]
+
+Two year
+→ [0, 1]</code></pre>
+      <p>같은 <code>Two year</code>인데도 출력 열의 개수와 위치가 달라졌다. Train에서 세 번째 칸을 <code>Two year</code>로 배운 모델에 두 번째 칸이 <code>Two year</code>인 새 배열을 넣으면, 모델이 학습한 Feature의 의미와 입력의 의미가 맞지 않는다.</p>
+      <div class="warning"><strong>원인은 행 개수나 행 순서가 아니다.</strong><br>Train과 Validation의 행 수가 다르거나 무작위로 섞였기 때문에 One-Hot 위치가 달라지는 것이 아니다. 각각 따로 <code>fit</code>하면서 발견한 <strong>범주 집합이 달라졌기 때문</strong>이다.</div>
+      <div class="callout"><strong>사용자가 이해한 고정 규칙</strong><br>Train에서 <code>fit</code>해 모든 범주형 열의 출력 칸을 먼저 정한다. Validation과 이후 데이터에는 <code>transform</code>만 적용해 그 칸의 의미를 계속 유지한다.</div>
+      <p>현재 설정의 <code>handle_unknown="ignore"</code>는 Validation에 Train에서 전혀 보지 못한 범주가 나타났을 때 새 출력 칸을 만들지 않고, 그 Feature 묶음을 모두 0으로 처리해 이미 고정된 Shape을 유지한다.</p>
+    </section>
+
+
+</main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>

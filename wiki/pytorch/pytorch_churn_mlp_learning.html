@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="회원 이탈 표 데이터를 Pandas에서 PyTorch Tensor와 DataLoader로 옮기고 MLP Logit·Sigmoid·BCE Loss까지 연결한 학습 기록">
+  <title>회원 이탈 데이터에서 PyTorch MLP와 BCE 연결</title>
+  <style>
+    :root { --bg:#f4f6f9; --paper:#fff; --ink:#172033; --muted:#5e687d; --line:#dce2eb; --blue:#3157d5; --blue-soft:#edf2ff; --green:#14765a; --green-soft:#eaf8f3; --orange:#a45116; --orange-soft:#fff4e8; --code:#172033; --shadow:0 18px 55px rgba(31,42,68,.10); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:radial-gradient(circle at 10% 0%,#e7edff 0,transparent 27rem),radial-gradient(circle at 95% 20%,#e5f8f1 0,transparent 24rem),var(--bg); font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height:1.75; word-break:keep-all; }
+    a { color:var(--blue); }
+    code, pre { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; }
+    code { padding:.1em .38em; border-radius:.35em; background:#eef1f6; font-size:.92em; }
+    .wrap { width:min(1040px,calc(100% - 32px)); margin:0 auto; padding:42px 0 80px; }
+    .breadcrumb, .toc { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 18px; }
+    .breadcrumb { color:var(--muted); font-size:13px; }
+    .breadcrumb a, .toc a { text-decoration:none; }
+    .separator { opacity:.45; }
+    header { padding:42px; color:#fff; border-radius:26px; background:linear-gradient(135deg,#172033,#284ab7 62%,#16735c); box-shadow:var(--shadow); }
+    header .label { display:inline-flex; padding:6px 11px; border:1px solid rgba(255,255,255,.28); border-radius:999px; background:rgba(255,255,255,.1); font-size:13px; }
+    h1 { margin:14px 0 10px; font-size:clamp(31px,5vw,51px); line-height:1.15; }
+    header p { max-width:800px; margin:0; color:#e8edff; font-size:17px; }
+    .toc { margin-top:22px; }
+    .toc a { padding:8px 12px; color:#344158; border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,.85); font-size:14px; }
+    section { margin-top:22px; padding:32px; border:1px solid var(--line); border-radius:22px; background:var(--paper); box-shadow:0 8px 30px rgba(31,42,68,.06); }
+    h2 { margin:0 0 12px; font-size:27px; line-height:1.3; }
+    h3 { margin:26px 0 8px; font-size:19px; }
+    p { margin:9px 0; }
+    .summary { color:var(--muted); }
+    .flow { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; margin:18px 0; }
+    .flow div { padding:14px; border:1px solid #cfd8ee; border-radius:14px; background:var(--blue-soft); font-size:14px; }
+    .flow strong { display:block; margin-bottom:5px; color:#2647b4; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:16px; }
+    .card { padding:17px; border:1px solid var(--line); border-radius:15px; background:#fafbfc; }
+    .card strong { display:block; margin-bottom:6px; }
+    .code-card { overflow:hidden; margin:18px 0; border-radius:17px; background:var(--code); box-shadow:0 12px 28px rgba(19,27,45,.16); }
+    .code-head { padding:10px 15px; color:#cdd6ea; border-bottom:1px solid rgba(255,255,255,.12); font-size:13px; }
+    pre { margin:0; padding:20px; overflow-x:auto; color:#eef3ff; font-size:14px; line-height:1.65; }
+    pre code { padding:0; color:inherit; background:transparent; font-size:inherit; }
+    .formula { margin:15px 0; padding:18px; text-align:center; border:1px solid #cfd8ee; border-radius:15px; background:var(--blue-soft); font-family:"SFMono-Regular",Consolas,monospace; font-size:17px; }
+    .fraction { display:inline-grid; grid-template-rows:auto auto; min-width:5em; margin:0 .3em; vertical-align:middle; text-align:center; line-height:1.25; }
+    .numerator { padding:0 .35em .18em; border-bottom:1.5px solid currentColor; }
+    .denominator { padding:.18em .35em 0; }
+    .callout, .warning { margin:17px 0; padding:16px 18px; border-left:5px solid var(--green); border-radius:12px; background:var(--green-soft); }
+    .warning { border-left-color:var(--orange); background:var(--orange-soft); }
+    table { width:100%; margin-top:14px; border-collapse:collapse; }
+    th, td { padding:12px; border-bottom:1px solid var(--line); text-align:left; }
+    th { color:#3c4a64; background:#f6f8fb; }
+    footer { padding:28px 4px 0; color:var(--muted); text-align:center; }
+    @media (max-width:760px) { .wrap{width:min(100% - 18px,1040px);padding-top:10px} header,section{padding:23px;border-radius:18px}.flow,.grid{grid-template-columns:1fr} }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><span aria-current="page">회원 이탈 MLP</span></nav>
+    <header>
+      <span class="label">PyTorch · 실제 표 데이터 · 2026-08-22</span>
+      <h1>회원 이탈 데이터에서 MLP와 BCE까지</h1>
+      <p>작은 숫자 Tensor에서 시작했던 학습 흐름을 실제 표 데이터로 확장해, Pandas 정리부터 NumPy·Tensor·DataLoader·MLP의 Logit과 첫 BCE Loss까지 연결합니다.</p>
+    </header>
+    <nav class="toc" aria-label="문서 목차"><a href="#boundary">현재 범위</a><a href="#data">데이터 준비</a><a href="#tensor">Tensor·DataLoader</a><a href="#mlp">MLP Shape</a><a href="#linear-open-question">Linear 열린 질문</a><a href="#sigmoid">Logit·Sigmoid</a><a href="#bce">BCE 계산</a><a href="#optimizer-step">SGD 한 Step</a><a href="#next">다음 검증</a></nav>
+    <p><a href="pytorch_linear_regression_learning.html">← PyTorch 학습 경로</a></p>
+
+    <section id="boundary">
+      <h2>1. 오늘 확인한 범위</h2>
+      <div class="flow">
+        <div><strong>Pandas</strong>원본 표 정리와 분할</div>
+        <div><strong>NumPy</strong>전처리된 45개 숫자 Feature</div>
+        <div><strong>Tensor</strong><code>float32</code> 입력과 정답</div>
+        <div><strong>DataLoader</strong>64명씩 Batch 공급</div>
+        <div><strong>MLP·Loss</strong>Logit과 초기 BCE 확인</div>
+      </div>
+      <div class="callout"><strong>완료로 과장하지 않는 경계</strong><br>데이터 준비, Batch Shape, MLP Forward와 초기 BCE 값에 이어 SGD로 같은 Batch를 한 번 수정해 Loss가 <code>0.6564000844955444 → 0.6511512994766235</code>로 내려가는 것까지 실행했다. 이는 전체 Train 루프나 한 Batch 과적합 완료가 아니다. Validation Accuracy·Yes Recall, 저장·복원·추론은 아직 실행하지 않았고, BCE 세부 계산과 다차원 Linear의 파라미터·Shape도 다시 설명하는 확인이 남아 있다.</div>
+    </section>
+
+    <section id="data">
+      <h2>2. 실제 표 데이터를 같은 Train 기준으로 전처리한다</h2>
+      <p>공개 회원 이탈 데이터는 <code>(7043,21)</code>이었다. 식별자 <code>customerID</code>와 정답 <code>Churn</code>을 입력에서 빼고, 정답의 의미를 직접 숫자로 정했다.</p>
+      <div class="code-card"><div class="code-head">Feature와 Label 분리</div><pre><code>X = df.drop(columns=["customerID", "Churn"])
+y = df["Churn"].map({"No": 0, "Yes": 1})</code></pre></div>
+      <p>이 매핑 때문에 이후 숫자 <code>1</code>은 이탈, <code>0</code>은 비이탈을 뜻한다. 반대로 매핑하면 모델 출력의 해석도 반대로 바뀐다. 분리 결과는 <code>X (7043,19)</code>, <code>y (7043,)</code>이고 Label 수는 <code>0: 5174</code>, <code>1: 1869</code>였다.</p>
+      <h3><code>TotalCharges</code> 숫자 변환</h3>
+      <div class="code-card"><div class="code-head">공백을 NaN으로 바꾼 뒤 0으로 채우기</div><pre><code>X["TotalCharges"] = pd.to_numeric(
+    X["TotalCharges"],
+    errors="coerce",
+).fillna(0)</code></pre></div>
+      <p>변환 뒤 dtype은 <code>float64</code>, 남은 결측치는 0개였다. 공백 11개가 가입 기간 0인 행이라는 앞선 품질 점검 근거를 사용해 0으로 처리했다.</p>
+      <h3>Stratified Train·Validation Split</h3>
+      <p><code>test_size=0.2</code>, <code>random_state=42</code>, <code>stratify=y</code>로 나눈 결과는 Train <code>(5634,19)</code>, Validation <code>(1409,19)</code>였다. <code>1</code> 비율은 각각 약 <code>0.26535</code>, <code>0.26544</code>로 거의 같았다.</p>
+      <p><code>train_test_split()</code>은 입력 자료형을 유지하므로 <code>X_train</code>·<code>X_valid</code>는 열 이름과 행 index가 있는 Pandas DataFrame이고, <code>y_train</code>·<code>y_valid</code>는 1차원 Pandas Series다. 여기서 Pandas의 행·열 label은 머신러닝 정답 Label인 <code>y</code>와 다른 의미다. NumPy <code>ndarray</code>는 이후 전처리 결과에서 처음 만들어진다.</p>
+      <h3>열 선택과 전처리 기준</h3>
+      <div class="grid">
+        <div class="card"><strong>숫자형 4개</strong><code>SeniorCitizen</code>, <code>tenure</code>, <code>MonthlyCharges</code>, <code>TotalCharges</code>에 <code>StandardScaler</code>를 적용했다.</div>
+        <div class="card"><strong>범주형 15개</strong><code>OneHotEncoder(sparse_output=False, handle_unknown="ignore")</code>를 적용했다.</div>
+      </div>
+      <p><code>preprocessor.fit_transform(X_train)</code>은 Train에서 범주 자리·평균·표준편차를 배우면서 변환하고, <code>preprocessor.transform(X_valid)</code>은 그 기준을 Validation에 그대로 적용한다. Validation에서 다시 <code>fit</code>하지 않는 이유는 평가 데이터 정보가 섞이는 누수와 Feature 자리 불일치를 막기 위해서다.</p>
+      <p>결과는 열 이름을 가진 Pandas DataFrame에서 숫자만 가진 NumPy 배열로 바뀌었다.</p>
+      <div class="formula">Train: Pandas <code>(5634,19)</code> → NumPy <code>(5634,45)</code> · Validation: Pandas <code>(1409,19)</code> → NumPy <code>(1409,45)</code></div>
+    </section>
+
+    <section id="tensor">
+      <h2>3. NumPy 배열을 <code>float32</code> Tensor와 Batch로 옮긴다</h2>
+      <p>입력은 이미 <code>[고객 수,45개 Feature]</code>이므로 Shape을 유지한다. 정답은 Pandas Series를 NumPy로 바꾼 뒤 <code>reshape(-1,1)</code>로 모델 출력과 같은 2차원 Shape을 만든다.</p>
+      <div class="code-card"><div class="code-head">Pandas·NumPy → Tensor</div><pre><code>X_train_tensor = torch.tensor(X_train_processed, dtype=torch.float32)
+X_valid_tensor = torch.tensor(X_valid_processed, dtype=torch.float32)
+
+y_train_tensor = torch.tensor(
+    y_train.to_numpy(),
+    dtype=torch.float32,
+).reshape(-1, 1)</code></pre></div>
+      <p><code>reshape(-1,1)</code>에서 <code>1</code>은 열을 하나로 고정하고, <code>-1</code>은 전체 원소 수에 맞춰 행 수를 자동 계산하라는 뜻이다. 그래서 <code>(5634,)</code>가 <code>(5634,1)</code>이 된다.</p>
+      <table><thead><tr><th>Tensor</th><th>Shape</th><th>dtype</th></tr></thead><tbody><tr><td>Train 입력</td><td><code>[5634,45]</code></td><td><code>float32</code></td></tr><tr><td>Train 정답</td><td><code>[5634,1]</code></td><td><code>float32</code></td></tr><tr><td>Validation 입력</td><td><code>[1409,45]</code></td><td><code>float32</code></td></tr><tr><td>Validation 정답</td><td><code>[1409,1]</code></td><td><code>float32</code></td></tr></tbody></table>
+      <h3><code>TensorDataset</code>과 타입 오류</h3>
+      <p>모델이 계산할 Tensor로 바꾸는 작업은 앞의 <code>torch.tensor()</code>에서 끝났다. <code>TensorDataset</code>은 새 숫자 형식으로 변환하는 객체가 아니라, 이미 만든 입력 Tensor와 정답 Tensor를 같은 인덱스끼리 짝짓는 객체다. 처음에는 Validation 입력 자리에 NumPy 배열 <code>X_valid_processed</code>를 넣어 <code>TypeError: 'int' object is not callable</code>가 발생했다. NumPy의 <code>.size</code>는 정수 속성인데 <code>TensorDataset</code>은 Tensor의 <code>.size(0)</code> 메서드를 호출하기 때문이다. <code>X_valid_tensor</code>로 바꿔 Train 5,634개와 Validation 1,409개의 짝을 만들었다.</p>
+      <h3><code>DataLoader</code>가 Batch 행을 공급한다</h3>
+      <div class="code-card"><div class="code-head">Train과 Validation DataLoader</div><pre><code>train_loader = DataLoader(
+    train_dataset,
+    batch_size=64,
+    shuffle=True,
+)
+
+valid_loader = DataLoader(
+    valid_dataset,
+    batch_size=64,
+    shuffle=False,
+)</code></pre></div>
+      <p>Train은 Epoch마다 순서를 섞고, Validation은 고정한다. <code>iter(train_loader)</code>는 Batch 반복기를 만들고 <code>next(...)</code>는 그중 한 Batch를 꺼낸다. 첫 Batch는 입력 <code>[64,45]</code>, 정답 <code>[64,1]</code>이었다. Train은 89개 Batch(<code>64 × 88 + 2</code>), Validation은 23개 Batch다. <code>64</code>는 바뀔 수 있는 고객 수이고 <code>45</code>는 모델 입력 계약이라 고정된다.</p>
+    </section>
+
+    <section id="mlp">
+      <h2>4. MLP는 각 고객의 45개 값을 16개 중간값과 Logit 하나로 바꾼다</h2>
+      <div class="code-card"><div class="code-head">ChurnMLP Forward</div><pre><code>class ChurnMLP(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.hidden = nn.Linear(45, 16)
+        self.output = nn.Linear(16, 1)
+
+    def forward(self, x):
+        hidden = self.hidden(x)
+        activated = torch.relu(hidden)
+        logits = self.output(activated)
+        return logits</code></pre></div>
+      <div class="formula"><code>[batch,45] → [batch,16] → [batch,1]</code></div>
+      <p><code>45 → 16</code>은 고객 한 명의 Feature 45개를 학습 가능한 조합 16개로 바꾸고, <code>16 → 1</code>은 그 16개를 고객별 Logit 하나로 합친다는 뜻이다. Batch가 64명이어서 출력이 <code>[64,1]</code>이지만 모델이 64명 전용이라는 뜻은 아니다. <code>[1,45]</code>, <code>[32,45]</code>, 마지막 <code>[2,45]</code>도 각각 앞 차원을 유지해 처리한다.</p>
+      <div class="callout"><strong>ReLU와 마지막 Linear 구분</strong><br>ReLU는 음수를 0에 가깝게 만드는 것이 아니라 정확히 0으로 만들고, 양수에는 상한 1을 두지 않는다. <code>ReLU(10)=10</code>이다. ReLU는 중간값에만 적용되므로 마지막 <code>Linear(16,1)</code>의 가중치와 bias에 따라 Logit은 <code>-100</code>, <code>-0.2608</code>, <code>10</code>처럼 어떤 실수도 될 수 있다.</div>
+    </section>
+
+    <section id="linear-open-question">
+      <h2>5. 현재 질문 · Linear의 숫자와 파라미터 Shape</h2>
+      <div class="warning"><strong>이해 진행 중이며 완료 표시하지 않는다.</strong><br>아래 내용은 현재 코드가 실제로 가진 구조를 정리한 기술 기준이다. 사용자가 파라미터 수와 3차원 입력의 출력 Shape을 다시 예측하거나 자기 말로 설명하는 확인은 아직 남아 있다.</div>
+      <p><code>nn.Linear(45,16)</code>의 두 숫자는 입력값 45개와 출력값 16개를 뜻한다. 실제 weight는 <code>[out_features,in_features]=[16,45]</code>인 2차원 행렬이고, 출력값마다 bias 하나가 있어 bias Shape은 <code>[16]</code>이다.</p>
+      <table><thead><tr><th>계층</th><th>Weight</th><th>Bias</th><th>파라미터 수</th></tr></thead><tbody><tr><td><code>Linear(45,16)</code></td><td><code>[16,45]</code> · <code>45 × 16 = 720</code></td><td><code>[16]</code> · 16개</td><td>736개</td></tr><tr><td><code>Linear(16,1)</code></td><td><code>[1,16]</code> · 16개</td><td><code>[1]</code> · 1개</td><td>17개</td></tr><tr><td>전체</td><td colspan="2">ReLU에는 학습 파라미터가 없음</td><td>753개</td></tr></tbody></table>
+      <p>Linear의 weight는 2차원이지만 입력 Tensor는 3차원 이상일 수 있다. Linear는 앞 차원을 유지하고 마지막 Feature 축만 바꾼다.</p>
+      <div class="formula"><code>[32,10,45] → Linear(45,16) → [32,10,16]</code></div>
+      <p><code>nn.Linear(45,33,16)</code>은 <code>45 → 33 → 16</code>을 뜻하지 않는다. 세 번째 위치 인자는 새 출력 차원이 아니라 <code>bias</code> 자리다. 현재 PyTorch에서는 정수 16이 참으로 취급되어 <code>Linear(45,33,bias=True)</code>처럼 만들어질 수 있지만, 의도가 불분명하므로 쓰지 않는다. <code>45 → 33 → 16</code>을 만들려면 <code>Linear(45,33)</code>과 <code>Linear(33,16)</code> 두 계층을 따로 선언해야 한다.</p>
+    </section>
+
+    <section id="sigmoid">
+      <h2>6. Sigmoid는 제한 없는 Logit을 0과 1 사이로 압축한다</h2>
+      <p>첫 고객의 학습 전 Logit은 <code>z=-0.2608</code>이었다. Sigmoid 계산은 다음과 같다.</p>
+      <div class="formula"><span class="fraction"><span class="numerator">1</span><span class="denominator">1 + e<sup>−z</sup></span></span> = <span class="fraction"><span class="numerator">1</span><span class="denominator">1 + e<sup>0.2608</sup></span></span> ≈ <span class="fraction"><span class="numerator">1</span><span class="denominator">1 + 1.298</span></span> ≈ 0.4352</div>
+      <p>현재 단계에서는 이 값을 과하게 해석하지 않고 <strong>학습 전 sigmoid 출력값</strong>이라고 기록한다. Sigmoid 자체는 각 실수를 독립적으로 <code>0~1</code> 사이로 압축할 뿐이며, MinMaxScaler처럼 데이터 전체의 최솟값·최댓값을 사용하는 정규화는 아니다.</p>
+      <p><code>0.5</code> Threshold는 sigmoid 출력값을 최종 <code>0/1</code> 판정으로 바꿀 때 쓰는 별도 규칙이다. 현재 셀은 아직 Threshold로 판정하지 않았고, BCE가 연속적인 sigmoid 출력값을 채점하는 단계다.</p>
+      <div class="warning"><strong>표현상 주의</strong><br>학습 전 출력에는 단순히 “확률”이라고 쓰지 않고 <code>학습 전 sigmoid 출력값</code>이라고 쓴다. BCE 학습 뒤에도 이는 모델이 추정한 값이며 현실의 빈도와 맞는지는 별도의 Calibration 검증이 필요하다.</div>
+    </section>
+
+    <section id="bce">
+      <h2>7. BCE는 실제 정답 쪽 sigmoid 출력값에 <code>-log</code>를 적용한다</h2>
+      <p><code>p</code>를 sigmoid 출력값, <code>y</code>를 실제 정답 <code>0</code> 또는 <code>1</code>이라고 두면 고객 한 명의 BCE는 다음 두 경우로 읽을 수 있다.</p>
+      <div class="grid">
+        <div class="card"><strong>실제 정답 <code>y=1</code></strong><code>개별 Loss = -log(p)</code></div>
+        <div class="card"><strong>실제 정답 <code>y=0</code></strong><code>개별 Loss = -log(1-p)</code></div>
+      </div>
+      <p>두 경우를 한 식으로 합치면 다음과 같다.</p>
+      <div class="formula"><code>L = -[y log(p) + (1-y) log(1-p)]</code></div>
+      <h3>첫 고객 실제 숫자로 계산</h3>
+      <div class="code-card"><div class="code-head">z = -0.2608, p = 0.4352, y = 0</div><pre><code>L
+= -[0 × log(0.4352) + (1 - 0) × log(1 - 0.4352)]
+= -log(0.5648)
+≈ 0.571</code></pre></div>
+      <p>첫 고객의 실제 정답이 0이므로 <code>p</code>가 아니라 <code>1-p=0.5648</code>을 선택해 벌점을 계산한다. 같은 출력에서 정답이 1이었다면 <code>-log(0.4352) ≈ 0.832</code>가 된다.</p>
+      <p>정답 방향 벌점의 크기는 별도 예제로도 예측했다. sigmoid 출력값이 <code>0.8</code>일 때 실제 정답이 <code>1</code>이면 <code>-log(0.8)</code>, 실제 정답이 <code>0</code>이면 <code>-log(0.2)</code>이므로 두 번째 벌점이 더 크다. <code>e<sup>-x</sup></code>가 <code>0.8</code>보다 작은 <code>0.2</code>가 되려면 <code>x</code>가 더 커야 한다는 관계로도 설명했다. 이는 같은 모델 출력이라도 실제 정답 쪽에 남긴 값이 <code>0.8</code>인지 <code>0.2</code>인지에 따라 BCE가 달라진다는 확인이다.</p>
+      <h3>고객별 Loss 64개를 하나로 합치기</h3>
+      <p><code>nn.BCEWithLogitsLoss()</code>의 기본값은 <code>reduction="mean"</code>이다. 따라서 고객별 Loss 64개를 모두 더한 뒤 64로 나눈다.</p>
+      <div class="formula">Batch Loss = <span class="fraction"><span class="numerator">고객 1 Loss + 고객 2 Loss + ⋯ + 고객 64 Loss</span><span class="denominator">64</span></span> = 0.6564000844955444</div>
+      <p>화면에는 <code>logits[:3]</code>으로 앞 3명만 출력했지만, 실제 Loss 계산에는 <code>logits [64,1]</code>과 <code>batch_y [64,1]</code> 전체가 들어갔다. 고객별 값을 보고 싶을 때만 <code>reduction="none"</code>을 사용한다.</p>
+      <h3>MSE·분산·BCE 구분</h3>
+      <table><thead><tr><th>계산</th><th>비교 기준</th><th>현재 의미</th></tr></thead><tbody><tr><td>분산</td><td><code>각 값 − 그 값들의 평균</code></td><td>데이터가 평균에서 얼마나 퍼졌는지</td></tr><tr><td>MSE Loss</td><td><code>예측값 − 실제 정답</code>을 제곱한 평균</td><td>앞선 선형회귀에서 사용한 Loss</td></tr><tr><td>BCE Loss</td><td>정답 쪽 sigmoid 출력값에 <code>-log</code></td><td>현재 0/1 이진분류에서 선택한 Loss</td></tr></tbody></table>
+      <p><code>(sigmoid 출력값 - 실제 정답)²</code>을 평균내는 방식도 가능한 다른 Loss이며 MSE라고 부른다. 현재 코드는 이 방식 대신 BCE를 선택했다.</p>
+      <div class="callout"><strong><code>WithLogits</code>의 뜻</strong><br>개념상 <code>Logit → Sigmoid → BCE</code>지만 <code>BCEWithLogitsLoss</code>는 수치적으로 안전하게 계산하려고 원본 Logit에서 두 단계를 함께 처리한다. 따라서 Loss에는 <code>loss_fn(logits, batch_y)</code>를 넣고, <code>torch.sigmoid(logits)</code>를 다시 넣어 sigmoid를 중복 적용하지 않는다.</div>
+    </section>
+
+    <section id="optimizer-step">
+      <h2>8. SGD로 같은 Batch를 한 번 수정했다</h2>
+      <div class="code-card"><div class="code-head">저장된 노트북의 한 Step</div><pre><code>optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+optimizer.zero_grad()
+logits = model(batch_x)
+loss_before = loss_fn(logits, batch_y)
+loss_before.backward()
+optimizer.step()</code></pre></div>
+      <p><code>SGD</code>는 <code>model.parameters()</code>에 등록된 753개 weight·bias 각각에 대해 <code>새 값 = 기존 값 - learning rate × Gradient</code>를 적용한다. 저장된 실행에서는 같은 Batch의 Loss가 <code>0.6564000844955444</code>에서 <code>0.6511512994766235</code>로 내려갔다.</p>
+      <div class="warning"><strong>실행 증거와 이해 증거를 구분한다.</strong><br>사용자는 <code>optimizer.step()</code> 한 번마다 Gradient와 learning rate를 기준으로 weight·bias가 조금 조정되고, 그 결과 Loss가 <code>0.6564000844955444 → 0.6511512994766235</code>로 소폭 감소했다고 자기 말로 설명했다. SGD 한 Step의 원리는 확인했지만, 전체 753개 파라미터 계산과 다차원 Linear의 마지막 축 Shape은 다시 설명하는 확인이 남아 있다. 같은 Batch를 충분히 과적합하거나 전체 Train 루프를 만든 상태도 아니다.</div>
+    </section>
+
+    <section id="next">
+      <h2>9. 다음에 확인할 완료 조건</h2>
+      <ul>
+        <li>고객별 BCE를 <code>reduction="none"</code>으로 출력하고 첫 값과 Batch 평균을 다시 계산한다.</li>
+        <li><code>Linear(45,16)</code>·<code>Linear(16,1)</code>의 파라미터 수와 3차원 입력의 출력 Shape을 자료 없이 다시 설명한다.</li>
+        <li>이미 확인한 한 번의 SGD Step을 반복해 같은 Batch를 충분히 과적합한다.</li>
+        <li>전체 Train 루프와 가중치를 바꾸지 않는 Validation 루프를 분리한다.</li>
+        <li>Validation Accuracy와 Yes Recall을 기존 Logistic Regression 결과와 같은 Split에서 비교한다.</li>
+        <li>모델과 전처리·Label 매핑을 저장하고 다시 불러와 한 고객을 추론한다.</li>
+      </ul>
+      <p class="summary">이 항목을 실행·설명·재실행하기 전에는 Dataset·DataLoader와 학습 루프 챕터를 완료로 표시하지 않는다.</p>
+    </section>
+    <footer>PyTorch 실제 표 데이터 실습 · Pandas에서 BCE와 SGD 한 Step까지</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260820"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 window.KNOWLEDGE_MANIFEST = {
-  "documentCount": 62,
-  "indexedCount": 63,
+  "documentCount": 93,
+  "indexedCount": 94,
   "categories": [
     {
       "id": "coding-test",
@@ -46,570 +46,1037 @@ window.KNOWLEDGE_MANIFEST = {
   "documents": [
     {
       "id": "wiki-coding-test-01-incomplete-player",
-      "title": "코딩 테스트 01 · 완주하지 못한 선수",
-      "description": "코딩 테스트 완주하지 못한 선수 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "완주하지 못한 선수",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 완주하지 못한 선수 완주하지 못한 선수 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/01-incomplete-player.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-02-pokemon",
-      "title": "코딩 테스트 02 · 폰켓몬",
-      "description": "코딩 테스트 폰켓몬 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "폰켓몬",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 폰켓몬 폰켓몬 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/02-pokemon.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-03-remove-consecutive-duplicates",
-      "title": "코딩 테스트 03 · 같은 숫자는 싫어",
-      "description": "코딩 테스트 같은 숫자는 싫어 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "같은 숫자는 싫어",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 같은 숫자는 싫어 같은 숫자는 싫어 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/03-remove-consecutive-duplicates.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-04-valid-parentheses",
-      "title": "코딩 테스트 04 · 올바른 괄호",
-      "description": "코딩 테스트 올바른 괄호 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "올바른 괄호",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 올바른 괄호 올바른 괄호 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/04-valid-parentheses.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-05-gym-clothes",
-      "title": "코딩 테스트 05 · 체육복",
-      "description": "코딩 테스트 체육복 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "체육복",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 체육복 체육복 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/05-gym-clothes.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-06-minimum-rectangle",
-      "title": "코딩 테스트 06 · 최소직사각형",
-      "description": "코딩 테스트 최소직사각형 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "최소직사각형",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 최소직사각형 최소직사각형 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/06-minimum-rectangle.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-07-mock-exam",
-      "title": "코딩 테스트 07 · 모의고사",
-      "description": "코딩 테스트 모의고사 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "모의고사",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 모의고사 모의고사 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/07-mock-exam.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-08-kth-number",
-      "title": "코딩 테스트 08 · K번째수",
-      "description": "코딩 테스트 K번째수 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "K번째수",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › K번째수 K번째수 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/08-kth-number.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-09-two-number-sums",
-      "title": "코딩 테스트 09 · 두 개 뽑아서 더하기",
-      "description": "코딩 테스트 두 개 뽑아서 더하기 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "두 개 뽑아서 더하기",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 두 개 뽑아서 더하기 두 개 뽑아서 더하기 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/09-two-number-sums.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-10-three-musketeers",
-      "title": "코딩 테스트 10 · 삼총사",
-      "description": "코딩 테스트 삼총사 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "삼총사",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 삼총사 삼총사 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/10-three-musketeers.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-11-budget",
-      "title": "코딩 테스트 11 · 예산",
-      "description": "코딩 테스트 예산 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "예산",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 예산 예산 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/11-budget.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-12-make-prime",
-      "title": "코딩 테스트 12 · 소수 만들기",
-      "description": "코딩 테스트 소수 만들기 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "소수 만들기",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 소수 만들기 소수 만들기 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/12-make-prime.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-13-failure-rate",
-      "title": "코딩 테스트 13 · 실패율",
-      "description": "코딩 테스트 실패율 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "실패율",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 실패율 실패율 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/13-failure-rate.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-14-report-results",
-      "title": "코딩 테스트 14 · 신고 결과 받기",
-      "description": "코딩 테스트 신고 결과 받기 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "신고 결과 받기",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 신고 결과 받기 신고 결과 받기 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/14-report-results.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-15-lotto-ranks",
-      "title": "코딩 테스트 15 · 로또의 최고 순위와 최저 순위",
-      "description": "코딩 테스트 로또의 최고 순위와 최저 순위 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "로또의 최고 순위와 최저 순위",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 로또의 최고 순위와 최저 순위 로또의 최고 순위와 최저 순위 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/15-lotto-ranks.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-16-feature-development",
-      "title": "코딩 테스트 16 · 기능개발",
-      "description": "코딩 테스트 기능개발 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "기능개발",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 기능개발 기능개발 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/16-feature-development.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-17-jaden-case",
-      "title": "코딩 테스트 17 · JadenCase 문자열 만들기",
-      "description": "코딩 테스트 JadenCase 문자열 만들기 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "JadenCase 문자열 만들기",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › JadenCase 문자열 만들기 JadenCase 문자열 만들기 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/17-jaden-case.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-18-min-max",
-      "title": "코딩 테스트 18 · 최댓값과 최솟값",
-      "description": "코딩 테스트 최댓값과 최솟값 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "최댓값과 최솟값",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 최댓값과 최솟값 최댓값과 최솟값 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/18-min-max.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-19-carpet",
-      "title": "코딩 테스트 19 · 카펫",
-      "description": "코딩 테스트 카펫 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "카펫",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 카펫 카펫 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/19-carpet.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-20-h-index",
-      "title": "코딩 테스트 20 · H-Index",
-      "description": "코딩 테스트 H-Index 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "H-Index",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › H-Index H-Index 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/20-h-index.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-21-fibonacci",
-      "title": "코딩 테스트 21 · 피보나치 수",
-      "description": "코딩 테스트 피보나치 수 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "피보나치 수",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 피보나치 수 피보나치 수 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/21-fibonacci.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-22-target-number",
-      "title": "코딩 테스트 22 · 타겟 넘버",
-      "description": "코딩 테스트 타겟 넘버 문제에서 배운 풀이 흐름과 Python 문법",
+      "title": "타겟 넘버",
+      "description": "문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 타겟 넘버 타겟 넘버 이 문제에서 연습한 핵심 풀이 흐름 기억할 코드 형태 헷갈렸던 지점 다시 풀 때 확인할 것",
       "href": "wiki/coding-test/22-target-number.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-23-game-map-shortest-path",
-      "title": "코딩 테스트 23 · 게임 맵 최단거리",
-      "description": "프로그래머스 게임 맵 최단거리 문제에서 배운 BFS, 격자 탐색과 거리 기록",
+      "title": "게임 맵 최단거리",
+      "description": "DFS 다음에 BFS를 처음 적용한 문제다. 같은 거리의 칸을 먼저 처리하는 Queue의 성질과, 격자에 거리를 직접 기록하는 방법을 확인한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 › 게임 맵 최단거리 게임 맵 최단거리 이 문제에서 연습한 핵심 BFS는 왜 최단거리를 보장하는가? 상하좌우 탐색과 범위 체크 방문 여부와 거리 기록을 함께 저장하기 헷갈렸던 지점과 실패한 접근 최종 코드 DFS와 BFS 비교 BFS 체크리스트",
       "href": "wiki/coding-test/23-game-map-shortest-path.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html"
     },
     {
       "id": "wiki-coding-test-index",
-      "title": "코딩 테스트 학습 위키",
-      "description": "푼 코딩 테스트 문제와 Python 문법, 알고리즘 학습 흐름을 연결한 개인 위키",
+      "title": "코딩 테스트",
+      "description": "문제를 푼 개수보다 각 문제에서 어떤 문법과 사고방식을 사용했고 어디서 헷갈렸는지를 문제별로 다시 찾는다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 코딩 테스트 코딩 테스트 문제별 학습 문서 문제를 풀며 확인한 Python 문법 dict와 set 삭제와 Queue 순회와 문자열 문자 검사와 변경 변환과 정렬 재귀와 nonlocal 지금까지 연결한 알고리즘 사고 다음 학습 지점",
       "href": "wiki/coding-test/index.html",
       "category": "코딩 테스트",
       "categoryKey": "coding-test",
-      "isCategoryIndex": true
+      "isCategoryIndex": true,
+      "parentHref": null
     },
     {
       "id": "wiki-database-database_index_learning",
-      "title": "Database · Page, Heap과 Index",
-      "description": "Page와 Heap에서 시작해 B-Tree, Hash, GIN 인덱스까지 연결한 데이터베이스 학습 기록",
+      "title": "Page, Heap과 Database Index",
+      "description": "DB의 실제 데이터가 어디에 저장되는지부터 시작해 Sequential Scan, B-Tree, Hash, GIN이 검색 범위를 어떻게 줄이는지 연결한 학습 기록이다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Database › Page·Heap·Index Page, Heap과 Database Index 1. DB의 실제 데이터는 Page 단위로 저장된다 2. Heap이란 무엇인가 3. 인덱스가 없다면: Sequential Scan 4. 인덱스는 별도의 빠른 탐색 구조다 5. 일반적으로 말하는 Index는 B-Tree다 6. B-Tree의 Root, Internal, Leaf와 Page Root / Internal Page Leaf Page B-Tree Node와 Page의 관계 = 검색 흐름 7. 중복, UNIQUE와 범위 검색 중복 값 UNIQUE Index 범위 검색 8. Hash Index Hash 값은 메모리 주소가 아니다 Bucket과 Page 저장한 위치를 다시 찾는 원리 Bucket Page 안에서도 비교한다 Hash Collision B-Tree와 Hash의 차이 9. GIN의 기본 개념 10. 오늘 이해한 전체 흐름",
       "href": "wiki/database/database_index_learning.html",
       "category": "Database",
       "categoryKey": "database",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-external-articles-agi_technology_map_learning",
-      "title": "AGI 기술 지도와 상용화 수준",
-      "description": "AGI를 구성한다고 논의되는 기술들을 기능별로 나누고 상용화 수준과 남은 연구 과제를 정리한 학습 문서",
+      "title": "AGI를 향한 기술 지도와 현재 상용화 수준",
+      "description": "AGI를 하나의 새 알고리즘으로 보기보다, Foundation Model에 추론·기억·계획·도구·행동·지속 학습 능력을 붙여가는 시스템으로 이해하기 위한 학습 지도다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › AGI 기술 지도 AGI를 향한 기술 지도와 현재 상용화 수준 이 문서의 이해도 AGI를 시스템의 결합으로 보기 핵심 기술을 기능별로 보기 1. Foundation Model과 Transformer 2. SSM·Mamba 3. MoE 4. Multimodal 5. Reasoning과 Test-Time Compute 6. Tool Use와 Agent 7. Memory 8. World Model과 Planning 9. Robotics·VLA 10. Continual Learning 학습용 상용화 수준 지도 현재 AI와 AGI 사이의 경계 내 학습 로드맵과 연결하기",
       "href": "wiki/external-articles/agi_technology_map_learning.html",
       "category": "외부 아티클",
       "categoryKey": "external-articles",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-external-articles-glm52_gpu_optimization_learning",
-      "title": "GLM-5.2 GPU 최적화 아티클 학습",
-      "description": "",
+      "title": "GLM-5.2 GPU 최적화 글을 이해하기",
+      "description": "이 아티클의 이해도 · 아티클 한 편을 공부로 바꾸는 절차",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › GLM-5.2 GPU 최적화 GLM-5.2 GPU 최적화 글을 이해하기 이 아티클의 이해도 아티클 한 편을 공부로 바꾸는 절차 사례 01 · GPU 커널 새로 짜서 GLM-5.2 속도 10배 올리기 문제 → 병목 → 변경 → 결과 이 글의 핵심을 한 문장으로 다시 쓰기 기초 연결 · 포워드, Hidden State, Logits 포워드란 무엇인가? Hidden State는 모델 내부의 문맥 표현이다 Logits는 Hidden State를 단어장 차원으로 바꾼 결과다 일반적인 생성에서는 왜 포워드를 반복하는가? MTP · 미래 토큰 후보를 한 번에 검증하는 흐름 1. 지금 확정된 문장은 [나는] 뿐이다 2. 큰 모델은 후보 Token ID를 자기 방식으로 다시 계산한다 3. 큰 모델의 한 번의 Forward 자체가 검증이다 4. 앞에서부터 맞은 구간만 확정한다 5. Draft는 모든 미래가 아니라 짧은 후보 묶음만 제안한다 검증 Forward에서 다음 토큰까지 얻을 수 있다 6. 왜 빨라질 수 있는가? 이 예시를 한 문장으로 복원하기 이 글을 이해하기 위한 선수지식 지도 Level 1 · 지금 연결할 기초 Level 2 · 성능 모델 Level 3 · GPU 실행 구조 Level 4 · 커널 최적화 Level 5 · 추론 알고리즘 Level 6 · 프로덕션 런타임 검증 노트 · 원문 수치를 그대로 믿지 않는 방법 바로 다시 계산할 수 있는 부분 추가 근거가 필요한 주장 첫 번째로 공부할 작은 단위",
       "href": "wiki/external-articles/glm52_gpu_optimization_learning.html",
       "category": "외부 아티클",
       "categoryKey": "external-articles",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-external-articles-llm_finetuning_12_techniques_source",
+      "title": "LLM 파인튜닝 12가지 기법",
+      "description": "사용자가 제공한 영문 아티클을 이후 항목별 학습과 참조 연결을 위해 한국어로 옮겨 보존한 페이지다. 번역 본문은 원문의 주장을 그대로 보존하고, 사용자가 검증한 이해는 기법별 상세 문서로 분리해 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › LLM 파인튜닝 12가지 기법 LLM 파인튜닝 12가지 기법 이 문서의 이해도 출처와 검증 상태 함께 제공된 요약 이미지 한국어 번역 원문 1. LoRA 2. QLoRA 3. Prefix Tuning 4. Adapter Tuning 5. Instruction Tuning 6. P-Tuning 7. BitFit 8. RLHF / RLAIF 9. DPO (Direct Preference Optimization) 10. GRPO (Group Relative Policy Optimization) 11. RLVR (Reinforcement Learning with Verifiable Rewards) 12. Federated Fine-Tuning GRPO, RLVR와 RULER 추후 사용자 정리와 참조",
+      "href": "wiki/external-articles/llm_finetuning_12_techniques_source.html",
+      "category": "외부 아티클",
+      "categoryKey": "external-articles",
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-external-articles-llm_precision_formats_learning",
       "title": "LLM 정밀도 형식과 양자화",
-      "description": "LLM의 FP32, BF16, FP16, TF32, FP8, INT8, INT4, NF4 정밀도 형식을 이해하기 위한 학습 문서",
+      "description": "모델의 계산식을 바꾸지 않고도 왜 FP32, BF16, FP8, INT4 같은 숫자 형식을 선택하는지, 메모리·표현 범위·반올림 오차의 trade-off로 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › LLM 정밀도 형식 LLM 정밀도 형식과 양자화 이 아티클의 이해도 원문과 읽는 위치 먼저 잡을 핵심 왜 7B 모델이 12GB GPU에 안 들어가는가? Float에서 무엇을 포기하는가? 8개 형식의 역할 지도 학습과 추론에서 보는 대상이 다르다 추론 학습·미세조정 INT4·INT8에서 outlier가 왜 문제인가? 이 글을 이해하기 위한 참조 문서 1. 현재 위키에서 연결 2. BF16·FP16부터 3. FP8 4. INT4·NF4·QLoRA",
       "href": "wiki/external-articles/llm_precision_formats_learning.html",
       "category": "외부 아티클",
       "categoryKey": "external-articles",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-external-articles-loop_engineering_agentic_loop_learning",
-      "title": "Loop Engineering · Agentic Loop",
-      "description": "상태, 검증, 재시도와 종료 조건으로 설계하는 Loop Engineering과 Agentic Loop 학습 문서",
+      "title": "Loop Engineering, Agentic Loop 이해하기",
+      "description": "LLM 에이전트를 한 번 호출하고 끝내지 않고, 상태·역할·검증·피드백·재시도·종료 조건을 명시해 목표 상태까지 반복시키는 설계 방식을 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › Loop Engineering Loop Engineering, Agentic Loop 이해하기 이 문서의 이해도 한눈에 보는 Agent Loop 1. Loop Engineering의 개념 2. 왜 Loop가 필요한가 3. Acceptance Gate: 언제 끝낼 것인가 4. Agent 역할과 Orchestrator 5. Pipeline과 Agent Loop의 차이 6. 실패 원인별 Retry와 Rollback 7. Verifier는 Evidence를 수집해야 한다 8. 페이지가 아니라 상태를 검증한다 9. 분야별 검증 예시 UI Logic API SEO Tracking 10. 구조화된 Verification Result 11. 공유된 잘못된 가정과 독립 검증 12. Human-in-the-loop 13. Agent 시스템을 분석할 때의 체크리스트 14. Function Calling 프로젝트와의 경계",
       "href": "wiki/external-articles/loop_engineering_agentic_loop_learning.html",
       "category": "외부 아티클",
       "categoryKey": "external-articles",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-function_calling_tool_contract_learning",
-      "title": "LLM Function Calling과 도구 계약",
-      "description": "LLM Function Calling의 Schema·tool_calls·서버 실행 경계를 정리한 개념 참조 문서",
+      "title": "Function Calling은 실행이 아니라 계약이다",
+      "description": "모델은 도구 후보를 고르고 인자를 생성한다. 실제 실행·권한·검증·결과 처리는 애플리케이션 서버가 맡는다.",
+      "searchText": "⌂ 학습 홈 › LLM 시스템·에이전트 › Function Calling과 도구 계약 Function Calling은 실행이 아니라 계약이다 현재 이해도 1. 입력과 출력의 계약 2. Schema가 제한하는 것 3. 모델·서버·실행기의 경계 4. 한 번의 호출과 Agent Loop 5. 재사용 가능한 결론",
       "href": "wiki/llm-systems/function_calling_tool_contract_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-llm_evaluation_contract_learning",
-      "title": "LLM Function Calling 평가 계약",
-      "description": "LLM Function Calling을 baseline·holdout·Schema·인자 지표로 평가하는 방법을 정리한 참조 문서",
+      "title": "“잘한다”를 여러 검증으로 나누기",
+      "description": "Function Calling을 한 점수로 판단하지 않고, 호출 여부·도구명·JSON·Schema·인자 정확도·no-call을 분해해 학습 전후를 비교한다.",
+      "searchText": "⌂ 학습 홈 › LLM 시스템·에이전트 › Function Calling 평가 계약 “잘한다”를 여러 검증으로 나누기 현재 이해도 1. Baseline·Train·Validation·Holdout 2. 한 케이스를 채점하는 순서 3. Strict exact match의 의미 5. 적용 사례로 이동하기",
       "href": "wiki/llm-systems/llm_evaluation_contract_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-llm_serving_stack_learning",
-      "title": "LLM 서빙 계층과 정밀도 선택",
-      "description": "BF16 모델을 OpenAI-compatible vLLM으로 서빙하고 llama.cpp·llama-server·Ollama와의 역할을 구분하는 참조 문서",
+      "title": "모델 파일·추론 엔진·API 서버를 분리해서 이해하기",
+      "description": "BF16·INT4 같은 숫자 형식, llama.cpp 같은 추론 엔진, llama-server·Ollama·vLLM 같은 서버 계층을 한 프로젝트 안에서 구분한다.",
+      "searchText": "⌂ 학습 홈 › LLM 시스템·에이전트 › LLM 서빙 계층과 정밀도 모델 파일·추론 엔진·API 서버를 분리해서 이해하기 현재 이해도 1. BF16과 INT4는 같은 종류의 선택이 아니다 2. 모델·엔진·서버의 계층 3. OpenAI-compatible API의 의미 5. 적용 사례로 이동하기",
       "href": "wiki/llm-systems/llm_serving_stack_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-lora_adapters_qwen_learning",
-      "title": "Qwen 구조와 LoRA Adapter",
-      "description": "Qwen Decoder-only Transformer의 QKV·o_proj·MLP와 LoRA adapter가 소형 Function Calling 모델을 조정하는 방식을 정리한 참조 문서",
+      "title": "Qwen의 Linear에 LoRA를 붙인다는 것",
+      "description": "Qwen 원본 Transformer를 새로 작성하지 않고, Attention·MLP Linear에 작은 저랭크 보정 행렬을 붙여 Function Calling 행동을 조정한 과정을 연결한다.",
+      "searchText": "⌂ 학습 홈 › LLM 시스템·에이전트 › LoRA와 Low-Rank 변화량 › Qwen 구조와 LoRA Adapter Qwen의 Linear에 LoRA를 붙인다는 것 현재 이해도 1. Qwen Decoder-only Block 2. QKV·o_proj·MLP는 모두 Linear 계층이다 3. LoRA는 원본에 작은 보정을 더한다 5. 적용 사례로 이동하기",
       "href": "wiki/llm-systems/lora_adapters_qwen_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/llm-systems/lora_low_rank_adaptation_learning.html"
+    },
+    {
+      "id": "wiki-llm-systems-lora_low_rank_adaptation_learning",
+      "title": "LoRA와 Low-Rank 변화량",
+      "description": "기존 Weight W 와 파인튜닝으로 새로 배울 변화량 ΔW 를 분리하고, 왜 ΔW = BA 가 학습 파라미터와 메모리를 줄이는지 Rank의 의미부터 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › LLM 시스템·에이전트 › LoRA와 Low-Rank 변화량 LoRA와 Low-Rank 변화량 현재 이해도 1. 기존 Weight와 새 변화량을 먼저 나눈다 2. 4096 × 4096을 직접 배우지 않는다 3. Rank는 행렬의 크기가 아니라 독립적인 방향의 수다 Rank 1 Rank 2 4. Low-Rank는 ΔW에 걸리는 제한이다 5. 줄어드는 것은 파인튜닝 비용이지 원본 Forward가 아니다 한 문장 정리 참조와 연결 문서",
+      "href": "wiki/llm-systems/lora_low_rank_adaptation_learning.html",
+      "category": "LLM 시스템·에이전트",
+      "categoryKey": "llm-systems",
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-model_parameters_7b_learning",
       "title": "7B 모델의 파라미터와 가중치 숫자표",
-      "description": "7B 모델의 파라미터 70억 개가 무엇인지 입력 벡터, QKV 결과, 가중치 행렬과 구분하는 참조 문서",
+      "description": "7B가 입력 개수나 벡터 종류가 아니라, 모델 내부의 학습된 숫자를 모두 센 값이라는 점을 Q·K·V와 FFN 코드에 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › LLM 시스템·최적화 › 7B 파라미터 7B 모델의 파라미터와 가중치 숫자표 현재 이해도 여기서 파라미터는 함수 인자가 아니다 W_Q와 Q는 서로 다르다 FFN에도 가중치 행렬이 있다 70억 개는 무엇을 합친 것인가 왜 FP32 7B가 약 28GB인가 연결 문서 Tensor 원소와 bytes 정밀도 형식 Qwen과 LoRA",
       "href": "wiki/llm-systems/model_parameters_7b_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-llm-systems-tensor_element_memory_learning",
       "title": "Tensor 원소·차원·bytes와 메모리",
-      "description": "Tensor 원소, 토큰 벡터, 차원, bytes와 메모리 사용량을 구분하는 참조 문서",
+      "description": "“FP32는 4 bytes”가 Token 하나, 차원 하나, 가중치 하나 중 무엇을 뜻하는지 Shape부터 구분한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › LLM 시스템·최적화 › Tensor 원소와 bytes Tensor 원소·차원·bytes와 메모리 현재 이해도 핵심 결론 Shape으로 보는 저장량 가중치 7B와 Token 벡터는 다른 메모리다 Attention 중간 결과도 각 칸이 숫자 하나다 4 bytes는 곱셈 단위가 아니다 다음 연결 정밀도 형식 7B 파라미터 Attention",
       "href": "wiki/llm-systems/tensor_element_memory_learning.html",
       "category": "LLM 시스템·에이전트",
       "categoryKey": "llm-systems",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-machine-learning-machine_learning_churn_data_quality_learning",
       "title": "회원 이탈 데이터 품질 점검",
       "description": "회원 이탈 데이터에서 숨은 공백, 결측값, 중복과 Label 비율을 실제 숫자로 확인한 학습 기록",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Machine Learning › 회원 이탈 데이터 품질 회원 이탈 데이터 품질 점검 1. 원본 데이터의 모양과 자료형을 확인한다 2. isna() 가 0이어도 빈 정보가 있을 수 있다 3. 중복과 Label 분포를 확인한다 4. Feature·Label을 나누고 Train·Validation을 분리한다 5. 범주형 Feature는 One-Hot Encoding한다 6. 숫자형 Feature는 StandardScaler로 크기를 맞춘다",
       "href": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html",
       "category": "Machine Learning",
       "categoryKey": "machine-learning",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_decision_tree_learning",
+      "title": "Decision Tree Baseline",
+      "description": "상위 학습 흐름에서 Decision Tree Baseline에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 모델 평가 › Decision Tree Baseline Decision Tree Baseline 4-2. Decision Tree: 학습 대상을 질문으로 계속 나누는 Baseline 이번 Pipeline에서 데이터가 지나가는 순서 노드는 “현재까지 같은 답을 따라온 고객 묶음”이다 질문 후보는 숫자 Feature에서 기계적으로 만들어진다 “잘 나누는 질문”은 No·Yes가 얼마나 덜 섞였는지로 고른다 질문을 무한히 붙이지 않도록 멈추는 이유 실제 복잡도 제한 비교: Train을 더 맞춘다고 좋은 모델은 아니다 Logistic과 Tree 중 무엇이 맞는지는 구조 가설과 검증으로 정한다 이탈자 Yes를 기준으로 다시 읽기",
+      "href": "wiki/machine-learning/machine_learning_churn_decision_tree_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_evaluation_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_dummy_logistic_learning",
+      "title": "Dummy Baseline과 Logistic Regression",
+      "description": "상위 학습 흐름에서 Dummy Baseline과 Logistic Regression에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 모델 평가 › Dummy Baseline과 Logistic Regression Dummy Baseline과 Logistic Regression 4. 아무 패턴도 배우지 않는 Dummy Baseline most_frequent 와 stratified 학습 데이터에서 선택하고 Validation에서 평가한다 predict() 결과가 1차원인 이유 Accuracy를 직접 계산해 기준을 재현한다 4-1. Logistic Regression 결과를 표로 읽기 학습된 점수 · 확률 · 최종 Label은 서로 다른 출력이다 confusion_matrix 를 DataFrame 표로 만든 이유 Yes를 기준으로 행과 열을 다르게 읽는다 F1은 한쪽만 높은 상태를 그대로 좋다고 보지 않는다 classification_report 는 클래스별 표를 한 번에 보여 준다",
+      "href": "wiki/machine-learning/machine_learning_churn_dummy_logistic_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_evaluation_learning.html"
     },
     {
       "id": "wiki-machine-learning-machine_learning_churn_evaluation_learning",
       "title": "회원 이탈 예측으로 이해하는 머신러닝 실무 기초",
-      "description": "",
+      "description": "회원 이탈을 예측 문제로 바꾼다 · 확률을 Label로 바꾸고 Metric으로 평가한다",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Machine Learning › 회원 이탈 평가 회원 이탈 예측으로 이해하는 머신러닝 실무 기초 회원 이탈을 예측 문제로 바꾼다 확률을 Label로 바꾸고 Metric으로 평가한다 Dummy Baseline으로 최소 기준을 만든다 Logistic Regression의 점수·확률·Label을 구분한다 Decision Tree는 질문으로 데이터를 나눈다 모델 선택은 지표와 오류 비용을 근거로 한다",
       "href": "wiki/machine-learning/machine_learning_churn_evaluation_learning.html",
       "category": "Machine Learning",
       "categoryKey": "machine-learning",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_experiment_learning",
+      "title": "실험 판단과 다음 검증",
+      "description": "상위 학습 흐름에서 실험 판단과 다음 검증에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 모델 평가 › 실험 판단과 다음 검증 실험 판단과 다음 검증 5. 실제 업무는 지표를 근거로 한 반복 실험에 가깝다 6. 오늘 내용에서 정확히 구분할 부분 Loss와 Metric Weight와 Hyperparameter F1과 조화평균 AUC와 Threshold 7. 아직 학습하지 않은 다음 항목 대표 실습의 비교 순서",
+      "href": "wiki/machine-learning/machine_learning_churn_experiment_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_evaluation_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_problem_metrics_learning",
+      "title": "문제 정의·학습·평가 지표",
+      "description": "상위 학습 흐름에서 문제 정의·학습·평가 지표에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 모델 평가 › 문제 정의·학습·평가 지표 문제 정의·학습·평가 지표 이 문서의 출발점 1. 회원 이탈을 머신러닝 문제로 바꾼다 Feature와 Label Feature와 Label만 정하면 끝나는 것이 아니다 2. Weight와 Loss로 모델을 학습한다 학습을 오래 한다고 무조건 좋아지지 않는다 3. 확률을 Threshold로 판정하고 결과를 평가한다 문제가 바뀌어도 같은 규칙을 적용하는 샘플 회원 이탈 스팸 탐지 질병 검사 불량품 검사 Precision · Recall · Accuracy · F1 같은 모델도 Yes 기준으로 무엇을 묻느냐가 다르다 Threshold를 바꾸면 무엇이 달라지는가?",
+      "href": "wiki/machine-learning/machine_learning_churn_problem_metrics_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_evaluation_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_quality_audit_learning",
+      "title": "구조·숨은 결측값·처리",
+      "description": "상위 학습 흐름에서 구조·숨은 결측값·처리에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 데이터 품질 › 구조·숨은 결측값·처리 구조·숨은 결측값·처리 1. 먼저 데이터의 모양과 자료형을 본다 2. isna() 가 0이어도 빈 정보가 있을 수 있다 공백 문자열 11개를 찾은 코드 3. 불리언 인덱싱으로 해당 행을 직접 본다 4. 공백을 정식 결측값으로 바꾼 뒤 근거를 가지고 처리한다 왜 0으로 채웠는가?",
+      "href": "wiki/machine-learning/machine_learning_churn_quality_audit_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_quality_label_learning",
+      "title": "중복·Label 분포·품질 확인",
+      "description": "상위 학습 흐름에서 중복·Label 분포·품질 확인에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 데이터 품질 › 중복·Label 분포·품질 확인 중복·Label 분포·품질 확인 5. 완전 중복과 정답 분포를 확인한다 완전히 같은 행 Label Churn 의 개수 6. 여기서 normalize=True 는 평균이 아니라 비율이다 7. 원본 데이터 품질 점검 완료 다음 작은 챕터",
+      "href": "wiki/machine-learning/machine_learning_churn_quality_label_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_scaling_learning",
+      "title": "StandardScaler와 통합 전처리",
+      "description": "상위 학습 흐름에서 StandardScaler와 통합 전처리에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 데이터 품질 › StandardScaler와 통합 전처리 StandardScaler와 통합 전처리 10. 숫자형 Feature의 크기를 맞추는 StandardScaler fit 과 transform 실제 변환 결과 One-Hot과 StandardScaler를 한 전처리기에 함께 넣기 합쳐진 2차원 배열에서 마지막 숫자형 4열 꺼내기 통합 전처리 검증 완료 다음 복습에서 증명할 두 단계",
+      "href": "wiki/machine-learning/machine_learning_churn_scaling_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html"
+    },
+    {
+      "id": "wiki-machine-learning-machine_learning_churn_split_onehot_learning",
+      "title": "Train·Validation 분리와 One-Hot",
+      "description": "상위 학습 흐름에서 Train·Validation 분리와 One-Hot에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 회원 이탈 데이터 품질 › Train·Validation 분리와 One-Hot Train·Validation 분리와 One-Hot 8. Feature·Label과 Train·Validation 분리까지 검증 한 개 대괄호로 꺼낸 y 는 Series다 train_test_split() 은 아직 학습하지 않는다 stratify=y 가 보는 것은 Label뿐이다 9. 문자열 범주를 숫자 열로 펼치는 One-Hot Encoding 왜 대괄호를 두 번 쓰는가? fit_transform() 이 한 일 ColumnTransformer 의 Tuple은 데이터가 아니라 작업 명세다 fit 은 출력 칸을 정하고, transform 은 그 칸을 그대로 사용한다 Train과 Validation을 따로 fit 하면 왜 안 되는가?",
+      "href": "wiki/machine-learning/machine_learning_churn_split_onehot_learning.html",
+      "category": "Machine Learning",
+      "categoryKey": "machine-learning",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html"
     },
     {
       "id": "wiki-machine-learning-standard_scaler_mean_std_proof_learning",
-      "title": "StandardScaler 평균 0·표준편차 1 증명",
+      "title": "StandardScaler: 평균 0·표준편차 1이 되는 전개",
       "description": "StandardScaler가 평균 0과 표준편차 1을 만드는 과정을 평균과 표준편차 정의에서 한 단계씩 전개한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Machine Learning › 데이터 전처리 › StandardScaler 증명 StandardScaler: 평균 0·표준편차 1이 되는 전개 0. 무엇을 증명하는가 가장 중요한 구분: σ 와 σ z 는 다른 대상이다 1. 원래 데이터 x 의 평균 2. 원래 데이터 x 의 표준편차 3. 새 데이터 z 의 평균을 직접 구한다 4. 새 데이터 z 의 표준편차를 직접 구한다 4-1. zᵢ 자리에 실제 StandardScaler 식을 넣는다 4-2. 대괄호 안을 왜 σ² 로 바꿀 수 있는가 5. 처음부터 끝까지 한 줄로 연결",
       "href": "wiki/machine-learning/standard_scaler_mean_std_proof_learning.html",
       "category": "Machine Learning",
       "categoryKey": "machine-learning",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/machine-learning/machine_learning_churn_data_quality_learning.html"
     },
     {
       "id": "wiki-math-transformer_math_learning",
-      "title": "트랜스포머 수학 학습 문서",
-      "description": "Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초",
+      "title": "트랜스포머를 위한 수학 학습 문서",
+      "description": "긴 단일 문서를 통계, 벡터, 삼각함수의 하위 문서로 나누었습니다. 기존 설명과 그림은 생략 없이 그대로 유지합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer 코드 학습 › 수학 개념 트랜스포머를 위한 수학 학습 문서 통계 기초 벡터와 차원 사인과 코사인",
       "href": "wiki/math/transformer_math_learning.html",
       "category": "수학",
       "categoryKey": "math",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_statistics_descriptive_learning",
+      "title": "평균·분산·표준편차",
+      "description": "상위 학습 흐름에서 평균·분산·표준편차에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 통계 기초 › 평균·분산·표준편차 평균·분산·표준편차 평균은 값들이 모이는 중심이다 분산은 평균에서 퍼진 정도다 표준편차는 분산을 원래 단위로 되돌린 값이다 [1, 2, 3] 으로 표준편차 계산하기 왜 편차를 제곱할까? 왜 다시 제곱근을 씌울까? 통계 계산과 랜덤 초기화는 방향이 반대다",
+      "href": "wiki/math/transformer_math_statistics_descriptive_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_statistics_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_statistics_expectation_learning",
+      "title": "기댓값과 임베딩 초기화",
+      "description": "상위 학습 흐름에서 기댓값과 임베딩 초기화에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 통계 기초 › 기댓값과 임베딩 초기화 기댓값과 임베딩 초기화 E[...] 는 기댓값을 계산하는 연산자다 기댓값은 확률을 고려한 이론적인 평균이다 가장 단순한 예제: 1 또는 2 실제 평균과 기댓값의 차이 임베딩 초기화에서 무엇이 랜덤한가? E[wᵢ]=0 과 E[||W||²]=1 은 모순이 아니다 분포에서 뽑는 것과 실제 벡터를 평균내는 것은 다르다",
+      "href": "wiki/math/transformer_math_statistics_expectation_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_statistics_learning.html"
     },
     {
       "id": "wiki-math-transformer_math_statistics_learning",
-      "title": "Transformer 수학 · 통계 기초",
-      "description": "Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초",
+      "title": "통계 기초",
+      "description": "평균·분산·표준편차·정규분포·기댓값을 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › 수학 개념 › 통계 기초 통계 기초 평균은 값들이 모이는 중심이다 분산과 표준편차는 퍼진 크기를 말한다 N(0, 1) 은 1 근처에서 뽑는다는 뜻이 아니다 기댓값은 반복 추출의 이론적인 평균이다",
       "href": "wiki/math/transformer_math_statistics_learning.html",
       "category": "수학",
       "categoryKey": "math",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_trigonometry_basics_learning",
+      "title": "삼각함수의 정의와 단위원",
+      "description": "상위 학습 흐름에서 삼각함수의 정의와 단위원에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 삼각함수의 정의와 단위원 삼각함수의 정의와 단위원 사인과 코사인은 각도를 길이 비율로 바꾼다 1. 각도 θ 를 기준으로 변에 이름을 붙인다 2. 왜 삼각형의 크기가 아니라 각도의 함수일까? 3. 빗변을 1로 만들면 단위원의 좌표가 된다 4. 피타고라스 정리와의 관계",
+      "href": "wiki/math/transformer_math_trigonometry_basics_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_trigonometry_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_trigonometry_geometry_learning",
+      "title": "성분 분해와 코사인법칙",
+      "description": "상위 학습 흐름에서 성분 분해와 코사인법칙에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 사인과 코사인 › 성분 분해와 코사인법칙 성분 분해와 코사인법칙 5. 수학에서 사인과 코사인은 어디에 사용할까? 5-1. 기울어진 길이를 가로 성분과 세로 성분으로 분해한다 5-2. 길이의 비율을 알면 각도를 거꾸로 구할 수 있다 5-3. 직각이 아닌 일반 삼각형의 변과 각도도 구한다 그림을 보기 전: 인접변과 맞은편 변은 어떻게 정할까? 4. 코사인으로 밑변의 왼쪽 부분 CH 를 구한다 5. 사인으로 높이 AH 를 구한다 6. 전체 밑변에서 CH 를 빼서 HB 를 구한다 7. 오른쪽 직각삼각형에서 피타고라스로 c 를 구한다",
+      "href": "wiki/math/transformer_math_trigonometry_geometry_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_trigonometry_learning.html"
     },
     {
       "id": "wiki-math-transformer_math_trigonometry_learning",
-      "title": "Transformer 수학 · 사인과 코사인",
-      "description": "Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초",
+      "title": "사인과 코사인",
+      "description": "직각삼각형의 비율부터 단위원·파동·위치 인코딩까지 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › 수학 개념 › 삼각함수 사인과 코사인 사인과 코사인은 각도를 두 좌표로 바꾼다 회전과 파동이 Transformer 위치 표현으로 이어진다",
       "href": "wiki/math/transformer_math_trigonometry_learning.html",
       "category": "수학",
       "categoryKey": "math",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_trigonometry_rotation_wave_learning",
+      "title": "좌표 회전과 파동",
+      "description": "상위 학습 흐름에서 좌표 회전과 파동에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 사인과 코사인 › 좌표 회전과 파동 좌표 회전과 파동 5-4. 원 위의 위치와 좌표 회전을 표현한다 5-5. 반복되는 변화와 파동을 표현한다 같은 원운동에서 코사인 그래프는 어떻게 나올까? 왜 cos 0°=1 이고 cos 90°=0 일까?",
+      "href": "wiki/math/transformer_math_trigonometry_rotation_wave_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_trigonometry_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_trigonometry_similarity_transformer_learning",
+      "title": "코사인 유사도와 Transformer 위치 표현",
+      "description": "상위 학습 흐름에서 코사인 유사도와 Transformer 위치 표현에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 사인과 코사인 › 코사인 유사도와 Transformer 위치 표현 코사인 유사도와 Transformer 위치 표현 5-6. 두 벡터의 방향이 얼마나 비슷한지 측정한다 5-7. Transformer에서는 위치를 여러 회전 속도로 표현한다",
+      "href": "wiki/math/transformer_math_trigonometry_similarity_transformer_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_trigonometry_learning.html"
     },
     {
       "id": "wiki-math-transformer_math_vector_learning",
-      "title": "Transformer 수학 · 벡터와 차원",
-      "description": "Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초",
+      "title": "벡터와 차원",
+      "description": "벡터 길이와 차원 수에 따른 스케일을 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › 수학 개념 › 벡터·차원 벡터와 차원 벡터 길이는 피타고라스 공식의 확장이다 왜 차원의 제곱근으로 나눌까?",
       "href": "wiki/math/transformer_math_vector_learning.html",
       "category": "수학",
       "categoryKey": "math",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_learning.html"
+    },
+    {
+      "id": "wiki-math-transformer_math_vector_norm_learning",
+      "title": "벡터 길이와 제곱합",
+      "description": "상위 학습 흐름에서 벡터 길이와 제곱합에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 벡터와 차원 › 벡터 길이와 제곱합 벡터 길이와 제곱합 벡터 길이는 피타고라스 공식의 확장이다 왜 원소를 제곱해서 더할까? 피타고라스 정리는 왜 성립할까? 차원을 하나씩 늘리며 벡터 길이 구하기 1. w₁ , w₂ 로 2차원 길이를 구한다 2. 기존 길이 r₂ 와 w₃ 로 3차원 길이를 구한다 3. 기존 길이 r₃ 와 w₄ 로 4차원 길이를 구한다 전체 반복 과정을 한 번에 보기 실제 숫자로 계산하기 ||W||² 와 E[||W||²] 는 다르다",
+      "href": "wiki/math/transformer_math_vector_norm_learning.html",
+      "category": "수학",
+      "categoryKey": "math",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/math/transformer_math_vector_learning.html"
     },
     {
       "id": "wiki-pandas-pandas_dataframe_drop_learning",
-      "title": "Pandas · DataFrame.drop()",
-      "description": "Pandas DataFrame.drop의 axis, inplace와 행·열 삭제 동작을 예제로 정리한 학습 문서",
+      "title": "DataFrame.drop()",
+      "description": "행 또는 열을 삭제할 때 axis 가 무엇을 가리키는지, 원본을 유지하는 방식과 직접 수정하는 방식이 어떻게 다른지 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Pandas·데이터 전처리 › DataFrame.drop() DataFrame.drop() 1. drop() 은 무엇을 하는가 2. axis 는 어디에서 삭제할지 정한다 3. 열 삭제 4. 행 삭제 5. 여러 개를 삭제할 때는 리스트를 전달한다 열 여러 개 삭제 행 여러 개 삭제 6. 기본값 inplace=False 7. inplace=True 는 원본을 직접 수정한다 8. df = df.drop(...) 은 어떻게 동작하는가 9. 행을 삭제해도 index는 자동 재정렬되지 않는다 10. 오늘 배운 내용 압축",
       "href": "wiki/pandas/pandas_dataframe_drop_learning.html",
       "category": "Pandas·데이터 전처리",
       "categoryKey": "pandas",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-projects-k8s-function-calling-dataset",
-      "title": "데이터셋 · Kubernetes Function Calling",
-      "description": "한국어 Kubernetes Function Calling 프로젝트의 학습·검증·holdout 데이터 구성과 평가 계약",
+      "title": "어떤 데이터를 학습하고 평가했는가",
+      "description": "한국어 Kubernetes 조회 요청을 결정론적으로 생성하고, 학습·검증·최종 holdout을 분리했다. 모델이 도구를 고르는 경우와 호출하지 않아야 하는 경우를 모두 포함한다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 데이터셋 어떤 데이터를 학습하고 평가했는가 1. 데이터의 목적 2. Train·Validation·Holdout 분할 3. 한 행의 구조 4. 왜 학습 전에 Holdout을 고정했는가 5. 데이터셋의 한계",
       "href": "wiki/projects/k8s-function-calling-dataset.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-environment",
-      "title": "실행 환경 · Kubernetes Function Calling",
-      "description": "한국어 Kubernetes Function Calling 프로젝트에서 RunPod·NVIDIA GPU·vLLM·OpenAI-compatible API를 연결한 실행 환경",
+      "title": "어디서 학습하고 어떻게 모델을 호출했는가",
+      "description": "RunPod의 NVIDIA GPU에서 BF16 모델을 학습하고, vLLM 서버를 OpenAI-compatible API로 열어 같은 클라이언트와 채점기를 사용했다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 실행 환경 어디서 학습하고 어떻게 모델을 호출했는가 1. 각 구성 요소의 역할 2. 요청이 흐르는 경로 3. RunPod에서의 실행 순서 4. 이 환경을 선택한 이유",
       "href": "wiki/projects/k8s-function-calling-environment.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-evaluation-code-explained",
-      "title": "평가 코드 블록별 해설 · Kubernetes Function Calling",
-      "description": "Function Calling 평가 파일의 의미 단위별 코드와 채점·서빙·결과 저장 동작을 자세히 설명하는 문서",
+      "title": "평가 코드를 클릭해서 채점 흐름 이해하기",
+      "description": "평가 원본 코드의 의미 단위마다 “무엇을 호출하고, 무엇을 검증하고, 어떤 결과를 저장하는가”를 설명한다. 코드 박스에서 이 페이지로 이동한 뒤 같은 원본 블록으로 돌아갈 수 있다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 평가 코드 상세 › 코드 블록별 해설 평가 코드를 클릭해서 채점 흐름 이해하기 읽는 방법 1. evaluate_runpod_bf16.py · 최종 평가 CLI와 입력 계약 OpenAI SDK 호출 응답 추출과 예외 처리 2. evaluate_baseline.py · 입력 정규화 CLI와 baseline 입력 데이터 행 정규화 baseline 모델 호출 3. scoring.py · 한 건을 계약별로 분해 결과 자료형 호출·JSON·Schema·인자 채점 no-call과 CaseScore 완성 전체 집계 4. tools.py · 호출 계약과 검증 계약의 동일성 5. run_runpod_bf16_eval.sh · 서버와 평가 연결 환경과 재현성 확인 모델 revision과 실행 디렉터리 vLLM 시작과 health 확인 server metadata 기록 평가 호출과 정리 6. 결과 파일과 공정 비교 details·summary 저장",
       "href": "wiki/projects/k8s-function-calling-evaluation-code-explained.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/k8s-function-calling-evaluation-code.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-evaluation-code",
-      "title": "평가 코드 상세 · Kubernetes Function Calling",
-      "description": "Kubernetes Function Calling 프로젝트의 Base·Tuned 평가 코드, 채점 계약, RunPod 실행 순서를 설명하는 문서",
+      "title": "Function Calling 평가 코드를 처음부터 끝까지 읽기",
+      "description": "vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 평가 코드 상세 Function Calling 평가 코드를 처음부터 끝까지 읽기 1. 평가가 답하려는 질문 2. 파일별 책임 3. 모델 요청과 응답 추출 OpenAI-compatible 요청 tool_calls를 내부 구조로 바꾸기 4. 한 건을 채점하는 순서 인자 precision·recall 5. 100건을 집계하는 지표 6. RunPod 평가 러너의 실행 순서 vLLM 서버 플래그 checksum과 metadata 7. 결과 파일을 읽는 법 8. 평가 코드 전체 · 클릭 가능한 연속 원본 evaluate_runpod_bf16.py evaluate_baseline.py scoring.py tools.py run_runpod_bf16_eval.sh",
       "href": "wiki/projects/k8s-function-calling-evaluation-code.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-scope",
-      "title": "구현 범위 · 도구와 출력 명세",
-      "description": "한국어 Kubernetes Function Calling 프로젝트에서 제공한 다섯 조회 도구와 모델 출력 계약",
+      "title": "무엇을 제공했고 무엇을 출력하게 했는가",
+      "description": "이 프로젝트의 모델에게 공개한 다섯 개의 Kubernetes 조회 도구, 각 인자의 범위, 예상되는 OpenAI-compatible 출력과 범위 밖 요청을 한 문서에 고정한다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 구현 범위 · 도구와 출력 무엇을 제공했고 무엇을 출력하게 했는가 1. 이 프로젝트의 책임 경계 2. 제공한 다섯 도구 3. 모델이 만들어야 하는 출력 4. 호출하지 않아야 하는 출력 5. 구현 범위 밖",
       "href": "wiki/projects/k8s-function-calling-scope.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-tools",
-      "title": "도구 계약 · Kubernetes Function Calling",
-      "description": "한국어 Kubernetes Function Calling 프로젝트에서 모델에게 제공한 다섯 조회 도구의 계약과 출력",
+      "title": "모델에게 어떤 도구를 명시했는가",
+      "description": "모델에게 공개한 다섯 개의 조회 전용 도구와 각 인자 계약을 정리한다. 이 페이지의 도구는 실행 handler가 아니라 Function Calling 학습·평가에 사용한 Schema다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 도구 계약 모델에게 어떤 도구를 명시했는가 1. 도구의 책임 경계 2. 제공한 다섯 도구 3. 인자 계약이 막는 실수 4. 모델이 반환해야 한 출력",
       "href": "wiki/projects/k8s-function-calling-tools.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-training-code-explained",
-      "title": "학습 코드 블록별 해설 · Kubernetes Function Calling",
-      "description": "train_runpod_bf16_lora.py의 의미 단위별 코드와 BF16 LoRA 학습 동작을 자세히 설명하는 문서",
+      "title": "학습 코드의 특정 부분을 눌러서 이해하기",
+      "description": "원본 스크립트의 의미 단위마다 “왜 이 코드가 필요한가”를 설명한다. 코드 박스에서 이 페이지로 이동한 뒤, 다시 원본의 같은 줄로 돌아갈 수 있다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 학습 코드 상세 › 코드 블록별 해설 학습 코드의 특정 부분을 눌러서 이해하기 읽는 방법 1. 1–55행 · 진입점과 설정 읽기 2. 58–104행 · 데이터 한 행 검증 3. 107–142행 · CUDA와 BF16 확인 4. 145–185행 · Assistant-only loss의 안전장치 5. 188–274행 · checkpoint·revision·tokenizer·template 6. 276–301행 · Qwen 로딩과 LoRA 장착 규칙 7. 302–333행 · 실험 manifest 8. 335–369행 · SFTConfig로 학습 행동 지정 9. 371–389행 · SFTTrainer에 데이터·LoRA 연결 10. 390–412행 · adapter와 지표 저장",
       "href": "wiki/projects/k8s-function-calling-training-code-explained.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/k8s-function-calling-training-code.html"
     },
     {
       "id": "wiki-projects-k8s-function-calling-training-code",
-      "title": "학습 코드 상세 · Kubernetes Function Calling",
-      "description": "한국어 Kubernetes Function Calling 프로젝트의 BF16 LoRA 학습 코드와 실행 순서를 파일별로 설명한 학습 문서",
+      "title": "BF16 LoRA 학습 코드를 처음부터 끝까지 읽기",
+      "description": "어떤 파일이 학습에 참여하는지 먼저 확인하고, 실제 실행 순서대로 데이터·템플릿·모델·LoRA·Trainer·저장을 읽은 뒤 전체 원본 코드로 돌아보는 문서다.",
+      "searchText": "⌂ 학습 홈 › 개인 프로젝트 › Kubernetes Function Calling › 학습 코드 상세 BF16 LoRA 학습 코드를 처음부터 끝까지 읽기 1. 어떤 파일들로 학습하는가 2. 학습 스크립트의 실제 실행 흐름 3. 프로그램 진입점과 설정 main() 은 정의와 실행이 다르다 로그 설정 CLI와 YAML 경로 객체 4. PyTorch 환경·데이터·재현성 PyTorch와 GPU 검사 GPU 관측 로그 JSONL 로딩과 검증 데이터의 messages 와 tools 5. 모델이 볼 문자열 만들기: revision·tokenizer·Jinja 모델 revision 고정 Tokenizer와 PAD·EOS Chat template을 등록하는 이유 {% generation %} 과 assistant-only loss 6. 학습 전에 실패하게 만드는 검증 Assistant mask smoke test 전체 token length 검사 7. Qwen 로딩과 LoRA 장착 Qwen3-1.7B BF16 로딩 LoRA 설정은 “장착 규칙”이다 LoRA를 행렬로 보기 dropout·target modules·bias 왜 trainable parameter가 작은가 8. 학습 수치가 코드에서 의미하는 것 Loss·gradient·optimizer가 하는 일 메모리와 정밀도 옵션 검증·체크포인트·로그 입력 계약을 끝까지 유지하는 옵션 9. SFTTrainer가 실제 학습을 수행하는 지점 Manifest 작성 GPU callback과 Trainer 재개와 학습 호출 10. 무엇을 저장하는가 11. Adapter 병합과 vLLM 서빙 두 가지 adapter 사용 방식 12. 전체 원본 코드로 다시 확인하기 코드 → 해설 연결",
       "href": "wiki/projects/k8s-function-calling-training-code.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/projects/ko-k8s-function-calling.html"
     },
     {
       "id": "wiki-projects-ko-k8s-function-calling",
-      "title": "소형 LLM 한국어 Kubernetes Function Calling",
-      "description": "Qwen3-1.7B를 한국어 Kubernetes Function Calling 라우터로 파인튜닝한 개인 프로젝트의 개요와 결과",
+      "title": "소형 LLM의 한국어 Kubernetes Function Calling 라우터",
+      "description": "Qwen3-1.7B가 한국어 Kubernetes 조회 요청을 허용된 함수와 인자로 바꾸도록 BF16 LoRA 파인튜닝하고, 학습 전후 성공률을 같은 조건에서 비교한 프로젝트다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 개인 프로젝트 › Kubernetes Function Calling 소형 LLM의 한국어 Kubernetes Function Calling 라우터 프로젝트 관련 문서 인덱스 1. 문제 정의 2. 구현 범위 3. 학습 4. 평가 결과 5. 한계와 다음 단계",
       "href": "wiki/projects/ko-k8s-function-calling.html",
       "category": "개인 프로젝트",
       "categoryKey": "projects",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-projects-kubernetes-ai-observability",
+      "title": "Kubernetes 운영 데이터를 근거와 함께 요약하는 AI",
+      "description": "Pod의 Metrics·Logs·Events를 통합 수집하고, LangGraph 기반 분석 흐름과 structured output을 통해 운영자가 직접 확인할 수 있는 근거와 함께 AI Summary를 제공하는 1인 개발 프로젝트다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 개인 프로젝트 › Kubernetes 운영 관측 AI Kubernetes 운영 데이터를 근거와 함께 요약하는 AI 1. 문제 정의 2. 프로젝트 소개 담당 범위 핵심 구현 3. 전체 구현 기능 4. 시스템 아키텍처 5. AI Summary 생성 아키텍처 6. AI 응답을 읽을 수 있게 만든 계약 7. Metrics AI Summary 상세 요약 Analysis Evidence 생성 흐름 8. Logs AI Summary 상세 상단 요약 컨테이너별 요약 Analysis / Findings Evidence 9. Events AI Summary 상세 요약 Event Overview Analysis / Findings Evidence 10. 기능 시연 11. 현재 확인되는 한계",
+      "href": "wiki/projects/kubernetes-ai-observability.html",
+      "category": "개인 프로젝트",
+      "categoryKey": "projects",
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-projects-notion-rag-knowledge-assistant",
+      "title": "Notion 문서를 질문과 복습으로 연결하는 RAG",
+      "description": "Notion 문서를 수집하고 검색·질의응답·퀴즈 생성·채점·학습 통계까지 하나의 흐름으로 연결한 1인 개발 프로젝트다. 검색 결과의 출처와 대화 이력을 보존해 문서 기반 학습을 이어갈 수 있게 했다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 개인 프로젝트 › Notion RAG 개인 지식 비서 Notion 문서를 질문과 복습으로 연결하는 RAG 1. 문제 정의 2. 프로젝트 소개 담당 범위 다섯 개의 사용자 흐름 3. 전체 구현 기능 4. 시스템 아키텍처 인증과 Frontend FastAPI Backend가 연결하는 서비스 5. Notion 문서 수집과 임베딩 글 목록에서 문서 추가 파이프라인 단계 6. 근거 기반 실시간 RAG 채팅 7. 선택 문서 기반 퀴즈·채점 8. 결과·오답 노트·학습 이력 Results 오답 노트 학습 통계 History 9. 현재 확인되는 한계",
+      "href": "wiki/projects/notion-rag-knowledge-assistant.html",
+      "category": "개인 프로젝트",
+      "categoryKey": "projects",
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-pytorch-pytorch_churn_mlp_learning",
+      "title": "회원 이탈 데이터에서 MLP와 BCE까지",
+      "description": "이 항목을 실행·설명·재실행하기 전에는 Dataset·DataLoader와 학습 루프 챕터를 완료로 표시하지 않는다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch 학습 원리 › 회원 이탈 MLP 회원 이탈 데이터에서 MLP와 BCE까지 1. 오늘 확인한 범위 2. 실제 표 데이터를 같은 Train 기준으로 전처리한다 TotalCharges 숫자 변환 Stratified Train·Validation Split 열 선택과 전처리 기준 3. NumPy 배열을 float32 Tensor와 Batch로 옮긴다 TensorDataset 과 타입 오류 DataLoader 가 Batch 행을 공급한다 4. MLP는 각 고객의 45개 값을 16개 중간값과 Logit 하나로 바꾼다 5. 현재 질문 · Linear의 숫자와 파라미터 Shape 6. Sigmoid는 제한 없는 Logit을 0과 1 사이로 압축한다 7. BCE는 실제 정답 쪽 sigmoid 출력값에 -log 를 적용한다 첫 고객 실제 숫자로 계산 고객별 Loss 64개를 하나로 합치기 MSE·분산·BCE 구분 8. SGD로 같은 Batch를 한 번 수정했다 9. 다음에 확인할 완료 조건",
+      "href": "wiki/pytorch/pytorch_churn_mlp_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html"
+    },
+    {
+      "id": "wiki-pytorch-pytorch_linear_regression_derivative_backward_learning",
+      "title": "평균변화율·순간변화율·backward()",
+      "description": "상위 학습 흐름에서 평균변화율·순간변화율·backward()에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch 선형 회귀 › 평균변화율·순간변화율·backward() 평균변화율·순간변화율·backward() 5. 평균변화율에서 순간변화율로 두 점 사이의 평균변화율 두 번째 점을 기준점에 점점 가깝게 가져온다 왼쪽에서 접근해도 같은가? 실제 실습 데이터에서 평균변화율과 w.grad 구분하기 학습할 값이 여러 개라면 각각 구한다 6. backward()가 Gradient를 계산한다 부호는 어느 방향으로 움직일지 알려준다",
+      "href": "wiki/pytorch/pytorch_linear_regression_derivative_backward_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html"
+    },
+    {
+      "id": "wiki-pytorch-pytorch_linear_regression_gradient_descent_learning",
+      "title": "Gradient Descent와 Gradient 초기화",
+      "description": "상위 학습 흐름에서 Gradient Descent와 Gradient 초기화에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch 선형 회귀 › Gradient Descent와 Gradient 초기화 Gradient Descent와 Gradient 초기화 7. 학습률만큼 w와 b를 수정한다 Gradient가 음수면 왜 w가 증가하는가? 최적점에 가까워지면 이동량도 작아진다 왜 torch.no_grad() 를 사용하는가? w.grad 는 w의 변화율이 아니다 Loss=(wx-y)² 의 Gradient를 문자로 유도한다 1단계 · 움직인 뒤의 오차를 정리한다 2단계 · 반복되는 기존 오차를 A로 치환한다 3단계 · 제곱 공식을 사용해 전개한다 4단계 · h를 약분한 뒤 0으로 보낸다 5단계 · A를 원래 오차로 되돌린다 학습률은 Loss의 일부가 아니라 Gradient의 반영 비율이다 왜 Gradient를 0으로 지우고 다시 계산하는가? w -= ... 와 w = w - ... 의 차이 반복문 출력의 시점을 구분한다 오늘 직접 확인한 한 파라미터 학습 기록",
+      "href": "wiki/pytorch/pytorch_linear_regression_gradient_descent_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html"
     },
     {
       "id": "wiki-pytorch-pytorch_linear_regression_learning",
-      "title": "PyTorch 첫 학습 원리 — y = 3x + 2 찾기",
-      "description": "컴퓨터에는 정답 공식의 3 과 2 를 직접 알려주지 않고, 입력과 정답의 쌍만 보여줍니다.",
+      "title": "데이터에서 y = 3x + 2 를 찾아내기",
+      "description": "1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch › 수동 선형회귀 데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 2. 한 번의 학습 흐름 3. 랜덤한 파라미터에서 시작한다 4. MSE Loss로 예측 오차를 측정한다 5. 평균변화율에서 순간변화율로 간다 6. backward() 가 Gradient를 계산한다 7. Gradient의 반대 방향으로 파라미터를 수정한다 8. nn.Linear 와 Optimizer가 같은 역할을 나눠 맡는다 9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다 10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다",
       "href": "wiki/pytorch/pytorch_linear_regression_learning.html",
       "category": "PyTorch",
       "categoryKey": "pytorch",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
+    },
+    {
+      "id": "wiki-pytorch-pytorch_linear_regression_module_optimizer_dataset_learning",
+      "title": "nn.Linear·Optimizer·Dataset",
+      "description": "상위 학습 흐름에서 nn.Linear·Optimizer·Dataset에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch 선형 회귀 › nn.Linear·Optimizer·Dataset nn.Linear·Optimizer·Dataset 8. nn.Linear와 Optimizer로 같은 학습을 다시 만든다 MSELoss는 틀린 정도를 한 숫자로 만든다 SGD는 수정 대상과 학습률을 먼저 등록한다 한 학습 Step의 정확한 역할 분담 데이터 하나로 두 미지수를 유일하게 찾을 수는 없다 no_grad()는 추론용 자동미분 기록을 끈다 반복해서 헷갈린 지점을 다시 확인하는 FAQ 직접 검증한 학습 결과 9. Dataset은 입력과 정답을 한 샘플로 묶는다 DataLoader는 Dataset 항목을 정한 개수씩 꺼낸다 Batch 학습 뒤 전체 Loss를 같은 데이터로 비교한다",
+      "href": "wiki/pytorch/pytorch_linear_regression_module_optimizer_dataset_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html"
+    },
+    {
+      "id": "wiki-pytorch-pytorch_linear_regression_setup_loss_learning",
+      "title": "문제 정의·예측·Loss",
+      "description": "상위 학습 흐름에서 문제 정의·예측·Loss에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › PyTorch 선형 회귀 › 문제 정의·예측·Loss 문제 정의·예측·Loss 1. 이 프로그램이 하려는 일 2. 현재까지 작성한 전체 코드 3. 랜덤한 w와 b에서 시작한다 첫 번째 예측 4. 예측이 얼마나 틀렸는지 측정한다 왜 오차를 제곱하는가? 별도의 Loss 함수에 넣지 않았는데 왜 이것이 함수인가? 일반 숫자와 PyTorch Tensor의 차이",
+      "href": "wiki/pytorch/pytorch_linear_regression_setup_loss_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_attention_learning",
-      "title": "Transformer · Scaled Dot-Product Attention",
-      "description": "코드 셀 단위로 배우는 Transformer 구현 학습 문서",
+      "title": "Scaled Dot-Product Attention",
+      "description": "Q·K 점수, Scaling, Mask, Softmax와 Value 가중합을 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Scaled Dot-Product Attention Scaled Dot-Product Attention Scaled Dot-Product Attention Q·K·V Projection Multi-Head Attention",
       "href": "wiki/transformer/transformer_attention_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_attention_math_learning",
-      "title": "Transformer · Attention 수학과 흐름",
-      "description": "Transformer Attention의 Score, Scaling, Mask, Softmax와 Value 가중합을 주제별로 정리한 문서",
+      "title": "Scaled Dot-Product Attention의 계산 흐름",
+      "description": "Q·K 내적에서 시작해 Scaling, Mask, Softmax, Value 가중합으로 이어지는 한 번의 Attention을 세부적으로 다시 찾는다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Attention › Attention 수학 Scaled Dot-Product Attention의 계산 흐름 전체 흐름 Q·K 내적과 Scaling 왜 Score의 표준편차가 √ head_dim 만큼 커지는가? Mask와 Softmax Attention Weight와 Value",
       "href": "wiki/transformer/transformer_attention_math_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_attention_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_attention_multi_head_original_learning",
+      "title": "Multi-Head Attention 계산 상세",
+      "description": "Q·K·V를 Head로 나누고 Attention을 계산한 뒤 Token 기준으로 다시 합치는 Shape 흐름을 자세히 따라간다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Attention › Multi-Head Attention › 계산 상세 Multi-Head Attention 계산 상세 오늘 완성한 전체 흐름 Head로 나눴다가 합쳐도 순서가 유지되는가? 포지셔널 인코딩은 Head 계산에서 사라진 것처럼 보이는 이유 1. Query를 현재 셀에서 다시 선언하기 2. Head 수와 Head 차원 계산 3. view() 로 Head별 조각 만들기 4. “Token 조각이 늘었다”는 감각 5. transpose(1, 2) 로 같은 Head끼리 모으기 6. 4차원 Tensor에서 인덱스 일부만 지정하기 7. Key와 Value도 같은 방식으로 분리하기 8. Head별 Q @ Kᵀ Score 9. 왜 √head_dim 으로 나누는가 10. Head별 Softmax와 dim=-1 11. Attention Weight와 Value의 가중합 12. Head 결과를 Token 기준으로 다시 모으기 13. Head 조각을 다시 하나의 Token 벡터로 합치기 오늘의 최종 Shape 흐름 내 표현으로 다시 정리하기 Head 결과와 multi_head_output 왜 multi_head_output 에 다시 Output Linear를 적용하는가? Linear가 의미를 부여한다는 말의 정확한 뜻 Q·K·V와 W_O 는 어떻게 학습되는가? 포지셔널 인코딩은 어디에 있는가?",
+      "href": "wiki/transformer/transformer_attention_multi_head_original_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_multi_head_attention_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_attention_score_mask_learning",
+      "title": "Attention Score·Mask·Softmax·Value",
+      "description": "Score를 만들고 Scaling과 Mask를 적용한 뒤 Softmax 비율로 Value를 섞는 전체 계산을 자세히 따라간다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Attention › Attention 계산 흐름 › Score·Mask·Softmax·Value 상세 Attention Score·Mask·Softmax·Value Query는 문장 전체에 하나가 아니라 토큰마다 하나다 Q @ Kᵀ 가 만드는 것 왜 √d_k 로 나누는가? 이번에 빠뜨렸던 연결고리: 분산에는 평균이 들어간다 Q와 K의 곱도 왜 평균 0으로 보는가? 임베딩 초기화부터 Attention 스케일링까지 한 번에 연결하기 Mask가 있다면 사용할 수 없는 점수를 없앤다 Padding Mask는 길이를 맞추기 위해 넣은 PAD를 숨긴다 현재 실험: 두 Query 모두 두 번째 Token을 보지 않는다 Causal Mask도 실제 Tensor로 검증했다 Mask는 Q와 K를 0으로 만드는 연산이 아니다 Softmax는 단순한 값 ÷ 합이 아니다 왜 Mask에 큰 음수가 아니라 -∞ 를 넣는가? Softmax로 Key별 참고 비율을 만든다 dim=-1 은 마지막 차원을 뜻한다 이번 실습 결과: 각 Query가 Key별 참고 비율을 얻는다 Attention weight와 Value를 곱해 최종 출력 벡터를 만든다 현재 실습 숫자로 첫 번째 Query 출력을 직접 검산 왜 Tensor가 3차원인가? 두 번째 Query가 첫 번째 Value도 사용하는 이유 현재 작성한 Scaled Dot-Product Attention 전체 코드 지금 완성한 범위와 다음 범위",
+      "href": "wiki/transformer/transformer_attention_score_mask_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_attention_math_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_ffn_execution_verification_learning",
+      "title": "Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기",
+      "description": "FFN의 핵심 흐름을 이해한 뒤, 두 번째 Residual과 LayerNorm의 숫자·Shape, Dropout의 훈련·평가 모드, 전체 TransformerBlock 출력을 단계별로 확인한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › FFN › 실행 검증 Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기 두 번째 Residual 실제 결과 두 번째 LayerNorm 실제 결과 Dropout의 훈련·평가 모드 비교 train() 에서는 일부 원소를 무작위로 끈다 eval() 에서는 Dropout 동작을 끈다 TransformerBlock 통합 검증 완료",
+      "href": "wiki/transformer/transformer_ffn_execution_verification_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_ffn_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_ffn_learning",
-      "title": "Transformer · FFN",
-      "description": "Transformer FFN이 Attention으로 모은 정보를 Token별로 가공하는 흐름과 nn.Linear 생성·호출의 차이를 정리한 학습 문서",
+      "title": "Token끼리 섞은 다음 각 Token을 따로 가공하기",
+      "description": "Attention과 FFN의 역할을 구분하고, nn.Linear(2, 4) 로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › FFN Token끼리 섞은 다음 각 Token을 따로 가공하기 Attention과 FFN은 무엇이 다른가? d_model → d_ff → d_model 학습되는 것과 고정되는 것 ReLU와 GELU는 같은 방식으로 자르지 않는다 Linear를 만드는 것과 값을 넣는 것은 별개다 FFN 첫 Linear 실행 결과 LayerNorm의 출력이 FFN으로 들어간다 2 → 4 는 의미를 네 개로 확정하는 일이 아니다 음수는 노이즈라서 지우는 것이 아니다 4 → 2 로 줄인 뒤 왜 다시 더하는가? 검증 전 질문과 후속 결과 실행 검증에서 확인한 결론",
       "href": "wiki/transformer/transformer_ffn_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_layer_norm_learning",
-      "title": "Transformer · LayerNorm",
-      "description": "Transformer LayerNorm이 Token별 마지막 차원의 평균을 0, 분산과 표준편차를 1에 가깝게 맞추는 계산을 실제 숫자로 설명한 학습 문서",
+      "title": "Token마다 값의 규모를 다시 정리하기",
+      "description": "Residual로 원본과 Attention 정보를 더한 뒤, 각 Token이 가진 마지막 특징 차원을 따로 정규화하는 이유와 계산을 현재 실습 숫자로 따라간다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › LayerNorm Token마다 값의 규모를 다시 정리하기 LayerNorm은 무엇을 정리하는가? 현재 Token 1 숫자로 시작 왜 표준편차가 0.4774 인가? 표준편차로 나누면 왜 [1, -1] 인가? 실제 PyTorch에서 달라지는 작은 부분 실제 출력의 2.9802e-08 은 무엇인가? 이번 실습에서 실제로 확인한 전체 결과 FFN 뒤 두 번째 LayerNorm도 같은 원리다",
       "href": "wiki/transformer/transformer_layer_norm_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_learning",
-      "title": "Transformer 학습 문서",
-      "description": "코드 셀 단위로 배우는 Transformer 구현 학습 문서",
+      "title": "Transformer, 주제별 학습 문서",
+      "description": "긴 단일 문서를 주제별 하위 문서로 나누었습니다. 각 문서의 기존 설명과 예제는 생략 없이 그대로 유지합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer 코드 학습 Transformer, 주제별 학습 문서 Token Embedding Positional Encoding Scaled Dot-Product Attention Residual 연결 LayerNorm FFN Dropout Transformer Block 통합 완료",
       "href": "wiki/transformer/transformer_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": null
     },
     {
       "id": "wiki-transformer-transformer_multi_head_attention_learning",
-      "title": "Transformer · Multi-Head Attention",
-      "description": "Transformer Multi-Head Attention의 Head 분리, 병렬 계산, 병합과 Output Projection을 정리한 문서",
+      "title": "Multi-Head Attention 분리하고 다시 합치기",
+      "description": "Token을 늘리는 것이 아니라 특징 차원을 Head별로 나누고, 각 Head에서 Attention을 계산한 뒤 다시 공통 표현으로 합치는 흐름을 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Attention › Multi-Head Attention Multi-Head Attention 분리하고 다시 합치기 무엇을 나누는가? view() · transpose() · reshape() Head별 Attention과 multi_head_output 왜 Output Projection (W_O)를 또 적용하는가? 직접 검증: nn.Linear 와 수동 행렬곱 nn.Module 안에 Projection 등록하기 첫 forward() 실행 검증 Head별 Score 계산 head_dim=1 일 때 Scaling 숫자가 같은 이유 Head별 Softmax와 Key 방향 합 Value 가중합부터 W_O 까지 모듈 안에서 완성 포지셔널 인코딩은 사라지지 않는다 모든 가중치는 최종 Loss로 함께 학습된다",
       "href": "wiki/transformer/transformer_multi_head_attention_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_attention_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_positional_div_term_learning",
+      "title": "div_term은 무엇을 만드는가?",
+      "description": "논문의 위치 인코딩 식이 코드의 지수식으로 바뀌고 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Positional Encoding › div_term div_term은 무엇을 만드는가? div_term 은 무엇을 만드는가? 1. 짝수 차원 번호만 만든다 2. 자연로그로 지수의 감소 폭을 만든다 3. 차원 번호와 곱하고 exp() 를 적용한다 4. 원래 논문의 식으로 변환한다 5. 위치와 곱하면 차원별 각도가 된다",
+      "href": "wiki/transformer/transformer_positional_div_term_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_positional_encoding_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_positional_encoding_learning",
-      "title": "Transformer · Positional Encoding",
-      "description": "코드 셀 단위로 배우는 Transformer 구현 학습 문서",
+      "title": "Positional Encoding, 코드에서 이해하기",
+      "description": "위치 번호가 여러 속도의 sin·cos 벡터로 바뀌는 과정과 Shape을 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Positional Encoding Positional Encoding, 코드에서 이해하기 순서가 없는 Transformer에 위치 알려주기 핵심 직관: 위치마다 다른 파형 패턴을 더한다 div_term 이 차원별 속도를 만든다 sin·cos 쌍이 위치를 좌표로 바꾼다 Positional Encoding 텐서 Shape Positional Encoding 확인 문제",
       "href": "wiki/transformer/transformer_positional_encoding_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_positional_sin_cos_learning",
+      "title": "sin·cos와 위치 표현",
+      "description": "한 차원 쌍의 원 위 좌표부터 여러 속도의 위치 지문과 상대 위치 회전까지 자세히 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Positional Encoding › sin·cos와 위치 표현 sin·cos와 위치 표현 사인·코사인 수학 개념은 별도 문서에서 왜 짝수 차원에는 sin , 홀수 차원에는 cos 를 넣을까? 코드의 한 차원 쌍은 원 위의 점 하나다 같은 각도축에 사인과 코사인을 겹쳐 보기 왜 sin 하나가 아니라 cos를 함께 쓰는가? 한 바퀴 이후에는 여러 속도의 전체 조합을 본다 위치가 증가하면 원 위의 점이 회전한다 왜 이 값들이 위치 정보가 될 수 있을까? 차원 쌍마다 속도가 달라 위치의 ‘지문’이 된다 왜 sin 하나만 사용하지 않을까? 상대적인 위치 이동도 회전으로 표현된다",
+      "href": "wiki/transformer/transformer_positional_sin_cos_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_positional_encoding_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_projection_learning",
-      "title": "Transformer · QKV Projection",
-      "description": "Transformer의 Q·K·V Projection과 Linear 가중치 학습 흐름을 정리한 문서",
+      "title": "Q·K·V Projection과 Linear 가중치",
+      "description": "같은 입력을 서로 다른 가중치 표에 통과시켜 Query·Key·Value 관점의 중간 표현을 만드는 과정을 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › QKV Projection Q·K·V Projection과 Linear 가중치 같은 입력, 서로 다른 Projection nn.Linear 가 만드는 새로운 특징 Projection 결과는 최종 예측값이 아니다 Q·K·V 가중치는 어떻게 학습되는가? 직접 실행하고 검산한 Projection 실습 Q·K·V Projection과 Score 계산 nn.Linear 의 계산을 직접 행렬곱과 비교 같은 입력에서 Q·K·V가 서로 달라지는 이유 Projection 결과로 Score를 직접 계산",
       "href": "wiki/transformer/transformer_projection_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_attention_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_residual_learning",
-      "title": "Transformer · Residual 연결",
-      "description": "Transformer에서 Attention 출력과 원래 입력을 더하는 Residual 연결을 작은 Tensor로 이해하는 학습 문서",
+      "title": "원본을 지우지 않고 새 정보를 더하기",
+      "description": "Attention 결과로 원래 Token 표현을 교체하지 않고, 원래 입력에 Attention이 알아낸 정보를 더해 다음 단계로 전달하는 연결을 정리한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Residual 연결 원본을 지우지 않고 새 정보를 더하기 Residual은 원본을 보존하는 지름길이다 현재 실습 숫자로 보기 왜 W_O 뒤에 바로 더할 수 있는가? 실제 덧셈 결과 검증 완성한 Block에서 두 Residual의 역할",
       "href": "wiki/transformer/transformer_residual_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_token_embedding_initialization_learning",
+      "title": "임베딩 초기화의 분산과 제곱합",
+      "description": "작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Token Embedding › 임베딩 초기화 임베딩 초기화의 분산과 제곱합 임베딩 행렬은 실제로 어떻게 초기화될까? 임베딩 벡터 초기화: 전체 흐름 1. 토큰 하나는 d_model 개의 원소를 가진다 2. 각 원소는 평균 0인 분포에서 뽑는다 3. 평균 0만으로는 값의 크기를 결정할 수 없다 4. 원본 임베딩 벡터 전체의 제곱합을 약 1로 만들고 싶다 5. 512개 원소를 자료 집합처럼 보고 분산 공식으로 연결한다 6. 제곱 크기 예산 1을 512개 원소가 나눠 가진다 7. 초기화 함수에는 분산이 아니라 표준편차를 넣는다 8. PyTorch 코드로 표현한다 전체 예산에 맞춰 표준편차를 정한다",
+      "href": "wiki/transformer/transformer_token_embedding_initialization_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_token_embedding_learning.html"
     },
     {
       "id": "wiki-transformer-transformer_token_embedding_learning",
-      "title": "Transformer · Token Embedding",
-      "description": "코드 셀 단위로 배우는 Transformer 구현 학습 문서",
+      "title": "Token Embedding, 코드에서 이해하기",
+      "description": "토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › Token Embedding Token Embedding, 코드에서 이해하기 토큰 번호를 의미 벡터로 바꾸기 한눈에 보는 데이터 흐름 줄별로 이해하기 임베딩 행렬은 실제로 어떻게 초기화될까? 왜 √d_model 을 곱하는가? 텐서 Shape 정리 이 셀을 이해했는지 확인하기",
       "href": "wiki/transformer/transformer_token_embedding_learning.html",
       "category": "Transformer",
       "categoryKey": "transformer",
-      "isCategoryIndex": false
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html"
+    },
+    {
+      "id": "wiki-transformer-transformer_token_embedding_scaling_learning",
+      "title": "왜 √d_model로 스케일링하는가?",
+      "description": "초기 임베딩과 위치 인코딩을 더할 때 두 신호의 상대적인 크기를 맞추는 이유를 자세히 설명합니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Token Embedding › √d_model 스케일링 왜 √d_model로 스케일링하는가? 어차피 키울 거라면 처음부터 크게 초기화하면 안 될까?",
+      "href": "wiki/transformer/transformer_token_embedding_scaling_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_token_embedding_learning.html"
     }
   ]
 };

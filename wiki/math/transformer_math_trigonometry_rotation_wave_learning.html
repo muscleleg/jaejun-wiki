@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer를 손코딩하며 필요한 평균, 분산, 표준편차, 정규분포와 벡터 기초">
+  <title>수학 · 좌표 회전과 파동</title>
+  <style>
+    :root {
+      --ink: #1d2228;
+      --muted: #687078;
+      --paper: #f4f1ea;
+      --panel: #fffdf8;
+      --line: #d8d3c8;
+      --blue: #225f78;
+      --blue-soft: #dcebf0;
+      --yellow: #e6aa36;
+      --red: #b84f42;
+      --code: #182126;
+      --code-ink: #edf4f6;
+      --shadow: 0 18px 48px rgba(28, 37, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 95, 120, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .page { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      padding: 28px 0 62px;
+      color: white;
+      background: var(--blue);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 76px;
+      font-size: 0.85rem;
+    }
+
+    .topbar a {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+
+    .topbar a:hover, .topbar a:focus-visible { background: rgba(255,255,255,.12); outline: none; }
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 24px; color: #d8e9ee; font-size: .86rem; }
+    .breadcrumb a { padding: 0; color: white; border: 0; border-radius: 0; font-weight: 750; text-decoration: none; }
+    .breadcrumb a:hover, .breadcrumb a:focus-visible { background: transparent; text-decoration: underline; }
+    .breadcrumb .separator { opacity: .5; }
+    .breadcrumb [aria-current="page"] { color: white; font-weight: 800; }
+    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(25,65,82,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
+    .home-fab:hover, .home-fab:focus-visible { outline: 3px solid #b9dbe6; }
+    .eyebrow { margin: 0 0 14px; color: #b9dbe6; font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.7rem, 7vw, 5.8rem);
+      font-weight: 820;
+      letter-spacing: -.065em;
+      line-height: 1.02;
+    }
+
+    .lead { max-width: 700px; margin: 28px 0 0; color: #d8e9ee; font-size: 1.08rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 58px;
+      padding: 54px 0 100px;
+    }
+
+    nav { position: sticky; top: 28px; align-self: start; }
+    nav p { margin: 0 0 12px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    nav a { display: block; padding: 8px 11px; color: var(--muted); border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
+    nav a:hover, nav a:focus-visible { color: var(--blue); border-left-color: var(--blue); outline: none; }
+
+    main { min-width: 0; }
+    section { scroll-margin-top: 24px; }
+    section + section { margin-top: 76px; padding-top: 64px; border-top: 1px solid var(--line); }
+
+    .concept {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--red);
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h2 { margin: 0 0 16px; font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -.045em; line-height: 1.15; }
+    h3 { margin: 38px 0 12px; font-size: 1.2rem; }
+    h4 { margin: 30px 0 10px; color: var(--blue); font-size: 1.04rem; }
+    p { margin: 0 0 17px; }
+    .intro { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+
+    .plain {
+      margin: 25px 0;
+      padding: 23px 25px;
+      background: var(--blue-soft);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .plain strong { display: block; margin-bottom: 5px; color: var(--blue); }
+    .plain p { margin: 0; }
+
+    .formula {
+      margin: 22px 0;
+      padding: 22px;
+      overflow-x: auto;
+      color: var(--code-ink);
+      background: var(--code);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      font: 600 clamp(.9rem, 2.5vw, 1.15rem)/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .steps { display: grid; gap: 10px; margin: 24px 0; counter-reset: step; }
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      padding: 16px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .step::before {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      counter-increment: step;
+      content: counter(step);
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      border-radius: 50%;
+      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .step p { margin: 0; color: var(--muted); }
+    .step strong { color: var(--ink); }
+
+    .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
+    .card { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .card strong { display: block; margin-bottom: 8px; }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .dots { margin-top: 16px; color: var(--blue); font: 800 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-spacing: 7px; }
+
+    table { width: 100%; margin: 22px 0; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .78rem; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .answer {
+      margin-top: 30px;
+      padding: 26px;
+      color: white;
+      background: var(--blue);
+      border-radius: 14px;
+    }
+
+    .answer strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
+    .answer p { margin: 0; color: #d8e9ee; }
+
+    .proof-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .proof-figure svg { display: block; width: min(100%, 640px); height: auto; margin: 0 auto; }
+    .proof-figure figcaption { max-width: 650px; margin: 16px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .proof-triangle { fill: #f5ddb0; stroke: #1d2228; stroke-width: 2; }
+    .proof-center { fill: #dcebf0; stroke: #225f78; stroke-width: 3; }
+    .proof-outline { fill: none; stroke: #1d2228; stroke-width: 3; }
+    .proof-label { fill: #1d2228; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-center-label { fill: #225f78; font: 800 25px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .proof-right-angle { fill: none; stroke: #b84f42; stroke-width: 2; }
+
+    .concept-figure {
+      margin: 26px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
+    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
+    .triangle-fill { fill: rgba(34, 95, 120, 0.08); }
+    .triangle-edge { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linejoin: round; }
+    .triangle-right { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+    .triangle-angle { fill: none; stroke: var(--yellow); stroke-width: 2.5; }
+    .triangle-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+    .triangle-title { fill: var(--blue); font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .triangle-note { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .trig-circle { fill: none; stroke: var(--blue); stroke-width: 3; }
+    .trig-radius { stroke: var(--yellow); stroke-width: 3; }
+    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    .trig-arc { fill: none; stroke: var(--yellow); stroke-width: 2; }
+    .trig-point { fill: var(--yellow); }
+    .trig-label { fill: var(--ink); font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .trig-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-axis { stroke: var(--muted); stroke-width: 1.5; }
+    .diagram-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
+    .diagram-vector { fill: none; stroke: var(--blue); stroke-width: 4; }
+    .diagram-vector-alt { fill: none; stroke: var(--yellow); stroke-width: 4; }
+    .diagram-component { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
+    .diagram-arc { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-wave { fill: none; stroke: var(--blue); stroke-width: 3.5; }
+    .diagram-wave-alt { fill: none; stroke: var(--red); stroke-width: 3; }
+    .diagram-wave-slow { fill: none; stroke: var(--yellow); stroke-width: 3; }
+    .diagram-point { fill: var(--red); }
+    .diagram-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .diagram-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .formula span { display: block; }
+    .path-map { display: grid; gap: 9px; margin: 24px 0; }
+    .path-row { display: grid; grid-template-columns: minmax(110px, .6fr) 1.4fr; gap: 16px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .path-row strong { color: var(--blue); }
+    .caution { margin: 25px 0; padding: 22px 24px; background: #f7e7c8; border-left: 4px solid var(--yellow); border-radius: 0 12px 12px 0; }
+    .caution strong { color: #805713; }
+
+    footer { padding: 26px 0 44px; color: var(--muted); border-top: 1px solid var(--line); font-size: .82rem; }
+
+    @media (max-width: 780px) {
+      .topbar { margin-bottom: 50px; }
+      .layout { grid-template-columns: 1fr; gap: 26px; }
+      nav { position: static; display: flex; overflow-x: auto; }
+      nav p { display: none; }
+      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .page { width: calc(100% - 24px); }
+      header { padding-bottom: 46px; }
+      .topbar span { display: none; }
+      th, td { padding: 10px 9px; font-size: .82rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+</head>
+<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_math_trigonometry_learning.html">사인과 코사인</a><span class="separator">›</span><span aria-current="page">좌표 회전과 파동</span></nav><header class="detail-header"><p class="eyebrow">수학 · 세부 문서</p><h1>좌표 회전과 파동</h1><p class="lead">상위 학습 흐름에서 좌표 회전과 파동에 필요한 계산·코드·검증 내용을 자세히 정리한다.</p></header><p><a href="transformer_math_trigonometry_learning.html">← 사인과 코사인 학습 경로</a></p><section><h4>5-4. 원 위의 위치와 좌표 회전을 표현한다</h4>
+        <p>반지름이 <code>r</code>인 원 위에서 각도 <code>θ</code>만큼 이동한 점의 좌표는 <code>(r cos θ, r sin θ)</code>입니다. <code>cos</code>가 가로 좌표를, <code>sin</code>이 세로 좌표를 담당합니다.</p>
+        <div class="formula">
+          <span class="math">x = r cos θ</span>
+          <span><code>y = r sin θ</code></span>
+          <span><code>원 위의 점 = (r cos θ, r sin θ)</code></span>
+        </div>
+        <p>점 <code>(x,y)</code> 자체를 원점 기준으로 <code>θ</code>만큼 회전시키면 다음 회전 공식을 사용합니다.</p>
+        <div class="formula">
+          <span class="math">회전한 x′ = x cos θ - y sin θ</span>
+          <span><code>회전한 y′ = x sin θ + y cos θ</code></span>
+        </div>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 340" role="img" aria-labelledby="rotation-title rotation-desc">
+            <title id="rotation-title">점 1, 0을 90도 회전시키는 좌표 그림</title>
+            <desc id="rotation-desc">원점에서 오른쪽을 향하는 벡터가 반시계 방향으로 90도 회전하여 위쪽을 향하는 벡터가 된다.</desc>
+            <defs>
+              <marker id="rotation-blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#225f78" />
+              </marker>
+              <marker id="rotation-yellow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#e6aa36" />
+              </marker>
+            </defs>
+
+            <line class="diagram-axis" x1="65" y1="210" x2="635" y2="210" />
+            <line class="diagram-axis" x1="300" y1="310" x2="300" y2="30" />
+            <circle class="trig-circle" cx="300" cy="210" r="130" />
+            <line class="diagram-vector" x1="300" y1="210" x2="430" y2="210" marker-end="url(#rotation-blue-arrow)" />
+            <line class="diagram-vector-alt" x1="300" y1="210" x2="300" y2="80" marker-end="url(#rotation-yellow-arrow)" />
+            <path class="diagram-arc" d="M385 210 A85 85 0 0 0 300 125" marker-end="url(#rotation-yellow-arrow)" />
+            <circle class="diagram-point" cx="430" cy="210" r="5" />
+            <circle class="diagram-point" cx="300" cy="80" r="5" />
+
+            <text class="diagram-label" x="442" y="217">시작점 (1, 0)</text>
+            <text class="diagram-label" x="315" y="72">회전 후 (0, 1)</text>
+            <text class="diagram-label" x="348" y="160">90° 회전</text>
+            <text class="diagram-muted" x="619" y="232">x</text>
+            <text class="diagram-muted" x="312" y="42">y</text>
+            <text class="diagram-muted" x="278" y="231">0</text>
+          </svg>
+          <figcaption><code>(1,0)</code>은 오른쪽 방향입니다. 반시계 방향으로 <code>90°</code> 회전하면 위쪽 방향인 <code>(0,1)</code>이 됩니다. 사인과 코사인이 회전 전후의 좌표를 계산합니다.</figcaption>
+        </figure>
+
+        <p>예를 들어 점 <code>(1,0)</code>을 반시계 방향으로 <code>90°</code> 회전시키면 <code>cos 90°=0</code>, <code>sin 90°=1</code>이므로 결과는 <code>(0,1)</code>입니다. 이 계산은 게임, 로봇 관절, 2D·3D 그래픽과 좌표계 변환의 기초입니다.</p>
+
+        <h4>5-5. 반복되는 변화와 파동을 표현한다</h4>
+        <p>점이 원 위를 일정한 속도로 계속 회전한다고 생각해 봅시다. 점의 세로 좌표만 시간 순서대로 기록하면 <code>0 → 1 → 0 → -1 → 0</code>의 변화가 반복됩니다. 이것이 사인파의 출발점입니다.</p>
+
+        <div class="plain">
+          <strong>물결 모양은 점이 실제로 이동한 길이 아니다</strong>
+          <p>점의 실제 이동 경로는 원입니다. 사인 그래프는 그 경로를 그대로 그린 것이 아니라, 점이 회전하는 동안의 <strong>세로 높이만 시간 또는 각도 순서대로 기록한 그래프</strong>입니다.</p>
+        </div>
+
+        <div class="compare">
+          <article class="card">
+            <strong>원의 좌표 그림</strong>
+            <p>가로축은 점의 실제 <code>x</code> 위치이고 세로축은 점의 실제 <code>y</code> 위치입니다. 점은 원 모양의 경로를 따라 움직입니다.</p>
+          </article>
+          <article class="card">
+            <strong>사인 그래프</strong>
+            <p>가로축은 실제 공간의 <code>x</code> 위치가 아니라 시간 <code>t</code> 또는 회전 각도 <code>θ</code>입니다. 세로축에 그 순간의 높이 <code>y</code>를 기록합니다.</p>
+          </article>
+        </div>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 340" role="img" aria-labelledby="circle-to-wave-title circle-to-wave-desc">
+            <title id="circle-to-wave-title">원운동의 세로 높이를 시간 순서로 옮겨 사인 그래프를 만드는 과정</title>
+            <desc id="circle-to-wave-desc">반지름 1인 원을 도는 점의 세로 좌표 0, 1, 0, 마이너스 1, 0을 각도 0도부터 360도까지 차례로 기록하면 사인 곡선이 된다.</desc>
+
+            <text class="triangle-title" x="77" y="34">실제 움직임: 원</text>
+            <line class="diagram-axis" x1="30" y1="160" x2="270" y2="160" />
+            <line class="diagram-axis" x1="150" y1="285" x2="150" y2="38" />
+            <circle class="trig-circle" cx="150" cy="160" r="90" />
+            <circle class="diagram-point" cx="240" cy="160" r="5" />
+            <circle class="diagram-point" cx="150" cy="70" r="5" />
+            <circle class="diagram-point" cx="60" cy="160" r="5" />
+            <circle class="diagram-point" cx="150" cy="250" r="5" />
+            <text class="diagram-muted" x="223" y="181">0°/360°</text>
+            <text class="diagram-muted" x="160" y="66">90°</text>
+            <text class="diagram-muted" x="31" y="181">180°</text>
+            <text class="diagram-muted" x="160" y="270">270°</text>
+            <text class="diagram-label" x="102" y="310">경로는 원</text>
+
+            <path class="diagram-arc" d="M286 150 L320 150" />
+            <path d="M313 143 L324 150 L313 157" fill="none" stroke="#e6aa36" stroke-width="3" />
+            <text class="diagram-muted" x="271" y="129">높이 기록</text>
+
+            <text class="triangle-title" x="427" y="34">기록 결과: 사인 그래프</text>
+            <line class="diagram-axis" x1="340" y1="160" x2="665" y2="160" />
+            <line class="diagram-axis" x1="340" y1="280" x2="340" y2="42" />
+            <line class="diagram-grid" x1="340" y1="70" x2="650" y2="70" />
+            <line class="diagram-grid" x1="340" y1="250" x2="650" y2="250" />
+            <path class="diagram-wave" d="M340 160 C360 110 385 70 415 70 C445 70 470 110 490 160 C510 210 535 250 565 250 C595 250 620 210 640 160" />
+            <circle class="diagram-point" cx="340" cy="160" r="5" />
+            <circle class="diagram-point" cx="415" cy="70" r="5" />
+            <circle class="diagram-point" cx="490" cy="160" r="5" />
+            <circle class="diagram-point" cx="565" cy="250" r="5" />
+            <circle class="diagram-point" cx="640" cy="160" r="5" />
+            <text class="diagram-muted" x="333" y="183">0°</text>
+            <text class="diagram-muted" x="402" y="58">90°</text>
+            <text class="diagram-muted" x="475" y="183">180°</text>
+            <text class="diagram-muted" x="550" y="270">270°</text>
+            <text class="diagram-muted" x="624" y="183">360°</text>
+            <text class="diagram-label" x="424" y="310">가로축 = 시간 또는 각도</text>
+          </svg>
+          <figcaption>왼쪽 점은 원을 따라 움직입니다. 오른쪽에서는 각 순간의 세로 높이를 각도 순서대로 오른쪽에 찍습니다. 점들을 촘촘히 기록해 연결하면 물결 모양이 됩니다.</figcaption>
+        </figure>
+
+        <div class="table-scroll"><table>
+          <thead><tr><th>회전 각도</th><th>원 위의 좌표</th><th>사인 그래프에 찍는 점</th></tr></thead>
+          <tbody>
+            <tr><td><code>0°</code></td><td><code>(1, 0)</code></td><td><code>(0°, 0)</code></td></tr>
+            <tr><td><code>90°</code></td><td><code>(0, 1)</code></td><td><code>(90°, 1)</code></td></tr>
+            <tr><td><code>180°</code></td><td><code>(-1, 0)</code></td><td><code>(180°, 0)</code></td></tr>
+            <tr><td><code>270°</code></td><td><code>(0, -1)</code></td><td><code>(270°, -1)</code></td></tr>
+            <tr><td><code>360°</code></td><td><code>(1, 0)</code></td><td><code>(360°, 0)</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <p>실제로는 점이 <code>0° → 90°</code>로 한 번에 이동하지 않습니다. <code>1°, 2°, 3° ...</code>처럼 모든 중간 각도를 지나며 높이도 연속적으로 변합니다. 이 값을 촘촘하게 찍고 이어서 부드러운 곡선이 만들어집니다.</p>
+
+        <div class="formula">
+          <span class="math">반지름 r이 일정할 때: y = r sin θ</span>
+          <span><code>일정한 각속도 ω로 회전할 때: θ = ωt</code></span>
+          <span><code>따라서 시간에 따른 높이: y(t) = r sin(ωt)</code></span>
+        </div>
+        <p>반지름 <code>r</code>은 계속 유지되며 사인파가 위아래로 움직이는 최대 크기, 즉 진폭이 됩니다. <code>r=1</code>이면 높이는 <code>-1</code>과 <code>1</code> 사이에서 움직입니다. 회전 속도 <code>ω</code>가 일정해야 시간축에서 일정한 간격으로 반복되는 사인파가 됩니다.</p>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 320" role="img" aria-labelledby="wave-title wave-desc">
+            <title id="wave-title">시간에 따라 반복되는 사인파</title>
+            <desc id="wave-desc">사인값이 0에서 시작해 1, 0, 마이너스 1, 0으로 변하고 같은 모양을 반복한다.</desc>
+            <line class="diagram-axis" x1="55" y1="150" x2="650" y2="150" />
+            <line class="diagram-axis" x1="60" y1="270" x2="60" y2="35" />
+            <line class="diagram-grid" x1="60" y1="70" x2="625" y2="70" />
+            <line class="diagram-grid" x1="60" y1="230" x2="625" y2="230" />
+            <path class="diagram-wave" d="M60 150 C97 60 134 60 171 150 C208 240 245 240 282 150 C319 60 356 60 393 150 C430 240 467 240 504 150 C541 60 578 60 615 150" />
+
+            <circle class="diagram-point" cx="60" cy="150" r="4" />
+            <circle class="diagram-point" cx="116" cy="70" r="4" />
+            <circle class="diagram-point" cx="171" cy="150" r="4" />
+            <circle class="diagram-point" cx="227" cy="230" r="4" />
+            <circle class="diagram-point" cx="282" cy="150" r="4" />
+
+            <line class="diagram-component" x1="60" y1="286" x2="282" y2="286" />
+            <line class="diagram-component" x1="60" y1="278" x2="60" y2="294" />
+            <line class="diagram-component" x1="282" y1="278" x2="282" y2="294" />
+
+            <text class="diagram-label" x="91" y="59">1</text>
+            <text class="diagram-label" x="207" y="252">-1</text>
+            <text class="diagram-label" x="146" y="308">한 번 반복하는 길이 = 주기</text>
+            <text class="diagram-muted" x="638" y="173">시간 t</text>
+            <text class="diagram-muted" x="72" y="47">값 y</text>
+            <text class="diagram-muted" x="69" y="143">0</text>
+          </svg>
+          <figcaption>사인값은 무한히 커지지 않고 <code>-1</code>과 <code>1</code> 사이를 오갑니다. 한 번의 모양이 끝나면 같은 변화가 다시 시작되며, 이 반복 길이를 주기라고 합니다.</figcaption>
+        </figure>
+
+        <h4>같은 원운동에서 코사인 그래프는 어떻게 나올까?</h4>
+        <p>사인 그래프는 점의 <strong>세로 좌표</strong>를 기록했습니다. 코사인 그래프는 같은 점의 <strong>가로 좌표</strong>를 시간 또는 각도 순서대로 기록합니다. 점은 오른쪽 끝 <code>(1,0)</code>에서 출발하므로 코사인값은 처음부터 <code>1</code>입니다.</p>
+
+        <div class="table-scroll"><table>
+          <thead><tr><th>회전 각도</th><th>원 위의 좌표</th><th>기록하는 가로 좌표</th><th>코사인 그래프의 점</th></tr></thead>
+          <tbody>
+            <tr><td><code>0°</code></td><td><code>(1, 0)</code></td><td><code>x=1</code></td><td><code>(0°, 1)</code></td></tr>
+            <tr><td><code>90°</code></td><td><code>(0, 1)</code></td><td><code>x=0</code></td><td><code>(90°, 0)</code></td></tr>
+            <tr><td><code>180°</code></td><td><code>(-1, 0)</code></td><td><code>x=-1</code></td><td><code>(180°, -1)</code></td></tr>
+            <tr><td><code>270°</code></td><td><code>(0, -1)</code></td><td><code>x=0</code></td><td><code>(270°, 0)</code></td></tr>
+            <tr><td><code>360°</code></td><td><code>(1, 0)</code></td><td><code>x=1</code></td><td><code>(360°, 1)</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <figure class="concept-figure">
+          <svg viewBox="0 0 700 340" role="img" aria-labelledby="cosine-wave-title cosine-wave-desc">
+            <title id="cosine-wave-title">원운동의 가로 좌표를 기록해 코사인 그래프를 만드는 과정</title>
+            <desc id="cosine-wave-desc">왼쪽의 원을 도는 점에서 가로 좌표를 읽어 오른쪽 각도축에 기록하면 코사인값이 1, 0, 마이너스 1, 0, 1로 변하는 곡선이 된다.</desc>
+
+            <text class="triangle-title" x="61" y="34">실제 움직임: 같은 원</text>
+            <line class="diagram-axis" x1="25" y1="160" x2="275" y2="160" />
+            <line class="diagram-axis" x1="150" y1="285" x2="150" y2="38" />
+            <circle class="trig-circle" cx="150" cy="160" r="90" />
+            <circle class="diagram-point" cx="240" cy="160" r="5" />
+            <circle class="diagram-point" cx="150" cy="70" r="5" />
+            <circle class="diagram-point" cx="60" cy="160" r="5" />
+            <circle class="diagram-point" cx="150" cy="250" r="5" />
+
+            <line class="diagram-component" x1="150" y1="92" x2="150" y2="160" />
+            <line class="diagram-component" x1="60" y1="160" x2="240" y2="160" />
+            <text class="diagram-label" x="207" y="146">x=1</text>
+            <text class="diagram-label" x="32" y="146">x=-1</text>
+            <text class="diagram-muted" x="223" y="181">0°/360°</text>
+            <text class="diagram-muted" x="160" y="66">90°: x=0</text>
+            <text class="diagram-muted" x="31" y="181">180°</text>
+            <text class="diagram-muted" x="160" y="270">270°: x=0</text>
+            <text class="diagram-label" x="88" y="310">가로 위치를 읽음</text>
+
+            <path class="diagram-arc" d="M286 150 L320 150" />
+            <path d="M313 143 L324 150 L313 157" fill="none" stroke="#e6aa36" stroke-width="3" />
+            <text class="diagram-muted" x="267" y="129">x값 기록</text>
+
+            <text class="triangle-title" x="425" y="34">기록 결과: 코사인 그래프</text>
+            <line class="diagram-axis" x1="350" y1="160" x2="665" y2="160" />
+            <line class="diagram-axis" x1="350" y1="280" x2="350" y2="42" />
+            <line class="diagram-grid" x1="350" y1="70" x2="655" y2="70" />
+            <line class="diagram-grid" x1="350" y1="250" x2="655" y2="250" />
+            <path class="diagram-wave-alt" d="M350 70 C378 70 400 110 425 160 C450 210 472 250 500 250 C528 250 550 210 575 160 C600 110 622 70 650 70" />
+
+            <circle class="diagram-point" cx="350" cy="70" r="5" />
+            <circle class="diagram-point" cx="425" cy="160" r="5" />
+            <circle class="diagram-point" cx="500" cy="250" r="5" />
+            <circle class="diagram-point" cx="575" cy="160" r="5" />
+            <circle class="diagram-point" cx="650" cy="70" r="5" />
+            <text class="diagram-label" x="360" y="63">1</text>
+            <text class="diagram-label" x="509" y="270">-1</text>
+            <text class="diagram-muted" x="342" y="301">0°</text>
+            <text class="diagram-muted" x="410" y="183">90°</text>
+            <text class="diagram-muted" x="480" y="239">180°</text>
+            <text class="diagram-muted" x="556" y="183">270°</text>
+            <text class="diagram-muted" x="629" y="63">360°</text>
+            <text class="diagram-label" x="426" y="315">가로축 = 시간 또는 각도</text>
+          </svg>
+          <figcaption>왼쪽 점은 사인 때와 똑같이 원을 돕니다. 이번에는 세로 높이가 아니라 가로 위치 <code>x</code>를 오른쪽에 기록하므로 <code>1 → 0 → -1 → 0 → 1</code>의 코사인 그래프가 됩니다.</figcaption>
+        </figure>
+
+        <h4>왜 <code>cos 0°=1</code>이고 <code>cos 90°=0</code>일까?</h4>
+        <p>단위원에서는 빗변에 해당하는 원의 반지름이 항상 <code>1</code>입니다. 코사인은 <code>인접변/빗변</code>이고, 단위원에서 인접변은 점의 가로 위치 <code>x</code>에 해당합니다.</p>
+
+        <div class="compare">
+          <article class="card">
+            <strong><code>0°</code>일 때</strong>
+            <p>점은 원의 오른쪽 끝 <code>(1,0)</code>에 있습니다.<br>빗변은 <code>1</code>, 가로 길이도 <code>1</code>이므로:<br><code>cos 0°=1/1=1</code></p>
+          </article>
+          <article class="card">
+            <strong><code>90°</code>일 때</strong>
+            <p>점은 원의 위쪽 끝 <code>(0,1)</code>에 있습니다.<br>빗변은 <code>1</code>, 가로 길이는 <code>0</code>이므로:<br><code>cos 90°=0/1=0</code></p>
+          </article>
+        </div>
+
+        <div class="formula">
+          <span class="math">cos 0° = 가로 길이 / 빗변 = 1/1 = 1</span>
+          <span><code>cos 90° = 가로 길이 / 빗변 = 0/1 = 0</code></span>
+        </div>
+
+        <div class="plain">
+          <strong><code>180°</code>부터는 ‘길이’보다 ‘좌표’로 생각한다</strong>
+          <p><code>180°</code>의 점은 원의 왼쪽 끝 <code>(-1,0)</code>이므로 <code>cos 180°=-1</code>입니다. 실제 삼각형의 변 길이가 음수라는 뜻이 아니라, 가로 좌표가 원점의 왼쪽 방향이라서 <code>-1</code>이라는 뜻입니다. 그래서 모든 각도에서는 <code>cos θ=가로 좌표</code>, <code>sin θ=세로 좌표</code>로 이해하는 것이 정확합니다.</p>
+        </div>
+
+        <div class="formula">
+          <span class="math">가로 좌표: x = r cos θ</span>
+          <span><code>θ=ωt이면 시간에 따른 가로 위치: x(t)=r cos(ωt)</code></span>
+          <span><code>세로 좌표: y(t)=r sin(ωt)</code></span>
+        </div>
+        <p>사인은 <code>0</code>에서 시작하고 코사인은 <code>1</code>에서 시작합니다. 같은 회전을 서로 다른 방향에서 기록한 것이므로, 코사인은 사인보다 <code>90°</code> 앞서 시작한 같은 모양의 파동으로 볼 수 있습니다.</p>
+
+        <div class="formula">
+          <span class="math">y(t) = A sin(ωt + φ)</span>
+          <span><code>A: 진폭 — 위아래로 얼마나 크게 움직이는가</code></span>
+          <span><code>ω: 각주파수 — 얼마나 빠르게 반복하는가</code></span>
+          <span><code>φ: 위상 — 반복을 어느 지점에서 시작하는가</code></span>
+        </div>
+        <p>소리, 물결, 용수철의 진동, 교류 전압처럼 반복되는 현상을 수학적으로 표현할 때 사용합니다. 복잡한 신호도 서로 다른 진폭과 주파수를 가진 여러 사인·코사인 파동의 합으로 분석할 수 있는데, 이것이 푸리에 해석의 핵심 아이디어입니다.</p>
+
+
+</section></main><script src="../../assets/js/global_nav.js?v=20260820"></script></body></html>
