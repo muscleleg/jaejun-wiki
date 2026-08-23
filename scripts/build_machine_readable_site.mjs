@@ -237,6 +237,40 @@ function renderStaticMindmap(graph) {
   };
 }
 
+function renderStaticRelationPaths(graph) {
+  const occurrenceById = new Map(graph.occurrences.map((occurrence) => [occurrence.id, occurrence]));
+  return graph.views.map((view) => {
+    const childrenById = new Map();
+    for (const edge of graph.edges.filter((edge) => edge.viewId === view.id)) {
+      const children = childrenById.get(edge.source) || [];
+      children.push(edge.target);
+      childrenById.set(edge.source, children);
+    }
+    const paths = [];
+    function visit(id, path, seen) {
+      if (seen.has(id)) throw new Error(`Cycle found in concept view ${view.id}: ${id}`);
+      const occurrence = occurrenceById.get(id);
+      if (!occurrence) throw new Error(`Missing concept occurrence: ${id}`);
+      const nextPath = [...path, occurrence];
+      const children = childrenById.get(id) || [];
+      if (!children.length) {
+        paths.push(nextPath);
+        return;
+      }
+      const nextSeen = new Set(seen).add(id);
+      for (const childId of children) visit(childId, nextPath, nextSeen);
+    }
+    visit(view.rootOccurrenceId, [], new Set());
+    const items = paths.map((path, index) => {
+      const nodes = path.map((occurrence) => occurrence.href
+        ? `<a href="${escapeAttribute(occurrence.href)}">${escapeHtml(occurrence.label)}</a>`
+        : `<span>${escapeHtml(occurrence.label)}</span>`);
+      return `            <li data-relation-path="${escapeAttribute(`${view.id}:${index + 1}`)}">${nodes.join('<span class="map-relation-arrow" aria-hidden="true">→</span>')}</li>`;
+    }).join("\n");
+    return `        <section class="map-relation-view" data-view="${escapeAttribute(view.id)}"><h3>${escapeHtml(view.label)}</h3><p>${escapeHtml(view.description)}</p><ul class="map-relation-paths">\n${items}\n          </ul></section>`;
+  }).join("\n");
+}
+
 async function renderStaticDiscoveryPages() {
   const homePath = resolve(wikiRoot, "index.html");
   let home = await readFile(homePath, "utf8");
@@ -274,7 +308,23 @@ async function renderStaticDiscoveryPages() {
   map = replaceElementContent(map, { tag: "p", id: "mapDescription", value: mindmap.view.description });
   map = replaceStaticRegion(map, { name: "map-tabs", tag: "div", id: "mapViewTabs", markup: mindmap.tabs });
   map = replaceStaticRegion(map, { name: "map-tree", tag: "ul", id: "mindmapTree", markup: mindmap.tree });
+  map = replaceStaticRegion(map, { name: "map-relations", tag: "div", id: "mapRelationList", markup: renderStaticRelationPaths(conceptGraph) });
   await writeFile(mapPath, map, "utf8");
+
+  const historyPath = resolve(wikiRoot, "learning_history.html");
+  let history = await readFile(historyPath, "utf8");
+  const studyDates = [...history.matchAll(/<article\b(?=[^>]*\bid=["']study-(\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
+  const uniqueStudyDates = [...new Set(studyDates)].sort().reverse();
+  if (!uniqueStudyDates.length) throw new Error("No dated learning records found in learning_history.html");
+  history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
+  history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
+  await writeFile(historyPath, history, "utf8");
+
+  const roadmapPath = resolve(wikiRoot, "pytorch_professional_roadmap.html");
+  let roadmap = await readFile(roadmapPath, "utf8");
+  roadmap = replaceElementContent(roadmap, { tag: "span", id: "roadmapOverallTotal", value: learningState.overall.total });
+  roadmap = replaceElementContent(roadmap, { tag: "span", id: "roadmapOverallDone", value: learningState.overall.done });
+  await writeFile(roadmapPath, roadmap, "utf8");
 }
 
 function relativeRootPrefix(href) {
@@ -448,6 +498,7 @@ const siteManifest = {
   rendering: {
     coreDiscovery: "pre-rendered-html",
     javascriptRole: "progressive-enhancement-for-search-filters-and-view-switching",
+    conceptRelations: "static-root-to-leaf-paths-for-every-view",
   },
   resources: {
     sitemap: `${publicBaseUrl}sitemap.xml`,
@@ -490,7 +541,7 @@ const llmsText = `# 공부의 흐름을 기록하는 기술 위키
 ## 읽는 방법
 
 - 개별 문서는 정적 HTML 본문을 기준으로 읽습니다.
-- 홈의 프로젝트·기술 문서, 기술 위키의 전체 문서 계층, 지식 지도의 기본 관점은 HTML에 미리 렌더링되어 있습니다. JavaScript는 검색·필터·관점 전환을 보강합니다.
+- 홈의 프로젝트·기술 문서, 기술 위키의 전체 문서 계층, 지식 지도의 기본 관점은 HTML에 미리 렌더링되어 있습니다. 지식 지도 아래에는 모든 관점의 루트→말단 관계가 정적 텍스트 경로로도 제공되며, JavaScript는 검색·필터·관점 전환을 보강합니다.
 - 문서 계층은 기술 위키 색인의 parentHref와 breadcrumbs를 따릅니다.
 - 지식 지도에서 같은 conceptKey가 여러 번 나오는 것은 오류가 아니라 서로 다른 관점에서 같은 개념을 찾기 위한 의도적인 중복입니다.
 - 학습 완료 여부는 문서 존재가 아니라 로드맵과 검증 기록을 기준으로 해석합니다.

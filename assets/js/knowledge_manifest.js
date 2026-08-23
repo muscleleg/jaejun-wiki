@@ -620,8 +620,8 @@ window.KNOWLEDGE_MANIFEST = {
     {
       "id": "wiki-external-articles-cerebras_spatial_computing_learning",
       "title": "Cerebras의 공간적 컴퓨팅을 읽기",
-      "description": "GPU의 thread·HBM 중심 실행 모델과 달리, 많은 Processing Element(PE)에 계산과 데이터를 배치하고 PE 사이로 메시지를 흘려보내는 관점을 이해하기 위한 학습 문서입니다.",
-      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › Cerebras 공간적 컴퓨팅 Cerebras의 공간적 컴퓨팅을 읽기 이 아티클의 이해도 사용자가 제공한 영어 원문 이 문서의 범위 원문의 주장: GPU와 다른 실행 모델 GPU를 단순화하면 Cerebras를 단순화하면 원문을 이해하기 위한 개념 지도 이미 있는 참조 이번 아티클에서 새로 연결할 것 CSL 실행 모델에서 반드시 구분할 말 원문의 작은 예시: 분산 GEMV 원문의 표현을 읽을 때 필요한 교정 shared memory 라는 말 no DRAM / no HBM 1 clock cycle per hop 성능 수치 다음 학습에서 확인할 질문 첫 번째: GPU와의 대비 두 번째: 분산 메모리 세 번째: CSL dataflow 마지막: 성능 주장 읽기",
+      "description": "처음 읽었을 때 이해되지 않았던 글을 한글로 번역해 보존하고, 이해를 막은 AI 하드웨어 배경지식의 빈칸을 찾아 하나씩 채운 뒤 같은 번역문을 다시 읽기 위한 학습 문서입니다.",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › 외부 아티클 › Cerebras 공간적 컴퓨팅 Cerebras의 공간적 컴퓨팅을 읽기 왜 이 아티클을 저장했는가? 이 아티클의 이해도 사용자가 제공한 글의 한글 번역 대화로 채워질 학습 노트",
       "href": "wiki/external-articles/cerebras_spatial_computing_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/external-articles/cerebras_spatial_computing_learning.html",
       "category": "외부 아티클",
@@ -638,11 +638,7 @@ window.KNOWLEDGE_MANIFEST = {
         "Cerebras 공간적 컴퓨팅"
       ],
       "conceptKeys": [
-        "spatial-computing",
-        "gpu-execution-memory",
-        "distributed-memory-mesh",
-        "csl-dataflow",
-        "distributed-gemv"
+        "cerebras-article-learning"
       ]
     },
     {

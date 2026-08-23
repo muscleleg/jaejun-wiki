@@ -48,7 +48,14 @@ function assertSetEqual(actual, expected, label) {
   }
 }
 
-const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml] = await Promise.all([
+function textById(html, id) {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`<[^>]+\\bid=["']${escaped}["'][^>]*>([\\s\\S]*?)<\\/[^>]+>`, "i"));
+  if (!match) throw new Error(`Element not found: ${id}`);
+  return match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
   loadWindowValue("assets/js/home_content.js", "HOME_CONTENT"),
@@ -56,6 +63,8 @@ const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml]
   readFile(resolve(wikiRoot, "index.html"), "utf8"),
   readFile(resolve(wikiRoot, "wiki.html"), "utf8"),
   readFile(resolve(wikiRoot, "knowledge_map.html"), "utf8"),
+  readFile(resolve(wikiRoot, "learning_history.html"), "utf8"),
+  readFile(resolve(wikiRoot, "pytorch_professional_roadmap.html"), "utf8"),
 ]);
 
 const homeProjects = staticRegion(homeHtml, "home-projects");
@@ -66,6 +75,9 @@ assertSetEqual(valuesForAttribute(homeProjects, "href"), homeContent.featuredPro
 assertSetEqual(valuesForAttribute(homeKnowledge, "href"), homeContent.knowledgeAreas.map((item) => item.href), "Home knowledge areas");
 assertEqual((homeCoaching.match(/class=["']status-row["']/g) || []).length, 5, "Home coaching rows");
 assertSetEqual(valuesForAttribute(homeRoadmaps, "href"), learningState.tracks.map((item) => item.href), "Home roadmaps");
+if (textById(homeHtml, "overallCount") !== `${learningState.overall.done} / ${learningState.overall.total}`) {
+  throw new Error("Home overall completion count does not match learning_state.js");
+}
 
 const wikiFilters = staticRegion(wikiHtml, "wiki-filters");
 const wikiStatus = staticRegion(wikiHtml, "wiki-status");
@@ -79,11 +91,30 @@ const defaultView = graph.views[0];
 if (!defaultView) throw new Error("Concept graph has no default view");
 const mapTabs = staticRegion(mapHtml, "map-tabs");
 const mapTree = staticRegion(mapHtml, "map-tree");
+const mapRelations = staticRegion(mapHtml, "map-relations");
 const expectedOccurrenceIds = graph.occurrences.filter((item) => item.viewId === defaultView.id).map((item) => item.id);
+const expectedRelationPathIds = [];
+for (const view of graph.views) {
+  const occurrenceIds = graph.occurrences.filter((item) => item.viewId === view.id).map((item) => item.id);
+  const parentIds = new Set(graph.edges.filter((edge) => edge.viewId === view.id).map((edge) => edge.source));
+  const leafCount = occurrenceIds.filter((id) => !parentIds.has(id)).length;
+  for (let index = 1; index <= leafCount; index += 1) expectedRelationPathIds.push(`${view.id}:${index}`);
+}
 assertEqual((mapTabs.match(/<button\b/g) || []).length, graph.views.length, "Knowledge-map tabs");
+assertEqual((mapRelations.match(/class=["']map-relation-view["']/g) || []).length, graph.views.length, "Knowledge-map relation views");
 assertSetEqual(valuesForAttribute(mapTree, "data-occurrence-id"), expectedOccurrenceIds, "Knowledge-map occurrences");
+assertSetEqual(valuesForAttribute(mapRelations, "data-relation-path"), expectedRelationPathIds, "Knowledge-map relation paths");
+assertEqual(textById(mapHtml, "mapEmpty"), "", "Knowledge-map static empty message");
 if (!mapHtml.includes(defaultView.description)) throw new Error("Knowledge-map default view description is missing from HTML");
 
+assertEqual(textById(roadmapHtml, "roadmapOverallDone"), String(learningState.overall.done), "Roadmap completed count");
+assertEqual(textById(roadmapHtml, "roadmapOverallTotal"), String(learningState.overall.total), "Roadmap total count");
+const recordedDates = [...historyHtml.matchAll(/<article\b(?=[^>]*\bid=["']study-(\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
+const uniqueRecordedDates = [...new Set(recordedDates)].sort().reverse();
+assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
+assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
+assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
+
 console.log(
-  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length}`,
+  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} overall=${learningState.overall.done}/${learningState.overall.total} latest=${uniqueRecordedDates[0]}`,
 );
