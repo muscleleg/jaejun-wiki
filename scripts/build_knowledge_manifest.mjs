@@ -1,11 +1,16 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
 const articleRoot = resolve(wikiRoot, "wiki");
 const outputPath = resolve(wikiRoot, "assets/js/knowledge_manifest.js");
+const jsonOutputPath = resolve(wikiRoot, "knowledge_manifest.json");
+const conceptOutputPath = resolve(wikiRoot, "concept_graph.json");
+const knowledgeMapSourcePath = resolve(wikiRoot, "assets/js/knowledge_map.js");
+const publicBaseUrl = "https://muscleleg.github.io/jaejun-wiki/";
 
 const categoryLabels = {
   "coding-test": "코딩 테스트",
@@ -54,6 +59,94 @@ function extractAll(content, pattern) {
     .filter(Boolean);
 }
 
+function loadKnowledgeMapViews(source) {
+  const context = {
+    window: {},
+    document: { getElementById: () => null },
+  };
+  runInNewContext(source, context, { filename: "knowledge_map.js" });
+  const views = context.window.KNOWLEDGE_MAP_VIEWS || [];
+  if (!views.length) throw new Error("knowledge_map.js did not expose KNOWLEDGE_MAP_VIEWS");
+  return views;
+}
+
+function buildConceptGraph(views) {
+  const concepts = new Map();
+  const occurrences = [];
+  const edges = [];
+
+  function visit(item, view, path, parentOccurrenceId = null) {
+    const occurrenceId = `${view.id}:${occurrences.length + 1}`;
+    const currentPath = [...path, item.label];
+    const href = item.href || null;
+    const hrefWithoutFragment = href?.split("#")[0] || null;
+    const occurrence = {
+      id: occurrenceId,
+      conceptKey: item.concept,
+      label: item.label,
+      viewId: view.id,
+      path: currentPath,
+      status: item.status || null,
+      href,
+      url: href ? new URL(href, publicBaseUrl).href : null,
+    };
+    occurrences.push(occurrence);
+
+    const concept = concepts.get(item.concept) || {
+      conceptKey: item.concept,
+      labels: new Set(),
+      hrefs: new Set(),
+      occurrenceIds: [],
+    };
+    concept.labels.add(item.label);
+    if (hrefWithoutFragment) concept.hrefs.add(hrefWithoutFragment);
+    concept.occurrenceIds.push(occurrenceId);
+    concepts.set(item.concept, concept);
+
+    if (parentOccurrenceId) {
+      edges.push({
+        source: parentOccurrenceId,
+        target: occurrenceId,
+        relation: "contains",
+        viewId: view.id,
+      });
+    }
+    for (const child of item.children || []) visit(child, view, currentPath, occurrenceId);
+  }
+
+  for (const view of views) visit(view.tree, view, []);
+
+  return {
+    schemaVersion: 1,
+    site: publicBaseUrl,
+    views: views.map(({ id, label, description, tree }) => ({
+      id,
+      label,
+      description,
+      rootOccurrenceId: occurrences.find((entry) => entry.viewId === id && entry.label === tree.label)?.id || null,
+    })),
+    concepts: [...concepts.values()].map((concept) => ({
+      ...concept,
+      labels: [...concept.labels],
+      hrefs: [...concept.hrefs],
+      urls: [...concept.hrefs].map((href) => new URL(href, publicBaseUrl).href),
+    })),
+    occurrences,
+    edges,
+  };
+}
+
+const knowledgeMapSource = await readFile(knowledgeMapSourcePath, "utf8");
+const conceptGraph = buildConceptGraph(loadKnowledgeMapViews(knowledgeMapSource));
+const conceptKeysByHref = new Map();
+for (const concept of conceptGraph.concepts) {
+  for (const href of concept.hrefs) {
+    const keys = conceptKeysByHref.get(href) || new Set();
+    keys.add(concept.conceptKey);
+    conceptKeysByHref.set(href, keys);
+  }
+}
+
 const files = (await collectHtmlFiles(articleRoot)).sort();
 const documents = [];
 
@@ -65,6 +158,9 @@ for (const file of files) {
   const breadcrumbMatch = content.match(/<nav[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>([\s\S]*?)<\/nav>/i);
   const breadcrumbContent = breadcrumbMatch?.[1] || "";
   const breadcrumb = decodeEntities(breadcrumbContent);
+  const breadcrumbs = extractAll(breadcrumbContent, /<(?:a|span)[^>]*>([\s\S]*?)<\/(?:a|span)>/gi)
+    .filter((label) => label !== "›")
+    .map((label) => label.replace(/^⌂\s*/, ""));
   const breadcrumbTitle = extractAll(breadcrumbContent, /<span[^>]*>([\s\S]*?)<\/span>/gi)
     .filter((label) => label !== "›")
     .at(-1) || "";
@@ -100,14 +196,27 @@ for (const file of files) {
     description,
     searchText: [breadcrumb, ...headings].filter(Boolean).join(" "),
     href,
+    url: new URL(href, publicBaseUrl).href,
     category: categoryLabels[categoryKey] || categoryKey,
     categoryKey,
     isCategoryIndex: file.endsWith("/index.html"),
     parentHref,
+    parentId: null,
+    documentType: file.endsWith("/index.html") ? "CollectionPage" : "TechArticle",
+    language: "ko",
+    breadcrumbs,
+    conceptKeys: [...(conceptKeysByHref.get(href) || [])],
   });
 }
 
+const documentByHref = new Map(documents.map((document) => [document.href, document]));
+for (const document of documents) {
+  document.parentId = document.parentHref ? documentByHref.get(document.parentHref)?.id || null : null;
+}
+
 const manifest = {
+  schemaVersion: 1,
+  site: publicBaseUrl,
   documentCount: documents.filter((document) => !document.isCategoryIndex).length,
   indexedCount: documents.length,
   categories: Object.entries(categoryLabels).map(([id, label]) => ({ id, label })),
@@ -120,4 +229,7 @@ await writeFile(
   "utf8",
 );
 
-console.log(`Indexed ${manifest.indexedCount} pages (${manifest.documentCount} documents).`);
+await writeFile(jsonOutputPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+await writeFile(conceptOutputPath, `${JSON.stringify(conceptGraph, null, 2)}\n`, "utf8");
+
+console.log(`Indexed ${manifest.indexedCount} pages (${manifest.documentCount} documents); exported JSON manifest and concept graph.`);

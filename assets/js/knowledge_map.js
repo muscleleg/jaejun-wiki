@@ -21,6 +21,8 @@
           node("Attention", "attention", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html", children: [node("Q·K·V Projection", "qkv-projection", { status: "verified", href: "wiki/transformer/transformer_projection_learning.html" }), node("Score·Scaling·Mask", "attention-score", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" }), node("Multi-Head", "multi-head-attention", { status: "verified", href: "wiki/transformer/transformer_multi_head_attention_learning.html" })] }),
           node("Transformer Block", "transformer-block", { status: "verified", children: [node("Residual", "residual", { status: "verified", href: "wiki/transformer/transformer_residual_learning.html" }), node("LayerNorm", "layer-norm", { status: "verified", href: "wiki/transformer/transformer_layer_norm_learning.html" }), node("FFN", "ffn", { status: "verified", href: "wiki/transformer/transformer_ffn_learning.html" })] }),
         ] }),
+        node("MLOps·모델 운영", "mlops", { status: "reference", href: "roadmaps/roadmap_mlops.html", children: [node("Artifact·모델 버전", "model-versioning", { status: "reference", href: "roadmaps/roadmap_mlops.html" }), node("Canary·Rollback", "safe-deployment", { status: "reference", href: "roadmaps/roadmap_mlops.html" }), node("Monitoring·Drift", "model-monitoring", { status: "reference", href: "roadmaps/roadmap_mlops.html" }), node("재학습 관문", "continuous-training", { status: "reference", href: "roadmaps/roadmap_mlops.html" })] }),
+        node("Knowledge Graph·Agent Harness", "knowledge-agents", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html", children: [node("Vector RAG Baseline", "rag", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html" }), node("Knowledge Graph·GraphRAG", "graph-rag", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html" }), node("Ontology 검증", "ontology-validation", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html" }), node("Tool Router·Agent 평가", "agent-harness", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html" })] }),
         node("수학", "math", { status: "reference", href: "wiki/math/transformer_math_learning.html", children: [
           node("통계", "statistics", { status: "reference", href: "wiki/math/transformer_math_statistics_learning.html", children: [node("평균·분산·표준편차", "mean-variance-std", { status: "learning", href: "wiki/math/transformer_math_statistics_learning.html" }), node("StandardScaler", "standard-scaler", { status: "learning", href: "wiki/machine-learning/standard_scaler_mean_std_proof_learning.html" }), node("LayerNorm", "layer-norm", { status: "verified", href: "wiki/transformer/transformer_layer_norm_learning.html" })] }),
           node("벡터", "vector", { status: "reference", href: "wiki/math/transformer_math_vector_learning.html", children: [node("행렬곱", "matrix-multiplication", { status: "verified", href: "wiki/transformer/transformer_projection_learning.html" }), node("Attention Scaling", "attention-score", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" })] }),
@@ -63,11 +65,13 @@
         node("Kubernetes 운영 관측 AI", "k8s-ai-observability-project", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html", children: [
           node("Metrics·Logs·Events", "observability-data", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#features", children: [node("Kubernetes", "kubernetes", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#architecture" }), node("근거 데이터", "evidence", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#contract" })] }),
           node("LangGraph 분석", "agent-loop", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#architecture", children: [node("직접 신호·추론 분리", "evidence-contract", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#contract" }), node("Agentic Loop", "agent-loop", { status: "reference", href: "wiki/external-articles/loop_engineering_agentic_loop_learning.html" })] }),
+          node("MLOps 운영 확장", "mlops", { status: "reference", href: "roadmaps/roadmap_mlops.html" }),
           node("FastAPI", "fastapi", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#architecture" }),
         ] }),
         node("Notion RAG 개인 지식 비서", "notion-rag-project", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html", children: [
           node("문서 수집·임베딩", "document-ingestion", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#ingestion", children: [node("PostgreSQL", "postgresql", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#architecture" }), node("Qdrant", "vector-database", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#ingestion" })] }),
           node("RAG 채팅", "rag", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#rag", children: [node("검색 Context", "retrieval-context", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#rag" }), node("출처 링크", "evidence", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#rag" })] }),
+          node("GraphRAG·Ontology 확장", "knowledge-agents", { status: "reference", href: "roadmaps/roadmap_knowledge_agents.html" }),
           node("FastAPI", "fastapi", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#architecture" }),
           node("퀴즈·학습 이력", "quiz-learning", { status: "reference", href: "wiki/projects/notion-rag-knowledge-assistant.html#quiz" }),
         ] }),
@@ -81,6 +85,10 @@
       ] }),
     },
   ];
+
+  // Build scripts and non-browser readers can reuse the same concept graph
+  // without duplicating the visible knowledge-map source of truth.
+  window.KNOWLEDGE_MAP_VIEWS = views;
 
   const treeElement = document.getElementById("mindmapTree");
   const emptyElement = document.getElementById("mapEmpty");

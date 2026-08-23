@@ -1,5 +1,5 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-22",
+  updated: "2026-08-23",
   overall: { done: 13, total: 24 },
   coaching: {
     recentEvidence: "회원 이탈 원본 표를 같은 Train·Validation 기준으로 전처리해 NumPy [5634,45]·[1409,45], float32 Tensor와 batch_size=64 DataLoader로 옮겼습니다. MLP의 [64,45] → [64,16] → [64,1] Forward와 초기 BCE 0.6564000844955444를 확인하고, SGD 한 Step 뒤 같은 Batch Loss가 0.6511512994766235로 내려가는 실행까지 확인했습니다.",
