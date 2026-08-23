@@ -25,6 +25,7 @@
       button.setAttribute("aria-pressed", id === "all" ? "true" : "false");
       return button;
     });
+  filters.replaceChildren();
   filters.append(...buttons);
 
   function hierarchy(entry) {

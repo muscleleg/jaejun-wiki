@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -14,6 +15,17 @@ const knowledgeManifest = JSON.parse(await readFile(resolve(wikiRoot, "knowledge
 const conceptGraph = JSON.parse(await readFile(resolve(wikiRoot, "concept_graph.json"), "utf8"));
 const knowledgeByHref = new Map(knowledgeManifest.documents.map((document) => [document.href, document]));
 const conceptLabelByKey = new Map(conceptGraph.concepts.map((concept) => [concept.conceptKey, concept.labels[0] || concept.conceptKey]));
+
+async function loadWindowValue(sourcePath, property) {
+  const context = { window: {} };
+  runInNewContext(await readFile(sourcePath, "utf8"), context, { filename: sourcePath });
+  const value = context.window[property];
+  if (!value) throw new Error(`${property} was not exposed by ${sourcePath}`);
+  return value;
+}
+
+const homeContent = await loadWindowValue(resolve(wikiRoot, "assets/js/home_content.js"), "HOME_CONTENT");
+const learningState = await loadWindowValue(resolve(wikiRoot, "assets/js/learning_state.js"), "LEARNING_STATE");
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -59,6 +71,210 @@ function escapeXml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+function escapeHtml(value) {
+  return escapeAttribute(String(value));
+}
+
+function markerStart(name) {
+  return `<!-- static-fallback:${name}:start -->`;
+}
+
+function markerEnd(name) {
+  return `<!-- static-fallback:${name}:end -->`;
+}
+
+function replaceStaticRegion(content, { name, tag, id, markup }) {
+  const start = markerStart(name);
+  const end = markerEnd(name);
+  const block = `${start}\n${markup}\n${end}`;
+  if (content.includes(start)) {
+    const pattern = new RegExp(`${start.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${end.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+    return content.replace(pattern, block);
+  }
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const emptyContainer = new RegExp(`(<${tag}\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>)\\s*(</${tag}>)`, "i");
+  if (!emptyContainer.test(content)) throw new Error(`Empty static fallback container not found: ${id}`);
+  return content.replace(emptyContainer, `$1${block}$2`);
+}
+
+function replaceElementContent(content, { tag, id, value }) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(<${tag}\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>)[\\s\\S]*?(</${tag}>)`, "i");
+  if (!pattern.test(content)) throw new Error(`Static text target not found: ${id}`);
+  return content.replace(pattern, `$1${escapeHtml(value)}$2`);
+}
+
+function renderHomeProjects(projects) {
+  return projects.map((project) => `        <a class="card home-project-card" href="${escapeAttribute(project.href)}">
+          <span class="eyebrow">${escapeHtml(project.eyebrow)}</span>
+          <h3>${escapeHtml(project.title)}</h3>
+          <p>${escapeHtml(project.description)}</p>
+          <div class="home-card-tags">${project.stack.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+          <strong class="home-card-evidence">${escapeHtml(project.evidence)}</strong>
+        </a>`).join("\n");
+}
+
+function renderKnowledgeAreas(areas) {
+  return areas.map((area) => `        <a class="card home-knowledge-card" href="${escapeAttribute(area.href)}">
+          <span class="eyebrow">${escapeHtml(area.eyebrow)}</span>
+          <h3>${escapeHtml(area.title)}</h3>
+          <p>${escapeHtml(area.description)}</p>
+        </a>`).join("\n");
+}
+
+function renderCoaching(state) {
+  const rows = [
+    ["현재 학습 상태", state.coaching.recentEvidence],
+    ["교육적 판단", state.coaching.diagnosis],
+    ["경고 기준", state.coaching.warning],
+    ["현재 완료 관문", state.coaching.completionGate],
+    ["예약 전환", state.coaching.scheduledRotation],
+  ];
+  return rows.map(([label, value]) => `            <div class="status-row"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join("\n");
+}
+
+function renderRoadmaps(tracks) {
+  return tracks.map((track) => {
+    const percent = Math.round(track.done / track.total * 100);
+    return `            <a class="card" href="${escapeAttribute(track.href)}"><span class="tag">${percent}%</span><h3>${escapeHtml(track.title)}</h3><div class="progress"><span style="width:${percent}%"></span></div><div class="meta"><span>${track.done} / ${track.total} 완료</span><span>${percent}%</span></div><p><strong>현재</strong> ${escapeHtml(track.current)}</p><p><strong>다음</strong> ${escapeHtml(track.next)}</p></a>`;
+  }).join("\n");
+}
+
+function hierarchyFor(entry, documentByHref, cache) {
+  if (cache.has(entry.href)) return cache.get(entry.href);
+  const chain = [];
+  const seen = new Set();
+  let current = entry;
+  while (current && !seen.has(current.href)) {
+    chain.unshift(current);
+    seen.add(current.href);
+    current = current.parentHref ? documentByHref.get(current.parentHref) : null;
+  }
+  cache.set(entry.href, chain);
+  return chain;
+}
+
+function renderWikiTree(manifest) {
+  const documentByHref = new Map(manifest.documents.map((entry) => [entry.href, entry]));
+  const hierarchyCache = new Map();
+  const hierarchy = (entry) => hierarchyFor(entry, documentByHref, hierarchyCache);
+  const entries = [...manifest.documents].sort((left, right) => {
+    const leftPath = hierarchy(left);
+    const rightPath = hierarchy(right);
+    for (let index = 0; index < Math.max(leftPath.length, rightPath.length); index += 1) {
+      if (!leftPath[index]) return -1;
+      if (!rightPath[index]) return 1;
+      const compared = leftPath[index].title.localeCompare(rightPath[index].title, "ko");
+      if (compared) return compared;
+    }
+    return 0;
+  });
+  const groups = new Map();
+  for (const entry of entries) {
+    if (!groups.has(entry.categoryKey)) groups.set(entry.categoryKey, { label: entry.category, entries: [] });
+    groups.get(entry.categoryKey).entries.push(entry);
+  }
+  const categoryOrder = new Map(manifest.categories.map((item, index) => [item.id, index]));
+  return [...groups.entries()]
+    .sort(([leftKey, left], [rightKey, right]) => {
+      const order = (categoryOrder.get(leftKey) ?? 999) - (categoryOrder.get(rightKey) ?? 999);
+      return order || left.label.localeCompare(right.label, "ko");
+    })
+    .map(([groupKey, group]) => {
+      const links = group.entries.map((entry) => {
+        const path = hierarchy(entry);
+        const parent = path.at(-2);
+        const depth = Math.max(0, path.filter((item) => item.categoryKey === groupKey).length - 1);
+        const childClass = depth > 0 ? " wiki-search-child" : "";
+        const meta = parent ? `${entry.category} · ${parent.title}의 하위 문서` : `${entry.category} · 상위 문서`;
+        return `          <a class="wiki-link wiki-search-result${childClass}" style="--wiki-depth:${Math.min(depth, 4)}" data-depth="${depth}" href="${escapeAttribute(entry.href)}"><em>${escapeHtml(meta)}</em><strong>${escapeHtml(entry.title)}</strong><span>${escapeHtml(entry.description || "연결된 학습 문서")}</span></a>`;
+      }).join("\n");
+      return `      <section class="wiki-tree-category" data-category="${escapeAttribute(groupKey)}"><h3>${escapeHtml(group.label)}<span>${group.entries.length}개</span></h3><div class="wiki-tree-list">\n${links}\n        </div></section>`;
+    }).join("\n");
+}
+
+function renderWikiFilters(manifest) {
+  return [{ id: "all", label: "전체" }, ...manifest.categories]
+    .map(({ id, label }) => `      <button type="button" data-category="${escapeAttribute(id)}" aria-pressed="${id === "all"}">${escapeHtml(label)}</button>`)
+    .join("\n");
+}
+
+function renderStaticMindmap(graph) {
+  const view = graph.views[0];
+  if (!view) throw new Error("concept_graph.json has no default view");
+  const occurrenceById = new Map(graph.occurrences.map((occurrence) => [occurrence.id, occurrence]));
+  const childrenById = new Map();
+  for (const edge of graph.edges.filter((edge) => edge.viewId === view.id)) {
+    const children = childrenById.get(edge.source) || [];
+    children.push(edge.target);
+    childrenById.set(edge.source, children);
+  }
+  const counts = new Map();
+  for (const occurrence of graph.occurrences.filter((occurrence) => occurrence.viewId === view.id)) {
+    counts.set(occurrence.conceptKey, (counts.get(occurrence.conceptKey) || 0) + 1);
+  }
+  function renderOccurrence(id, depth = 0) {
+    const occurrence = occurrenceById.get(id);
+    if (!occurrence) throw new Error(`Missing concept occurrence: ${id}`);
+    const childIds = childrenById.get(id) || [];
+    const duplicateCount = counts.get(occurrence.conceptKey) || 1;
+    const duplicateClass = duplicateCount > 1 ? " duplicate" : "";
+    const toggleClass = childIds.length ? "" : " placeholder";
+    const documentLink = occurrence.href
+      ? `<a class="map-document-link" href="${escapeAttribute(occurrence.href)}" aria-label="${escapeAttribute(`${occurrence.label} 문서 열기`)}">문서 ↗</a>`
+      : "";
+    const children = childIds.length
+      ? `<ul class="map-children">${childIds.map((childId) => renderOccurrence(childId, depth + 1)).join("")}</ul>`
+      : "";
+    return `<li data-occurrence-id="${escapeAttribute(id)}"><div class="map-node-row"><button type="button" class="map-toggle${toggleClass}" aria-label="${escapeAttribute(`${occurrence.label} 하위 개념`)}" aria-expanded="true">${childIds.length ? "−" : "+"}</button><button type="button" class="map-concept${duplicateClass}" data-concept="${escapeAttribute(occurrence.conceptKey)}"><span class="map-node-status ${escapeAttribute(occurrence.status || "")}"></span><span class="map-node-label">${escapeHtml(occurrence.label)}</span>${duplicateCount > 1 ? `<span class="map-duplicate-count">×${duplicateCount}</span>` : ""}</button>${documentLink}</div>${children}</li>`;
+  }
+  return {
+    view,
+    tree: `          ${renderOccurrence(view.rootOccurrenceId)}`,
+    tabs: graph.views.map((item, index) => `        <button type="button" role="tab" data-view="${escapeAttribute(item.id)}" aria-selected="${index === 0}">${escapeHtml(item.label)}</button>`).join("\n"),
+  };
+}
+
+async function renderStaticDiscoveryPages() {
+  const homePath = resolve(wikiRoot, "index.html");
+  let home = await readFile(homePath, "utf8");
+  const activeTrack = learningState.tracks.find((track) => track.id === "pytorch") || learningState.tracks[0];
+  const currentTopic = activeTrack.next.split("로 ")[0];
+  for (const [tag, id, value] of [
+    ["strong", "featuredProjectCount", `${homeContent.featuredProjects.length}개 프로젝트`],
+    ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
+    ["strong", "heroCurrentTopic", currentTopic],
+    ["strong", "recentCompletion", activeTrack.current],
+    ["strong", "currentLearning", learningState.rotation.next],
+    ["strong", "currentNextAction", learningState.rotation.after],
+    ["strong", "overallCount", `${learningState.overall.done} / ${learningState.overall.total}`],
+    ["strong", "roadmapWikiDocumentCount", `${knowledgeManifest.documentCount}개`],
+    ["strong", "latestLearningDate", learningState.updated],
+    ["span", "roadmapNextAction", learningState.rotation.next],
+  ]) home = replaceElementContent(home, { tag, id, value });
+  home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(homeContent.featuredProjects) });
+  home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
+  home = replaceStaticRegion(home, { name: "home-coaching", tag: "div", id: "coachingStatus", markup: renderCoaching(learningState) });
+  home = replaceStaticRegion(home, { name: "home-roadmaps", tag: "div", id: "roadmapGrid", markup: renderRoadmaps(learningState.tracks) });
+  await writeFile(homePath, home, "utf8");
+
+  const wikiPath = resolve(wikiRoot, "wiki.html");
+  let wiki = await readFile(wikiPath, "utf8");
+  wiki = replaceStaticRegion(wiki, { name: "wiki-filters", tag: "div", id: "wikiCategoryFilters", markup: renderWikiFilters(knowledgeManifest) });
+  wiki = replaceStaticRegion(wiki, { name: "wiki-status", tag: "p", id: "wikiSearchStatus", markup: `전체 ${knowledgeManifest.indexedCount}개 문서를 상위 문서부터 하위 문서 순서로 표시합니다.` });
+  wiki = replaceStaticRegion(wiki, { name: "wiki-tree", tag: "div", id: "wikiSearchResults", markup: renderWikiTree(knowledgeManifest) });
+  await writeFile(wikiPath, wiki, "utf8");
+
+  const mapPath = resolve(wikiRoot, "knowledge_map.html");
+  let map = await readFile(mapPath, "utf8");
+  const mindmap = renderStaticMindmap(conceptGraph);
+  map = replaceElementContent(map, { tag: "strong", id: "mapDocumentCount", value: `${knowledgeManifest.documentCount}개` });
+  map = replaceElementContent(map, { tag: "p", id: "mapDescription", value: mindmap.view.description });
+  map = replaceStaticRegion(map, { name: "map-tabs", tag: "div", id: "mapViewTabs", markup: mindmap.tabs });
+  map = replaceStaticRegion(map, { name: "map-tree", tag: "ul", id: "mindmapTree", markup: mindmap.tree });
+  await writeFile(mapPath, map, "utf8");
 }
 
 function relativeRootPrefix(href) {
@@ -188,6 +404,8 @@ function replaceMetadataBlock(content, block) {
   return withoutExisting.replace(/\n?<\/head>/i, `\n${block}\n</head>`);
 }
 
+await renderStaticDiscoveryPages();
+
 const htmlFiles = (await collectHtmlFiles(wikiRoot)).sort();
 const pages = [];
 
@@ -227,6 +445,10 @@ const siteManifest = {
   site: publicBaseUrl,
   language: "ko",
   pageCount: pages.length,
+  rendering: {
+    coreDiscovery: "pre-rendered-html",
+    javascriptRole: "progressive-enhancement-for-search-filters-and-view-switching",
+  },
   resources: {
     sitemap: `${publicBaseUrl}sitemap.xml`,
     llms: `${publicBaseUrl}llms.txt`,
@@ -268,6 +490,7 @@ const llmsText = `# 공부의 흐름을 기록하는 기술 위키
 ## 읽는 방법
 
 - 개별 문서는 정적 HTML 본문을 기준으로 읽습니다.
+- 홈의 프로젝트·기술 문서, 기술 위키의 전체 문서 계층, 지식 지도의 기본 관점은 HTML에 미리 렌더링되어 있습니다. JavaScript는 검색·필터·관점 전환을 보강합니다.
 - 문서 계층은 기술 위키 색인의 parentHref와 breadcrumbs를 따릅니다.
 - 지식 지도에서 같은 conceptKey가 여러 번 나오는 것은 오류가 아니라 서로 다른 관점에서 같은 개념을 찾기 위한 의도적인 중복입니다.
 - 학습 완료 여부는 문서 존재가 아니라 로드맵과 검증 기록을 기준으로 해석합니다.
