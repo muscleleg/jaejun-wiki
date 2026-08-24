@@ -1,0 +1,1643 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Git 작업 트리·인덱스·히스토리 조작 · 재준 위키</title><meta name="description" content="Git worktree index commit, diff stash push amend reset rebase와 force push를 원문 명령과 사례로 보존한 Git 학습 문서"><link rel="stylesheet" href="../../assets/css/portal.css?v=20260820"><link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260820"><link rel="stylesheet" href="../../assets/css/notion-import.css?v=20260823-qa4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Git 작업 트리·인덱스·히스토리 조작 · 재준 위키">
+  <meta property="og:description" content="Git worktree index commit, diff stash push amend reset rebase와 force push를 원문 명령과 사례로 보존한 Git 학습 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html","name":"Git 작업 트리·인덱스·히스토리 조작 · 재준 위키","description":"Git worktree index commit, diff stash push amend reset rebase와 force push를 원문 명령과 사례로 보존한 Git 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html"},"headline":"Git 작업 트리·인덱스·히스토리 조작 · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#git-state-history","name":"Git 상태·히스토리","identifier":"git-state-history"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/git_worktree_index_history.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"인프라·컴퓨터 시스템"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="notion-import-page"><main class="page-shell"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span>›</span><a href="../../wiki.html">기술 위키</a><span>›</span><span>인프라·컴퓨터 시스템</span></nav>
+<header class="hero"><p class="eyebrow">Git · Objects &amp; History</p><h1>Git 작업 트리·인덱스·히스토리 조작</h1><p class="summary">Working Tree–Index–Commit의 세 단계, diff와 stash, push, amend·reset·rebase, 충돌과 force push까지 명령이 어느 상태를 바꾸는지 원문 사례로 보존한다.</p><div class="callout"><strong>편입 원칙</strong><br>원문의 질문·코드·표·중간 설명을 삭제하지 않았다. 날짜와 Notion 내부 URL은 공개하지 않으며, 외부 자료 기반 표현은 이해 완료가 아닌 재검증 대상으로 둔다.</div></header>
+<section class="article-understanding" aria-labelledby="understanding-title"><h2 id="understanding-title">현재 이해도</h2><p>노트를 옮긴 사실과 지금 자료 없이 설명·재현할 수 있는지는 다르다. 이 문서는 아직 재검증하지 않았으므로 0%에서 시작한다.</p><div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div><div class="meter-label"><span>검증 완료 0 / 4</span><strong>0%</strong></div><ul><li class="todo">○ HEAD·branch ref·commit·index·worktree 관계를 그린다.</li><li class="todo">○ 세 가지 diff 비교 대상을 명령별로 예측한다.</li><li class="todo">○ amend·reset·rebase가 commit ID를 바꾸는 이유를 설명한다.</li><li class="todo">○ 공유 브랜치에서 force-with-lease의 위험과 복구 경로를 설명한다.</li></ul></section>
+<nav class="source-nav" aria-label="원문 단위 목차"><a href="#source-30fc691e5a2b80a4aff1c082dc0572d6">git</a><a href="#source-310c691e5a2b80cb954efff2e8e4cd85">깃허브 레포 생성</a><a href="#source-30ec691e5a2b80f29ce9d3a860565029">마지막 커밋에서 .DS_Store 제거 후 히스토리 정리하기 (force push 방식)</a><a href="#source-314c691e5a2b809080edd903da925196">커밋 상세내역보기</a><a href="#source-316c691e5a2b80228207e92dec784f68">현재 기준 head 기준 어떤 파일이 변경되었는 지 확인</a><a href="#source-314c691e5a2b80fea5fde5476e8df27d">현재 브랜치와 remote 비교하기</a><a href="#source-31dc691e5a2b808dab6acafce13e1564">amend</a><a href="#source-314c691e5a2b8037bd0cec0244ed8e96">commit 취소</a><a href="#source-30fc691e5a2b8021a2c7e1bc03e34f38">Git 내부 구조 · 협업 · 충돌 · 그래프 완전 정리 노트</a><a href="#source-30fc691e5a2b80dca416e1e4ca1ebf5f">Git 여러 커밋을 하나로 합치는 방법 (reset –soft + force push)</a><a href="#source-316c691e5a2b80f0a1dbcef614da2a69">Git 인덱스에서 파일 제거하기 (git rm --cached)</a><a href="#source-323c691e5a2b81359effdbcd65ac23c2">Git 커밋별 문서 병합 정리</a><a href="#source-30fc691e5a2b80bf8db0e848c0d94825">git add . 한 후 변경 이력 보기</a><a href="#source-30ec691e5a2b80c38034d3c21e800939">git diff</a><a href="#source-312c691e5a2b802a879be1269b7f4bc9">git diff 클립보드에 복사</a><a href="#source-30ec691e5a2b804583b6dbfe160804be">Git Push 플로우</a><a href="#source-30ec691e5a2b806c8c7de086b403401a">git rebase</a><a href="#source-30fc691e5a2b80eebd5fcd69260b2314">Git Stash</a><a href="#source-30ec691e5a2b8030a2c5d9df4e2504f5">Git의 3단계 구조 완전 이해</a></nav><article class="content notion-import-content"><!-- notion-source:30fc691e-5a2b-80a4-aff1-c082dc0572d6 checksum:cf7c2bd3d668020b chars:1798 -->
+<section class="imported-source" id="source-30fc691e5a2b80a4aff1c082dc0572d6" data-source-id="30fc691e-5a2b-80a4-aff1-c082dc0572d6"><div class="source-note-label">원문 보존 단위</div><h2>git</h2>
+<p class="source-page-reference"><strong>하위 원문:</strong> git add . 한 후 변경 이력 보기</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong>Git의 3단계 구조 완전 이해</strong></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> git rebase</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong>Git Push 플로우</strong></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> git diff</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong><br>마지막 커밋에서 .DS_Store 제거 후 히스토리 정리하기 (force push 방식)</strong><br></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> Git 내부 구조 · 협업 · 충돌 · 그래프 완전 정리 노트</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong>Git 여러 커밋을 하나로 합치는 방법 (reset –soft + force push)</strong></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> Git Stash</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> 깃허브 레포 생성</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> git diff 클립보드에 복사</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> commit 취소</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong>현재 브랜치와 remote 비교하기</strong></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> 커밋 상세내역보기</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> 현재 기준 head 기준 어떤 파일이 변경되었는 지 확인</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong><br>Git 인덱스에서 파일 제거하기 (git rm --cached)</strong></p>
+<p class="source-page-reference"><strong>하위 원문:</strong> amend</p>
+<p class="source-page-reference"><strong>하위 원문:</strong> Git 커밋별 문서 병합 정리</p>
+</section>
+<!-- notion-source:310c691e-5a2b-80cb-954e-fff2e8e4cd85 checksum:59e07cf732a46703 chars:1016 -->
+<section class="imported-source" id="source-310c691e5a2b80cb954efff2e8e4cd85" data-source-id="310c691e-5a2b-80cb-954e-fff2e8e4cd85"><div class="source-note-label">원문 보존 단위</div><h2>깃허브 레포 생성</h2>
+<h2><strong>news-reader-agent GitHub 레포 생성 정리 (gh CLI)</strong></h2>
+<h3><strong>1️⃣ 현재 프로젝트 디렉토리에서 실행</strong></h3>
+<pre class="source-code"><code class="language-plain-text">cd news-reader-agent</code></pre>
+<hr>
+<h3><strong>2️⃣ Git 초기화 (아직 안 했다면)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git init
+git add .
+	git commit -m &quot;initial commit&quot;</code></pre>
+<hr>
+<h3><strong>3️⃣ GitHub 레포 생성 + 원격 연결 + 첫 푸시</strong></h3>
+<pre class="source-code"><code class="language-plain-text">gh repo create news-reader-agent \
+  --private \
+  --source=. \
+  --remote=origin \
+  --push
+
+  gh repo create customer-support-agent \
+  --private \
+  --source=. \
+  --remote=origin \
+  --push
+
+
+    gh repo create hello-langgraph \
+  --private \
+  --source=. \
+  --remote=origin \
+  --push
+
+      gh repo create workflow-testing \
+  --private \
+  --source=. \
+  --remote=origin \
+  --push</code></pre>
+<hr>
+<h3><strong>🔎 옵션 설명</strong></h3>
+<ul>
+<li>-private → 비공개 레포 생성</li>
+<li>-source=. → 현재 디렉토리를 레포로 사용</li>
+<li>-remote=origin → origin 원격 저장소로 등록</li>
+<li>-push → 현재 커밋을 바로 GitHub로 푸시</li>
+</ul>
+<hr>
+<h3><strong>✅ 결과</strong></h3>
+<ul>
+<li>GitHub에 news-reader-agent 레포 생성됨</li>
+<li>로컬과 원격 자동 연결됨</li>
+<li>main 브랜치가 바로 push 됨</li>
+<li>이후부터는 일반 git push 사용 가능</li>
+</ul>
+<hr>
+<h2>레포 이름 변경</h2>
+<pre class="source-code"><code class="language-plain-text">gh repo rename langgraph-practice</code></pre>
+</section>
+<!-- notion-source:30ec691e-5a2b-80f2-9ce9-d3a860565029 checksum:a3db0c08054f7762 chars:2243 -->
+<section class="imported-source" id="source-30ec691e5a2b80f29ce9d3a860565029" data-source-id="30ec691e-5a2b-80f2-9ce9-d3a860565029"><div class="source-note-label">원문 보존 단위</div><h2>마지막 커밋에서 .DS_Store 제거 후 히스토리 정리하기 (force push 방식)</h2>
+<h2><strong>📌 마지막 커밋에서.DS_Store 제거 후 히스토리 정리하기 (force push 방식)</strong></h2>
+<p>.DS_Store가 실수로 마지막 커밋에 포함되어 remote까지 올라간 상황에서, 해당 파일을 커밋 기록에서 완전히 제거하고 “깔끔한 커밋 하나”로 다시 만들기 위한 정리 문서이다.</p>
+<p>이 방식은 커밋 히스토리를 다시 쓰는 작업이므로, 협업 중인 공용 브랜치(main, develop 등)에서는 신중해야 한다. 개인 브랜치나 PR 브랜치에서 사용하는 것이 적절하다.</p>
+<hr>
+<h3><strong>왜 이런 작업이 필요한가</strong></h3>
+<p>macOS는 디렉토리를 열 때 자동으로 .DS_Store 파일을 생성한다.</p>
+<p>이 파일은 프로젝트와 무관한 OS 메타데이터 파일이기 때문에 git에 포함되면 안 된다.</p>
+<p>이미 커밋되고 push까지 되었다면 두 가지 선택이 있다.</p>
+<ul>
+<li>기록은 그대로 두고 “제거 커밋”을 하나 더 추가하는 방법</li>
+<li>마지막 커밋을 수정해서 처음부터 .DS_Store가 없었던 것처럼 만드는 방법</li>
+</ul>
+<p>여기서는 두 번째 방식(히스토리 정리 방식)을 설명한다.</p>
+<hr>
+<h3><strong>전체 흐름의 개념</strong></h3>
+<p>이 작업은 다음 순서로 이루어진다.</p>
+<ol>
+<li>마지막 커밋을 취소한다.</li>
+<li>.DS_Store를 git 추적에서 제거한다.</li>
+<li>.gitignore에 .DS_Store를 등록한다.</li>
+<li>나머지 정상 변경사항만 다시 커밋한다.</li>
+<li>remote 히스토리를 강제로 덮어쓴다.</li>
+</ol>
+<hr>
+<h3><strong>1단계: 마지막 커밋 취소</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset HEAD~1</code></pre>
+<p>이 명령은 “마지막 커밋만” 없앤다.</p>
+<p>중요한 점은 파일 변경 내용은 사라지지 않는다는 것이다.</p>
+<p>커밋만 취소되고, 변경 내용은 다시 작업 중 상태로 돌아온다.</p>
+<p>즉, 실수로 포함된 .DS_Store와 정상 변경사항들이 모두 로컬에 그대로 남아 있다.</p>
+<hr>
+<h3><strong>2단계:</strong></h3>
+<h3><strong>.DS_Store</strong></h3>
+<h3><strong>를 git 추적에서 제거</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git rm --cached .DS_Store</code></pre>
+<p>이 명령은 .DS_Store 파일을 디스크에서 삭제하지 않는다.</p>
+<p>git이 추적하지 않도록 인덱스에서만 제거한다.</p>
+<p>이 단계에서 .DS_Store는 더 이상 커밋 대상이 아니다.</p>
+<hr>
+<h3><strong>3단계: .gitignore에 등록</strong></h3>
+<pre class="source-code"><code class="language-plain-text">echo &quot;.DS_Store&quot; &gt;&gt; .gitignore</code></pre>
+<p>이렇게 해야 앞으로 .DS_Store가 자동으로 add되지 않는다.</p>
+<p>이미 추적 중인 파일은 <code>.gitignore</code>에 추가해도 자동으로 추적 대상에서 빠지지 않으므로, 먼저 <code>git rm --cached</code>를 실행해야 한다.</p>
+<hr>
+<h3><strong>4단계: 변경사항 다시 커밋</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit -m &quot;clean commit&quot;</code></pre>
+<p>이제 커밋에는 다음만 포함된다.</p>
+<ul>
+<li>원래 의도했던 정상 변경사항</li>
+<li>.gitignore 수정</li>
+<li>.DS_Store는 제외</li>
+</ul>
+<p>이 시점에서 git show --name-only로 확인하면 .DS_Store가 없어야 정상이다.</p>
+<hr>
+<h3><strong>5단계: remote 히스토리 덮어쓰기</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git push --force</code></pre>
+<p>왜 force가 필요한가?</p>
+<p>이미 remote에는 “이전 커밋”이 올라가 있다.</p>
+<p>우리는 그 커밋을 reset으로 없애고 새 커밋을 만들었기 때문에,</p>
+<p>로컬과 remote의 히스토리가 달라진다.</p>
+<p>일반 push는 이를 거부한다.</p>
+<p>그래서 강제로 덮어써야 한다.</p>
+<hr>
+<h3><strong>더 안전한 방법</strong></h3>
+<p>가능하다면 다음 명령을 사용하는 것이 더 안전하다.</p>
+<pre class="source-code"><code class="language-plain-text">git push --force-with-lease</code></pre>
+<p>이 옵션은 “내가 마지막으로 확인한 remote 상태와 같을 때만 force” 한다.</p>
+<p>그 사이에 다른 사람이 push했다면 실패해서 사고를 막아준다.</p>
+<hr>
+<h3><strong>이 방식이 안전한 경우</strong></h3>
+<ul>
+<li>개인 브랜치</li>
+<li>PR 브랜치</li>
+<li>혼자 작업 중인 기능 브랜치</li>
+</ul>
+<hr>
+<h3><strong>이 방식이 위험한 경우</strong></h3>
+<ul>
+<li>main 브랜치</li>
+<li>여러 명이 동시에 작업 중인 브랜치</li>
+<li>이미 다른 사람이 pull 받은 커밋이 있는 경우</li>
+</ul>
+<p>이 경우에는 force 대신 “제거 커밋 추가 방식”이 더 적절하다.</p>
+<hr>
+<h3><strong>핵심 요약</strong></h3>
+<p>이 작업은 단순히 파일을 지우는 것이 아니라,</p>
+<p>“마지막 커밋을 다시 쓰는 작업”이다.</p>
+<p>reset은 커밋만 취소한다.</p>
+<p>rm –cached는 git 추적만 끊는다.</p>
+<p>.gitignore는 재발 방지 장치다.</p>
+<p>force push는 히스토리 덮어쓰기다.</p>
+<hr>
+</section>
+<!-- notion-source:314c691e-5a2b-8090-80ed-d903da925196 checksum:201afa7da4b1e976 chars:27 -->
+<section class="imported-source" id="source-314c691e5a2b809080edd903da925196" data-source-id="314c691e-5a2b-8090-80ed-d903da925196"><div class="source-note-label">원문 보존 단위</div><h2>커밋 상세내역보기</h2>
+<pre class="source-code"><code class="language-python">git show HEAD</code></pre>
+</section>
+<!-- notion-source:316c691e-5a2b-8022-8207-e92dec784f68 checksum:67f759fdabda0e7c chars:39 -->
+<section class="imported-source" id="source-316c691e5a2b80228207e92dec784f68" data-source-id="316c691e-5a2b-8022-8207-e92dec784f68"><div class="source-note-label">원문 보존 단위</div><h2>현재 기준 head 기준 어떤 파일이 변경되었는 지 확인</h2>
+<pre class="source-code"><code class="language-python">git show --name-only HEAD</code></pre>
+</section>
+<!-- notion-source:314c691e-5a2b-80fe-a5fd-e5476e8df27d checksum:39dbf0b74b68d242 chars:326 -->
+<section class="imported-source" id="source-314c691e5a2b80fea5fde5476e8df27d" data-source-id="314c691e-5a2b-80fe-a5fd-e5476e8df27d"><div class="source-note-label">원문 보존 단위</div><h2>현재 브랜치와 remote 비교하기</h2>
+<p>리모트에 있는데 로컬에 없는거 확인</p>
+<pre class="source-code"><code class="language-python">git log --oneline HEAD..origin/브랜치명</code></pre>
+<p>로컬에 있는데 리모트에 없는거 확인</p>
+<pre class="source-code"><code class="language-python">(chatgpt-clone) (base) jaejunkim@jaejunkim-2 chatgpt-clone % git log --oneline origin/main..HEAD
+6c624ab (HEAD -&gt; main) #7.3 Session Memory (11:53)</code></pre>
+</section>
+<!-- notion-source:31dc691e-5a2b-808d-ab6a-cafce13e1564 checksum:3370c4eff8f80c2b chars:2120 -->
+<section class="imported-source" id="source-31dc691e5a2b808dab6acafce13e1564" data-source-id="31dc691e-5a2b-808d-ab6a-cafce13e1564"><div class="source-note-label">원문 보존 단위</div><h2>amend</h2>
+<h2><strong>git commit –amend –no-edit</strong></h2>
+<h3><strong>1. 한 줄 설명</strong></h3>
+<p>git commit --amend --no-edit는 <strong>가장 최근 커밋에 새로운 변경사항을 추가해서 커밋을 다시 만드는 명령어</strong>이다.</p>
+<p>단, <strong>기존 커밋 메시지는 그대로 유지한다.</strong></p>
+<p>즉,</p>
+<blockquote><p>“방금 만든 커밋을 수정하지만 메시지는 바꾸지 않는다”</p></blockquote>
+<hr>
+<h2><strong>2. 왜 필요한가</strong></h2>
+<p>개발하다 보면 이런 상황이 자주 생긴다.</p>
+<p>예시</p>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit -m &quot;Add login API&quot;</code></pre>
+<p>그런데 커밋하고 나서 보니까</p>
+<ul>
+<li>파일 하나를 add 안 했거나</li>
+<li>코드 한 줄을 수정해야 하는 상황이 생긴다.</li>
+</ul>
+<p>이때 보통 두 가지 방법이 있다.</p>
+<h4><strong>방법 1 (커밋을 하나 더 만든다)</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit -m &quot;fix&quot;</code></pre>
+<p>하지만 이렇게 하면 히스토리가 이렇게 된다.</p>
+<pre class="source-code"><code class="language-plain-text">Add login API
+fix</code></pre>
+<p>커밋 히스토리가 지저분해진다.</p>
+<hr>
+<h4><strong>방법 2 (이전 커밋에 합친다)</strong></h4>
+<p>이때 사용하는 것이</p>
+<pre class="source-code"><code class="language-plain-text">git commit --amend</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-plain-text">git commit --amend --no-edit</code></pre>
+<hr>
+<h2><strong>3. 동작 원리</strong></h2>
+<p>예시 상황</p>
+<p>현재 상태</p>
+<pre class="source-code"><code class="language-plain-text">commit A</code></pre>
+<p>파일 수정 후</p>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit --amend --no-edit</code></pre>
+<p>결과</p>
+<pre class="source-code"><code class="language-plain-text">commit A'</code></pre>
+<p>즉</p>
+<pre class="source-code"><code class="language-plain-text">A → A'</code></pre>
+<p><strong>기존 커밋이 수정된 새로운 커밋으로 교체된다.</strong></p>
+<p>주의할 점</p>
+<p>Git에서는 <strong>커밋을 수정하는 것이 아니라 새로운 커밋을 다시 만든다.</strong></p>
+<hr>
+<h2><strong>4. –no-edit 옵션 의미</strong></h2>
+<p>기본 git commit --amend</p>
+<pre class="source-code"><code class="language-plain-text">git commit --amend</code></pre>
+<p>실행하면 <strong>커밋 메시지 편집 창이 열린다.</strong></p>
+<p>예시</p>
+<pre class="source-code"><code class="language-plain-text">Add login API</code></pre>
+<p>여기서 메시지를 수정할 수 있다.</p>
+<hr>
+<p>하지만</p>
+<pre class="source-code"><code class="language-plain-text">git commit --amend --no-edit</code></pre>
+<p>옵션을 사용하면</p>
+<ul>
+<li><strong>커밋 메시지 편집 창이 열리지 않는다</strong></li>
+<li><strong>기존 메시지를 그대로 사용한다</strong></li>
+</ul>
+<p>즉</p>
+<pre class="source-code"><code class="language-plain-text">기존 메시지 유지 + 커밋만 수정</code></pre>
+<hr>
+<h2><strong>5. 가장 흔한 사용 패턴</strong></h2>
+<p>개발 중 가장 많이 쓰는 흐름</p>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit -m &quot;Add login API&quot;
+
+# 이후 코드 수정
+git add .
+
+git commit --amend --no-edit</code></pre>
+<p>결과</p>
+<pre class="source-code"><code class="language-plain-text">Add login API</code></pre>
+<p>커밋 하나만 남는다.</p>
+<hr>
+<h2><strong>6. 언제 사용하면 좋은가</strong></h2>
+<p>사용 추천 상황</p>
+<ul>
+<li>방금 커밋했는데 파일 하나 빠졌을 때</li>
+<li>오타 수정</li>
+<li>코드 한 줄 수정</li>
+<li>커밋을 깔끔하게 유지하고 싶을 때</li>
+</ul>
+<p>특히 <strong>로컬 작업 중일 때 매우 유용하다.</strong></p>
+<hr>
+<h2><strong>7. 주의사항 (중요)</strong></h2>
+<p>이미 <strong>원격 저장소에 push한 커밋에는 사용을 조심해야 한다.</strong></p>
+<p>이유</p>
+<ul>
+<li>-amend는 <strong>커밋 히스토리를 변경</strong>하기 때문이다.</li>
+</ul>
+<p>예시</p>
+<p>이미 push된 커밋</p>
+<pre class="source-code"><code class="language-plain-text">origin/main
+
+A</code></pre>
+<p>amend 하면</p>
+<pre class="source-code"><code class="language-plain-text">A → A'</code></pre>
+<p>이 상태에서 push 하면</p>
+<pre class="source-code"><code class="language-plain-text">git push --force</code></pre>
+<p>가 필요하다.</p>
+<p>팀 프로젝트에서는 히스토리가 꼬일 수 있다.</p>
+<p>따라서</p>
+<p><strong>push 전에만 사용하는 것이 가장 안전하다.</strong></p>
+<hr>
+<h2><strong>8. 한 줄 정리</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git commit --amend --no-edit</code></pre>
+<p>의미</p>
+<blockquote><p>마지막 커밋에 변경사항을 추가하지만 커밋 메시지는 수정하지 않는다.</p></blockquote>
+<hr>
+<h3>후속 정리 후보</h3>
+<ul>
+<li>git commit --amend</li>
+<li>git rebase -i</li>
+<li>fixup / squash</li>
+<li>git push --force-with-lease</li>
+</ul>
+<p>이 네 개 알면 <strong>Git 히스토리 관리 90%는 끝난다.</strong></p>
+</section>
+<!-- notion-source:314c691e-5a2b-8037-bd0c-ec0244ed8e96 checksum:8a567137fc9978f9 chars:1212 -->
+<section class="imported-source" id="source-314c691e5a2b8037bd0cec0244ed8e96" data-source-id="314c691e-5a2b-8037-bd0c-ec0244ed8e96"><div class="source-note-label">원문 보존 단위</div><h2>commit 취소</h2>
+<h2><strong>1️⃣ 아직 push 안 한 경우</strong></h2>
+<h3><strong>✅ 가장 최근 commit만 취소 (내용은 유지)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset --soft HEAD~1</code></pre>
+<p>결과:</p>
+<ul>
+<li>commit만 취소</li>
+<li>변경 내용은 staging 상태로 남아있음</li>
+<li>다시 commit 가능</li>
+</ul>
+<hr>
+<h3><strong>✅ commit 취소 + staging도 해제 (파일 수정은 유지)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset --mixed HEAD~1</code></pre>
+<p>결과:</p>
+<ul>
+<li>commit 취소</li>
+<li>staging 해제</li>
+<li>파일은 수정된 상태로 남아있음</li>
+</ul>
+<hr>
+<h3><strong>❗ commit 취소 + 수정 내용도 삭제</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset --hard HEAD~1</code></pre>
+<p>결과:</p>
+<ul>
+<li>commit 삭제</li>
+<li>변경 내용도 전부 삭제</li>
+<li>되돌릴 수 없음 (주의)</li>
+</ul>
+<hr>
+<h2><strong>2️⃣ 이미 push 한 경우</strong></h2>
+<h3><strong>⚠ 혼자 작업 중이고 강제로 되돌려도 되는 경우</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset --hard HEAD~1
+git push --force</code></pre>
+<p>주의:</p>
+<ul>
+<li>협업 중이면 절대 함부로 쓰면 안 됨</li>
+<li>다른 사람 히스토리 깨짐</li>
+</ul>
+<hr>
+<h3><strong>✅ 안전하게 취소하고 싶다면 (히스토리 유지)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git revert HEAD</code></pre>
+<p>결과:</p>
+<ul>
+<li>이전 commit을 되돌리는 새 commit 생성</li>
+<li>협업 중이면 이 방법이 안전함</li>
+</ul>
+<hr>
+<h2><strong>3️⃣ 최근 commit 메시지만 수정하고 싶을 때</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git commit --amend</code></pre>
+<hr>
+<h2><strong>🔥 요약</strong></h2>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>상황</strong></td>
+<td><strong>명령어</strong></td>
+</tr>
+<tr>
+<td>commit만 취소</td>
+<td>git reset --soft HEAD~1</td>
+</tr>
+<tr>
+<td>commit + staging 해제</td>
+<td>git reset --mixed HEAD~1</td>
+</tr>
+<tr>
+<td>commit + 변경내용 삭제</td>
+<td>git reset --hard HEAD~1</td>
+</tr>
+<tr>
+<td>이미 push했고 안전하게 되돌림</td>
+<td>git revert HEAD</td>
+</tr>
+<tr>
+<td>메시지만 수정</td>
+<td>git commit --amend</td>
+</tr>
+</table></div>
+</section>
+<!-- notion-source:30fc691e-5a2b-8021-a2c7-e1bc03e34f38 checksum:76430f23d7c6cba6 chars:4222 -->
+<section class="imported-source" id="source-30fc691e5a2b8021a2c7e1bc03e34f38" data-source-id="30fc691e-5a2b-8021-a2c7-e1bc03e34f38"><div class="source-note-label">원문 보존 단위</div><h2>Git 내부 구조 · 협업 · 충돌 · 그래프 완전 정리 노트</h2>
+<h2>0️⃣ Git의 본질</h2>
+<p>Git은:</p>
+<ul>
+<li>파일 버전 관리 도구</li>
+<li>변경 이력 관리 시스템</li>
+<li>커밋 기반 그래프 구조 저장 시스템</li>
+</ul>
+<p>Git은:</p>
+<ul>
+<li>코드 문법을 이해하지 않는다</li>
+<li>충돌 마커의 의미를 모른다</li>
+<li>텍스트를 “바이트 덩어리”로만 본다</li>
+</ul>
+<p>Git이 이해하는 것:</p>
+<ul>
+<li>파일 스냅샷</li>
+<li>커밋 객체</li>
+<li>parent 포인터</li>
+<li>브랜치가 가리키는 커밋</li>
+</ul>
+<hr>
+<h2>1️⃣ 협업 기본 원칙</h2>
+<h3>🎯 원칙</h3>
+<blockquote><p>Push 전에 반드시 원격 변경을 먼저 통합한다.</p></blockquote>
+<hr>
+<h3>📌 기본 협업 흐름 (Merge 전략 기준)</h3>
+<pre class="source-code"><code class="language-plain-text">git fetch
+git merge origin/main
+→ 충돌 해결
+git add .
+git commit
+git push</code></pre>
+<h4>의미</h4>
+<ol>
+<li>원격 변경을 먼저 가져오고</li>
+<li>내 변경과 병합하고</li>
+<li>충돌이 나면 수동으로 해결하고</li>
+<li>최종 상태를 확정한 뒤</li>
+<li>push</li>
+</ol>
+<hr>
+<h3>❌ 왜 바로 push 하면 안 되는가?</h3>
+<p>에러 예시:</p>
+<pre class="source-code"><code class="language-plain-text">non-fast-forward</code></pre>
+<p>의미:</p>
+<blockquote><p>원격 브랜치가 내가 모르는 커밋을 가지고 있다.</p></blockquote>
+<p>Git은 원격 이력을 덮어쓰는 것을 막는다.</p>
+<hr>
+<h2>2️⃣ Fast-forward와 분기 판단 원리</h2>
+<h3>🎯 Git이 push 시 검사하는 것</h3>
+<blockquote><p>원격 브랜치가 가리키는 커밋이</p></blockquote>
+<p>내 브랜치의 조상(ancestor)인가?</p>
+<hr>
+<h3>📌 Fast-forward 가능한 경우</h3>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C --- D   (main)
+                ^
+           (origin/main)</code></pre>
+<p>D에서 parent를 따라가면 C가 나온다.</p>
+<p>→ C 위에 D만 추가하면 된다</p>
+<p>→ 브랜치 포인터 이동</p>
+<p>→ fast-forward 가능</p>
+<hr>
+<h3>❌ Fast-forward 불가능한 경우</h3>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C   (origin/main)
+         \
+          D --- E   (main)</code></pre>
+<p>E에서 parent를 따라가도 C가 나오지 않는다.</p>
+<p>→ 히스토리가 분기됨</p>
+<p>→ non-fast-forward</p>
+<p>→ push 거부</p>
+<hr>
+<h2>3️⃣ Git은 그래프를 어떻게 판단하는가?</h2>
+<h3>🎯 Git은 그래프를 저장하는가?</h3>
+<p>아니다.</p>
+<p>Git은 각 커밋에 parent 해시만 저장한다.</p>
+<hr>
+<h3>📌 커밋 객체 구조</h3>
+<p>각 커밋은 다음 정보를 가진다:</p>
+<pre class="source-code"><code class="language-plain-text">commit hash
+tree hash
+parent commit hash
+author
+message</code></pre>
+<p>핵심:</p>
+<pre class="source-code"><code class="language-plain-text">parent: 이전 커밋 해시</code></pre>
+<hr>
+<h3>📌 예시</h3>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C   (origin/main)
+         \
+          D --- E   (main)</code></pre>
+<p>Git 내부 저장:</p>
+<pre class="source-code"><code class="language-plain-text">C → parent B
+D → parent B
+E → parent D</code></pre>
+<p>parent 포인터를 따라가면 DAG 구조가 된다.</p>
+<p>Git은 “그래프를 그리는” 게 아니라</p>
+<p>parent 체인을 따라가며 포함 여부를 검사한다.</p>
+<hr>
+<h2>4️⃣ Merge의 정체</h2>
+<h3>📌 Merge를 하면</h3>
+<p>새 커밋 M이 생성된다:</p>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C -------- M
+       \              /
+        D --- E -----</code></pre>
+<p>M의 내부:</p>
+<pre class="source-code"><code class="language-plain-text">parent1: E
+parent2: C</code></pre>
+<p>→ parent가 2개</p>
+<p>→ 두 히스토리를 합치는 지점</p>
+<hr>
+<h2>5️⃣ Rebase의 정체</h2>
+<p>Rebase는:</p>
+<ul>
+<li>기존 커밋을 복사해서</li>
+<li>다른 parent 위에 다시 만든다</li>
+</ul>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C   (origin/main)
+         \
+          D --- E   (main)</code></pre>
+<p>rebase 후:</p>
+<pre class="source-code"><code class="language-plain-text">A --- B --- C --- D' --- E'</code></pre>
+<p>D', E'는 새 커밋이다.</p>
+<p>→ parent가 달라진다</p>
+<p>→ 해시가 바뀐다</p>
+<hr>
+<h2>6️⃣ Merge 충돌이 발생하는 이유</h2>
+<p>Git은 3-way merge를 시도한다.</p>
+<p>비교 대상:</p>
+<ol>
+<li>공통 조상 (base)</li>
+<li>현재 브랜치 (HEAD)</li>
+<li>병합 대상 브랜치 (origin/main)</li>
+</ol>
+<p>자동 병합 불가능하면 충돌 발생.</p>
+<hr>
+<h2>7️⃣ 충돌 발생 시 상태 확인</h2>
+<pre class="source-code"><code class="language-plain-text">git status</code></pre>
+<p>출력 예시:</p>
+<pre class="source-code"><code class="language-plain-text">both modified: example.py</code></pre>
+<hr>
+<h2>8️⃣ 충돌 마커의 의미</h2>
+<p>파일 안에 이런 표시가 삽입된다:</p>
+<pre class="source-code"><code class="language-plain-text">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+내 브랜치 내용
+&#61;&#61;&#61;&#61;&#61;&#61;&#61;
+origin/main 내용
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; origin/main</code></pre>
+<p>의미:</p>
+<ul>
+<li>위쪽: 현재 브랜치</li>
+<li>아래쪽: 병합 대상</li>
+<li>가운데: 구분선</li>
+</ul>
+<hr>
+<h2>9️⃣ 충돌 해결의 진짜 의미</h2>
+<p>중요:</p>
+<blockquote><p>마커를 지우는 것이 목적이 아니다.</p></blockquote>
+<p>최종 코드 상태를 직접 만드는 것이 목적이다.</p>
+<p>가능한 선택:</p>
+<ul>
+<li>내 것만 남긴다</li>
+<li>원격 것만 남긴다</li>
+<li>둘을 조합해 새로 작성한다</li>
+</ul>
+<p>⚠ 반드시 삭제해야 할 것:</p>
+<pre class="source-code"><code class="language-plain-text">&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+&#61;&#61;&#61;&#61;&#61;&#61;&#61;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code></pre>
+<hr>
+<h2>🔟 git add의 진짜 의미</h2>
+<pre class="source-code"><code class="language-plain-text">git add 파일</code></pre>
+<p>은:</p>
+<blockquote><p>이 파일은 내가 최종 상태로 확정했다.</p></blockquote>
+<p>라는 선언이다.</p>
+<p>Git은:</p>
+<ul>
+<li>마커가 남아있는지 검사하지 않는다</li>
+<li>문법 오류인지 검사하지 않는다</li>
+<li>논리적으로 맞는지 검사하지 않는다</li>
+</ul>
+<p>단지:</p>
+<ul>
+<li>파일이 stage 되었는지</li>
+</ul>
+<p>만 본다.</p>
+<hr>
+<h2>1️⃣1️⃣ 마커 안 지우고 add 하면?</h2>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+print(&quot;hello&quot;)
+&#61;&#61;&#61;&#61;&#61;&#61;&#61;
+print(&quot;hi&quot;)
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; origin/main</code></pre>
+<p>이 상태에서:</p>
+<pre class="source-code"><code class="language-plain-text">git add test.py
+git commit</code></pre>
+<p>하면,</p>
+<p>이 텍스트 그대로 커밋에 저장된다.</p>
+<p>Git은 그냥 문자열로 본다.</p>
+<hr>
+<h3>⚠ 발생 가능한 문제</h3>
+<ul>
+<li>Python → 문법 에러</li>
+<li>JSON/ipynb → 파싱 에러</li>
+<li>서비스 코드 → 배포 실패</li>
+<li>CI → 빌드 실패</li>
+</ul>
+<p>Git은 책임지지 않는다.</p>
+<hr>
+<h2>1️⃣2️⃣ 여러 파일 충돌 시 처리 방식</h2>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">CONFLICT in a.py
+CONFLICT in b.py
+CONFLICT in c.py</code></pre>
+<p><code>git status</code>:</p>
+<pre class="source-code"><code class="language-plain-text">both modified: a.py
+both modified: b.py
+both modified: c.py</code></pre>
+<p>파일 하나 해결 후:</p>
+<pre class="source-code"><code class="language-plain-text">git add a.py</code></pre>
+<p><code>git status</code>:</p>
+<pre class="source-code"><code class="language-plain-text">both modified: b.py
+both modified: c.py</code></pre>
+<p>Git은 충돌을 “파일 단위”로 관리한다.</p>
+<p>모든 파일 add 완료 시:</p>
+<pre class="source-code"><code class="language-plain-text">All conflicts fixed but you are still merging.</code></pre>
+<p>이제:</p>
+<pre class="source-code"><code class="language-plain-text">git commit</code></pre>
+<hr>
+<h2>1️⃣3️⃣ 내부적으로 index는 어떻게 저장하나?</h2>
+<p>충돌 시 index는 3개 버전을 가진다:</p>
+<ul>
+<li>stage 1: base</li>
+<li>stage 2: HEAD</li>
+<li>stage 3: merge 대상</li>
+</ul>
+<p><code>git add</code> 하면:</p>
+<ul>
+<li>stage 1/2/3 제거</li>
+<li>stage 0(정상 상태)로 변경</li>
+</ul>
+<hr>
+<h2>1️⃣4️⃣ 핵심 철학 요약</h2>
+<p>Git은:</p>
+<ul>
+<li>코드 의미를 모른다</li>
+<li>문법을 모른다</li>
+<li>충돌 마커를 이해하지 못한다</li>
+<li>parent 포인터만 저장한다</li>
+<li>조상 포함 여부만 검사한다</li>
+</ul>
+<p>충돌 해결은:</p>
+<blockquote><p>개발자의 책임이다.</p></blockquote>
+<p><code>git add</code>는:</p>
+<blockquote><p>내가 책임진다는 선언이다.</p></blockquote>
+<hr>
+<h2>📌 최종 이해 체크</h2>
+<p>이 질문에 답할 수 있으면 완전 이해:</p>
+<ol>
+<li>왜 non-fast-forward가 발생하는가?</li>
+<li>왜 merge commit은 parent가 2개인가?</li>
+<li>왜 rebase는 커밋 해시가 바뀌는가?</li>
+<li>Git은 그래프를 어떻게 판단하는가?</li>
+<li>왜 마커를 안 지워도 commit이 되는가?</li>
+<li>Git이 충돌을 파일 단위로 관리하는 이유는?</li>
+</ol>
+<hr>
+<p>이 문서는 Git 내부 모델의 전체 흐름 정리본입니다.</p>
+<h3>후속 학습 후보</h3>
+<ul>
+<li>merge-base 알고리즘 깊게 파보기</li>
+<li>index 내부 구조 직접 분석하기</li>
+<li>git cat-file로 commit 객체 까보기</li>
+<li>Git의 DAG 탐색 알고리즘 이해하기</li>
+</ul>
+<p>어디까지 들어가보시겠습니까?</p>
+</section>
+<!-- notion-source:30fc691e-5a2b-80dc-a416-e1e4ca1ebf5f checksum:1fb049542a4f9c19 chars:2398 -->
+<section class="imported-source" id="source-30fc691e5a2b80dca416e1e4ca1ebf5f" data-source-id="30fc691e-5a2b-80dc-a416-e1e4ca1ebf5f"><div class="source-note-label">원문 보존 단위</div><h2>Git 여러 커밋을 하나로 합치는 방법 (reset –soft + force push)</h2>
+<h2><strong>1️⃣ 언제 이 방법을 쓰는가?</strong></h2>
+<p>다음과 같은 상황에서 사용합니다:</p>
+<ul>
+<li>최근 여러 커밋을 하나로 정리하고 싶을 때</li>
+<li>WIP, 테스트 커밋 등을 깔끔하게 합치고 싶을 때</li>
+<li>이미 원격에 올라간 커밋을 정리하고 싶을 때</li>
+<li>merge commit 포함해서 깔끔하게 히스토리를 재작성하고 싶을 때</li>
+</ul>
+<hr>
+<h2><strong>2️⃣ 현재 상황 예시</strong></h2>
+<pre class="source-code"><code class="language-plain-text">8f5b43c (HEAD -&gt; main, origin/main) Merge remote-tracking branch 'origin/main'
+a6e0652 충돌 테스트3
+f548450 WIP
+83c8f07 #2.2 Your First AI Agent (07:30)
+9ee68e3 충돌 테스트
+763f49b #2.2 Your First AI Agent</code></pre>
+<p>여기서:</p>
+<pre class="source-code"><code class="language-plain-text">9ee68e3 ~ 8f5b43c</code></pre>
+<p>위 커밋들을 하나로 합치고 싶다고 가정합니다.</p>
+<hr>
+<h2><strong>3️⃣ 핵심 원리</strong></h2>
+<p>git reset --soft &lt;기준커밋&gt;은</p>
+<blockquote><p>HEAD를 기준 커밋으로 이동시키되</p></blockquote>
+<blockquote><p>변경사항은 그대로 유지한다.</p></blockquote>
+<p>즉,</p>
+<ul>
+<li>커밋 기록은 제거</li>
+<li>변경 내용은 유지</li>
+<li>변경 내용은 stage 상태로 남음</li>
+</ul>
+<hr>
+<h2><strong>4️⃣ 실행 단계</strong></h2>
+<h3><strong>① 기준 커밋으로 HEAD 이동</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git reset --soft 763f49b</code></pre>
+<p>의미:</p>
+<ul>
+<li>763f49b 이후 커밋들은 제거됨</li>
+<li>하지만 그 커밋들의 변경사항은 전부 stage 상태로 모임</li>
+</ul>
+<hr>
+<h3><strong>② 새로운 하나의 커밋 생성</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git commit -m &quot;정리된 커밋&quot;</code></pre>
+<p>이제 구조는:</p>
+<pre class="source-code"><code class="language-plain-text">763f49b
+   \
+    NEW_COMMIT</code></pre>
+<hr>
+<h3><strong>③ 원격 반영</strong></h3>
+<p>히스토리가 바뀌었기 때문에 일반 push는 안 됩니다.</p>
+<pre class="source-code"><code class="language-plain-text">git push --force-with-lease</code></pre>
+<hr>
+<h2><strong>5️⃣ 왜 force-with-lease가 필요한가?</strong></h2>
+<p>우리는 기존 커밋을 삭제하고</p>
+<p>새 커밋을 만든 것입니다.</p>
+<p>즉:</p>
+<ul>
+<li>커밋 해시가 바뀌었고</li>
+<li>원격과 히스토리가 달라졌습니다.</li>
+</ul>
+<p>Git은 기본적으로 히스토리 덮어쓰기를 막기 때문에</p>
+<p>force push가 필요합니다.</p>
+<hr>
+<h2><strong>6️⃣ 왜 -force 대신 -force-with-lease인가?</strong></h2>
+<ul>
+<li>-force-with-lease는:</li>
+</ul>
+<blockquote><p>내가 마지막으로 본 원격 상태가 그대로일 때만 덮어쓴다.</p></blockquote>
+<p>즉:</p>
+<ul>
+<li>다른 사람이 그 사이에 push했다면</li>
+<li>덮어쓰지 않고 실패합니다.</li>
+</ul>
+<p>👉 훨씬 안전한 force입니다.</p>
+<hr>
+<h2><strong>7️⃣ 내부적으로 무슨 일이 일어났는가?</strong></h2>
+<p>기존 구조:</p>
+<pre class="source-code"><code class="language-plain-text">763f49b
+   \
+    9ee68e3
+      \
+       83c8f07
+         \
+          f548450
+            \
+             a6e0652
+               \
+                8f5b43c</code></pre>
+<p>reset 후:</p>
+<pre class="source-code"><code class="language-plain-text">763f49b</code></pre>
+<p>하지만 working tree에는</p>
+<p>위 5개 커밋의 변경 내용이 모두 존재.</p>
+<p>새 commit 후:</p>
+<pre class="source-code"><code class="language-plain-text">763f49b
+   \
+    NEW_COMMIT</code></pre>
+<hr>
+<h2><strong>8️⃣ reset –soft / –mixed / –hard 차이</strong></h2>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>옵션</strong></td>
+<td><strong>커밋 이동</strong></td>
+<td><strong>stage 유지</strong></td>
+<td><strong>파일 유지</strong></td>
+</tr>
+<tr>
+<td>–soft</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+</tr>
+<tr>
+<td>–mixed</td>
+<td>O</td>
+<td>X</td>
+<td>O</td>
+</tr>
+<tr>
+<td>–hard</td>
+<td>O</td>
+<td>X</td>
+<td>X</td>
+</tr>
+</table></div>
+<p>우리는 --soft를 쓴 이유:</p>
+<blockquote><p>변경 내용은 유지하면서 커밋만 제거하기 위해</p></blockquote>
+<hr>
+<h2><strong>9️⃣ 이 방법의 장점</strong></h2>
+<ul>
+<li>merge commit 포함 커밋 정리가 쉬움</li>
+<li>interactive rebase보다 단순</li>
+<li>실수 가능성 낮음</li>
+<li>한 번에 여러 커밋 합치기 쉬움</li>
+</ul>
+<hr>
+<h2><strong>🔟 반드시 주의할 점</strong></h2>
+<p>이 방법은:</p>
+<blockquote><p>히스토리를 재작성한다.</p></blockquote>
+<p>따라서:</p>
+<ul>
+<li>개인 브랜치 → 안전</li>
+<li>팀 main 브랜치 → 매우 위험</li>
+</ul>
+<p>팀 작업 중이라면 반드시 합의 필요.</p>
+<hr>
+<h2><strong>1️⃣1️⃣ 한 줄 요약</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git reset --soft &lt;기준커밋&gt;
+git commit -m &quot;정리된 커밋&quot;
+git push --force-with-lease</code></pre>
+<p>= 여러 커밋을 하나로 합치는 가장 직관적인 방법</p>
+<hr>
+</section>
+<!-- notion-source:316c691e-5a2b-80f0-a1db-cef614da2a69 checksum:4c91729a65934c0a chars:1792 -->
+<section class="imported-source" id="source-316c691e5a2b80f0a1dbcef614da2a69" data-source-id="316c691e-5a2b-80f0-a1db-cef614da2a69"><div class="source-note-label">원문 보존 단위</div><h2>Git 인덱스에서 파일 제거하기 (git rm --cached)</h2>
+<h3><strong>1️⃣ 왜 필요한가?</strong></h3>
+<p>.gitignore는 <strong>이미 추적 중인(tracked) 파일에는 적용되지 않는다.</strong></p>
+<p>즉,</p>
+<pre class="source-code"><code class="language-plain-text">git add some.db
+git commit -m &quot;add db&quot;</code></pre>
+<p>이후에 .gitignore에 some.db를 추가해도</p>
+<p>Git은 계속 변경사항을 추적한다.</p>
+<p>이럴 때 필요한 명령이:</p>
+<blockquote><p>🔥 git rm --cached</p></blockquote>
+<hr>
+<h3><strong>2️⃣ 핵심 개념</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git rm --cached</code></pre>
+<p>의 의미:</p>
+<ul>
+<li>Git 인덱스(= staging area)에서 제거</li>
+<li>로컬 파일은 삭제되지 않음</li>
+<li>추적(tracking)만 해제</li>
+</ul>
+<p>즉,</p>
+<blockquote><p>“파일은 남기고 Git만 잊게 만들기”</p></blockquote>
+<hr>
+<h2><strong>3️⃣ 단일 파일 제거</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git rm --cached &lt;파일명&gt;</code></pre>
+<p>예시:</p>
+<pre class="source-code"><code class="language-plain-text">git rm --cached chat-gpt-clone-memory.db</code></pre>
+<h4><strong>결과</strong></h4>
+<ul>
+<li>Git은 해당 파일을 더 이상 추적하지 않음</li>
+<li>로컬 파일은 그대로 존재</li>
+<li>.gitignore 규칙이 이후부터 정상 적용됨</li>
+</ul>
+<hr>
+<h2><strong>4️⃣ 디렉토리 전체 제거</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git rm --cached -r &lt;디렉토리명&gt;</code></pre>
+<p>예시:</p>
+<pre class="source-code"><code class="language-plain-text">git rm --cached -r logs/</code></pre>
+<h4><strong>옵션 설명</strong></h4>
+<ul>
+<li>r → recursive (하위 파일까지 모두 처리)</li>
+</ul>
+<h4><strong>결과</strong></h4>
+<ul>
+<li>해당 디렉토리 내부 모든 파일 추적 해제</li>
+<li>로컬 파일은 그대로 유지</li>
+</ul>
+<hr>
+<h2><strong>5️⃣ 실제 적용 순서 (중요)</strong></h2>
+<h4><strong>① .gitignore 먼저 작성</strong></h4>
+<pre class="source-code"><code class="language-plain-text">echo &quot;chat-gpt-clone-memory.db&quot; &gt;&gt; .gitignore</code></pre>
+<h4><strong>② Git 인덱스에서 제거</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git rm --cached chat-gpt-clone-memory.db</code></pre>
+<h4><strong>③ 상태 확인</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git status</code></pre>
+<h4><strong>④ 커밋</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git commit -m &quot;Stop tracking memory DB file&quot;</code></pre>
+<hr>
+<h2><strong>6️⃣ 전체 프로젝트에서 잘못 추적된 파일 정리</strong></h2>
+<p>여러 파일이 이미 추적되고 있다면:</p>
+<pre class="source-code"><code class="language-plain-text">git rm -r --cached .
+git add .
+git commit -m &quot;Reapply gitignore&quot;</code></pre>
+<h4><strong>의미</strong></h4>
+<ol>
+<li>인덱스 전체 제거</li>
+<li>.gitignore 기준으로 다시 add</li>
+<li>커밋</li>
+</ol>
+<p>⚠️ 변경 파일이 많아질 수 있으니 주의</p>
+<hr>
+<h2><strong>7️⃣ git rm vs git rm --cached 차이</strong></h2>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>명령어</strong></td>
+<td><strong>Git 추적 해제</strong></td>
+<td><strong>로컬 파일 삭제</strong></td>
+</tr>
+<tr>
+<td>git rm</td>
+<td>O</td>
+<td>O</td>
+</tr>
+<tr>
+<td>git rm --cached</td>
+<td>O</td>
+<td>❌</td>
+</tr>
+</table></div>
+<p>🔥 실수로 git rm 쓰면 로컬 파일도 삭제된다.</p>
+<hr>
+<h2><strong>8️⃣ 한 줄 요약</strong></h2>
+<blockquote><p>git rm --cached는</p></blockquote>
+<blockquote><p>“파일은 남기고 Git의 기억만 지우는 명령어”다.</p></blockquote>
+<hr>
+<h3>확장 학습 후보</h3>
+<ul>
+<li>팀 프로젝트에서 DB 파일 관리 전략</li>
+<li>환경 변수 파일, .db, .log 관리 베스트 프랙티스</li>
+<li>CI/CD에서 무시 패턴 설계</li>
+</ul>
+<p>까지 정리해줄까?</p>
+</section>
+<!-- notion-source:323c691e-5a2b-8135-9eff-dbcd65ac23c2 checksum:3c79c17abbc0a021 chars:1202 -->
+<section class="imported-source" id="source-323c691e5a2b81359effdbcd65ac23c2" data-source-id="323c691e-5a2b-8135-9eff-dbcd65ac23c2"><div class="source-note-label">원문 보존 단위</div><h2>Git 커밋별 문서 병합 정리</h2>
+<p>요청: 15.0/15.1/15.2 강의 커밋 각각에 해당 문서를 뒤늦게 붙여서 커밋별로 정리하고, 그 과정을 노션에 학습 기록으로 남기기</p>
+<h3>요구사항</h3>
+<ul>
+<li>각 강의 커밋(15.0, 15.1, 15.2)에 맞는 문서를 해당 커밋에만 합칠 것</li>
+<li>새 커밋이 아니라 기존 커밋 메시지를 유지한 채 내용을 합치는 방식으로 처리할 것</li>
+<li>작업 후 어떤 커밋 해시가 되었는지 명확히 기록할 것</li>
+</ul>
+<h3>해결 방법</h3>
+<p><code>amend</code>를 각 대상 커밋 단위로 반복 적용했습니다. 즉 HEAD를 해당 커밋으로 이동해 doc 파일을 <code>git add</code>한 뒤 <code>git commit --amend --no-edit</code>으로 커밋을 치환했습니다.</p>
+<p>루트 커밋부터 순서대로 처리해 충돌 없이 체인을 유지했고, 15.1/15.2 구간은 체인 정렬을 위해 cherry-pick을 사용해 문서를 정확한 커밋에 넣었습니다.</p>
+<h4>적용한 핵심 커맨드</h4>
+<pre class="source-code"><code class="language-plain-text">git checkout 86ca243
+git add -- &quot;doc/15.0 프로젝트 준비와 실행 환경 구성.md&quot;
+git commit --amend --no-edit
+
+git cherry-pick 5204eb9
+git add -- &quot;doc/15.1 오디오 추출과 Whisper 전사 파이프라인.md&quot;
+git commit --amend --no-edit
+
+git cherry-pick c05f291
+git add -- &quot;doc/15.2 조건부 엣지 기반 청크 요약 그래프.md&quot;
+git commit --amend --no-edit
+
+git log --oneline --decorate -n 3</code></pre>
+<h3>최종 결과</h3>
+<ol>
+<li>#15.0 Introduction (03:56) → 7eeb3c6</li>
+<li>#15.1 Audio Extraction and Transcription (16:17) → 6d62a49</li>
+<li>#15.2 Summarizer Nodes (12:52) → 78fb270</li>
+</ol>
+<p>각 커밋에 문서가 정확히 병합되어 <code>git add + amend</code>로 기존 커밋을 치환한 히스토리 구조입니다. 백업 브랜치 backup-before-15x-rewrite를 남겨 복구 경로도 확보했습니다.</p>
+<h3>현재 상태</h3>
+<p>원격 강제 푸시(<code>--force-with-lease</code>)가 필요하고, 푸시는 별도로 수동 반영된 상태입니다.</p>
+<p>요약: 별도 브랜치 병합이 아니라, 같은 라인에서 커밋을 재작성해 강의별 요구사항을 반영한 방식입니다.</p>
+</section>
+<!-- notion-source:30fc691e-5a2b-80bf-8db0-e848c0d94825 checksum:d28ae6677c2b8905 chars:695 -->
+<section class="imported-source" id="source-30fc691e5a2b80bf8db0e848c0d94825" data-source-id="30fc691e-5a2b-80bf-8db0-e848c0d94825"><div class="source-note-label">원문 보존 단위</div><h2>git add . 한 후 변경 이력 보기</h2>
+<hr>
+<h4>1️⃣ 가장 기본적인 방법</h4>
+<pre class="source-code"><code class="language-bash">git status</code></pre>
+<p>출력에서</p>
+<pre class="source-code"><code class="language-bash">Changes to be committed:</code></pre>
+<p>아래에 나오는 파일들이 <strong>현재 stage에 올라가 있는 파일들</strong>입니다.</p>
+<p>예시:</p>
+<pre class="source-code"><code class="language-bash">Changes to be committed:
+  modified:   app.py
+  new file:   utils/helper.py</code></pre>
+<p>이 파일들이 commit 대상입니다.</p>
+<hr>
+<h4>2️⃣ Stage에 올라간 변경 내용만 보고 싶을 때</h4>
+<pre class="source-code"><code class="language-bash">git diff --cached</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-bash">git diff --staged</code></pre>
+<p>두 명령어는 동일합니다.</p>
+<p>이건 <strong>stage에 올라간 변경 내용의 diff</strong>를 보여줍니다.</p>
+<hr>
+<h4>3️⃣ 파일 이름만 간단히 보고 싶을 때</h4>
+<pre class="source-code"><code class="language-bash">git diff --cached --name-only</code></pre>
+<p>그러면 파일 이름만 출력됩니다.</p>
+<hr>
+<h4>정리</h4>
+<p>파일 목록만 확인 →</p>
+<pre class="source-code"><code class="language-plain-text">git status</code></pre>
+<p>stage에 올라간 diff 확인 →</p>
+<pre class="source-code"><code class="language-plain-text">git diff --cached</code></pre>
+<p>파일 이름만 간단히 확인 →</p>
+<pre class="source-code"><code class="language-plain-text">git diff --cached --name-only</code></pre>
+<hr>
+<p><strong>working directory / stage / commit</strong> 구조는 별도 개념 정리로 확장할 수 있다.</p>
+</section>
+<!-- notion-source:30ec691e-5a2b-80c3-8034-d3c21e800939 checksum:4af69dc7f5f9adc7 chars:3007 -->
+<section class="imported-source" id="source-30ec691e5a2b80c38034d3c21e800939" data-source-id="30ec691e-5a2b-80c3-8034-d3c21e800939"><div class="source-note-label">원문 보존 단위</div><h2>git diff</h2>
+<h2><strong>1️⃣ git diff는 무엇을 비교하는가?</strong></h2>
+<p>git은 “파일을 수정했다”고 생각하지 않는다.</p>
+<p>git은 이렇게 생각한다:</p>
+<blockquote><p>이전 스냅샷 상태 vs 현재 스냅샷 상태</p></blockquote>
+<p>이 두 상태를 비교하는 시스템이다.</p>
+<p>즉,</p>
+<ul>
+<li>파일을 줄 단위로 추적하는 게 아니라</li>
+<li><strong>스냅샷 전체를 저장하고 비교</strong>한다.</li>
+</ul>
+<hr>
+<h2><strong>2️⃣ git diff 기본 구조 해석</strong></h2>
+<p>예시:</p>
+<pre class="source-code"><code class="language-plain-text">diff --git a/example.py b/example.py
+index 0d218c4..7748d19 100644
+--- a/example.py
++++ b/example.py
+@@ -1,13 +1,115 @@</code></pre>
+<p>하나씩 해석해보자.</p>
+<hr>
+<h3><strong>2.1</strong></h3>
+<h3><strong>diff --git a/example.py b/example.py</strong></h3>
+<p>의미:</p>
+<blockquote><p>example.py 파일의 이전 상태와 현재 상태를 비교한다</p></blockquote>
+<p>여기서 중요한 것:</p>
+<ul>
+<li>a/ = before (이전 상태)</li>
+<li>b/ = after (현재 상태)</li>
+</ul>
+<p>⚠️ 실제 디렉토리가 아니다.</p>
+<p>git이 diff 출력할 때 붙이는 가상 prefix이다.</p>
+<hr>
+<h3><strong>2.2</strong></h3>
+<h3><strong>index 0d218c4..7748d19 100644</strong></h3>
+<p>형식:</p>
+<pre class="source-code"><code class="language-plain-text">index &lt;이전 blob 해시&gt;..&lt;현재 blob 해시&gt; &lt;파일 모드&gt;</code></pre>
+<p>의미:</p>
+<ul>
+<li>0d218c4 → 이전 파일 내용의 해시</li>
+<li>7748d19 → 현재 파일 내용의 해시</li>
+<li>100644 → 일반 파일 권한</li>
+</ul>
+<p>핵심:</p>
+<p>git은 파일 이름이 아니라</p>
+<p><strong>파일 내용의 해시(blob)</strong> 를 비교한다.</p>
+<hr>
+<h3><strong>2.3</strong></h3>
+<h3><strong>-- a/example.py</strong></h3>
+<h3><strong>2.4</strong></h3>
+<h3><strong>+++ b/example.py</strong></h3>
+<p>의미:</p>
+<pre class="source-code"><code class="language-plain-text">--- 이전 버전 파일
++++ 현재 버전 파일</code></pre>
+<p>이건 단순히 비교 기준을 명확히 보여주는 헤더다.</p>
+<hr>
+<h3><strong>2.5</strong></h3>
+<h3><strong>@@ -1,13 +1,115 @@</strong></h3>
+<p>형식:</p>
+<pre class="source-code"><code class="language-plain-text">@@ -이전줄번호,줄개수 +현재줄번호,줄개수 @@</code></pre>
+<p>의미:</p>
+<ul>
+<li>이전 파일: 1번 줄부터 13줄</li>
+<li>현재 파일: 1번 줄부터 115줄</li>
+</ul>
+<p>즉, 파일이 많이 늘어났다는 뜻.</p>
+<hr>
+<h2><strong>3️⃣</strong></h2>
+
+<h2><strong>와</strong></h2>
+<h2><strong>+</strong></h2>
+<h2><strong>의 진짜 의미</strong></h2>
+<p>예시:</p>
+<pre class="source-code"><code class="language-plain-text">-   &quot;cell_type&quot;: &quot;code&quot;,
+-   &quot;execution_count&quot;: 2,
++   &quot;cell_type&quot;: &quot;markdown&quot;,</code></pre>
+<p>여기서 중요한 점:</p>
+<p>git은 “수정”이라는 개념이 없다.</p>
+<p>수정은 내부적으로:</p>
+<blockquote><p>삭제(-) + 추가(+)</p></blockquote>
+<p>로 처리된다.</p>
+<hr>
+<h3><strong>정리</strong></h3>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>기호</strong></td>
+<td><strong>의미</strong></td>
+</tr>
+<tr>
+<td>-</td>
+<td>이전 상태에는 있었는데 지금은 없다</td>
+</tr>
+<tr>
+<td>+</td>
+<td>이전 상태에는 없었는데 지금은 있다</td>
+</tr>
+</table></div>
+<p>⚠️ “내가 추가했다” 기준이 아니라</p>
+<p><strong>이전 스냅샷과 비교 기준</strong>이다.</p>
+<hr>
+<h2><strong>4️⃣ rename(파일 이름 변경)도 가능한가?</strong></h2>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">--- a/old_name.py
++++ b/new_name.py</code></pre>
+<p>이건 가능하다.</p>
+<hr>
+<h3><strong>4.1 rename 상황</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git mv old_name.py new_name.py</code></pre>
+<p>그러면 diff는 이렇게 나올 수 있다:</p>
+<pre class="source-code"><code class="language-plain-text">diff --git a/old_name.py b/new_name.py
+rename from old_name.py
+rename to new_name.py</code></pre>
+<hr>
+<h3><strong>4.2 중요한 사실</strong></h3>
+<p>git은 파일 이름을 직접 추적하지 않는다.</p>
+<p>git은:</p>
+<blockquote><p>이전 blob 해시</p></blockquote>
+<blockquote><p>현재 blob 해시</p></blockquote>
+<p>의 유사도를 계산해서</p>
+<blockquote><p>“이건 rename이네”</p></blockquote>
+<p>라고 <strong>추론</strong>한다.</p>
+<hr>
+<h3><strong>4.3 rename이 감지되지 않는 경우</strong></h3>
+<p>파일 이름을 바꾸고</p>
+<p>내용도 많이 바꾸면</p>
+<p>git은:</p>
+<blockquote><p>삭제 + 새 파일 생성</p></blockquote>
+<p>으로 판단할 수도 있다.</p>
+<hr>
+<h2><strong>5️⃣ git의 본질 구조</strong></h2>
+<p>git은 파일 시스템 기반이 아니다.</p>
+<p>git은:</p>
+<ul>
+<li>스냅샷 기반</li>
+<li>blob 기반</li>
+<li>상태 기반 시스템</li>
+</ul>
+<p>이다.</p>
+<hr>
+<h3><strong>내부적으로는 이런 구조다</strong></h3>
+<pre class="source-code"><code class="language-plain-text">HEAD (이전 커밋 상태)
+↓
+index (staging area)
+↓
+working directory (현재 수정 상태)</code></pre>
+<p>git diff는 이 상태들을 비교한다.</p>
+<p>예:</p>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>명령어</strong></td>
+<td><strong>비교 대상</strong></td>
+</tr>
+<tr>
+<td>git diff</td>
+<td>working vs index</td>
+</tr>
+<tr>
+<td>git diff –cached</td>
+<td>index vs HEAD</td>
+</tr>
+<tr>
+<td>git diff HEAD</td>
+<td>working vs HEAD</td>
+</tr>
+</table></div>
+<hr>
+<h2><strong>6️⃣ 핵심 요약</strong></h2>
+<h4><strong>a/, b/는</strong></h4>
+<ul>
+<li>실제 폴더가 아님</li>
+<li>before / after 표시용</li>
+</ul>
+<h4><strong>는</strong></h4>
+<ul>
+<li>이전에 있었던 줄</li>
+</ul>
+<h4><strong>+ 는</strong></h4>
+<ul>
+<li>지금 생긴 줄</li>
+</ul>
+<h4><strong>rename은</strong></h4>
+<ul>
+<li>이름을 추적하는 게 아니라</li>
+<li>blob 유사도 계산으로 판단</li>
+</ul>
+<h4><strong>git은</strong></h4>
+<ul>
+<li>파일 수정 추적이 아니라</li>
+<li>스냅샷 상태 비교 시스템</li>
+</ul>
+<hr>
+<h2><strong>🧠 복습 체크 질문</strong></h2>
+<ol>
+<li>git이 rename을 감지하는 기준은?</li>
+<li>git에서 “수정”은 실제로 어떻게 표현되는가?</li>
+<li>git diff 와 git diff --cached 차이는?</li>
+<li>a/와 b/는 실제 디렉토리인가?</li>
+</ol>
+<hr>
+<h3>후속 학습 후보</h3>
+<p>🔹 “git 내부 구조를 그림으로 정리한 시각화 버전”</p>
+<p>🔹 “실무에서 push 전에 체크하는 안전 루틴 정리”</p>
+<p>🔹 “ipynb 파일을 깔끔하게 관리하는 전략”</p>
+<p>중에 하나 더 정리해줄까?</p>
+</section>
+<!-- notion-source:312c691e-5a2b-802a-879b-e1269b7f4bc9 checksum:373c9d9fd9a44ff1 chars:46 -->
+<section class="imported-source" id="source-312c691e5a2b802a879be1269b7f4bc9" data-source-id="312c691e-5a2b-802a-879b-e1269b7f4bc9"><div class="source-note-label">원문 보존 단위</div><h2>git diff 클립보드에 복사</h2>
+<pre class="source-code"><code class="language-python">git diff | pbcopy</code></pre>
+</section>
+<!-- notion-source:30ec691e-5a2b-8045-83b6-dbfe160804be checksum:0b1dcc3d91b03e9f chars:1127 -->
+<section class="imported-source" id="source-30ec691e5a2b804583b6dbfe160804be" data-source-id="30ec691e-5a2b-8045-83b6-dbfe160804be"><div class="source-note-label">원문 보존 단위</div><h2>Git Push 플로우</h2>
+<p><strong>1️⃣ 현재 브랜치 확인</strong></p>
+<pre class="source-code"><code class="language-plain-text">git branch</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-plain-text">git status</code></pre>
+<p>👉 내가 main에 있는지</p>
+<p>👉 feature/login 같은 작업 브랜치인지 확인</p>
+<p>❗ main에 바로 push하는 팀 거의 없음</p>
+<hr>
+<h3><strong>2️⃣ 원격과 차이 확인</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git fetch origin
+git status</code></pre>
+<p>출력 예:</p>
+<pre class="source-code"><code class="language-plain-text">Your branch is ahead of 'origin/feature/login' by 1 commit.</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-plain-text">Your branch is behind ...</code></pre>
+<p>👉 behind면 먼저 pull 해야 함</p>
+<hr>
+<h3><strong>3️⃣ pull (실무에서는 보통 rebase)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git pull --rebase</code></pre>
+<p>왜 rebase?</p>
+<ul>
+<li>merge commit 생기지 않게</li>
+<li>히스토리 깔끔 유지</li>
+</ul>
+<hr>
+<h3><strong>4️⃣ 충돌 해결 (있으면)</strong></h3>
+<ul>
+<li>IDE에서 해결</li>
+<li>git add .</li>
+<li>git rebase --continue</li>
+</ul>
+<hr>
+<h3><strong>5️⃣ 다시 상태 확인</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git status</code></pre>
+<p>깨끗하면:</p>
+<pre class="source-code"><code class="language-plain-text">nothing to commit, working tree clean</code></pre>
+<hr>
+<h3><strong>6️⃣ 이제 push</strong></h3>
+<pre class="source-code"><code class="language-plain-text">git push</code></pre>
+<p>히스토리 재작성했으면:</p>
+<pre class="source-code"><code class="language-plain-text">git push --force-with-lease</code></pre>
+<hr>
+<h2><strong>🎯 실무에서 제일 많이 쓰는 기본 루틴</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git add .
+git commit -m &quot;메시지&quot;
+
+git fetch
+git pull --rebase
+git push</code></pre>
+<p>이게 거의 표준.</p>
+<hr>
+<h2><strong>🔥 추가로 많이 하는 것</strong></h2>
+<h4><strong>push 전에 확인</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git log --oneline --graph</code></pre>
+<p>👉 커밋 구조 이상 없는지 확인</p>
+<hr>
+<h4><strong>변경 파일 확인</strong></h4>
+<pre class="source-code"><code class="language-plain-text">git diff HEAD~1</code></pre>
+<p>👉 내가 방금 커밋한 내용 다시 보기</p>
+<hr>
+</section>
+<!-- notion-source:30ec691e-5a2b-806c-8c7d-e086b403401a checksum:3d98cd212f3cd42a chars:1216 -->
+<section class="imported-source" id="source-30ec691e5a2b806c8c7de086b403401a" data-source-id="30ec691e-5a2b-806c-8c7d-e086b403401a"><div class="source-note-label">원문 보존 단위</div><h2>git rebase</h2>
+<hr>
+<h2><strong> 1️⃣ 시작 상태</strong></h2>
+<pre class="source-code"><code class="language-plain-text">9a15626 init
+13b7d2a #1.2 Jupyter
+637c29e Add initial Jupyter notebook setup...</code></pre>
+<ul>
+<li>origin/main = 13b7d2a</li>
+<li>로컬 main = 637c29e (ahead 1)</li>
+</ul>
+<p>즉,</p>
+<blockquote><p>로컬이 원격보다 1개 커밋 앞선 상태</p></blockquote>
+<hr>
+<h2><strong>2️⃣ 목표</strong></h2>
+<p>최근 2개 커밋을 하나로 합치기 (squash)</p>
+<hr>
+<h2><strong>3️⃣ 사용한 명령어</strong></h2>
+<pre class="source-code"><code class="language-plain-text">git rebase -i HEAD~2</code></pre>
+<p>의미:</p>
+<blockquote><p>최근 2개 커밋을 내가 직접 편집하면서 재작성하겠다</p></blockquote>
+<hr>
+<h2><strong>4️⃣ interactive 화면에서 한 일</strong></h2>
+<pre class="source-code"><code class="language-plain-text">pick 13b7d2a
+squash 637c29e</code></pre>
+<p>의미:</p>
+<blockquote><p>637c29e를 13b7d2a에 합쳐라</p></blockquote>
+<hr>
+<h2><strong>5️⃣ 내부에서 실제로 일어난 일</strong></h2>
+<p>Git은 이렇게 동작함:</p>
+<ol>
+<li>9a15626 위로 이동</li>
+<li>13b7d2a 복사 → 새 커밋 생성</li>
+<li>637c29e 내용 합침 → 새 커밋 생성</li>
+<li>새 해시 생성됨</li>
+</ol>
+<p>결과:</p>
+<pre class="source-code"><code class="language-plain-text">91e14a5 (새 커밋)
+9a15626 init</code></pre>
+<hr>
+<h2><strong>6️⃣ 왜 force push가 필요했는가?</strong></h2>
+<p>원격:</p>
+<pre class="source-code"><code class="language-plain-text">13b7d2a</code></pre>
+<p>로컬:</p>
+<pre class="source-code"><code class="language-plain-text">91e14a5</code></pre>
+<p>👉 해시가 달라짐</p>
+<p>👉 히스토리가 달라짐</p>
+<p>👉 일반 push는 거부됨</p>
+<p>👉 그래서:</p>
+<pre class="source-code"><code class="language-plain-text">git push --force-with-lease</code></pre>
+<hr>
+<h2><strong>7️⃣ 중요한 개념들 정리</strong></h2>
+<h4><strong>🔹 rebase</strong></h4>
+<p>히스토리를 다시 씀 (커밋을 새로 만듦)</p>
+<h4><strong>🔹 squash</strong></h4>
+<p>여러 커밋을 하나로 합침 (rebase 기반)</p>
+<h4><strong>🔹 HEAD~2</strong></h4>
+<p>현재 위치 기준 위로 2개</p>
+<h4><strong>🔹 ahead / behind</strong></h4>
+<p>원격과 커밋 차이 상태</p>
+<h4><strong>🔹 force-with-lease</strong></h4>
+<p>내가 본 상태일 때만 덮어쓰기</p>
+<hr>
+<h2><strong>8️⃣ 오늘 배운 핵심 교훈</strong></h2>
+<ul>
+<li>rebase 중에는 HEAD가 임시 상태가 됨</li>
+<li>커밋 메시지 비우면 실패함</li>
+<li>rebase는 커밋을 “이동”하는 게 아니라 “재생성”함</li>
+<li>히스토리 바꾸면 해시 바뀜</li>
+<li>해시 바뀌면 force push 필요</li>
+</ul>
+<hr>
+</section>
+<!-- notion-source:30fc691e-5a2b-80ee-bd5f-cd69260b2314 checksum:8d9acfda81e5206f chars:2684 -->
+<section class="imported-source" id="source-30fc691e5a2b80eebd5fcd69260b2314" data-source-id="30fc691e-5a2b-80ee-bd5f-cd69260b2314"><div class="source-note-label">원문 보존 단위</div><h2>Git Stash</h2>
+<h2>1️⃣ Git Stash란 무엇인가?</h2>
+<h3>🎯 정의</h3>
+<p><code>git stash</code>는:</p>
+<blockquote><p>현재 작업 중인 변경사항을</p></blockquote>
+<p>임시로 저장해두고</p>
+<p>working directory를 깨끗하게 만드는 기능</p>
+<hr>
+<h3>📌 언제 쓰는가?</h3>
+<ul>
+<li>작업 중인데 급하게 브랜치 변경해야 할 때</li>
+<li>pull 전에 작업 내용을 잠시 치워야 할 때</li>
+<li>실험 코드 잠깐 보관하고 싶을 때</li>
+</ul>
+<hr>
+<h2>2️⃣ 기본 개념 구조</h2>
+<p>Git에는 3가지 상태가 있다:</p>
+<ol>
+<li>Working Directory (내가 수정 중인 파일)</li>
+<li>Staging Area (git add 한 상태)</li>
+<li>Repository (commit된 상태)</li>
+</ol>
+<p><code>git stash</code>는:</p>
+<ul>
+<li>Working Directory 변경사항</li>
+<li>Staging Area 변경사항</li>
+</ul>
+<p>을 함께 저장한다.</p>
+<hr>
+<h2>3️⃣ Stash 저장하기</h2>
+<h3>📌 기본 저장</h3>
+<pre class="source-code"><code class="language-bash">git stash</code></pre>
+<p>→ 현재 변경사항을 저장</p>
+<p>→ working directory를 마지막 commit 상태로 되돌림</p>
+<hr>
+<h3>📌 메시지와 함께 저장</h3>
+<pre class="source-code"><code class="language-bash">git stash push -m &quot;로그인 기능 작업 중&quot;</code></pre>
+<hr>
+<h2>4️⃣ Stash 목록 확인</h2>
+<pre class="source-code"><code class="language-bash">git stash list</code></pre>
+<p>예시:</p>
+<pre class="source-code"><code class="language-plain-text">stash@{0}: WIP on main: 8f5b43c Merge remote-tracking branch 'origin/main'
+stash@{1}: On main: 로그인 기능 작업 중</code></pre>
+<h4>의미</h4>
+<ul>
+<li><code>stash@{0}</code> → 가장 최근 stash</li>
+<li>숫자가 작을수록 최신</li>
+<li>위에서 아래로 오래된 stash</li>
+</ul>
+<hr>
+<h2>5️⃣ Stash 내용 미리 보기</h2>
+<h3>📌 간단 요약</h3>
+<pre class="source-code"><code class="language-bash">git stash show</code></pre>
+<hr>
+<h3>📌 상세 diff 보기</h3>
+<pre class="source-code"><code class="language-bash">git stash show -p stash@{0}</code></pre>
+<hr>
+<h2>6️⃣ Stash 꺼내기 (적용하기)</h2>
+<h3>🔹 ① apply — 적용만</h3>
+<pre class="source-code"><code class="language-bash">git stash apply</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-bash">git stash apply stash@{0}</code></pre>
+<p>✔ working directory에 적용</p>
+<p>✔ stash 목록에는 그대로 남음</p>
+<hr>
+<h3>🔹 ② pop — 적용 + 삭제</h3>
+<pre class="source-code"><code class="language-bash">git stash pop</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-bash">git stash pop stash@{0}</code></pre>
+<p>✔ working directory에 적용</p>
+<p>✔ stash 목록에서 삭제됨</p>
+<hr>
+<h2>7️⃣ apply vs pop 차이</h2>
+<div class="table-scroll"><table>
+<tr>
+<td>명령어</td>
+<td>적용</td>
+<td>stash 삭제</td>
+</tr>
+<tr>
+<td>apply</td>
+<td>O</td>
+<td>X</td>
+</tr>
+<tr>
+<td>pop</td>
+<td>O</td>
+<td>O</td>
+</tr>
+</table></div>
+<p>실무에서는 보통 <code>pop</code>을 많이 사용한다.</p>
+<p>안전하게 하려면:</p>
+<pre class="source-code"><code class="language-bash">git stash apply
+# 문제 없으면
+git stash drop stash@{0}</code></pre>
+<hr>
+<h2>8️⃣ 충돌이 발생할 수 있다</h2>
+<p>stash는 단순 복사가 아니다.</p>
+<p>stash 저장 당시의 base 커밋 기준으로 만들어지기 때문에</p>
+<p>현재 브랜치 상태가 달라졌다면 충돌이 날 수 있다.</p>
+<p>충돌 해결 방법은 merge와 동일:</p>
+<ol>
+<li>파일 열기</li>
+<li>충돌 마커 정리</li>
+<li><code>git add</code></li>
+<li>필요 시 commit</li>
+</ol>
+<hr>
+<h2>9️⃣ 특정 stash 삭제</h2>
+<pre class="source-code"><code class="language-bash">git stash drop stash@{0}</code></pre>
+<hr>
+<h2>🔟 stash 전체 삭제</h2>
+<pre class="source-code"><code class="language-bash">git stash clear</code></pre>
+<p>⚠ 복구 불가</p>
+<hr>
+<h2>1️⃣1️⃣ Stash 내부 구조 (중요 개념)</h2>
+<p>stash는 단순 메모가 아니다.</p>
+<p>실제로는:</p>
+<ul>
+<li>commit 객체 2개 (또는 3개)</li>
+<li>WIP 커밋 형태로 저장</li>
+</ul>
+<p>구조:</p>
+<pre class="source-code"><code class="language-plain-text">stash commit
+ ├─ working tree 상태
+ └─ index 상태</code></pre>
+<p>그래서 브랜치가 바뀌면 충돌이 날 수 있다.</p>
+<hr>
+<h2>1️⃣2️⃣ 다른 브랜치에 stash 적용</h2>
+<p>가능하다:</p>
+<pre class="source-code"><code class="language-bash">git checkout feature
+git stash pop</code></pre>
+<p>→ 다른 브랜치에 작업 내용 옮길 수 있음</p>
+<hr>
+<h2>1️⃣3️⃣ Stash를 브랜치로 만들기</h2>
+<pre class="source-code"><code class="language-bash">git stash branch new-branch stash@{0}</code></pre>
+<p>→ 새 브랜치 생성</p>
+<p>→ stash 적용</p>
+<p>→ stash 삭제</p>
+<hr>
+<h2>1️⃣4️⃣ 자주 헷갈리는 질문</h2>
+<h4>Q. stash는 commit인가?</h4>
+<p>네. 내부적으로 commit 객체다.</p>
+<hr>
+<h4>Q. stash는 원격에 push 되나?</h4>
+<p>아니요.</p>
+<p>stash는 로컬 전용이다.</p>
+<hr>
+<h4>Q. add 안 한 파일도 stash 되나?</h4>
+<p>기본적으로는 tracked 파일만.</p>
+<p>untracked까지 포함하려면:</p>
+<pre class="source-code"><code class="language-bash">git stash -u</code></pre>
+<hr>
+<h4>Q. ignored 파일도 포함하려면?</h4>
+<pre class="source-code"><code class="language-bash">git stash -a</code></pre>
+<hr>
+<h2>1️⃣5️⃣ 핵심 요약</h2>
+<ul>
+<li>stash는 작업 임시 보관함</li>
+<li>list로 확인</li>
+<li>show -p로 내용 확인</li>
+<li>apply는 적용만</li>
+<li>pop은 적용 + 삭제</li>
+<li>drop은 삭제</li>
+<li>clear는 전체 삭제</li>
+<li>stash는 commit 객체다</li>
+<li>stash 적용 시 충돌 날 수 있다</li>
+</ul>
+<hr>
+</section>
+<!-- notion-source:30ec691e-5a2b-8030-a2c5-d9df4e2504f5 checksum:6ff9139526264373 chars:1571 -->
+<section class="imported-source" id="source-30ec691e5a2b8030a2c5d9df4e2504f5" data-source-id="30ec691e-5a2b-8030-a2c5-d9df4e2504f5"><div class="source-note-label">원문 보존 단위</div><h2>Git의 3단계 구조 완전 이해</h2>
+<h3><strong>1. Git은 파일 저장 시스템이 아니다</strong></h3>
+<p>Git은 “파일을 저장”하는 시스템이 아니라</p>
+<blockquote><p>📸</p></blockquote>
+<p><strong>프로젝트의 스냅샷을 저장하는 시스템</strong></p>
+<p>이다.</p>
+<p>커밋은 “변경사항 저장”이 아니라</p>
+<p>“현재 상태 전체를 스냅샷으로 기록”하는 행위다.</p>
+<hr>
+<h2><strong>2. Git의 3단계 구조</strong></h2>
+<p>Git은 항상 3단계를 거친다.</p>
+<pre class="source-code"><code class="language-plain-text">1️⃣ Working Directory
+2️⃣ Staging Area (Index)
+3️⃣ Commit</code></pre>
+<hr>
+<h3><strong>1️⃣ Working Directory (작업 공간)</strong></h3>
+<ul>
+<li>내가 실제로 파일을 수정하는 공간</li>
+<li>아직 Git이 커밋에 포함할지 결정하지 않은 상태</li>
+</ul>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">A.txt 수정
+B.txt 수정</code></pre>
+<p>이 시점에서는 단순히 파일이 바뀐 것뿐이다.</p>
+<hr>
+<h3><strong>2️⃣ Staging Area (Index)</strong></h3>
+<blockquote><p>“다음 커밋에 포함할 파일을 선택하는 단계”</p></blockquote>
+<p>명령어:</p>
+<pre class="source-code"><code class="language-plain-text">git add 파일명</code></pre>
+<p>이 의미는:</p>
+<blockquote><p>“이 파일의 현재 상태를 다음 커밋에 포함시키겠다”</p></blockquote>
+<p>아직 커밋은 아니다.</p>
+<p>단지 “커밋 후보”로 올려놓은 상태다.</p>
+<hr>
+<h4><strong>예시 흐름</strong></h4>
+<p>현재 상태:</p>
+<pre class="source-code"><code class="language-plain-text">Working Directory: A 수정, B 수정
+Staging Area: 없음</code></pre>
+<p>이제:</p>
+<pre class="source-code"><code class="language-plain-text">git add A.txt</code></pre>
+<p>상태:</p>
+<pre class="source-code"><code class="language-plain-text">Working Directory: A 수정, B 수정
+Staging Area: A만 있음</code></pre>
+<hr>
+<h3><strong>3️⃣ Commit</strong></h3>
+<p>명령어:</p>
+<pre class="source-code"><code class="language-plain-text">git commit -m &quot;A 수정&quot;</code></pre>
+<p>이때 발생하는 일:</p>
+<ul>
+<li>Staging Area에 있는 파일들만</li>
+<li>하나의 스냅샷으로 저장됨</li>
+</ul>
+<p>결과:</p>
+<ul>
+<li>A는 커밋됨</li>
+<li>B는 여전히 수정 상태로 남아있음</li>
+</ul>
+<hr>
+<h2><strong>3. 왜 Staging 단계가 필요한가?</strong></h2>
+<p>Git은 이렇게 생각한다:</p>
+<blockquote><p>“이번 커밋에 어떤 변경을 포함할지 명확히 선택하라”</p></blockquote>
+<p>이 덕분에 가능한 것:</p>
+<ul>
+<li>여러 파일 중 일부만 커밋</li>
+<li>한 파일 안에서도 일부 코드만 커밋</li>
+<li>의미 있는 단위로 커밋 분리</li>
+</ul>
+<hr>
+<h2><strong>4. GUI에서 헷갈리는 이유</strong></h2>
+<p>GUI에서는 보통:</p>
+<ul>
+<li>체크박스 선택 = git add</li>
+<li>Commit 버튼 = git commit</li>
+</ul>
+<p>즉,</p>
+<blockquote><p>add + commit을 버튼으로 감싸서 보여주기 때문에</p></blockquote>
+<blockquote><p>staging 개념이 흐려진다.</p></blockquote>
+<hr>
+<h2><strong>5. 핵심 개념 정리</strong></h2>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>단계</strong></td>
+<td><strong>의미</strong></td>
+</tr>
+<tr>
+<td>Working Directory</td>
+<td>내가 수정한 상태</td>
+</tr>
+<tr>
+<td>Staging Area</td>
+<td>다음 커밋에 포함할 파일 선택</td>
+</tr>
+<tr>
+<td>Commit</td>
+<td>선택된 파일들을 스냅샷으로 저장</td>
+</tr>
+</table></div>
+<hr>
+<h2><strong>6. 가장 중요한 한 문장</strong></h2>
+<blockquote><p>Git은 파일을 저장하는 것이 아니라</p></blockquote>
+<blockquote><p>“선택된 파일들의 스냅샷을 기록하는 시스템”이다.</p></blockquote>
+<hr>
+</section></article>
+<aside class="verification-notes" aria-labelledby="verification-title"><h2 id="verification-title">편입 후 검증 메모</h2><ul><li><strong><code>git diff</code>:</strong> 인자 없는 diff는 worktree와 index, <code>--cached</code>는 index와 HEAD를 비교한다. 무엇을 비교하는지 먼저 적고 실행한다.</li><li><strong>히스토리 재작성:</strong> amend·rebase·reset 뒤 새 commit ID가 생기면 이미 공유된 원격 이력과 갈라진다. 개인 브랜치인지 확인하고 협업자와 조율한다.</li><li><strong>강제 푸시:</strong> 원문 명령을 보존했지만 일반 <code>--force</code>보다 원격이 예상 상태일 때만 덮어쓰는 <code>--force-with-lease</code>가 안전하다. 그래도 공유 브랜치에서는 별도 합의가 필요하다.</li><li><strong>복구:</strong> 실수 직후에는 추가 조작을 멈추고 <code>git reflog</code>로 이전 HEAD를 찾는다. 작업 트리 변경이 남아 있다면 먼저 별도 패치·stash·백업으로 보존한다.</li></ul></aside>
+<div class="project-reference-links"><strong>같이 보기</strong><a href="computer_execution_memory_kernel.html">컴퓨터 실행·메모리</a><a href="os_process_scheduling_synchronization.html">OS 스케줄링·동기화</a><a href="network_link_ip_routing.html">링크·IP·라우팅</a><a href="network_tcp_http_tls.html">TCP·HTTP·TLS</a><a href="linux_architecture_namespaces_search.html">Linux</a><a href="git_worktree_index_history.html">Git</a></div><footer class="footer">Notion 공개 학습 노트 편입 · 원문 단위 추적</footer></main><script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script></body></html>

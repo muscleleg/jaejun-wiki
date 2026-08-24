@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python 동시성·비동기 런타임 · 재준 위키</title>
+  <meta name="description" content="GIL, 스레드와 프로세스, asyncio 코루틴, ContextVar, ProcessPool을 원문 코드와 질문까지 보존한 Python 런타임 학습 문서">
+  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/notion-import.css?v=20260823-qa4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Python 동시성·비동기 런타임 · 재준 위키">
+  <meta property="og:description" content="GIL, 스레드와 프로세스, asyncio 코루틴, ContextVar, ProcessPool을 원문 코드와 질문까지 보존한 Python 런타임 학습 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html","name":"Python 동시성·비동기 런타임 · 재준 위키","description":"GIL, 스레드와 프로세스, asyncio 코루틴, ContextVar, ProcessPool을 원문 코드와 질문까지 보존한 Python 런타임 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html"},"headline":"Python 동시성·비동기 런타임 · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#python-concurrency","name":"동시성·비동기","identifier":"python-concurrency"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Python 언어·객체","item":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_language_objects_resources.html"},{"@type":"ListItem","position":4,"name":"동시성·비동기 런타임"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="notion-import-page">
+  <main class="page-shell">
+    <nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span>›</span><a href="../../wiki.html">기술 위키</a><span>›</span><a href="python_language_objects_resources.html">Python 언어·객체</a><span>›</span><span>동시성·비동기 런타임</span></nav>
+    <header class="hero">
+      <p class="eyebrow">Python · Concurrency &amp; Async</p>
+      <h1>Python 동시성·비동기 런타임</h1>
+      <p class="summary">GIL에서 출발해 스레드·프로세스·이벤트 루프·코루틴·ContextVar·ProcessPool과 웹 서버 워커까지 기존 비교와 코드를 한 흐름으로 보존한다.</p>
+      <div class="callout"><strong>편입 원칙</strong><br>원문의 질문·코드·비교·중간 설명을 삭제하지 않았다. 날짜와 Notion 내부 링크는 공개하지 않으며, 주소·API 키·토큰의 예시 값만 공개용 표기로 일반화했다.</div>
+    </header>
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">현재 이해도</h2>
+      <p>노트를 옮긴 사실과 지금 자료 없이 설명·재구현할 수 있는지는 다르다. 이 문서는 아직 재검증하지 않았으므로 0%에서 시작한다.</p>
+      <div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div>
+      <div class="meter-label"><span>검증 완료 0 / 4</span><strong>0%</strong></div>
+      <ul><li class="todo">○ I/O-bound와 CPU-bound 작업에 맞는 실행 모델을 고른다.</li><li class="todo">○ await 시 제어권 이동과 async 호출 규약을 설명한다.</li><li class="todo">○ ContextVar의 Task별 격리와 reset을 재현한다.</li><li class="todo">○ ProcessPool·웹 워커의 프로세스 수와 메모리 경계를 계산한다.</li></ul>
+    </section>
+    <nav class="source-nav" aria-label="원문 단위 목차"><a href="#source-2eec691e5a2b80c79fa8c80266f15151">멀티 프로세싱</a><a href="#source-2eec691e5a2b807eb164d9f78a729877">비동기의 전염성과 &quot;레거시 동기 코드의 수용</a><a href="#source-2eec691e5a2b80a3830fd033e4cd6b5a">스레드풀, 이벤트풀, 프로세스풀</a><a href="#source-2eec691e5a2b80babc3fce444a0a1e21">코루틴</a><a href="#source-2efc691e5a2b807ab903fe98187d676c">코루틴 데이터 공유방법</a><a href="#source-305c691e5a2b80cb9b74eff7b803bcec">파이썬 GIL (Global Interpreter Lock)</a><a href="#source-303c691e5a2b80a8ad5ffc5aaac7ec02">asyncio.create_task()</a><a href="#source-2eec691e5a2b807687f4da08e61b2d53">GIL</a><a href="#source-2eec691e5a2b8040b530e2a7c4a4f2ec">java의 CompletableFuture를 대체할 수 있는 방법</a><a href="#source-311c691e5a2b80ae890ad48eddb2830b">프로세스, 스레드, GIL, 그리고 ThreadPool / ProcessPool의 진짜 차이</a><a href="#source-311c691e5a2b80bd9398dda6e39ef797">Async 전파</a><a href="#source-311c691e5a2b80aa88a8fcad4e51a5a0">ProcessPool의 실제 구조, 제약, 생성 방식, 그리고 uvicorn workers까지 전체 정리</a></nav>
+    <article class="content notion-import-content">
+<!-- notion-source:2eec691e-5a2b-80c7-9fa8-c80266f15151 checksum:6be45c3b31babe4a chars:2755 -->
+<section class="imported-source" id="source-2eec691e5a2b80c79fa8c80266f15151" data-source-id="2eec691e-5a2b-80c7-9fa8-c80266f15151">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>멀티 프로세싱</h2>
+<hr>
+<h2>🏎️ 파이썬 멀티 프로세싱 (Multiprocessing) 총정리</h2>
+<h4>1. 왜 멀티 프로세싱인가? (GIL의 벽)</h4>
+<ul>
+<li><strong>Java</strong>: 1개 프로세스 내 멀티 스레드가 여러 코어를 동시에 점유하여 계산 가능.</li>
+<li><strong>Python</strong>: <strong>GIL(Global Interpreter Lock)</strong> 때문에 한 프로세스 내에서는 스레드가 아무리 많아도 <strong>한 번에 딱 하나의 코어</strong>에서만 파이썬 바이트코드를 실행할 수 있음.</li>
+<li><strong>해결책</strong>: 4코어를 다 쓰려면 파이썬 인터프리터 자체를 4개 띄워야 함. 이것이 <strong>멀티 프로세싱</strong>임.</li>
+</ul>
+<hr>
+<h4>2. 핵심 컴포넌트: <code>ProcessPoolExecutor</code></h4>
+<p>비동기 루프(<code>asyncio</code>)와 멀티 코어(<code>Process</code>)를 연결하는 다리 역할을 합니다.</p>
+<ul>
+<li><strong>역할</strong>: 자바의 <code>FixedThreadPool</code>과 유사하지만, 스레드가 아닌 <strong>독립된 OS 프로세스</strong>를 미리 생성해두고 관리함.</li>
+<li><strong>작동 방식</strong>: 무거운 연산을 프로세스 풀로 던지면(하청), 각 프로세스가 각자의 코어에서 독립적으로 연산 후 결과를 돌려줌.</li>
+</ul>
+<hr>
+<h4>3. 실전 코드 패턴 (자바 스타일 비유)</h4>
+<pre class="source-code"><code class="language-python">import asyncio
+from concurrent.futures import ProcessPoolExecutor
+
+# [계산 작업] - static 메서드처럼 독립적이어야 함
+def cpu_bound_task(data):
+    # 실제 멀티코어에서 돌아갈 무거운 연산 로직
+    return sum(i * i for i in range(data))
+
+async def main():
+    # 1. 프로세스 풀 생성 (try-with-resources와 동일)
+    # max_workers를 지정하지 않으면 논리 코어 개수만큼 프로세스 생성
+    with ProcessPoolExecutor() as executor:
+        loop = asyncio.get_running_loop()
+
+        # 2. 작업 지시서 리스트 작성 (List Comprehension)
+        # loop.run_in_executor가 Future 객체를 즉시 반환함
+        tasks = [
+            loop.run_in_executor(executor, cpu_bound_task, 10**7)
+            for _ in range(4) # 4개 코어에 4개 작업 할당
+        ]
+
+        # 3. 모든 프로세스의 결과 취합 (CompletableFuture.allOf().join()과 유사)
+        # *tasks는 배열을 가변 인자로 펼쳐주는 '언패킹' 문법
+        results = await asyncio.gather(*tasks)
+        print(f&quot;작업 완료: {results}&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    # [중요] 윈도우/맥에서 자식 프로세스가 무한 생성되는 것을 방지하는 안전장치
+    asyncio.run(main())</code></pre>
+<hr>
+<h4>4. 자바 멀티 스레딩 vs 파이썬 멀티 프로세싱</h4>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>특징</strong></td>
+<td><strong>Java (Multi-Threading)</strong></td>
+<td><strong>Python (Multi-Processing)</strong></td>
+</tr>
+<tr>
+<td><strong>메모리 공유</strong></td>
+<td>모든 스레드가 <strong>Heap 공유</strong></td>
+<td>각 프로세스는 <strong>독립 메모리</strong> (공유 불가)</td>
+</tr>
+<tr>
+<td><strong>데이터 전달</strong></td>
+<td>참조값 전달 (빠름)</td>
+<td><strong>직렬화(Pickle)</strong> 후 전달 (오버헤드 발생)</td>
+</tr>
+<tr>
+<td><strong>병렬성 단위</strong></td>
+<td>OS 스레드</td>
+<td>OS 프로세스 (Fork/Spawn)</td>
+</tr>
+<tr>
+<td><strong>통신 방식</strong></td>
+<td>공유 변수, Lock</td>
+<td>IPC (Queue, Pipe 등)</td>
+</tr>
+</table></div>
+<hr>
+<h4>5. 노션용 체크리스트 (언제 쓸까?)</h4>
+<ol>
+<li><strong>계산 중심(CPU Bound)</strong>: 이미지 처리, 대량 연산, 머신러닝 모델 추론 등 → <strong>멀티 프로세싱</strong></li>
+<li><strong>I/O 중심(I/O Bound)</strong>: API 호출, DB 쿼리, 파일 읽기/쓰기 → <strong>asyncio (싱글 스레드)</strong></li>
+<li><strong>레거시 I/O</strong>: 비동기를 지원하지 않는 <code>requests</code> 사용 시 → <strong>ThreadPoolExecutor</strong></li>
+</ol>
+<hr>
+<h4>⚠️ 주의사항 (Interview Point)</h4>
+<ul>
+<li><strong>Pickle(직렬화)</strong>: 프로세스 간에 데이터를 주고받을 때 파이썬 객체를 바이트로 변환해야 하므로, <strong>너무 거대한 리스트나 객체</strong>를 인자로 넘기면 통신 비용 때문에 성능이 떨어질 수 있습니다.</li>
+<li><strong>Shared Nothing</strong>: 한 프로세스에서 전역 변수를 수정해도 다른 프로세스에는 반영되지 않습니다.</li>
+</ul>
+<hr>
+<p><strong>축하합니다!</strong> 이제 파이썬의 <strong>동시성(Concurrency, asyncio)</strong>과 <strong>병렬성(Parallelism, Multiprocessing)</strong>의 지도를 완전히 그리셨습니다.</p>
+<p>이 멀티 프로세싱 작업 결과를 <strong>데이터베이스에 저장하거나 웹 서버(FastAPI)로 보내는 과정</strong>에서 데이터 타입을 엄격하게 맞추는 <strong>Pydantic</strong>을 배워보시는 건 어떨까요? 아니면 이 병렬 로직에서 궁금한 점이 더 있으신가요?</p>
+</section>
+<!-- notion-source:2eec691e-5a2b-807e-b164-d9f78a729877 checksum:7d515f0a71c83bc4 chars:1950 -->
+<section class="imported-source" id="source-2eec691e5a2b807eb164d9f78a729877" data-source-id="2eec691e-5a2b-807e-b164-d9f78a729877">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>비동기의 전염성과 &quot;레거시 동기 코드의 수용</h2>
+<hr>
+<h2>🐍 Python 비동기 실전 가이드 (for Java Developers)</h2>
+<h3>1. 비동기의 전염성 (The Async Contagion)</h3>
+<p>파이썬의 비동기는 <strong>이벤트 루프(Event Loop)</strong>라는 단일 엔진 위에서 돌아가는 연극과 같습니다.</p>
+<ul>
+<li><strong>원칙:</strong> 최하단(I/O 호출)이 <code>async</code>라면, 최상단(Controller)까지 모두 <code>async</code>여야 합니다.</li>
+<li><strong>이유:</strong> <code>def</code> 컨트롤러는 이벤트 루프가 없는 별도의 워커 스레드에서 실행됩니다. 여기서 <code>async</code> 함수를 쓰려면 <strong>일회용 루프(<code>asyncio.run</code>)</strong>를 계속 만들어야 하며, 이는 요청이 1,000개면 루프도 1,000개 생기는 재앙을 초래합니다.</li>
+<li><strong>자바와의 차이:</strong> 자바는 어느 스레드에서든 <code>Future.get()</code>이 가능하지만, 파이썬은 <strong>메인 이벤트 루프라는 하나의 흐름</strong>을 타야만 자원(DB 커넥션 등) 공유와 고성능 발휘가 가능합니다.</li>
+</ul>
+<hr>
+<h3>2. 레거시 동기 코드(<code>requests</code>) 처리법</h3>
+<p>비동기 전용 라이브러리(<code>aiohttp</code>)가 없다면, 동기 라이브러리를 <strong>비동기 흐름을 방해하지 않게</strong> 감싸야 합니다.</p>
+<h4>✅ 패턴: <code>run_in_executor</code>를 활용한 외주 주기</h4>
+<p>이벤트 루프(메인 스레드)가 직접 일을 하지 않고, 별도의 스레드 풀에 일을 던지는 방식입니다.</p>
+<pre class="source-code"><code class="language-javascript">import asyncio
+import requests
+from concurrent.futures import ThreadPoolExecutor
+
+# 1. 자바의 커스텀 ExecutorService처럼 별도의 스레드 풀 생성
+executor = ThreadPoolExecutor(max_workers=100)
+
+def legacy_blocking_call(url):
+    # 이 안에서는 requests 같은 동기 라이브러리를 마음껏 써도 됨
+    return requests.get(url).status_code
+
+async def service_layer():
+    loop = asyncio.get_running_loop()
+    urls = [&quot;https://google.com&quot;] * 100
+
+    # 2. 동기 함수를 스레드 풀에 '외주' 주고 Future 객체 리스트 생성
+    # CompletableFuture.supplyAsync(..., executor)와 동일
+    tasks = [
+        loop.run_in_executor(executor, legacy_blocking_call, url)
+        for url in urls
+    ]
+
+    # 3. 100개의 결과를 비동기적으로 취합 (루프는 얼지 않음)
+    results = await asyncio.gather(*tasks)
+    return results</code></pre>
+<hr>
+<h3>3. 요약 및 주의사항 (Checklist)</h3>
+<h4>🚨 대참사 케이스 (Anti-Patterns)</h4>
+<ol>
+<li><strong><code>async def</code></strong><strong> 안에서 </strong><strong><code>requests.get()</code></strong><strong> 호출</strong>:</li>
+</ol>
+<ul>
+<li>이벤트 루프 자체가 멈춰버립니다. 서버가 한 번에 한 명만 처리하는 구식 서버로 변합니다.</li>
+</ul>
+<ol>
+<li><strong><code>def</code></strong><strong> 컨트롤러 안에서 </strong><strong><code>asyncio.run()</code></strong><strong> 호출</strong>:</li>
+</ol>
+<ul>
+<li>요청마다 일회용 루프가 생성되어 메모리와 CPU가 폭발합니다. 커넥션 풀링도 불가능해집니다.</li>
+</ul>
+<h4>✨ 정석 케이스 (Best Practice)</h4>
+<ol>
+<li><strong>전 구간 비동기</strong>: <code>async def</code> 컨트롤러 -&gt; <code>async def</code> 서비스 -&gt; <code>await aiohttp.get()</code>.</li>
+<li><strong>동기 외주</strong>: <code>async def</code> 컨트롤러 -&gt; <code>async def</code> 서비스 -&gt; <strong><code>loop.run_in_executor</code></strong> -&gt; <code>requests.get()</code>.</li>
+</ol>
+<hr>
+<hr>
+</section>
+<!-- notion-source:2eec691e-5a2b-80a3-830f-d033e4cd6b5a checksum:50dfdedf64bd5f43 chars:3240 -->
+<section class="imported-source" id="source-2eec691e5a2b80a3830fd033e4cd6b5a" data-source-id="2eec691e-5a2b-80a3-830f-d033e4cd6b5a">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>스레드풀, 이벤트풀, 프로세스풀</h2>
+<hr>
+<h2>📂 [최종] 파이썬 동시성/병렬성 일꾼 관리 (Pool &amp; Loop)</h2>
+<p>파이썬은 <strong>GIL(Global Interpreter Lock)</strong>이라는 독특한 제약 때문에, 작업의 종류(I/O인가 계산인가)에 따라 사용하는 '일꾼 수용소(Pool)'를 명확히 구분해야 합니다.</p>
+<hr>
+<h4>1. 파이썬의 3대 핵심 일꾼 (Comparison Table)</h4>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>분류</strong></td>
+<td><strong>이름</strong></td>
+<td><strong>자바 대응 개념</strong></td>
+<td><strong>핵심 용도</strong></td>
+<td><strong>작동 원리</strong></td>
+</tr>
+<tr>
+<td><strong>기본 엔진</strong></td>
+<td><strong>이벤트 루프</strong></td>
+<td><strong>Single Thread Executor</strong></td>
+<td>비동기 I/O (API, DB)</td>
+<td><strong>혼자서</strong> 수만 개의 예약된 일을 관리함</td>
+</tr>
+<tr>
+<td><strong>I/O 하청</strong></td>
+<td><strong>스레드 풀</strong></td>
+<td><strong>Fixed Thread Pool</strong></td>
+<td>레거시 동기 I/O (<code>requests</code>)</td>
+<td><strong>스레드</strong>를 생성해 대기 시간을 나눠 가짐</td>
+</tr>
+<tr>
+<td><strong>계산 하청</strong></td>
+<td><strong>프로세스 풀</strong></td>
+<td><strong>Fork/Join Pool</strong> (Parallel)</td>
+<td>무거운 계산 (CPU 연산)</td>
+<td><strong>프로세스</strong>를 생성해 멀티코어 진짜 병렬 연산</td>
+</tr>
+</table></div>
+<hr>
+<h4>2. &quot;동기 작업을 비동기 루프에서 돌리는 원리&quot; (하청과 알림)</h4>
+<p>비동기를 지원하지 않는 레거시 라이브러리(requests 등)를 쓸 때 사용하는 <code>loop.run_in_executor</code>의 내부 동작 방식입니다.</p>
+<ul>
+<li><strong>외주 전달 (Offloading):</strong> 이벤트 루프(메인 사장님)는 자신이 직접 일을 하면 전 직원이 멈춰버리므로, 작업을 <strong>스레드 풀(외부 업체)</strong>에게 던집니다.</li>
+<li><strong>영수증 발급 (Future/Promise):</strong> 던지자마자 루프는 <code>Future</code> 객체(Java의 <code>CompletableFuture</code>와 유사)를 즉시 반환하고 다음 코드로 넘어갑니다. (Non-blocking)</li>
+<li><strong>작업 수행:</strong> 스레드 풀의 개별 스레드가 실제 I/O 작업(네트워크 응답 대기 등)을 수행합니다.</li>
+<li><strong>완료 통지 (Notification):</strong> 작업이 끝나면 스레드 풀은 이벤트 루프에게 <strong>&quot;작업 완료! 결과 여기 있어!&quot;</strong>라고 신호를 보냅니다.</li>
+<li><strong>코루틴 재개 (Resume):</strong> 신호를 받은 이벤트 루프는 해당 영수증을 들고 <code>await</code> 하던 지점으로 돌아가 코드를 이어갑니다.</li>
+</ul>
+<blockquote><p>💡 요약: 이벤트 루프는 관리만 하고, 기다리는 일은 스레드 풀이 대신 한 뒤 나중에 루프에게 알려주는 구조입니다.</p></blockquote>
+<hr>
+<h4>3. 결정 트리: 어떤 풀을 쓸 것인가?</h4>
+<ol>
+<li><strong><code>async/await</code></strong><strong>를 지원하는 비동기 작업인가?</strong></li>
+</ol>
+<ul>
+<li><strong>YES</strong>: <strong>이벤트 루프</strong>만 사용 (<code>asyncio</code>)</li>
+</ul>
+<ol>
+<li><strong>기다려야 하는 일(I/O)인데 동기 방식(레거시)인가?</strong></li>
+</ol>
+<ul>
+<li><strong>YES</strong>: <strong>스레드 풀</strong>에 하청 (<code>ThreadPoolExecutor</code>)</li>
+</ul>
+<ol>
+<li><strong>기다리는 게 아니라 계산(CPU)이 많은 일인가?</strong></li>
+</ol>
+<ul>
+<li><strong>YES</strong>: <strong>프로세스 풀</strong>에 하청 (<code>ProcessPoolExecutor</code>) → <strong>GIL을 우회하여 멀티코어 100% 활용</strong></li>
+</ul>
+<hr>
+<h4>4. 실전 코드 패턴 (복습용)</h4>
+<h4>🅰️ [패턴 1] 레거시 I/O 래핑 (ThreadPool)</h4>
+<p><code>requests</code>처럼 <code>await</code>가 안 되는 함수가 <strong>루프를 멈추지 않게</strong> 하기 위해 사용합니다.</p>
+<pre class="source-code"><code class="language-python">import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import requests
+
+# 1. 스레드 풀 생성 (보조 일꾼)
+io_executor = ThreadPoolExecutor(max_workers=10)
+
+async def service_layer_io():
+    loop = asyncio.get_running_loop()
+
+    # loop.run_in_executor를 통해 외주를 주고 결과를 비동기로 기다림
+    # 루프는 이 동안 다른 웹 요청을 처리할 수 있음
+    result = await loop.run_in_executor(io_executor, requests.get, &quot;https://api.com&quot;)
+
+    return result.status_code</code></pre>
+<h4>🅱️ [패턴 2] 무거운 연산 병렬화 (ProcessPool)</h4>
+<p>파이썬의 <strong>GIL을 뚫고</strong> 여러 코어에서 동시에 연산을 돌리기 위해 사용합니다.</p>
+<pre class="source-code"><code class="language-python">import asyncio
+from concurrent.futures import ProcessPoolExecutor
+
+# 1. 프로세스 풀 생성 (별도 주방 - 멀티코어 활용)
+cpu_executor = ProcessPoolExecutor(max_workers=4)
+
+def heavy_calculation(n):
+    &quot;&quot;&quot;실제 CPU 코어를 100% 점유하는 무거운 연산 (동기 함수)&quot;&quot;&quot;
+    return sum(i * i for i in range(n))
+
+async def service_layer_cpu():
+    loop = asyncio.get_running_loop()
+
+    # 프로세스 풀로 던지면 각 코어가 독립적으로 연산을 수행함
+    # 결과값은 직렬화(Pickle)되어 루프로 전달됨
+    result = await loop.run_in_executor(cpu_executor, heavy_calculation, 10**8)
+
+    return result</code></pre>
+<hr>
+<h4>5. 자바 개발자를 위한 최종 팁 (Final Insight)</h4>
+<ul>
+<li><strong>Java</strong>: <code>ExecutorService</code>가 모든 병렬/동시성 처리를 다 하지만, <strong>Python은 분업 시스템</strong>입니다.</li>
+<li><strong>핵심</strong>: 메인 사장님(<strong>이벤트 루프</strong>)이 직접 무거운 일을 하거나 대기하게 만들면 안 됩니다. (Blocking 방지)</li>
+<li><strong>주의</strong>: 프로세스 풀은 메모리를 공유하지 않으므로, 인자로 너무 큰 데이터를 넘기면 <strong>직렬화(Pickle) 비용</strong> 때문에 성능이 떨어질 수 있습니다.</li>
+</ul>
+<hr>
+</section>
+<!-- notion-source:2eec691e-5a2b-80ba-bc3f-ce444a0a1e21 checksum:22910a7fea92f530 chars:1652 -->
+<section class="imported-source" id="source-2eec691e5a2b80babc3fce444a0a1e21" data-source-id="2eec691e-5a2b-80ba-bc3f-ce444a0a1e21">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>코루틴</h2>
+<h2>🌀 파이썬 코루틴 (Coroutine) 핵심 정리</h2>
+<h4>1. 코루틴이란?</h4>
+<p>일반적인 함수(Subroutine)는 호출되면 끝날 때까지 실행되지만, 코루틴은 <strong>실행 도중 멈췄다가(Suspend) 나중에 중단된 지점부터 다시 시작(Resume)</strong>할 수 있는 특별한 형태의 함수입니다.</p>
+<ul>
+<li><strong>키워드:</strong> <code>async def</code> (정의), <code>await</code> (중단 및 제어권 양보)</li>
+<li><strong>철학:</strong> &quot;내가 I/O 작업을 하느라 기다려야 할 때, 가만히 서서 스레드를 점유하지 않고 인터프리터에게 제어권을 돌려줄게. 딴 일 하다가 결과 나오면 날 다시 불러줘.&quot;</li>
+</ul>
+<hr>
+<h4>2. 코루틴의 동작 원리</h4>
+<p>코루틴은 <strong>이벤트 루프(Event Loop)</strong>라는 관리자 위에서 돌아갑니다.</p>
+<ol>
+<li><strong>호출:</strong> <code>async def</code> 함수를 호출하면 즉시 실행되지 않고 <strong>코루틴 객체</strong>가 생성됩니다.</li>
+<li><strong>등록:</strong> 이 객체를 이벤트 루프에 등록(Task 생성)합니다.</li>
+<li><strong>실행 및 중단:</strong> 실행 중 <code>await</code>를 만나면 코루틴은 현재 상태(로컬 변수 등)를 보존하고 루프에 제어권을 넘깁니다.</li>
+<li><strong>재개:</strong> 기다리던 작업(네트워크 응답 등)이 완료되면, 루프는 저장된 상태를 복구하여 중단된 지점 바로 다음부터 실행을 이어갑니다.</li>
+</ol>
+<hr>
+<h4>3. 왜 사용하는가? (장점)</h4>
+<ul>
+<li><strong>극강의 가성비:</strong> 스레드는 생성 시 약 1MB의 메모리를 사용하지만, 코루틴은 단순 객체라 수 KB면 충분합니다. (수만 개를 동시에 띄워도 메모리가 버팁니다.)</li>
+<li><strong>비동기의 동기화:</strong> 콜백 방식(<code>callback hell</code>) 대신, 일반적인 순차 코드처럼 작성할 수 있어 가독성이 압도적입니다.</li>
+<li><strong>컨텍스트 스위칭 비용 감소:</strong> OS가 개입하는 스레드 전환보다 애플리케이션 계층에서의 제어권 전환이 훨씬 빠릅니다.</li>
+</ul>
+<hr>
+<h4>4. 주의사항: &quot;Blocking을 피하라&quot;</h4>
+<p>코루틴은 <strong>단일 스레드</strong>에서 돌아가는 <strong>협력적(Cooperative)</strong> 모델입니다.</p>
+<ul>
+<li><strong>잘못된 예:</strong> <code>time.sleep(1)</code> — 스레드 자체를 멈춰버려 이벤트 루프 전체가 마비됩니다.</li>
+<li><strong>옳은 예:</strong> <code>await asyncio.sleep(1)</code> — 루프에게 제어권을 넘기고 1초 뒤에 다시 불러달라고 예약합니다.</li>
+</ul>
+<hr>
+<h4>📝 코루틴 요약 코드</h4>
+<pre class="source-code"><code class="language-yaml">import asyncio
+
+async def fetch_data():
+    print(&quot;데이터 요청 시작...&quot;)
+    # await를 만나는 순간 제어권을 루프에 반납 (Non-blocking)
+    await asyncio.sleep(2)
+    print(&quot;데이터 수신 완료!&quot;)
+    return {&quot;data&quot;: 123}
+
+async def main():
+    # 코루틴 호출 -&gt; 루프가 관리하도록 Task로 등록
+    result = await fetch_data()
+    print(f&quot;결과 처리: {result}&quot;)
+
+asyncio.run(main())</code></pre>
+<hr>
+<p>코루틴의 개념이 이제 명확해지셨나요?</p>
+<p>이제 파이썬의 핵심 문법과 비동기 구조까지 모두 훑으셨습니다. <strong>다음에는 이 코루틴을 활용해서 실제로 웹 서버를 만드는 FastAPI나 Django 같은 프레임워크 쪽 질문을 드려볼까요?</strong> 아니면 다른 궁금한 문법이 있으신가요?</p>
+</section>
+<!-- notion-source:2efc691e-5a2b-807a-b903-fe98187d676c checksum:a7e67d45b4d57662 chars:2755 -->
+<section class="imported-source" id="source-2efc691e5a2b807ab903fe98187d676c" data-source-id="2efc691e-5a2b-807a-b903-fe98187d676c">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>코루틴 데이터 공유방법</h2>
+<p>알겠습니다. 지금까지 나눈 <strong>ContextVar의 핵심 원리, 격리 메커니즘, 그리고 </strong><strong><code>reset</code></strong><strong>의 중요성</strong>을 하나의 완성된 가이드로 정리해 드릴게요.</p>
+<p>이 코드는 실무에서 발생할 수 있는 <strong>데이터 오염 사고</strong>를 막기 위한 가장 표준적인 작성법입니다.</p>
+<hr>
+<h2>🐍 Python ContextVars: 비동기 데이터 격리 가이드</h2>
+<h4>1. 왜 사용하는가?</h4>
+<p>비동기 환경은 <strong>싱글 스레드</strong> 내에서 수만 개의 <strong>코루틴(Task)</strong>이 번갈아가며 실행됩니다.</p>
+<ul>
+<li>일반적인 전역 변수나 스레드 변수를 쓰면 A 고객의 데이터가 B 고객에게 유출되는 재앙이 발생합니다.</li>
+<li><strong>ContextVar</strong>는 각 코루틴(태스크)마다 <strong>독립된 사물함</strong>을 제공하여 데이터를 안전하게 격리합니다.</li>
+</ul>
+<h4>2. 핵심 동작: &quot;영수증(Token)과 복구(Reset)&quot;</h4>
+<p><code>set()</code>은 단순히 값을 바꾸는 것이 아니라, <strong>기존 값을 영수증에 적어두고 새 값을 덮어쓰는 행위</strong>입니다. <code>reset()</code>은 그 <strong>영수증을 제출하고 이전 상태로 되돌리는(Undo)</strong> 핵심 안전장치입니다.</p>
+<hr>
+<h4>3. 실전 코드 (주석 및 예상 결과 포함)</h4>
+<pre class="source-code"><code class="language-python">import asyncio
+import contextvars
+
+# [사물함 생성] 기본값은 &quot;GUEST&quot;로 설정
+user_role_ctx = contextvars.ContextVar(&quot;user_role&quot;, default=&quot;GUEST&quot;)
+
+async def child_service():
+    &quot;&quot;&quot;하위 서비스: 특정 작업을 위해 임시로 권한을 상승함&quot;&quot;&quot;
+
+    # [자식 진입 시점] 부모가 설정한 값을 그대로 복사해서 가져옴
+    # 결과: &quot;USER&quot;
+    print(f&quot;   [Child] 진입 시점 값: {user_role_ctx.get()}&quot;)
+
+    # [set 호출] &quot;ADMIN_TEMPORARY&quot;로 덮어쓰면서, &quot;이전엔 USER였음&quot;이 적힌 영수증(token)을 받음
+    token = user_role_ctx.set(&quot;ADMIN_TEMPORARY&quot;)
+
+    # 결과: &quot;ADMIN_TEMPORARY&quot; (현재 이 코루틴의 상태)
+    print(f&quot;   [Child] 임시 권한 상승: {user_role_ctx.get()}&quot;)
+
+    await asyncio.sleep(0.1)
+
+    # [reset 호출] 영수증을 제출해서 다시 &quot;USER&quot; 상태로 타임머신 탑승
+    # ★ 만약 여기서 reset을 안 하면? 부모 서비스로 돌아갔을 때 부모도 ADMIN 권한이 되어버림 (망함)
+    user_role_ctx.reset(token)
+
+    # 결과: &quot;USER&quot; (원상복구 완료)
+    print(f&quot;   [Child] 권한 복구 완료: {user_role_ctx.get()}&quot;)
+
+async def parent_service():
+    &quot;&quot;&quot;상위 서비스: 사용자 권한으로 메인 로직 수행&quot;&quot;&quot;
+
+    # [부모 값 설정] 사물함에 &quot;USER&quot;를 집어넣음
+    user_role_ctx.set(&quot;USER&quot;)
+
+    # [질문하신 지점] set 직후이므로 당연히 USER가 나옴
+    # 결과: &quot;USER&quot;
+    print(f&quot;👨 [Parent] 자식 호출 전 권한: {user_role_ctx.get()}&quot;)
+
+    # [자식 호출] 제어권이 자식에게 넘어감
+    await child_service()
+
+    # [복구 확인] 자식이 내부에서 무슨 짓을 했든 reset 덕분에 부모는 안전함
+    # 결과: &quot;USER&quot; (무결성 유지)
+    print(f&quot;👨 [Parent] 자식 호출 후 권한: {user_role_ctx.get()}&quot;)
+
+async def main():
+    # [시작 전] 아무것도 설정 안 했으므로 기본값이 나옴
+    # 결과: &quot;GUEST&quot;
+    print(f&quot;🏁 시작 전 기본값: {user_role_ctx.get()}&quot;)
+
+    await parent_service()
+
+# 이벤트 루프 시작
+asyncio.run(main())`</code></pre>
+<hr>
+<h4>4. 최종 예상 콘솔 출력</h4>
+<pre class="source-code"><code class="language-plain-text">🏁 시작 전 기본값: GUEST
+👨 [Parent] 자식 호출 전 권한: USER
+   [Child] 진입 시점 값: USER
+   [Child] 임시 권한 상승: ADMIN_TEMPORARY
+   [Child] 권한 복구 완료: USER
+👨 [Parent] 자식 호출 후 권한: USER</code></pre>
+<hr>
+<h4>5. <code>reset(token)</code>을 안 하면 벌어지는 대참사 (망하는 이유)</h4>
+<ol>
+<li><strong>권한 상승 공격:</strong> 하위 서비스에서 올린 <code>ADMIN</code> 권한이 부모 서비스까지 전염되어, 일반 유저가 관리자 기능을 실행할 수 있게 됨 (<strong>보안 뚫림</strong>).</li>
+<li><strong>데이터 오염:</strong> 로그 파일에 A 사용자의 작업인데 B 사용자의 ID가 찍혀서 장애 추적이 불가능해짐 (<strong>디버깅 지옥</strong>).</li>
+<li><strong>DB 트랜잭션 오류:</strong> 자식이 쓰던 DB 세션이 부모에게 남아서, 닫힌 세션에 쿼리를 날리다 서버가 뻗음 (<strong>서비스 장애</strong>).</li>
+</ol>
+<hr>
+<h4>📝 결론</h4>
+<p><strong>&quot;파이썬 비동기 환경에서 </strong><strong><code>set()</code></strong><strong>은 빚을 지는 것이고, </strong><strong><code>reset()</code></strong><strong>은 그 빚을 갚는 것이다.&quot;</strong> 자식이 부모의 사물함 상태를 잠시 빌려 썼다면, 반드시 나갈 때 원래대로 정리해두어야 전체 시스템이 안전합니다.</p>
+<hr>
+</section>
+<!-- notion-source:305c691e-5a2b-80cb-9b74-eff7b803bcec checksum:ae7ddec823fdd268 chars:1076 -->
+<section class="imported-source" id="source-305c691e5a2b80cb9b74eff7b803bcec" data-source-id="305c691e-5a2b-80cb-9b74-eff7b803bcec">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>파이썬 GIL (Global Interpreter Lock)</h2>
+<h3>1. 한 줄 정의</h3>
+<p>파이썬(CPython) 인터프리터가 한 번에 <strong>단 하나의 스레드만</strong> 파이썬 바이트코드를 실행할 수 있도록 제어하는 <strong>전역 실행 권한 자물쇠</strong>입니다.</p>
+<h4>2. 왜 존재하나요? (Why?)</h4>
+<ul>
+<li><strong>참조 횟수(Reference Counting)의 안전성:</strong> 파이썬의 메모리 관리 방식은 객체 참조 횟수를 계산하는데, 여러 스레드가 동시에 이 카운트를 건드리면 데이터가 깨질 수 있습니다. 이를 방지하기 위해 인터프리터 수준에서 실행 권한을 한 명에게만 줍니다.</li>
+<li><strong>설계의 단순함:</strong> 멀티스레드 환경에서 복잡한 자물쇠 설계 없이도 안정적으로 엔진을 구동하기 위해 채택되었습니다.</li>
+</ul>
+<h4>3. 왜 &quot;강제 교체&quot;와 &quot;수동 락(Lock)&quot;이 필요한가?</h4>
+<p>GIL이 있다고 해서 데이터가 무조건 안전한 것은 아닙니다. 바로 이 지점에서 <strong>개발자의 수동 락</strong>이 필요합니다.</p>
+<ul>
+<li><strong>시분할 및 I/O 교체:</strong> 파이썬은 일정 시간(약 15ms)이 지나거나, DB 조회/네트워크 요청 같은 <strong>I/O 작업</strong>이 시작되면 현재 스레드의 GIL을 <strong>강제로 회수</strong>하여 다른 스레드에게 줍니다.</li>
+<li><strong>데이터 오염의 위험:</strong> * 스레드 A가 DB 값을 기다리며 쉬는 동안 GIL을 반납하면, 권한을 새로 얻은 스레드 B가 깨어납니다.</li>
+<li>이때 스레드 B가 스레드 A가 사용 중이던 메모리(변수 등)를 수정해버릴 수 있습니다. (데이터 오염)</li>
+<li><strong>수동 락(threading.Lock)의 역할:</strong> * 따라서 개발자는 <strong>&quot;내가 DB에 다녀와서 이 데이터를 최종 처리할 때까지는 아무도 이 구간을 건드리지 마!&quot;</strong>라고 직접 자물쇠를 걸어 데이터의 <strong>일관성(Idempotency)</strong>을 지켜야 합니다.</li>
+</ul>
+<h4>4. 핵심 요약 (면접용)</h4>
+<ul>
+<li><strong>GIL:</strong> &quot;파이썬 엔진(인터프리터) 사용권&quot;을 관리 (자동)</li>
+<li><strong>User Lock:</strong> &quot;비즈니스 데이터의 상태&quot;를 관리 (수동)</li>
+<li><strong>결론:</strong> GIL이 있어도 I/O 대기나 시분할로 인해 스레드는 언제든 교체될 수 있으므로, <strong>공유 자원을 안전하게 보호하려면 반드시 수동 락을 병행</strong>해야 합니다.</li>
+</ul>
+</section>
+<!-- notion-source:303c691e-5a2b-80a8-ad5f-fc5aaac7ec02 checksum:821397e7faa78966 chars:1076 -->
+<section class="imported-source" id="source-303c691e5a2b80a8ad5ffc5aaac7ec02" data-source-id="303c691e-5a2b-80a8-ad5f-fc5aaac7ec02">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>asyncio.create_task()</h2>
+<h4>1. asyncio 핵심 개념</h4>
+<h4>Task란?</h4>
+<ul>
+<li>이벤트 루프에 등록된 <strong>독립적으로 실행되는 코루틴</strong></li>
+<li>Python asyncio는 <strong>싱글 스레드 + 이벤트 루프</strong> 구조</li>
+</ul>
+<h4>create_task() vs await</h4>
+<div class="table-scroll"><table>
+<tr>
+<td></td>
+<td>실행 시작?</td>
+<td>다음 줄로 넘어감?</td>
+</tr>
+<tr>
+<td><code>asyncio.create_task()</code></td>
+<td>✅ 바로 시작</td>
+<td>✅ 즉시 넘어감</td>
+</tr>
+<tr>
+<td><code>await task</code></td>
+<td>(이미 돌고 있음)</td>
+<td>❌ 끝날 때까지 기다림</td>
+</tr>
+</table></div>
+<ul>
+<li><strong><code>create_task()</code></strong> = 실행 시작 + 즉시 다음 줄로</li>
+<li><strong><code>await task</code></strong> = 끝날 때까지 기다려서 결과값 받기</li>
+</ul>
+<h4>샘플 코드</h4>
+<pre class="source-code"><code class="language-python">import asyncio
+
+async def slow_job(name, seconds):
+    print(f&quot;[{name}] 시작&quot;)
+    await asyncio.sleep(seconds)
+    print(f&quot;[{name}] 완료&quot;)
+    return f&quot;{name} 결과&quot;
+
+async def main():
+    # 순차 실행: 총 3초
+    await slow_job(&quot;A&quot;, 2)   # 2초 기다림
+    await slow_job(&quot;B&quot;, 1)   # 그 다음 1초 기다림
+
+    # 동시 실행: 총 2초
+    task_a = asyncio.create_task(slow_job(&quot;A&quot;, 2))  # 등록+실행, 즉시 반환
+    task_b = asyncio.create_task(slow_job(&quot;B&quot;, 1))  # 등록+실행, 즉시 반환
+    result_a = await task_a  # A 끝날 때까지 기다림 (그 사이 B도 돌아감)
+    result_b = await task_b  # B는 이미 끝나있어서 즉시 반환
+    print(result_a, result_b)
+
+asyncio.run(main())</code></pre>
+<hr>
+</section>
+<!-- notion-source:2eec691e-5a2b-8076-87f4-da08e61b2d53 checksum:15b68f3f6b9af217 chars:1587 -->
+<section class="imported-source" id="source-2eec691e5a2b807687f4da08e61b2d53" data-source-id="2eec691e-5a2b-8076-87f4-da08e61b2d53">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>GIL</h2>
+<hr>
+<h2>🐍 파이썬의 심장: GIL과 메모리 관리</h2>
+<h4>1. 파이썬은 어떻게 메모리를 관리하나? (Reference Counting)</h4>
+<p>파이썬은 모든 객체에 <strong>&quot;나를 몇 명이 사용 중인가?&quot;</strong>를 나타내는 숫자를 붙여놓습니다. 이를 <strong>참조 횟수(Reference Counting)</strong>라고 합니다.</p>
+<ul>
+<li><strong>원리:</strong> 누군가 나를 사용하면 <code>+1</code>, 사용을 끝내면 <code>1</code>.</li>
+<li><strong>삭제:</strong> 이 숫자가 <strong>0이 되는 순간</strong>, &quot;아, 이제 아무도 나를 안 쓰는구나&quot;라고 판단하고 즉시 메모리에서 지워버립니다.</li>
+</ul>
+<h4>2. 왜 GIL(Global Interpreter Lock)이 필요한가?</h4>
+<p>파이썬 인터프리터(실행기) 내부에서 이 '숫자 세기'가 꼬이면 대재앙이 일어납니다.</p>
+<ul>
+<li><strong>문제 상황 (Race Condition):</strong> 스레드 2개가 동시에 어떤 객체의 숫자를 올리려고 하면, 실제로는 2가 올라가야 하는데 1만 올라가는 상황이 발생할 수 있습니다.</li>
+<li><strong>결과:</strong> 숫자가 실제보다 낮아지면 <strong>사용 중인 객체가 갑자기 삭제</strong>되어 프로그램이 터지고, 숫자가 실제보다 높게 남으면 <strong>영원히 삭제되지 않는 메모리 누수</strong>가 발생합니다.</li>
+<li><strong>해결책 (GIL):</strong> 객체마다 일일이 자물쇠를 채우면 너무 느려지니까, 아예 <strong>파이썬 실행기 전체에 큰 자물쇠(GIL)</strong>를 하나만 걸었습니다. &quot;한 번에 딱 한 놈(스레드)만 들어와서 숫자도 고치고 코드도 실행해!&quot;라고 규칙을 정한 것이죠.</li>
+</ul>
+<hr>
+<h4>3. 멀티스레드와 '마이크' 권한</h4>
+<p>파이썬에서 스레드를 여러 개 만든다는 것은, 무대 위에 여러 명의 가수를 세우는 것과 같습니다. 하지만 <strong>마이크(GIL 점유권)</strong>는 단 하나뿐입니다.</p>
+<ul>
+<li><strong>실행:</strong> 마이크를 잡은 스레드만 노래(코드 실행)를 할 수 있습니다.</li>
+<li><strong>교체:</strong> 파이썬은 한 스레드가 마이크를 독점하지 못하게 <strong>강제로 뺏어서</strong> 다음 스레드에게 넘겨줍니다.</li>
+<li><strong>주의사항:</strong> 마이크를 뺏기는 시점은 무작위입니다. 데이터를 읽기만 하고 아직 수정해서 저장하기 전인데 마이크를 뺏기면, 다음 스레드가 들어와서 이전 데이터를 건드려 <strong>로직이 꼬일 수 있습니다(Race Condition).</strong></li>
+</ul>
+<hr>
+<h4>4. 그래서 개발자는 무엇을 해야 하나? (Lock)</h4>
+<p>GIL은 파이썬 엔진이 고장 나지 않게 숫자를 잘 세도록 도와줄 뿐, <strong>여러분이 만든 데이터가 꼬이는 것까지 막아주지는 않습니다.</strong></p>
+<ul>
+<li><strong>수동 Lock:</strong> 여러 스레드가 동시에 접근하면 안 되는 중요한 데이터(예: 잔액, 재고)가 있다면, 반드시 <code>threading.Lock()</code>을 사용하여 직접 보호해야 합니다. 파이썬은 이걸 자동으로 해주지 않습니다.</li>
+</ul>
+<hr>
+<h4>5. 요약: CPU 작업 vs I/O 작업</h4>
+<ul>
+<li><strong>CPU 작업 (계산만 주구장창):</strong> 스레드를 늘려봤자 서로 마이크 뺏기 싸움만 하느라 더 느려집니다. 이때는 <code>Multiprocessing</code>을 써서 실행기(인터프리터) 자체를 여러 개 띄워야 합니다.</li>
+<li><strong>I/O 작업 (파일 읽기, 네트워크 대기):</strong> 대기 시간에는 마이크를 알아서 반납하므로, 스레드를 여러 개 쓰는 게 아주 효율적입니다.</li>
+</ul>
+<hr>
+</section>
+<!-- notion-source:2eec691e-5a2b-8040-b530-e2a7c4a4f2ec checksum:cdfcb8efdb767781 chars:1958 -->
+<section class="imported-source" id="source-2eec691e5a2b8040b530e2a7c4a4f2ec" data-source-id="2eec691e-5a2b-8040-b530-e2a7c4a4f2ec">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>java의 CompletableFuture를 대체할 수 있는 방법</h2>
+<h2>Java <code>CompletableFuture</code> vs Python <code>asyncio</code></h2>
+<h3>1. 성능 모델의 차이: Parallelism vs Concurrency</h3>
+<p><code>CompletableFuture</code>를 쓴다는 것은 대개 <strong>&quot;다른 코어(스레드)에 일을 시키겠다&quot;</strong>는 의도입니다. 하지만 파이썬은 <strong>&quot;기다리는 시간을 쪼개 쓰겠다&quot;</strong>는 전략을 취합니다.</p>
+<ul>
+<li><strong>Java (</strong><strong><code>CompletableFuture</code></strong><strong>):</strong></li>
+<li><strong>방식:</strong> 멀티 코어 기반의 <strong>병렬(Parallel)</strong> 처리.</li>
+<li><strong>강점:</strong> I/O를 기다리는 동안에도 다른 스레드가 CPU 연산을 동시에 수행할 수 있음.</li>
+<li><strong>Python (</strong><strong><code>asyncio</code></strong><strong>):</strong></li>
+<li><strong>방식:</strong> 싱글 코어 기반의 <strong>동시(Concurrent)</strong> 처리.</li>
+<li><strong>강점:</strong> 코어는 하나만 쓰지만, I/O 대기(DB, API)가 발생할 때 제어권을 아주 빠르게 전환하여 수만 개의 연결을 혼자서 관리함.</li>
+</ul>
+<hr>
+<h3>2. 왜 <code>asyncio</code>가 자바의 멀티스레딩을 대체하는가? (자원 효율성)</h3>
+<p>자바 개발자들이 가장 놀라는 점은 <strong>&quot;스레드 1만 개 생성 vs 코루틴 1만 개 생성&quot;</strong>의 결과입니다.</p>
+<ul>
+<li><strong>메모리 효율:</strong></li>
+<li><strong>Java 스레드:</strong> 스레드당 최소 <strong>0.5~1MB</strong>의 스택 메모리를 점유합니다. 스레드가 1만 개면 메모리만 수십 GB가 필요합니다.</li>
+<li><strong>Python 코루틴 (</strong><strong><code>asyncio</code></strong><strong>):</strong> 단순한 객체에 불과하여 수 <strong>KB</strong> 수준입니다. 싱글 스레드 위에서 수만 개의 비동기 작업을 띄워도 메모리 부담이 거의 없습니다.</li>
+<li><strong>컨텍스트 스위칭 비용:</strong></li>
+<li><strong>Java:</strong> OS 수준의 스레드 스위칭은 CPU 비용이 큽니다.</li>
+<li><strong>Python:</strong> 애플리케이션 수준(이벤트 루프)의 점프이므로 훨씬 가볍습니다.</li>
+</ul>
+<blockquote><p>결론: &quot;계산&quot;이 목적이 아니라 <strong>&quot;엄청나게 많은 네트워크 연결(C10K 문제)&quot;</strong>이 목적이라면 파이썬의 asyncio가 자바의 일반적인 멀티스레딩 방식보다 훨씬 경제적입니다.</p></blockquote>
+<hr>
+<h3>3. 코드 구현의 직관성 (Explicit vs Implicit)</h3>
+<p><code>CompletableFuture</code>의 콜백 지옥(<code>.thenApply().thenCompose()...</code>)에 지친 개발자에게 파이썬의 <code>async/await</code>는 축복과 같습니다.</p>
+<ul>
+<li><strong>Java:</strong> 비동기 흐름을 메서드 체이닝으로 제어해야 하므로 로직이 복잡해지면 가독성이 떨어집니다.</li>
+<li><strong>Python:</strong> <code>await</code> 키워드를 사용하면 비동기 코드를 <strong>동기 코드와 거의 똑같은 구조</strong>로 짤 수 있습니다. 어디서 멈추고 어디서 재개되는지 눈에 명확히 보입니다.</li>
+</ul>
+<hr>
+<h3>📝 노션 정리: Java 개발자를 위한 최종 대응표</h3>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>기능/특징</strong></td>
+<td><strong>Java CompletableFuture</strong></td>
+<td><strong>Python asyncio</strong></td>
+</tr>
+<tr>
+<td><strong>기본 철학</strong></td>
+<td>멀티스레드 병렬성 (Parallel)</td>
+<td>싱글스레드 동시성 (Concurrent)</td>
+</tr>
+<tr>
+<td><strong>CPU 활용</strong></td>
+<td>멀티 코어 100% 활용 가능</td>
+<td><strong>싱글 코어</strong> 집중 활용</td>
+</tr>
+<tr>
+<td><strong>I/O 병목</strong></td>
+<td>스레드 풀로 해결</td>
+<td>이벤트 루프로 해결</td>
+</tr>
+<tr>
+<td><strong>메모리 소모</strong></td>
+<td>높음 (스레드 생성 비용)</td>
+<td><strong>매우 낮음</strong> (코루틴 객체)</td>
+</tr>
+<tr>
+<td><strong>CPU 병목 시</strong></td>
+<td>그냥 스레드에서 처리</td>
+<td><code>ProcessPoolExecutor</code>로 외주 줌</td>
+</tr>
+</table></div>
+<hr>
+</section>
+<!-- notion-source:311c691e-5a2b-80ae-890a-d48eddb2830b checksum:46277e682c977625 chars:2828 -->
+<section class="imported-source" id="source-311c691e5a2b80ae890ad48eddb2830b" data-source-id="311c691e-5a2b-80ae-890a-d48eddb2830b">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>프로세스, 스레드, GIL, 그리고 ThreadPool / ProcessPool의 진짜 차이</h2>
+<hr>
+<h3><strong>1️⃣ 프로세스와 스레드의 기본 구조</strong></h3>
+<h4><strong>✔ 프로그램 vs 프로세스</strong></h4>
+<ul>
+<li>프로그램 = 파일 (app.py, .jar, .exe)</li>
+<li>프로세스 = 실행 중인 프로그램 인스턴스</li>
+</ul>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">python app.py</code></pre>
+<p>→ Python 인터프리터 프로세스 하나 생성</p>
+<hr>
+<h4><strong>✔ 프로세스 안에는 여러 스레드가 존재 가능</strong></h4>
+<pre class="source-code"><code class="language-plain-text">프로세스
+ ├─ 스레드 A
+ ├─ 스레드 B
+ └─ 스레드 C</code></pre>
+<ul>
+<li>프로세스 = 자원 단위 (메모리, 파일, 소켓 등)</li>
+<li>스레드 = 실행 단위 (코드를 실제로 실행하는 흐름)</li>
+</ul>
+<hr>
+<h3><strong>2️⃣ 스레드는 CPU 코어와 같은 개념인가?</strong></h3>
+<p>아니요.</p>
+<p>여기서 혼동이 많이 생깁니다.</p>
+<h4><strong>🔹 하이퍼스레딩의 “스레드”</strong></h4>
+<ul>
+<li>하드웨어 실행 슬롯</li>
+<li>CPU 코어 내부 구조</li>
+</ul>
+<h4><strong>🔹 OS 스레드 (프로그래밍에서 말하는 스레드)</strong></h4>
+<ul>
+<li>운영체제가 관리하는 실행 흐름</li>
+<li>CPU 코어에 번갈아 배치됨</li>
+</ul>
+<p>즉,</p>
+<pre class="source-code"><code class="language-plain-text">CPU 코어 8개
+OS 스레드 100개</code></pre>
+<p>가능합니다.</p>
+<p>동시에 실행되는 스레드는 최대 코어 수만큼입니다.</p>
+<hr>
+<h3><strong>3️⃣ Python에서 중요한 개념: GIL</strong></h3>
+<p>CPython에는 <strong>GIL (Global Interpreter Lock)</strong> 이 있습니다.</p>
+<p>의미:</p>
+<blockquote><p>하나의 프로세스 안에서는</p></blockquote>
+<blockquote><p>한 번에 하나의 스레드만 Python 바이트코드를 실행 가능</p></blockquote>
+<p>따라서:</p>
+<pre class="source-code"><code class="language-plain-text">프로세스 1개
+ ├─ 스레드 1
+ ├─ 스레드 2
+ ├─ 스레드 3</code></pre>
+<p>있어도,</p>
+<p>실제로 Python 계산은 한 번에 하나만 실행됩니다.</p>
+<hr>
+<h3><strong>4️⃣ ThreadPool이란?</strong></h3>
+<p>ThreadPool은:</p>
+<blockquote><p>하나의 프로세스 안에서 여러 스레드를 만들어</p></blockquote>
+<blockquote><p>작업을 분산 실행하는 구조</p></blockquote>
+<h4><strong>특징</strong></h4>
+<ul>
+<li>같은 메모리 공간 공유</li>
+<li>같은 GIL 공유</li>
+<li>CPU 병렬 X (CPython 기준)</li>
+<li>오버헤드 적음</li>
+</ul>
+<hr>
+<h4><strong>그럼 ThreadPool은 왜 쓰는가?</strong></h4>
+<p>CPU 병렬용이 아니라,</p>
+<blockquote><p>async 환경에서 블로킹 I/O를 격리하기 위한 완충 장치</p></blockquote>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">await asyncio.to_thread(blocking_function)</code></pre>
+<p>이 경우:</p>
+<ul>
+<li>이벤트 루프는 멈추지 않음</li>
+<li>블로킹 함수는 별도 스레드에서 실행</li>
+<li>완료되면 Future를 통해 이벤트 루프로 복귀</li>
+</ul>
+<hr>
+<h3><strong>5️⃣ ProcessPool이란?</strong></h3>
+<p>ProcessPool은:</p>
+<blockquote><p>여러 개의 프로세스를 만들어</p></blockquote>
+<blockquote><p>CPU 작업을 병렬 실행하는 구조</p></blockquote>
+<h4><strong>특징</strong></h4>
+<ul>
+<li>메모리 완전 분리</li>
+<li>프로세스마다 GIL 독립</li>
+<li>진짜 멀티코어 병렬 가능</li>
+<li>오버헤드 큼</li>
+<li>데이터 직렬화 필요</li>
+</ul>
+<hr>
+<h3><strong>6️⃣ 이벤트 루프로 복귀 구조는 동일한가?</strong></h3>
+<p>이벤트 루프로 복귀하는 기본 구조는 동일하다.</p>
+<p>async 코드에서:</p>
+<pre class="source-code"><code class="language-plain-text">result = await loop.run_in_executor(pool, func, arg)</code></pre>
+<p>흐름은 ThreadPool과 ProcessPool 모두 같습니다.</p>
+<h4><strong>내부 흐름</strong></h4>
+<ol>
+<li>이벤트 루프가 executor에 작업 위임</li>
+<li>현재 코루틴 일시 정지</li>
+<li>이벤트 루프는 다른 작업 처리</li>
+<li>executor에서 작업 완료</li>
+<li>Future 완료 상태 변경</li>
+<li>이벤트 루프가 감지</li>
+<li>멈췄던 코루틴 재개</li>
+</ol>
+<p>✔ 완료 후 이벤트 루프로 돌아오는 구조는 동일</p>
+<p>❌ 하지만 실행 특성은 완전히 다름</p>
+<hr>
+<h3><strong>7️⃣ 핵심 차이 정리</strong></h3>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>구분</strong></td>
+<td><strong>ThreadPool</strong></td>
+<td><strong>ProcessPool</strong></td>
+</tr>
+<tr>
+<td>실행 단위</td>
+<td>스레드</td>
+<td>프로세스</td>
+</tr>
+<tr>
+<td>메모리</td>
+<td>공유</td>
+<td>분리</td>
+</tr>
+<tr>
+<td>GIL</td>
+<td>공유</td>
+<td>독립</td>
+</tr>
+<tr>
+<td>CPU 병렬</td>
+<td>거의 안 됨</td>
+<td>가능</td>
+</tr>
+<tr>
+<td>용도</td>
+<td>블로킹 I/O 격리</td>
+<td>CPU 병렬</td>
+</tr>
+</table></div>
+<hr>
+<h3><strong>8️⃣ 직관적 비유</strong></h3>
+<h4><strong>ThreadPool</strong></h4>
+<ul>
+<li>같은 회사</li>
+<li>직원 여러 명</li>
+<li>칼(GIL)은 하나</li>
+<li>번갈아 사용</li>
+</ul>
+<h4><strong>ProcessPool</strong></h4>
+<ul>
+<li>회사 여러 개</li>
+<li>각자 칼 있음</li>
+<li>동시에 작업 가능</li>
+</ul>
+<hr>
+<h3><strong>9️⃣ async와의 관계</strong></h3>
+<ul>
+<li>async = I/O 동시성 모델</li>
+<li>ThreadPool = 블로킹 완충</li>
+<li>ProcessPool = CPU 병렬</li>
+</ul>
+<p>이 셋은 역할이 다릅니다.</p>
+<hr>
+<h3><strong>🔟 최종 정리</strong></h3>
+<p>✔ 하나의 프로세스 안에 여러 스레드 존재 가능</p>
+<p>✔ 프로세스는 실행 중인 프로그램 인스턴스</p>
+<p>✔ ThreadPool과 ProcessPool은 이벤트 루프 복귀 방식은 같음</p>
+<p>✔ 하지만 CPU/GIL 관점에서는 완전히 다름</p>
+<p>✔ CPU 병렬은 ProcessPool 또는 멀티 프로세스(worker)로 해결</p>
+<hr>
+<h4><strong>한 줄 핵심</strong></h4>
+<blockquote><p>async는 동시성(concurrency) 문제이고</p></blockquote>
+<blockquote><p>ProcessPool은 병렬성(parallelism) 문제다.</p></blockquote>
+<hr>
+<h2>후속 검증 질문</h2>
+<p>동시성과 병렬성의 차이를 실제 배포 구조에 연결하려면 다음 질문을 확인한다.</p>
+<ul>
+<li>uvicorn worker를 늘리면 왜 CPU 병렬이 되나?</li>
+<li>FastAPI는 멀티코어를 어떻게 활용하나?</li>
+<li>Docker 환경에서는 프로세스 구조가 어떻게 동작하나?</li>
+</ul>
+</section>
+<!-- notion-source:311c691e-5a2b-80bd-9398-dda6e39ef797 checksum:ae909eab1d6fdb4d chars:1837 -->
+<section class="imported-source" id="source-311c691e5a2b80bd9398dda6e39ef797" data-source-id="311c691e-5a2b-80bd-9398-dda6e39ef797">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>Async 전파</h2>
+<h2><strong>1️⃣ 우리가 확실히 정리한 핵심 문장</strong></h2>
+<blockquote><p>await가 존재하는 호출 체인에서는</p></blockquote>
+<blockquote><p>그 체인 위쪽 함수들이 async로 전파된다.</p></blockquote>
+<p>이게 비동기 설계의 가장 정확한 규칙이다.</p>
+<hr>
+<h3><strong>2️⃣ 왜 async가 전파되는가?</strong></h3>
+<p>이건 “문법” 문제가 아니라 <strong>호출 규약(call contract)</strong> 문제다.</p>
+<p>예를 보자.</p>
+<pre class="source-code"><code class="language-plain-text">async def child():
+    await something()</code></pre>
+<p>child()는 <strong>코루틴 함수</strong>다.</p>
+<p>즉, 호출하면 바로 실행되는 게 아니라 <strong>코루틴 객체</strong>를 반환한다.</p>
+<p>이걸 동기 함수에서 호출하면:</p>
+<pre class="source-code"><code class="language-plain-text">def parent():
+    child()   # ❌ 실행되지 않음</code></pre>
+<p>child()는 코루틴 객체만 반환하고 실제로 실행되지 않는다.</p>
+<p>코루틴을 실행하려면 반드시 await가 필요하다.</p>
+<p>따라서 부모는 이렇게 되어야 한다.</p>
+<pre class="source-code"><code class="language-plain-text">async def parent():
+    await child()</code></pre>
+<p>여기서 핵심은 이것이다:</p>
+<blockquote><p>코루틴을 기다리려면, 기다릴 수 있는 문맥(async)이 필요하다.</p></blockquote>
+<p>그래서 async가 “전파되는 것처럼” 보이는 것이다.</p>
+<hr>
+<h3><strong>3️⃣ 정확한 표현</strong></h3>
+<p>❌ async가 하나 있으면 전부 async</p>
+<p>✔ await를 직접 호출하는 경로만 async</p>
+<p>비동기는 무조건 확장되는 것이 아니라,</p>
+<p><strong>await가 호출 규약을 강제하기 때문에 연결되는 것</strong>이다.</p>
+<hr>
+<h3><strong>4️⃣ 전파는 어디서 멈추는가?</strong></h3>
+<p>전파는 await 경계에서 멈춘다.</p>
+<pre class="source-code"><code class="language-plain-text">async def service():
+    await repo()
+
+def calculate():
+    return 10</code></pre>
+<ul>
+<li>service()는 async</li>
+<li>calculate()는 sync 유지 가능</li>
+</ul>
+<p>계산 함수까지 async로 만들 필요는 없다.</p>
+<hr>
+<h3><strong>5️⃣ 실무 기준 정리</strong></h3>
+<h4><strong>async가 필요한 경우 (I/O 바운드)</strong></h4>
+<ul>
+<li>DB 접근</li>
+<li>HTTP 요청</li>
+<li>파일 I/O</li>
+<li>외부 API 호출</li>
+<li>네트워크 통신</li>
+</ul>
+<h4><strong>async가 필요 없는 경우 (CPU/순수 로직)</strong></h4>
+<ul>
+<li>계산</li>
+<li>조건 분기</li>
+<li>데이터 변환</li>
+<li>문자열 처리</li>
+<li>DTO 변환</li>
+<li>유효성 체크 (I/O 없는 경우)</li>
+</ul>
+<hr>
+<h3><strong>6️⃣ 설계 판단 기준 (실무용 체크리스트)</strong></h3>
+<p>비동기를 설계할 때는 이렇게 판단한다:</p>
+<ol>
+<li>이 함수는 I/O가 있는가?</li>
+<li>그 I/O를 await 하는가?</li>
+<li>그렇다면 async로 선언한다.</li>
+<li>아니라면 sync로 둔다.</li>
+</ol>
+<p>이 순서로 판단하면 과도한 async 확장을 막을 수 있다.</p>
+<hr>
+<h3><strong>7️⃣ 가장 중요한 통찰</strong></h3>
+<blockquote><p>async는 전파되는 게 아니라</p></blockquote>
+<blockquote><p>await가 호출 규약을 강제하기 때문에 연결되는 것이다.</p></blockquote>
+<p>이걸 이해하면:</p>
+<ul>
+<li>무작정 async 확장하지 않게 된다.</li>
+<li>비동기 경계를 명확히 나눌 수 있다.</li>
+<li>레이어 설계가 단순해진다.</li>
+<li>테스트 구조도 깔끔해진다.</li>
+</ul>
+<hr>
+<details>
+<summary>꼬리질문</summary>
+<h3><strong>8️⃣ 한 줄 결론</strong></h3>
+<p>비동기는 “기술 선택”이 아니라</p>
+<p><strong>I/O 경계를 기준으로 설계하는 호출 규약 문제다.</strong></p>
+<hr>
+<p>이 문서는 지금 단계에서 가장 중요한 개념을 정확히 잡는 기준 문서로 쓰면 좋습니다.</p>
+<p>다음 단계로 가려면:</p>
+<ul>
+<li>AsyncSession이 왜 async인가?</li>
+<li>트랜잭션 경계는 Service인가 Repository인가?</li>
+<li>FastAPI에서 sync 라우터와 async 라우터의 실제 차이</li>
+<li>이벤트 루프의 실제 동작 구조</li>
+</ul>
+<h3>심화 학습 후보</h3>
+</details>
+</section>
+<!-- notion-source:311c691e-5a2b-80aa-88a8-fcad4e51a5a0 checksum:0e99f4457ebcaab6 chars:5104 -->
+<section class="imported-source" id="source-311c691e5a2b80aa88a8fcad4e51a5a0" data-source-id="311c691e-5a2b-80aa-88a8-fcad4e51a5a0">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>ProcessPool의 실제 구조, 제약, 생성 방식, 그리고 uvicorn workers까지 전체 정리</h2>
+<h2><strong>1️⃣ ProcessPool은 실제로 무엇을 만드는가?</strong></h2>
+<p>ProcessPool은 개념적인 “논리적 풀”이 아닙니다.</p>
+<blockquote><p>실제 OS 레벨 프로세스를 생성합니다.</p></blockquote>
+<p>예:</p>
+<pre class="source-code"><code class="language-plain-text">from concurrent.futures import ProcessPoolExecutor
+
+pool = ProcessPoolExecutor(max_workers=4)</code></pre>
+<p>이 코드가 실행되면 내부적으로:</p>
+<ul>
+<li>메인 프로세스 1개</li>
+<li>워커 프로세스 4개</li>
+</ul>
+<p>총 5개의 <strong>진짜 OS 프로세스</strong>가 생성됩니다.</p>
+<hr>
+<h2><strong>2️⃣ OS 레벨에서 실제로 보이는가?</strong></h2>
+<p>워커는 OS 프로세스 목록에서 각각 별도의 프로세스로 보인다.</p>
+<p>Linux 기준:</p>
+<pre class="source-code"><code class="language-plain-text">ps -ef | grep python</code></pre>
+<p>또는</p>
+<pre class="source-code"><code class="language-plain-text">top</code></pre>
+<p>보면 대략 이런 구조가 나타납니다:</p>
+<pre class="source-code"><code class="language-plain-text">PID   CMD
+1001  python app.py    ← 메인 프로세스
+1002  python app.py    ← 워커 프로세스
+1003  python app.py
+1004  python app.py
+1005  python app.py</code></pre>
+<p>PID가 다르면 완전히 다른 프로세스입니다.</p>
+<hr>
+<h2><strong>3️⃣ 체감용 샘플 코드 – PID 확인</strong></h2>
+<pre class="source-code"><code class="language-plain-text">from concurrent.futures import ProcessPoolExecutor
+import asyncio
+import os
+
+def cpu_heavy(n):
+    print(f&quot;[Worker PID] {os.getpid()}&quot;)
+    total = 0
+    for i in range(n):
+        total += i
+    return total
+
+async def main():
+    print(f&quot;[Main PID] {os.getpid()}&quot;)
+    loop = asyncio.get_running_loop()
+
+    with ProcessPoolExecutor(max_workers=2) as pool:
+        result1 = await loop.run_in_executor(pool, cpu_heavy, 10_000_000)
+        result2 = await loop.run_in_executor(pool, cpu_heavy, 10_000_000)
+
+    print(result1, result2)
+
+asyncio.run(main())</code></pre>
+<p>실행 결과 예시:</p>
+<pre class="source-code"><code class="language-plain-text">[Main PID] 1001
+[Worker PID] 1002
+[Worker PID] 1003</code></pre>
+<p>👉 메인과 다른 PID가 찍히면</p>
+<p>진짜 별도 프로세스에서 실행된 것입니다.</p>
+<hr>
+<h2><strong>4️⃣ 병렬 실행 확인 코드</strong></h2>
+<pre class="source-code"><code class="language-plain-text">from concurrent.futures import ProcessPoolExecutor
+import asyncio
+import time
+import os
+
+def cpu_task(seconds):
+    print(f&quot;Start PID {os.getpid()}&quot;)
+    time.sleep(seconds)
+    print(f&quot;End PID {os.getpid()}&quot;)
+    return seconds
+
+async def main():
+    loop = asyncio.get_running_loop()
+
+    with ProcessPoolExecutor(max_workers=2) as pool:
+        tasks = [
+            loop.run_in_executor(pool, cpu_task, 3),
+            loop.run_in_executor(pool, cpu_task, 3),
+        ]
+
+        results = await asyncio.gather(*tasks)
+
+    print(results)
+
+asyncio.run(main())</code></pre>
+<ul>
+<li>3초짜리 작업 2개</li>
+<li>max_workers=2</li>
+<li>총 실행 시간 약 3초 → 진짜 병렬 실행</li>
+</ul>
+<hr>
+<h2><strong>5️⃣ ProcessPool은 언제 생성되는가?</strong></h2>
+<h3><strong>🔹 방식 ① with 블록 안에서 생성</strong></h3>
+<pre class="source-code"><code class="language-plain-text">with ProcessPoolExecutor(max_workers=2) as pool:
+    ...</code></pre>
+<p>이 블록이 실행될 때마다 새로운 ProcessPool이 생성됩니다.</p>
+<p>→ 요청마다 실행되면 매우 비효율</p>
+<p>→ 프로세스 폭증 가능</p>
+<hr>
+<h3><strong>🔹 방식 ② 전역 생성 (실무 권장)</strong></h3>
+<pre class="source-code"><code class="language-plain-text">pool = ProcessPoolExecutor(max_workers=4)</code></pre>
+<ul>
+<li>모듈 로딩 시 1회 생성</li>
+<li>이후 재사용</li>
+<li>워커 유지</li>
+</ul>
+<p>이게 안정적인 패턴입니다.</p>
+<hr>
+<h2><strong>6️⃣ lazy 생성이란 무엇인가?</strong></h2>
+<p>lazy 생성은:</p>
+<blockquote><p>풀 객체는 만들어졌지만</p></blockquote>
+<blockquote><p>실제 워커 프로세스는 첫 작업이 들어올 때 생성되는 방식</p></blockquote>
+<p>환경에 따라:</p>
+<ul>
+<li>생성 시점에 워커 생성 (eager)</li>
+<li>첫 작업 제출 시 생성 (lazy)</li>
+</ul>
+<p>하지만 실무에서는 이 차이는 거의 중요하지 않습니다.</p>
+<p>진짜 중요한 건:</p>
+<blockquote><p>풀을 요청마다 만들지 않는 것.</p></blockquote>
+<hr>
+<h2><strong>7️⃣ 코드 보고 생성 방식 판단 기준</strong></h2>
+<h4><strong>❌ 나쁜 패턴 (요청마다 생성)</strong></h4>
+<pre class="source-code"><code class="language-plain-text">@app.get(&quot;/compute&quot;)
+async def compute():
+    pool = ProcessPoolExecutor(max_workers=4)</code></pre>
+<p>요청 100개 → 풀 100개 → 프로세스 폭증</p>
+<hr>
+<h4><strong>✅ 정상 패턴 (전역 재사용)</strong></h4>
+<pre class="source-code"><code class="language-plain-text">pool = ProcessPoolExecutor(max_workers=4)
+
+@app.get(&quot;/compute&quot;)
+async def compute():
+    ...</code></pre>
+<p>→ 워커 4개 고정</p>
+<p>→ 안정적</p>
+<hr>
+<h2><strong>8️⃣ 결과는 어떻게 메인 프로세스로 돌아오는가?</strong></h2>
+<p>프로세스는 메모리를 공유하지 않습니다.</p>
+<p>그래서 내부적으로:</p>
+<ol>
+<li>함수 + 인자를 pickle로 직렬화</li>
+<li>워커 프로세스로 전달</li>
+<li>워커 실행</li>
+<li>결과를 pickle로 직렬화</li>
+<li>메인 프로세스로 반환</li>
+<li>Future 완료</li>
+<li>이벤트 루프가 감지 → await 재개</li>
+</ol>
+<hr>
+<h2><strong>9️⃣ ProcessPool의 현실 제약 (중요)</strong></h2>
+<h3><strong>1) 왜 DB 세션/소켓은 전달이 안 되나?</strong></h3>
+<ul>
+<li>프로세스는 메모리 완전 분리</li>
+<li>DB 세션, 소켓은 OS 자원을 붙잡는 “핸들” 객체</li>
+<li>다른 프로세스가 그대로 이어받아 쓸 수 없음</li>
+</ul>
+<p>비유:</p>
+<ul>
+<li>DB 세션 = 현재 열려 있는 전화 통화</li>
+<li>소켓 = 현재 연결된 네트워크 선</li>
+<li>그걸 “복사해서 다른 프로세스에서 이어서 써라”는 불가능</li>
+</ul>
+<p>✔ 워커에서 DB 작업이 필요하면</p>
+<p>→ 워커 프로세스가 새로 세션을 만들어야 함</p>
+<hr>
+<h3><strong>2) pickle 가능한 데이터만 가능</strong></h3>
+<p>프로세스 간 전달은 직렬화 필요.</p>
+<p>가능:</p>
+<ul>
+<li>int, float, str</li>
+<li>list, dict</li>
+<li>단순 클래스</li>
+</ul>
+<p>불가능:</p>
+<ul>
+<li>DB session</li>
+<li>소켓</li>
+<li>파일 핸들</li>
+<li>threading.Lock</li>
+<li>일부 C 확장 객체</li>
+</ul>
+<hr>
+<h3><strong>3) 직렬화 비용</strong></h3>
+<ul>
+<li>작은 dict → 거의 무시</li>
+<li>10MB JSON → 꽤 무거움</li>
+<li>500MB numpy → 매우 느림</li>
+</ul>
+<p>“병렬이라 빨라질 것”이라 생각했는데</p>
+<p>데이터 옮기느라 느려질 수 있음.</p>
+<hr>
+<h3><strong>4) IPC 비용</strong></h3>
+<ul>
+<li>파이프/큐 쓰기</li>
+<li>커널 버퍼 복사</li>
+<li>메모리 복사</li>
+<li>역직렬화</li>
+</ul>
+<p>비유:</p>
+<ul>
+<li>직렬화 = 포장</li>
+<li>IPC = 택배 배송</li>
+<li>역직렬화 = 개봉</li>
+</ul>
+<p>큰 데이터일수록 택배 비용이 커짐.</p>
+<hr>
+<h2><strong>10️⃣ GIL과의 관계</strong></h2>
+<ul>
+<li>ThreadPool → 같은 프로세스 → GIL 공유 → CPU 병렬 X</li>
+<li>ProcessPool → 다른 프로세스 → GIL 독립 → CPU 병렬 O</li>
+</ul>
+<p>즉:</p>
+<blockquote><p>CPU 병렬은 프로세스 레벨 문제</p></blockquote>
+<hr>
+<h2><strong>11️⃣ 그런데 왜 실무에서 ProcessPool을 잘 안 쓰는가?</strong></h2>
+<p>이유:</p>
+<ul>
+<li>직렬화 비용</li>
+<li>IPC 비용</li>
+<li>코드 복잡성</li>
+<li>API 서버가 CPU 책임까지 떠안음</li>
+</ul>
+<p>그래서 보통은:</p>
+<pre class="source-code"><code class="language-plain-text">FastAPI (I/O 중심)
+   ↓
+작업 큐 (Redis/Kafka)
+   ↓
+Worker 서버 (CPU 전용)</code></pre>
+<hr>
+<h2><strong>12️⃣ 더 나은 방식: uvicorn workers</strong></h2>
+<pre class="source-code"><code class="language-plain-text">uvicorn app:app --workers 4</code></pre>
+<p>구조:</p>
+<pre class="source-code"><code class="language-plain-text">OS
+ ├─ FastAPI 프로세스 1
+ ├─ FastAPI 프로세스 2
+ ├─ FastAPI 프로세스 3
+ └─ FastAPI 프로세스 4</code></pre>
+<p>각 프로세스:</p>
+<ul>
+<li>독립 이벤트 루프</li>
+<li>독립 GIL</li>
+<li>독립 메모리</li>
+</ul>
+<p>즉:</p>
+<blockquote><p>서버 자체를 멀티프로세스로 확장</p></blockquote>
+<hr>
+<h2><strong>13️⃣ 왜 uvicorn workers가 더 나은가?</strong></h2>
+<p>✔ 구조 단순</p>
+<p>✔ 직렬화 비용 없음</p>
+<p>✔ 요청 자체를 프로세스 단위 분산</p>
+<p>✔ 확장성 뛰어남</p>
+<p>✔ 실무 표준</p>
+<hr>
+<h2><strong>14️⃣ 최종 비교</strong></h2>
+<div class="table-scroll"><table>
+<tr>
+<td><strong>방식</strong></td>
+<td><strong>목적</strong></td>
+<td><strong>권장도</strong></td>
+</tr>
+<tr>
+<td>ThreadPool</td>
+<td>블로킹 I/O 완충</td>
+<td>높음</td>
+</tr>
+<tr>
+<td>ProcessPool</td>
+<td>API 내부 CPU 병렬</td>
+<td>제한적</td>
+</tr>
+<tr>
+<td>uvicorn workers</td>
+<td>서버 레벨 병렬</td>
+<td>매우 높음</td>
+</tr>
+<tr>
+<td>외부 Worker 서버</td>
+<td>CPU 전용 처리</td>
+<td>대규모 최상</td>
+</tr>
+</table></div>
+<hr>
+<h2><strong>🔥 최종 통찰</strong></h2>
+<ul>
+<li>async → 동시성 문제</li>
+<li>ProcessPool → 함수 단위 병렬</li>
+<li>uvicorn workers → 서버 단위 병렬</li>
+<li>외부 워커 서버 → 시스템 단위 병렬</li>
+</ul>
+<p>그리고 가장 중요한 것:</p>
+<blockquote><p>lazy냐 eager냐가 아니라</p></blockquote>
+<blockquote><p>프로세스를 몇 번 생성하느냐가 핵심이다.</p></blockquote>
+<hr>
+<h2><strong>🔥 다음 단계 질문</strong></h2>
+<ul>
+<li>uvicorn worker 4개 + ProcessPool 4개면 총 프로세스 몇 개?</li>
+<li>메모리는 몇 배?</li>
+<li>실제 운영에서 안전한 조합은 무엇인가?</li>
+</ul>
+<p>여기까지 갈까요?</p>
+</section>
+    </article>
+    <aside class="verification-notes" aria-labelledby="verification-title"><h2 id="verification-title">편입 후 검증 메모</h2><ul><li><strong>GIL의 범위:</strong> 원문의 설명은 주로 CPython을 가리킨다. GIL이 있어도 I/O 대기 중이거나 GIL을 해제하는 네이티브 연산에서는 스레드가 유용하며, 모든 Python 구현에 같은 결론을 적용하지 않는다.</li><li><strong>코루틴의 비용:</strong> 스레드와 코루틴의 메모리를 고정된 1MB·수KB로 단정할 수 없다. 핵심은 OS 스레드보다 사용자 공간 Task가 일반적으로 가볍고, 협력적으로 제어권을 넘긴다는 점이다.</li><li><strong><code>create_task</code>:</strong> Task 생성은 동시 실행을 예약하지만 완료·예외·취소를 관리해야 한다. 결과가 필요하면 Task 참조를 보관하고 적절히 <code>await</code>한다.</li><li><strong>프로세스 풀:</strong> 함수와 인자가 직렬화 가능해야 하며, 웹 서버 워커마다 별도 풀이 생기면 총 프로세스와 메모리가 곱해진다. CPU-bound 작업이라는 이유만으로 무제한 워커를 만들지 않는다.</li></ul></aside>
+    <div class="project-reference-links"><strong>같이 보기</strong><a href="python_language_objects_resources.html">Python 언어 객체·리소스</a><a href="python_concurrency_async_runtime.html">동시성·비동기</a><a href="fastapi_dependency_validation_errors.html">FastAPI DI·검증</a><a href="fastapi_pydantic_sqlalchemy_flow.html">Pydantic·SQLAlchemy</a></div>
+    <footer class="footer">Notion 공개 학습 노트 편입 · 원문 단위 추적</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script>
+</body>
+</html>

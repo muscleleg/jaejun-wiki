@@ -69,6 +69,12 @@ window.HOME_CONTENT = {
       description: "Page와 Heap부터 B-Tree·Hash·GIN까지 저장 구조와 검색 범위를 연결한 기록입니다."
     },
     {
+      eyebrow: "Private cloud",
+      title: "Cloud·Infrastructure",
+      href: "wiki/infrastructure/openstack_learning.html",
+      description: "OpenStack 핵심 서비스와 Linux 가상 네트워크·블록 스토리지를 실제 Private Cloud 프로젝트의 제어·데이터 경로로 연결합니다."
+    },
+    {
       eyebrow: "Math support",
       title: "수학",
       href: "wiki/math/transformer_math_learning.html",

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="SQL 실행과 JDBC의 Driver, Connection, PreparedStatement, ResultSet, transaction, pagination, view를 안전한 query 경계로 연결한 문서"><title>SQL·JDBC 실행 흐름과 안전한 Query · 재준 위키</title><link rel="stylesheet" href="../../assets/css/portal.css?v=20260823-blog-absorb"><link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260823-blog-absorb"><link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260823-blog-absorb">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="SQL·JDBC 실행 흐름과 안전한 Query · 재준 위키">
+  <meta property="og:description" content="SQL 실행과 JDBC의 Driver, Connection, PreparedStatement, ResultSet, transaction, pagination, view를 안전한 query 경계로 연결한 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html","name":"SQL·JDBC 실행 흐름과 안전한 Query · 재준 위키","description":"SQL 실행과 JDBC의 Driver, Connection, PreparedStatement, ResultSet, transaction, pagination, view를 안전한 query 경계로 연결한 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html"},"headline":"SQL·JDBC 실행 흐름과 안전한 Query · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#sql-jdbc","name":"JDBC 실행·Transaction","identifier":"sql-jdbc"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/database/sql_jdbc_execution.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Database"},{"@type":"ListItem","position":4,"name":"SQL·JDBC"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference reference-note"><main class="wrap"><nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><span>Database</span><span class="separator">›</span><span aria-current="page">SQL·JDBC</span></nav>
+<header class="hero"><span class="label">SQL · JDBC · Transaction</span><h1>SQL·JDBC 실행 흐름과 안전한 Query</h1><p>SQL 문자열을 만드는 데서 끝내지 않고, Java application이 connection을 얻어 값을 binding하고 결과 cursor를 읽고 transaction을 닫는 전 과정을 이해합니다.</p></header>
+<nav aria-label="문서 목차"><a href="#flow">전체 흐름</a><a href="#resources">자원</a><a href="#prepared">값 binding</a><a href="#resultset">ResultSet</a><a href="#transaction">transaction</a><a href="#pagination">pagination</a><a href="#view">View</a><a href="#dynamic">동적 연결</a><a href="#debug">진단</a><a href="#conclusion">결론</a></nav>
+<section id="flow"><h2>1. JDBC는 Java 호출을 database protocol로 연결한다</h2><p>JDBC(Java Database Connectivity: 자바 데이터베이스 연결)는 Java에서 관계형 database에 접속하고 SQL을 실행하는 표준 API(응용 프로그램 인터페이스)입니다.</p><div class="callout"><strong>대표 흐름</strong><br>Driver → Connection → PreparedStatement → execute → ResultSet 또는 update count → commit/rollback → 자원 close</div><p>Driver가 Java 호출을 database 제품의 protocol로 변환하고, Connection이 한 database session과 transaction context를 나타냅니다. Framework가 이를 추상화해도 connection pool, transaction, cursor라는 실제 자원은 남습니다.</p></section>
+<section id="resources"><h2>2. Connection·Statement·ResultSet은 닫아야 하는 자원이다</h2><pre><code class="language-java">String sql = "select id, name from member where active = ? order by id";
+
+try (Connection connection = dataSource.getConnection();
+     PreparedStatement statement = connection.prepareStatement(sql)) {
+    statement.setBoolean(1, true);
+    try (ResultSet rows = statement.executeQuery()) {
+        while (rows.next()) {
+            long id = rows.getLong("id");
+            String name = rows.getString("name");
+        }
+    }
+}</code></pre><p><code>try-with-resources</code>는 정상·예외 경로 모두에서 자원을 역순으로 닫습니다. 운영 application은 매 요청마다 새 물리 연결을 만들기보다 pool에서 Connection을 빌리고 반환합니다.</p></section>
+<section id="prepared"><h2>3. placeholder는 값을 위한 자리이며 SQL 구조를 위한 자리가 아니다</h2><p><code>PreparedStatement</code>의 <code>?</code>에는 문자열·숫자·날짜 같은 값을 binding합니다. 값과 SQL 문법을 분리하므로 quote escaping 오류와 SQL injection 위험을 줄입니다.</p><pre><code class="language-java">String sql = "select id, name from member where email = ?";
+statement.setString(1, email);</code></pre><div class="warning"><strong>식별자는 binding할 수 없습니다</strong><br>table 이름, column 이름, ASC/DESC 같은 SQL 구조를 사용자 입력으로 직접 이어 붙이지 않습니다. 동적 정렬이 필요하면 허용 목록에서 안전한 SQL 조각으로 mapping합니다.</div><pre><code class="language-java">String orderBy = switch (sortKey) {
+    case "name" -> "name";
+    case "created" -> "created_at";
+    default -> "id";
+};
+String sql = "select id, name from member order by " + orderBy;</code></pre></section>
+<section id="resultset"><h2>4. ResultSet cursor는 첫 row 앞에서 시작한다</h2><p><code>executeQuery</code> 직후 cursor는 before-first 위치입니다. 먼저 <code>next()</code>를 호출해야 첫 row로 이동합니다. 한 건만 예상해도 0건과 여러 건을 어떻게 처리할지 계약을 정합니다.</p><pre><code class="language-java">if (!rows.next()) return Optional.empty();
+Member member = mapMember(rows);
+if (rows.next()) throw new IllegalStateException("unique 제약 위반");
+return Optional.of(member);</code></pre><p>Column label을 사용하면 순서 변경에 덜 취약하지만 SQL alias와 Java mapping이 일치해야 합니다. SQL <code>NULL</code>을 primitive getter로 읽을 때 기본값과 실제 0을 구분하려면 <code>wasNull()</code> 또는 nullable type mapping을 고려합니다.</p></section>
+<section id="transaction"><h2>5. 여러 SQL이 하나의 업무라면 transaction으로 묶는다</h2><pre><code class="language-java">connection.setAutoCommit(false);
+try {
+    updateBalance(connection, fromId, -amount);
+    updateBalance(connection, toId, amount);
+    connection.commit();
+} catch (Exception error) {
+    connection.rollback();
+    throw error;
+}</code></pre><p>commit 전에 일부 SQL만 성공한 상태에서 오류가 나면 rollback해야 원자성을 지킬 수 있습니다. Connection을 pool에 반환하기 전에 auto-commit, read-only, isolation 같은 상태가 framework나 pool에 의해 초기화되는지도 확인합니다.</p></section>
+<section id="pagination"><h2>6. pagination 문법과 비용은 database마다 다르다</h2><div class="table-scroll"><table><thead><tr><th>방식</th><th>예시</th><th>특징</th></tr></thead><tbody><tr><td>MySQL·PostgreSQL offset</td><td><code>LIMIT ? OFFSET ?</code></td><td>단순하지만 큰 offset 비용</td></tr><tr><td>표준·최근 Oracle</td><td><code>OFFSET ? ROWS FETCH NEXT ? ROWS ONLY</code></td><td>지원 version 확인</td></tr><tr><td>과거 Oracle</td><td><code>ROWNUM</code> 중첩 query</td><td>정렬 뒤 번호 부여 순서 주의</td></tr><tr><td>keyset</td><td><code>WHERE id &gt; ? ORDER BY id LIMIT ?</code></td><td>다음 구간에 유리, 임의 page 이동은 어려움</td></tr></tbody></table></div><p>어떤 방식이든 <code>ORDER BY</code>가 안정적이어야 합니다. 같은 값이 많은 column만 정렬하면 page 사이에 row가 중복되거나 빠질 수 있으므로 unique key를 보조 정렬로 둡니다.</p></section>
+<section id="view"><h2>7. View는 저장된 query이고 materialized view는 결과를 저장한다</h2><ul><li><strong>View:</strong> 이름을 붙인 query입니다. 기초 table을 기준으로 실행되며 권한과 반복 query를 단순화할 수 있습니다.</li><li><strong>Materialized view:</strong> query 결과를 물리적으로 저장해 읽기를 빠르게 할 수 있지만 refresh 전략과 stale data를 관리해야 합니다.</li></ul><p>View가 있다고 자동으로 빠른 것은 아닙니다. index 사용과 실행 계획을 실제 database에서 확인합니다. 같은 이름의 view를 중복 생성하거나 다른 계정 schema에 만들어 놓고 찾지 못하는 문제도 흔합니다.</p></section>
+<section id="dynamic"><h2>8. 외부 database 연결 정보는 코드와 공개 문서에서 분리한다</h2><p>URL(통합 자원 위치), 사용자 이름, 비밀번호, 인증서는 environment variable이나 secret manager에서 주입하고 log에 출력하지 않습니다. Runtime에 임의 driver와 URL을 받아 접속하는 기능은 allowlist, network egress, timeout, read-only 계정, query 제한 없이는 data 유출 경계가 될 수 있습니다.</p><p>개발 도구에서 접속이 된다는 사실과 application server에서 접속이 된다는 사실도 다릅니다. DNS(도메인 이름 시스템), route, firewall, TLS(전송 계층 보안), driver version과 계정 권한을 application 실행 환경에서 검증합니다.</p></section>
+<section id="debug"><h2>9. 실패는 계층별로 분리해 진단한다</h2><ol><li>Driver를 load할 수 있는가?</li><li>DNS와 port에 도달하는가?</li><li>TLS와 인증이 성공하는가?</li><li>Schema·table·column 이름과 권한이 맞는가?</li><li>SQL syntax와 parameter 수·type이 맞는가?</li><li>ResultSet mapping과 NULL 처리가 맞는가?</li><li>commit 또는 rollback이 실행됐는가?</li></ol><p>SQL 문자열 조립 때 단어 사이 공백이 빠지는 단순 오류도 최종 SQL을 parameter와 분리해 log하면 금방 찾을 수 있습니다. 다만 민감한 값은 masking합니다.</p></section>
+<section id="conclusion"><h2>10. 결론</h2><p>JDBC 문제는 <strong>연결 → 값 binding → 실행 → cursor 이동 → mapping → transaction 확정 → 자원 반환</strong> 순서로 추적합니다. SQL 문법만 맞아도 이 경계 중 하나가 깨지면 application은 올바르게 동작하지 않습니다.</p><h3>참고 자료</h3><ul><li><a href="https://keyboardfoot.tistory.com/25">기존 학습 기록: JDBC 연결 흐름</a></li><li><a href="https://keyboardfoot.tistory.com/29">기존 학습 기록: Oracle View</a></li><li><a href="https://keyboardfoot.tistory.com/45">기존 학습 기록: PreparedStatement와 ResultSet</a></li><li><a href="https://docs.oracle.com/en/java/javase/26/docs/api/java.sql/java/sql/package-summary.html">Java SE 공식 문서: java.sql</a></li></ul></section>
+<div class="project-reference-links"><strong>같이 보기</strong><a href="sql_crud_strings_patterns.html">SQL CRUD·문자열·패턴</a><a href="database_index_learning.html">Database Index</a><a href="../backend/jpa_persistence_relations.html">JPA 영속성</a></div><footer>Database · SQL과 Java 실행 경계</footer></main><script src="../../assets/js/global_nav.js?v=20260823-blog-absorb"></script></body></html>

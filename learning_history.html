@@ -103,6 +103,10 @@
         <article class="day" id="study-2026-08-23">
           <time datetime="2026-08-23">2026년 08월 23일</time>
           <div class="topic"><h3>외부 커리큘럼 역량 감사와 확장 로드맵 설계</h3><p>AI·ML·딥러닝, LLM 응용, 데이터 엔지니어링·MLOps, Knowledge Graph·GraphRAG·Ontology·Agent Harness 커리큘럼을 현재 1차 학습 순환과 대조했다. 기본 ML·PyTorch·Transformer, CV·시계열·이상탐지·추천 후보는 기존 로드맵에 이미 포함되어 있어 중복 추가하지 않았다. 독립적인 결과물과 완료 조건이 필요한 <a href="roadmaps/roadmap_mlops.html">MLOps·모델 운영</a>과 <a href="roadmaps/roadmap_knowledge_agents.html">Knowledge Graph·GraphRAG·Agent Harness</a>만 1차 순환 이후 선택할 확장 로드맵으로 분리했다. 이번 기록은 학습 방향 설계이며 해당 확장 역량을 완료했다는 뜻은 아니다.</p></div>
+          <div class="topic"><h3>회원 이탈 MLP 학습 흐름 정리</h3><p>표 데이터 파이프라인에서 <code>Churn</code> 라벨 정렬(<code>No=0, Yes=1</code>) 후 <code>ColumnTransformer</code>로 수치형/범주형을 통합 전처리해 NumPy <code>(5634,45)</code>·<code>(1409,45)</code>를 Tensor화했고, <code>TensorDataset</code> + <code>DataLoader</code>로 Batch 학습을 구성했다. <code>Linear(45,16) → ReLU → Linear(16,1)</code> 모델에서 Batch는 64명 단위이며 Batch Loss는 각 샘플 BCE의 평균으로 계산한다는 점, 에포크마다 모든 배치 누적 후 평균을 기준으로 진척을 봄을 확인했다.</p></div>
+          <div class="topic"><h3>BCE/시그모이드/로스 계산 오해 정리</h3><p>모델 출력 <code>logits</code>는 제한이 없고, 학습/해석 단계에서 <code>sigmoid</code>를 통과해 <code>0~1</code> 구간 score로 본다는 흐름을 정리했다. 사용자와 함께 BCE 식을 샘플 단위로 추적해 보며, MSE와 BCE의 차이를 구분했고(둘 다 평균이지만 계산 항이 다름), 현재는 이진 분류의 기본 관점(임계값 0.5 기준)으로 <code>Yes/No</code> 판정을 다루었다.</p></div>
+          <div class="topic"><h3>Optimizer/학습률/Gradient 실제 동작 확인</h3><p><code>SGD(model.parameters(), lr=0.1)</code> 루프에서 <code>zero_grad → forward → BCE → backward → step</code> 순서를 직접 확인했고, 한 번의 step 후 loss가 내려가는 모습을 봤다. <code>loss.backward()</code>는 현재 배치 기준 기울기(.grad)를 쌓고, <code>step()</code>에서만 weight·bias가 실제 이동한다는 연결을 유지했다. 또한 <code>valid</code>에서 손실/accuracy를 함께 보고 과적합 가능성 판단을 준비했다.</p></div>
+          <div class="topic"><h3>모델 저장·복원·추론 검증 보강</h3><p>학습된 모델 파라미터는 <code>state_dict</code>로 저장·복원 가능하고, 로드 후 동일 입력에 대해 <code>torch.allclose</code>로 출력 일치 체크를 해서 복원 신뢰성을 점검했다. 단일 고객 추론 시에도 동일 전처리 기준을 <code>transform</code> 후 텐서화해 <code>sigmoid</code>까지 확인하면서 배치 학습/단일 예측 경로의 일관성을 맞췄다.</p></div>
         </article>
         <article class="day" id="study-2026-08-22">
           <time datetime="2026-08-22">2026년 08월 22일</time>
@@ -230,6 +234,10 @@
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
       <article class="session">
+        <div class="session-head"><div><time datetime="2026-08-23">2026년 08월 23일</time><h3>총 학습시간</h3></div><div class="duration">약 3시간 32분</div></div>
+        <div class="session-body"><strong>이날 한 공부</strong><ul><li>회원 이탈 데이터 파이프라인을 실제 실행 흐름으로 점검하고, <code>StandardScaler</code>+<code>OneHotEncoder</code> 처리 + TensorDataset/DataLoader 연결을 마무리했다.</li><li><code>ChurnMLP</code>(<code>Linear(45,16) → ReLU → Linear(16,1)</code>)로 20 epoch 학습과 Validation 평가를 수행해 Accuracy 78.99%, Yes Recall 35.56%, TP 133, FN 241을 확인했다.</li><li><code>BCEWithLogitsLoss</code>의 출력 스케일, Logit/시그모이드/손실 계산 관계를 정리하고, MSE와 BCE의 차이를 재정리했다.</li><li>손실/정확도 루프를 한 번 더 정리해 모델 저장/복원까지 실행했으며, <code>state_dict</code> 로드 후 동일 입력 비교로 <code>torch.allclose</code>를 통해 복원 신뢰성을 확인했다.</li><li>단일 고객 추론 실습으로 <code>DataFrame</code> 전처리 후 <code>transform</code>을 거쳐 <code>sigmoid</code> 출력까지 직접 확인했다.</li><li>다음 단계로 <code>TransformerBlock</code>을 <code>causal</code> 디코더 경로로 연결해 Tiny Decoder LM 루틴으로 복귀할 방향을 정리했다.</li></ul><p>코덱스 세션 로그에서 장시간 비학습 구간을 제외해 집계했다.</p></div>
+      </article>
+      <article class="session">
         <div class="session-head"><div><time datetime="2026-08-22">2026년 08월 22일</time><h3>총 학습시간</h3></div><div class="duration">약 4시간 40분</div></div>
         <div class="session-body"><strong>이날 한 공부</strong><ul><li>작은 회귀 Tensor를 <code>TensorDataset</code>·<code>DataLoader</code>로 묶고 Batch 2개·1개를 직접 확인</li><li>Batch 학습 100 Epoch와 <code>epoch + 1</code> 로그 의미, 학습 전·후 Loss 비교</li><li>회원 이탈 데이터를 Pandas → 전처리된 NumPy → <code>float32</code> Tensor → Train·Validation DataLoader로 연결</li><li><code>[batch,45] → [batch,16] → [batch,1]</code> MLP의 Batch·Feature·Hidden 차원 구분</li><li>Logit·sigmoid 출력값·BCE 고객별 채점과 Batch 평균, MSE·분산의 차이 확인</li><li><code>zero_grad → forward → BCE → backward → SGD step</code> 한 번 실행과 Loss의 소폭 감소 설명</li><li>LoRA의 기존 Weight·Low-Rank 변화량과 파라미터 수 감소 계산</li></ul><p>채팅 세션 전체 간격에서 명확한 장시간 공백과 확인된 수면 시간을 제외해 계산했다.</p></div>
       </article>
@@ -301,7 +309,7 @@
     </section>
   </main>
   <a class="home-link" href="index.html" aria-label="학습 홈으로 돌아가기">⌂ 학습 홈</a>
-  <script src="assets/js/global_nav.js?v=20260820"></script>
+  <script src="assets/js/global_nav.js?v=20260823-import-toc"></script>
   <script src="assets/js/learning_calendar.js?v=20260816"></script>
 </body>
 </html>

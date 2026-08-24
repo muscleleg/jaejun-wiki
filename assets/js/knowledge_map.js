@@ -6,6 +6,70 @@
       label: "주제별",
       description: "기술 분야별로 출발하되, 다른 분야와 공유하는 개념도 각 가지에 다시 배치합니다.",
       tree: node("AI 학습 지식", "ai-learning", { status: "learning", children: [
+        node("회귀·수치 계산 원문", "regression-notes", { status: "reference", href: "wiki/machine-learning/ordinary_least_squares_learning.html", children: [
+          node("OLS 기울기·절편", "ordinary-least-squares", { status: "reference", href: "wiki/machine-learning/ordinary_least_squares_learning.html" }),
+          node("결정계수 R²", "r-squared", { status: "reference", href: "wiki/machine-learning/regression_r_squared_learning.html" }),
+          node("벡터화·회귀 모델 선택", "regression-model-selection", { status: "reference", href: "wiki/machine-learning/regression_model_selection_vectorization_learning.html" }),
+        ] }),
+        node("Python·FastAPI 원문", "python-fastapi-notes", { status: "reference", href: "wiki/python/python_language_objects_resources.html", children: [
+          node("언어 객체·리소스", "python-language-runtime", { status: "reference", href: "wiki/python/python_language_objects_resources.html" }),
+          node("NumPy 배열·인덱싱·정렬", "numpy-array-fundamentals", { status: "reference", href: "wiki/python/numpy_array_fundamentals.html" }),
+          node("Django Model·QuerySet", "django-model-queries", { status: "reference", href: "wiki/python/django_models_queries.html" }),
+          node("동시성·비동기", "python-concurrency", { status: "reference", href: "wiki/python/python_concurrency_async_runtime.html" }),
+          node("의존성·검증·오류", "fastapi-validation", { status: "reference", href: "wiki/python/fastapi_dependency_validation_errors.html" }),
+          node("Pydantic·SQLAlchemy", "fastapi-pydantic-sqlalchemy", { status: "reference", href: "wiki/python/fastapi_pydantic_sqlalchemy_flow.html" }),
+        ] }),
+        node("Backend·Java", "backend-java", { status: "reference", href: "wiki/backend/java_objects_collections.html", children: [
+          node("Java 객체·Collection", "java-objects-collections", { status: "reference", href: "wiki/backend/java_objects_collections.html" }),
+          node("Spring Web MVC·REST", "spring-web-mvc-rest", { status: "reference", href: "wiki/backend/spring_web_mvc_rest.html" }),
+          node("Spring Security", "spring-security", { status: "reference", href: "wiki/backend/spring_security_authentication.html" }),
+          node("JPA 영속성·연관관계", "jpa-persistence-relations", { status: "reference", href: "wiki/backend/jpa_persistence_relations.html" }),
+          node("Spring Data JPA 조회", "spring-data-jpa-queries", { status: "reference", href: "wiki/backend/spring_data_jpa_queries.html" }),
+        ] }),
+        node("알고리즘·문제 해결", "algorithm-problem-solving", { status: "reference", href: "wiki/coding-test/index.html", children: [
+          node("복잡도·순차/이분 탐색", "algorithm-complexity-search", { status: "reference", href: "wiki/coding-test/algorithm_complexity_search.html" }),
+          node("문자열·배열 패턴", "string-array-patterns", { status: "reference", href: "wiki/coding-test/string_array_problem_patterns.html" }),
+        ] }),
+        node("Web·Frontend", "web-frontend", { status: "reference", href: "wiki/web/javascript_vue_runtime.html", children: [
+          node("Browser Event·Event Loop", "browser-event-loop", { status: "reference", href: "wiki/web/javascript_vue_runtime.html" }),
+          node("Vue Template·Props·Lifecycle", "vue-runtime", { status: "reference", href: "wiki/web/javascript_vue_runtime.html#vue-template" }),
+        ] }),
+        node("컴퓨터·네트워크·데이터베이스 원문", "systems-notes", { status: "reference", href: "wiki/infrastructure/computer_execution_memory_kernel.html", children: [
+          node("실행·메모리·커널", "computer-execution", { status: "reference", href: "wiki/infrastructure/computer_execution_memory_kernel.html" }),
+          node("프로세스·스케줄링·동기화", "os-process-scheduling", { status: "reference", href: "wiki/infrastructure/os_process_scheduling_synchronization.html" }),
+          node("링크·IP·라우팅", "network-routing", { status: "reference", href: "wiki/infrastructure/network_link_ip_routing.html" }),
+          node("TCP·HTTP·TLS", "network-transport-web", { status: "reference", href: "wiki/infrastructure/network_tcp_http_tls.html" }),
+          node("Linux·Namespace·검색", "linux-architecture", { status: "reference", href: "wiki/infrastructure/linux_architecture_namespaces_search.html", children: [
+            node("Shell 확장·권한·Job control", "linux-shell-operations", { status: "reference", href: "wiki/infrastructure/linux_architecture_namespaces_search.html#shell-permissions-job-control" }),
+          ] }),
+          node("Git 상태·히스토리", "git-state-history", { status: "reference", href: "wiki/infrastructure/git_worktree_index_history.html" }),
+          node("SQL CRUD·문자열", "sql-crud", { status: "reference", href: "wiki/database/sql_crud_strings_patterns.html", children: [
+            node("JDBC 실행·Transaction", "sql-jdbc", { status: "reference", href: "wiki/database/sql_jdbc_execution.html" }),
+          ] }),
+          node("PostgreSQL 구조·쿼리", "postgresql", { status: "reference", href: "wiki/database/postgresql_architecture_schema_queries.html" }),
+          node("소프트웨어 보안·SSDLC", "software-security", { status: "reference", href: "wiki/infrastructure/software_security_principles_process.html" }),
+        ] }),
+        node("Kubernetes 원문", "kubernetes", { status: "reference", href: "wiki/infrastructure/kubernetes_architecture_workloads_rbac.html", children: [
+          node("아키텍처·워크로드·RBAC", "kubernetes-core", { status: "reference", href: "wiki/infrastructure/kubernetes_architecture_workloads_rbac.html", children: [
+            node("명령형 생성·YAML", "kubernetes-imperative-yaml", { status: "reference", href: "wiki/infrastructure/kubernetes_architecture_workloads_rbac.html#imperative-yaml-boundary" }),
+          ] }),
+          node("네트워크·Service·Multus", "kubernetes-network", { status: "reference", href: "wiki/infrastructure/kubernetes_network_service_multus.html" }),
+          node("스토리지·Stateful·MariaDB", "kubernetes-storage", { status: "reference", href: "wiki/infrastructure/kubernetes_storage_stateful_mariadb.html" }),
+          node("Helm·Flux·배포", "kubernetes-delivery", { status: "reference", href: "wiki/infrastructure/kubernetes_helm_flux_delivery.html" }),
+          node("설치·운영 아카이브", "kubernetes-operations", { status: "reference", href: "wiki/infrastructure/kubernetes_installation_operations_archive.html" }),
+          node("실습 메모·재검토", "kubernetes-practice-review", { status: "reference", href: "wiki/infrastructure/kubernetes_practice_notes_review.html" }),
+        ] }),
+        node("Agent·AI 서비스 원문", "agent-notes", { status: "reference", href: "wiki/llm-systems/agent_llm_tools_foundations.html", children: [
+          node("LLM Agent·Tool Loop", "agent-loop", { status: "reference", href: "wiki/llm-systems/agent_llm_tools_foundations.html" }),
+          node("LangGraph 상태·라우팅", "langgraph", { status: "reference", href: "wiki/llm-systems/langgraph_state_routing_parallelism.html" }),
+          node("메모리·가드레일·테스트", "agent-safety-testing", { status: "reference", href: "wiki/llm-systems/agent_memory_guardrails_testing.html" }),
+          node("멀티모달·CrewAI 응용", "agent-applications", { status: "reference", href: "wiki/llm-systems/agent_applications_multimodal_crewai.html" }),
+          node("AI 서비스 아키텍처", "ai-service-architecture", { status: "reference", href: "wiki/llm-systems/ai_service_architecture_patterns.html" }),
+        ] }),
+        node("프로젝트 원문 아카이브", "project-source-archives", { status: "reference", href: "wiki.html#projects", children: [
+          node("Kubernetes 관측 프로젝트 API 기록", "k8s-ai-observability-project", { status: "reference", href: "wiki/projects/kubernetes_observability_notion_source_api.html" }),
+          node("Notion RAG 아키텍처 기록", "notion-rag-project", { status: "reference", href: "wiki/projects/notion_rag_notion_source_architecture.html" }),
+        ] }),
         node("Machine Learning", "machine-learning", { status: "learning", href: "roadmaps/roadmap_machine_learning.html", children: [
           node("문제 정의", "problem-framing", { status: "verified", children: [node("Feature·Label", "feature-label", { status: "verified", href: "wiki/machine-learning/machine_learning_churn_data_quality_learning.html" }), node("Baseline", "baseline", { status: "learning", href: "wiki/machine-learning/machine_learning_churn_evaluation_learning.html" })] }),
           node("데이터 전처리", "preprocessing", { status: "learning", children: [node("One-Hot Encoding", "one-hot", { status: "verified", href: "wiki/machine-learning/machine_learning_churn_data_quality_learning.html" }), node("StandardScaler", "standard-scaler", { status: "learning", href: "wiki/machine-learning/standard_scaler_mean_std_proof_learning.html" })] }),
@@ -81,6 +145,13 @@
           node("학습", "project-training", { status: "learning", href: "wiki/projects/k8s-function-calling-training-code.html", children: [node("Qwen", "qwen", { status: "reference", href: "wiki/llm-systems/lora_adapters_qwen_learning.html" }), node("LoRA", "lora", { status: "learning", href: "wiki/llm-systems/lora_low_rank_adaptation_learning.html" }), node("Loss·Optimizer", "training-loop", { status: "learning", href: "wiki/projects/k8s-function-calling-training-code-explained.html" })] }),
           node("서빙", "project-serving", { status: "reference", href: "wiki/projects/k8s-function-calling-environment.html", children: [node("모델 정밀도", "precision-formats", { status: "reference", href: "wiki/external-articles/llm_precision_formats_learning.html" }), node("서빙 계층", "serving", { status: "reference", href: "wiki/llm-systems/llm_serving_stack_learning.html" })] }),
           node("평가", "project-evaluation", { status: "learning", href: "wiki/projects/k8s-function-calling-evaluation-code.html", children: [node("평가 계약", "evaluation-contract", { status: "learning", href: "wiki/llm-systems/llm_evaluation_contract_learning.html" }), node("Exact match", "exact-match", { status: "learning", href: "wiki/projects/k8s-function-calling-evaluation-code-explained.html" }), node("오류 분석", "error-analysis", { status: "reference", href: "wiki/projects/ko-k8s-function-calling.html" })] }),
+        ] }),
+        node("OpenStack Study Lab", "openstack-study-project", { status: "reference", href: "wiki/projects/openstack-study-lab.html", children: [
+          node("환경·CMD-001~085 전체 기록", "openstack-build-record", { status: "reference", href: "wiki/projects/openstack-study-lab-build-record.html", children: [node("수동 재현 가이드", "openstack-manual-deployment", { status: "reference", href: "wiki/projects/openstack-study-lab-manual-deployment.html" })] }),
+          node("핵심 서비스", "openstack-services", { status: "reference", href: "wiki/infrastructure/openstack_learning.html", children: [node("Kolla-Ansible 배포 계층", "openstack-deployment-layers", { status: "reference", href: "wiki/infrastructure/openstack_learning.html#deployment-layers" }), node("Nova·libvirt·KVM", "openstack-nova-runtime", { status: "reference", href: "wiki/infrastructure/openstack_learning.html#nova-runtime" }), node("Control·Data Plane 진단", "openstack-plane-diagnosis", { status: "reference", href: "wiki/infrastructure/openstack_learning.html#diagnose" })] }),
+          node("Provider 네트워크 경계", "linux-virtual-networking", { status: "reference", href: "wiki/projects/openstack-study-lab-network-foundations.html", children: [node("veth·Bridge", "veth-bridge", { status: "reference", href: "wiki/projects/openstack-study-lab-network-foundations.html#veth" }), node("Routing·NAT", "routing-nat", { status: "reference", href: "wiki/projects/openstack-study-lab-network-foundations.html#nat" })] }),
+          node("Cinder LVM", "cinder", { status: "reference", href: "wiki/projects/openstack-study-lab-storage-foundations.html", children: [node("loop·LVM", "loop-lvm", { status: "reference", href: "wiki/projects/openstack-study-lab-storage-foundations.html#lvm" }), node("Guest I/O", "block-io-verification", { status: "reference", href: "wiki/projects/openstack-study-lab.html#evidence" })] }),
+          node("OpenStack 범용 역량 로드맵", "openstack-roadmap", { status: "reference", href: "roadmaps/roadmap_openstack.html", children: [node("사용·구조·설계", "openstack-generalist-design", { status: "learning", href: "roadmaps/roadmap_openstack.html" }), node("배포·운영·진단", "openstack-generalist-operations", { status: "learning", href: "roadmaps/roadmap_openstack.html" })] }),
         ] }),
       ] }),
     },

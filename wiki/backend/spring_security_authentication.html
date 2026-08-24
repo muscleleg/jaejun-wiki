@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Spring Security Filter chain, 인증과 인가, SecurityContext, 예외 처리, 로그인 후 원래 요청 복귀, 비밀번호 해시와 JWT 서명을 연결한 문서">
+<title>Spring Security 인증·인가·Filter chain · 재준 위키</title>
+<link rel="stylesheet" href="../../assets/css/portal.css?v=20260823-blog-absorb"><link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260823-blog-absorb"><link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260823-blog-absorb">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Spring Security 인증·인가·Filter chain · 재준 위키">
+  <meta property="og:description" content="Spring Security Filter chain, 인증과 인가, SecurityContext, 예외 처리, 로그인 후 원래 요청 복귀, 비밀번호 해시와 JWT 서명을 연결한 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html","name":"Spring Security 인증·인가·Filter chain · 재준 위키","description":"Spring Security Filter chain, 인증과 인가, SecurityContext, 예외 처리, 로그인 후 원래 요청 복귀, 비밀번호 해시와 JWT 서명을 연결한 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html"},"headline":"Spring Security 인증·인가·Filter chain · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#spring-security","name":"Spring Security","identifier":"spring-security"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/backend/spring_security_authentication.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Backend·Java"},{"@type":"ListItem","position":4,"name":"Spring Security"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference reference-note"><main class="wrap">
+<nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><span>Backend·Java</span><span class="separator">›</span><span aria-current="page">Spring Security</span></nav>
+<header class="hero"><span class="label">Spring Security · Authentication · Authorization</span><h1>Spring Security 인증·인가·Filter chain</h1><p>보안을 설정 코드 조각으로 외우지 않고, 요청이 Filter chain을 통과하며 신원을 확인하고 권한을 판단하고 실패 응답을 만드는 순서로 이해합니다.</p></header>
+<nav aria-label="문서 목차"><a href="#cia">보안 목표</a><a href="#terms">인증·인가</a><a href="#chain">Filter chain</a><a href="#context">SecurityContext</a><a href="#exceptions">예외</a><a href="#saved-request">원래 요청</a><a href="#password">비밀번호</a><a href="#jwt">JWT</a><a href="#conclusion">결론</a></nav>
+
+<section id="cia"><h2>1. 보안 기능은 CIA 세 목표를 지키기 위한 수단이다</h2><div class="table-scroll"><table><thead><tr><th>약어</th><th>한국어 뜻</th><th>질문</th></tr></thead><tbody><tr><td>C · Confidentiality</td><td>기밀성</td><td>허가되지 않은 사람이 정보를 읽지 못하는가?</td></tr><tr><td>I · Integrity</td><td>무결성</td><td>정보가 허가 없이 바뀌지 않았는가?</td></tr><tr><td>A · Availability</td><td>가용성</td><td>허가된 사용자가 필요할 때 서비스를 쓸 수 있는가?</td></tr></tbody></table></div><p>로그인 기능만 있다고 세 목표가 자동으로 충족되지는 않습니다. 전송 암호화, 입력 검증, 권한, 감사 로그, 백업·복구와 과부하 대응이 함께 필요합니다.</p></section>
+
+<section id="terms"><h2>2. 인증과 인가는 다른 질문이다</h2><ul><li><strong>Authentication(인증):</strong> 요청을 보낸 주체가 누구인지 확인합니다.</li><li><strong>Authorization(인가):</strong> 확인된 주체가 이 자원과 동작을 사용할 수 있는지 판단합니다.</li></ul><p>인증이 먼저이고 인가가 뒤따릅니다. 인증되지 않은 요청과 인증됐지만 권한이 부족한 요청은 실패 이유와 응답 처리도 다릅니다.</p></section>
+
+<section id="chain"><h2>3. Spring Security는 Servlet Filter chain 안에서 동작한다</h2><div class="callout"><strong>대표 흐름</strong><br>요청 → 보안 exploit 방어 → 인증 정보 추출·검증 → SecurityContext 설정 → 권한 판단 → Controller</div><p><code>DelegatingFilterProxy</code>가 Servlet container와 Spring bean을 연결하고, <code>FilterChainProxy</code>가 요청에 맞는 <code>SecurityFilterChain</code>을 선택합니다. Filter 순서는 중요합니다. 현재 사용자를 필요로 하는 Filter는 인증 Filter보다 뒤에 있어야 합니다.</p><pre><code class="language-java">@Bean
+SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/public/**").permitAll()
+            .anyRequest().authenticated()
+        )
+        .formLogin(Customizer.withDefaults())
+        .build();
+}</code></pre><div class="warning"><strong>버전 경계</strong><br>과거의 <code>WebSecurityConfigurerAdapter</code> 기반 설정을 현재 코드에 그대로 복사하지 않습니다. 설치된 Spring Security major version의 공식 설정 API를 확인합니다.</div></section>
+
+<section id="context"><h2>4. 인증 결과는 <code>SecurityContext</code>에 보관된다</h2><p>인증 Filter는 credential 또는 token을 읽어 <code>Authentication</code>을 만들고 <code>AuthenticationManager</code>에 검증을 요청합니다. 성공한 Authentication에는 principal, 권한, 인증 여부가 들어가며 <code>SecurityContextHolder</code>를 통해 이후 계층이 접근합니다.</p><div class="table-scroll"><table><thead><tr><th>객체</th><th>역할</th></tr></thead><tbody><tr><td><code>Authentication</code></td><td>현재 주체와 credential·authority를 표현</td></tr><tr><td><code>AuthenticationManager</code></td><td>인증 요청을 적절한 provider에 위임</td></tr><tr><td><code>UserDetailsService</code></td><td>사용자 이름으로 사용자 정보를 읽는 계약</td></tr><tr><td><code>PasswordEncoder</code></td><td>비밀번호 단방향 검증</td></tr><tr><td><code>SecurityContext</code></td><td>현재 요청의 인증 결과 보관</td></tr></tbody></table></div></section>
+
+<section id="exceptions"><h2>5. 인증 실패와 권한 부족은 서로 다른 응답 경로를 가진다</h2><p><code>ExceptionTranslationFilter</code>는 아래쪽 chain에서 발생한 인증·인가 예외를 HTTP 응답으로 변환합니다.</p><ul><li><code>AuthenticationException</code> 또는 미인증 상태: <code>AuthenticationEntryPoint</code>가 로그인을 시작하거나 401 응답을 만듭니다.</li><li>인증됐지만 <code>AccessDeniedException</code>: <code>AccessDeniedHandler</code>가 403 응답을 만듭니다.</li></ul><p>Controller 예외 처리만 살펴보면 Controller에 도달하기 전에 발생한 보안 실패를 놓칠 수 있습니다. Filter 로그와 Security debug 로그에서 실제로 어느 Filter가 응답을 끝냈는지 추적합니다.</p></section>
+
+<section id="saved-request"><h2>6. 로그인 뒤 원래 페이지로 돌아가려면 요청을 저장해야 한다</h2><p>보호된 페이지에 접근한 미인증 사용자를 로그인 화면으로 보낸 뒤 원래 URL로 복귀하려면 <code>RequestCache</code>가 원래 요청을 저장하고 인증 성공 handler가 그 요청을 사용해야 합니다. 성공 URL을 항상 한 곳으로 고정하면 저장된 요청보다 고정 URL이 우선될 수 있습니다.</p><p>세션 기반 form login과 stateless bearer token API는 요청 저장 전략이 다릅니다. REST API는 보통 redirect 대신 401을 반환하고 client가 인증 상태를 처리합니다.</p></section>
+
+<section id="password"><h2>7. 비밀번호는 복호화하는 값이 아니라 검증하는 값으로 저장한다</h2><pre><code class="language-java">@Bean
+PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
+
+String encoded = passwordEncoder.encode(rawPassword);
+boolean matches = passwordEncoder.matches(candidate, encoded);</code></pre><p>BCrypt는 salt와 반복 비용을 포함한 password hashing 방식입니다. 같은 원문 비밀번호를 두 번 encode해 결과 문자열이 달라도 <code>matches</code>로 검증할 수 있습니다. 비밀번호를 일반 SHA-256 한 번으로 hash하거나 암호화해 복호화하는 방식으로 저장하지 않습니다.</p></section>
+
+<section id="jwt"><h2>8. JWT 서명 용어를 분리한다</h2><p>JWT(JSON Web Token: JSON 웹 토큰)는 header, payload, signature를 점으로 연결한 token 형식입니다. 기본 서명 JWT는 payload를 암호화하지 않으므로 민감정보를 넣지 않습니다.</p><div class="table-scroll"><table><thead><tr><th>용어</th><th>뜻</th><th>핵심</th></tr></thead><tbody><tr><td>SHA-256</td><td>256-bit secure hash algorithm(보안 해시 알고리즘)</td><td>임의 길이 입력을 고정 길이 digest로 변환</td></tr><tr><td>HMAC</td><td>Hash-based Message Authentication Code(해시 기반 메시지 인증 코드)</td><td>공유 secret으로 무결성과 인증 확인</td></tr><tr><td>RSA</td><td>공개키 암호 기술 계열</td><td>private key 서명, public key 검증 가능</td></tr><tr><td>HS256</td><td>HMAC + SHA-256</td><td>서명·검증자가 같은 secret 공유</td></tr><tr><td>RS256</td><td>RSA signature + SHA-256</td><td>private/public key 역할 분리</td></tr></tbody></table></div><p><code>exp</code>, <code>nbf</code>, <code>iat</code> 같은 시간 claim은 UTC epoch 기반 NumericDate로 검증합니다. 중요한 것은 시스템의 절대시각이며, timezone은 주로 표시와 로그 해석에 영향을 줍니다.</p><p>Algorithm allowlist, issuer, audience, signature, 만료를 모두 검증합니다. Token 문자열을 단순 decode해서 payload가 읽힌다는 사실은 서명이 유효하다는 뜻이 아닙니다.</p></section>
+
+<section id="conclusion"><h2>9. 결론</h2><p>Spring Security 문제는 <strong>어느 Filter가 요청을 처리했는가 → Authentication이 만들어졌는가 → SecurityContext에 저장됐는가 → 어느 권한 규칙이 거부했는가 → 누가 응답을 만들었는가</strong> 순서로 추적합니다. 설정 method 이름만 암기하는 것보다 이 흐름이 버전 변화에도 오래 남습니다.</p><h3>참고 자료</h3><ul><li><a href="https://keyboardfoot.tistory.com/123">기존 학습 기록: Spring Security 기초</a></li><li><a href="https://keyboardfoot.tistory.com/259">기존 학습 기록: HMAC·RSA·JWT</a></li><li><a href="https://keyboardfoot.tistory.com/260">기존 학습 기록: Filter 아키텍처</a></li><li><a href="https://keyboardfoot.tistory.com/262">기존 학습 기록: 보안 예외 흐름</a></li><li><a href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">Spring Security 공식 문서: Architecture</a></li></ul></section>
+<footer>Backend·Java · Spring Security 요청 처리</footer>
+</main><script src="../../assets/js/global_nav.js?v=20260823-blog-absorb"></script></body></html>

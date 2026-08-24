@@ -14,6 +14,7 @@
     .map((section) => [section.id, section]));
   const documentByHref = new Map(manifest.documents.map((entry) => [entry.href, entry]));
   const hierarchyByHref = new Map();
+  const expandedRootHrefs = new Set();
   let category = "all";
 
   const buttons = [{ id: "all", label: "전체" }, ...manifest.categories]
@@ -82,9 +83,63 @@
     return link;
   }
 
+  function depthInCategory(entry, groupKey) {
+    return Math.max(0, hierarchy(entry).filter((item) => item.categoryKey === groupKey).length - 1);
+  }
+
+  function groupByRoot(entries, groupKey) {
+    const roots = [];
+    for (const entry of entries) {
+      const depth = depthInCategory(entry, groupKey);
+      if (!roots.length || depth === 0) roots.push({ root: entry, descendants: [] });
+      else roots.at(-1).descendants.push(entry);
+    }
+    return roots;
+  }
+
+  function setToggleState(button, children, expanded) {
+    const count = Number(button.dataset.childCount || 0);
+    button.setAttribute("aria-expanded", String(expanded));
+    button.textContent = `하위 문서 ${count}개 ${expanded ? "접기" : "펼치기"}`;
+    children.hidden = !expanded;
+  }
+
+  function createRootGroup(rootGroup, directMatchHrefs, groupKey, forceExpanded) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "wiki-tree-root";
+    const row = document.createElement("div");
+    row.className = "wiki-tree-root-row";
+    row.appendChild(createDocumentLink(rootGroup.root, directMatchHrefs, groupKey));
+
+    if (rootGroup.descendants.length) {
+      const childId = `wiki-children-${rootGroup.root.id}`;
+      const children = document.createElement("div");
+      children.className = "wiki-tree-children";
+      children.id = childId;
+      for (const entry of rootGroup.descendants) {
+        children.appendChild(createDocumentLink(entry, directMatchHrefs, groupKey));
+      }
+
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "wiki-tree-toggle";
+      toggle.dataset.rootKey = rootGroup.root.href;
+      toggle.dataset.childCount = String(rootGroup.descendants.length);
+      toggle.setAttribute("aria-controls", childId);
+      const expanded = forceExpanded || expandedRootHrefs.has(rootGroup.root.href);
+      setToggleState(toggle, children, expanded);
+      row.appendChild(toggle);
+      wrapper.append(row, children);
+    } else {
+      wrapper.appendChild(row);
+    }
+    return wrapper;
+  }
+
   function render() {
     const query = input.value.trim().toLocaleLowerCase("ko");
-    const filtered = Boolean(query || category !== "all");
+    const searching = Boolean(query);
+    const filtered = Boolean(searching || category !== "all");
     const directMatches = manifest.documents.filter((entry) => {
       const categoryMatch = category === "all" || entry.categoryKey === category;
       const haystack = `${entry.title} ${entry.description} ${entry.searchText || ""} ${entry.category}`.toLocaleLowerCase("ko");
@@ -92,19 +147,14 @@
     });
     const directMatchHrefs = new Set(directMatches.map((entry) => entry.href));
     const visibleHrefs = new Set(directMatchHrefs);
-    if (filtered) directMatches.forEach((entry) => addAncestors(entry, visibleHrefs));
+    if (searching) directMatches.forEach((entry) => addAncestors(entry, visibleHrefs));
 
     for (const [id, section] of legacySectionById) section.id = id;
     results.replaceChildren();
     results.hidden = false;
     categorySections.forEach((section) => { section.hidden = true; });
 
-    if (!filtered) {
-      status.textContent = `전체 ${manifest.indexedCount || manifest.documents.length}개 문서를 상위 문서부터 하위 문서 순서로 표시합니다.`;
-    } else if (directMatches.length) {
-      const contextCount = visibleHrefs.size - directMatches.length;
-      status.textContent = `${directMatches.length}개 문서를 찾았습니다.${contextCount ? ` 문서 위치를 보여주기 위해 상위 문서 ${contextCount}개도 함께 표시합니다.` : ""}`;
-    } else {
+    if (!directMatches.length) {
       status.textContent = "조건에 맞는 문서가 없습니다.";
       return;
     }
@@ -125,6 +175,18 @@
       return order || left.label.localeCompare(right.label, "ko");
     });
 
+    const rootCount = orderedGroups.reduce((count, [groupKey, group]) => (
+      count + groupByRoot(group.entries, groupKey).length
+    ), 0);
+    if (searching) {
+      const contextCount = visibleHrefs.size - directMatches.length;
+      status.textContent = `${directMatches.length}개 문서를 찾았습니다.${contextCount ? ` 문서 위치를 보여주기 위해 상위 문서 ${contextCount}개도 함께 표시합니다.` : ""}`;
+    } else if (category === "all") {
+      status.textContent = `전체 ${manifest.indexedCount || manifest.documents.length}개 문서 중 최상위 ${rootCount}개를 표시합니다. 하위 문서는 문서별 펼치기 버튼으로 확인할 수 있습니다.`;
+    } else {
+      status.textContent = `${directMatches.length}개 문서 중 최상위 ${rootCount}개를 표시합니다. 하위 문서는 문서별 펼치기 버튼으로 확인할 수 있습니다.`;
+    }
+
     for (const [groupKey, group] of orderedGroups) {
       const section = document.createElement("section");
       section.className = "wiki-tree-category";
@@ -142,11 +204,24 @@
       heading.append(count);
       const list = document.createElement("div");
       list.className = "wiki-tree-list";
-      for (const entry of group.entries) list.appendChild(createDocumentLink(entry, directMatchHrefs, groupKey));
+      for (const rootGroup of groupByRoot(group.entries, groupKey)) {
+        list.appendChild(createRootGroup(rootGroup, directMatchHrefs, groupKey, searching));
+      }
       section.append(heading, list);
       results.appendChild(section);
     }
   }
+
+  results.addEventListener("click", (event) => {
+    const button = event.target.closest("button.wiki-tree-toggle");
+    if (!button) return;
+    const children = document.getElementById(button.getAttribute("aria-controls"));
+    if (!children) return;
+    const expanded = button.getAttribute("aria-expanded") !== "true";
+    if (expanded) expandedRootHrefs.add(button.dataset.rootKey);
+    else expandedRootHrefs.delete(button.dataset.rootKey);
+    setToggleState(button, children, expanded);
+  });
 
   filters.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-category]");

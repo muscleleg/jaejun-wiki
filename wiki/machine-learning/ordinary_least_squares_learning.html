@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="단순 선형회귀에서 OLS가 오차 제곱합을 줄이는 이유와 공분산·분산으로 기울기와 절편을 구하는 과정을 기존 학습 노트의 계산·그림·코드와 함께 보존한다.">
+  <title>OLS·기울기·절편과 공분산</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260823">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/notion-import.css?v=20260823-qa4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="OLS·기울기·절편과 공분산">
+  <meta property="og:description" content="단순 선형회귀에서 OLS가 오차 제곱합을 줄이는 이유와 공분산·분산으로 기울기와 절편을 구하는 과정을 기존 학습 노트의 계산·그림·코드와 함께 보존한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html","name":"OLS·기울기·절편과 공분산","description":"단순 선형회귀에서 OLS가 오차 제곱합을 줄이는 이유와 공분산·분산으로 기울기와 절편을 구하는 과정을 기존 학습 노트의 계산·그림·코드와 함께 보존한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html"},"headline":"OLS·기울기·절편과 공분산","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#regression-notes","name":"회귀·수치 계산 원문","identifier":"regression-notes"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#ordinary-least-squares","name":"OLS 기울기·절편","identifier":"ordinary-least-squares"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Machine Learning","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":4,"name":"OLS·기울기·절편과 공분산"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference notion-import-page">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html">Machine Learning</a><span class="separator">›</span><span aria-current="page">OLS·기울기·절편과 공분산</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Machine Learning · OLS</span>
+      <h1>공분산과 분산에서<br>기울기·절편까지</h1>
+      <p class="summary">선형회귀와 OLS를 정의한 뒤, 실제 숫자로 평균·편차·곱·제곱합을 계산하고 <code>공분산 / 분산</code>이 기울기가 되는 이유, 절편과 <code>reshape((-1, 1))</code>까지 연결한다.</p>
+      <div class="callout"><strong>원문 보존 원칙</strong><br>기존 Notion 학습 노트의 질문, 중간 계산, 표, 그림, 코드와 당시 헷갈렸던 지점을 삭제하지 않고 원문 단위로 옮겼다. 날짜·개인 일정은 공개하지 않는다. 기술적으로 다시 확인해야 할 표현은 완료된 이해로 표시하지 않고 검증 항목으로 남긴다.</div>
+    </header>
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">현재 이해도</h2>
+      <p>이전 노트를 편입한 것과 현재 다시 설명·계산할 수 있는지는 구분한다. 이 문서는 아직 재검증하지 않았으므로 0%에서 시작한다.</p>
+      <div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div>
+      <div class="meter-label"><span>검증 완료 0 / 3</span><strong>0%</strong></div>
+      <ul><li class="todo">○ 핵심 식의 각 항이 무엇을 뜻하는지 자기 말로 설명한다.</li><li class="todo">○ 작은 숫자로 결과를 예측하고 손계산한다.</li><li class="todo">○ NumPy 또는 scikit-learn 결과와 비교해 재현한다.</li></ul>
+    </section>
+    <nav class="source-nav" aria-label="원문 단위 목차"><a href="#source-198c691e5a2b8036850dd14400d9c550">선형회귀와 OLS 계산 전체 흐름</a><a href="#source-198c691e5a2b8082a949e05c8cc993d3">단순 선형회귀 공식과 절편 유도</a><a href="#source-198c691e5a2b805f9840f69d4b37a2d3">공분산은 왜 편차를 곱하고 합산하는가</a><a href="#source-198c691e5a2b80b58e82d9b4084179cc">왜 공분산을 분산으로 나누면 기울기가 되는가</a></nav>
+    <div class="project-reference-links"><strong>같이 보기</strong><a href="regression_r_squared_learning.html">결정계수 R²</a><a href="regression_model_selection_vectorization_learning.html">벡터화·선형/다항 회귀 비교</a></div>
+    <article class="content notion-import-content">
+<!-- notion-source:198c691e-5a2b-8036-850d-d14400d9c550 checksum:76cb5b1197dd4992 chars:23907 -->
+<section class="imported-source" id="source-198c691e5a2b8036850dd14400d9c550" data-source-id="198c691e-5a2b-8036-850d-d14400d9c550">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>선형회귀와 OLS 계산 전체 흐름</h2>
+  <p data-source-line="1">&lt;table_of_contents color=&quot;gray&quot;/&gt;</p>
+<h3 data-source-line="2"><strong>📌 선형 회귀와 OLS 회귀 분석 정리 (기울기 계산 과정 포함)</strong></h3>
+<hr data-source-line="3">
+<h4 data-source-line="4"><strong>1. 회귀분석(Regression Analysis)이란?</strong></h4>
+<ul>
+<li data-source-line="5">두 개 이상의 변수(X, Y) 사이의 관계를 찾아 <strong>예측 모델</strong>을 만드는 방법.</li>
+<li data-source-line="6">특히 <strong>선형 회귀(Linear Regression)</strong> 는 데이터를 가장 잘 설명하는 <strong>직선</strong>을 찾는 과정.</li>
+</ul>
+<figure class="notion-source-figure" data-source-line="7"><img src="../../assets/images/notion-import/ml/00d9c550-01.png" alt="원문 학습 그림 1" loading="lazy"><figcaption>원문 학습 그림 1</figcaption></figure>
+<p data-source-line="8">여기서:</p>
+<ul>
+<li data-source-line="9">( a ) : <strong>기울기(coef_)</strong> → X가 변할 때 Y가 얼마나 변하는지 나타냄.</li>
+<li data-source-line="10">( b ) : <strong>절편(intercept_)</strong> → X가 0일 때 Y의 값.</li>
+<li data-source-line="11">( x ) : 독립변수 (예: 키)</li>
+<li data-source-line="12">( y ) : 종속변수 (예: 몸무게)</li>
+</ul>
+<hr data-source-line="13">
+<h4 data-source-line="14"><strong>2. OLS(최소자승법, Ordinary Least Squares)란?</strong></h4>
+<ul>
+<li data-source-line="15">회귀선(예측 직선)을 찾기 위해 사용되는 방법.</li>
+<li data-source-line="16">각 데이터 포인트와 회귀선 사이의 <strong>오차(Residual)</strong> 를 최소화하는 선을 찾음.</li>
+<li data-source-line="17"><strong>오차를 제곱</strong>해서 더한 값(잔차 제곱합, SSE)을 최소화하는 방식.</li>
+</ul>
+<hr data-source-line="18">
+<h4 data-source-line="19"><strong>3. 기울기(a)와 절편(b)의 차이</strong></h4>
+<p data-source-line="20">기울기와 절편을 구하는 공식은</p>
+<p data-source-line="21"><strong>한 점일 때와 여러 점일 때 다르다</strong></p>
+<figure class="notion-source-figure" data-source-line="22"><img src="../../assets/images/notion-import/ml/00d9c550-02.png" alt="원문 학습 그림 2" loading="lazy"><figcaption>원문 학습 그림 2</figcaption></figure>
+<hr data-source-line="23">
+<h4 data-source-line="24"><strong>4. 여러 개의 점이 있을 때 기울기 구하는 과정 (OLS 사용)</strong></h4>
+<h5 data-source-line="25"><strong>✅ (1단계) X와 Y의 평균 구하기</strong></h5>
+<p data-source-line="26">주어진 데이터:</p>
+<figure class="notion-source-figure" data-source-line="27"><img src="../../assets/images/notion-import/ml/00d9c550-03.png" alt="원문 학습 그림 3" loading="lazy"><figcaption>원문 학습 그림 3</figcaption></figure>
+<figure class="notion-source-figure" data-source-line="28"><img src="../../assets/images/notion-import/ml/00d9c550-04.png" alt="원문 학습 그림 4" loading="lazy"><figcaption>원문 학습 그림 4</figcaption></figure>
+<p data-source-line="29">각각의 평균을 구함:</p>
+<figure class="notion-source-figure" data-source-line="30"><img src="../../assets/images/notion-import/ml/00d9c550-05.png" alt="원문 학습 그림 5" loading="lazy"><figcaption>원문 학습 그림 5</figcaption></figure>
+<figure class="notion-source-figure" data-source-line="31"><img src="../../assets/images/notion-import/ml/00d9c550-06.png" alt="원문 학습 그림 6" loading="lazy"><figcaption>원문 학습 그림 6</figcaption></figure>
+<hr data-source-line="32">
+<h5 data-source-line="33"><strong>✅ (2단계) (X - X평균)과 (Y - Y평균) 계산</strong></h5>
+<p data-source-line="34">각 데이터에서 평균을 뺀 값을 구함.</p>
+<div class="table-scroll"><table data-source-line="35">
+<tr>
+<p data-source-line="37">&lt;td&gt;<strong>X</strong>&lt;/td&gt;</p>
+<p data-source-line="38">&lt;td&gt;<strong>Y</strong>&lt;/td&gt;</p>
+<p data-source-line="39">&lt;td&gt;<strong>( X - \\bar\{X\} )</strong>&lt;/td&gt;</p>
+<p data-source-line="40">&lt;td&gt;<strong>( Y - \\bar\{Y\} )</strong>&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="43">&lt;td&gt;170&lt;/td&gt;</p>
+<p data-source-line="44">&lt;td&gt;75&lt;/td&gt;</p>
+<p data-source-line="45">&lt;td&gt;( -0.375 )&lt;/td&gt;</p>
+<p data-source-line="46">&lt;td&gt;( 3.25 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="49">&lt;td&gt;180&lt;/td&gt;</p>
+<p data-source-line="50">&lt;td&gt;81&lt;/td&gt;</p>
+<p data-source-line="51">&lt;td&gt;( 9.625 )&lt;/td&gt;</p>
+<p data-source-line="52">&lt;td&gt;( 9.25 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="55">&lt;td&gt;160&lt;/td&gt;</p>
+<p data-source-line="56">&lt;td&gt;59&lt;/td&gt;</p>
+<p data-source-line="57">&lt;td&gt;( -10.375 )&lt;/td&gt;</p>
+<p data-source-line="58">&lt;td&gt;( -12.75 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="61">&lt;td&gt;165&lt;/td&gt;</p>
+<p data-source-line="62">&lt;td&gt;70&lt;/td&gt;</p>
+<p data-source-line="63">&lt;td&gt;( -5.375 )&lt;/td&gt;</p>
+<p data-source-line="64">&lt;td&gt;( -1.75 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="67">&lt;td&gt;158&lt;/td&gt;</p>
+<p data-source-line="68">&lt;td&gt;55&lt;/td&gt;</p>
+<p data-source-line="69">&lt;td&gt;( -12.375 )&lt;/td&gt;</p>
+<p data-source-line="70">&lt;td&gt;( -16.75 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="73">&lt;td&gt;176&lt;/td&gt;</p>
+<p data-source-line="74">&lt;td&gt;78&lt;/td&gt;</p>
+<p data-source-line="75">&lt;td&gt;( 5.625 )&lt;/td&gt;</p>
+<p data-source-line="76">&lt;td&gt;( 6.25 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="79">&lt;td&gt;182&lt;/td&gt;</p>
+<p data-source-line="80">&lt;td&gt;84&lt;/td&gt;</p>
+<p data-source-line="81">&lt;td&gt;( 11.625 )&lt;/td&gt;</p>
+<p data-source-line="82">&lt;td&gt;( 12.25 )&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="85">&lt;td&gt;172&lt;/td&gt;</p>
+<p data-source-line="86">&lt;td&gt;72&lt;/td&gt;</p>
+<p data-source-line="87">&lt;td&gt;( 1.625 )&lt;/td&gt;</p>
+<p data-source-line="88">&lt;td&gt;( 0.25 )&lt;/td&gt;</p>
+</tr>
+</table></div>
+<hr data-source-line="91">
+<h5 data-source-line="92"><strong>✅ (3단계) 분자 계산</strong></h5>
+<p data-source-line="93">기울기 공식의 <strong>분자</strong>는 다음과 같아:</p>
+<figure class="notion-source-figure" data-source-line="94"><img src="../../assets/images/notion-import/ml/00d9c550-07.png" alt="원문 학습 그림 7" loading="lazy"><figcaption>원문 학습 그림 7</figcaption></figure>
+<p data-source-line="95">각각 곱한 값을 더해보자.</p>
+<figure class="notion-source-figure" data-source-line="96"><img src="../../assets/images/notion-import/ml/00d9c550-08.png" alt="원문 학습 그림 8" loading="lazy"><figcaption>원문 학습 그림 8</figcaption></figure>
+<hr data-source-line="97">
+<h5 data-source-line="98"><strong>✅ (4단계) 분모 계산</strong></h5>
+<p data-source-line="99">기울기 공식의 <strong>분모</strong>는 다음과 같아:</p>
+<figure class="notion-source-figure" data-source-line="100"><img src="../../assets/images/notion-import/ml/00d9c550-09.png" alt="원문 학습 그림 9" loading="lazy"><figcaption>원문 학습 그림 9</figcaption></figure>
+<p data-source-line="101">각각의 값을 제곱한 후 더해보자.</p>
+<figure class="notion-source-figure" data-source-line="102"><img src="../../assets/images/notion-import/ml/00d9c550-10.png" alt="원문 학습 그림 10" loading="lazy"><figcaption>원문 학습 그림 10</figcaption></figure>
+<hr data-source-line="103">
+<h5 data-source-line="104"><strong>✅ (5단계) 기울기 계산</strong></h5>
+<p data-source-line="105">이제 기울기 𝑎 를 구해보자.</p>
+<figure class="notion-source-figure" data-source-line="106"><img src="../../assets/images/notion-import/ml/00d9c550-11.png" alt="원문 학습 그림 11" loading="lazy"><figcaption>원문 학습 그림 11</figcaption></figure>
+<p data-source-line="107">즉, <strong>X(키)가 1 증가할 때, Y(몸무게)는 약 1.1139 증가</strong>한다.</p>
+<hr data-source-line="108">
+<h4 data-source-line="109"><strong>5. 실제 코드로 확인하기</strong></h4>
+<pre class="source-code" data-source-lines="34"><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+# 데이터 준비
+키 = np.array([170, 180, 160, 165, 158, 176, 182, 172]).reshape((-1, 1))
+몸무게 = np.array([75, 81, 59, 70, 55, 78, 84, 72])
+
+# 직접 기울기 계산
+x_mean = np.mean(키.flatten())
+y_mean = np.mean(몸무게)
+numerator = np.sum((키.flatten() - x_mean) * (몸무게 - y_mean))  # 분자
+denominator = np.sum((키.flatten() - x_mean) ** 2)  # 분모
+a = numerator / denominator  # 기울기
+b = y_mean - (a * x_mean)  # 절편
+
+# 결과 출력
+print(f&quot;기울기 a (coef_): {a:.4f}&quot;)
+print(f&quot;절편 b (intercept_): {b:.4f}&quot;)
+
+# sklearn 비교
+model = LinearRegression().fit(키, 몸무게)
+print(&quot;\n[sklearn 결과]&quot;)
+print(f&quot;coef_: {model.coef_[0]:.4f}&quot;)
+print(f&quot;intercept_: {model.intercept_:.4f}&quot;)
+
+# 그래프 그리기
+plt.scatter(키, 몸무게, label=&quot;실제 데이터&quot;)
+plt.plot(키, model.predict(키), color='red', label=&quot;회귀선&quot;)
+plt.xlabel(&quot;키 (cm)&quot;)
+plt.ylabel(&quot;몸무게 (kg)&quot;)
+plt.legend()
+plt.show()
+</code></pre>
+<hr data-source-line="146">
+<h4 data-source-line="147"><strong>6. 최종 정리</strong></h4>
+<p data-source-line="148">✔ <strong>기울기를 구하는 과정</strong></p>
+<ol>
+<li data-source-line="149"><strong>X와 Y의 평균을 구함</strong></li>
+<li data-source-line="150"><strong>각 데이터에서 평균을 뺀 값(</strong><strong><code>X - X평균</code></strong><strong>, </strong><strong><code>Y - Y평균</code></strong><strong>)을 구함</strong></li>
+<li data-source-line="151"><strong>이 값들을 곱해서 합을 구함 → 분자</strong></li>
+<li data-source-line="152"><strong>(X - X평균)을 제곱해서 합을 구함 → 분모</strong></li>
+<li data-source-line="153"><strong>분자 ÷ 분모를 하면 기울기(a) 완성!</strong></li>
+</ol>
+<h3 data-source-line="154"><strong><code>reshape((-1, 1))</code></strong><strong>은 왜 필요한가? (의미 포함)</strong></h3>
+<hr data-source-line="155">
+<h5 data-source-line="156"><strong>1. 1차원 vs 2차원의 개념</strong></h5>
+<p data-source-line="157">우리는 데이터(예: 키, 몸무게)를 다룰 때, <strong>1차원과 2차원의 차이</strong>를 이해해야 합니다.</p>
+<ul>
+<li data-source-line="158"><strong>1차원 배열 (Vector)</strong>: 숫자의 리스트</li>
+</ul>
+<p data-source-line="159">	→ <code>[170, 180, 160, 165, 158, 176, 182, 172]</code></p>
+<p data-source-line="160">	→ <strong>데이터가 &quot;나열&quot;되어 있음.</strong></p>
+<ul>
+<li data-source-line="161"><strong>2차원 배열 (Matrix, 행렬)</strong>: 숫자가 행(row)과 열(column)로 정리됨</li>
+</ul>
+<p data-source-line="162">	→ <code>[[170], [180], [160], [165], [158], [176], [182], [172]]</code></p>
+<p data-source-line="163">	→ <strong>각 데이터가 &quot;행렬 형태&quot;로 구성됨.</strong></p>
+<h5 data-source-line="164"><strong>🔹 1차원과 2차원의 차이를 쉽게 이해하는 방법</strong></h5>
+<ul>
+<li data-source-line="165"><strong>1차원:</strong> 그냥 값들의 나열 → <code>(8,)</code> 형태 (8개의 값이 1줄로 있음)</li>
+<li data-source-line="166"><strong>2차원:</strong> 값들이 행렬 형태 → <code>(8, 1)</code> 형태 (8개의 값이 각각 개별적인 행을 가짐)</li>
+</ul>
+<p data-source-line="167">즉, <strong>1차원 배열은 리스트 형태의 데이터</strong>,</p>
+<p data-source-line="168"><strong>2차원 배열은 행렬(Matrix) 형태의 데이터</strong>라고 생각하면 됩니다.</p>
+<hr data-source-line="169">
+<h5 data-source-line="170"><strong>2. </strong><strong><code>reshape((-1, 1))</code></strong><strong>의 의미</strong></h5>
+<pre class="source-code" data-source-lines="2"><code class="language-python">키 = np.array([170, 180, 160, 165, 158, 176, 182, 172]).reshape((-1, 1))
+</code></pre>
+<p data-source-line="175">위 코드에서 <strong><code>reshape((-1, 1))</code></strong><strong>은 1차원 데이터를 2차원으로 변환</strong>하는 역할을 합니다.</p>
+<h5 data-source-line="176"><strong>🔹 </strong><strong><code>1</code></strong><strong>의 의미</strong></h5>
+<ul>
+<li data-source-line="177"><code>1</code>을 넣으면 <strong>NumPy가 자동으로 행(row) 개수를 맞춰줌.</strong></li>
+<li data-source-line="178">데이터 개수가 <code>8개</code>라면 <strong>자동으로 </strong><strong><code>8행 1열</code></strong><strong>(8, 1) 크기의 2차원 배열이 생성됨.</strong></li>
+</ul>
+<p data-source-line="179">즉,</p>
+<pre class="source-code" data-source-lines="2"><code class="language-python">.reshape((-1, 1))
+</code></pre>
+<p data-source-line="184">은 <strong>(n, 1) 형태의 2차원 배열로 변환</strong>하는 역할을 합니다.</p>
+<hr data-source-line="185">
+<h5 data-source-line="186"><strong>3. </strong><strong><code>reshape((-1, 1))</code></strong><strong>이 필요한 이유</strong></h5>
+<h5 data-source-line="187"><strong>1️⃣ 머신러닝 모델은 2차원 데이터를 입력받음</strong></h5>
+<ul>
+<li data-source-line="188"><code>scikit-learn</code>의 <code>LinearRegression.fit(X, y)</code>에서 <code>X</code>는 <code>(샘플 개수, 특징 개수)</code> 형태의 2차원 배열이어야 합니다.</li>
+<li data-source-line="189">만약 <code>X</code>가 <strong>1차원 배열이면 오류가 발생</strong>합니다.</li>
+</ul>
+<pre class="source-code" data-source-lines="4"><code class="language-python"># 1차원 배열 (잘못된 입력)
+X = np.array([170, 180, 160, 165, 158, 176, 182, 172])
+model.fit(X, y)  # ❌ 오류 발생!
+</code></pre>
+<pre class="source-code" data-source-lines="4"><code class="language-python"># 2차원 배열 (올바른 입력)
+X = np.array([170, 180, 160, 165, 158, 176, 182, 172]).reshape((-1, 1))
+model.fit(X, y)  # ✅ 정상 동작
+</code></pre>
+<h5 data-source-line="202"><strong>2️⃣ 벡터(1차원) vs 행렬(2차원)의 차이</strong></h5>
+<ul>
+<li data-source-line="203"><code>numpy</code>에서 1차원 배열은 단순한 값들의 나열이므로 <strong>행과 열의 구분이 없음.</strong></li>
+<li data-source-line="204">하지만 머신러닝에서는 입력 데이터가 여러 개일 수 있으므로 <strong>각 데이터가 개별적인 행(row)으로 존재해야 함.</strong></li>
+</ul>
+<p data-source-line="205">예를 들어,</p>
+<p data-source-line="206"><strong>1차원 배열</strong> → 모델이 <strong>&quot;이게 샘플 8개인지, 하나의 긴 벡터인지&quot;</strong> 헷갈릴 수 있음.</p>
+<p data-source-line="207"><strong>2차원 배열</strong> → 모델이 <strong>&quot;이건 8개의 개별 샘플이다&quot;</strong> 라고 확실히 인식.</p>
+<h5 data-source-line="208"><strong>3️⃣ 입력 데이터의 형태 통일</strong></h5>
+<ul>
+<li data-source-line="209">머신러닝 모델은 <code>X</code>의 차원이 일정해야 함.</li>
+<li data-source-line="210"><code>reshape((-1, 1))</code>을 사용하면 <strong>일관된 형태(n, 1)로 데이터를 변환</strong>할 수 있음.</li>
+</ul>
+<hr data-source-line="211">
+<h5 data-source-line="212"><strong>4. </strong><strong><code>reshape((-1, 1))</code></strong><strong>을 적용한 데이터 비교</strong></h5>
+<h5 data-source-line="213"><strong>🔹 1차원 배열 (변환 전)</strong></h5>
+<pre class="source-code" data-source-lines="4"><code class="language-python">X = np.array([170, 180, 160, 165, 158, 176, 182, 172])
+print(X.shape)  # (8,)
+print(X)
+</code></pre>
+<p data-source-line="220">출력:</p>
+<pre class="source-code" data-source-lines="3"><code class="language-plain text">(8,)
+[170 180 160 165 158 176 182 172]
+</code></pre>
+<ul>
+<li data-source-line="226"><code>(8,)</code> → 1차원 배열 (8개의 요소)</li>
+<li data-source-line="227">데이터가 하나의 벡터처럼 나열됨.</li>
+</ul>
+<h5 data-source-line="228"><strong>🔹 2차원 배열 (변환 후)</strong></h5>
+<pre class="source-code" data-source-lines="4"><code class="language-python">X = np.array([170, 180, 160, 165, 158, 176, 182, 172]).reshape((-1, 1))
+print(X.shape)  # (8,1)
+print(X)
+</code></pre>
+<p data-source-line="235">출력:</p>
+<pre class="source-code" data-source-lines="10"><code class="language-plain text">(8, 1)
+[[170]
+ [180]
+ [160]
+ [165]
+ [158]
+ [176]
+ [182]
+ [172]]
+</code></pre>
+<ul>
+<li data-source-line="248"><code>(8,1)</code> → 8개의 행과 1개의 열을 가진 2차원 배열.</li>
+<li data-source-line="249">각 값이 하나의 행으로 존재 → 머신러닝 모델이 샘플 데이터로 인식 가능.</li>
+</ul>
+<hr data-source-line="250">
+<h4 data-source-line="251"><strong>📌 최종 요약</strong></h4>
+<div class="table-scroll"><table data-source-line="252">
+<tr>
+<p data-source-line="254">&lt;td&gt;<strong>변환 전 (1차원)</strong>&lt;/td&gt;</p>
+<p data-source-line="255">&lt;td&gt;<strong>변환 후 (2차원)</strong>&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="258">&lt;td&gt;<code>(8,)</code>&lt;/td&gt;</p>
+<p data-source-line="259">&lt;td&gt;<code>(8,1)</code>&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="262">&lt;td&gt;<code>[170, 180, 160, ...]</code>&lt;/td&gt;</p>
+<p data-source-line="263">&lt;td&gt;<code>[[170], [180], [160], ...]</code>&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="266">&lt;td&gt;단순한 벡터&lt;/td&gt;</p>
+<p data-source-line="267">&lt;td&gt;샘플 개별 행을 가지는 행렬&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="270">&lt;td&gt;머신러닝 모델 입력 불가능&lt;/td&gt;</p>
+<p data-source-line="271">&lt;td&gt;머신러닝 모델 입력 가능&lt;/td&gt;</p>
+</tr>
+</table></div>
+<p data-source-line="274">🚀 <strong>즉, </strong><strong><code>reshape((-1, 1))</code></strong><strong>은 데이터를 머신러닝 모델이 인식할 수 있도록 변환하는 필수 과정!</strong></p>
+</section>
+<!-- notion-source:198c691e-5a2b-8082-a949-e05c8cc993d3 checksum:8acbdfdeeb0a56a9 chars:17212 -->
+<section class="imported-source" id="source-198c691e5a2b8082a949e05c8cc993d3" data-source-id="198c691e-5a2b-8082-a949-e05c8cc993d3">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>단순 선형회귀 공식과 절편 유도</h2>
+  <p data-source-line="1">&lt;table_of_contents color=&quot;gray&quot;/&gt;</p>
+<h3 data-source-line="2">선행으로 알아야하는 내용</h3>
+<p class="source-page-reference" data-source-line="3">공분산</p>
+<p class="source-page-reference" data-source-line="4">“공분산 / 분산 = 기울기” 인 이유</p>
+<h3 data-source-line="6">공식</h3>
+<h5 data-source-line="7"><strong>1. 단순 선형 회귀 방정식</strong></h5>
+<p data-source-line="8">단순 선형 회귀의 기본 공식:</p>
+<figure class="notion-source-figure" data-source-line="9"><img src="../../assets/images/notion-import/ml/00d9c550-01.png" alt="단순 선형 회귀식 y = ax + b" loading="lazy"><figcaption>단순 선형 회귀식 <code>y = ax + b</code></figcaption></figure>
+<p data-source-line="10">여기서:</p>
+<ul>
+<li data-source-line="11">a = 기울기 (Slope)</li>
+<li data-source-line="12">b = 절편 (Intercept)</li>
+</ul>
+<p data-source-line="13">우리는 <strong>기울기 a를 먼저 구한 후, 절편 b를 계산합니다.</strong></p>
+<h5 data-source-line="15"><strong>2. 기울기 a 계산</strong></h5>
+<p data-source-line="16">기울기는 <strong>공분산을 분산으로 나눈 값</strong>으로 계산됩니다.</p>
+<figure class="notion-source-figure" data-source-line="17"><img src="../../assets/images/notion-import/ml/8cc993d3-02.png" alt="원문 학습 그림 2" loading="lazy"><figcaption>원문 학습 그림 2</figcaption></figure>
+<p data-source-line="18">여기서:</p>
+<figure class="notion-source-figure" data-source-line="19"><img src="../../assets/images/notion-import/ml/8cc993d3-03.png" alt="원문 학습 그림 3" loading="lazy"><figcaption>원문 학습 그림 3</figcaption></figure>
+<p data-source-line="20">즉, <strong>공분산을 통해 x와 y가 함께 변하는 정도를 측정하고, 이를 x의 변화량(분산)으로 나누어 기울기를 구합니다.</strong></p>
+<h5 data-source-line="21"><strong>3. 절편 b 계산</strong></h5>
+<p data-source-line="22">기울기를 구한 후, 절편은 다음 공식으로 계산됩니다.</p>
+<figure class="notion-source-figure" data-source-line="23"><img src="../../assets/images/notion-import/ml/8cc993d3-04.png" alt="원문 학습 그림 4" loading="lazy"><figcaption>원문 학습 그림 4</figcaption></figure>
+<p data-source-line="24">여기서:</p>
+<figure class="notion-source-figure" data-source-line="25"><img src="../../assets/images/notion-import/ml/8cc993d3-05.png" alt="원문 학습 그림 5" loading="lazy"><figcaption>원문 학습 그림 5</figcaption></figure>
+<figure class="notion-source-figure" data-source-line="26"><img src="../../assets/images/notion-import/ml/8cc993d3-06.png" alt="원문 학습 그림 6" loading="lazy"><figcaption>원문 학습 그림 6</figcaption></figure>
+<h5 data-source-line="27"><strong>4. 절편 공식 유도 과정</strong></h5>
+<p data-source-line="28"><strong>회귀선이 데이터의 평균점을 지나야 한다</strong>는 사실을 이용하여 절편을 구해봅시다.</p>
+<p data-source-line="29">1️⃣ 평균점을 회귀식에 대입</p>
+<figure class="notion-source-figure" data-source-line="30"><img src="../../assets/images/notion-import/ml/8cc993d3-07.png" alt="원문 학습 그림 7" loading="lazy"><figcaption>원문 학습 그림 7</figcaption></figure>
+<p data-source-line="31">2️⃣b에 대해 정리</p>
+<p data-source-line="32">즉, 절편 b는 <strong>기울기 a에 의해 결정된 평균 y 값과 실제 평균 y 값 간의 차이</strong>를 보정하는 역할을 합니다.</p>
+<figure class="notion-source-figure" data-source-line="33"><img src="../../assets/images/notion-import/ml/8cc993d3-08.png" alt="원문 학습 그림 8" loading="lazy"><figcaption>원문 학습 그림 8</figcaption></figure>
+<figure class="notion-source-figure" data-source-line="34"><img src="../../assets/images/notion-import/ml/8cc993d3-09.png" alt="원문 학습 그림 9" loading="lazy"><figcaption>원문 학습 그림 9</figcaption></figure>
+<blockquote data-source-line="37"><p>절편은 그러면 해당값들의 평균 기울기와 평균 x y 값을 통해 평균 절편을 구한거네?</p></blockquote>
+<figure class="notion-source-figure" data-source-line="38"><img src="../../assets/images/notion-import/ml/8cc993d3-10.png" alt="원문 학습 그림 10" loading="lazy"><figcaption>원문 학습 그림 10</figcaption></figure>
+</section>
+<!-- notion-source:198c691e-5a2b-805f-9840-f69d4b37a2d3 checksum:aee1d545e4d1f295 chars:12884 -->
+<section class="imported-source" id="source-198c691e5a2b805f9840f69d4b37a2d3" data-source-id="198c691e-5a2b-805f-9840-f69d4b37a2d3">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>공분산은 왜 편차를 곱하고 합산하는가</h2>
+  <h5 data-source-line="1">📌 <strong>공분산과 두 변수의 관계 - 종합 정리</strong></h5>
+<hr data-source-line="2">
+<h4 data-source-line="3"><strong>1. 공분산(Covariance)이란?</strong></h4>
+<p data-source-line="4">공분산은 <strong>두 변수가 어떻게 함께 변하는지</strong>를 측정하는 값이야.</p>
+<p data-source-line="5">즉, <strong>한 변수가 증가할 때 다른 변수가 증가하는지, 감소하는지, 혹은 관계가 없는지를 분석하는 것</strong>이 목표야.</p>
+<p data-source-line="6">공분산의 공식:</p>
+<figure class="notion-source-figure" data-source-line="7"><img src="../../assets/images/notion-import/ml/4b37a2d3-01.png" alt="원문 학습 그림 1" loading="lazy"><figcaption>원문 학습 그림 1</figcaption></figure>
+<hr data-source-line="8">
+<h4 data-source-line="9"><strong>2. 왜 공분산을 계산할 때 곱한 후 합산할까?</strong></h4>
+<h5 data-source-line="10">✅ <strong>평균에서 얼마나 벗어났는지 확인하기 위해</strong></h5>
+<p data-source-line="11">단순히 x와 y 값을 비교하면 데이터의 전체적인 경향을 보기가 어려워.</p>
+<p data-source-line="12">그래서 각각의 데이터가 평균에서 <strong>얼마나 벗어났는지</strong>(편차)를 먼저 계산해.</p>
+<figure class="notion-source-figure" data-source-line="13"><img src="../../assets/images/notion-import/ml/4b37a2d3-02.png" alt="원문 학습 그림 2" loading="lazy"><figcaption>원문 학습 그림 2</figcaption></figure>
+<p data-source-line="14">✔ 이 값이 <strong>양수면 평균보다 크고</strong>, <strong>음수면 평균보다 작다</strong>는 의미.</p>
+<hr data-source-line="15">
+<h5 data-source-line="16">✅ <strong>두 변수가 같은 방향으로 변하는지 확인하기 위해 곱함</strong></h5>
+<figure class="notion-source-figure" data-source-line="17"><img src="../../assets/images/notion-import/ml/4b37a2d3-03.png" alt="원문 학습 그림 3" loading="lazy"><figcaption>원문 학습 그림 3</figcaption></figure>
+<p data-source-line="18">✔ <strong>곱한 값이 양수면 같은 방향, 음수면 반대 방향으로 움직임을 의미</strong></p>
+<hr data-source-line="19">
+<h5 data-source-line="20">✅ <strong>전체적인 패턴을 보려면 합산이 필요</strong></h5>
+<p data-source-line="21">각 데이터 쌍마다 편차를 곱한 값만 보면 개별적인 관계만 알 수 있어.</p>
+<p data-source-line="22">하지만 우리는 <strong>전체 데이터에서 일관된 패턴이 있는지 확인하고 싶어</strong>.</p>
+<p data-source-line="23">그래서 모든 데이터에서 편차 곱한 값을 <strong>합산</strong>해서 사용해.</p>
+<hr data-source-line="24">
+<h4 data-source-line="25"><strong>3. 공분산 값 해석</strong></h4>
+<figure class="notion-source-figure" data-source-line="26"><img src="../../assets/images/notion-import/ml/4b37a2d3-04.png" alt="원문 학습 그림 4" loading="lazy"><figcaption>원문 학습 그림 4</figcaption></figure>
+<p data-source-line="27">✔ <strong>공분산이 양수</strong> → 두 변수가 같은 방향으로 변화 (키가 클수록 몸무게가 증가)</p>
+<p data-source-line="28">✔ <strong>공분산이 음수</strong> → 두 변수가 반대 방향으로 변화 (공부 시간이 많을수록 게임 시간이 줄어듦)</p>
+<p data-source-line="29">✔ <strong>공분산이 0에 가까움</strong> → 두 변수 사이에 특별한 관계가 없음</p>
+<hr data-source-line="30">
+<h4 data-source-line="31"><strong>4. 예제</strong></h4>
+<h5 data-source-line="32">📌 <strong>예제 1: 키와 몸무게 (공분산 &gt; 0, 같은 방향)</strong></h5>
+<figure class="notion-source-figure" data-source-line="33"><img src="../../assets/images/notion-import/ml/4b37a2d3-05.png" alt="원문 학습 그림 5" loading="lazy"><figcaption>원문 학습 그림 5</figcaption></figure>
+<p data-source-line="34">✔ <strong>공분산이 양수 → 키가 클수록 몸무게도 증가하는 경향이 있음!</strong></p>
+<hr data-source-line="35">
+<h5 data-source-line="36">📌 <strong>예제 2: 공부 시간과 게임 시간 (공분산 &lt; 0, 반대 방향)</strong></h5>
+<figure class="notion-source-figure" data-source-line="37"><img src="../../assets/images/notion-import/ml/4b37a2d3-06.png" alt="원문 학습 그림 6" loading="lazy"><figcaption>원문 학습 그림 6</figcaption></figure>
+<p data-source-line="38">✔ <strong>공분산이 음수 → 공부 시간이 많을수록 게임 시간이 줄어드는 경향이 있음!</strong></p>
+<hr data-source-line="39">
+<h4 data-source-line="40"><strong>5. 결론</strong></h4>
+<h5 data-source-line="41">✅ <strong>공분산을 계산할 때 왜 편차를 곱하고 합산하는가?</strong></h5>
+<ol>
+<li data-source-line="42"><strong>평균을 기준으로 데이터가 얼마나 벗어나는지 확인하기 위해</strong></li>
+</ol>
+<figure class="notion-source-figure" data-source-line="43"><img src="../../assets/images/notion-import/ml/4b37a2d3-07.png" alt="원문 학습 그림 7" loading="lazy"><figcaption>원문 학습 그림 7</figcaption></figure>
+<ol>
+<li data-source-line="44"><strong>두 변수가 같은 방향으로 움직이는지, 반대 방향으로 움직이는지 확인하기 위해</strong> → 편차를 곱함</li>
+<li data-source-line="45"><strong>전체 데이터에서 일관된 패턴이 있는지 확인하기 위해</strong> → 곱한 값을 합산</li>
+</ol>
+<p data-source-line="46">✔ <strong>공분산이 양수면 같은 방향, 음수면 반대 방향, 0이면 관계 없음!</strong></p>
+<p data-source-line="47">✔ <strong>공분산을 보면 두 변수 사이의 관계를 수량적으로 측정할 수 있음!</strong> 😊</p>
+</section>
+<!-- notion-source:198c691e-5a2b-80b5-8e82-d9b4084179cc checksum:15dab3886e7a1282 chars:9008 -->
+<section class="imported-source" id="source-198c691e5a2b80b58e82d9b4084179cc" data-source-id="198c691e-5a2b-80b5-8e82-d9b4084179cc">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>왜 공분산을 분산으로 나누면 기울기가 되는가</h2>
+  <blockquote data-source-line="1"><p>그니까 공분산은 두변수가 어떻게 함께 변화하는지를 측정했지만<br>x가 몇일때를 고려하지 않은거고<br>이를 1기준으로 해야 기울기가 나오니까 분산을 통해 x가 떨어진 평균을 나눠서 1에 맞추는건가?</p></blockquote>
+<h5 data-source-line="4"><strong>공분산은 두 변수가 함께 변하는 정도만 측정할 뿐, &quot;기울기&quot;라고 보기에는 부족합니다.</strong></h5>
+<p data-source-line="5">왜냐하면 <strong>공분산 자체는 &quot;비율&quot;이 아니라 단순한 곱의 평균이기 때문입니다</strong>.</p>
+<hr data-source-line="6">
+<h4 data-source-line="7"><strong>1. 공분산이 기울기가 될 수 없는 이유</strong></h4>
+<p data-source-line="8">공분산 Cov(x,y)\\text\{Cov\}(x, y)은 다음과 같이 정의됩니다.</p>
+<figure class="notion-source-figure" data-source-line="9"><img src="../../assets/images/notion-import/ml/084179cc-01.png" alt="원문 학습 그림 1" loading="lazy"><figcaption>원문 학습 그림 1</figcaption></figure>
+<p data-source-line="10">여기서 중요한 점은, <strong>공분산은 &quot;변화량의 곱&quot;을 평균낸 값일 뿐, 기울기가 아닙니다.</strong></p>
+<ul>
+<li data-source-line="11">공분산이 양수라면, 가 증가할 때 도 증가하는 경향이 있다는 것을 의미합니다.</li>
+<li data-source-line="12">공분산이 음수라면, 가 증가할 때 가 감소하는 경향이 있다는 것을 의미합니다.</li>
+<li data-source-line="13">하지만 <strong>&quot;기울기가 정확히 얼마인지&quot;를 나타내지 않습니다</strong>.</li>
+</ul>
+<p data-source-line="14">공분산 값만 보면 <strong>&quot;두 변수가 함께 변하는 정도&quot;</strong>는 알 수 있지만, <strong>&quot;얼마나 변화하는지&quot;, 즉 xx가 1 증가할 때 yy가 몇 증가하는지는 알 수 없습니다.</strong></p>
+<hr data-source-line="15">
+<h4 data-source-line="16"><strong>2. 왜 분산을 나누는가?</strong></h4>
+<p data-source-line="17">공분산을 기울기로 변환하려면 <strong>xx의 변화량을 1 기준으로 맞춰야 합니다</strong>.</p>
+<p data-source-line="18">즉, <strong>&quot;1만큼 변했을 때 yy가 얼마나 변하는가&quot;</strong>를 계산해야 하는데, 여기서 분산이 필요합니다.</p>
+<p data-source-line="19">분산 Var(x)는 다음과 같습니다.</p>
+<figure class="notion-source-figure" data-source-line="20"><img src="../../assets/images/notion-import/ml/084179cc-02.png" alt="원문 학습 그림 2" loading="lazy"><figcaption>원문 학습 그림 2</figcaption></figure>
+<p data-source-line="21">분산은 <strong>x 값이 평균에서 얼마나 떨어져 있는지</strong>를 측정하는 값이므로, <strong>&quot;단위 변화량&quot;을 정규화하는 역할</strong>을 합니다.</p>
+<p data-source-line="22">그래서 기울기 a는:</p>
+<figure class="notion-source-figure" data-source-line="23"><img src="../../assets/images/notion-import/ml/084179cc-03.png" alt="원문 학습 그림 3" loading="lazy"><figcaption>원문 학습 그림 3</figcaption></figure>
+<p data-source-line="24">이 공식의 의미는 다음과 같습니다.</p>
+<ul>
+<li data-source-line="25">분자는 <strong>&quot;두 변수가 어떻게 함께 변하는지&quot;</strong>를 측정하는 공분산입니다.</li>
+<li data-source-line="26">분모는 <strong>&quot;입력값 xx 자체가 얼마나 퍼져 있는지&quot;</strong>, 즉 변화량의 크기를 조정하는 역할을 합니다.</li>
+<li data-source-line="27">결과적으로 <strong>공분산을 분산으로 나누면 x가 1 증가할 때 y가 몇 증가하는지를 나타내는 기울기가 됩니다.</strong></li>
+</ul>
+<hr data-source-line="28">
+<h4 data-source-line="29"><strong>3. 직관적인 이해</strong></h4>
+<p data-source-line="30">공분산이 기울기가 아닌 이유를 쉽게 설명하면 다음과 같습니다.</p>
+<ol>
+<li data-source-line="31">공분산은 <strong>&quot;전체적인 변화량&quot;</strong>을 측정하지만, 단위(비율)가 없습니다.</li>
+</ol>
+<ul>
+<li data-source-line="32">예를 들어, <strong>단위가 &quot;키(cm) × 몸무게(kg)&quot;</strong> 같은 식이 됩니다.</li>
+</ul>
+<ol>
+<li data-source-line="33">우리는 &quot;키가 1cm 증가할 때 몸무게가 몇 kg 증가하는지&quot;를 알고 싶습니다.</li>
+</ol>
+<ul>
+<li data-source-line="34">즉, <strong>&quot;변화율&quot;을 알아야 합니다.</strong></li>
+</ul>
+<ol>
+<li data-source-line="35">이를 위해 x의 변화를 <strong>&quot;1 단위&quot;로 정규화해야 합니다</strong>.</li>
+</ol>
+<ul>
+<li data-source-line="36">즉, <strong>x 자체가 얼마나 퍼져 있는지(변동성)를 고려해야 합니다.</strong></li>
+<li data-source-line="37">그래서 분산을 나누어 정규화합니다.</li>
+</ul>
+<p data-source-line="38">이렇게 하면 <strong>공분산을 1 기준으로 보정하면서, 우리가 원하는 &quot;기울기&quot;를 얻게 됩니다.</strong> 🚀</p>
+<hr data-source-line="39">
+<h4 data-source-line="40"><strong>4. 한 줄 요약</strong></h4>
+<p data-source-line="41">✅ <strong>공분산은 xx와 yy가 함께 변하는 정도만 측정하지만, &quot;기울기&quot;는 아닙니다.</strong></p>
+<p data-source-line="42">✅ <strong>기울기는 &quot;1 증가할 때 얼마나 변하는가&quot;를 의미하기 때문에, xx의 변화량을 분산으로 나누어 보정해야 합니다.</strong></p>
+<p data-source-line="43">✅ <strong>그래서 공분산을 분산으로 나누면 기울기가 됩니다.</strong> 🎯</p>
+<blockquote data-source-line="44"><p>즉 X Y의 평균 변화율 / X의 평균변화율을 나눔으로서 Y의 평균변화율을 알 수 있고 이것이 곧 기울기라는거네?</p></blockquote>
+<p data-source-line="46">즉,</p>
+<p data-source-line="47">✅ <strong>X와 Y의 평균 변화율(공분산) / X의 평균 변화율(분산)</strong> 을 계산하면</p>
+<p data-source-line="48">✅ <strong>X가 1 증가할 때 Y가 평균적으로 얼마나 변하는지</strong>를 알 수 있고,</p>
+<p data-source-line="49">✅ <strong>이 값이 바로 회귀선의 기울기가 됩니다.</strong> 🎯</p>
+<p data-source-line="50">한 줄 요약:</p>
+<p data-source-line="51"><strong>공분산은 두 변수의 평균적인 동반 변화를 측정하지만, 이를 XXX의 변화량으로 정규화해야 기울기가 된다!</strong></p>
+<blockquote data-source-line="52"><p>왜냐하면 X와 Y의 평균 변화율(공분산)의 간격은 X 평균 변화율 만큼 가졌기때문이지?</p></blockquote>
+<p data-source-line="54">공분산( Cov(x,y))은 두 변수가 얼마나 함께 변하는지를 측정하지만, <strong>그 변화의 크기가 x의 변화량에 따라 달라질 수 있습니다.</strong></p>
+<p data-source-line="55">즉,</p>
+<p data-source-line="56">✅ 공분산은 <strong>x와 y가 함께 변하는 정도</strong>를 측정하지만, 그 단위는 아직 &quot;기울기&quot;가 아님.</p>
+<p data-source-line="57">✅ 왜냐하면 공분산의 변화량(간격)은 <strong>x가 얼마나 퍼져 있는지(변화의 크기, 즉 분산)만큼 조정된 상태</strong>이기 때문.</p>
+<p data-source-line="58">✅ 따라서 기울기를 구하려면 <strong>이 변화량을 x의 평균적인 변화량(분산)으로 나누어 1 기준으로 정규화</strong>해야 함.</p>
+<p data-source-line="59">그래서 최종적으로:</p>
+<figure class="notion-source-figure" data-source-line="60"><img src="../../assets/images/notion-import/ml/084179cc-04.png" alt="원문 학습 그림 4" loading="lazy"><figcaption>원문 학습 그림 4</figcaption></figure>
+<p data-source-line="61">이 공식이 나오는 거고, 이렇게 하면 <strong>&quot;X가 1 증가할 때 Y가 평균적으로 얼마나 변하는지&quot;</strong>를 정확하게 측정할 수 있게 됩니다! 🚀</p>
+</section>
+    </article>
+    <aside class="verification-notes" aria-labelledby="verification-title">
+      <h2 id="verification-title">편입 후 검증 메모</h2>
+      <p>원문의 계산 흐름은 보존했다. 다음 세 문장은 공식을 다시 설명할 때 반드시 구분한다.</p>
+      <ul>
+        <li><strong>기울기 공식의 조건:</strong> 절편을 포함한 단순 OLS에서 기울기는 <code>Cov(X, Y) / Var(X)</code>다. 공분산과 분산은 둘 다 <code>n</code>으로 나누거나 둘 다 <code>n - 1</code>로 나누는 등 같은 분모 관례를 써야 비율이 일치한다.</li>
+        <li><strong>“평균 변화율”과 공분산:</strong> 공분산은 각 표본의 중심화된 편차 곱을 평균한 값이다. 미분의 평균변화율이나 <code>ΔY / ΔX</code> 자체는 아니다. 분산으로 나누었을 때 단위가 <code>Y / X</code>가 되며, OLS가 정한 최적 직선의 기울기가 된다.</li>
+        <li><strong>식의 적용 범위:</strong> 이 관계는 단순 회귀의 설명이다. 설명변수가 여러 개인 다중 회귀에서는 다른 변수들을 함께 고려한 행렬식 <code>(XᵀX)⁻¹Xᵀy</code>로 계수를 구한다.</li>
+      </ul>
+    </aside>
+    <div class="project-reference-links"><strong>같이 보기</strong><a href="regression_r_squared_learning.html">결정계수 R²</a><a href="regression_model_selection_vectorization_learning.html">벡터화·선형/다항 회귀 비교</a></div>
+    <footer class="footer">Notion 공개 학습 노트 편입 · 원문 단위 추적 완료</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script>
+</body>
+</html>

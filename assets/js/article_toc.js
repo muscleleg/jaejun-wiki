@@ -1,5 +1,6 @@
 (() => {
   if (!location.pathname.includes("/wiki/") || location.pathname.endsWith("/wiki.html")) return;
+  if (document.querySelector(".source-nav")) return;
   if (document.querySelector('nav[aria-label*="문서 목차"], .toc')) return;
 
   const levelTwoHeadings = [...document.querySelectorAll("main section h2, .content section h2")];
