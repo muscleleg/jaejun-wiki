@@ -55,6 +55,34 @@ function textById(html, id) {
   return match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function sectionById(html, id) {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`<section\\b(?=[^>]*\\bid=["']${escaped}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i"));
+  if (!match) throw new Error(`Section not found: ${id}`);
+  return match[0];
+}
+
+function durationMinutes(text) {
+  const normalized = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (normalized === "미기록") return null;
+  const hours = normalized.match(/(\d+)시간/);
+  const minutes = normalized.match(/(\d+)분/);
+  if (!hours && !minutes) throw new Error(`Unsupported study duration: ${normalized}`);
+  return {
+    minutes: Number(hours?.[1] || 0) * 60 + Number(minutes?.[1] || 0),
+    approximate: normalized.startsWith("약 "),
+  };
+}
+
+function formatDuration(durations) {
+  if (!durations.length) return "미기록";
+  const totalMinutes = durations.reduce((sum, duration) => sum + duration.minutes, 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const value = [hours ? `${hours}시간` : "", minutes ? `${minutes}분` : ""].filter(Boolean).join(" ") || "0분";
+  return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
+}
+
 const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
@@ -138,12 +166,32 @@ if (!mapHtml.includes(defaultView.description)) throw new Error("Knowledge-map d
 
 assertEqual(textById(roadmapHtml, "roadmapOverallDone"), String(learningState.overall.done), "Roadmap completed count");
 assertEqual(textById(roadmapHtml, "roadmapOverallTotal"), String(learningState.overall.total), "Roadmap total count");
-const recordedDates = [...historyHtml.matchAll(/<article\b(?=[^>]*\bid=["']study-(\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
+const learningRecords = sectionById(historyHtml, "learning-records");
+const recordEntries = [...learningRecords.matchAll(/<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)]
+  .map((match) => ({ attributes: match[1], date: match[2] }));
+const recordedDates = recordEntries.map((entry) => entry.date);
 const uniqueRecordedDates = [...new Set(recordedDates)].sort().reverse();
+assertEqual(recordedDates.length, uniqueRecordedDates.length, "Unique dated learning records");
+for (const entry of recordEntries) {
+  const id = entry.attributes.match(/\bid=["']([^"']+)["']/i)?.[1] || "";
+  assertEqual(id, `study-${entry.date}`, `Learning-record anchor for ${entry.date}`);
+}
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
+const studyTime = sectionById(historyHtml, "study-time");
+const sessionDates = [...studyTime.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bsession\b[^"']*["'])[^>]*>[\s\S]*?<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>[\s\S]*?<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
+  .map((match) => ({ date: match[1], duration: durationMinutes(match[2]) }));
+assertEqual(sessionDates.length, new Set(sessionDates.map((entry) => entry.date)).size, "Unique study-time sessions");
+for (const { date } of sessionDates) {
+  if (!uniqueRecordedDates.includes(date)) throw new Error(`Study-time session has no dated learning record: ${date}`);
+}
+assertEqual(
+  textById(historyHtml, "historyRecordedStudyTime"),
+  formatDuration(sessionDates.map((entry) => entry.duration).filter(Boolean)),
+  "Recorded study-time total",
+);
 
 console.log(
-  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} overall=${learningState.overall.done}/${learningState.overall.total} latest=${uniqueRecordedDates[0]}`,
+  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
 );

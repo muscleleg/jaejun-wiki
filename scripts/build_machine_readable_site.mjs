@@ -106,6 +106,65 @@ function replaceElementContent(content, { tag, id, value }) {
   return content.replace(pattern, `$1${escapeHtml(value)}$2`);
 }
 
+function sectionById(content, id) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = content.match(new RegExp(`<section\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i"));
+  if (!match) throw new Error(`Section not found: ${id}`);
+  return match[0];
+}
+
+function normalizeLearningRecordIds(content) {
+  const sectionPattern = /(<section\b(?=[^>]*\bid=["']learning-records["'])[^>]*>)([\s\S]*?)(<\/section>)/i;
+  const match = content.match(sectionPattern);
+  if (!match) throw new Error("Learning-records section not found");
+  const seenDates = new Set();
+  const articlePattern = /<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>(\s*)(<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>)/gi;
+  const normalizedBody = match[2].replace(articlePattern, (full, attributes, spacing, timeTag, date) => {
+    if (seenDates.has(date)) throw new Error(`Duplicate dated learning record: ${date}`);
+    seenDates.add(date);
+    const expectedId = `study-${date}`;
+    const idMatch = attributes.match(/\bid=["']([^"']+)["']/i);
+    if (idMatch && idMatch[1] !== expectedId) {
+      throw new Error(`Learning-record id mismatch for ${date}: ${idMatch[1]}`);
+    }
+    const normalizedAttributes = idMatch ? attributes : `${attributes} id="${expectedId}"`;
+    return `<article${normalizedAttributes}>${spacing}${timeTag}`;
+  });
+  if (!seenDates.size) throw new Error("No dated learning records found in learning_history.html");
+  return content.replace(sectionPattern, `$1${normalizedBody}$3`);
+}
+
+function learningRecordDates(content) {
+  const records = sectionById(content, "learning-records");
+  const dates = [...records.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bday\b[^"']*["'])[^>]*>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
+  return [...new Set(dates)].sort().reverse();
+}
+
+function parseDurationMinutes(text) {
+  const normalized = decodeEntities(text);
+  if (normalized === "미기록") return null;
+  const hours = normalized.match(/(\d+)시간/);
+  const minutes = normalized.match(/(\d+)분/);
+  if (!hours && !minutes) throw new Error(`Unsupported study duration: ${normalized}`);
+  return {
+    minutes: Number(hours?.[1] || 0) * 60 + Number(minutes?.[1] || 0),
+    approximate: normalized.startsWith("약 "),
+  };
+}
+
+function recordedStudyTime(content) {
+  const studyTime = sectionById(content, "study-time");
+  const durations = [...studyTime.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
+    .map((match) => parseDurationMinutes(match[1]))
+    .filter(Boolean);
+  if (!durations.length) return "미기록";
+  const totalMinutes = durations.reduce((sum, duration) => sum + duration.minutes, 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const value = [hours ? `${hours}시간` : "", minutes ? `${minutes}분` : ""].filter(Boolean).join(" ") || "0분";
+  return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
+}
+
 function renderHomeProjects(projects) {
   return projects.map((project) => `        <a class="card home-project-card" href="${escapeAttribute(project.href)}">
           <span class="eyebrow">${escapeHtml(project.eyebrow)}</span>
@@ -334,10 +393,11 @@ async function renderStaticDiscoveryPages() {
 
   const historyPath = resolve(wikiRoot, "learning_history.html");
   let history = await readFile(historyPath, "utf8");
-  const studyDates = [...history.matchAll(/<article\b(?=[^>]*\bid=["']study-(\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
-  const uniqueStudyDates = [...new Set(studyDates)].sort().reverse();
+  history = normalizeLearningRecordIds(history);
+  const uniqueStudyDates = learningRecordDates(history);
   if (!uniqueStudyDates.length) throw new Error("No dated learning records found in learning_history.html");
   history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
+  history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(history) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   await writeFile(historyPath, history, "utf8");
 
