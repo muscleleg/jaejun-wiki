@@ -3156,7 +3156,7 @@ window.KNOWLEDGE_MANIFEST = {
       "id": "wiki-transformer-transformer_layer_norm_learning",
       "title": "Token마다 값의 규모를 다시 정리하기",
       "description": "Residual로 원본과 Attention 정보를 더한 뒤, 각 Token이 가진 마지막 특징 차원을 따로 정규화하는 이유와 계산을 현재 실습 숫자로 따라간다.",
-      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › LayerNorm Token마다 값의 규모를 다시 정리하기 LayerNorm은 무엇을 정리하는가? 현재 Token 1 숫자로 시작 왜 표준편차가 0.4774 인가? 표준편차로 나누면 왜 [1, -1] 인가? 실제 PyTorch에서 달라지는 작은 부분 실제 출력의 2.9802e-08 은 무엇인가? 이번 실습에서 실제로 확인한 전체 결과 FFN 뒤 두 번째 LayerNorm도 같은 원리다",
+      "searchText": "⌂ 학습 홈 › 기술 위키 › Transformer › LayerNorm Token마다 값의 규모를 다시 정리하기 LayerNorm은 무엇을 정리하는가? 현재 Token 1 숫자로 시작 왜 표준편차가 0.4774 인가? 표준편차로 나누면 왜 [1, -1] 인가? LayerNorm은 이상치를 잘라내는 연산이 아니다 왜 전체 이동과 배율이 상쇄되는가? 실제 PyTorch에서 달라지는 작은 부분 실제 출력의 2.9802e-08 은 무엇인가? 이번 실습에서 실제로 확인한 전체 결과 FFN 뒤 두 번째 LayerNorm도 같은 원리다",
       "href": "wiki/transformer/transformer_layer_norm_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_norm_learning.html",
       "category": "Transformer",
