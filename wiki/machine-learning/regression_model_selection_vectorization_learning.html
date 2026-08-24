@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="반복문과 NumPy 벡터 연산을 비교하고 시각화·상관계수·R²·잔차·curve_fit·OLS로 선형과 다항 회귀를 판단했던 학습 흐름을 전체 보존한다.">
+  <title>NumPy 벡터화와 선형·다항 회귀 비교</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260823">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/notion-import.css?v=20260823-qa4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="NumPy 벡터화와 선형·다항 회귀 비교">
+  <meta property="og:description" content="반복문과 NumPy 벡터 연산을 비교하고 시각화·상관계수·R²·잔차·curve_fit·OLS로 선형과 다항 회귀를 판단했던 학습 흐름을 전체 보존한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html","name":"NumPy 벡터화와 선형·다항 회귀 비교","description":"반복문과 NumPy 벡터 연산을 비교하고 시각화·상관계수·R²·잔차·curve_fit·OLS로 선형과 다항 회귀를 판단했던 학습 흐름을 전체 보존한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html"},"headline":"NumPy 벡터화와 선형·다항 회귀 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#regression-model-selection","name":"벡터화·회귀 모델 선택","identifier":"regression-model-selection"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/regression_model_selection_vectorization_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"선형회귀·OLS","item":"https://muscleleg.github.io/jaejun-wiki/wiki/machine-learning/ordinary_least_squares_learning.html"},{"@type":"ListItem","position":4,"name":"NumPy 벡터화와 선형·다항 회귀 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference notion-import-page">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="ordinary_least_squares_learning.html">선형회귀·OLS</a><span class="separator">›</span><span aria-current="page">NumPy 벡터화와 선형·다항 회귀 비교</span></nav>
+    <header class="hero">
+      <span class="eyebrow">NumPy · Regression</span>
+      <h1>벡터화에서 시작해<br>선형·다항 회귀를 비교하기</h1>
+      <p class="summary">NumPy 배열을 쓰는 이유에서 시작해 시각화, 상관계수, 선형·다항 회귀의 <code>R²</code>, 잔차, <code>curve_fit</code>과 OLS까지 한 번에 연결한다.</p>
+      <div class="callout"><strong>원문 보존 원칙</strong><br>기존 Notion 학습 노트의 질문, 중간 계산, 표, 그림, 코드와 당시 헷갈렸던 지점을 삭제하지 않고 원문 단위로 옮겼다. 날짜·개인 일정은 공개하지 않는다. 기술적으로 다시 확인해야 할 표현은 완료된 이해로 표시하지 않고 검증 항목으로 남긴다.</div>
+    </header>
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">현재 이해도</h2>
+      <p>이전 노트를 편입한 것과 현재 다시 설명·계산할 수 있는지는 구분한다. 이 문서는 아직 재검증하지 않았으므로 0%에서 시작한다.</p>
+      <div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div>
+      <div class="meter-label"><span>검증 완료 0 / 3</span><strong>0%</strong></div>
+      <ul><li class="todo">○ 핵심 식의 각 항이 무엇을 뜻하는지 자기 말로 설명한다.</li><li class="todo">○ 작은 숫자로 결과를 예측하고 손계산한다.</li><li class="todo">○ NumPy 또는 scikit-learn 결과와 비교해 재현한다.</li></ul>
+    </section>
+    <nav class="source-nav" aria-label="원문 단위 목차"><a href="#source-199c691e5a2b806eae64c20a37b21cc1">벡터 연산·회귀 형태 판단·curve_fit·OLS</a></nav>
+    <div class="project-reference-links"><strong>같이 보기</strong><a href="ordinary_least_squares_learning.html">OLS·기울기·공분산</a><a href="regression_r_squared_learning.html">결정계수 R²</a></div>
+    <article class="content notion-import-content">
+<!-- notion-source:199c691e-5a2b-806e-ae64-c20a37b21cc1 checksum:cbed8a818e268063 chars:15903 -->
+<section class="imported-source" id="source-199c691e5a2b806eae64c20a37b21cc1" data-source-id="199c691e-5a2b-806e-ae64-c20a37b21cc1">
+  <div class="source-note-label">원문 보존 단위</div>
+  <h2>벡터 연산·회귀 형태 판단·curve_fit·OLS</h2>
+  <p data-source-line="1">&lt;table_of_contents color=&quot;gray&quot;/&gt;</p>
+<h3 data-source-line="2">✅ <strong>벡터 연산(Vectorized Operation) 개념과 </strong><strong><code>np.array</code></strong><strong> 사용 이유 정리</strong></h3>
+<hr data-source-line="3">
+<h4 data-source-line="4">🔹 <strong>1. 벡터 연산(Vectorized Operation)이란?</strong></h4>
+<p data-source-line="5">👉 <strong>배열(벡터) 전체에 대해 반복문 없이 연산을 한 번에 적용하는 것</strong></p>
+<h5 data-source-line="6">🔍 <strong>예제: 일반적인 반복문 연산 vs 벡터 연산</strong></h5>
+<h5 data-source-line="7">❌ <strong>반복문 사용 (느림)</strong></h5>
+<pre class="source-code" data-source-lines="6"><code class="language-python">lst = [1, 2, 3, 4, 5]
+squared_lst = []
+for x in lst:
+    squared_lst.append(x ** 2)
+print(squared_lst)  # [1, 4, 9, 16, 25]
+</code></pre>
+<ul>
+<li data-source-line="16"><strong>각 원소를 처리하려면 </strong><strong><code>for</code></strong><strong>문을 사용해야 함</strong></li>
+<li data-source-line="17"><strong>Python의 기본 리스트는 벡터 연산을 지원하지 않음</strong></li>
+<li data-source-line="18"><strong>속도가 느림 (반복문을 사용하기 때문)</strong></li>
+</ul>
+<h5 data-source-line="19">✅ <strong>벡터 연산 사용 (빠름)</strong></h5>
+<pre class="source-code" data-source-lines="6"><code class="language-python">import numpy as np
+
+arr = np.array([1, 2, 3, 4, 5])
+squared_arr = arr ** 2  # 벡터 연산 적용
+print(squared_arr)  # [1 4 9 16 25]
+</code></pre>
+<ul>
+<li data-source-line="28"><strong><code>arr ** 2</code>만으로 모든 원소에 연산이 적용됨!</strong></li>
+<li data-source-line="29"><strong>반복문 없이 한 번에 처리 (속도 빠름!)</strong></li>
+<li data-source-line="30"><strong>C 언어 기반으로 최적화되어 빠르게 동작</strong></li>
+</ul>
+<hr data-source-line="31">
+<h4 data-source-line="32">🔹 <strong>2. </strong><strong><code>np.array</code></strong><strong>를 사용해야 하는 이유</strong></h4>
+<p data-source-line="33">✅ <strong>1. 벡터 연산을 지원하여 코드가 간결해짐</strong></p>
+<p data-source-line="34">✅ <strong>2. 반복문 없이 빠른 연산이 가능 (최적화된 C 기반 연산)</strong></p>
+<p data-source-line="35">✅ <strong>3. 대용량 데이터 연산이 훨씬 빠름 (리스트보다 최대 100배 이상 빠름)</strong></p>
+<p data-source-line="36">✅ <strong>4. 머신러닝, 데이터 분석, 그래프 그리기 등에서 필수적</strong></p>
+<h5 data-source-line="37">🔍 <strong>속도 비교 (리스트 vs NumPy 벡터 연산)</strong></h5>
+<pre class="source-code" data-source-lines="16"><code class="language-python">import numpy as np
+import time
+
+lst = list(range(1, 1000001))  # 1부터 100만까지 리스트
+arr = np.array(lst)  # 리스트를 NumPy 배열로 변환
+
+# 리스트 연산 (반복문 사용)
+start = time.time()
+squared_lst = [x ** 2 for x in lst]
+print(&quot;리스트 연산 시간:&quot;, time.time() - start)
+
+# 넘파이 벡터 연산
+start = time.time()
+squared_arr = arr ** 2
+print(&quot;넘파이 연산 시간:&quot;, time.time() - start)
+</code></pre>
+<p data-source-line="56">✅ <strong>실행 결과 예시</strong></p>
+<pre class="source-code" data-source-lines="3"><code class="language-plain text">리스트 연산 시간: 0.08초
+넘파이 연산 시간: 0.002초
+</code></pre>
+<p data-source-line="62">👉 <strong>NumPy 벡터 연산이 리스트보다 40배 이상 빠름! 🚀</strong></p>
+<hr data-source-line="63">
+<h4 data-source-line="64">🔹 <strong>3. </strong><strong><code>np.array</code></strong><strong>를 사용해야 하는 주요 사례</strong></h4>
+<h5 data-source-line="65">✅ <strong>1. </strong><strong><code>curve_fit</code></strong><strong> 같은 최적화 함수 사용</strong></h5>
+<pre class="source-code" data-source-lines="15"><code class="language-python">from scipy.optimize import curve_fit
+import numpy as np
+
+# 데이터
+x_data = np.array([1, 2, 3, 4, 5, 6])
+y_data = np.array([2, 4, 7, 11, 17, 25])
+
+# 모델 함수
+def func(x, a, b, c):
+    return a * x ** 2 + b * x + c  # 벡터 연산 가능!
+
+# 최적화
+opt, _ = curve_fit(func, x_data, y_data)
+print(opt)  # a, b, c 값 출력
+</code></pre>
+<p data-source-line="83">✔️ <code>curve_fit()</code> 함수는 <code>x_data</code>가 <code>np.array</code>여야 최적화 연산을 빠르게 수행할 수 있음.</p>
+<hr data-source-line="84">
+<h5 data-source-line="85">✅ <strong>2. 그래프 그리기 (</strong><strong><code>matplotlib</code></strong><strong>)</strong></h5>
+<pre class="source-code" data-source-lines="9"><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(0, 10, 100)  # 0~10까지 100개의 점 생성 (벡터 연산)
+y = np.sin(x)  # 벡터 연산 적용
+
+plt.plot(x, y)
+plt.show()
+</code></pre>
+<p data-source-line="97">✔️ <code>x</code>를 리스트로 하면 <code>np.sin(x)</code>가 적용되지 않음.</p>
+<p data-source-line="98">✔️ <code>np.array</code>를 사용해야 벡터 연산을 적용할 수 있음.</p>
+<hr data-source-line="99">
+<h5 data-source-line="100">✅ <strong>3. 행렬 연산 (선형대수)</strong></h5>
+<pre class="source-code" data-source-lines="8"><code class="language-python">import numpy as np
+
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[5, 6], [7, 8]])
+
+C = A @ B  # 행렬 곱셈 (벡터 연산)
+print(C)  # [[19 22] [43 50]]
+</code></pre>
+<p data-source-line="111">✔️ <strong>리스트로는 행렬 연산을 쉽게 할 수 없음!</strong></p>
+<p data-source-line="112">✔️ <strong>NumPy는 자동으로 최적화된 벡터 연산을 수행함.</strong></p>
+<hr data-source-line="113">
+<h4 data-source-line="114">🔹 <strong>4. </strong><strong><code>np.array</code></strong><strong>를 사용해야 하는 정리</strong></h4>
+<div class="table-scroll"><table data-source-line="115">
+<tr>
+<p data-source-line="117">&lt;td&gt;비교 항목&lt;/td&gt;</p>
+<p data-source-line="118">&lt;td&gt;Python 리스트&lt;/td&gt;</p>
+<p data-source-line="119">&lt;td&gt;NumPy 배열 (<code>np.array</code>)&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="122">&lt;td&gt;<strong>연산 방식</strong>&lt;/td&gt;</p>
+<p data-source-line="123">&lt;td&gt;<code>for</code>문 사용해야 함&lt;/td&gt;</p>
+<p data-source-line="124">&lt;td&gt;벡터 연산 사용 가능&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="127">&lt;td&gt;<strong>속도</strong>&lt;/td&gt;</p>
+<p data-source-line="128">&lt;td&gt;느림 (반복문 필요)&lt;/td&gt;</p>
+<p data-source-line="129">&lt;td&gt;빠름 (C 언어 최적화)&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="132">&lt;td&gt;<strong>메모리 효율성</strong>&lt;/td&gt;</p>
+<p data-source-line="133">&lt;td&gt;비효율적&lt;/td&gt;</p>
+<p data-source-line="134">&lt;td&gt;더 적은 메모리 사용&lt;/td&gt;</p>
+</tr>
+<tr>
+<p data-source-line="137">&lt;td&gt;<strong>사용 예시</strong>&lt;/td&gt;</p>
+<p data-source-line="138">&lt;td&gt;단순한 데이터 저장&lt;/td&gt;</p>
+<p data-source-line="139">&lt;td&gt;데이터 분석, 머신러닝, 행렬 연산, 그래프&lt;/td&gt;</p>
+</tr>
+</table></div>
+<hr data-source-line="142">
+<h3 data-source-line="143">값을 예측할때 해당 값이 선형회귀인지 다항(2차) 회귀인지 어떻게알아?</h3>
+<h4 data-source-line="144">✅ <strong>최종 결론</strong></h4>
+<p data-source-line="145">💡 <strong>벡터 연산이란?</strong></p>
+<p data-source-line="146">👉 배열 전체에 대해 반복문 없이 연산을 한 번에 수행하는 것!</p>
+<p data-source-line="147">💡 <strong><code>np.array</code></strong><strong>를 써야 하는 이유?</strong></p>
+<p data-source-line="148">✅ 벡터 연산을 지원하여 <strong>빠르고 간결한 코드 작성 가능</strong></p>
+<p data-source-line="149">✅ <code>for</code>문 없이 <strong>반복 연산을 최적화</strong></p>
+<p data-source-line="150">✅ 머신러닝, 데이터 분석, 최적화, 그래프, 선형대수 등에 필수적</p>
+<p data-source-line="151">🚀 <strong>Python에서 빠른 수학적 계산이 필요하다면 </strong><strong><code>np.array</code></strong><strong>를 반드시 사용하자!</strong> 🚀</p>
+<p data-source-line="152">어떤 모델이 적절한지 판단하려면 데이터를 분석하고 적합한 패턴을 찾는 과정이 필요해. 다음과 같은 방법을 활용할 수 있어.</p>
+<hr data-source-line="153">
+<h5 data-source-line="154"><strong>1. 시각화를 통해 패턴 확인하기</strong></h5>
+<p data-source-line="155">가장 직관적인 방법은 <strong>산점도(Scatter Plot)</strong>를 그려 데이터의 분포를 확인하는 거야.</p>
+<ul>
+<li data-source-line="156"><strong>선형적인 관계</strong> (직선 형태) → <strong>선형 회귀(Linear Regression)</strong></li>
+<li data-source-line="157"><strong>곡선 형태</strong> (U자형 또는 ∩자형) → <strong>2차 회귀(Polynomial Regression)</strong></li>
+</ul>
+<p data-source-line="158"><strong>예시 (Python, Matplotlib 사용)</strong></p>
+<pre class="source-code" data-source-lines="23"><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+# 샘플 데이터 생성
+x = np.linspace(-10, 10, 100)
+y_linear = 2*x + 5  # 선형 관계
+y_quadratic = x**2 - 3*x + 2  # 2차 함수 관계
+
+# 그래프 그리기
+plt.figure(figsize=(10,4))
+
+plt.subplot(1,2,1)
+plt.scatter(x, y_linear, label=&quot;Linear&quot;, color=&quot;blue&quot;)
+plt.plot(x, y_linear, color=&quot;red&quot;)
+plt.title(&quot;Linear Relationship&quot;)
+
+plt.subplot(1,2,2)
+plt.scatter(x, y_quadratic, label=&quot;Quadratic&quot;, color=&quot;green&quot;)
+plt.plot(x, y_quadratic, color=&quot;red&quot;)
+plt.title(&quot;Quadratic Relationship&quot;)
+
+plt.show()
+</code></pre>
+<p data-source-line="184">이런 식으로 <strong>데이터가 직선으로 정렬되면 선형 회귀, 곡선 형태면 2차 회귀를 고려</strong>하는 게 좋아.</p>
+<hr data-source-line="185">
+<h5 data-source-line="186"><strong>2. 상관계수(피어슨 상관계수) 확인하기</strong></h5>
+<p data-source-line="187">선형 관계를 확인할 때 <strong>피어슨 상관계수 (Pearson Correlation Coefficient, r)</strong>를 계산하면 좋아.</p>
+<ul>
+<li data-source-line="188">rr 값이 <strong>±1에 가까울수록 선형 관계가 강함</strong></li>
+<li data-source-line="189">rr 값이 0이면 선형 관계가 거의 없음 (비선형적일 가능성 있음)</li>
+</ul>
+<p data-source-line="190"><strong>예시 (Python, SciPy 사용)</strong></p>
+<pre class="source-code" data-source-lines="14"><code class="language-python">from scipy.stats import pearsonr
+
+x = np.array([1, 2, 3, 4, 5])
+y_linear = np.array([2, 4, 6, 8, 10])
+y_quadratic = np.array([1, 4, 9, 16, 25])
+
+# 선형 데이터와의 상관계수
+corr_linear, _ = pearsonr(x, y_linear)
+print(f&quot;Linear correlation: {corr_linear}&quot;)
+
+# 2차 데이터와의 상관계수
+corr_quadratic, _ = pearsonr(x, y_quadratic)
+print(f&quot;Quadratic correlation: {corr_quadratic}&quot;)
+</code></pre>
+<ul>
+<li data-source-line="207">rr 값이 높다면 선형 회귀 사용 가능</li>
+<li data-source-line="208">rr 값이 낮거나 0에 가까우면 비선형 가능성 높음 → 다항 회귀 시도</li>
+</ul>
+<hr data-source-line="209">
+<h5 data-source-line="210"><strong>3. 회귀 모델을 각각 적용하여 비교하기</strong></h5>
+<p data-source-line="211">실제 데이터를 가지고 <strong>선형 회귀와 2차 회귀를 적용한 후 성능을 비교</strong>할 수도 있어.</p>
+<h5 data-source-line="212"><strong>① 선형 회귀 모델 학습</strong></h5>
+<pre class="source-code" data-source-lines="11"><code class="language-python">from sklearn.linear_model import LinearRegression
+
+# 선형 회귀 모델 학습
+x_reshaped = x.reshape(-1, 1)
+linear_model = LinearRegression()
+linear_model.fit(x_reshaped, y_linear)
+
+# R^2 점수 확인
+r2_linear = linear_model.score(x_reshaped, y_linear)
+print(f&quot;Linear Regression R^2 Score: {r2_linear}&quot;)
+</code></pre>
+<h5 data-source-line="226"><strong>② 다항(2차) 회귀 모델 학습</strong></h5>
+<pre class="source-code" data-source-lines="12"><code class="language-python">from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LinearRegression
+
+# 2차 다항 회귀 모델 학습
+poly_model = make_pipeline(PolynomialFeatures(2), LinearRegression())
+poly_model.fit(x_reshaped, y_quadratic)
+
+# R^2 점수 확인
+r2_poly = poly_model.score(x_reshaped, y_quadratic)
+print(f&quot;Polynomial Regression R^2 Score: {r2_poly}&quot;)
+</code></pre>
+<ul>
+<li data-source-line="241"><strong>R2R\^2 값이 높을수록 해당 모델이 데이터를 더 잘 설명</strong></li>
+<li data-source-line="242">선형 모델과 다항 모델 중  값이 더 높은 쪽을 선택하면 돼</li>
+</ul>
+<p data-source-line="243">	R2R\^2</p>
+<hr data-source-line="244">
+<h5 data-source-line="245"><strong>4. 잔차(Residuals) 분석</strong></h5>
+<p data-source-line="246">잔차(Residuals)란 실제 값과 예측 값의 차이를 의미해. 잔차를 시각화하면 패턴을 확인할 수 있어.</p>
+<ul>
+<li data-source-line="247"><strong>선형 회귀가 적합하면</strong> 잔차가 랜덤하게 분포함</li>
+<li data-source-line="248"><strong>비선형 데이터에 선형 회귀를 적용하면</strong> 잔차에 패턴이 보임</li>
+</ul>
+<p data-source-line="249"><strong>잔차 플롯 (Residual Plot)</strong></p>
+<pre class="source-code" data-source-lines="12"><code class="language-python">import seaborn as sns
+
+# 예측값 계산
+y_pred = linear_model.predict(x_reshaped)
+residuals = y_linear - y_pred
+
+# 잔차 플롯 그리기
+sns.residplot(x=x, y=residuals, lowess=True, line_kws={'color': 'red'})
+plt.axhline(y=0, color='black', linestyle='--')
+plt.title(&quot;Residual Plot&quot;)
+plt.show()
+</code></pre>
+<ul>
+<li data-source-line="264"><strong>잔차가 무작위로 분포하면 → 선형 회귀 적합</strong></li>
+<li data-source-line="265"><strong>잔차가 특정 패턴을 그리면 → 비선형 모델 고려</strong></li>
+</ul>
+<hr data-source-line="266">
+<h5 data-source-line="267"><strong>결론</strong></h5>
+<ol>
+<li data-source-line="268"><strong>데이터를 시각화</strong>해서 패턴을 확인하자.</li>
+<li data-source-line="269"><strong>피어슨 상관계수</strong>를 이용해 선형성을 측정하자.</li>
+<li data-source-line="270"><strong>선형 회귀와 다항 회귀 모델을 적용 후 비교</strong>해보자.</li>
+<li data-source-line="271"><strong>잔차 분석</strong>을 통해 추가 검토하자.</li>
+</ol>
+<p data-source-line="272">이 방법으로 선형 모델과 다항 모델 중 어느 쪽이 데이터에 더 적절한지 비교할 수 있다.</p>
+<h3 data-source-line="274">다항 회귀 정리</h3>
+<pre class="source-code" data-source-lines="28"><code class="language-python">from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+import pandas as pd
+
+df = pd.read_table('income.txt')
+# 빈행 제거
+df = df.dropna()
+print(df)
+plt.scatter(df['age'], df['income'])
+
+
+# ax+bx^2+c를 구하는 것
+
+
+# curve_fit(함수,x,y)
+def 함수(x, a, b, c):
+    return (a * x ** 2)+(b * x) + c
+
+
+opt, cov = curve_fit(함수, df['age'], df['income'])
+a1, b1, c1 = opt # 위의 함수에 최적화된 a,b,c를 구해줌
+print(opt)  # [-8.42672128 73.24484048 -7.00774851]: a,b,c -&gt; 73x -8x^2 -7
+import numpy as np
+
+i = np.array([1, 2, 3, 4, 5, 6])  # np.array
+plt.plot(i, 함수(i, a1, b1, c1))
+plt.show()
+</code></pre>
+<hr data-source-line="305">
+<h5 data-source-line="306"><strong>📌 </strong><strong><code>curve_fit()</code></strong><strong>과 2차 함수 (ax2+bx+cax\^2 + bx + c) 최적화 과정 정리</strong></h5>
+<hr data-source-line="307">
+<h4 data-source-line="308"><strong>1️⃣ </strong><strong><code>opt</code></strong><strong>, </strong><strong><code>a, b, c</code></strong><strong> 는 무엇인가?</strong></h4>
+<pre class="source-code" data-source-lines="3"><code class="language-python">opt, cov = curve_fit(함수, df['age'], df['income'])
+a1, b1, c1 = opt
+</code></pre>
+<p data-source-line="314">✅ <strong><code>curve_fit()</code></strong><strong>은 데이터를 분석해서 </strong><strong><code>a, b, c</code></strong><strong>의 최적값을 찾아줌.</strong></p>
+<p data-source-line="315">✅ <strong><code>opt</code></strong><strong>는 </strong><strong><code>curve_fit()</code></strong><strong>이 계산한 최적의 </strong><strong><code>[a, b, c]</code></strong><strong> 값이 들어 있는 배열.</strong></p>
+<p data-source-line="316">✅ <code>a1, b1, c1 = opt</code> 를 사용하면 각각의 <code>a, b, c</code> 값을 변수로 저장 가능.</p>
+<p data-source-line="317">✅ 즉, <strong>이 </strong><strong><code>a, b, c</code></strong><strong> 값을 이용해서 데이터에 가장 잘 맞는 곡선을 만들 수 있음!</strong></p>
+<hr data-source-line="318">
+<h4 data-source-line="319"><strong>2️⃣ </strong><strong><code>cov</code></strong><strong> (공분산 행렬, covariance matrix)는 무엇인가?</strong></h4>
+<p data-source-line="320">✅ <code>cov</code>는 <code>curve_fit()</code>이 계산한 <code>a, b, c</code> 값이 <strong>얼마나 신뢰할 수 있는지(오차의 크기)</strong> 를 나타내는 공분산 행렬.</p>
+<p data-source-line="321">✅ <strong>오차가 크면 모델이 불안정할 수 있음.</strong></p>
+<p data-source-line="322">✅ 하지만 대부분의 경우, <strong>실제 예측값을 만드는 데는 </strong><strong><code>opt</code></strong><strong>만 사용하면 충분</strong>하므로 <code>cov</code>는 따로 사용하지 않아도 됨.</p>
+<hr data-source-line="323">
+<h4 data-source-line="324"><strong>3️⃣ 데이터가 언덕 모양(∩)이면 왜 ax2+bx+cax\^2 + bx + c 를 적용할 수 있을까?</strong></h4>
+<p data-source-line="325">✅ <strong>그래프가 증가하다가 감소하는 패턴이면 2차 함수로 충분히 표현 가능!</strong></p>
+<p data-source-line="326">✅ <strong>2차 함수 ax2+bx+cax\^2 + bx + c 는 꼭 U자(∪) 모양이 아니고, 위로 볼록한 언덕(∩) 형태도 만들 수 있음.</strong></p>
+<p data-source-line="327">✅ <strong>핵심은 </strong><strong><code>a</code></strong><strong> 값이 음수냐, 양수냐에 따라 포물선의 방향이 결정된다는 것!</strong></p>
+<ul>
+<li data-source-line="328"><strong>a &gt; 0 (양수)</strong> → U자형 (∪)</li>
+<li data-source-line="329"><strong>a &lt; 0 (음수)</strong> → 언덕형 (∩)</li>
+</ul>
+<p data-source-line="330">✅ 따라서 <strong>데이터가 언덕 형태라면 </strong><strong><code>curve_fit()</code></strong><strong>이 </strong><strong><code>a</code></strong><strong> 값을 음수로 조정해서 언덕 모양을 자동으로 맞춰줌.</strong></p>
+<hr data-source-line="331">
+<h4 data-source-line="332"><strong>4️⃣ </strong><strong><code>ax^2 + bx + c</code></strong><strong> 와 </strong><strong><code>ax + bx^2 + c</code></strong><strong> 차이? (</strong><strong><code>curve_fit()</code></strong><strong>이 알아서 처리함!)</strong></h4>
+<p data-source-line="333">✅ <strong>두 식은 사실 같은 2차 함수인데, 변수 순서만 다르게 표현한 것일 뿐.</strong></p>
+<p data-source-line="334">✅ <code>curve_fit()</code>은 우리가 함수에서 <code>a, b, c</code>를 어떤 식으로 배치하든, <strong>자동으로 최적의 값을 찾아서 적용함.</strong></p>
+<p data-source-line="335">✅ 즉, <strong>수학적으로 같은 형태라면 </strong><strong><code>curve_fit()</code></strong><strong>이 알아서 최적의 </strong><strong><code>a, b, c</code></strong><strong> 값을 조정하므로, 크게 신경 쓰지 않아도 됨.</strong></p>
+<hr data-source-line="336">
+<h4 data-source-line="337"><strong>🎯 최종 결론</strong></h4>
+<p data-source-line="338">✔ <strong><code>opt</code></strong><strong>는 최적의 </strong><strong><code>a, b, c</code></strong><strong> 값을 담은 배열이고, </strong><strong><code>cov</code></strong><strong>는 신뢰도(오차) 정보.</strong></p>
+<p data-source-line="339">✔ <strong>그래프가 언덕 모양이면 </strong><strong><code>ax^2 + bx + c</code></strong><strong>를 사용할 수 있음.</strong></p>
+<p data-source-line="340">✔ <strong><code>a</code></strong><strong>가 음수이면 언덕(∩), </strong><strong><code>a</code></strong><strong>가 양수이면 U자(∪) 형태가 됨.</strong></p>
+<p data-source-line="341">✔ <strong><code>curve_fit()</code></strong><strong>이 알아서 최적의 </strong><strong><code>a, b, c</code></strong><strong> 값을 찾기 때문에 함수 형태(변수 순서)가 달라도 문제없음!</strong> 🚀</p>
+<p data-source-line="343">알겠습니다! 시각화 부분을 제외한 최종 정리입니다:</p>
+<hr data-source-line="344">
+<h3 data-source-line="345">OLS(Ordinary Least Squares, 최소제곱법) 회귀 분석</h3>
+<pre class="source-code" data-source-lines="35"><code class="language-python">from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+import pandas as pd
+
+df = pd.read_table('income.txt')
+# 빈행 제거
+df = df.dropna()
+print(df)
+plt.scatter(df['age'], df['income'])
+
+
+# ax+bx^2+c를 구하는 것
+
+
+# curve_fit(함수,x,y)
+def 함수(x, a, b, c):
+    return (a * x ** 2) + (b * x) + c
+
+
+opt, cov = curve_fit(함수, df['age'], df['income'])
+a1, b1, c1 = opt  # 위의 함수에 최적화된 a,b,c를 구해줌
+print(opt)  # [-8.42672128 73.24484048 -7.00774851]: a,b,c -&gt; 73x -8x^2 -7
+import numpy as np
+
+i = np.array([1, 2, 3, 4, 5, 6])  # np.array
+plt.plot(i, 함수(i, a1, b1, c1))
+plt.show()
+
+import statsmodels.api as sm
+
+x = np.column_stack([df['age'] ** 2,df['age']])
+model = sm.OLS(df['income'],x ).fit()
+print(model.summary())
+# overfitting에 대해서 공부하자
+</code></pre>
+<pre class="source-code" data-source-lines="23"><code class="language-python">                                OLS Regression Results
+=======================================================================================
+Dep. Variable:                 income   R-squared (uncentered):                   0.994
+Model:                            OLS   Adj. R-squared (uncentered):              0.994
+Method:                 Least Squares   F-statistic:                              6671.
+Date:                Thu, 13 Feb 2025   Prob (F-statistic):                    5.15e-87
+Time:                        20:58:01   Log-Likelihood:                         -299.21
+No. Observations:                  79   AIC:                                      602.4
+Df Residuals:                      77   BIC:                                      607.2
+Df Model:                           2
+Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P&gt;|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+x1            -7.9379      0.358    -22.175      0.000      -8.651      -7.225
+x2            69.4323      1.523     45.590      0.000      66.400      72.465
+==============================================================================
+Omnibus:                        2.077   Durbin-Watson:                   1.196
+Prob(Omnibus):                  0.354   Jarque-Bera (JB):                1.695
+Skew:                          -0.205   Prob(JB):                        0.428
+Kurtosis:                       2.411   Cond. No.                         21.2
+==============================================================================
+</code></pre>
+<h4 data-source-line="408">✅ 1. <code>sm.OLS(df['income'], x).fit()</code>의 의미</h4>
+<p data-source-line="409">OLS(Ordinary Least Squares, 최소제곱법) 회귀 분석을 수행하는 코드다.</p>
+<p data-source-line="410">이때, <code>OLS(y, X)</code>는 <strong>반드시 </strong><strong><code>y</code></strong><strong>(종속변수), </strong><strong><code>X</code></strong><strong>(독립변수) 순으로 입력</strong>해야 한다.</p>
+<pre class="source-code" data-source-lines="2"><code class="language-python">model = sm.OLS(df['income'], x).fit()
+</code></pre>
+<ul>
+<li data-source-line="415"><code>df['income']</code> → 우리가 예측하려는 값 (<strong>종속변수 y</strong>).</li>
+<li data-source-line="416"><code>x</code> → <code>age</code>와 <code>age²</code>을 포함한 <strong>독립변수 X</strong>.</li>
+<li data-source-line="417"><code>.fit()</code> → 모델을 학습시킴.</li>
+<li data-source-line="418"><code>model.summary()</code> → 학습된 모델의 통계 정보를 출력.</li>
+</ul>
+<hr data-source-line="419">
+<h4 data-source-line="420">✅ 2. <code>model.summary()</code>가 하는 일</h4>
+<pre class="source-code" data-source-lines="2"><code class="language-python">print(model.summary())
+</code></pre>
+<p data-source-line="425">이 코드를 실행하면 회귀 분석 결과가 출력된다. 주요 정보는 다음과 같다:</p>
+<ul>
+<li data-source-line="426"><strong>R-squared (결정계수)</strong> → 모델이 데이터를 얼마나 잘 설명하는지 나타냄 (<code>1</code>에 가까울수록 좋음).</li>
+<li data-source-line="427"><strong>coefficients (회귀 계수)</strong> → 각 독립변수의 기여도.</li>
+<li data-source-line="428"><strong>p-value</strong> → 해당 변수가 유의미한지 판단 (<code>0.05</code> 이하일 때 신뢰 가능).</li>
+<li data-source-line="429"><strong>F-statistic</strong> → 전체 모델의 유의성 검정.</li>
+</ul>
+<p data-source-line="430">💡 <strong>이 결과를 통해 우리가 만든 모델이 얼마나 좋은지 평가 가능하다.</strong></p>
+<hr data-source-line="431">
+<h4 data-source-line="432">✅ 3. <code>x = np.column_stack([df['age'] ** 2, df['age']])</code>는 무엇인가?</h4>
+<p data-source-line="433">이 코드가 하는 일은 <strong>나이(age)와 나이의 제곱(age²)을 포함한 2차원 배열을 만드는 것</strong>이다.</p>
+<pre class="source-code" data-source-lines="2"><code class="language-python">x = np.column_stack([df['age'] ** 2, df['age']])
+</code></pre>
+<ul>
+<li data-source-line="438"><code>df['age'] ** 2</code> → 나이의 제곱값을 계산.</li>
+<li data-source-line="439"><code>df['age']</code> → 원래 나이 값 포함.</li>
+<li data-source-line="440"><code>np.column_stack([...])</code> → 두 개의 배열을 <strong>세로 방향으로 결합</strong>하여 2차원 배열을 생성.</li>
+</ul>
+<p data-source-line="441">📌 <strong>예제</strong> (나이 데이터가 <code>[1, 2, 3, 4]</code>일 때)</p>
+<pre class="source-code" data-source-lines="5"><code class="language-python">np.column_stack([
+    [1, 4, 9, 16],  # age²
+    [1, 2, 3, 4]    # age
+])
+</code></pre>
+<p data-source-line="449">결과:</p>
+<pre class="source-code" data-source-lines="5"><code class="language-plain text">[[ 1  1]
+ [ 4  2]
+ [ 9  3]
+ [16  4]]
+</code></pre>
+<p data-source-line="457">이렇게 만든 <code>x</code>를 OLS 모델에 넣으면 <strong>곡선(포물선) 형태</strong>의 회귀 모델을 학습할 수 있다.</p>
+<hr data-source-line="458">
+<h4 data-source-line="459">✅ 4. 왜 2차항을 추가해야 할까?</h4>
+<p data-source-line="460">일반적인 선형 회귀는 <strong>직선 형태</strong>만 학습할 수 있다.</p>
+<p data-source-line="461">하지만 <strong>소득과 나이의 관계는 곡선(포물선) 형태</strong>일 가능성이 크다.</p>
+<blockquote data-source-line="462"><p>선형 회귀 (y = a * age + b)</p></blockquote>
+<ul>
+<li data-source-line="463">직선으로 예측 → 나이가 증가할수록 소득이 일정하게 증가</li>
+</ul>
+<blockquote data-source-line="464"><p>2차 회귀 (y = a * age² + b * age + c)</p></blockquote>
+<ul>
+<li data-source-line="465">곡선으로 예측 → 어느 정도 나이가 올라가면 소득이 증가하다가 감소 가능</li>
+</ul>
+<p data-source-line="466">💡 따라서 <strong><code>x = np.column_stack([df['age'] ** 2, df['age']])</code>를 사용하면 곡선 형태의 패턴을 학습할 수 있다.</strong></p>
+<hr data-source-line="467">
+<h4 data-source-line="468">✅ 5. 최종 코드 정리</h4>
+<pre class="source-code" data-source-lines="24"><code class="language-python">import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+# 데이터 로드 및 전처리
+file_path = &quot;data/income.txt&quot;  # 공개 위키용 예시 경로
+df = pd.read_table(file_path)
+
+# 빈 행 제거
+df = df.dropna()
+
+# 독립 변수 (x) 생성: age의 제곱과 age 추가
+x = np.column_stack([df['age'] ** 2, df['age']])
+x = sm.add_constant(x)  # 절편 추가
+
+# 종속 변수 (y)
+y = df['income']
+
+# OLS 회귀 분석
+model = sm.OLS(y, x).fit()
+
+# 결과 출력
+print(model.summary())
+</code></pre>
+<hr data-source-line="495">
+<h4 data-source-line="496">✅ 6. 최종 정리</h4>
+<ol>
+<li data-source-line="497"><code>OLS(y, x)</code>는 반드시 <strong><code>y</code></strong><strong>(예측 대상), </strong><strong><code>x</code></strong><strong>(설명 변수) 순으로 입력</strong>해야 한다.</li>
+<li data-source-line="498"><code>model.summary()</code>를 통해 모델의 성능을 확인할 수 있다.</li>
+<li data-source-line="499"><strong><code>np.column_stack([df['age'] ** 2, df['age']])</code>을 사용하여 2차 함수(곡선) 형태의 회귀 분석을 수행</strong>할 수 있다.</li>
+<li data-source-line="500">단순 선형 회귀는 <strong>직선</strong>, 2차 회귀는 <strong>곡선(포물선)</strong>을 학습할 수 있다.</li>
+</ol>
+<hr data-source-line="501">
+<p data-source-line="502"><code>np.column_stack()</code>으로 설명 변수를 설계 행렬로 묶고, 그 행렬을 <code>OLS</code>에 전달하는 흐름을 연결해 확인한다.</p>
+<h3 data-source-line="504">overfitting</h3>
+<figure class="notion-source-figure" data-source-line="505"><img src="../../assets/images/notion-import/ml/37b21cc1-01.png" alt="원문 학습 그림 1" loading="lazy"><figcaption>원문 학습 그림 1</figcaption></figure>
+<p data-source-line="506">이 그림은 <strong>overfitting</strong>을 잘 보여주는 예시입니다. 데이터 포인트들은 하얀색 점으로 표시되어 있고, 그 점들을 연결하는 선은 <strong>너무 많이 꺾여있어요</strong>.</p>
+<p data-source-line="507">이처럼 모델이 데이터를 너무 잘 맞추려 하면, <strong>훈련 데이터</strong>에서는 좋은 성과를 낼 수 있지만, <strong>새로운 데이터</strong>에서는 제대로 예측하지 못하게 돼요. 왜냐하면, 모델이 <strong>훈련 데이터의 세부적인 노이즈</strong>까지 학습해서, <strong>일반적인 패턴</strong>을 잡지 못하기 때문이에요.</p>
+<p data-source-line="508">올바른 모델은 훈련 데이터에 <strong>너무 세밀하게 맞추지 않고</strong>, 더 <strong>단순하고 부드러운 선</strong>으로 데이터의 <strong>전체적인 경향을</strong> 잘 파악해요.</p>
+</section>
+    </article>
+    <aside class="verification-notes" aria-labelledby="verification-title">
+      <h2 id="verification-title">편입 후 검증 메모</h2>
+      <p>아래 메모는 원문을 지우거나 이해 완료로 처리하지 않고, 다시 실습할 때 확인할 경계를 분명히 한다.</p>
+      <ul>
+        <li><strong>벡터화의 속도:</strong> NumPy가 보통 빠른 이유는 반복을 컴파일된 연산으로 넘기고 연속 메모리를 활용하기 때문이다. 다만 배열 크기·dtype·메모리 복사·연산 종류에 따라 차이가 달라지므로 “항상 40배/100배”로 일반화할 수 없다.</li>
+        <li><strong>선형성 판단:</strong> Pearson 상관계수는 선형 연관의 한 단서일 뿐이다. 산점도·잔차·도메인 가정과 함께 보고, 선형 모델과 다항 모델은 같은 학습 데이터의 <code>R²</code>가 아니라 검증 세트나 교차검증 성능으로 비교해야 한다.</li>
+        <li><strong><code>curve_fit</code>의 역할:</strong> 이 함수는 사용자가 전달한 함수 형태 안에서 파라미터를 최적화한다. 적절한 식을 스스로 선택하지는 않는다. 반환되는 <code>cov</code>는 추정 파라미터의 공분산 행렬이며, 대각 원소의 제곱근이 각 파라미터 표준오차의 근삿값이다.</li>
+        <li><strong>2차항과 과적합:</strong> <code>age ** 2</code> 열을 추가하면 계수에 대해서는 선형인 2차 다항 회귀를 만들 수 있다. 표현력이 늘어난 만큼 훈련 점수만 보지 말고 보지 않은 데이터에서 일반화되는지 확인해야 한다.</li>
+      </ul>
+    </aside>
+    <div class="project-reference-links"><strong>같이 보기</strong><a href="ordinary_least_squares_learning.html">OLS·기울기·공분산</a><a href="regression_r_squared_learning.html">결정계수 R²</a></div>
+    <footer class="footer">Notion 공개 학습 노트 편입 · 원문 단위 추적 완료</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script>
+</body>
+</html>

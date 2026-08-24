@@ -13,16 +13,20 @@ const knowledgeMapSourcePath = resolve(wikiRoot, "assets/js/knowledge_map.js");
 const publicBaseUrl = "https://muscleleg.github.io/jaejun-wiki/";
 
 const categoryLabels = {
+  backend: "Backend·Java",
   "coding-test": "코딩 테스트",
   database: "Database",
   "external-articles": "외부 아티클",
+  infrastructure: "Cloud·Infrastructure",
   "llm-systems": "LLM 시스템·에이전트",
   "machine-learning": "Machine Learning",
   math: "수학",
   pandas: "Pandas·데이터 전처리",
   projects: "개인 프로젝트",
+  python: "Python",
   pytorch: "PyTorch",
   transformer: "Transformer",
+  web: "Web·Frontend",
 };
 
 async function collectHtmlFiles(directory) {

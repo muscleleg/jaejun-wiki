@@ -183,16 +183,37 @@ function renderWikiTree(manifest) {
       return order || left.label.localeCompare(right.label, "ko");
     })
     .map(([groupKey, group]) => {
-      const links = group.entries.map((entry) => {
+      const renderLink = (entry) => {
         const path = hierarchy(entry);
         const parent = path.at(-2);
         const depth = Math.max(0, path.filter((item) => item.categoryKey === groupKey).length - 1);
         const childClass = depth > 0 ? " wiki-search-child" : "";
         const meta = parent ? `${entry.category} · ${parent.title}의 하위 문서` : `${entry.category} · 상위 문서`;
         return `          <a class="wiki-link wiki-search-result${childClass}" style="--wiki-depth:${Math.min(depth, 4)}" data-depth="${depth}" href="${escapeAttribute(entry.href)}"><em>${escapeHtml(meta)}</em><strong>${escapeHtml(entry.title)}</strong><span>${escapeHtml(entry.description || "연결된 학습 문서")}</span></a>`;
+      };
+      const rootGroups = [];
+      for (const entry of group.entries) {
+        const depth = Math.max(0, hierarchy(entry).filter((item) => item.categoryKey === groupKey).length - 1);
+        if (!rootGroups.length || depth === 0) rootGroups.push({ root: entry, descendants: [] });
+        else rootGroups.at(-1).descendants.push(entry);
+      }
+      const roots = rootGroups.map(({ root, descendants }) => {
+        if (!descendants.length) return `        <div class="wiki-tree-root"><div class="wiki-tree-root-row">\n${renderLink(root)}\n          </div></div>`;
+        const childId = `wiki-children-${root.id}`;
+        const children = descendants.map(renderLink).join("\n");
+        return `        <div class="wiki-tree-root"><div class="wiki-tree-root-row">\n${renderLink(root)}\n          <button type="button" class="wiki-tree-toggle" data-root-key="${escapeAttribute(root.href)}" data-child-count="${descendants.length}" aria-expanded="false" aria-controls="${escapeAttribute(childId)}">하위 문서 ${descendants.length}개 펼치기</button>\n          </div><div id="${escapeAttribute(childId)}" class="wiki-tree-children" hidden>\n${children}\n          </div></div>`;
       }).join("\n");
-      return `      <section class="wiki-tree-category" data-category="${escapeAttribute(groupKey)}"><h3>${escapeHtml(group.label)}<span>${group.entries.length}개</span></h3><div class="wiki-tree-list">\n${links}\n        </div></section>`;
+      return `      <section class="wiki-tree-category" data-category="${escapeAttribute(groupKey)}"><h3>${escapeHtml(group.label)}<span>${group.entries.length}개</span></h3><div class="wiki-tree-list">\n${roots}\n        </div></section>`;
     }).join("\n");
+}
+
+function countWikiRoots(manifest) {
+  const documentByHref = new Map(manifest.documents.map((entry) => [entry.href, entry]));
+  const hierarchyCache = new Map();
+  return manifest.documents.filter((entry) => (
+    hierarchyFor(entry, documentByHref, hierarchyCache)
+      .filter((item) => item.categoryKey === entry.categoryKey).length === 1
+  )).length;
 }
 
 function renderWikiFilters(manifest) {
@@ -297,7 +318,7 @@ async function renderStaticDiscoveryPages() {
   const wikiPath = resolve(wikiRoot, "wiki.html");
   let wiki = await readFile(wikiPath, "utf8");
   wiki = replaceStaticRegion(wiki, { name: "wiki-filters", tag: "div", id: "wikiCategoryFilters", markup: renderWikiFilters(knowledgeManifest) });
-  wiki = replaceStaticRegion(wiki, { name: "wiki-status", tag: "p", id: "wikiSearchStatus", markup: `전체 ${knowledgeManifest.indexedCount}개 문서를 상위 문서부터 하위 문서 순서로 표시합니다.` });
+  wiki = replaceStaticRegion(wiki, { name: "wiki-status", tag: "p", id: "wikiSearchStatus", markup: `전체 ${knowledgeManifest.indexedCount}개 문서 중 최상위 ${countWikiRoots(knowledgeManifest)}개를 표시합니다. 하위 문서는 문서별 펼치기 버튼으로 확인할 수 있습니다.` });
   wiki = replaceStaticRegion(wiki, { name: "wiki-tree", tag: "div", id: "wikiSearchResults", markup: renderWikiTree(knowledgeManifest) });
   await writeFile(wikiPath, wiki, "utf8");
 

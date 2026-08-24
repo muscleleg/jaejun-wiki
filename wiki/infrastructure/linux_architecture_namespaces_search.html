@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Linux 아키텍처·네임스페이스·파일 검색 · 재준 위키</title><meta name="description" content="Linux 커널 구조, 네트워크 네임스페이스, find와 locate 파일 검색을 원문 명령 예제까지 보존한 학습 문서"><link rel="stylesheet" href="../../assets/css/portal.css?v=20260820"><link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260820"><link rel="stylesheet" href="../../assets/css/notion-import.css?v=20260823-qa4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Linux 아키텍처·네임스페이스·파일 검색 · 재준 위키">
+  <meta property="og:description" content="Linux 커널 구조, 네트워크 네임스페이스, find와 locate 파일 검색을 원문 명령 예제까지 보존한 학습 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html","name":"Linux 아키텍처·네임스페이스·파일 검색 · 재준 위키","description":"Linux 커널 구조, 네트워크 네임스페이스, find와 locate 파일 검색을 원문 명령 예제까지 보존한 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html"},"headline":"Linux 아키텍처·네임스페이스·파일 검색 · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#linux-architecture","name":"Linux·Namespace·검색","identifier":"linux-architecture"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#linux-shell-operations","name":"Shell 확장·권한·Job control","identifier":"linux-shell-operations"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"인프라·컴퓨터 시스템"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="notion-import-page"><main class="page-shell"><nav class="breadcrumb"><a href="../../index.html">⌂ 학습 홈</a><span>›</span><a href="../../wiki.html">기술 위키</a><span>›</span><span>인프라·컴퓨터 시스템</span></nav>
+<header class="hero"><p class="eyebrow">Linux · Architecture &amp; Tools</p><h1>Linux 아키텍처·네임스페이스·파일 검색</h1><p class="summary">커널·시스템 콜·프로세스·파일시스템의 큰 구조와 네트워크 네임스페이스, 실시간 탐색 <code>find</code>와 색인 탐색 <code>locate</code>의 차이를 보존한다.</p><div class="callout"><strong>편입 원칙</strong><br>원문의 질문·코드·표·중간 설명을 삭제하지 않았다. 날짜와 Notion 내부 URL은 공개하지 않으며, 외부 자료 기반 표현은 이해 완료가 아닌 재검증 대상으로 둔다.</div></header>
+<section class="article-understanding" aria-labelledby="understanding-title"><h2 id="understanding-title">현재 이해도</h2><p>노트를 옮긴 사실과 지금 자료 없이 설명·재현할 수 있는지는 다르다. 이 문서는 아직 재검증하지 않았으므로 0%에서 시작한다.</p><div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div><div class="meter-label"><span>검증 완료 0 / 4</span><strong>0%</strong></div><ul><li class="todo">○ user space와 kernel space 경계를 설명한다.</li><li class="todo">○ namespace가 격리하는 자원을 예로 든다.</li><li class="todo">○ find의 path·expression 평가를 재현한다.</li><li class="todo">○ locate 색인의 빠름과 stale 결과 위험을 설명한다.</li></ul></section>
+<nav class="source-nav" aria-label="원문 단위 목차"><a href="#source-30fc691e5a2b8012bab1f5ca40e09a19">리눅스 공부</a><a href="#source-30fc691e5a2b802b9553daf89bd71ab8">리눅스 아키텍처의 본질</a><a href="#source-241c691e5a2b80878f8bd54c17b0bce1">네트워크 네임스페이스</a><a href="#source-66a0c52e4afa49b191401664c1b9e738">find</a><a href="#source-0248ca78ff9c4e228016fd88611b7f3c">locate</a></nav><article class="content notion-import-content"><!-- notion-source:30fc691e-5a2b-8012-bab1-f5ca40e09a19 checksum:250912250c208bb9 chars:2006 -->
+<section class="imported-source" id="source-30fc691e5a2b8012bab1f5ca40e09a19" data-source-id="30fc691e-5a2b-8012-bab1-f5ca40e09a19"><div class="source-note-label">원문 보존 단위</div><h2>리눅스 공부</h2>
+<h2><strong>📚 전체 로드맵 구조 </strong></h2>
+<h3><strong>Phase 1 — 리눅스 시스템의 뼈대 (2주)</strong></h3>
+<h3><strong>Phase 2 — 자원 관리 &amp; 네트워크 (3주)</strong></h3>
+<h3><strong>Phase 3 — 서비스 &amp; 디버깅 체계 (2주)</strong></h3>
+<h3><strong>Phase 4 — 우분투 배포판 구조 이해 (2~3주)</strong></h3>
+<hr>
+<h2><strong>🧠 Phase 1 — 리눅스의 본질 이해</strong></h2>
+<h3><strong>1. 리눅스 아키텍처</strong></h3>
+<ul>
+<li>커널 vs 사용자 공간</li>
+</ul>
+<p class="source-page-reference"><strong>하위 원문:</strong> <strong>리눅스 아키텍처의 본질</strong></p>
+<ul>
+<li>system call의 의미</li>
+<li>쉘은 무엇인가</li>
+<li>glibc의 역할</li>
+<li>프로세스가 하드웨어를 사용하는 흐름</li>
+</ul>
+<p>핵심 목표</p>
+<p>→ “리눅스는 커널이다”를 정확히 이해</p>
+<hr>
+<h3><strong>2. 프로세스</strong></h3>
+<ul>
+<li>fork / exec</li>
+<li>PID / PPID</li>
+<li>zombie / orphan</li>
+<li>signal</li>
+<li>foreground / background</li>
+</ul>
+<p>목표</p>
+<p>→ 서비스가 왜 죽는지 이해</p>
+<hr>
+<h3><strong>3. 메모리</strong></h3>
+<ul>
+<li>virtual memory</li>
+<li>stack / heap</li>
+<li>page</li>
+<li>page cache</li>
+<li>swap</li>
+<li>OOM killer</li>
+</ul>
+<p>목표</p>
+<p>→ OOMKilled, 메모리 부족 원리 이해</p>
+<hr>
+<h3><strong>4. 파일 시스템</strong></h3>
+<ul>
+<li>inode</li>
+<li>file descriptor</li>
+<li>mount</li>
+<li>/proc /sys</li>
+<li>symbolic link vs hard link</li>
+</ul>
+<p>목표</p>
+<p>→ 리눅스가 파일 기반 시스템이라는 걸 체감</p>
+<hr>
+<h2><strong>🌐 Phase 2 — 자원 &amp; 네트워크</strong></h2>
+<h3><strong>5. 네트워크 기초</strong></h3>
+<ul>
+<li>TCP/IP 구조</li>
+<li>3-way handshake</li>
+<li>port / socket</li>
+<li>routing</li>
+</ul>
+<hr>
+<h3><strong>6. 네트워크 도구</strong></h3>
+<ul>
+<li>ip</li>
+<li>ss</li>
+<li>tcpdump</li>
+<li>traceroute</li>
+</ul>
+<p>목표</p>
+<p>→ “포트가 안 열린다”를 구조적으로 이해</p>
+<hr>
+<h3><strong>7. namespace</strong></h3>
+<ul>
+<li>pid namespace</li>
+<li>network namespace</li>
+<li>mount namespace</li>
+<li>uts namespace</li>
+</ul>
+<p>목표</p>
+<p>→ 컨테이너의 본질 이해</p>
+<hr>
+<h3><strong>8. cgroup</strong></h3>
+<ul>
+<li>CPU limit</li>
+<li>memory limit</li>
+<li>cgroup v1 vs v2</li>
+</ul>
+<p>목표</p>
+<p>→ 쿠버네티스 resource limit 이해</p>
+<hr>
+<h2><strong>🛠 Phase 3 — 리눅스 서비스 체계</strong></h2>
+<h3><strong>9. systemd</strong></h3>
+<ul>
+<li>unit file 구조</li>
+<li>service lifecycle</li>
+<li>dependency</li>
+<li>target</li>
+</ul>
+<hr>
+<h3><strong>10. 로그 시스템</strong></h3>
+<ul>
+<li>journalctl</li>
+<li>dmesg</li>
+<li>/var/log</li>
+</ul>
+<hr>
+<h3><strong>11. 동적 라이브러리</strong></h3>
+<ul>
+<li>shared object (.so)</li>
+<li>ldd</li>
+<li>LD_LIBRARY_PATH</li>
+<li>ABI</li>
+</ul>
+<p>목표</p>
+<p>→ “업그레이드하면 깨진다”의 본질 이해</p>
+<hr>
+<h3><strong>12. 디버깅 사고 체계</strong></h3>
+<p>문제 발생 시 계층별 접근:</p>
+<ol>
+<li>프로세스</li>
+<li>포트</li>
+<li>로그</li>
+<li>메모리</li>
+<li>권한</li>
+<li>라이브러리</li>
+</ol>
+<p>목표</p>
+<p>→ 리눅스를 구조적으로 분석하는 사고 만들기</p>
+<hr>
+<h2><strong>🐧 Phase 4 — 우분투 이해</strong></h2>
+<p>이제 배포판을 본다.</p>
+<h3><strong>13. Ubuntu 패키지 관리</strong></h3>
+<ul>
+<li>apt vs dpkg</li>
+<li>repository 구조</li>
+<li>dependency tree</li>
+<li>hold / pin</li>
+</ul>
+<hr>
+<h3><strong>14. Ubuntu 디렉토리 정책</strong></h3>
+<ul>
+<li>/etc</li>
+<li>/usr</li>
+<li>/var</li>
+<li>/var/lib</li>
+<li>/var/log</li>
+</ul>
+<hr>
+<h3><strong>15. Ubuntu 네트워크 설정</strong></h3>
+<ul>
+<li>netplan</li>
+<li>NetworkManager</li>
+<li>/etc/network</li>
+</ul>
+<hr>
+<h3><strong>16. Ubuntu 서비스 정책</strong></h3>
+<ul>
+<li>기본 target</li>
+<li>cloud-init</li>
+<li>기본 데몬 구조</li>
+</ul>
+<hr>
+<h2><strong>🎯 이 로드맵의 목적</strong></h2>
+<p>우분투를 “잘 쓰는 사람”이 아니라</p>
+<p>리눅스를 이해한 상태에서</p>
+<p>“우분투를 해석할 수 있는 사람”이 되는 것</p>
+<hr>
+</section>
+<!-- notion-source:30fc691e-5a2b-802b-9553-daf89bd71ab8 checksum:3a1e75be078cc848 chars:1897 -->
+<section class="imported-source" id="source-30fc691e5a2b802b9553daf89bd71ab8" data-source-id="30fc691e-5a2b-802b-9553-daf89bd71ab8"><div class="source-note-label">원문 보존 단위</div><h2>리눅스 아키텍처의 본질</h2>
+<h2><strong>1. 리눅스 아키텍처의 본질</strong></h2>
+<h3><strong>1.1 리눅스는 무엇인가</strong></h3>
+<p>일반적으로 “리눅스”라고 부르는 것은 운영체제 전체를 의미하는 것처럼 보이지만,</p>
+<p>엄밀히 말하면 리눅스는 <strong>커널(Kernel)</strong> 이다.</p>
+<p>GNU 유틸리티(ls, cp, bash 등), 패키지 관리자, systemd, 각종 서버 프로그램은</p>
+<p>모두 커널 위에서 동작하는 사용자 공간 프로그램이다.</p>
+<p>따라서:</p>
+<blockquote><p>리눅스 = 커널</p></blockquote>
+<p>이라는 이해가 출발점이다.</p>
+<hr>
+<h2><strong>2. 커널과 사용자 공간</strong></h2>
+<h3><strong>2.1 커널(Kernel)</strong></h3>
+<p>커널은 운영체제의 핵심이며, 다음을 담당한다.</p>
+<ul>
+<li>CPU 스케줄링</li>
+<li>메모리 관리</li>
+<li>파일 시스템 관리</li>
+<li>네트워크 스택</li>
+<li>디바이스 드라이버 관리</li>
+</ul>
+<p>중요한 점은:</p>
+<blockquote><p>하드웨어를 직접 제어할 수 있는 유일한 존재는 커널이다.</p></blockquote>
+<hr>
+<h3><strong>2.2 사용자 공간(User Space)</strong></h3>
+<p>사용자 공간에는 우리가 실행하는 모든 프로그램이 포함된다.</p>
+<p>예:</p>
+<ul>
+<li>bash</li>
+<li>python</li>
+<li>nginx</li>
+<li>docker</li>
+<li>kubernetes</li>
+<li>ls, cat 등 명령어</li>
+</ul>
+<p>이 프로그램들은 하드웨어를 직접 접근할 수 없다.</p>
+<p>왜냐하면:</p>
+<ul>
+<li>시스템 안정성</li>
+<li>보안</li>
+<li>프로세스 격리</li>
+</ul>
+<p>를 보장해야 하기 때문이다.</p>
+<p>따라서 사용자 프로그램은 반드시 커널을 통해서만 하드웨어를 사용할 수 있다.</p>
+<hr>
+<h2><strong>3. System Call의 의미</strong></h2>
+<h3><strong>3.1 System Call이란 무엇인가</strong></h3>
+<p>System Call은</p>
+<blockquote><p>사용자 프로그램이 커널에게 작업을 요청하는 공식 인터페이스</p></blockquote>
+<p>이다.</p>
+<p>예:</p>
+<ul>
+<li>파일 열기 → open()</li>
+<li>파일 읽기 → read()</li>
+<li>프로세스 생성 → fork()</li>
+<li>네트워크 연결 → connect()</li>
+</ul>
+<p>이 함수들은 실제로 커널 내부 기능이다.</p>
+<p>사용자 프로그램은 system call을 통해서만:</p>
+<ul>
+<li>파일을 읽고</li>
+<li>메모리를 할당받고</li>
+<li>네트워크를 사용하고</li>
+<li>프로세스를 생성할 수 있다.</li>
+</ul>
+<hr>
+<h2><strong>4. glibc의 역할</strong></h2>
+<h3><strong>4.1 glibc란 무엇인가</strong></h3>
+<p>glibc는 GNU C Library의 약자이며,</p>
+<blockquote><p>사용자 공간에서 system call을 쉽게 사용할 수 있도록 감싸주는 표준 라이브러리</p></blockquote>
+<p>이다.</p>
+<p>중요한 점:</p>
+<ul>
+<li>system call은 커널 기능이다.</li>
+<li>glibc는 사용자 공간 라이브러리다.</li>
+<li>glibc 안의 함수들이 내부적으로 system call을 호출한다.</li>
+</ul>
+<hr>
+<h3><strong>4.2 구조 흐름</strong></h3>
+<p>전체 구조는 다음과 같다.</p>
+<p>사용자 프로그램</p>
+<p>→ glibc 함수</p>
+<p>→ system call</p>
+<p>→ 커널</p>
+<p>→ 하드웨어</p>
+<p>glibc는 system call을 “만드는” 것이 아니라,</p>
+<p>system call을 “호출해주는” 중간 계층이다.</p>
+<hr>
+<h3><strong>4.3 예시</strong></h3>
+<p>C 코드:</p>
+<p>printf(“hello”);</p>
+<p>여기서:</p>
+<ul>
+<li>printf는 glibc에 정의된 함수다.</li>
+<li>printf 내부에서 write()라는 system call이 호출된다.</li>
+<li>write는 커널 기능이다.</li>
+</ul>
+<p>즉, 우리가 호출한 함수는 사용자 공간에 있지만</p>
+<p>결국 하드웨어에 접근하는 것은 커널이다.</p>
+<hr>
+<h2><strong>5. 핵심 개념 정리</strong></h2>
+<p>커널</p>
+<p>→ 하드웨어 관리자</p>
+<p>사용자 프로그램</p>
+<p>→ 커널 위에서 동작하는 일반 프로그램</p>
+<p>System Call</p>
+<p>→ 사용자 프로그램이 커널에게 요청하는 공식 통로</p>
+<p>glibc</p>
+<p>→ system call을 감싸서 쉽게 사용하게 해주는 사용자 공간 라이브러리</p>
+<hr>
+<h2><strong>6. 최종 이해 문장</strong></h2>
+<p>리눅스는 커널이며,</p>
+<p>사용자 프로그램은 하드웨어를 직접 다룰 수 없고,</p>
+<p>glibc를 통해 system call을 호출하여</p>
+<p>커널에게 하드웨어 사용을 요청한다.</p>
+<hr>
+<p>이 문서를 한 번 덮고 나서,</p>
+<p>다시 열었을 때</p>
+<p>“구조 그림”이 머릿속에 바로 떠오르면</p>
+<p>이 파트는 제대로 이해한 것이다.</p>
+<hr>
+<p>다음으로 갈 준비가 되면,</p>
+<p>“쉘은 정확히 어떤 역할을 하는가?”를</p>
+<p>같은 방식으로 정리해볼까?</p>
+</section>
+<!-- notion-source:241c691e-5a2b-8087-8f8b-d54c17b0bce1 checksum:e31d24d13726f345 chars:1461 -->
+<section class="imported-source" id="source-241c691e5a2b80878f8bd54c17b0bce1" data-source-id="241c691e-5a2b-8087-8f8b-d54c17b0bce1"><div class="source-note-label">원문 보존 단위</div><h2>네트워크 네임스페이스</h2>
+<h3>네트워크 네임스페이스 진입과 식별 요약</h3>
+<h4>진입 방법</h4>
+<pre class="source-code"><code class="language-shell">sudo ip netns exec &lt;네임스페이스 ID&gt; bash</code></pre>
+<p>예:</p>
+<pre class="source-code"><code class="language-shell">sudo ip netns exec cni-9184fb6d-88fc-c73a-86d6-e9bd3ad8914a bash</code></pre>
+<p>→ 해당 네임스페이스 내부 쉘로 들어감.</p>
+<hr>
+<h4>네임스페이스 안에 들어와 있는지 확인</h4>
+<pre class="source-code"><code class="language-shell">ip netns identify $$</code></pre>
+<ul>
+<li>결과가 <code>cni-xxxx-...</code>로 나오면 → 지금 <strong>네임스페이스 안에 있음</strong></li>
+<li>결과가 없으면 → 지금은 <strong>호스트 네임스페이스(기본)</strong></li>
+</ul>
+<hr>
+<h4>네임스페이스 나가는 방법</h4>
+<pre class="source-code"><code class="language-shell">exit</code></pre>
+<p>→ 빠져나와서 <strong>기본 네임스페이스로 복귀</strong></p>
+<hr>
+<h4>실무 팁</h4>
+<p>쉘 프롬프트만 보면 안에서 작업 중인지 잘 모르니, 아래처럼 프롬프트를 변경하면 구분이 쉬움:</p>
+<pre class="source-code"><code class="language-shell">sudo ip netns exec &lt;ns&gt; bash --rcfile &lt;(echo 'PS1=&quot;(netns) \u@\h:\w\$ &quot;')</code></pre>
+<hr>
+<p>너의 질문:</p>
+<p><strong>&quot;하나의 인터페이스가 여러 개의 IP를 가질 수 있지?&quot;</strong></p>
+<hr>
+<h3>정답: <strong>그렇다, 가능하다.</strong></h3>
+<p>리눅스에서는 하나의 인터페이스에 <strong>IP alias</strong> 또는 <strong>secondary IP</strong>를 붙여서 여러 개의 IP를 설정할 수 있어.</p>
+<hr>
+<h3>예시</h3>
+<pre class="source-code"><code class="language-bash">ip addr add 192.168.0.100/24 dev eth0
+ip addr add 192.168.0.101/24 dev eth0
+</code></pre>
+<p>위 명령을 실행하면, <code>eth0</code>이라는 하나의 인터페이스에 두 개의 IP가 붙어.</p>
+<h4>확인 방법:</h4>
+<pre class="source-code"><code class="language-bash">ip addr show eth0
+</code></pre>
+<p>출력 예:</p>
+<pre class="source-code"><code class="language-plain-text">2: eth0: ...
+    inet 192.168.0.100/24 ...
+    inet 192.168.0.101/24 ...
+</code></pre>
+<hr>
+<h3>용도</h3>
+<ul>
+<li>하나의 NIC로 <strong>여러 IP를 응답</strong>하게 만들 수 있음</li>
+<li><strong>VIP(가상 IP)</strong> 설정할 때도 이 기능을 활용</li>
+<li>로드밸런서, keepalived, HA 구성 등에서 자주 씀</li>
+</ul>
+<hr>
+<h3>단점 (주의할 점)</h3>
+<ul>
+<li>같은 서브넷 내 IP를 너무 많이 붙이면 ARP 충돌이 일어날 수 있음</li>
+<li>인터페이스 단위 트래픽 제어나 QoS에는 약점 있음 → 이럴 땐 <strong>veth나 SR-IOV, macvlan</strong> 등으로 분리함</li>
+</ul>
+<hr>
+<h3>즉,</h3>
+<p><strong>네임스페이스가 &quot;환경&quot;의 격리라면</strong>,</p>
+<p><strong>인터페이스는 &quot;선&quot;이고</strong>,</p>
+<p><strong>IP는 그 선에 붙는 &quot;주소표&quot;야.</strong></p>
+<p>하나의 네트워크 인터페이스에 여러 IP 주소를 할당할 수 있다.</p>
+</section>
+<!-- notion-source:66a0c52e-4afa-49b1-9140-1664c1b9e738 checksum:cbcf855746cf2514 chars:1747 -->
+<section class="imported-source" id="source-66a0c52e4afa49b191401664c1b9e738" data-source-id="66a0c52e-4afa-49b1-9140-1664c1b9e738"><div class="source-note-label">원문 보존 단위</div><h2>find</h2>
+<pre class="source-code"><code class="language-plain-text">find /honme -name &quot;*.txt&quot;
+find . -name &quot;securi*&quot;
+./security.zip</code></pre>
+<div class="source-image-note"><strong>원문 외부 그림 공개 제외:</strong> 권리·출처가 확인되지 않거나 링크가 만료된 그림은 재배포하지 않았다. 그림 전후의 설명·표·코드와 판독 가능한 고유 내용은 본문 또는 검증 메모에 보존했다.</div>
+</section>
+<!-- notion-source:0248ca78-ff9c-4e22-8016-fd88611b7f3c checksum:a6f6937677d41923 chars:1712 -->
+<section class="imported-source" id="source-0248ca78ff9c4e228016fd88611b7f3c" data-source-id="0248ca78-ff9c-4e22-8016-fd88611b7f3c"><div class="source-note-label">원문 보존 단위</div><h2>locate</h2>
+<div class="source-image-note"><strong>원문 외부 그림 공개 제외:</strong> 권리·출처가 확인되지 않거나 링크가 만료된 그림은 재배포하지 않았다. 그림 전후의 설명·표·코드와 판독 가능한 고유 내용은 본문 또는 검증 메모에 보존했다.</div>
+<p>db에 파일 저장위치를 저장하고 해당 저장위치에 파일이 있는지 검색하는것</p>
+</section>
+<section class="imported-source" id="shell-permissions-job-control"><div class="source-note-label">핵심 개념 보강</div><h2>Shell 확장·파일 권한·Job control</h2>
+<p>명령을 읽을 때는 program에 전달된 argument만 보지 말고, 그 전에 Shell이 text를 어떻게 확장했는지 확인한다. Quote를 쓰지 않은 <code>*</code>, <code>?</code>, 변수와 command substitution은 Shell 단계에서 결과 text로 바뀐 뒤 program에 전달된다.</p>
+<pre class="source-code"><code class="language-bash">printf '%s\n' "*.log"   # 별표 자체를 전달
+printf '%s\n' *.log     # 일치하는 이름들로 확장
+printf '%s\n' "$name"   # 한 argument로 보존
+printf '%s\n' $name     # word splitting과 glob 확장 가능</code></pre>
+<p>Space·별표가 든 filename과 빈 변수를 안전하게 다루려면 variable expansion을 대체로 double quote로 감싼다. <code>rm $target</code>처럼 값과 확장 결과가 불명확한 destructive 명령은 실행 전에 대상 경로를 별도 확인한다.</p>
+<h3>Directory 권한은 파일 권한과 의미가 다르다</h3>
+<div class="table-scroll"><table><thead><tr><th>권한</th><th>일반 파일</th><th>Directory</th></tr></thead><tbody><tr><td><code>r</code></td><td>내용 읽기</td><td>이름 목록 읽기</td></tr><tr><td><code>w</code></td><td>내용 수정</td><td>entry 생성·삭제·이름 변경</td></tr><tr><td><code>x</code></td><td>실행</td><td>경로를 통과하고 entry에 접근</td></tr></tbody></table></div>
+<p>Directory에 <code>w</code>만 있고 <code>x</code>가 없으면 내부 entry를 정상적으로 조작할 수 없다. 파일 삭제 가능 여부는 그 파일의 write bit보다 부모 directory의 <code>w+x</code>와 sticky bit 등에 더 직접적으로 좌우된다.</p>
+<h3>Job control은 Shell의 대화형 process 관리 기능이다</h3>
+<ul><li><code>Ctrl-Z</code>: foreground process group에 정지 signal을 보낸다.</li><li><code>jobs</code>: 현재 Shell이 추적하는 job을 본다.</li><li><code>bg %1</code>: 정지한 job을 background에서 계속한다.</li><li><code>fg %1</code>: job을 foreground로 가져온다.</li><li><code>command &amp;</code>: 처음부터 background job으로 시작한다.</li></ul>
+<p>Terminal을 닫은 뒤에도 유지해야 하는 service를 단순 background job으로 운용하지 않는다. <code>systemd</code>, container orchestrator처럼 restart·log·lifecycle을 관리하는 도구를 사용한다.</p>
+<h3>참고 자료</h3><ul><li><a href="https://keyboardfoot.tistory.com/192">기존 학습 기록: Shell expansion</a></li><li><a href="https://keyboardfoot.tistory.com/195">기존 학습 기록: Linux 권한</a></li><li><a href="https://keyboardfoot.tistory.com/197">기존 학습 기록: Job control</a></li><li><a href="https://www.gnu.org/software/bash/manual/bash.html#Shell-Expansions">GNU Bash 공식 문서: Shell Expansions</a></li></ul>
+</section></article>
+<aside class="verification-notes" aria-labelledby="verification-title"><h2 id="verification-title">편입 후 검증 메모</h2><ul><li><strong>원문 캡처 전사:</strong> 출처가 불명확한 강의 슬라이드는 공개하지 않았다. 그림의 고유 설명은 다음처럼 텍스트로 보존한다.</li><li><strong><code>find</code>:</strong> 지정한 경로부터 디렉터리 계층을 실시간 순회하며 이름·타입·수정 시각·크기·권한 같은 조건을 평가한다. 경로를 생략하면 현재 디렉터리에서 시작한다.</li><li><strong><code>locate</code>:</strong> 파일 경로 색인 DB를 검색하므로 대체로 빠르지만, DB 갱신 뒤 생긴 파일은 찾지 못할 수 있다. 시스템에 따라 <code>updatedb</code>나 정기 작업이 색인을 갱신한다.</li><li><strong>namespace:</strong> 네트워크 네임스페이스마다 인터페이스·주소·라우팅 테이블이 분리된다. 프로세스 격리는 mount·PID·user 등 다른 namespace와 cgroup을 함께 봐야 한다.</li></ul></aside>
+<div class="project-reference-links"><strong>같이 보기</strong><a href="computer_execution_memory_kernel.html">컴퓨터 실행·메모리</a><a href="os_process_scheduling_synchronization.html">OS 스케줄링·동기화</a><a href="network_link_ip_routing.html">링크·IP·라우팅</a><a href="network_tcp_http_tls.html">TCP·HTTP·TLS</a><a href="linux_architecture_namespaces_search.html">Linux</a><a href="git_worktree_index_history.html">Git</a></div><footer class="footer">Notion 공개 학습 노트 편입 · 원문 단위 추적</footer></main><script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script></body></html>

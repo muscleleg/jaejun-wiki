@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Django 애플리케이션, Model, Migration, ForeignKey와 ManyToMany, Manager, QuerySet 지연 평가와 관계 조회를 실행 흐름으로 설명한 문서">
+  <title>Django Model·Migration·QuerySet 실행 흐름 · 재준 위키</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260823-blog-absorb">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260823-blog-absorb">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260823-blog-absorb">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Django Model·Migration·QuerySet 실행 흐름 · 재준 위키">
+  <meta property="og:description" content="Django 애플리케이션, Model, Migration, ForeignKey와 ManyToMany, Manager, QuerySet 지연 평가와 관계 조회를 실행 흐름으로 설명한 문서">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html","name":"Django Model·Migration·QuerySet 실행 흐름 · 재준 위키","description":"Django 애플리케이션, Model, Migration, ForeignKey와 ManyToMany, Manager, QuerySet 지연 평가와 관계 조회를 실행 흐름으로 설명한 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html"},"headline":"Django Model·Migration·QuerySet 실행 흐름 · 재준 위키","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#django-model-queries","name":"Django Model·QuerySet","identifier":"django-model-queries"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/django_models_queries.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Python"},{"@type":"ListItem","position":4,"name":"Django ORM"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference reference-note">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 학습 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><span>Python</span><span class="separator">›</span><span aria-current="page">Django ORM</span></nav>
+    <header class="hero">
+      <span class="label">Python · Django · ORM</span>
+      <h1>Django Model·Migration·QuerySet 실행 흐름</h1>
+      <p>Django의 ORM(객체 관계 매핑)을 클래스 문법으로만 보지 않고, Python 선언이 Migration을 거쳐 데이터베이스 스키마가 되고 QuerySet이 SQL로 평가되는 전체 경로로 이해합니다.</p>
+    </header>
+    <nav aria-label="문서 목차"><a href="#app">Project·App</a><a href="#model">Model</a><a href="#migration">Migration</a><a href="#relations">관계</a><a href="#manager">Manager</a><a href="#queryset">QuerySet</a><a href="#lookups">조회</a><a href="#admin">Admin</a><a href="#conclusion">결론</a></nav>
+
+    <section id="app">
+      <h2>1. Project와 App은 설정 범위와 기능 경계를 나눈다</h2>
+      <p>Django Project는 전체 사이트의 설정·URL·배포 진입점을 묶고, App은 회원·게시물·예약처럼 재사용 가능한 기능 단위를 묶습니다. App을 만들었다고 자동으로 활성화되는 것은 아니며 <code>INSTALLED_APPS</code>에 등록해야 Model 검색, Migration, Admin 연동 대상이 됩니다.</p>
+      <pre><code class="language-bash">python manage.py startapp rooms
+python manage.py makemigrations
+python manage.py migrate</code></pre>
+      <div class="callout"><strong>흐름</strong><br><code>models.py</code> 선언 → Migration 파일 생성 → Migration 적용 → 데이터베이스 테이블 변경 → Manager·QuerySet으로 조회</div>
+    </section>
+
+    <section id="model">
+      <h2>2. Model은 Python 클래스이면서 데이터 계약이다</h2>
+      <pre><code class="language-python">from django.conf import settings
+from django.db import models
+
+class TimeStampedModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+class Room(TimeStampedModel):
+    name = models.CharField(max_length=120)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="rooms",
+    )
+    guests = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="bookmarked_rooms",
+        blank=True,
+    )</code></pre>
+      <p>필드는 단순한 변수 선언이 아닙니다. 자료형, 최대 길이, 빈 값 허용, 기본값, 관계, 삭제 정책을 스키마와 검증 계층에 전달합니다. <code>abstract=True</code>인 추상 Model은 자기 테이블을 만들지 않고 공통 필드를 자식 Model에 제공합니다.</p>
+      <div class="table-scroll"><table><thead><tr><th>옵션</th><th>의미</th><th>구분할 점</th></tr></thead><tbody><tr><td><code>null=True</code></td><td>데이터베이스에 NULL 허용</td><td>문자열 필드는 빈 문자열과 NULL이 두 상태가 될 수 있음</td></tr><tr><td><code>blank=True</code></td><td>Form·Validation에서 빈 입력 허용</td><td>DB NULL과 같은 의미가 아님</td></tr><tr><td><code>default=...</code></td><td>새 객체의 기본값</td><td>변경 가능한 객체는 callable 사용 검토</td></tr><tr><td><code>on_delete</code></td><td>참조 대상 삭제 시 정책</td><td>관계 데이터 수명 결정</td></tr></tbody></table></div>
+    </section>
+
+    <section id="migration">
+      <h2>3. Migration은 현재 DB를 보고 추측하는 스크립트가 아니라 변경 이력이다</h2>
+      <p><code>makemigrations</code>는 현재 Model과 저장된 Migration 상태의 차이를 선언적 작업으로 기록합니다. <code>migrate</code>는 아직 적용되지 않은 작업을 순서대로 실행합니다.</p>
+      <pre><code class="language-bash">python manage.py makemigrations rooms
+python manage.py showmigrations rooms
+python manage.py sqlmigrate rooms 0002
+python manage.py migrate</code></pre>
+      <p>운영 데이터가 있는 테이블에 필수 ForeignKey를 추가한다면 기존 행의 값을 어떻게 채울지 먼저 결정해야 합니다. 일반적인 경로는 nullable 필드 추가 → data migration으로 값 채우기 → non-null 제약 추가입니다.</p>
+      <div class="warning"><strong>피해야 할 일반화</strong><br>관계를 추가할 때마다 Migration 파일과 데이터베이스를 삭제하는 것은 해법이 아닙니다. 버릴 수 있는 초기 실습 DB가 아니라면 데이터 손실과 이력 불일치를 만듭니다.</div>
+    </section>
+
+    <section id="relations">
+      <h2>4. 관계는 정방향·역방향·소유 필드를 함께 읽는다</h2>
+      <p><code>Room.owner</code>처럼 ForeignKey를 선언한 쪽에서 대상 User로 가는 접근이 정방향입니다. User에서 자신을 참조하는 Room들을 찾는 것이 역방향입니다.</p>
+      <pre><code class="language-python">room.owner                 # User 한 개
+user.rooms.all()           # related_name으로 만든 Room QuerySet
+room.guests.all()          # 여러 User
+user.bookmarked_rooms.all()# 역방향 Room QuerySet</code></pre>
+      <p><code>related_name</code>을 생략한 ForeignKey의 기본 역방향 accessor는 보통 <code>room_set</code>입니다. 관계 lookup은 <code>owner__username</code>처럼 double underscore로 이어지며 마지막 필드의 자료형에 맞는 값을 비교해야 합니다.</p>
+      <pre><code class="language-python">Room.objects.filter(owner__username="sample")
+# username 문자열 필드에는 문자열을 비교한다.
+# owner__username=room.owner 처럼 User 객체를 넣지 않는다.</code></pre>
+      <p>ManyToMany 관계는 중간 연결 테이블을 사용합니다. 연결 자체에 예약 시각·역할 같은 추가 속성이 필요하면 자동 중간 테이블 대신 명시적인 through Model을 정의합니다.</p>
+    </section>
+
+    <section id="manager">
+      <h2>5. Manager는 QuerySet을 시작하는 Model 수준의 진입점이다</h2>
+      <p><code>Room.objects</code>가 기본 Manager입니다. Manager는 쿼리 생성의 시작점이고, <code>all()</code>·<code>filter()</code> 등은 QuerySet을 반환합니다. 공통 필터가 반복되면 사용자 정의 QuerySet 메서드를 만들고 <code>as_manager()</code>로 노출할 수 있습니다.</p>
+      <pre><code class="language-python">class RoomQuerySet(models.QuerySet):
+    def published(self):
+        return self.filter(is_published=True)
+
+class Room(models.Model):
+    is_published = models.BooleanField(default=False)
+    objects = RoomQuerySet.as_manager()
+
+Room.objects.published().order_by("name")</code></pre>
+    </section>
+
+    <section id="queryset">
+      <h2>6. QuerySet은 결과 배열이 아니라 아직 실행 가능한 쿼리다</h2>
+      <pre><code class="language-python">rooms = Room.objects.filter(owner=user)  # 보통 아직 SQL 미실행
+rooms = rooms.exclude(name="hidden")     # 쿼리 조건 조합
+rooms = rooms.order_by("name")           # 정렬 조건 조합
+
+for room in rooms:                        # 여기서 평가
+    print(room.name)</code></pre>
+      <p>QuerySet은 지연 평가됩니다. 반복, <code>list()</code>, <code>len()</code>, <code>repr()</code>, boolean 검사, 일부 slicing처럼 결과가 실제로 필요할 때 SQL이 실행됩니다. <code>count()</code>와 <code>exists()</code>는 목적에 맞는 별도 쿼리를 실행할 수 있습니다.</p>
+      <div class="table-scroll"><table><thead><tr><th>표현</th><th>주요 결과</th><th>주의</th></tr></thead><tbody><tr><td><code>filter()</code></td><td>0개 이상 QuerySet</td><td>없어도 예외가 아님</td></tr><tr><td><code>get()</code></td><td>객체 정확히 한 개</td><td>0개·2개 이상이면 예외</td></tr><tr><td><code>first()</code></td><td>첫 객체 또는 None</td><td>유일성을 보장하지 않음</td></tr><tr><td><code>exists()</code></td><td>존재 여부</td><td>객체 데이터가 필요하면 중복 조회 고려</td></tr><tr><td><code>values()</code></td><td>dict 형태 QuerySet</td><td>Model 메서드·관계 객체가 아님</td></tr></tbody></table></div>
+    </section>
+
+    <section id="lookups">
+      <h2>7. Lookup과 Q 객체로 조건을 표현한다</h2>
+      <pre><code class="language-python">from django.db.models import Q
+
+Room.objects.filter(
+    Q(name__icontains="sea") | Q(owner__username__startswith="sam"),
+    is_published=True,
+)</code></pre>
+      <p><code>field__lookup=value</code>가 기본 형태입니다. 같은 <code>filter()</code> 호출의 keyword 조건은 AND로 묶입니다. OR·NOT·괄호가 필요한 조건은 <code>Q</code> 객체를 사용합니다. QuerySet을 출력하기 전에 <code>str(queryset.query)</code>와 데이터베이스 쿼리 로그를 보면 ORM 표현이 어떤 SQL로 번역됐는지 확인할 수 있습니다.</p>
+      <p>관계 객체를 반복 접근할 때 쿼리가 늘어나면 <code>select_related</code>는 ForeignKey·OneToOne의 SQL JOIN, <code>prefetch_related</code>는 별도 조회 후 Python 결합을 사용한다는 차이를 검토합니다.</p>
+    </section>
+
+    <section id="admin">
+      <h2>8. Admin은 Model을 보여주는 운영 UI이지 Model 설계의 대체물이 아니다</h2>
+      <p>Django Admin에서 <code>list_display</code>, <code>search_fields</code>, <code>list_filter</code>를 정의하면 운영자가 데이터를 탐색하기 쉬워집니다. 관계 값을 열에 표시하는 메서드는 화면마다 추가 쿼리를 만들 수 있으므로 <code>get_queryset()</code>에서 관련 객체 로딩을 조정합니다.</p>
+      <pre><code class="language-python">@admin.register(Room)
+class RoomAdmin(admin.ModelAdmin):
+    list_display = ("name", "owner", "created_at")
+    search_fields = ("name", "owner__username")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("owner")</code></pre>
+      <p>사용자 Model을 확장한다면 프로젝트 초기에 <code>AUTH_USER_MODEL</code>을 정하고 관계에서는 직접 User 클래스를 하드코딩하지 않는 편이 안전합니다.</p>
+    </section>
+
+    <section id="conclusion">
+      <h2>9. 결론</h2>
+      <p>Django 데이터 흐름은 <strong>Model 선언 → Migration 이력 → DB 스키마 → Manager → 지연 QuerySet → SQL 평가</strong>입니다. 관계를 이해할 때는 ForeignKey가 어느 쪽에 있는지, 역방향 이름이 무엇인지, 조회가 몇 번 실행되는지를 함께 확인해야 합니다.</p>
+      <h3>참고 자료</h3>
+      <ul><li><a href="https://keyboardfoot.tistory.com/269">기존 학습 기록: Django App</a></li><li><a href="https://keyboardfoot.tistory.com/274">기존 학습 기록: ForeignKey</a></li><li><a href="https://keyboardfoot.tistory.com/283">기존 학습 기록: Manager</a></li><li><a href="https://keyboardfoot.tistory.com/287">기존 학습 기록: Reverse accessor</a></li><li><a href="https://docs.djangoproject.com/en/5.2/intro/overview/">Django 공식 문서: 개요</a></li><li><a href="https://docs.djangoproject.com/en/5.2/topics/db/queries/">Django 공식 문서: Making queries</a></li><li><a href="https://docs.djangoproject.com/en/5.2/topics/migrations/">Django 공식 문서: Migrations</a></li></ul>
+    </section>
+    <footer>Python · Django ORM 실행 경로</footer>
+  </main>
+  <script src="../../assets/js/global_nav.js?v=20260823-blog-absorb"></script>
+</body>
+</html>

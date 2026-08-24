@@ -82,10 +82,39 @@ if (textById(homeHtml, "overallCount") !== `${learningState.overall.done} / ${le
 const wikiFilters = staticRegion(wikiHtml, "wiki-filters");
 const wikiStatus = staticRegion(wikiHtml, "wiki-status");
 const wikiTree = staticRegion(wikiHtml, "wiki-tree");
+const wikiDocumentByHref = new Map(manifest.documents.map((entry) => [entry.href, entry]));
+const wikiHierarchy = (entry) => {
+  const chain = [];
+  const seen = new Set();
+  let current = entry;
+  while (current && !seen.has(current.href)) {
+    chain.unshift(current);
+    seen.add(current.href);
+    current = current.parentHref ? wikiDocumentByHref.get(current.parentHref) : null;
+  }
+  return chain;
+};
+const wikiRootEntries = manifest.documents.filter((entry) => (
+  wikiHierarchy(entry).filter((item) => item.categoryKey === entry.categoryKey).length === 1
+));
+const wikiRootHrefByDocument = new Map(manifest.documents.map((entry) => {
+  const sameCategoryPath = wikiHierarchy(entry).filter((item) => item.categoryKey === entry.categoryKey);
+  return [entry.href, sameCategoryPath[0]?.href || entry.href];
+}));
+const wikiDescendantCountByRoot = new Map(wikiRootEntries.map((entry) => [entry.href, 0]));
+for (const entry of manifest.documents) {
+  const rootHref = wikiRootHrefByDocument.get(entry.href);
+  if (rootHref !== entry.href) wikiDescendantCountByRoot.set(rootHref, (wikiDescendantCountByRoot.get(rootHref) || 0) + 1);
+}
+const wikiExpandableRootCount = [...wikiDescendantCountByRoot.values()].filter((count) => count > 0).length;
 assertEqual((wikiFilters.match(/<button\b/g) || []).length, manifest.categories.length + 1, "Wiki category filters");
 assertEqual((wikiTree.match(/class=["'][^"']*wiki-search-result[^"']*["']/g) || []).length, manifest.indexedCount, "Wiki document links");
 assertSetEqual(valuesForAttribute(wikiTree, "href"), manifest.documents.map((item) => item.href), "Wiki document hrefs");
+assertEqual((wikiTree.match(/class=["']wiki-tree-root["']/g) || []).length, wikiRootEntries.length, "Wiki root groups");
+assertEqual((wikiTree.match(/class=["']wiki-tree-toggle["']/g) || []).length, wikiExpandableRootCount, "Wiki collapse toggles");
+assertEqual((wikiTree.match(/class=["']wiki-tree-children["'] hidden/g) || []).length, wikiExpandableRootCount, "Wiki collapsed child groups");
 if (!wikiStatus.includes(String(manifest.indexedCount))) throw new Error("Wiki status does not expose the indexed document count");
+if (!wikiStatus.includes(`최상위 ${wikiRootEntries.length}개`)) throw new Error("Wiki status does not expose the top-level document count");
 
 const defaultView = graph.views[0];
 if (!defaultView) throw new Error("Concept graph has no default view");
