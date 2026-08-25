@@ -466,7 +466,7 @@
   <meta property="og:description" content="코드 셀 단위로 배우는 Transformer 구현 학습 문서">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html","name":"Transformer 학습 문서","description":"코드 셀 단위로 배우는 Transformer 구현 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},"headline":"Transformer 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer","name":"Transformer","identifier":"transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"학습 홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer 코드 학습"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html","name":"Transformer 학습 문서","description":"코드 셀 단위로 배우는 Transformer 구현 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},"headline":"Transformer 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer","name":"Transformer","identifier":"transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/index.html"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer 코드 학습"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
 </head>
@@ -474,7 +474,7 @@
   <header>
     <div class="page">
       <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 학습 홈</a>
+        <a href="../../index.html">⌂ 홈</a>
         <span class="separator" aria-hidden="true">›</span>
         <a href="../../wiki.html">기술 위키</a>
         <span class="separator" aria-hidden="true">›</span>
@@ -575,7 +575,48 @@ input_tokens  = [[3, 7, 2]]    # Shape [1, 3]
 target_tokens = [[7, 2, 9]]    # Shape [1, 3]</code></pre>
         <p>같은 위치끼리 보면 입력 <code>3</code>으로 정답 <code>7</code>, 입력 <code>3, 7</code>까지의 문맥으로 정답 <code>2</code>, 입력 <code>3, 7, 2</code>까지의 문맥으로 정답 <code>9</code>를 맞히는 구조입니다. 원래 길이 4인 열에서 마지막 입력 후보와 첫 정답 후보를 각각 한 칸 제외하므로 두 Tensor의 Shape은 모두 <code>[batch=1, seq_len=3]</code>이 됩니다.</p>
         <a class="doc-link" href="transformer_attention_score_mask_learning.html#tiny-decoder-causal-mask">같은 길이 3에서 Causal Mask를 만드는 계산 보기 →</a>
-        <div class="caution"><strong>아직 완료되지 않은 경계</strong> — 현재 확인한 것은 Target shift와 Causal Mask까지입니다. 각 위치의 Token logits, <code>CrossEntropyLoss</code>, 모델 학습과 다음 Token 생성은 아직 구현·검증하지 않았으므로 Tiny Decoder LM 완료로 표시하지 않습니다.</div>
+        <div class="caution"><strong>이 단계 당시의 경계</strong> — Target shift와 Causal Mask를 먼저 확인한 뒤 아래 후속 단계에서 위치별 Token Logit과 <code>CrossEntropyLoss</code>까지 검증했습니다. 모델 전체 학습과 다음 Token 생성은 아직 남아 있으므로 Tiny Decoder LM 완료로 표시하지 않습니다.</div>
+
+        <h3 id="tiny-decoder-logits-loss">후속 확인: 위치별 Logit과 Cross Entropy Loss</h3>
+        <p>위 경계 이후, 학습 전 임시 Logit을 직접 만들고 각 위치의 정답 열을 선택해 Loss를 계산하는 단계까지 확인했습니다. <code>[1, 3, 10]</code>은 배치 1개 안의 위치 3개마다 vocabulary의 Token ID <code>0~9</code>에 대한 점수 10개가 있다는 뜻입니다.</p>
+        <pre><code>logits.shape = [batch=1, seq_len=3, vocab_size=10]
+
+logits[0, 0]  # 첫 번째 위치가 Token 0~9에 준 점수 10개
+softmax(logits, dim=-1)
+                  ↑ 마지막 vocab 축의 10개 점수를 위치별로 비율화</code></pre>
+        <p><code>target=[7, 2, 9]</code>을 먼저 “정답 목록”이라고만 외우면 실제 연산이 흐려질 수 있습니다. 코드에서 이 값들은 각 Logit 행의 어느 열을 정답으로 채점할지 지정하는 <strong>열 index</strong>입니다. Target 값을 Logit에 더하거나 빼는 연산이 아닙니다.</p>
+        <pre><code>three_position_logits.shape = [3, 10]
+three_targets = [7, 2, 9]  # 각 행에서 선택할 열 index
+
+log_probs = torch.log_softmax(
+    three_position_logits,
+    dim=-1,
+)
+
+선택하는 칸:
+log_probs[0, 7]  # 위치 0의 정답 Token 7
+log_probs[1, 2]  # 위치 1의 정답 Token 2
+log_probs[2, 9]  # 위치 2의 정답 Token 9
+
+token_losses = -선택한 log-softmax 값
+mean_loss = token_losses.mean()</code></pre>
+        <p>직접 만든 고정 Logit에서는 <code>reduction="none"</code>으로 위치별 Loss <code>[0.7966, 1.4612, 0.3702]</code>, Shape <code>[3]</code>을 얻었고, 이를 평균내 <code>0.8760</code>을 확인했습니다. <code>nn.CrossEntropyLoss()</code>의 기본 <code>reduction="mean"</code>은 같은 원리로 모든 위치 Loss를 평균한 scalar 하나를 반환합니다.</p>
+        <div class="caution"><strong>Softmax와 Cross Entropy의 코드 경계</strong> — 이해를 위해 위처럼 <code>log_softmax → 정답 열 선택 → 음수 부호</code>로 풀어 쓸 수 있습니다. 실제 <code>nn.CrossEntropyLoss</code>에는 Softmax를 적용하지 않은 raw Logit을 넣으며, 모듈 내부에서 이 계산을 결합해 수행합니다.</div>
+
+        <h3>LM Head는 마지막 특징 축만 vocabulary 축으로 바꾼다</h3>
+        <pre><code>hidden_states.shape = [1, 3, 2]
+
+lm_head = nn.Linear(
+    in_features=2,
+    out_features=10,
+)
+
+model_logits = lm_head(hidden_states)
+model_logits.shape = [1, 3, 10]</code></pre>
+        <p>LM Head의 Linear는 각 위치의 마지막 <code>d_model=2</code> 벡터를 vocabulary 점수 10개로 바꿉니다. 앞의 batch 1개와 sequence 위치 3개 축은 그대로 보존됩니다. Loss에 넣을 때는 이를 <code>[3,10]</code>으로 펼치고 Target도 <code>[3]</code>으로 펼쳐, 세 행을 각각 해당 정답 열과 연결했습니다.</p>
+        <div class="caution"><strong>임시값과 실제 모델 출력을 구분한다</strong> — 처음의 <code>logits</code>는 정답 열 선택과 Loss를 손으로 확인하려고 0에서 시작해 특정 칸만 채운 임시값입니다. 이어서 사용한 <code>hidden_states=[1,3,2]</code>도 LM Head의 Shape 변환을 확인하려고 손으로 만든 Transformer 출력 역할의 예제입니다. 아직 Token Embedding부터 Transformer Block까지 연결된 실제 Decoder 모델 출력은 아닙니다.</div>
+        <p><a class="doc-link" href="transformer_token_embedding_learning.html#tiny-decoder-token-lookup">Tiny Decoder 입력의 Token Embedding 실행 보기 →</a></p>
+        <div class="caution"><strong>현재 완료 범위</strong> — Target shift, Causal Mask, 임시 Logit의 위치별 Cross Entropy Loss, LM Head의 마지막 축 변환, Token Embedding 실행까지 확인했습니다. Position Embedding 셀은 아직 실행·이해 확인 전이며, 전체 모델 학습과 다음 Token 생성도 남아 있으므로 Tiny Decoder LM 전체 완료는 아닙니다.</div>
       </section>
       <section>
         <div class="caution"><strong>내용 보존 원칙</strong> — 기존 Transformer 문서의 14개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 내용을 요약해 대체하지 않고 하위 문서의 위치만 안내합니다. Multi-Head 이후 새로 학습한 Transformer Block 개념은 별도의 상세 문서로 계속 연결합니다.</div>
@@ -586,7 +627,7 @@ target_tokens = [[7, 2, 9]]    # Shape [1, 3]</code></pre>
   <footer>
     <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
   </footer>
-  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 학습 홈</a>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
   <script src="../../assets/js/global_nav.js?v=20260823-import-toc"></script>
 </body>
 </html>

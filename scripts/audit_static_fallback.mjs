@@ -98,13 +98,12 @@ const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml,
 const homeProjects = staticRegion(homeHtml, "home-projects");
 const homeKnowledge = staticRegion(homeHtml, "home-knowledge");
 const homeCoaching = staticRegion(homeHtml, "home-coaching");
-const homeRoadmaps = staticRegion(homeHtml, "home-roadmaps");
 assertSetEqual(valuesForAttribute(homeProjects, "href"), homeContent.featuredProjects.map((item) => item.href), "Home projects");
 assertSetEqual(valuesForAttribute(homeKnowledge, "href"), homeContent.knowledgeAreas.map((item) => item.href), "Home knowledge areas");
+assertEqual(valuesForAttribute(homeKnowledge, "href").join("|"), homeContent.knowledgeAreas.map((item) => item.href).join("|"), "Home knowledge area order");
 assertEqual((homeCoaching.match(/class=["']status-row["']/g) || []).length, 5, "Home coaching rows");
-assertSetEqual(valuesForAttribute(homeRoadmaps, "href"), learningState.tracks.map((item) => item.href), "Home roadmaps");
-if (textById(homeHtml, "overallCount") !== `${learningState.overall.done} / ${learningState.overall.total}`) {
-  throw new Error("Home overall completion count does not match learning_state.js");
+if (!/<a\b[^>]*\bid=["']roadmaps["'][^>]*\bhref=["']pytorch_professional_roadmap\.html["'][^>]*>/i.test(homeHtml)) {
+  throw new Error("Home roadmap anchor must preserve #roadmaps and link to the integrated roadmap");
 }
 
 const wikiFilters = staticRegion(wikiHtml, "wiki-filters");
@@ -141,6 +140,11 @@ assertSetEqual(valuesForAttribute(wikiTree, "href"), manifest.documents.map((ite
 assertEqual((wikiTree.match(/class=["']wiki-tree-root["']/g) || []).length, wikiRootEntries.length, "Wiki root groups");
 assertEqual((wikiTree.match(/class=["']wiki-tree-toggle["']/g) || []).length, wikiExpandableRootCount, "Wiki collapse toggles");
 assertEqual((wikiTree.match(/class=["']wiki-tree-children["'] hidden/g) || []).length, wikiExpandableRootCount, "Wiki collapsed child groups");
+assertSetEqual(
+  valuesForAttribute(wikiTree, "id").filter((id) => id.startsWith("wiki-category-")),
+  manifest.categories.map((category) => `wiki-category-${category.id}`),
+  "Wiki category anchors",
+);
 if (!wikiStatus.includes(String(manifest.indexedCount))) throw new Error("Wiki status does not expose the indexed document count");
 if (!wikiStatus.includes(`최상위 ${wikiRootEntries.length}개`)) throw new Error("Wiki status does not expose the top-level document count");
 
