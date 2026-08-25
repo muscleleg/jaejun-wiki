@@ -191,11 +191,7 @@
       const section = document.createElement("section");
       section.className = "wiki-tree-category";
       section.dataset.category = groupKey;
-      const legacySection = legacySectionById.get(groupKey);
-      if (legacySection) {
-        legacySection.removeAttribute("id");
-        section.id = groupKey;
-      }
+      section.id = `wiki-category-${groupKey}`;
       const heading = document.createElement("h3");
       const count = document.createElement("span");
       const matchCount = group.entries.filter((entry) => directMatchHrefs.has(entry.href)).length;

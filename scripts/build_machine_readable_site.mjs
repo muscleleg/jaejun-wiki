@@ -166,13 +166,21 @@ function recordedStudyTime(content) {
 }
 
 function renderHomeProjects(projects) {
-  return projects.map((project) => `        <a class="card home-project-card" href="${escapeAttribute(project.href)}">
+  return projects.map((project) => {
+    const visual = project.image
+      ? `<div class="home-project-visual"><img src="${escapeAttribute(project.image)}" alt="${escapeAttribute(project.imageAlt || "")}" loading="lazy"></div>`
+      : `<div class="home-project-visual home-project-result"><span>대표 평가 결과</span><strong>${escapeHtml(project.evidence)}</strong><small>${escapeHtml(project.supportingEvidence || "")}</small></div>`;
+    return `        <a class="card home-project-card" href="${escapeAttribute(project.href)}">
+          ${visual}
           <span class="eyebrow">${escapeHtml(project.eyebrow)}</span>
           <h3>${escapeHtml(project.title)}</h3>
           <p>${escapeHtml(project.description)}</p>
+          <strong class="home-project-role">${escapeHtml(project.role)}</strong>
           <div class="home-card-tags">${project.stack.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
           <strong class="home-card-evidence">${escapeHtml(project.evidence)}</strong>
-        </a>`).join("\n");
+          <small class="home-card-supporting">${escapeHtml(project.supportingEvidence || "")}</small>
+        </a>`;
+  }).join("\n");
 }
 
 function renderKnowledgeAreas(areas) {
@@ -262,7 +270,7 @@ function renderWikiTree(manifest) {
         const children = descendants.map(renderLink).join("\n");
         return `        <div class="wiki-tree-root"><div class="wiki-tree-root-row">\n${renderLink(root)}\n          <button type="button" class="wiki-tree-toggle" data-root-key="${escapeAttribute(root.href)}" data-child-count="${descendants.length}" aria-expanded="false" aria-controls="${escapeAttribute(childId)}">하위 문서 ${descendants.length}개 펼치기</button>\n          </div><div id="${escapeAttribute(childId)}" class="wiki-tree-children" hidden>\n${children}\n          </div></div>`;
       }).join("\n");
-      return `      <section class="wiki-tree-category" data-category="${escapeAttribute(groupKey)}"><h3>${escapeHtml(group.label)}<span>${group.entries.length}개</span></h3><div class="wiki-tree-list">\n${roots}\n        </div></section>`;
+      return `      <section id="wiki-category-${escapeAttribute(groupKey)}" class="wiki-tree-category" data-category="${escapeAttribute(groupKey)}"><h3>${escapeHtml(group.label)}<span>${group.entries.length}개</span></h3><div class="wiki-tree-list">\n${roots}\n        </div></section>`;
     }).join("\n");
 }
 
@@ -355,23 +363,15 @@ async function renderStaticDiscoveryPages() {
   const homePath = resolve(wikiRoot, "index.html");
   let home = await readFile(homePath, "utf8");
   const activeTrack = learningState.tracks.find((track) => track.id === "pytorch") || learningState.tracks[0];
-  const currentTopic = activeTrack.next.split("로 ")[0];
   for (const [tag, id, value] of [
-    ["strong", "featuredProjectCount", `${homeContent.featuredProjects.length}개 프로젝트`],
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
-    ["strong", "heroCurrentTopic", currentTopic],
     ["strong", "recentCompletion", activeTrack.current],
     ["strong", "currentLearning", learningState.rotation.next],
     ["strong", "currentNextAction", learningState.rotation.after],
-    ["strong", "overallCount", `${learningState.overall.done} / ${learningState.overall.total}`],
-    ["strong", "roadmapWikiDocumentCount", `${knowledgeManifest.documentCount}개`],
-    ["strong", "latestLearningDate", learningState.updated],
-    ["span", "roadmapNextAction", learningState.rotation.next],
   ]) home = replaceElementContent(home, { tag, id, value });
   home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(homeContent.featuredProjects) });
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
   home = replaceStaticRegion(home, { name: "home-coaching", tag: "div", id: "coachingStatus", markup: renderCoaching(learningState) });
-  home = replaceStaticRegion(home, { name: "home-roadmaps", tag: "div", id: "roadmapGrid", markup: renderRoadmaps(learningState.tracks) });
   await writeFile(homePath, home, "utf8");
 
   const wikiPath = resolve(wikiRoot, "wiki.html");
