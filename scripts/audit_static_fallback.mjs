@@ -83,16 +83,18 @@ function formatDuration(durations) {
   return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
 }
 
-const [manifest, graph, homeContent, learningState, homeHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml] = await Promise.all([
+const [manifest, graph, homeContent, learningState, codingTestState, homeHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
   loadWindowValue("assets/js/home_content.js", "HOME_CONTENT"),
   loadWindowValue("assets/js/learning_state.js", "LEARNING_STATE"),
+  loadWindowValue("assets/js/coding_test_state.js", "CODING_TEST_STATE"),
   readFile(resolve(wikiRoot, "index.html"), "utf8"),
   readFile(resolve(wikiRoot, "wiki.html"), "utf8"),
   readFile(resolve(wikiRoot, "knowledge_map.html"), "utf8"),
   readFile(resolve(wikiRoot, "learning_history.html"), "utf8"),
   readFile(resolve(wikiRoot, "pytorch_professional_roadmap.html"), "utf8"),
+  readFile(resolve(wikiRoot, "wiki/coding-test/index.html"), "utf8"),
 ]);
 
 const homeProjects = staticRegion(homeHtml, "home-projects");
@@ -170,6 +172,19 @@ if (!mapHtml.includes(defaultView.description)) throw new Error("Knowledge-map d
 
 assertEqual(textById(roadmapHtml, "roadmapOverallDone"), String(learningState.overall.done), "Roadmap completed count");
 assertEqual(textById(roadmapHtml, "roadmapOverallTotal"), String(learningState.overall.total), "Roadmap total count");
+const completedProblemSection = sectionById(codingTestIndexHtml, "problems");
+const attemptNoteSection = sectionById(codingTestIndexHtml, "attempt-notes");
+const completedProblemHrefs = valuesForAttribute(completedProblemSection, "href").filter((href) => href.endsWith(".html") && !href.startsWith("https://"));
+const attemptNoteHrefs = valuesForAttribute(attemptNoteSection, "href").filter((href) => href.endsWith(".html") && !href.startsWith("https://"));
+const completedProblemNumbers = [...completedProblemSection.matchAll(/<strong>\s*(\d+)\s*·/g)].map((match) => Number(match[1]));
+assertEqual(completedProblemHrefs.length, new Set(completedProblemHrefs).size, "Unique completed coding-test documents");
+assertEqual(completedProblemNumbers.join(","), completedProblemNumbers.map((_, index) => index + 1).join(","), "Sequential completed coding-test numbers");
+if (!codingTestIndexHtml.includes(`현재 풀이 증거<strong>${completedProblemHrefs.length}문제</strong>`)) {
+  throw new Error(`Coding-test summary count does not match completed cards: ${completedProblemHrefs.length}`);
+}
+for (const href of attemptNoteHrefs) {
+  if (completedProblemHrefs.includes(href)) throw new Error(`Coding-test attempt note is also counted as completed: ${href}`);
+}
 const learningRecords = sectionById(historyHtml, "learning-records");
 const recordEntries = [...learningRecords.matchAll(/<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)]
   .map((match) => ({ attributes: match[1], date: match[2] }));
@@ -183,6 +198,44 @@ for (const entry of recordEntries) {
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
+const learningJourney = staticRegion(historyHtml, "learning-journey");
+if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
+assertEqual(
+  (learningJourney.match(/data-milestone-id=/g) || []).length,
+  learningState.journey.milestones.length,
+  "Learning-journey milestone count",
+);
+assertSetEqual(
+  valuesForAttribute(learningJourney, "data-milestone-id"),
+  learningState.journey.milestones.map((milestone) => milestone.id),
+  "Learning-journey milestone ids",
+);
+const currentMilestonePattern = new RegExp(`data-milestone-id=["']${learningState.journey.currentId}["'][^>]*aria-current=["']step["']`);
+assertEqual((learningJourney.match(/aria-current=["']step["']/g) || []).length, 1, "Learning-journey current marker count");
+if (!currentMilestonePattern.test(learningJourney)) throw new Error("Learning-journey current milestone does not match learning state");
+for (const milestone of learningState.journey.milestones) {
+  if (!learningJourney.includes(milestone.goal)) throw new Error(`Learning-journey goal is missing: ${milestone.id}`);
+  if (!learningJourney.includes(milestone.evidence)) throw new Error(`Learning-journey evidence is missing: ${milestone.id}`);
+}
+const codingTestJourney = staticRegion(historyHtml, "coding-test-journey");
+assertEqual(
+  (codingTestJourney.match(/data-milestone-id=/g) || []).length,
+  codingTestState.journey.milestones.length,
+  "Coding-test journey milestone count",
+);
+assertSetEqual(
+  valuesForAttribute(codingTestJourney, "data-milestone-id"),
+  codingTestState.journey.milestones.map((milestone) => milestone.id),
+  "Coding-test journey milestone ids",
+);
+const codingCurrentPattern = new RegExp(`data-milestone-id=["']${codingTestState.journey.currentId}["'][^>]*aria-current=["']step["']`);
+assertEqual((codingTestJourney.match(/aria-current=["']step["']/g) || []).length, 1, "Coding-test journey current marker count");
+if (!codingCurrentPattern.test(codingTestJourney)) throw new Error("Coding-test journey current milestone does not match coding-test state");
+if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Coding-test journey interaction script is missing");
+for (const milestone of codingTestState.journey.milestones) {
+  if (!codingTestJourney.includes(milestone.goal)) throw new Error(`Coding-test journey goal is missing: ${milestone.id}`);
+  if (!codingTestJourney.includes(milestone.evidence)) throw new Error(`Coding-test journey evidence is missing: ${milestone.id}`);
+}
 const studyTime = sectionById(historyHtml, "study-time");
 const sessionDates = [...studyTime.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bsession\b[^"']*["'])[^>]*>[\s\S]*?<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>[\s\S]*?<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
   .map((match) => ({ date: match[1], duration: durationMinutes(match[2]) }));
@@ -197,5 +250,5 @@ assertEqual(
 );
 
 console.log(
-  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
+  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} codingProblems=${completedProblemHrefs.length} codingAttemptNotes=${attemptNoteHrefs.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
 );
