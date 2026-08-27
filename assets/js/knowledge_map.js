@@ -26,9 +26,12 @@
           node("JPA 영속성·연관관계", "jpa-persistence-relations", { status: "reference", href: "wiki/backend/jpa_persistence_relations.html" }),
           node("Spring Data JPA 조회", "spring-data-jpa-queries", { status: "reference", href: "wiki/backend/spring_data_jpa_queries.html" }),
         ] }),
-        node("알고리즘·문제 해결", "algorithm-problem-solving", { status: "reference", href: "wiki/coding-test/index.html", children: [
+        node("코딩 테스트 로드맵·문제 해결", "algorithm-problem-solving", { status: "learning", href: "wiki/coding-test/index.html", children: [
           node("복잡도·순차/이분 탐색", "algorithm-complexity-search", { status: "reference", href: "wiki/coding-test/algorithm_complexity_search.html" }),
           node("문자열·배열 패턴", "string-array-patterns", { status: "reference", href: "wiki/coding-test/string_array_problem_patterns.html" }),
+          node("최소 Heap·Priority Queue", "heap-priority-queue", { status: "reference", href: "wiki/coding-test/24-more-spicy.html" }),
+          node("Queue 우선순위 Simulation", "queue-priority-simulation", { status: "reference", href: "wiki/coding-test/25-process.html" }),
+          node("필수 경유점·BFS 분리", "bfs-phase-decomposition", { status: "learning", href: "wiki/coding-test/maze-escape-bfs-note.html" }),
         ] }),
         node("Web·Frontend", "web-frontend", { status: "reference", href: "wiki/web/javascript_vue_runtime.html", children: [
           node("Browser Event·Event Loop", "browser-event-loop", { status: "reference", href: "wiki/web/javascript_vue_runtime.html" }),

@@ -26,6 +26,7 @@ async function loadWindowValue(sourcePath, property) {
 
 const homeContent = await loadWindowValue(resolve(wikiRoot, "assets/js/home_content.js"), "HOME_CONTENT");
 const learningState = await loadWindowValue(resolve(wikiRoot, "assets/js/learning_state.js"), "LEARNING_STATE");
+const codingTestState = await loadWindowValue(resolve(wikiRoot, "assets/js/coding_test_state.js"), "CODING_TEST_STATE");
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -207,6 +208,37 @@ function renderRoadmaps(tracks) {
     const percent = Math.round(track.done / track.total * 100);
     return `            <a class="card" href="${escapeAttribute(track.href)}"><span class="tag">${percent}%</span><h3>${escapeHtml(track.title)}</h3><div class="progress"><span style="width:${percent}%"></span></div><div class="meta"><span>${track.done} / ${track.total} 완료</span><span>${percent}%</span></div><p><strong>현재</strong> ${escapeHtml(track.current)}</p><p><strong>다음</strong> ${escapeHtml(track.next)}</p></a>`;
   }).join("\n");
+}
+
+function renderLearningJourney(journey) {
+  if (!journey?.milestones?.length) throw new Error("Learning journey milestones are missing");
+  const currentIndex = journey.milestones.findIndex((milestone) => milestone.id === journey.currentId);
+  if (currentIndex < 0) throw new Error(`Learning journey current milestone not found: ${journey.currentId}`);
+  const progress = journey.milestones.length === 1 ? 100 : (currentIndex / (journey.milestones.length - 1)) * 100;
+  const lineInset = 100 / (journey.milestones.length * 2);
+  const progressWidth = progress * (100 - lineInset * 2) / 100;
+  const steps = journey.milestones.map((milestone, index) => {
+    const classes = ["journey-step", `is-${milestone.status}`];
+    if (index === journey.milestones.length - 1) classes.push("is-final");
+    const marker = milestone.status === "complete" ? "✓" : String(index + 1);
+    const currentText = milestone.id === journey.currentId ? ' aria-current="step"' : "";
+    return `          <li class="${classes.join(" ")}" data-milestone-id="${escapeAttribute(milestone.id)}"${currentText}>
+            <details>
+              <summary aria-label="${escapeAttribute(`${milestone.title}: ${milestone.statusLabel}. 성취 목표 보기`)}"><span class="journey-dot" aria-hidden="true">${escapeHtml(marker)}</span><span class="journey-label">${escapeHtml(milestone.shortTitle)}</span></summary>
+              <div class="journey-popover">
+                <div class="journey-popover-head"><h3>${escapeHtml(milestone.title)}</h3><span class="journey-status">${escapeHtml(milestone.statusLabel)}</span></div>
+                <p><strong>성취 목표</strong><br>${escapeHtml(milestone.goal)}</p>
+                <p><strong>${milestone.status === "complete" ? "확인된 완료 근거" : "완료 증거"}</strong><br>${escapeHtml(milestone.evidence)}</p>
+                <a href="${escapeAttribute(milestone.href)}">관련 로드맵에서 자세히 보기 →</a>
+              </div>
+            </details>
+          </li>`;
+  }).join("\n");
+  return `        <div class="journey-heading"><div><span class="eyebrow">${escapeHtml(journey.eyebrow)}</span><h2>${escapeHtml(journey.title)}</h2></div><p>${escapeHtml(journey.summary)}</p></div>
+        <ol class="journey-track" style="--journey-count:${journey.milestones.length};--journey-inset:${lineInset.toFixed(2)}%;--journey-progress-width:${progressWidth.toFixed(2)}%;--journey-progress-height:${progress.toFixed(2)}%" aria-label="학습 성취 관문">
+${steps}
+        </ol>
+        <p class="journey-final"><strong>최종적으로 할 수 있어야 하는 것</strong><br>${escapeHtml(journey.finalOutcome)}</p>`;
 }
 
 function hierarchyFor(entry, documentByHref, cache) {
@@ -399,6 +431,8 @@ async function renderStaticDiscoveryPages() {
   history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
   history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(history) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
+  history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
+  history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
   await writeFile(historyPath, history, "utf8");
 
   const roadmapPath = resolve(wikiRoot, "pytorch_professional_roadmap.html");
