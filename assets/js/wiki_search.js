@@ -28,6 +28,42 @@
     });
   filters.replaceChildren();
   filters.append(...buttons);
+  const categoryIds = new Set(buttons
+    .map((button) => button.dataset.category)
+    .filter((id) => id && id !== "all"));
+
+  function categoryFromHash(hash = location.hash) {
+    if (!hash || hash === "#wiki-discovery") return null;
+    const decoded = decodeURIComponent(hash.slice(1));
+    const id = decoded.startsWith("wiki-category-")
+      ? decoded.slice("wiki-category-".length)
+      : decoded;
+    return categoryIds.has(id) ? id : null;
+  }
+
+  function syncCategoryButtons() {
+    for (const item of buttons) {
+      item.setAttribute("aria-pressed", String(item.dataset.category === category));
+    }
+  }
+
+  function scrollToVisibleCategory(categoryId) {
+    requestAnimationFrame(() => {
+      const target = document.getElementById(`wiki-category-${categoryId}`);
+      if (target && !target.hidden) target.scrollIntoView({ block: "start" });
+    });
+  }
+
+  function activateCategory(categoryId, { updateHash = false, scroll = true } = {}) {
+    category = categoryId;
+    input.value = "";
+    syncCategoryButtons();
+    render();
+    if (updateHash && location.hash !== `#${categoryId}`) {
+      history.pushState(null, "", `#${categoryId}`);
+    }
+    if (scroll) scrollToVisibleCategory(categoryId);
+  }
 
   function hierarchy(entry) {
     if (hierarchyByHref.has(entry.href)) return hierarchyByHref.get(entry.href);
@@ -149,7 +185,9 @@
     const visibleHrefs = new Set(directMatchHrefs);
     if (searching) directMatches.forEach((entry) => addAncestors(entry, visibleHrefs));
 
-    for (const [id, section] of legacySectionById) section.id = id;
+    for (const [id, section] of legacySectionById) {
+      section.id = `wiki-legacy-${id}`;
+    }
     results.replaceChildren();
     results.hidden = false;
     categorySections.forEach((section) => { section.hidden = true; });
@@ -192,6 +230,10 @@
       section.className = "wiki-tree-category";
       section.dataset.category = groupKey;
       section.id = `wiki-category-${groupKey}`;
+      const fragmentAnchor = document.createElement("span");
+      fragmentAnchor.id = groupKey;
+      fragmentAnchor.className = "wiki-category-anchor";
+      fragmentAnchor.setAttribute("aria-hidden", "true");
       const heading = document.createElement("h3");
       const count = document.createElement("span");
       const matchCount = group.entries.filter((entry) => directMatchHrefs.has(entry.href)).length;
@@ -203,7 +245,7 @@
       for (const rootGroup of groupByRoot(group.entries, groupKey)) {
         list.appendChild(createRootGroup(rootGroup, directMatchHrefs, groupKey, searching));
       }
-      section.append(heading, list);
+      section.append(fragmentAnchor, heading, list);
       results.appendChild(section);
     }
   }
@@ -223,22 +265,23 @@
     const button = event.target.closest("button[data-category]");
     if (!button) return;
     category = button.dataset.category;
-    for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
+    syncCategoryButtons();
     render();
   });
-  const projectsLink = document.querySelector("a[href='#projects']");
-  if (projectsLink) {
-    projectsLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      category = "projects";
-      input.value = "";
-      for (const item of buttons) {
-        item.setAttribute("aria-pressed", String(item.dataset.category === category));
-      }
-      render();
-      document.getElementById("projects")?.scrollIntoView();
-    });
-  }
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href^='#']");
+    if (!link) return;
+    const categoryId = categoryFromHash(link.getAttribute("href"));
+    if (!categoryId) return;
+    event.preventDefault();
+    activateCategory(categoryId, { updateHash: true });
+  });
+  window.addEventListener("hashchange", () => {
+    const categoryId = categoryFromHash();
+    if (categoryId) activateCategory(categoryId);
+  });
   input.addEventListener("input", render);
-  render();
+  const initialCategory = categoryFromHash();
+  if (initialCategory) activateCategory(initialCategory, { scroll: true });
+  else render();
 })();

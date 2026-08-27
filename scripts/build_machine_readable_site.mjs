@@ -210,6 +210,96 @@ function renderRoadmaps(tracks) {
   }).join("\n");
 }
 
+function currentJourneyMilestone(journey) {
+  const milestone = journey.milestones.find((item) => item.id === journey.currentId);
+  if (!milestone) throw new Error(`Journey current milestone not found: ${journey.currentId}`);
+  return milestone;
+}
+
+function renderTopLevelRoadmapTracks(state, codingState) {
+  const aiCurrent = currentJourneyMilestone(state.journey);
+  const codingCurrent = currentJourneyMilestone(codingState.journey);
+  const codingDone = codingState.journey.milestones.filter((item) => item.status === "complete").length;
+  const cards = [
+    {
+      id: "ai-ml",
+      tag: "AI · ML · LLM",
+      title: "AI·ML 통합 로드맵",
+      done: state.overall.done,
+      total: state.overall.total,
+      unit: "코어 완료 조건",
+      current: aiCurrent.title,
+      next: state.rotation.next,
+      href: "pytorch_professional_roadmap.html",
+      link: "AI·ML 로드맵 열기",
+    },
+    {
+      id: "coding-test",
+      tag: "Coding Test",
+      title: "코딩 테스트 역량 로드맵",
+      done: codingDone,
+      total: codingState.journey.milestones.length,
+      unit: "성취 관문",
+      current: codingCurrent.title,
+      next: codingCurrent.goal,
+      href: "wiki/coding-test/index.html",
+      link: "코딩 테스트 로드맵 열기",
+    },
+  ];
+  return cards.map((card) => {
+    const percent = Math.round(card.done / card.total * 100);
+    return `        <article class="card roadmap-track-card" data-roadmap-id="${escapeAttribute(card.id)}">
+          <span class="tag">${escapeHtml(card.tag)}</span>
+          <h2>${escapeHtml(card.title)}</h2>
+          <div class="progress"><span style="width:${percent}%"></span></div>
+          <div class="meta"><span>${escapeHtml(card.unit)} ${card.done} / ${card.total}</span><span>${percent}%</span></div>
+          <div class="roadmap-track-current"><strong>현재 관문</strong>${escapeHtml(card.current)}</div>
+          <p class="roadmap-track-next"><strong>다음 행동</strong><br>${escapeHtml(card.next)}</p>
+          <a class="button" href="${escapeAttribute(card.href)}">${escapeHtml(card.link)}</a>
+        </article>`;
+  }).join("\n");
+}
+
+function activeTrackId(state) {
+  const currentMilestone = state.journey.milestones.find((milestone) => milestone.id === state.journey.currentId);
+  if (!currentMilestone) throw new Error(`Learning journey current milestone not found: ${state.journey.currentId}`);
+  const currentHref = currentMilestone.href.split("#")[0];
+  return state.tracks.find((track) => track.href.split("#")[0] === currentHref)?.id || null;
+}
+
+function renderIntegratedRoadmapProgress(state) {
+  const percent = state.overall.total ? state.overall.done / state.overall.total * 100 : 0;
+  return `      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill" style="width:${percent.toFixed(1)}%"></div></div>
+      <div class="progress-label" id="progressLabel">코어 완료 조건 · <span id="roadmapProgressDone">${state.overall.done}</span> / <span id="roadmapProgressTotal">${state.overall.total}</span> 완료</div>`;
+}
+
+function renderIntegratedRoadmapTracks(state) {
+  const currentTrackId = activeTrackId(state);
+  return state.tracks.map((track) => {
+    const percent = Math.round(track.done / track.total * 100);
+    const isCurrent = track.id === currentTrackId;
+    const phase = isCurrent ? "현재 활성" : track.done === track.total ? "완료" : "대기";
+    return `        <article class="hub-card" data-track-id="${escapeAttribute(track.id)}">
+          <span class="status${isCurrent ? " learning" : ""}">${phase} · ${percent}% · ${track.done}/${track.total}</span>
+          <h3>${escapeHtml(track.title)}</h3>
+          <p><strong>현재:</strong> ${escapeHtml(track.current)}</p>
+          <p><strong>${isCurrent ? "즉시 다음" : "트랙 내 다음"}:</strong> ${escapeHtml(track.next)}</p>
+          <a href="${escapeAttribute(track.href)}">세부 로드맵 보기 →</a>
+        </article>`;
+  }).join("\n");
+}
+
+function renderIntegratedRoadmapCoaching(state) {
+  const rows = [
+    ["현재 학습 상태", state.coaching.recentEvidence],
+    ["교육적 판단", state.coaching.diagnosis],
+    ["경고 기준", state.coaching.warning],
+    ["현재 완료 관문", state.coaching.completionGate],
+    ["예약 전환", state.coaching.scheduledRotation],
+  ];
+  return rows.map(([label, value]) => `        <div class="status-line"><span class="status">${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`).join("\n");
+}
+
 function renderLearningJourney(journey) {
   if (!journey?.milestones?.length) throw new Error("Learning journey milestones are missing");
   const currentIndex = journey.milestones.findIndex((milestone) => milestone.id === journey.currentId);
@@ -348,12 +438,13 @@ function renderStaticMindmap(graph) {
     const children = childIds.length
       ? `<ul class="map-children">${childIds.map((childId) => renderOccurrence(childId, depth + 1)).join("")}</ul>`
       : "";
-    return `<li data-occurrence-id="${escapeAttribute(id)}"><div class="map-node-row"><button type="button" class="map-toggle${toggleClass}" aria-label="${escapeAttribute(`${occurrence.label} 하위 개념`)}" aria-expanded="true">${childIds.length ? "−" : "+"}</button><button type="button" class="map-concept${duplicateClass}" data-concept="${escapeAttribute(occurrence.conceptKey)}"><span class="map-node-status ${escapeAttribute(occurrence.status || "")}"></span><span class="map-node-label">${escapeHtml(occurrence.label)}</span>${duplicateCount > 1 ? `<span class="map-duplicate-count">×${duplicateCount}</span>` : ""}</button>${documentLink}</div>${children}</li>`;
+    const statusLabel = ({ verified: "검증 완료", learning: "학습 중", reference: "연결 참조" })[occurrence.status] || "상태 미지정";
+    return `<li data-occurrence-id="${escapeAttribute(id)}"><div class="map-node-row"><button type="button" class="map-toggle${toggleClass}" aria-label="${escapeAttribute(`${occurrence.label} 하위 개념`)}" aria-expanded="true">${childIds.length ? "−" : "+"}</button><button type="button" class="map-concept${duplicateClass}" data-concept="${escapeAttribute(occurrence.conceptKey)}" aria-label="${escapeAttribute(`${occurrence.label}, ${statusLabel}`)}"><span class="map-node-status ${escapeAttribute(occurrence.status || "")}" aria-hidden="true"></span><span class="map-node-label">${escapeHtml(occurrence.label)}</span>${duplicateCount > 1 ? `<span class="map-duplicate-count">×${duplicateCount}</span>` : ""}</button>${documentLink}</div>${children}</li>`;
   }
   return {
     view,
     tree: `          ${renderOccurrence(view.rootOccurrenceId)}`,
-    tabs: graph.views.map((item, index) => `        <button type="button" role="tab" data-view="${escapeAttribute(item.id)}" aria-selected="${index === 0}">${escapeHtml(item.label)}</button>`).join("\n"),
+    tabs: graph.views.map((item, index) => `        <button type="button" data-view="${escapeAttribute(item.id)}" aria-pressed="${index === 0}">${escapeHtml(item.label)}</button>`).join("\n"),
   };
 }
 
@@ -394,10 +485,9 @@ function renderStaticRelationPaths(graph) {
 async function renderStaticDiscoveryPages() {
   const homePath = resolve(wikiRoot, "index.html");
   let home = await readFile(homePath, "utf8");
-  const activeTrack = learningState.tracks.find((track) => track.id === "pytorch") || learningState.tracks[0];
   for (const [tag, id, value] of [
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
-    ["strong", "recentCompletion", activeTrack.current],
+    ["strong", "recentCompletion", learningState.recentCompletion],
     ["strong", "currentLearning", learningState.rotation.next],
     ["strong", "currentNextAction", learningState.rotation.after],
   ]) home = replaceElementContent(home, { tag, id, value });
@@ -405,6 +495,16 @@ async function renderStaticDiscoveryPages() {
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
   home = replaceStaticRegion(home, { name: "home-coaching", tag: "div", id: "coachingStatus", markup: renderCoaching(learningState) });
   await writeFile(homePath, home, "utf8");
+
+  const topLevelRoadmapPath = resolve(wikiRoot, "roadmap.html");
+  let topLevelRoadmap = await readFile(topLevelRoadmapPath, "utf8");
+  topLevelRoadmap = replaceStaticRegion(topLevelRoadmap, {
+    name: "top-level-roadmap-tracks",
+    tag: "div",
+    id: "topLevelRoadmapTracks",
+    markup: renderTopLevelRoadmapTracks(learningState, codingTestState),
+  });
+  await writeFile(topLevelRoadmapPath, topLevelRoadmap, "utf8");
 
   const wikiPath = resolve(wikiRoot, "wiki.html");
   let wiki = await readFile(wikiPath, "utf8");
@@ -437,6 +537,9 @@ async function renderStaticDiscoveryPages() {
 
   const roadmapPath = resolve(wikiRoot, "pytorch_professional_roadmap.html");
   let roadmap = await readFile(roadmapPath, "utf8");
+  roadmap = replaceStaticRegion(roadmap, { name: "roadmap-progress", tag: "div", id: "roadmapProgress", markup: renderIntegratedRoadmapProgress(learningState) });
+  roadmap = replaceStaticRegion(roadmap, { name: "roadmap-tracks", tag: "div", id: "integratedRoadmapTracks", markup: renderIntegratedRoadmapTracks(learningState) });
+  roadmap = replaceStaticRegion(roadmap, { name: "roadmap-coaching", tag: "div", id: "coachingStatus", markup: renderIntegratedRoadmapCoaching(learningState) });
   roadmap = replaceElementContent(roadmap, { tag: "span", id: "roadmapOverallTotal", value: learningState.overall.total });
   roadmap = replaceElementContent(roadmap, { tag: "span", id: "roadmapOverallDone", value: learningState.overall.done });
   await writeFile(roadmapPath, roadmap, "utf8");
@@ -454,15 +557,17 @@ function publicUrlForHref(href) {
 function classifyPage(href) {
   if (href === "index.html") return "WebSite";
   if (href.startsWith("wiki/") && !href.endsWith("/index.html")) return "TechArticle";
-  if (href.startsWith("roadmaps/") || href === "pytorch_professional_roadmap.html") return "LearningResource";
+  if (href.startsWith("roadmaps/") || ["roadmap.html", "pytorch_professional_roadmap.html", "wiki/coding-test/index.html"].includes(href)) return "LearningResource";
   return "CollectionPage";
 }
 
 function inferParentHref(href, knowledgeDocument) {
+  if (href === "wiki/coding-test/index.html") return "roadmap.html";
   if (knowledgeDocument?.parentHref) return knowledgeDocument.parentHref;
   if (href.endsWith("/index.html") && href.startsWith("wiki/")) return "wiki.html";
   if (href.startsWith("roadmaps/")) return "pytorch_professional_roadmap.html";
-  if (["wiki.html", "learning_history.html", "pytorch_professional_roadmap.html"].includes(href)) return "index.html";
+  if (href === "pytorch_professional_roadmap.html") return "roadmap.html";
+  if (["wiki.html", "learning_history.html", "roadmap.html"].includes(href)) return "index.html";
   if (href === "knowledge_map.html") return "wiki.html";
   return null;
 }
@@ -474,9 +579,10 @@ function extractBreadcrumbs(content, href, title) {
     const label = decodeEntities(match[3]);
     if (!label || label === "›") continue;
     const link = match[2].match(/href=["']([^"']+)["']/i)?.[1] || null;
+    const absoluteHref = link ? new URL(link, new URL(href, publicBaseUrl)).href : null;
     items.push({
       name: label.replace(/^⌂\s*/, ""),
-      href: link ? new URL(link, new URL(href, publicBaseUrl)).href : null,
+      href: absoluteHref === `${publicBaseUrl}index.html` ? publicBaseUrl : absoluteHref,
     });
   }
   if (!items.length) items.push({ name: title, href: publicUrlForHref(href) });
@@ -643,7 +749,9 @@ const llmsText = `# 공부의 흐름을 기록하는 기술 위키
 - [홈](${publicBaseUrl})
 - [기술 위키 전체 문서](${publicBaseUrl}wiki.html)
 - [지식 지도](${publicBaseUrl}knowledge_map.html)
-- [통합 학습 로드맵](${publicBaseUrl}pytorch_professional_roadmap.html)
+- [전체 학습 로드맵](${publicBaseUrl}roadmap.html)
+- [AI·ML 통합 로드맵](${publicBaseUrl}pytorch_professional_roadmap.html)
+- [코딩 테스트 역량 로드맵](${publicBaseUrl}wiki/coding-test/index.html)
 - [학습 기록](${publicBaseUrl}learning_history.html)
 
 ## 기계 판독용 색인

@@ -5,9 +5,7 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
 const articleRoot = resolve(wikiRoot, "wiki");
-const manifestPath = resolve(wikiRoot, "assets/js/knowledge_manifest.js");
-
-await import(new URL("./build_knowledge_manifest.mjs", import.meta.url));
+const manifestPath = resolve(wikiRoot, "knowledge_manifest.json");
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -40,7 +38,7 @@ function localDocumentReferences(content, sourceHref) {
 }
 
 const manifestSource = await readFile(manifestPath, "utf8");
-const manifest = JSON.parse(manifestSource.slice(manifestSource.indexOf("=") + 1).trim().replace(/;$/, ""));
+const manifest = JSON.parse(manifestSource);
 const files = (await collectHtmlFiles(articleRoot)).sort();
 const fileHrefs = files.map((file) => relative(wikiRoot, file).replaceAll("\\", "/"));
 const documentByHref = new Map(manifest.documents.map((document) => [document.href, document]));
