@@ -178,6 +178,28 @@
   let activeView = views[0];
   let occurrences = new Map();
   let renderedNodes = [];
+  let selectedConcept = null;
+  let expandedStateBeforeSearch = null;
+  let searchWasActive = false;
+  const statusLabels = {
+    verified: "검증 완료",
+    learning: "학습 중",
+    reference: "연결 참조",
+  };
+  const searchStatusElement = document.createElement("p");
+  searchStatusElement.className = "map-search-status";
+  searchStatusElement.setAttribute("role", "status");
+  searchStatusElement.setAttribute("aria-live", "polite");
+  searchElement.closest(".map-search")?.insertAdjacentElement("afterend", searchStatusElement);
+  if (emptyElement) emptyElement.textContent = "일치하는 개념이 없습니다.";
+
+  function setExpanded(record, expanded) {
+    if (!record.childList || !record.toggle) return;
+    record.childList.hidden = !expanded;
+    record.toggle.setAttribute("aria-expanded", String(expanded));
+    record.toggle.setAttribute("aria-label", `${record.item.label} 하위 개념 ${expanded ? "접기" : "펼치기"}`);
+    record.toggle.textContent = expanded ? "−" : "+";
+  }
 
   function countConcepts(root, counts = new Map()) {
     counts.set(root.concept, (counts.get(root.concept) || 0) + 1);
@@ -185,7 +207,7 @@
     return counts;
   }
 
-  function createTreeItem(item, path, depth, counts) {
+  function createTreeItem(item, path, depth, counts, parentRecord = null) {
     const listItem = document.createElement("li");
     const row = document.createElement("div");
     row.className = "map-node-row";
@@ -202,6 +224,9 @@
     button.type = "button";
     button.className = `map-concept${counts.get(item.concept) > 1 ? " duplicate" : ""}`;
     button.dataset.concept = item.concept;
+    const statusLabel = statusLabels[item.status] || "미검증·탐색";
+    const occurrenceCount = counts.get(item.concept);
+    button.setAttribute("aria-label", `${item.label}, 학습 상태: ${statusLabel}${occurrenceCount > 1 ? `, 지도에 ${occurrenceCount}곳` : ""}`);
     button.innerHTML = `<span class="map-node-status ${item.status || ""}"></span><span class="map-node-label">${item.label}</span>${counts.get(item.concept) > 1 ? `<span class="map-duplicate-count">×${counts.get(item.concept)}</span>` : ""}`;
     row.appendChild(button);
     if (item.href) {
@@ -215,7 +240,16 @@
     listItem.appendChild(row);
 
     const fullPath = [...path, item.label];
-    const record = { item, listItem, button, path: fullPath, ancestors: [] };
+    const record = {
+      item,
+      listItem,
+      button,
+      path: fullPath,
+      parent: parentRecord,
+      toggle,
+      childList: null,
+      initialExpanded: depth < 2,
+    };
     renderedNodes.push(record);
     if (!occurrences.has(item.concept)) occurrences.set(item.concept, []);
     occurrences.get(item.concept).push(record);
@@ -223,17 +257,16 @@
     if (children.length) {
       const childList = document.createElement("ul");
       childList.className = "map-children";
-      childList.hidden = depth >= 2;
+      record.childList = childList;
       for (const child of children) {
-        const childItem = createTreeItem(child, fullPath, depth + 1, counts);
+        const childItem = createTreeItem(child, fullPath, depth + 1, counts, record);
         childList.appendChild(childItem);
       }
       listItem.appendChild(childList);
+      setExpanded(record, record.initialExpanded);
       toggle.addEventListener("click", () => {
         const expanded = toggle.getAttribute("aria-expanded") === "true";
-        toggle.setAttribute("aria-expanded", String(!expanded));
-        toggle.textContent = expanded ? "+" : "−";
-        childList.hidden = expanded;
+        setExpanded(record, !expanded);
       });
     }
     button.addEventListener("click", () => selectConcept(item.concept));
@@ -241,6 +274,7 @@
   }
 
   function selectConcept(concept) {
+    selectedConcept = concept;
     document.querySelectorAll(".map-concept.selected").forEach((element) => element.classList.remove("selected"));
     const matches = occurrences.get(concept) || [];
     matches.forEach(({ button }) => button.classList.add("selected"));
@@ -254,55 +288,97 @@
     activeView = view;
     occurrences = new Map();
     renderedNodes = [];
+    selectedConcept = null;
+    expandedStateBeforeSearch = null;
+    searchWasActive = false;
     treeElement.replaceChildren();
     descriptionElement.textContent = view.description;
     const counts = countConcepts(view.tree);
     treeElement.appendChild(createTreeItem(view.tree, [], 0, counts));
     detailElement.innerHTML = "<h2>노드를 선택하세요</h2><p>개념을 선택하면 이 관점에서 등장하는 위치와 연결 문서를 보여줍니다.</p>";
-    for (const button of tabsElement.querySelectorAll("button")) button.setAttribute("aria-selected", String(button.dataset.view === view.id));
+    for (const button of tabsElement.querySelectorAll("button")) {
+      button.setAttribute("aria-pressed", String(button.dataset.view === view.id));
+    }
     applySearch();
   }
 
   function applySearch() {
     const query = searchElement.value.trim().toLocaleLowerCase("ko");
-    let visibleCount = 0;
+    const wasSearching = searchWasActive;
+    if (query && !searchWasActive) {
+      expandedStateBeforeSearch = new Map(renderedNodes
+        .filter((record) => record.childList)
+        .map((record) => [record, record.toggle.getAttribute("aria-expanded") === "true"]));
+      searchWasActive = true;
+    }
+    const directMatches = query
+      ? renderedNodes.filter((record) => {
+        const label = record.item.label.toLocaleLowerCase("ko");
+        const concept = record.item.concept.toLocaleLowerCase("ko");
+        return label.includes(query) || concept.includes(query);
+      })
+      : [];
+    const visibleRecords = new Set();
+    for (const match of directMatches) {
+      let current = match;
+      while (current) {
+        visibleRecords.add(current);
+        current = current.parent;
+      }
+    }
+
     for (const record of renderedNodes) {
       const label = record.item.label.toLocaleLowerCase("ko");
-      const match = !query || label.includes(query) || record.item.concept.includes(query);
+      const directMatch = directMatches.includes(record);
       record.button.querySelector(".map-node-label").innerHTML = query && label.includes(query)
         ? record.item.label.replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), (value) => `<mark>${value}</mark>`)
         : record.item.label;
-      if (query && match) {
-        visibleCount += 1;
-        let parent = record.listItem.parentElement;
-        while (parent && parent !== treeElement) {
-          if (parent.classList.contains("map-children")) {
-            parent.hidden = false;
-            const toggle = parent.parentElement.querySelector(":scope > .map-node-row > .map-toggle");
-            if (toggle) { toggle.setAttribute("aria-expanded", "true"); toggle.textContent = "−"; }
-          }
-          parent = parent.parentElement;
-        }
-        record.button.classList.add("selected");
-      } else if (query) {
-        record.button.classList.remove("selected");
-      }
+      record.button.classList.toggle("search-match", Boolean(query && directMatch));
+      record.listItem.hidden = Boolean(query && !visibleRecords.has(record));
     }
-    emptyElement.hidden = !query || visibleCount > 0;
-    if (query && visibleCount) {
-      const first = renderedNodes.find((record) => record.button.classList.contains("selected"));
-      if (first) selectConcept(first.item.concept);
+
+    for (const record of renderedNodes) {
+      if (!record.childList) continue;
+      if (!query) {
+        record.toggle.hidden = false;
+        if (wasSearching) {
+          setExpanded(record, expandedStateBeforeSearch?.get(record) ?? record.initialExpanded);
+        }
+        continue;
+      }
+      const hasVisibleChild = Array.from(record.childList.children)
+        .some((child) => !child.hidden);
+      record.toggle.hidden = !hasVisibleChild;
+      setExpanded(record, hasVisibleChild);
+    }
+
+    if (!query) {
+      expandedStateBeforeSearch = null;
+      searchWasActive = false;
+      searchStatusElement.textContent = "";
+      emptyElement.hidden = true;
+      if (selectedConcept && occurrences.has(selectedConcept)) selectConcept(selectedConcept);
+      else detailElement.innerHTML = "<h2>노드를 선택하세요</h2><p>개념을 선택하면 이 관점에서 등장하는 위치와 연결 문서를 보여줍니다.</p>";
+      return;
+    }
+
+    searchStatusElement.textContent = `${directMatches.length}개 노드가 일치합니다. 일치한 노드와 상위 경로만 표시합니다.`;
+    emptyElement.hidden = directMatches.length > 0;
+    if (!directMatches.length) {
+      detailElement.innerHTML = "<h2>검색 결과 없음</h2><p>다른 개념 이름이나 영문 키워드로 다시 검색해 보세요.</p>";
+    } else {
+      detailElement.innerHTML = `<h2>검색 결과 ${directMatches.length}개</h2><p>강조된 노드를 선택하면 중복 위치와 연결 문서를 확인할 수 있습니다.</p>`;
     }
   }
 
   tabsElement.replaceChildren();
+  tabsElement.removeAttribute("role");
   for (const view of views) {
     const button = document.createElement("button");
     button.type = "button";
-    button.role = "tab";
     button.dataset.view = view.id;
     button.textContent = view.label;
-    button.setAttribute("aria-selected", "false");
+    button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", () => renderView(view));
     tabsElement.appendChild(button);
   }

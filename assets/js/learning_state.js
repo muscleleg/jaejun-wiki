@@ -1,6 +1,6 @@
 window.LEARNING_STATE = {
   updated: "2026-08-27",
-  overall: { done: 17, total: 24 },
+  recentCompletion: "Causal Multi-Head Attention과 TransformerBlock을 직접 구현하고 [1,3,2] 출력, [1,2,3,3] Attention Weight와 미래 위치 Mask를 검증했습니다.",
   journey: {
     eyebrow: "Road to LLM inference",
     title: "최종 목표까지의 학습 여정",
@@ -143,3 +143,11 @@ window.LEARNING_STATE = {
     }
   ]
 };
+
+window.LEARNING_STATE.overall = window.LEARNING_STATE.tracks.reduce(
+  (overall, track) => ({
+    done: overall.done + track.done,
+    total: overall.total + track.total,
+  }),
+  { done: 0, total: 0 },
+);

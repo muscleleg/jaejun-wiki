@@ -12,22 +12,27 @@ const conceptOutputPath = resolve(wikiRoot, "concept_graph.json");
 const knowledgeMapSourcePath = resolve(wikiRoot, "assets/js/knowledge_map.js");
 const publicBaseUrl = "https://muscleleg.github.io/jaejun-wiki/";
 
-const categoryLabels = {
-  backend: "Backend·Java",
-  "coding-test": "코딩 테스트",
-  database: "Database",
-  "external-articles": "외부 아티클",
-  infrastructure: "Cloud·Infrastructure",
-  "llm-systems": "LLM 시스템·에이전트",
-  "machine-learning": "Machine Learning",
-  math: "수학",
-  pandas: "Pandas·데이터 전처리",
-  projects: "개인 프로젝트",
-  python: "Python",
-  pytorch: "PyTorch",
-  transformer: "Transformer",
-  web: "Web·Frontend",
-};
+// 기술 위키의 대분류 노출 순서다. 현재 AI 전환 학습과 실제로 자주
+// 복습하는 영역을 먼저 두고, 기존 경력·참고 영역은 뒤에서 보존한다.
+const categoryDefinitions = [
+  { id: "llm-systems", label: "LLM 시스템·에이전트" },
+  { id: "transformer", label: "Transformer" },
+  { id: "pytorch", label: "PyTorch" },
+  { id: "machine-learning", label: "Machine Learning" },
+  { id: "projects", label: "개인 프로젝트" },
+  { id: "python", label: "Python" },
+  { id: "pandas", label: "Pandas·데이터 전처리" },
+  { id: "math", label: "수학" },
+  { id: "coding-test", label: "코딩 테스트" },
+  { id: "infrastructure", label: "Cloud·Infrastructure" },
+  { id: "external-articles", label: "외부 아티클" },
+  { id: "database", label: "Database" },
+  { id: "backend", label: "Backend·Java" },
+  { id: "web", label: "Web·Frontend" },
+];
+const categoryLabels = Object.fromEntries(
+  categoryDefinitions.map(({ id, label }) => [id, label]),
+);
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -223,7 +228,7 @@ const manifest = {
   site: publicBaseUrl,
   documentCount: documents.filter((document) => !document.isCategoryIndex).length,
   indexedCount: documents.length,
-  categories: Object.entries(categoryLabels).map(([id, label]) => ({ id, label })),
+  categories: categoryDefinitions,
   documents,
 };
 
