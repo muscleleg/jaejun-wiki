@@ -1,16 +1,16 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-25",
+  updated: "2026-08-26",
   overall: { done: 17, total: 24 },
   coaching: {
-    recentEvidence: "수동 Logit [1,3,10]에서 dim=-1 Softmax와 Target [7,2,9]의 행별 열 선택을 확인하고, 위치별 Cross Entropy [0.7966,1.4612,0.3702]와 평균 0.8760을 검산했습니다. LM Head로 [1,3,2]→[1,3,10], Token Embedding으로 [1,3]→[1,3,2]가 되는 실행 결과도 확인했습니다.",
-    diagnosis: "Tiny Decoder LM의 Target shift·Causal Mask에 이어 Vocabulary Logit·Token Cross Entropy·LM Head·Token Embedding까지 연결했습니다. Position Embedding의 실제 합, 기존 Causal TransformerBlock 연결, 전체 학습과 작은 생성은 아직 남아 있습니다.",
-    warning: "오늘의 Logit과 Hidden State 일부는 Shape·Loss를 이해하려고 손으로 만든 연습용 값입니다. 이를 학습된 Decoder 출력으로 보거나 Tiny Decoder LM 전체를 완료 처리하지 않습니다.",
-    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP 결과물을 닫았습니다. → 진행: Tiny Decoder LM의 Target shift·Causal Mask·Token Loss·LM Head·Token Embedding을 확인했습니다. → 남음: Position Embedding·Causal Block 연결·작은 학습·생성을 검증합니다. → 이후: 사전학습 텍스트 모델 적용으로 이어갑니다.",
-    scheduledRotation: "1차 순환 · 현재: Token Embedding에 Position Embedding을 더하는 단계부터 이어갑니다. → 다음: Causal TransformerBlock·LM Head·Loss를 연결해 Tiny LM을 학습·생성한 뒤 사전학습 텍스트 모델을 같은 문제 정의·Metric·오류 분석 흐름에 적용합니다."
+    recentEvidence: "학습형 Position Embedding을 Token Embedding에 더해 [1,3,2]를 확인하고, Causal Multi-Head Attention의 출력 [1,3,2]·weight [1,2,3,3]·미래 위치 0을 검증했습니다. 이어 Causal Attention → Residual·LayerNorm → FFN 2→8→2 → Residual·LayerNorm Block의 출력 [1,3,2]도 실행했습니다.",
+    diagnosis: "Tiny Decoder LM의 개별 부품은 Target shift·Token Loss·Token/Position Embedding·Causal Attention·Causal TransformerBlock까지 연결했습니다. 전체 TinyDecoderLM 클래스는 코드 설명만 받은 상태라 아직 Forward·Loss 실행 증거가 없고, 학습과 생성도 남아 있습니다.",
+    warning: "개별 Block의 Shape 확인만으로 Tiny Decoder LM을 완료 처리하지 않습니다. 전체 Token 입력이 Logit [1,3,10]과 Loss로 연결되는 실행, Loss 감소, 다음 Token 생성까지 확인해야 합니다.",
+    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP 결과물을 닫았습니다. → 진행: Tiny Decoder LM의 개별 Embedding·Causal Attention·Causal Block·Token Loss를 확인했습니다. → 남음: 전체 모델 Forward·Loss와 작은 학습·생성을 검증합니다. → 이후: 사전학습 텍스트 모델 적용으로 이어갑니다.",
+    scheduledRotation: "1차 순환 · 현재: TinyDecoderLM 전체 조립 셀을 직접 실행해 [1,3] → [1,3,10]과 초기 Loss를 확인합니다. → 다음: 작은 데이터 학습·한 Token 생성 뒤 사전학습 텍스트 모델을 같은 문제 정의·Metric·오류 분석 흐름에 적용합니다."
   },
   rotation: {
     trigger: "회원 이탈 Baseline과 PyTorch MLP의 학습·평가·저장·복원·원본 한 명 추론을 마쳤습니다.",
-    next: "Token Embedding에 Position Embedding을 더하고 Causal TransformerBlock·LM Head를 연결한 뒤 작은 학습·생성으로 이어갑니다.",
+    next: "TinyDecoderLM 전체 Forward와 Cross Entropy Loss를 실행한 뒤 작은 학습·생성으로 이어갑니다.",
     after: "작은 공개 텍스트 문제에 사전학습 텍스트 모델을 적용하고 Baseline과 비교합니다.",
     returnTo: "Tiny Decoder LM → 사전학습 텍스트 모델 적용"
   },
@@ -21,8 +21,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 5,
       total: 7,
-      current: "Tiny Decoder LM에서 위치별 Logit [1,3,10], Target의 행별 열 선택, Cross Entropy 평균, LM Head [1,3,2]→[1,3,10], Token Embedding [1,3]→[1,3,2]를 구현·검증했습니다.",
-      next: "Position Embedding의 합을 실행하고 Causal TransformerBlock·LM Head·Token Loss를 하나로 연결해 작은 학습·생성을 구현합니다.",
+      current: "Tiny Decoder LM에서 학습형 Position Embedding, 미래 위치를 가리는 Multi-Head Attention, Residual·LayerNorm·FFN을 포함한 Causal TransformerBlock까지 [1,3,2] Shape으로 구현·검증했습니다.",
+      next: "TinyDecoderLM 전체 클래스의 [1,3] → Logit [1,3,10]과 초기 Loss를 실행하고 작은 학습·한 Token 생성을 구현합니다.",
       reinforcement: "TransformerBlock 전체 흐름과 Embedding·Score Scaling의 분산 계산, LayerNorm의 중심·배율 정돈 의미를 다시 설명했습니다."
     },
     {

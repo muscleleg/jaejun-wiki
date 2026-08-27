@@ -82,9 +82,9 @@
       <h1>학습 기록</h1>
       <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
-        <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">16일</strong></div>
-        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 39시간 50분</strong></div>
-        <div class="stat">최근 학습일<strong id="historyLatestLearningDate">2026-08-25</strong></div>
+        <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">17일</strong></div>
+        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 41시간 32분</strong></div>
+        <div class="stat">최근 학습일<strong id="historyLatestLearningDate">2026-08-26</strong></div>
       </div>
     </header>
 
@@ -100,6 +100,16 @@
       <h2>날짜별 학습 기록</h2>
       <p class="summary">기존 홈에 있던 기록을 내용 생략 없이 날짜별로 옮겼다.</p>
       <div class="timeline">
+        <article class="day" id="study-2026-08-26">
+          <time datetime="2026-08-26">2026년 08월 26일</time>
+          <div class="topic"><h3>학습형 Position Embedding 실행</h3><p>Token ID <code>[[3,7,2]]</code>와 위치 ID <code>[[0,1,2]]</code>를 각각 <code>nn.Embedding</code>으로 조회했다. Token vector와 Position vector가 모두 <code>[1,3,2]</code>이고, 같은 위치·차원의 원소끼리 더한 Hidden State도 <code>[1,3,2]</code>임을 실행했다. 이 Shape을 Batch 1개 안의 Sequence 길이 3, Token 하나당 2차원으로 설명했다.</p></div>
+          <div class="topic"><h3>sin·cos 방식과 학습형 위치 표의 차이</h3><p>예전에 구현한 sin·cos Positional Encoding은 수식으로 고정 위치 벡터를 만들지만, 이번 <code>nn.Embedding(max_seq_len,d_model)</code> 방식은 위치별 벡터를 조회표에 저장하고 Loss의 Gradient로 함께 조정한다. 두 방식을 나중에 결합하는 것이 아니라 둘 중 한 방식을 선택할 수 있으며, 공통적으로 Token vector에 위치 vector를 더해 순서 정보를 제공한다는 경계를 확인했다.</p></div>
+          <div class="topic"><h3><code>nn.Embedding</code>의 설정과 역할 구분</h3><p><code>nn.Embedding</code> 자체는 입력 index가 Token인지 위치인지 알지 못하고, 어떤 정수 ID를 넣어 어디에 사용하는지가 역할을 결정한다. <code>nn.Embedding(8,2)</code>에서 <code>num_embeddings=8</code>은 저장할 벡터 수이자 Weight 행 수, <code>embedding_dim=2</code>는 벡터 하나의 원소 수이자 열 수다. 초기 원소 값의 퍼짐인 <code>std</code>는 <code>embedding_dim</code>의 역할이 아니라 <code>nn.init.normal_</code> 같은 초기화에서 별도로 지정한다는 오해를 교정했다.</p></div>
+          <div class="topic"><h3>Causal Multi-Head Attention 구현·검증</h3><p>기존 Multi-Head Attention에 길이 3의 하삼각 Boolean Mask를 넣고 미래 Score를 <code>-inf</code>로 바꾼 뒤 Softmax했다. 입력과 Attention 출력은 <code>[1,3,2]</code>, Attention weight는 <code>[batch,head,query,key]=[1,2,3,3]</code>이었으며 첫 Head에서 미래 칸이 모두 0인 결과를 확인했다. Causal Mask는 참고 가능한 값을 제한할 뿐 Tensor 차원을 바꾸지 않는다고 예측했다.</p></div>
+          <div class="topic"><h3>Head 병합과 Projection 오타 수정</h3><p>Head 출력 <code>[1,3,2,1]</code>을 <code>reshape(batch_size,token_count,d_model)</code>로 <code>[1,3,2]</code>에 합치며, 이는 <code>num_heads × head_dim = d_model</code>이기 때문에 가능하다고 설명했다. 이어 <code>output_projection</code>이 이어 붙인 Head 정보를 학습 가능한 Weight로 다시 섞는다. 최초 셀에서 Key를 Query Projection으로 잘못 계산한 <code>key=self.query_projections(x)</code>를 찾아 <code>key=self.key_projection(x)</code>로 고치고 재실행해 서로 다른 Q·K Projection을 사용하도록 수정했다.</p></div>
+          <div class="topic"><h3>Causal TransformerBlock 최소 연결</h3><p><code>Causal Multi-Head Attention → x+Attention Residual → LayerNorm → FFN(Linear 2→8 → GELU → Linear 8→2) → 첫 LayerNorm 결과+FFN Residual → LayerNorm</code> 순서로 최소 Block을 연결했다. 입력과 출력 Shape이 모두 <code>[1,3,2]</code>, Attention weight가 <code>[1,2,3,3]</code>임을 확인했으며 Block 출력은 <code>[[[1,-1],[-1,1],[1,-1]]]</code>이었다. 두 번째 Residual에는 처음의 <code>x</code>가 아니라 첫 Residual과 LayerNorm까지 마친 표현을 더한다는 점을 자기 말로 설명했다. 이번 최소 연결에서는 Dropout을 생략했다.</p></div>
+          <div class="topic"><h3>다음 시작점</h3><p><code>TinyDecoderLM</code> 전체 클래스의 구조와 코드는 제시됐지만 아직 저장된 실행 결과는 없다. 다음에는 <code>Token Embedding + Position Embedding → Causal TransformerBlock → LM Head</code>를 실제로 실행해 입력 <code>[1,3]</code>이 Logit <code>[1,3,10]</code>으로 바뀌는지 확인하고, Target <code>[1,3]</code>과 Cross Entropy Loss를 연결한다. 이후 작은 학습에서 Loss 감소를 확인하고 다음 Token 하나를 생성해야 Tiny Decoder LM 완료 조건을 충족한다.</p></div>
+        </article>
         <article class="day" id="study-2026-08-25">
           <time datetime="2026-08-25">2026년 08월 25일</time>
           <div class="topic"><h3>위치별 Vocabulary Logit의 Shape과 수동 점수 확인</h3><p><code>torch.zeros(1,3,10)</code>을 Batch 1개·예측 위치 3개·Vocabulary Token 10개의 Logit Tensor로 해석했다. <code>logits[0,0,7]=2.0</code>, <code>logits[0,1,2]=1.0</code>, <code>logits[0,2,9]=3.0</code>은 모델이 계산한 값이 아니라 각 위치의 특정 Token 칸에 직접 넣은 연습용 점수임을 구분했다. 따라서 이 단계는 학습된 예측의 성능 확인이 아니라 Logit 축과 이후 Loss 계산을 이해하기 위한 수동 예제다.</p></div>
@@ -254,6 +264,10 @@
     <section id="study-time">
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
+      <article class="session">
+        <div class="session-head"><div><time datetime="2026-08-26">2026년 08월 26일</time><h3>총 학습시간</h3></div><div class="duration">약 1시간 42분</div></div>
+        <div class="session-body"><strong>이날 한 공부</strong><ul><li>학습형 Position Embedding의 위치 ID 조회와 Token vector의 원소별 합, <code>[1,3,2]</code> Shape 실행</li><li>sin·cos 고정 위치 벡터와 Gradient로 조정되는 학습형 위치 조회표 구분</li><li><code>num_embeddings</code>·<code>embedding_dim</code>·초기화 <code>std</code>의 역할과 <code>[8,2]</code> Weight Shape 정리</li><li><code>nn.Embedding</code>의 Token·Position 의미는 모듈명이 아니라 입력 index와 사용처가 결정함을 확인</li><li>Causal Multi-Head Attention의 입력·출력 <code>[1,3,2]</code>, weight <code>[1,2,3,3]</code>, 미래 위치 0 검증</li><li>Head별 출력 <code>[1,3,2,1]</code>을 <code>[1,3,2]</code>로 합치고 Output Projection으로 다시 섞는 흐름 확인</li><li>Key가 Query Projection을 잘못 재사용한 오타를 발견해 별도 Key Projection으로 수정·재실행</li><li>Causal Attention → Residual·LayerNorm → FFN <code>2→8→2</code> → Residual·LayerNorm의 Block 실행</li><li>두 번째 Residual의 기준이 첫 Residual·LayerNorm 결과라는 점과 Block Shape 유지 설명</li><li>다음 시작점을 전체 <code>TinyDecoderLM</code> 조립·Logit/Loss 실행 → 작은 학습·생성으로 확정</li></ul><p>종료 선언이 없어서 다음 접속 시점에 코덱스 세션 기록의 첫 실제 학습 메시지부터 마지막 실제 학습 설명까지 복원해 집계했다.</p></div>
+      </article>
       <article class="session">
         <div class="session-head"><div><time datetime="2026-08-25">2026년 08월 25일</time><h3>총 학습시간</h3></div><div class="duration">약 2시간 44분</div></div>
         <div class="session-body"><strong>이날 한 공부</strong><ul><li>Logit <code>[1,3,10]</code>의 Batch·예측 위치·Vocabulary 축과 수동 점수 대입의 의미 확인</li><li><code>dim=-1</code>이 마지막 Vocabulary 축이며 위치마다 Token 10개를 Softmax한다는 점 검증</li><li>Target이 각 Logit 행에서 채점할 열 인덱스이고, 선택값에 <code>-log</code>를 적용해 개별 Token Loss를 얻는 흐름 확인</li><li><code>reduction="none"</code>의 위치별 Loss <code>[0.7966,1.4612,0.3702]</code>와 평균 <code>0.8760</code>, 기본 평균 Reduction 구분</li><li>Cross Entropy와 MSE·분산 공식을 구분하고 Softmax 분모에 다른 Token 점수도 모두 참여함을 확인</li><li>LM Head의 <code>Linear(d_model=2,vocab_size=10)</code>이 마지막 축만 바꿔 <code>[1,3,2] → [1,3,10]</code>을 만드는 원리 실행</li><li><code>reshape(-1,10)</code>과 <code>reshape(-1)</code>으로 위치별 Logit·Target을 <code>[3,10]</code>·<code>[3]</code>에 맞추고 평균 Token Loss <code>2.4862</code> 확인</li><li><code>Embedding(10,2)</code>의 Vocabulary 표에서 Token ID 3·7·2를 조회해 <code>[1,3,2]</code> Hidden State를 만드는 과정 확인</li><li>같은 Token ID는 같은 Embedding 표의 같은 벡터를 조회하며 위치·문맥 반영 전후를 구분</li><li>오래된 변수에 의존하지 않는 독립 셀과, Target을 행별 선택 인덱스로 먼저 설명하는 학습 규칙 확정</li><li>다음 시작점을 Position Embedding의 Token별 합 → Causal TransformerBlock·LM Head 연결 → 작은 학습·생성으로 확정</li></ul><p>코덱스 세션 기록에서 실제 학습 시작부터 종료 메시지까지를 합산했으며, 학습을 중단한 것으로 볼 긴 공백은 포함되지 않았다.</p></div>
