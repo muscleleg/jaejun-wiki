@@ -20,7 +20,7 @@
   if (currentPath.includes("/wiki/")) {
     const tocStyle = document.createElement("link");
     tocStyle.rel = "stylesheet";
-    tocStyle.href = new URL("assets/css/article-toc.css", projectRoot).href;
+    tocStyle.href = new URL("assets/css/article-toc.css?v=20260828-unified-2", projectRoot).href;
     document.head.appendChild(tocStyle);
   }
 
@@ -47,7 +47,7 @@
       document.title = `${heading.textContent} · ${document.title}`;
     }
     const tocScript = document.createElement("script");
-    tocScript.src = new URL("assets/js/article_toc.js?v=20260823-import-toc", projectRoot).href;
+    tocScript.src = new URL("assets/js/article_toc.js?v=20260828-unified-5", projectRoot).href;
     document.body.appendChild(tocScript);
   }
 })();
