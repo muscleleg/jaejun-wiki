@@ -216,48 +216,62 @@ function currentJourneyMilestone(journey) {
   return milestone;
 }
 
-function renderTopLevelRoadmapTracks(state, codingState) {
-  const aiCurrent = currentJourneyMilestone(state.journey);
-  const codingCurrent = currentJourneyMilestone(codingState.journey);
-  const codingDone = codingState.journey.milestones.filter((item) => item.status === "complete").length;
-  const cards = [
-    {
-      id: "ai-ml",
-      tag: "AI · ML · LLM",
-      title: "AI·ML 통합 로드맵",
-      done: state.overall.done,
-      total: state.overall.total,
-      unit: "코어 완료 조건",
-      current: aiCurrent.title,
-      next: state.rotation.next,
-      href: "pytorch_professional_roadmap.html",
-      link: "AI·ML 로드맵 열기",
-    },
-    {
-      id: "coding-test",
-      tag: "Coding Test",
-      title: "코딩 테스트 역량 로드맵",
-      done: codingDone,
-      total: codingState.journey.milestones.length,
-      unit: "성취 관문",
-      current: codingCurrent.title,
-      next: codingCurrent.goal,
-      href: "wiki/coding-test/index.html",
-      link: "코딩 테스트 로드맵 열기",
-    },
-  ];
-  return cards.map((card) => {
-    const percent = Math.round(card.done / card.total * 100);
-    return `        <article class="card roadmap-track-card" data-roadmap-id="${escapeAttribute(card.id)}">
+function renderRoadmapCard(card) {
+  const percent = Math.round(card.done / card.total * 100);
+  return `        <article class="card roadmap-track-card" data-roadmap-id="${escapeAttribute(card.id)}">
           <span class="tag">${escapeHtml(card.tag)}</span>
           <h2>${escapeHtml(card.title)}</h2>
           <div class="progress"><span style="width:${percent}%"></span></div>
           <div class="meta"><span>${escapeHtml(card.unit)} ${card.done} / ${card.total}</span><span>${percent}%</span></div>
-          <div class="roadmap-track-current"><strong>현재 관문</strong>${escapeHtml(card.current)}</div>
-          <p class="roadmap-track-next"><strong>다음 행동</strong><br>${escapeHtml(card.next)}</p>
+          <div class="roadmap-track-current"><strong>${escapeHtml(card.currentLabel || "현재 관문")}</strong>${escapeHtml(card.current)}</div>
+          <p class="roadmap-track-next"><strong>${escapeHtml(card.nextLabel || "다음 행동")}</strong><br>${escapeHtml(card.next)}</p>
           <a class="button" href="${escapeAttribute(card.href)}">${escapeHtml(card.link)}</a>
         </article>`;
-  }).join("\n");
+}
+
+function renderPrimaryRoadmapTrack(state) {
+  const aiCurrent = currentJourneyMilestone(state.journey);
+  return renderRoadmapCard({
+    id: "ai-ml",
+    tag: state.priorityPolicy.label,
+    title: state.priorityPolicy.title,
+    done: state.overall.done,
+    total: state.overall.total,
+    unit: "코어 완료 조건",
+    current: aiCurrent.title,
+    next: state.rotation.next,
+    href: "pytorch_professional_roadmap.html",
+    link: "핵심 여정 실행 로드맵 열기",
+  });
+}
+
+function renderOptionalSessionRoadmap(codingState) {
+  const codingCurrent = currentJourneyMilestone(codingState.journey);
+  const codingDone = codingState.journey.milestones.filter((item) => item.status === "complete").length;
+  return renderRoadmapCard({
+    id: "coding-test",
+    tag: "사용자 선택 세션",
+    title: "코딩 테스트 역량 로드맵",
+    done: codingDone,
+    total: codingState.journey.milestones.length,
+    unit: "성취 관문",
+    currentLabel: "선택 시 이어갈 관문",
+    current: codingCurrent.title,
+    nextLabel: "세션을 선택했을 때의 목표",
+    next: codingCurrent.goal,
+    href: "wiki/coding-test/index.html",
+    link: "코딩 테스트 로드맵 열기",
+  });
+}
+
+function renderPriorityPolicy(state) {
+  return `        <div><strong>${escapeHtml(state.priorityPolicy.label)}</strong>${escapeHtml(state.priorityPolicy.rule)}</div>
+        <div><strong>막힘 지원 원칙</strong>${escapeHtml(state.priorityPolicy.supportRule)}</div>
+        <div><strong>선택 전 보관 원칙</strong>${escapeHtml(state.priorityPolicy.optionalRule)}</div>`;
+}
+
+function renderLearningPriorityNote(state) {
+  return `<strong>${escapeHtml(`${state.priorityPolicy.label} · ${state.priorityPolicy.title}`)}</strong>${escapeHtml(state.priorityPolicy.rule)} ${escapeHtml(state.priorityPolicy.supportRule)} ${escapeHtml(state.priorityPolicy.optionalRule)}`;
 }
 
 function activeTrackId(state) {
@@ -275,16 +289,20 @@ function renderIntegratedRoadmapProgress(state) {
 
 function renderIntegratedRoadmapTracks(state) {
   const currentTrackId = activeTrackId(state);
+  const currentMilestone = currentJourneyMilestone(state.journey);
   return state.tracks.map((track) => {
     const percent = Math.round(track.done / track.total * 100);
     const isCurrent = track.id === currentTrackId;
     const phase = isCurrent ? "현재 활성" : track.done === track.total ? "완료" : "대기";
+    const currentText = isCurrent ? currentMilestone.title : track.current;
+    const nextText = isCurrent ? currentMilestone.goal : track.next;
+    const href = isCurrent ? currentMilestone.href : track.href;
     return `        <article class="hub-card" data-track-id="${escapeAttribute(track.id)}">
           <span class="status${isCurrent ? " learning" : ""}">${phase} · ${percent}% · ${track.done}/${track.total}</span>
           <h3>${escapeHtml(track.title)}</h3>
-          <p><strong>현재:</strong> ${escapeHtml(track.current)}</p>
-          <p><strong>${isCurrent ? "즉시 다음" : "트랙 내 다음"}:</strong> ${escapeHtml(track.next)}</p>
-          <a href="${escapeAttribute(track.href)}">세부 로드맵 보기 →</a>
+          <p><strong>${isCurrent ? "현재 관문" : "현재"}:</strong> ${escapeHtml(currentText)}</p>
+          <p><strong>${isCurrent ? "현재 관문 목표" : "핵심 여정에서 활성될 때"}:</strong> ${escapeHtml(nextText)}</p>
+          <a href="${escapeAttribute(href)}">세부 로드맵 보기 →</a>
         </article>`;
   }).join("\n");
 }
@@ -502,7 +520,19 @@ async function renderStaticDiscoveryPages() {
     name: "top-level-roadmap-tracks",
     tag: "div",
     id: "topLevelRoadmapTracks",
-    markup: renderTopLevelRoadmapTracks(learningState, codingTestState),
+    markup: renderPrimaryRoadmapTrack(learningState),
+  });
+  topLevelRoadmap = replaceStaticRegion(topLevelRoadmap, {
+    name: "optional-session-roadmaps",
+    tag: "div",
+    id: "optionalSessionRoadmapTracks",
+    markup: renderOptionalSessionRoadmap(codingTestState),
+  });
+  topLevelRoadmap = replaceStaticRegion(topLevelRoadmap, {
+    name: "primary-journey-policy",
+    tag: "div",
+    id: "primaryJourneyPolicy",
+    markup: renderPriorityPolicy(learningState),
   });
   await writeFile(topLevelRoadmapPath, topLevelRoadmap, "utf8");
 
@@ -531,6 +561,7 @@ async function renderStaticDiscoveryPages() {
   history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
   history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(history) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
+  history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
   history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
   history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
   await writeFile(historyPath, history, "utf8");
@@ -567,6 +598,8 @@ function inferParentHref(href, knowledgeDocument) {
   if (href.endsWith("/index.html") && href.startsWith("wiki/")) return "wiki.html";
   if ([
     "roadmaps/roadmap_cs_systems.html",
+    "roadmaps/roadmap_data_engineering.html",
+    "roadmaps/roadmap_database_systems.html",
     "roadmaps/roadmap_kubernetes.html",
     "roadmaps/roadmap_linux_systems.html",
     "roadmaps/roadmap_network_systems.html",

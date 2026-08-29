@@ -502,7 +502,7 @@
       <a href="transformer_ffn_learning.html">06 · FFN ↗</a>
       <a href="transformer_ffn_learning.html#dropout">07 · Dropout ↗</a>
       <a href="#transformer-block-completion">08 · Transformer Block 완료</a>
-      <a href="#tiny-decoder-lm-start">09 · Tiny Decoder LM 시작</a>
+      <a href="#tiny-decoder-lm-start">09 · Tiny Decoder LM 완료</a>
       <a href="../math/transformer_math_learning.html">수학 개념 상위 문서 ↗</a>
     </nav>
 
@@ -613,8 +613,8 @@ logits [B, S, V]</code></pre>
         <a class="doc-link" href="transformer_ffn_learning.html#transformer-block-completion">통합 구현과 FFN 검증 보기 →</a>
       </section>
       <section id="tiny-decoder-lm-start">
-        <div class="cell-label">Topic 09 · 진행 중</div>
-        <h2>Tiny Decoder LM: 입력과 정답을 한 칸 어긋나게 만들기</h2>
+        <div class="cell-label">Topic 09 · 완료</div>
+        <h2>Tiny Decoder LM: Target shift부터 자기회귀 생성까지</h2>
         <p class="summary">Decoder 언어 모델이 현재까지의 Token으로 바로 다음 Token을 맞히도록, 하나의 Token 열에서 입력과 정답을 한 칸씩 어긋나게 만드는 Target shift를 확인했습니다.</p>
         <pre><code>tokens = [[3, 7, 2, 9]]        # Shape [1, 4]
 
@@ -625,7 +625,7 @@ input_tokens  = [[3, 7, 2]]    # Shape [1, 3]
 target_tokens = [[7, 2, 9]]    # Shape [1, 3]</code></pre>
         <p>같은 위치끼리 보면 입력 <code>3</code>으로 정답 <code>7</code>, 입력 <code>3, 7</code>까지의 문맥으로 정답 <code>2</code>, 입력 <code>3, 7, 2</code>까지의 문맥으로 정답 <code>9</code>를 맞히는 구조입니다. 원래 길이 4인 열에서 마지막 입력 후보와 첫 정답 후보를 각각 한 칸 제외하므로 두 Tensor의 Shape은 모두 <code>[batch=1, seq_len=3]</code>이 됩니다.</p>
         <a class="doc-link" href="transformer_attention_score_mask_learning.html#tiny-decoder-causal-mask">같은 길이 3에서 Causal Mask를 만드는 계산 보기 →</a>
-        <div class="caution"><strong>이 단계 당시의 경계</strong> — Target shift와 Causal Mask를 먼저 확인한 뒤 아래 후속 단계에서 위치별 Token Logit과 <code>CrossEntropyLoss</code>까지 검증했습니다. 모델 전체 학습과 다음 Token 생성은 아직 남아 있으므로 Tiny Decoder LM 완료로 표시하지 않습니다.</div>
+        <div class="caution"><strong>이 단계 당시의 경계</strong> — Target shift와 Causal Mask를 먼저 확인한 뒤 아래 후속 단계에서 위치별 Token Logit과 <code>CrossEntropyLoss</code>까지 검증했습니다. 이 기록 시점에는 모델 전체 학습과 다음 Token 생성이 남아 있어 완료로 표시하지 않았고, 이후 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 두 항목을 모두 완료했습니다.</div>
 
         <h3 id="tiny-decoder-logits-loss">후속 확인: 위치별 Logit과 Cross Entropy Loss</h3>
         <p>위 경계 이후, 학습 전 임시 Logit을 직접 만들고 각 위치의 정답 열을 선택해 Loss를 계산하는 단계까지 확인했습니다. <code>[1, 3, 10]</code>은 배치 1개 안의 위치 3개마다 vocabulary의 Token ID <code>0~9</code>에 대한 점수 10개가 있다는 뜻입니다.</p>
@@ -666,9 +666,9 @@ model_logits.shape = [1, 3, 10]</code></pre>
         <p>LM Head의 Linear는 각 위치의 마지막 <code>d_model=2</code> 벡터를 vocabulary 점수 10개로 바꿉니다. 앞의 batch 1개와 sequence 위치 3개 축은 그대로 보존됩니다. Loss에 넣을 때는 이를 <code>[3,10]</code>으로 펼치고 Target도 <code>[3]</code>으로 펼쳐, 세 행을 각각 해당 정답 열과 연결했습니다.</p>
         <div class="caution"><strong>임시값과 실제 모델 출력을 구분한다</strong> — 처음의 <code>logits</code>는 정답 열 선택과 Loss를 손으로 확인하려고 0에서 시작해 특정 칸만 채운 임시값입니다. 이어서 사용한 <code>hidden_states=[1,3,2]</code>도 LM Head의 Shape 변환을 확인하려고 손으로 만든 Transformer 출력 역할의 예제입니다. 아직 Token Embedding부터 Transformer Block까지 연결된 실제 Decoder 모델 출력은 아닙니다.</div>
         <p><a class="doc-link" href="transformer_token_embedding_learning.html#tiny-decoder-token-lookup">Tiny Decoder 입력의 Token Embedding 실행 보기 →</a></p>
-        <div class="caution"><strong>당시 완료 범위</strong> — 이 문장을 기록한 시점에는 Target shift, Causal Mask, 임시 Logit의 위치별 Cross Entropy Loss, LM Head의 마지막 축 변환, Token Embedding 실행까지 확인했고 Position Embedding 셀은 아직 실행·이해 확인 전이었습니다. 아래 후속 확인에서 Position Embedding은 실행했지만, 전체 모델 학습과 다음 Token 생성은 여전히 남아 있으므로 Tiny Decoder LM 전체 완료는 아닙니다.</div>
-        <div class="caution"><strong>후속 확인 · 학습형 Position Embedding</strong> — 위 경계 이후 독립 셀에서 Token vector와 학습형 Position vector가 모두 <code>[1,3,2]</code>이고, 위치별 원소 합인 hidden state도 <code>[1,3,2]</code>로 유지됨을 실행 확인했습니다. 이는 “1시퀀스, 3토큰, 2차원”이며, 전체 Decoder 연결·학습·생성은 아직 남아 있습니다. <a href="transformer_positional_encoding_learning.html#learned-position-embedding">실행 예제와 sin·cos 방식의 경계 보기 →</a></div>
-        <div class="caution"><strong>Causal Transformer Block의 Shape 예측</strong> — 사용자는 입력 hidden state가 <code>[1,3,2]</code>이면 Block 출력도 <code>[1,3,2]</code>라고 예측하고, “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했습니다. 기술적으로는 Causal Mask가 Attention Score에서 미래 Key 위치를 <code>-∞</code>로 바꿔 참고 비율을 0으로 만들 뿐, batch·sequence·<code>d_model</code> 축을 삭제하거나 추가하지 않습니다. Attention, Residual, LayerNorm, FFN을 지난 Block 출력 Shape은 따라서 <code>[1,3,2]</code>로 유지됩니다. 이는 Shape 흐름에 대한 이해 증거이며, Tiny Decoder LM 전체 학습·생성 완료 표시는 아닙니다.</div>
+        <div class="caution"><strong>당시 완료 범위</strong> — 이 문장을 기록한 시점에는 Target shift, Causal Mask, 임시 Logit의 위치별 Cross Entropy Loss, LM Head의 마지막 축 변환, Token Embedding 실행까지 확인했고 Position Embedding 셀은 아직 실행·이해 확인 전이었습니다. 다음 독립 셀에서 Position Embedding을 실행했고, 모델 전체 학습과 생성은 더 뒤의 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 완료했습니다.</div>
+        <div class="caution"><strong>후속 확인 · 학습형 Position Embedding</strong> — 위 경계 이후 독립 셀에서 Token vector와 학습형 Position vector가 모두 <code>[1,3,2]</code>이고, 위치별 원소 합인 hidden state도 <code>[1,3,2]</code>로 유지됨을 실행 확인했습니다. 이는 “1시퀀스, 3토큰, 2차원”이며, 당시에는 전체 Decoder 연결·학습·생성이 남아 있었습니다. <a href="transformer_positional_encoding_learning.html#learned-position-embedding">실행 예제와 sin·cos 방식의 경계 보기 →</a></div>
+        <div class="caution"><strong>Causal Transformer Block의 Shape 예측</strong> — 사용자는 입력 hidden state가 <code>[1,3,2]</code>이면 Block 출력도 <code>[1,3,2]</code>라고 예측하고, “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했습니다. 기술적으로는 Causal Mask가 Attention Score에서 미래 Key 위치를 <code>-∞</code>로 바꿔 참고 비율을 0으로 만들 뿐, batch·sequence·<code>d_model</code> 축을 삭제하거나 추가하지 않습니다. Attention, Residual, LayerNorm, FFN을 지난 Block 출력 Shape은 따라서 <code>[1,3,2]</code>로 유지됩니다. 이는 Shape 흐름에 대한 이해 증거였지만, 이 기록 하나만으로는 당시 Tiny Decoder LM 전체 학습·생성 완료 증거가 아니었습니다.</div>
         <div class="caution"><strong>후속 실행 · Causal Transformer Block</strong> — 예측 뒤 최소 Block을 실행해 입력 <code>[1,3,2]</code>가 출력 <code>[1,3,2]</code>로 유지되고, Head 2개의 Attention weight가 <code>[1,2,3,3]</code>임을 확인했습니다. Causal Attention → 첫 Residual·LayerNorm → FFN <code>2→8→2</code> → 두 번째 Residual·LayerNorm 순서를 설명했으며, 이번 작은 연결 셀에서는 Dropout을 생략했습니다. <a href="transformer_ffn_learning.html#tiny-decoder-causal-block">실행 Shape과 출력값 보기 →</a></div>
 
         <h3 id="tiny-decoder-context-to-next-token">후속 이해 · 위치별 문맥 벡터가 다음 Token 후보 점수가 되는 과정</h3>
@@ -728,7 +728,7 @@ next_token_logits.shape = [1, 10]
         <p><code>logits[:, -1, :]</code>에서 첫 번째 <code>:</code>는 Batch의 모든 문장, <code>-1</code>은 각 문장의 마지막 Token 위치, 마지막 <code>:</code>는 vocabulary의 모든 후보 점수를 뜻합니다. 선택된 Token을 입력 뒤에 붙이고 같은 과정을 반복하면 Autoregressive Generation(자기회귀 생성)이 됩니다.</p>
 
         <div class="caution"><strong>무엇이 함께 학습되는가</strong> — Loss의 Gradient는 LM Head에서 멈추지 않습니다. 별도로 고정하지 않았다면 LM Head, Causal Transformer Block, Token Embedding, Position Embedding까지 연결된 학습 가능 파라미터 전체로 역전파됩니다. 그래서 LM Head만 다음 Token을 맞히도록 바뀌는 것이 아니라, 앞단도 다음 Token 예측에 유용한 문맥 벡터를 만들도록 함께 조정됩니다.</div>
-        <div class="caution"><strong>오늘 확인한 핵심</strong> — “마지막 위치는 모든 입력 Token이 반영된 문맥이고, 이 문맥을 LM Head에 넣었을 때 실제 다음 Token의 점수가 높아지도록 Linear를 포함한 모델 전체를 조정한다”는 흐름을 자기 말로 설명했습니다. 이 시점에는 전체 모델의 실제 Loss·<code>backward()</code>와 모듈별 Gradient 출력까지 실행한 것은 아닙니다. Loss 감소와 실제 Autoregressive Generation 실행도 남아 있으므로 Tiny Decoder LM 완료로 표시하지 않습니다.</div>
+        <div class="caution"><strong>당시 확인한 핵심</strong> — “마지막 위치는 모든 입력 Token이 반영된 문맥이고, 이 문맥을 LM Head에 넣었을 때 실제 다음 Token의 점수가 높아지도록 Linear를 포함한 모델 전체를 조정한다”는 흐름을 자기 말로 설명했습니다. 이 기록 시점에는 전체 모델의 실제 Loss·<code>backward()</code>와 모듈별 Gradient 출력까지 실행한 것은 아니었습니다. 이후 아래 최종 검증에서 Loss 감소와 실제 Autoregressive Generation을 완료했습니다.</div>
 
         <h3 id="tiny-decoder-class-loss">후속 실행 · <code>TinyDecoderLM</code> 클래스와 실제 초기 Loss</h3>
         <p>Token Embedding, 학습형 Position Embedding, Causal Transformer Block, LM Head를 하나의 <code>TinyDecoderLM</code> 클래스에 넣었습니다. <code>forward()</code>는 입력의 <code>[B,S]</code>에서 위치 ID를 만들고, 두 Embedding을 더한 뒤 Block과 LM Head를 차례로 호출합니다. 클래스 선언 중 <code>super().__init</code>, <code>shape</code>, <code>arange</code> 철자 오류를 실제 Traceback과 호출 검증으로 수정했습니다.</p>
@@ -742,7 +742,95 @@ targets.reshape(-1).shape    = [3]
 
 초기 Cross Entropy Loss = 2.540301561355591</code></pre>
         <p>이 값은 조립한 전체 모델의 학습 전 Logit과 shifted Target을 실제로 연결해 얻은 첫 Loss입니다. 아직 <code>backward()</code>와 <code>optimizer.step()</code>을 반복하지 않았으므로 Loss 감소를 확인한 것은 아닙니다.</p>
-        <div class="caution"><strong>현재 완료 경계</strong> — 클래스 조립, Forward Shape, Target shift, 초기 Cross Entropy Loss까지 실행했습니다. 다음 시작점은 같은 작은 Sequence를 Adam Optimizer로 반복 학습해 Loss 감소를 확인하는 것이며, 그 뒤 마지막 위치 Logit에서 Token ID를 골라 입력 뒤에 붙이는 Autoregressive Generation을 실행해야 Tiny Decoder LM 관문이 완료됩니다.</div>
+        <div class="caution"><strong>당시 완료 경계</strong> — 클래스 조립, Forward Shape, Target shift, 초기 Cross Entropy Loss까지 실행한 시점의 기록입니다. 아래 최종 검증에서 작은 Sequence의 반복 학습과 Autoregressive Generation까지 이어 Tiny Decoder LM 관문을 완료했습니다.</div>
+
+        <h3 id="tiny-decoder-training-generation">최종 검증 · 한 수열에서 Prefix 세 문제를 병렬 학습하고 순차 생성하기</h3>
+        <p>먼저 2-Batch Tensor로 Target shift 슬라이싱을 다시 구성했습니다. 첫 번째 <code>:</code>은 모든 Batch 행을 선택하고, 두 번째 축의 <code>:-1</code>은 마지막 Token 전까지, <code>1:</code>은 두 번째 Token부터 끝까지를 선택합니다. 따라서 각 행에서 마지막 입력 Token과 첫 Target Token이 하나씩 빠지고, 입력과 Target은 같은 Shape을 유지합니다.</p>
+        <pre><code>tokens = [
+  [3, 7, 2, 9],
+  [4, 1, 6, 8],
+]
+
+input_tokens = tokens[:, :-1]
+# [[3, 7, 2],
+#  [4, 1, 6]]       Shape [2, 3]
+
+targets = tokens[:, 1:]
+# [[7, 2, 9],
+#  [1, 6, 8]]       Shape [2, 3]</code></pre>
+
+        <h3>Cross Entropy의 두 입력은 같은 Shape끼리 직접 비교하지 않는다</h3>
+        <p><code>CrossEntropyLoss</code>의 왼쪽은 각 행이 모든 후보 Token에 준 raw 점수이고, 오른쪽은 각 행에서 채점할 Target Token ID입니다. <code>[B,T,V]=[1,3,10]</code>을 <code>[B×T,V]=[3,10]</code>으로 펼치고, Target <code>[1,3]</code>은 <code>[3]</code>으로 펼칩니다. 두 Shape이 서로 다른 것은 의도된 API 계약입니다.</p>
+        <pre><code>loss = loss_fn(
+    logits.reshape(-1, 10),  # [3, 10]: 위치 3개의 후보 점수 10개
+    targets.reshape(-1),     # [3]: 각 행에서 선택할 ID [7, 2, 9]
+)
+
+1행 점수 10개 ↔ Target ID 7
+2행 점수 10개 ↔ Target ID 2
+3행 점수 10개 ↔ Target ID 9</code></pre>
+        <p>Accuracy(정확도)는 각 행의 최댓값 인덱스가 Target ID와 같은지 <code>0/1</code>로 판단합니다. 반면 Cross Entropy(교차 엔트로피)는 raw Logit에 Log-Softmax를 적용한 뒤 Target ID가 가리키는 칸의 음의 로그값을 구합니다. 따라서 최댓값 인덱스가 이미 정답이어도 정답 칸의 비율이 충분히 크지 않으면 Loss는 0이 아닙니다. 학습은 정답 인덱스가 가장 높아지는 것뿐 아니라 다른 후보에 비해 더 강하게 커지도록 조정합니다. <code>CrossEntropyLoss</code>는 언어 모델 전용 모듈이 아니라 여러 후보 중 정답 class index 하나를 채점하는 일반 다중 분류 Loss이며, Causal LM은 각 Token 위치를 Vocabulary <code>V</code>개 중 다음 Token 하나를 고르는 분류 문제로 보기 때문에 이를 사용합니다.</p>
+
+        <h3>Causal Mask가 한 Forward를 세 개의 Prefix 학습 문제로 만든다</h3>
+        <p>겉으로는 <code>[3,7,2] → [7,2,9]</code> 한 쌍을 넣지만, Causal Mask 때문에 세 출력 위치가 볼 수 있는 Prefix가 서로 다릅니다. 그래서 세 위치의 Logit과 세 Target을 한 번에 계산하는 것은 다음 세 문제를 한 Forward에서 병렬로 학습하는 것과 같습니다.</p>
+        <pre><code>위치 0: [3]       → 7
+위치 1: [3, 7]    → 2
+위치 2: [3, 7, 2] → 9
+
+세 위치의 Loss를 평균
+→ 한 번의 backward()
+→ 연결된 전체 모델 파라미터를 한 번에 수정</code></pre>
+        <p>세 번 따로 Forward한 것이 아니라, 위치 축을 유지한 행렬 연산으로 세 Prefix 문제를 병렬 계산했습니다. 생성에서는 이미 학습한 이 관계를 <code>[3] → 7</code>, <code>[3,7] → 2</code>, <code>[3,7,2] → 9</code> 순서로 하나씩 사용합니다.</p>
+
+        <h3><code>d_model=2</code> 병목과 <code>d_model=4</code> 과적합 비교</h3>
+        <p>처음에는 <code>d_model=2</code>, Head 2개라 Head당 차원이 1인 모델을 300번 수정했습니다. 초기 Loss <code>2.5403</code>은 감소했지만 <code>0.462389</code> 부근에서 멈췄고, 예측은 <code>[9,2,9]</code>였습니다. 첫 위치와 마지막 위치의 Softmax 출력이 같고 Token 7·9에 약 <code>0.4999</code>씩 나뉘어, 두 Prefix 문맥을 구별하지 못하는 표현 병목을 실제 출력으로 확인했습니다.</p>
+        <pre><code>d_model=2, num_heads=2
+300번 수정 후 Loss: 0.4623892605304718
+정답: [7, 2, 9]
+예측: [9, 2, 9]
+
+d_model=4, num_heads=2, d_ff=16
+1번 수정 후 Loss:   6.68280553817749
+50번 수정 후 Loss:  0.0000033378
+300번 수정 후 Loss: 0.0000025829</code></pre>
+        <p><code>d_model=4</code>로 늘리면 Token마다 문맥 정보를 담는 표현 공간이 넓어지고 Head당 차원도 2가 됩니다. 같은 구조를 다시 학습했을 때 작은 수열을 사실상 완전히 암기했습니다. 위 숫자는 <strong>저장된 한 실행의 관찰값</strong>이며 Seed를 고정하지 않았으므로 새 모델의 초기 Loss와 마지막 소수점은 재실행마다 달라질 수 있습니다. 독립적인 새 커널 재실행에서도 <code>d_model=2</code>는 약 <code>0.462</code>에서 정체했고, <code>d_model=4</code>는 Loss가 <code>0.001</code>보다 작아진 뒤 <code>[3,7,2,9]</code> 생성을 재현했습니다. <strong>직접 관찰한 사실</strong>은 학습된 <code>d_model=2</code> 모델에서 첫 위치와 마지막 위치의 Softmax 행이 같고 Loss가 정체된 점, 그리고 <code>d_model=4</code> 재학습에서 Loss가 크게 감소한 점입니다. 앞선 별도 최소 Block에서도 첫 위치와 마지막 위치의 출력이 같았지만, 이는 다른 인스턴스와 입력에서 나온 보조 관찰입니다. 전체 결과를 표현 병목으로 해석할 수는 있어도, 차원을 바꾸며 모델도 새로 초기화했으므로 LayerNorm 하나만이 원인이라고 분리해 증명한 실험은 아닙니다. 따라서 이 결과를 큰 모델이 항상 더 잘 일반화한다는 결론으로 확장하지 않습니다.</p>
+
+        <h3>잘못된 입력으로 Loss 0과 <code>3722</code>가 나온 실패</h3>
+        <p>학습 셀에서 입력을 실수로 <code>[7,2,9]</code>로 바꾸고 Target은 같은 <code>[7,2,9]</code>을 재사용한 실행이 있었습니다. 이 상태는 다음 Token 관계가 아니라 각 위치에서 입력과 같은 ID를 내도록 학습하므로 Loss가 0에 가까워져도 원하는 모델이 아닙니다. 그 Weight로 <code>[3,7,2]</code>의 마지막 위치를 생성하자 <code>2</code>를 골라 <code>[3,7,2,2]</code>가 나왔습니다.</p>
+        <pre><code># 잘못된 학습 쌍
+input_tokens = [[7, 2, 9]]
+targets      = [[7, 2, 9]]
+생성 결과    = [[3, 7, 2, 2]]
+
+# 수정한 학습 쌍
+input_tokens = [[3, 7, 2]]
+targets      = [[7, 2, 9]]
+생성 결과    = [[3, 7, 2, 9]]</code></pre>
+        <p>이 실패는 Loss 숫자가 작다는 사실만으로 학습 목표가 맞다고 판단할 수 없고, 입력·Target 쌍과 실제 생성 결과를 함께 검증해야 한다는 근거로 남깁니다. 디버깅 중에는 화면에서 수정한 Source, 디스크에 저장된 Source, 이전 실행의 cached output을 서로 다른 근거로 읽어 전제가 한 차례 엇갈렸습니다. 최종 저장본에는 올바른 입력 <code>[3,7,2]</code>과 Target <code>[7,2,9]</code>, Loss 감소, <code>[3,7,2,9]</code> 생성 출력만 남아 있습니다. 따라서 노트북 문제를 판단할 때는 Source와 Output을 함께 저장한 뒤 해당 셀부터 다시 실행해 같은 실행 상태인지 확인합니다.</p>
+
+        <h3>마지막 위치 선택, <code>argmax</code>, <code>keepdim</code>, <code>torch.cat</code></h3>
+        <pre><code>last_position_logits = logits[:, -1, :]  # [B,T,V] → [B,V]
+
+next_token = last_position_logits.argmax(
+    dim=-1,       # 마지막 Vocabulary 축의 후보 중 최댓값 위치 탐색
+    keepdim=True, # [B]가 아니라 [B,1] 유지
+)
+
+generated_tokens = torch.cat(
+    [prompt_tokens, next_token],
+    dim=1,
+)</code></pre>
+        <p><code>argmax</code>는 가장 큰 점수 자체가 아니라 그 점수가 있던 <strong>Vocabulary 인덱스, 즉 Token ID</strong>를 반환합니다. 후보 축의 크기가 10에서 1로 줄어도 결과 칸 안에 선택된 ID가 값으로 남기 때문에 어떤 후보였는지 잃지 않습니다. <code>keepdim=True</code>는 결과를 <code>[B,1]</code>로 유지해 <code>[B,T]</code> Token ID Tensor 뒤에 붙일 수 있게 합니다.</p>
+        <p>현재 Token ID Tensor는 2차원 <code>[Batch,Token]</code>이므로 <code>torch.cat(..., dim=1)</code>과 <code>dim=-1</code>은 같은 마지막 Token 축입니다. <code>dim=1</code>은 축의 역할을 명시하고, <code>dim=-1</code>은 마지막 축이라는 위치를 강조합니다. 새 Token이 뒤에 붙는 것은 축뿐 아니라 목록 순서가 <code>[prompt_tokens, next_token]</code>이기 때문이며, 순서를 바꾸면 앞에 붙습니다. 3차원 <code>[B,T,D]</code>에서는 <code>dim=1</code>이 Token 축, <code>dim=-1</code>이 특징 축이므로 둘은 더 이상 같지 않습니다.</p>
+
+        <h3>최종 결과 · 병렬 학습한 Prefix 관계를 순차 생성에 사용</h3>
+        <pre><code>시작:        [[3]]
+1번째 생성: [[3, 7]]
+2번째 생성: [[3, 7, 2]]
+3번째 생성: [[3, 7, 2, 9]]</code></pre>
+        <p>학습에서는 세 Prefix 위치의 후보 점수를 병렬로 만들고 한 번에 Loss를 계산했습니다. 생성에서는 현재까지 만든 Token 전체를 매번 다시 모델에 넣고 마지막 위치 Logit의 Token ID 하나만 골라 뒤에 붙였습니다. 이로써 Token·Position Embedding → Causal Transformer Block → LM Head → shifted Target Cross Entropy → Optimizer 학습 → Autoregressive Generation의 전체 흐름을 직접 구현하고 설명했습니다.</p>
+        <div class="caution"><strong>Tiny Decoder LM 완료</strong> — Target shift와 Shape, 위치별 Cross Entropy, Causal Prefix 병렬 학습, 표현 병목과 실패 수정, 마지막 위치 Logit 기반 한 Token 선택, 반복 자기회귀 생성을 실행 결과로 검증했습니다. Temperature·Top-k·Top-p와 KV Cache는 이 관문의 미완료 항목이 아니라 이후 추론 심화 단계입니다.</div>
+        <div class="caution"><strong>장기 기억 보강 방식</strong> — 모든 PyTorch 문법을 즉시 외우는 것을 완료 조건으로 두지 않습니다. 이번처럼 코드를 직접 입력하며 Shape과 결과를 설명한 뒤, 다음 복습에서 <code>[:, :-1]</code>·<code>[:, 1:]</code>·<code>reshape</code>·<code>dim</code>을 작은 Tensor로 다시 예측하고, 챕터 복습 때 빈 셀에서 최소 학습·생성 흐름을 재구성합니다. 문법을 잠시 잊어도 실행 구조를 복원할 수 있는지를 장기 이해의 증거로 봅니다.</div>
       </section>
       <section>
         <div class="caution"><strong>내용 보존 원칙</strong> — 기존 Transformer 문서의 14개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 위 핵심 흐름을 처음부터 끝까지 한 번에 복습할 수 있게 유지하고, 긴 증명·반복 계산과 원문 예제는 하위 문서에서 이어 보도록 연결합니다. Multi-Head 이후 새로 학습한 Transformer Block 개념도 별도의 상세 문서로 계속 보존합니다.</div>
