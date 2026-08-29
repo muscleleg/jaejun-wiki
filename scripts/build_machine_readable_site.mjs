@@ -349,6 +349,41 @@ ${steps}
         <p class="journey-final"><strong>최종적으로 할 수 있어야 하는 것</strong><br>${escapeHtml(journey.finalOutcome)}</p>`;
 }
 
+function renderDeferredLearningItems(deferredLearningItems, journey) {
+  if (!deferredLearningItems?.items?.length) throw new Error("Deferred learning items are missing");
+  if (!deferredLearningItems.policy?.types?.length) throw new Error("Deferred learning policy types are missing");
+  const milestoneById = new Map(journey.milestones.map((milestone) => [milestone.id, milestone]));
+  const typeById = new Map(deferredLearningItems.policy.types.map((type) => [type.id, type]));
+  const ids = new Set();
+  const items = deferredLearningItems.items.map((item) => {
+    if (ids.has(item.id)) throw new Error(`Duplicate deferred learning item: ${item.id}`);
+    ids.add(item.id);
+    const milestone = milestoneById.get(item.milestoneId);
+    if (!milestone) throw new Error(`Deferred learning milestone not found: ${item.milestoneId}`);
+    const type = typeById.get(item.type);
+    if (!type) throw new Error(`Deferred learning type not found: ${item.type}`);
+    return `        <article class="deferred-card" data-deferred-id="${escapeAttribute(item.id)}" data-deferred-status="${escapeAttribute(item.status)}" data-deferred-type="${escapeAttribute(item.type)}">
+          <div class="deferred-card-head"><span class="deferred-type">${escapeHtml(type.label)}</span><span class="deferred-status">${escapeHtml(item.statusLabel)}</span><span class="deferred-milestone">${escapeHtml(milestone.shortTitle)}</span></div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p><strong>미룬 이유</strong><br>${escapeHtml(item.reason)}</p>
+          <p><strong>다시 꺼낼 때</strong><br>${escapeHtml(item.resumeWhen)}</p>
+          <p><strong>완료 증거</strong><br>${escapeHtml(item.completion)}</p>
+          <a href="${escapeAttribute(item.href)}">관련 로드맵 보기 →</a>
+        </article>`;
+  }).join("\n");
+  const policyTypes = deferredLearningItems.policy.types.map((type) => `            <li><strong>${escapeHtml(type.label)}</strong> · ${escapeHtml(type.activation)}</li>`).join("\n");
+  return `        <div class="deferred-policy">
+          <p><strong>검토 시점</strong><br>${escapeHtml(deferredLearningItems.policy.reviewWhen)}</p>
+          <p><strong>활성 제한</strong><br>한 번에 최대 ${escapeHtml(deferredLearningItems.policy.activeLimit)}개만 꺼내고, 반복 약점은 같은 막힘이 ${escapeHtml(deferredLearningItems.policy.repeatThreshold)}회 확인될 때 활성화합니다.</p>
+          <ul>
+${policyTypes}
+          </ul>
+        </div>
+        <div class="deferred-grid">
+${items}
+        </div>`;
+}
+
 function hierarchyFor(entry, documentByHref, cache) {
   if (cache.has(entry.href)) return cache.get(entry.href);
   const chain = [];
@@ -563,6 +598,7 @@ async function renderStaticDiscoveryPages() {
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
   history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
+  history = replaceStaticRegion(history, { name: "deferred-learning-items", tag: "div", id: "deferredLearningItems", markup: renderDeferredLearningItems(learningState.deferredLearningItems, learningState.journey) });
   history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
   await writeFile(historyPath, history, "utf8");
 

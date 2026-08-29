@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 146,
-  "indexedCount": 147,
+  "documentCount": 147,
+  "indexedCount": 148,
   "categories": [
     {
       "id": "llm-systems",
@@ -2359,6 +2359,38 @@ window.KNOWLEDGE_MANIFEST = {
       "conceptKeys": []
     },
     {
+      "id": "wiki-projects-adaptive-learning-coach",
+      "title": "개인화 학습 코치 위키",
+      "description": "학습 중 생긴 의문을 잊지 않을 백로그로 맡기고, 검증된 학습 기억과 현재 관문을 바탕으로 지금 중요한 한 단계를 제시해 “무엇을 공부하지?”라는 고민을 줄이는 개인화 학습 코치형 기술 위키이자 포트폴리오다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 개인 프로젝트 › 개인화 학습 코치 위키 개인화 학습 코치 위키 1. 문제 정의 2. 행동이 다음 학습으로 돌아오는 개인화 학습 순환 행동을 학습 신호로 읽는다 증거가 있는 것만 축적한다 기억이 설명을 개인화한다 기억이 다음 행동을 정한다 3. 무엇을 공부했는지뿐 아니라, 어떤 상태인지 기억한다 검증된 지식과 내 언어 미해결 상태도 보존 4. 기록을 보여 주는 데서 끝나지 않는 상태 기반 코칭 중단 지점에서 이어가기 나에게 맞는 설명으로 복원하기 집중을 잃지 않게 하기 학습을 멈추지 않게 하기 5. 사용자가 주도한 범위와 AI 협업 경계 사용자가 주도한 것 AI를 활용한 것 6. 문서 계층과 검색 7. 다중 관점 지식 지도 8. 정적·기계 판독 빌드 9. 검증 파이프라인 자동 검사 브라우저 검사 10. 현재 상태와 한계 현재 확인 가능한 상태 한계",
+      "href": "wiki/projects/adaptive-learning-coach.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/projects/adaptive-learning-coach.html",
+      "category": "개인 프로젝트",
+      "categoryKey": "projects",
+      "isCategoryIndex": false,
+      "parentHref": null,
+      "parentId": null,
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "개인 프로젝트",
+        "개인화 학습 코치 위키"
+      ],
+      "conceptKeys": [
+        "adaptive-learning-coach-project",
+        "wiki-personal-learning-loop",
+        "wiki-learning-memory",
+        "wiki-learning-backlog-priority",
+        "wiki-adaptive-coaching",
+        "wiki-document-hierarchy",
+        "wiki-knowledge-map",
+        "wiki-static-build",
+        "wiki-validation-pipeline"
+      ]
+    },
+    {
       "id": "wiki-projects-k8s-function-calling-dataset",
       "title": "어떤 데이터를 학습하고 평가했는가",
       "description": "한국어 Kubernetes 조회 요청을 결정론적으로 생성하고, 학습·검증·최종 holdout을 분리했다. 모델이 도구를 고르는 경우와 호출하지 않아야 하는 경우를 모두 포함한다.",
@@ -3465,7 +3497,7 @@ window.KNOWLEDGE_MANIFEST = {
       "id": "wiki-transformer-transformer_token_embedding_learning",
       "title": "Token Embedding, 코드에서 이해하기",
       "description": "토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.",
-      "searchText": "⌂ 홈 › 기술 위키 › Transformer › Token Embedding Token Embedding, 코드에서 이해하기 토큰 번호를 의미 벡터로 바꾸기 한눈에 보는 데이터 흐름 줄별로 이해하기 임베딩 행렬은 실제로 어떻게 초기화될까? 왜 √d_model 을 곱하는가? 텐서 Shape 정리 Tiny Decoder LM에서 실제로 확인한 Token lookup Tokenizer 단어장과 Embedding 표는 서로 다른 원본이다 이 셀을 이해했는지 확인하기",
+      "searchText": "⌂ 홈 › 기술 위키 › Transformer › Token Embedding Token Embedding, 코드에서 이해하기 토큰 번호를 의미 벡터로 바꾸기 한눈에 보는 데이터 흐름 줄별로 이해하기 임베딩 행렬은 실제로 어떻게 초기화될까? 왜 √d_model 을 곱하는가? 텐서 Shape 정리 Tiny Decoder LM에서 실제로 확인한 Token lookup Tokenizer 단어장과 Embedding 표는 서로 다른 원본이다 서로 다른 객체를 Token ID라는 공통 주소로 연결한다 Python·Jupyter에서 실제 모델 구현을 추적하는 순서 사전학습 Tokenizer에서 확인한 동적 Padding 축 번호를 고르는 기준: dim=1 과 dim=-1 이 셀을 이해했는지 확인하기",
       "href": "wiki/transformer/transformer_token_embedding_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html",
       "category": "Transformer",
