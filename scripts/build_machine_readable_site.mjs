@@ -565,6 +565,13 @@ function inferParentHref(href, knowledgeDocument) {
   if (href === "wiki/coding-test/index.html") return "roadmap.html";
   if (knowledgeDocument?.parentHref) return knowledgeDocument.parentHref;
   if (href.endsWith("/index.html") && href.startsWith("wiki/")) return "wiki.html";
+  if ([
+    "roadmaps/roadmap_cs_systems.html",
+    "roadmaps/roadmap_kubernetes.html",
+    "roadmaps/roadmap_linux_systems.html",
+    "roadmaps/roadmap_network_systems.html",
+    "roadmaps/roadmap_openstack.html",
+  ].includes(href)) return "roadmap.html";
   if (href.startsWith("roadmaps/")) return "pytorch_professional_roadmap.html";
   if (href === "pytorch_professional_roadmap.html") return "roadmap.html";
   if (["wiki.html", "learning_history.html", "roadmap.html"].includes(href)) return "index.html";
