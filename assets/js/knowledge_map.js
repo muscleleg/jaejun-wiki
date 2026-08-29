@@ -65,7 +65,9 @@
         node("Agent·AI 서비스 원문", "agent-notes", { status: "reference", href: "wiki/llm-systems/agent_llm_tools_foundations.html", children: [
           node("LLM Agent·Tool Loop", "agent-loop", { status: "reference", href: "wiki/llm-systems/agent_llm_tools_foundations.html" }),
           node("LangGraph 상태·라우팅", "langgraph", { status: "reference", href: "wiki/llm-systems/langgraph_state_routing_parallelism.html" }),
-          node("메모리·가드레일·테스트", "agent-safety-testing", { status: "reference", href: "wiki/llm-systems/agent_memory_guardrails_testing.html" }),
+          node("메모리·가드레일·테스트", "agent-safety-testing", { status: "reference", href: "wiki/llm-systems/agent_memory_guardrails_testing.html", children: [
+            node("Gemini CLI 세션 메모리", "gemini-cli-session-memory", { status: "reference", href: "wiki/llm-systems/gemini_cli_session_memory.html" }),
+          ] }),
           node("멀티모달·CrewAI 응용", "agent-applications", { status: "reference", href: "wiki/llm-systems/agent_applications_multimodal_crewai.html" }),
           node("AI 서비스 아키텍처", "ai-service-architecture", { status: "reference", href: "wiki/llm-systems/ai_service_architecture_patterns.html" }),
         ] }),

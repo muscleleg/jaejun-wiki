@@ -85,9 +85,9 @@
       <h1>학습 기록</h1>
       <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
-        <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">18일</strong></div>
-        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 42시간 36분</strong></div>
-        <div class="stat">최근 학습일<strong id="historyLatestLearningDate">2026-08-27</strong></div>
+        <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">19일</strong></div>
+        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 43시간 49분</strong></div>
+        <div class="stat">최근 학습일<strong id="historyLatestLearningDate">2026-08-28</strong></div>
       </div>
       <div class="learning-journey" id="learningJourney" data-outcome-journey aria-label="최종 목표까지의 학습 여정"><!-- static-fallback:learning-journey:start -->
         <div class="journey-heading"><div><span class="eyebrow">Road to LLM inference</span><h2>최종 목표까지의 학습 여정</h2></div><p>각 점은 읽은 주제가 아니라 직접 구현하고 설명하며 검증해야 닫히는 성취 관문입니다.</p></div>
@@ -131,7 +131,7 @@
               <div class="journey-popover">
                 <div class="journey-popover-head"><h3>Tiny Decoder LM</h3><span class="journey-status">현재</span></div>
                 <p><strong>성취 목표</strong><br>Token Embedding + Position Embedding → Causal TransformerBlock → LM Head를 하나의 모델로 조립합니다. 한 칸 이동한 Target과 Token Cross Entropy를 연결하고, 아주 작은 데이터에 학습해 Loss가 감소하는지 확인한 뒤 이전 Token만 보며 다음 Token을 한 개씩 생성합니다.</p>
-                <p><strong>완료 증거</strong><br>Token·Position Embedding → Causal TransformerBlock → LM Head를 수동 연결해 [1,3] → [1,3,10] Forward를 실행하고, 위치별 Logit이 다음 Token 후보 점수가 되는 학습 원리를 설명했습니다. 전체 클래스로 묶어 Loss를 연결하고 작은 데이터 학습·Autoregressive Generation을 실행하면 완료됩니다.</p>
+                <p><strong>완료 증거</strong><br>Token·Position Embedding → Causal TransformerBlock → LM Head를 TinyDecoderLM 클래스로 묶어 [1,3] → [1,3,10] Forward를 실행하고, shifted Target [7,2,9]의 초기 Cross Entropy Loss 2.5403을 확인했습니다. 작은 데이터의 Loss 감소와 Autoregressive Generation을 실행하면 완료됩니다.</p>
                 <a href="roadmaps/roadmap_transformer.html">관련 로드맵에서 자세히 보기 →</a>
               </div>
             </details>
@@ -280,6 +280,14 @@
       <h2>날짜별 학습 기록</h2>
       <p class="summary">기존 홈에 있던 기록을 내용 생략 없이 날짜별로 옮겼다.</p>
       <div class="timeline">
+        <article class="day" id="study-2026-08-28">
+          <time datetime="2026-08-28">2026년 08월 28일</time>
+          <div class="topic"><h3><code>TinyDecoderLM</code> 전체 클래스 조립</h3><p>Token Embedding, 학습형 Position Embedding, <code>CausalTransformerBlock</code>, LM Head를 하나의 <code>TinyDecoderLM</code>에 넣고 <code>forward()</code>에서 위치 ID 생성부터 Logit 반환까지 연결했다. 클래스 선언만으로 내부 실행이 검증되는 것은 아니므로 실제 모델 객체와 Token 입력을 호출해 확인했다. <code>super().__init__()</code>의 뒤쪽 밑줄 누락, <code>shape</code>·<code>arange</code> 철자 오류를 Traceback과 저장 셀 검사로 찾아 수정했다.</p></div>
+          <div class="topic"><h3>전체 Forward Shape 실행</h3><p>입력 <code>[[3,7,2]]</code>을 전체 모델에 넣어 입력 <code>[1,3]</code>, Logit <code>[1,3,10]</code>, Attention 비율 <code>[1,2,3,3]</code>, 마지막 위치 Logit <code>[1,10]</code>을 확인했다. Token 위치 3개가 하나로 합쳐지는 것이 아니라 각 위치의 <code>d_model=2</code> 문맥 벡터가 같은 LM Head를 거쳐 Vocabulary 후보 10개씩으로 바뀐다고 설명했다.</p></div>
+          <div class="topic"><h3>Token ID·차원·실제 단어장 구분</h3><p><code>3,7,2</code>는 차원이 아니라 직접 넣은 Token ID이고, <code>nn.Embedding(10,2)</code>은 ID마다 길이 2인 벡터를 가진 <code>[10,2]</code> 학습 표라는 점을 연결했다. 현재 실습에는 문자열과 ID를 연결하는 Tokenizer 단어장 원본이 없으며 숫자 ID를 직접 넣었기 때문에 실행 가능하다. <code>vocab_size=10</code>이면 유효 ID는 <code>0~9</code>이고 <code>10</code>·<code>11</code>은 없는 행을 조회하므로 오류가 난다고 예측했다.</p></div>
+          <div class="topic"><h3>Target shift 슬라이싱과 Causal 마지막 행</h3><p><code>tokens[:, :-1]</code>을 모든 Batch 행의 처음부터 마지막 전까지, <code>tokens[:, 1:]</code>을 모든 Batch 행의 index 1부터 끝까지로 해석해 입력 <code>[[3,7,2]]</code>과 Target <code>[[7,2,9]]</code>을 다시 확인했다. Causal Mask 때문에 위치 0은 <code>[3]</code>, 위치 1은 <code>[3,7]</code>, 위치 2는 <code>[3,7,2]</code> 문맥만 가지므로 네 번째 Token 생성에는 마지막 위치 후보만 필요하다고 자기 말로 설명했다. 슬라이싱은 작은 2-Batch Tensor로 다시 연습할 보강 항목으로 남겼다.</p></div>
+          <div class="topic"><h3>전체 모델의 초기 Cross Entropy Loss</h3><p>전체 모델 Logit <code>[1,3,10]</code>을 <code>[3,10]</code>, Target <code>[1,3]</code>을 <code>[3]</code>으로 펼쳐 실제 <code>CrossEntropyLoss</code>를 연결했고 초기 Loss <code>2.540301561355591</code>를 출력했다. 반복 학습 코드는 제시됐지만 실행하지 않았으므로 Loss 감소·<code>backward()</code>·Weight 수정은 완료 증거로 기록하지 않는다. 다음 시작점은 같은 작은 Sequence의 반복 학습과 마지막 위치 Logit 기반 Token 생성이다.</p></div>
+        </article>
         <article class="day" id="study-2026-08-27">
           <time datetime="2026-08-27">2026년 08월 27일</time>
           <div class="topic"><h3>Tiny Decoder LM 모듈 준비와 실제 입력의 경계</h3><p><code>Embedding(10,2)</code>, Position <code>Embedding(8,2)</code>, <code>CausalTransformerBlock(2,2,8)</code>, <code>Linear(2,10)</code>을 생성한 셀은 학습 가능한 Weight·Bias를 초기화한 것이지만 아직 Token 입력을 통과시킨 것은 아니라고 구분했다. 이어 실제 입력 <code>[[3,7,2]]</code>와 위치 <code>[[0,1,2]]</code>를 넣어 Forward 흐름을 실행했다.</p></div>
@@ -454,6 +462,10 @@
     <section id="study-time">
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
+      <article class="session">
+        <div class="session-head"><div><time datetime="2026-08-28">2026년 08월 28일</time><h3>총 학습시간</h3></div><div class="duration">약 1시간 13분</div></div>
+        <div class="session-body"><strong>이날 한 공부</strong><ul><li><code>TinyDecoderLM</code> 클래스에 Token·Position Embedding, Causal Transformer Block, LM Head를 연결</li><li><code>super().__init__()</code>·<code>shape</code>·<code>arange</code> 오타를 실제 호출과 Traceback으로 수정</li><li><code>[1,3] → [1,3,10]</code> Logit과 Attention 비율 <code>[1,2,3,3]</code>, 마지막 위치 <code>[1,10]</code> 실행 확인</li><li>Token ID <code>3,7,2</code>와 Token 개수·<code>d_model=2</code> 차원을 구분</li><li>Tokenizer의 문자열↔ID 단어장과 모델의 <code>[vocab_size,d_model]</code> Embedding 표를 구분</li><li><code>vocab_size=10</code>에서 유효 ID가 <code>0~9</code>이고 범위 밖 ID가 오류가 되는 이유 예측</li><li><code>[:, :-1]</code>·<code>[:, 1:]</code> Target shift 슬라이싱 재확인과 후속 보강 등록</li><li>Causal Mask의 위치별 Prefix와 생성 시 마지막 Logit 행만 사용하는 이유 설명</li><li>전체 모델의 초기 Cross Entropy Loss <code>2.540301561355591</code> 실행</li><li>다음 시작점을 반복 학습의 Loss 감소 확인 → Autoregressive Generation으로 확정</li></ul><p>코덱스 세션 기록의 첫 실제 학습 선언부터 종료 메시지까지를 합산했으며, 학습을 중단한 장시간 공백은 없었다.</p></div>
+      </article>
       <article class="session">
         <div class="session-head"><div><time datetime="2026-08-27">2026년 08월 27일</time><h3>총 학습시간</h3></div><div class="duration">약 1시간 4분</div></div>
         <div class="session-body"><strong>이날 한 공부</strong><ul><li>Tiny Decoder LM의 Token·Position Embedding, Causal TransformerBlock, LM Head 모듈 생성과 실제 입력 Forward의 경계 구분</li><li><code>[[3,7,2]]</code> 입력을 <code>[1,3] → [1,3,2] → [1,3,10]</code>으로 연결하고 저장된 Shape 출력 확인</li><li><code>[B,S,D]</code>를 Batch의 문장 수·문장당 Token 위치 수·Token당 벡터 차원으로 교정</li><li>Attention이 Token 위치를 하나로 합치지 않고 위치별 Prefix 문맥 벡터를 유지한다는 점 설명</li><li>LM Head의 <code>[S,D] @ [D,V] = [S,V]</code> 행렬 관점과 PyTorch Weight 저장 Shape <code>[V,D]</code> 구분</li><li>Causal Mask가 위치별 참고 범위를 정하고 shifted Target·Cross Entropy가 Logit에 다음 Token 후보의 의미를 부여함을 연결</li><li>학습에서는 모든 위치를 동시에 채점하고 생성에서는 <code>logits[:, -1, :]</code>만 쓰는 이유 확인</li><li>마지막 Hidden State가 새 Token 자체가 아니라 전체 Prefix 문맥이고, 해당 문맥에서 다음 Token 후보를 채점한다는 점 설명</li><li>Gradient가 LM Head뿐 아니라 고정하지 않은 Embedding·Transformer Block 전체로 전달되는 개념을 연결하고, 실제 전체 모델 <code>backward()</code> 검증은 다음 단계로 구분</li><li>다음 시작점을 <code>TinyDecoderLM</code> 클래스 → Cross Entropy Loss → 작은 데이터 Loss 감소 → Autoregressive Generation으로 확정</li></ul><p>코덱스 세션 기록에서 실제 학습 시작 선언부터 종료 메시지까지를 합산했다.</p></div>
