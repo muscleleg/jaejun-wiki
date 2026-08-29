@@ -178,33 +178,32 @@ if (!/<a\b[^>]*\bid=["']roadmaps["'][^>]*\bhref=["']roadmap\.html["'][^>]*>/i.te
 }
 
 const topLevelRoadmapTracks = staticRegion(topLevelRoadmapHtml, "top-level-roadmap-tracks");
-assertEqual(valuesForAttribute(topLevelRoadmapTracks, "data-roadmap-id").join("|"), "ai-ml|coding-test", "Top-level roadmap order");
+assertEqual(valuesForAttribute(topLevelRoadmapTracks, "data-roadmap-id").join("|"), "ai-ml", "Primary roadmap order");
+const optionalSessionRoadmaps = staticRegion(topLevelRoadmapHtml, "optional-session-roadmaps");
+assertEqual(valuesForAttribute(optionalSessionRoadmaps, "data-roadmap-id").join("|"), "coding-test", "Optional-session roadmap order");
 const aiCurrentMilestone = learningState.journey.milestones.find((item) => item.id === learningState.journey.currentId);
 const codingCurrentMilestone = codingTestState.journey.milestones.find((item) => item.id === codingTestState.journey.currentId);
 if (!aiCurrentMilestone || !codingCurrentMilestone) throw new Error("Top-level roadmap current milestone is missing");
 const codingCompletedCount = codingTestState.journey.milestones.filter((item) => item.status === "complete").length;
 const topLevelExpectations = [
-  {
-    id: "ai-ml",
-    href: "pytorch_professional_roadmap.html",
-    values: ["AI·ML 통합 로드맵", aiCurrentMilestone.title, learningState.rotation.next, `코어 완료 조건 ${learningState.overall.done} / ${learningState.overall.total}`],
-  },
-  {
-    id: "coding-test",
-    href: "wiki/coding-test/index.html",
-    values: ["코딩 테스트 역량 로드맵", codingCurrentMilestone.title, codingCurrentMilestone.goal, `성취 관문 ${codingCompletedCount} / ${codingTestState.journey.milestones.length}`],
-  },
+  { region: topLevelRoadmapTracks, id: "ai-ml", href: "pytorch_professional_roadmap.html", values: [learningState.priorityPolicy.label, learningState.priorityPolicy.title, aiCurrentMilestone.title, learningState.rotation.next, `코어 완료 조건 ${learningState.overall.done} / ${learningState.overall.total}`] },
+  { region: optionalSessionRoadmaps, id: "coding-test", href: "wiki/coding-test/index.html", values: ["사용자 선택 세션", "코딩 테스트 역량 로드맵", codingCurrentMilestone.title, codingCurrentMilestone.goal, `성취 관문 ${codingCompletedCount} / ${codingTestState.journey.milestones.length}`] },
 ];
 for (const expectation of topLevelExpectations) {
-  const card = blockByDataValue(topLevelRoadmapTracks, "data-roadmap-id", expectation.id, "article");
+  const card = blockByDataValue(expectation.region, "data-roadmap-id", expectation.id, "article");
   const cardText = normalizeText(card.html);
   for (const value of expectation.values) {
     if (!cardText.includes(normalizeText(value))) throw new Error(`Top-level roadmap ${expectation.id} is missing: ${value}`);
   }
   if (!valuesForAttribute(card.html, "href").includes(expectation.href)) throw new Error(`Top-level roadmap ${expectation.id} href is stale`);
 }
-if (/전체\s*(?:진행률|완료율)|통합\s*(?:진행률|완료율)/.test(normalizeText(topLevelRoadmapTracks))) {
+if (/전체\s*(?:진행률|완료율)|통합\s*(?:진행률|완료율)/.test(normalizeText(`${topLevelRoadmapTracks} ${optionalSessionRoadmaps}`))) {
   throw new Error("Top-level roadmap must not merge AI and coding-test progress into one percentage");
+}
+for (const value of [learningState.priorityPolicy.rule, learningState.priorityPolicy.supportRule, learningState.priorityPolicy.optionalRule]) {
+  if (!normalizeText(topLevelRoadmapHtml).includes(normalizeText(value))) {
+    throw new Error(`Top-level roadmap priority policy is missing: ${value}`);
+  }
 }
 
 const wikiFilters = staticRegion(wikiHtml, "wiki-filters");
@@ -330,11 +329,15 @@ for (const track of learningState.tracks) {
   const card = blockByDataValue(roadmapTracks, "data-track-id", track.id, "article");
   const cardText = normalizeText(card.html);
   const percent = Math.round(track.done / track.total * 100);
-  const phase = track.id === currentTrackId ? "현재 활성" : track.done === track.total ? "완료" : "대기";
-  for (const value of [track.title, track.current, track.next, `${phase} · ${percent}% · ${track.done}/${track.total}`]) {
+  const isCurrent = track.id === currentTrackId;
+  const phase = isCurrent ? "현재 활성" : track.done === track.total ? "완료" : "대기";
+  const expectedCurrent = isCurrent ? currentMilestone.title : track.current;
+  const expectedNext = isCurrent ? currentMilestone.goal : track.next;
+  for (const value of [track.title, expectedCurrent, expectedNext, `${phase} · ${percent}% · ${track.done}/${track.total}`]) {
     if (!cardText.includes(normalizeText(value))) throw new Error(`Integrated roadmap track ${track.id} is missing: ${value}`);
   }
-  if (!valuesForAttribute(card.html, "href").includes(track.href)) {
+  const expectedHref = isCurrent ? currentMilestone.href : track.href;
+  if (!valuesForAttribute(card.html, "href").includes(expectedHref)) {
     throw new Error(`Integrated roadmap track ${track.id} href is stale`);
   }
 }
@@ -414,6 +417,13 @@ const learningJourney = staticRegion(historyHtml, "learning-journey");
 assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
 const codingTestJourney = staticRegion(historyHtml, "coding-test-journey");
 assertJourneyMatches(codingTestJourney, codingTestState.journey, "Coding-test journey");
+const optionalSessionJourneys = sectionById(historyHtml, "optional-session-journeys");
+if (!optionalSessionJourneys.includes('id="codingTestJourney"') || optionalSessionJourneys.includes('id="learningJourney"')) {
+  throw new Error("Coding-test journey must be contained only in the optional-session journey section");
+}
+if (!normalizeText(historyHtml).includes(normalizeText(learningState.priorityPolicy.rule))) {
+  throw new Error("Learning history must state the primary journey priority rule");
+}
 const studyTime = sectionById(historyHtml, "study-time");
 const sessionDates = [...studyTime.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bsession\b[^"']*["'])[^>]*>[\s\S]*?<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>[\s\S]*?<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
   .map((match) => ({ date: match[1], duration: durationMinutes(match[2]) }));

@@ -1,11 +1,18 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-28",
-  recentCompletion: "TinyDecoderLM 클래스를 조립해 [1,3] → [1,3,10] Forward와 [1,2,3,3] Attention Weight를 실행하고, shifted Target의 초기 Cross Entropy Loss 2.5403을 확인했습니다.",
+  updated: "2026-08-29",
+  recentCompletion: "Tiny Decoder LM에서 한 수열의 세 Prefix를 병렬 학습하고, d_model=2의 Loss 정체 뒤 d_model=4 재학습으로 [3] → [3,7] → [3,7,2] → [3,7,2,9] 자기회귀 생성을 완료했습니다.",
+  priorityPolicy: {
+    label: "최우선 핵심 여정",
+    title: "Road to LLM inference",
+    rule: "현재 관문과 뒤따르는 관문 순서를 모든 다른 학습 로드맵보다 우선합니다. 핵심 여정 자체를 바꾸라는 사용자의 명시적 요청이 없으면 다른 로드맵이 현재 다음 행동을 대체할 수 없습니다.",
+    supportRule: "핵심 관문을 실제로 막는 선수지식만 최소 범위로 보강하고, 막힘을 해결하면 즉시 핵심 여정으로 돌아옵니다.",
+    optionalRule: "코딩 테스트·프로젝트·CS·MLOps·Agent와 관심 로드맵은 사용자가 해당 세션을 따로 선택하기 전까지 보관하며 핵심 여정의 진행률·현재 관문·다음 행동을 바꾸지 않습니다."
+  },
   journey: {
     eyebrow: "Road to LLM inference",
     title: "최종 목표까지의 학습 여정",
-    summary: "각 점은 읽은 주제가 아니라 직접 구현하고 설명하며 검증해야 닫히는 성취 관문입니다.",
-    currentId: "tiny-decoder-lm",
+    summary: "이 여정은 현재 학습의 최우선 방향입니다. 각 점은 읽은 주제가 아니라 직접 구현하고 설명하며 검증해야 닫히는 성취 관문입니다.",
+    currentId: "pretrained-causal-lm",
     finalOutcome: "핵심 종착점은 PyTorch로 이해한 추론 흐름을 vLLM과 Multi-GPU 환경까지 확장하고, 성능 차이를 재현 가능한 수치와 병목 근거로 설명하는 것입니다.",
     milestones: [
       {
@@ -42,18 +49,18 @@ window.LEARNING_STATE = {
         id: "tiny-decoder-lm",
         title: "Tiny Decoder LM",
         shortTitle: "Tiny Decoder LM",
-        status: "current",
-        statusLabel: "현재",
+        status: "complete",
+        statusLabel: "완료",
         href: "roadmaps/roadmap_transformer.html",
         goal: "Token Embedding + Position Embedding → Causal TransformerBlock → LM Head를 하나의 모델로 조립합니다. 한 칸 이동한 Target과 Token Cross Entropy를 연결하고, 아주 작은 데이터에 학습해 Loss가 감소하는지 확인한 뒤 이전 Token만 보며 다음 Token을 한 개씩 생성합니다.",
-        evidence: "Token·Position Embedding → Causal TransformerBlock → LM Head를 TinyDecoderLM 클래스로 묶어 [1,3] → [1,3,10] Forward를 실행하고, shifted Target [7,2,9]의 초기 Cross Entropy Loss 2.5403을 확인했습니다. 작은 데이터의 Loss 감소와 Autoregressive Generation을 실행하면 완료됩니다."
+        evidence: "[3]→7·[3,7]→2·[3,7,2]→9를 한 Forward에서 병렬 학습한다고 설명하고, 저장 실행에서 d_model=2의 Loss 0.462389 정체를 관찰한 뒤 새 d_model=4 모델에서 0.00000258까지 낮추고 [3,7,2,9] 반복 생성을 실행했습니다."
       },
       {
         id: "pretrained-causal-lm",
         title: "사전학습 Causal LM 적용",
         shortTitle: "HF Causal LM",
-        status: "upcoming",
-        statusLabel: "예정",
+        status: "current",
+        statusLabel: "현재",
         href: "roadmaps/roadmap_transformer.html",
         goal: "Hugging Face Dataset·Tokenizer·동적 Padding으로 input_ids와 attention_mask를 만들고 사전학습 모델의 Logit [B,S,V]를 확인합니다. generate() 없이 마지막 위치 Logit에서 Token을 선택·추가하는 루프를 만들고 Greedy·Temperature·Top-k·Top-p의 차이를 비교합니다.",
         evidence: "고정 Prompt에서 수동 생성과 NLL·Perplexity 또는 과제별 품질·오류를 기록하고, Tokenizer·Config·Weight를 저장·복원해 같은 결과를 재현하면 완료됩니다."
@@ -91,28 +98,28 @@ window.LEARNING_STATE = {
     ]
   },
   coaching: {
-    recentEvidence: "TinyDecoderLM 클래스에 Token·Position Embedding, Causal TransformerBlock, LM Head를 묶어 [1,3] → [1,3,10] Forward와 Attention Weight [1,2,3,3]을 실행했습니다. Token ID와 d_model 차원, Tokenizer 단어장과 Embedding 표, 위치별 Prefix와 마지막 Logit의 생성 역할을 자기 말로 설명하고 초기 Cross Entropy Loss 2.5403을 확인했습니다.",
-    diagnosis: "Tiny Decoder LM의 전체 클래스 조립과 실제 Target Loss 연결까지 완료했습니다. 아직 Optimizer 반복 학습의 Loss 감소와 마지막 위치 Logit을 입력 뒤에 붙이는 생성 결과는 없습니다.",
-    warning: "초기 Loss 2.5403을 계산한 것만으로 Tiny Decoder LM을 완료 처리하지 않습니다. backward·Optimizer step을 반복해 Loss 감소를 확인하고, 학습된 마지막 위치 Logit으로 다음 Token을 생성해야 합니다.",
-    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP 결과물을 닫았습니다. → 진행: TinyDecoderLM 클래스 Forward와 shifted Target의 초기 Cross Entropy Loss 2.5403을 확인했습니다. → 남음: 작은 학습의 Loss 감소와 Autoregressive Generation을 검증합니다. → 이후: 사전학습 Causal LM의 [B,S,V] Forward·수동 생성·평가·Artifact 복원으로 이어갑니다.",
-    scheduledRotation: "1차 순환 · 현재: 같은 작은 Sequence를 Optimizer로 반복 학습해 Loss 감소를 확인합니다. → 다음: 마지막 위치 Logit으로 한 Token을 생성한 뒤 Hugging Face 입력 파이프라인과 사전학습 Causal LM 수동 생성으로 이어갑니다."
+    recentEvidence: "2-Batch Target shift를 다시 구성하고 CrossEntropyLoss의 [B×T,V] 점수와 [B×T] Target index 역할을 설명했습니다. 저장 실행에서 d_model=2의 Loss 0.462389 정체와 [9,2,9] 중복 출력을 관찰한 뒤 새 d_model=4 모델에서 Loss를 0.00000258까지 낮추고 [3]에서 [3,7,2,9]를 반복 생성했습니다.",
+    diagnosis: "Tiny Decoder LM의 조립·학습·실패 수정·자기회귀 생성 완료 조건을 모두 충족했습니다. 이제 같은 개념이 사전학습 Causal LM의 Tokenizer·Padding·[B,S,V] Forward에 어떻게 나타나는지 연결할 단계입니다.",
+    warning: "사전학습 모델에서는 Tokenizer의 PAD·Special token과 attention_mask를 먼저 확인합니다. Tiny 예제처럼 모든 위치가 유효하다고 가정하거나 PAD 위치까지 Loss에 포함하지 않습니다.",
+    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM 결과물을 닫았습니다. → 현재: Tokenizer·동적 Padding 첫 Batch를 만듭니다. → 남음: 사전학습 Causal LM의 [B,S,V] Forward·수동 생성·평가·Artifact 복원으로 Transformer 1차 순환을 닫습니다.",
+    scheduledRotation: "1차 순환 · 현재: Hugging Face Tokenizer·Dataset·동적 Padding에서 input_ids와 attention_mask를 확인합니다. → 다음: generate() 없이 마지막 위치 Logit을 반복해 사전학습 모델의 수동 생성을 완성합니다."
   },
   rotation: {
-    trigger: "회원 이탈 Baseline과 PyTorch MLP의 학습·평가·저장·복원·원본 한 명 추론을 마쳤습니다.",
-    next: "TinyDecoderLM의 초기 Loss 2.5403에서 시작해 작은 데이터 반복 학습의 Loss 감소를 확인하고 한 Token을 생성합니다.",
-    after: "작은 공개 텍스트 데이터의 동적 Padding 첫 Batch를 사전학습 Causal LM에 넣고 [B,S,V] Forward·수동 생성·평가·저장·복원을 연결합니다.",
-    returnTo: "Tiny Decoder LM → 사전학습 Causal LM 추론 브리지"
+    trigger: "회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM의 작은 데이터 학습·자기회귀 생성을 완료했습니다.",
+    next: "작은 공개 텍스트 데이터의 Tokenizer·동적 Padding 첫 Batch에서 input_ids와 attention_mask의 Shape과 PAD 위치를 확인합니다.",
+    after: "사전학습 Causal LM에 첫 Batch를 넣어 [B,S,V] Forward·수동 생성·평가·저장·복원을 연결합니다.",
+    returnTo: "사전학습 Causal LM 적용 → PyTorch 추론 Baseline"
   },
   tracks: [
     {
       id: "transformer",
       title: "Transformer 손코딩·적용",
       href: "roadmaps/roadmap_transformer.html",
-      done: 5,
+      done: 6,
       total: 7,
-      current: "TinyDecoderLM 전체 클래스의 [1,3] → [1,3,10] Forward와 Attention Weight [1,2,3,3], shifted Target의 초기 Cross Entropy Loss 2.5403을 실행했습니다.",
-      next: "같은 작은 Sequence를 반복 학습해 Loss 감소를 확인하고 마지막 위치 Logit으로 한 Token을 생성합니다.",
-      reinforcement: "[B,S,D]와 Token ID·d_model 차원·vocab_size를 구분하고 Causal Mask 때문에 생성에는 마지막 위치 Logit이 필요하다고 설명했습니다. Target shift의 [:, :-1]·[:, 1:]은 작은 2-Batch Tensor로 다시 재구성합니다."
+      current: "TinyDecoderLM의 Target shift·Cross Entropy·Optimizer 학습을 연결하고, 저장 실행의 d_model=4 Loss 0.00000258과 [3] → [3,7,2,9] 자기회귀 생성을 검증했습니다.",
+      next: "Hugging Face Tokenizer·Dataset·동적 Padding 첫 Batch를 만들고 사전학습 Causal LM의 [B,S,V] Forward와 수동 생성을 연결합니다.",
+      reinforcement: "2-Batch Target shift를 재구성하고, [B×T,V] 점수와 [B×T] Target index, argmax·keepdim·cat 축을 설명했습니다. view·transpose·reshape의 반대 방향 변환은 장기 기억 보강으로 남깁니다."
     },
     {
       id: "pytorch",
@@ -121,7 +128,7 @@ window.LEARNING_STATE = {
       done: 5,
       total: 6,
       current: "회원 이탈 MLP의 학습·평가·state_dict 복원과 원본 고객 1명의 (1,19) → [1,45] → sigmoid 출력 → Label 추론을 완료했습니다.",
-      next: "별도 Tensor Shape 실험실 보강은 남기고, 현재 활성 구현은 Tiny Decoder LM으로 전환합니다."
+      next: "별도 Tensor Shape 실험실 보강은 남기고, 현재 활성 구현인 사전학습 Causal LM의 Tokenizer·동적 Padding·수동 생성에서 같은 PyTorch Shape·평가 원칙을 재사용합니다."
     },
     {
       id: "machine-learning",
@@ -139,7 +146,7 @@ window.LEARNING_STATE = {
       done: 1,
       total: 5,
       current: "Forward·Hidden State·Logits와 MTP 검증 흐름을 정리했습니다.",
-      next: "Acceptance length와 추론 비용을 작은 계산으로 검증합니다."
+      next: "사전학습 Causal LM 관문을 마친 뒤 같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교해 Naive PyTorch 추론 Baseline을 만듭니다."
     }
   ]
 };
