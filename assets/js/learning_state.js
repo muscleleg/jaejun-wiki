@@ -63,7 +63,7 @@ window.LEARNING_STATE = {
         statusLabel: "현재",
         href: "roadmaps/roadmap_transformer.html",
         goal: "Hugging Face Dataset·Tokenizer·동적 Padding으로 input_ids와 attention_mask를 만들고 사전학습 모델의 Logit [B,S,V]를 확인합니다. generate() 없이 마지막 위치 Logit에서 Token을 선택·추가하는 루프를 만들고 Greedy·Temperature·Top-k·Top-p의 차이를 비교합니다.",
-        evidence: "고정 Prompt에서 수동 생성과 NLL·Perplexity 또는 과제별 품질·오류를 기록하고, Tokenizer·Config·Weight를 저장·복원해 같은 결과를 재현하면 완료됩니다."
+        evidence: "길이 3·7의 문장을 동적 Padding해 input_ids·attention_mask [2,7]을 만들고 GPT-2 Logit [2,7,50257]을 확인했습니다. Mask에서 마지막 실제 위치 [2,6]을 계산해 Batch별 마지막 Logit [2,50257]까지 선택했으며, 수동 생성·평가·Artifact 복원은 남아 있습니다."
       },
       {
         id: "pytorch-inference",
@@ -97,17 +97,117 @@ window.LEARNING_STATE = {
       }
     ]
   },
+  deferredLearningItems: {
+    title: "나중에 다시 할 학습",
+    summary: "학습 중 사용자가 나중에 하기로 확정한 항목입니다. 현재 관문의 순서를 바꾸지 않고, 다시 꺼낼 조건과 완료 증거를 함께 보존합니다.",
+    policy: {
+      reviewWhen: "평소에는 목록을 진행하지 않고, 현재 관문을 닫을 때 전체 목록을 한 번 검토합니다.",
+      activeLimit: 1,
+      repeatThreshold: 2,
+      types: [
+        {
+          id: "required",
+          label: "필수 완료",
+          activation: "연결된 관문의 완료 단계에 도달하면 꺼냅니다."
+        },
+        {
+          id: "reinforcement",
+          label: "반복 약점",
+          activation: "같은 지점에서 두 번째로 막히거나 현재 구현의 최소 blocker가 되면 짧게 꺼냅니다."
+        },
+        {
+          id: "interest",
+          label: "장기 관심",
+          activation: "사용자가 다시 선택하거나 핵심 여정 완료 뒤 실제 필요가 생길 때만 꺼냅니다."
+        }
+      ]
+    },
+    items: [
+      {
+        id: "hf-local-artifact-offline-restore",
+        title: "Tokenizer·Model 로컬 저장과 오프라인 복원",
+        type: "required",
+        status: "queued",
+        statusLabel: "보류",
+        milestoneId: "pretrained-causal-lm",
+        reason: "모델 이름으로 Tokenizer를 자동 다운로드하는 흐름을 먼저 확인한 뒤, 같은 Artifact를 로컬 파일만으로 불러오는 흐름도 익히기로 했습니다.",
+        resumeWhen: "사전학습 Causal LM의 Tokenizer·Forward·수동 생성을 한 번 연결한 뒤 Artifact 저장·복원 완료 조건에서 다시 진행합니다.",
+        completion: "Tokenizer·Config·Weight를 로컬 폴더에 저장하고 새 프로세스에서 로컬 경로와 local_files_only 설정으로 복원해 같은 입력의 Token ID·Logit 또는 생성 결과가 일치하는지 확인합니다.",
+        href: "roadmaps/roadmap_transformer.html"
+      },
+      {
+        id: "tiny-tokenizer-vocabulary-bridge",
+        title: "작은 문자열 단어장과 Tiny Decoder 연결",
+        type: "reinforcement",
+        status: "queued",
+        statusLabel: "개념 경계 보강",
+        milestoneId: "pretrained-causal-lm",
+        reason: "Tiny Decoder LM에서는 Vocabulary 크기 10과 Token ID 0~9를 직접 사용해 다음 숫자를 예측했지만, 문자열을 Token ID로 바꾸고 다시 문자열로 복원하는 Tokenizer 단어장은 만들지 않았습니다. 사전학습 모델을 불러오며 두 Vocabulary 경계를 직접 연결해볼 필요를 확인했습니다.",
+        resumeWhen: "사전학습 Causal LM의 Forward와 수동 생성을 먼저 완료한 뒤, 현재 관문을 닫기 전 짧은 독립 실습으로 꺼냅니다. 그전에는 현재 흐름을 중단하지 않습니다.",
+        completion: "작은 문자열↔Token ID 표와 PAD·UNK ID를 직접 정의하고, 문장을 encode해 Tiny Decoder LM의 Embedding과 LM Head에 연결한 뒤 생성된 Token ID를 문자열로 decode합니다. Tokenizer Vocabulary 크기와 Embedding·LM Head의 Vocabulary 축이 일치해야 하는 이유를 Shape으로 설명하면 완료합니다.",
+        href: "wiki/transformer/transformer_token_embedding_learning.html#tokenizer-dynamic-padding"
+      },
+      {
+        id: "tensor-axis-reverse-reconstruction",
+        title: "Multi-Head Attention 전체 복습과 axis 재구성",
+        type: "reinforcement",
+        status: "queued",
+        statusLabel: "장기 기억 보강",
+        milestoneId: "transformer-core",
+        reason: "Q·K·V, Score Scaling, Mask, Softmax, Value 가중합과 Head 병합을 구현하고 복습했지만 시간이 지나면 흐름과 Shape이 다시 섞일 수 있다고 판단했습니다. 기존의 view·transpose·reshape 반대 방향 보강도 같은 복습 안에서 함께 확인합니다.",
+        resumeWhen: "현재 사전학습 Causal LM 관문은 그대로 진행하고, KV Cache·GQA·RoPE처럼 Attention 내부를 다시 바꾸는 단계에 들어가기 직전에 선수지식 복습으로 한 번 꺼냅니다.",
+        completion: "자료 없이 [B,S,D]에서 Q·K·V Projection, [B,H,S,head_dim] 분리, Score·√head_dim Scaling, Padding·Causal Mask, Softmax·Value 가중합, Token 기준 재정렬, Head 병합과 W_O까지 Shape을 먼저 예측해 재구현합니다. 작은 Tensor에서 미래 Attention 0과 최종 [B,S,D] 복원을 검증하고 view·transpose·reshape의 반대 방향도 설명하면 완료합니다.",
+        href: "wiki/transformer/transformer_multi_head_attention_learning.html"
+      },
+      {
+        id: "pytorch-advanced-indexing-paired-selection",
+        title: "PyTorch 고급 인덱싱과 Batch별 위치 선택",
+        type: "reinforcement",
+        status: "queued",
+        statusLabel: "반복 약점 보강",
+        milestoneId: "pytorch-inference",
+        reason: "슬라이싱과 달리 logits[batch_indices, token_positions, :]처럼 여러 인덱스 Tensor를 짝지어 Batch마다 다른 Token 위치를 선택하는 문법이 반복해서 낯설었습니다. 현재는 (0,2)·(1,6)의 짝 선택과 결과 Shape [B,V]를 이해했지만 작은 Tensor에서 독립적으로 재구성하는 연습은 남아 있습니다.",
+        resumeWhen: "현재 사전학습 Causal LM의 수동 생성 관문은 중단하지 않습니다. Batch inference 관문에 들어가기 직전, Batch마다 길이·선택 위치가 달라지는 코드를 작성하기 전에 짧은 Tensor 실습으로 꺼냅니다.",
+        completion: "기본 정수 인덱싱·Slice·불린 마스크·고급 인덱싱을 결과 Shape과 View/Copy 관점에서 구분하고, [B,S,V] Tensor에서 Batch별 서로 다른 Token 위치를 선택해 [B,V]를 만드는 코드를 자료 없이 작성하고 실제 값으로 검산하면 완료합니다.",
+        href: "wiki/transformer/transformer_token_embedding_learning.html#tensor-dim-semantic-axis"
+      },
+      {
+        id: "mle-entropy-kl-connection",
+        title: "MLE·NLL·Entropy·KL 연결",
+        type: "reinforcement",
+        status: "queued",
+        statusLabel: "개념 보강",
+        milestoneId: "pretrained-causal-lm",
+        reason: "Softmax와 Target Token의 평균 NLL까지는 실제 숫자로 확인했으며, 분포 전체를 비교하는 개념은 같은 예제로 나중에 연결하기로 했습니다.",
+        resumeWhen: "사전학습 모델의 NLL·Perplexity 평가를 실행할 때 같은 분포 예제로 함께 검산합니다.",
+        completion: "Log-Likelihood 최대화와 평균 NLL 최소화의 관계를 설명하고, 같은 두 분포에서 Entropy·Cross Entropy·KL Divergence를 계산해 차이를 구분합니다.",
+        href: "roadmaps/roadmap_transformer.html"
+      },
+      {
+        id: "cross-model-kv-cache-transfer-recovery",
+        title: "Cross-Model KV Cache Transfer 학습 기록 복원",
+        type: "interest",
+        status: "unknown",
+        statusLabel: "미확인",
+        milestoneId: "pytorch-inference",
+        reason: "학습 흔적은 남아 있지만 당시 대화 원문이 없어 이해한 범위를 완료 지식으로 확정할 수 없습니다.",
+        resumeWhen: "KV Cache 관문에 도달하고 당시 원문이나 실습 근거를 찾았을 때 복원합니다.",
+        completion: "동일 모델 Cache 재사용과 Cross-Model Cache 변환을 구분하고, 호환 조건·변환 비용·품질 한계를 근거와 함께 다시 기록합니다.",
+        href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog"
+      }
+    ]
+  },
   coaching: {
-    recentEvidence: "2-Batch Target shift를 다시 구성하고 CrossEntropyLoss의 [B×T,V] 점수와 [B×T] Target index 역할을 설명했습니다. 저장 실행에서 d_model=2의 Loss 0.462389 정체와 [9,2,9] 중복 출력을 관찰한 뒤 새 d_model=4 모델에서 Loss를 0.00000258까지 낮추고 [3]에서 [3,7,2,9]를 반복 생성했습니다.",
-    diagnosis: "Tiny Decoder LM의 조립·학습·실패 수정·자기회귀 생성 완료 조건을 모두 충족했습니다. 이제 같은 개념이 사전학습 Causal LM의 Tokenizer·Padding·[B,S,V] Forward에 어떻게 나타나는지 연결할 단계입니다.",
+    recentEvidence: "길이 3·7의 문장을 Tokenizer로 동적 Padding해 input_ids·attention_mask [2,7]을 만들고, GPT-2 Forward에서 Logit [2,7,50257]을 확인했습니다. Mask 합으로 마지막 실제 위치 [2,6]을 계산하고 Batch별 짝 인덱싱으로 마지막 실제 Logit [2,50257]을 선택했습니다.",
+    diagnosis: "Tokenizer·동적 Padding·사전학습 모델 [B,S,V] Forward와 마지막 실제 위치 선택까지 연결했습니다. 이제 선택한 Vocabulary Logit에서 다음 Token ID를 고르고 입력 뒤에 반복 추가하는 수동 생성 루프를 완성할 단계입니다.",
     warning: "사전학습 모델에서는 Tokenizer의 PAD·Special token과 attention_mask를 먼저 확인합니다. Tiny 예제처럼 모든 위치가 유효하다고 가정하거나 PAD 위치까지 Loss에 포함하지 않습니다.",
-    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM 결과물을 닫았습니다. → 현재: Tokenizer·동적 Padding 첫 Batch를 만듭니다. → 남음: 사전학습 Causal LM의 [B,S,V] Forward·수동 생성·평가·Artifact 복원으로 Transformer 1차 순환을 닫습니다.",
-    scheduledRotation: "1차 순환 · 현재: Hugging Face Tokenizer·Dataset·동적 Padding에서 input_ids와 attention_mask를 확인합니다. → 다음: generate() 없이 마지막 위치 Logit을 반복해 사전학습 모델의 수동 생성을 완성합니다."
+    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM 결과물을 닫았습니다. → 현재: 사전학습 GPT-2의 마지막 실제 위치 Logit [B,V]까지 선택했습니다. → 남음: 수동 생성·평가·Artifact 복원으로 Transformer 1차 순환을 닫습니다.",
+    scheduledRotation: "1차 순환 · 현재: 길이가 다른 Batch의 마지막 실제 Token 위치에서 Vocabulary Logit을 선택했습니다. → 다음: generate() 없이 Token 선택·추가를 반복해 사전학습 모델의 수동 생성을 완성합니다."
   },
   rotation: {
     trigger: "회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM의 작은 데이터 학습·자기회귀 생성을 완료했습니다.",
-    next: "작은 공개 텍스트 데이터의 Tokenizer·동적 Padding 첫 Batch에서 input_ids와 attention_mask의 Shape과 PAD 위치를 확인합니다.",
-    after: "사전학습 Causal LM에 첫 Batch를 넣어 [B,S,V] Forward·수동 생성·평가·저장·복원을 연결합니다.",
+    next: "마지막 실제 위치 Logit [B,V]에서 다음 Token ID를 선택·복원하고 입력 뒤에 붙입니다.",
+    after: "Token 선택과 추가를 반복하는 수동 생성 루프를 완성한 뒤 평가·저장·복원을 연결합니다.",
     returnTo: "사전학습 Causal LM 적용 → PyTorch 추론 Baseline"
   },
   tracks: [
@@ -117,9 +217,9 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_transformer.html",
       done: 6,
       total: 7,
-      current: "TinyDecoderLM의 Target shift·Cross Entropy·Optimizer 학습을 연결하고, 저장 실행의 d_model=4 Loss 0.00000258과 [3] → [3,7,2,9] 자기회귀 생성을 검증했습니다.",
-      next: "Hugging Face Tokenizer·Dataset·동적 Padding 첫 Batch를 만들고 사전학습 Causal LM의 [B,S,V] Forward와 수동 생성을 연결합니다.",
-      reinforcement: "2-Batch Target shift를 재구성하고, [B×T,V] 점수와 [B×T] Target index, argmax·keepdim·cat 축을 설명했습니다. view·transpose·reshape의 반대 방향 변환은 장기 기억 보강으로 남깁니다."
+      current: "Hugging Face Tokenizer로 길이 3·7의 동적 Padding Batch [2,7]을 만들고, GPT-2 Logit [2,7,50257]과 마지막 실제 위치 [2,6]·선택 Logit [2,50257]을 확인했습니다.",
+      next: "마지막 실제 위치의 Vocabulary Logit에서 다음 Token ID를 선택·추가하고 generate() 없는 수동 생성 루프를 완성합니다.",
+      reinforcement: "Tokenizer·Embedding·LM Head가 공통 Token ID 체계를 공유하는 이유와 Python 런타임 소스 추적법을 확인했습니다. 고급 인덱싱은 Batch inference 직전 짧은 실습으로 남깁니다."
     },
     {
       id: "pytorch",

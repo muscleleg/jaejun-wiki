@@ -59,9 +59,21 @@
     .optional-journey-details { margin-top:18px; }
     .optional-journey-details > summary { cursor:pointer; color:var(--green); font-weight:850; }
     .optional-journey-details[open] > summary { margin-bottom:16px; }
+    .deferred-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:20px; }
+    .deferred-policy { margin-top:18px; padding:18px; border-left:5px solid var(--green); border-radius:14px; background:var(--green-soft); }
+    .deferred-policy p + p { margin-top:10px; }
+    .deferred-policy ul { margin:12px 0 0; padding-left:21px; }
+    .deferred-card { padding:19px; border:1px solid var(--line); border-radius:16px; background:#fbfcfd; }
+    .deferred-card-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin-bottom:10px; }
+    .deferred-type, .deferred-status, .deferred-milestone { padding:4px 9px; border-radius:999px; font-size:.76rem; font-weight:850; }
+    .deferred-type { color:#7a421f; background:#fff0e7; }
+    .deferred-status { color:var(--green); background:var(--green-soft); }
+    .deferred-milestone { color:var(--blue); background:var(--blue-soft); }
+    .deferred-card p { margin-top:10px; color:var(--muted); font-size:.9rem; }
+    .deferred-card a { display:inline-block; margin-top:12px; font-weight:800; }
     .home-link { position:fixed; right:22px; bottom:22px; z-index:10; padding:10px 15px; color:#fff; background:var(--green); border-radius:999px; box-shadow:var(--shadow); font-weight:800; text-decoration:none; }
     @media (max-width:720px) {
-      .wrap{width:calc(100% - 18px);padding-top:14px}.hero,section{padding:23px;border-radius:18px}.stats{grid-template-columns:1fr}.session-head{grid-template-columns:1fr}
+      .wrap{width:calc(100% - 18px);padding-top:14px}.hero,section{padding:23px;border-radius:18px}.stats,.deferred-grid{grid-template-columns:1fr}.session-head{grid-template-columns:1fr}
     }
   </style>
   <link rel="stylesheet" href="assets/css/site-theme.css">
@@ -91,7 +103,7 @@
       <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
         <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">20일</strong></div>
-        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 46시간 41분</strong></div>
+        <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 48시간 19분</strong></div>
         <div class="stat">최근 학습일<strong id="historyLatestLearningDate">2026-08-29</strong></div>
       </div>
       <div class="priority-note" id="learningPriorityPolicy"><!-- static-fallback:learning-priority-policy:start -->
@@ -150,7 +162,7 @@
               <div class="journey-popover">
                 <div class="journey-popover-head"><h3>사전학습 Causal LM 적용</h3><span class="journey-status">현재</span></div>
                 <p><strong>성취 목표</strong><br>Hugging Face Dataset·Tokenizer·동적 Padding으로 input_ids와 attention_mask를 만들고 사전학습 모델의 Logit [B,S,V]를 확인합니다. generate() 없이 마지막 위치 Logit에서 Token을 선택·추가하는 루프를 만들고 Greedy·Temperature·Top-k·Top-p의 차이를 비교합니다.</p>
-                <p><strong>완료 증거</strong><br>고정 Prompt에서 수동 생성과 NLL·Perplexity 또는 과제별 품질·오류를 기록하고, Tokenizer·Config·Weight를 저장·복원해 같은 결과를 재현하면 완료됩니다.</p>
+                <p><strong>완료 증거</strong><br>길이 3·7의 문장을 동적 Padding해 input_ids·attention_mask [2,7]을 만들고 GPT-2 Logit [2,7,50257]을 확인했습니다. Mask에서 마지막 실제 위치 [2,6]을 계산해 Batch별 마지막 Logit [2,50257]까지 선택했으며, 수동 생성·평가·Artifact 복원은 남아 있습니다.</p>
                 <a href="roadmaps/roadmap_transformer.html">관련 로드맵에서 자세히 보기 →</a>
               </div>
             </details>
@@ -192,6 +204,73 @@
         <p class="journey-final"><strong>최종적으로 할 수 있어야 하는 것</strong><br>핵심 종착점은 PyTorch로 이해한 추론 흐름을 vLLM과 Multi-GPU 환경까지 확장하고, 성능 차이를 재현 가능한 수치와 병목 근거로 설명하는 것입니다.</p>
 <!-- static-fallback:learning-journey:end --></div>
     </header>
+
+    <section id="deferred-learning">
+      <span class="eyebrow">Deferred learning</span>
+      <h2>나중에 다시 할 학습</h2>
+      <p class="summary">학습 중 나중에 하기로 확정한 항목만 모읍니다. 현재 진도를 방해하지 않도록 다시 꺼낼 조건과 완료 증거를 함께 기록합니다.</p>
+      <div id="deferredLearningItems"><!-- static-fallback:deferred-learning-items:start -->
+        <div class="deferred-policy">
+          <p><strong>검토 시점</strong><br>평소에는 목록을 진행하지 않고, 현재 관문을 닫을 때 전체 목록을 한 번 검토합니다.</p>
+          <p><strong>활성 제한</strong><br>한 번에 최대 1개만 꺼내고, 반복 약점은 같은 막힘이 2회 확인될 때 활성화합니다.</p>
+          <ul>
+            <li><strong>필수 완료</strong> · 연결된 관문의 완료 단계에 도달하면 꺼냅니다.</li>
+            <li><strong>반복 약점</strong> · 같은 지점에서 두 번째로 막히거나 현재 구현의 최소 blocker가 되면 짧게 꺼냅니다.</li>
+            <li><strong>장기 관심</strong> · 사용자가 다시 선택하거나 핵심 여정 완료 뒤 실제 필요가 생길 때만 꺼냅니다.</li>
+          </ul>
+        </div>
+        <div class="deferred-grid">
+        <article class="deferred-card" data-deferred-id="hf-local-artifact-offline-restore" data-deferred-status="queued" data-deferred-type="required">
+          <div class="deferred-card-head"><span class="deferred-type">필수 완료</span><span class="deferred-status">보류</span><span class="deferred-milestone">HF Causal LM</span></div>
+          <h3>Tokenizer·Model 로컬 저장과 오프라인 복원</h3>
+          <p><strong>미룬 이유</strong><br>모델 이름으로 Tokenizer를 자동 다운로드하는 흐름을 먼저 확인한 뒤, 같은 Artifact를 로컬 파일만으로 불러오는 흐름도 익히기로 했습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>사전학습 Causal LM의 Tokenizer·Forward·수동 생성을 한 번 연결한 뒤 Artifact 저장·복원 완료 조건에서 다시 진행합니다.</p>
+          <p><strong>완료 증거</strong><br>Tokenizer·Config·Weight를 로컬 폴더에 저장하고 새 프로세스에서 로컬 경로와 local_files_only 설정으로 복원해 같은 입력의 Token ID·Logit 또는 생성 결과가 일치하는지 확인합니다.</p>
+          <a href="roadmaps/roadmap_transformer.html">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="tiny-tokenizer-vocabulary-bridge" data-deferred-status="queued" data-deferred-type="reinforcement">
+          <div class="deferred-card-head"><span class="deferred-type">반복 약점</span><span class="deferred-status">개념 경계 보강</span><span class="deferred-milestone">HF Causal LM</span></div>
+          <h3>작은 문자열 단어장과 Tiny Decoder 연결</h3>
+          <p><strong>미룬 이유</strong><br>Tiny Decoder LM에서는 Vocabulary 크기 10과 Token ID 0~9를 직접 사용해 다음 숫자를 예측했지만, 문자열을 Token ID로 바꾸고 다시 문자열로 복원하는 Tokenizer 단어장은 만들지 않았습니다. 사전학습 모델을 불러오며 두 Vocabulary 경계를 직접 연결해볼 필요를 확인했습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>사전학습 Causal LM의 Forward와 수동 생성을 먼저 완료한 뒤, 현재 관문을 닫기 전 짧은 독립 실습으로 꺼냅니다. 그전에는 현재 흐름을 중단하지 않습니다.</p>
+          <p><strong>완료 증거</strong><br>작은 문자열↔Token ID 표와 PAD·UNK ID를 직접 정의하고, 문장을 encode해 Tiny Decoder LM의 Embedding과 LM Head에 연결한 뒤 생성된 Token ID를 문자열로 decode합니다. Tokenizer Vocabulary 크기와 Embedding·LM Head의 Vocabulary 축이 일치해야 하는 이유를 Shape으로 설명하면 완료합니다.</p>
+          <a href="wiki/transformer/transformer_token_embedding_learning.html#tokenizer-dynamic-padding">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="tensor-axis-reverse-reconstruction" data-deferred-status="queued" data-deferred-type="reinforcement">
+          <div class="deferred-card-head"><span class="deferred-type">반복 약점</span><span class="deferred-status">장기 기억 보강</span><span class="deferred-milestone">Transformer Block</span></div>
+          <h3>Multi-Head Attention 전체 복습과 axis 재구성</h3>
+          <p><strong>미룬 이유</strong><br>Q·K·V, Score Scaling, Mask, Softmax, Value 가중합과 Head 병합을 구현하고 복습했지만 시간이 지나면 흐름과 Shape이 다시 섞일 수 있다고 판단했습니다. 기존의 view·transpose·reshape 반대 방향 보강도 같은 복습 안에서 함께 확인합니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>현재 사전학습 Causal LM 관문은 그대로 진행하고, KV Cache·GQA·RoPE처럼 Attention 내부를 다시 바꾸는 단계에 들어가기 직전에 선수지식 복습으로 한 번 꺼냅니다.</p>
+          <p><strong>완료 증거</strong><br>자료 없이 [B,S,D]에서 Q·K·V Projection, [B,H,S,head_dim] 분리, Score·√head_dim Scaling, Padding·Causal Mask, Softmax·Value 가중합, Token 기준 재정렬, Head 병합과 W_O까지 Shape을 먼저 예측해 재구현합니다. 작은 Tensor에서 미래 Attention 0과 최종 [B,S,D] 복원을 검증하고 view·transpose·reshape의 반대 방향도 설명하면 완료합니다.</p>
+          <a href="wiki/transformer/transformer_multi_head_attention_learning.html">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="pytorch-advanced-indexing-paired-selection" data-deferred-status="queued" data-deferred-type="reinforcement">
+          <div class="deferred-card-head"><span class="deferred-type">반복 약점</span><span class="deferred-status">반복 약점 보강</span><span class="deferred-milestone">KV Cache·Batch</span></div>
+          <h3>PyTorch 고급 인덱싱과 Batch별 위치 선택</h3>
+          <p><strong>미룬 이유</strong><br>슬라이싱과 달리 logits[batch_indices, token_positions, :]처럼 여러 인덱스 Tensor를 짝지어 Batch마다 다른 Token 위치를 선택하는 문법이 반복해서 낯설었습니다. 현재는 (0,2)·(1,6)의 짝 선택과 결과 Shape [B,V]를 이해했지만 작은 Tensor에서 독립적으로 재구성하는 연습은 남아 있습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>현재 사전학습 Causal LM의 수동 생성 관문은 중단하지 않습니다. Batch inference 관문에 들어가기 직전, Batch마다 길이·선택 위치가 달라지는 코드를 작성하기 전에 짧은 Tensor 실습으로 꺼냅니다.</p>
+          <p><strong>완료 증거</strong><br>기본 정수 인덱싱·Slice·불린 마스크·고급 인덱싱을 결과 Shape과 View/Copy 관점에서 구분하고, [B,S,V] Tensor에서 Batch별 서로 다른 Token 위치를 선택해 [B,V]를 만드는 코드를 자료 없이 작성하고 실제 값으로 검산하면 완료합니다.</p>
+          <a href="wiki/transformer/transformer_token_embedding_learning.html#tensor-dim-semantic-axis">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="mle-entropy-kl-connection" data-deferred-status="queued" data-deferred-type="reinforcement">
+          <div class="deferred-card-head"><span class="deferred-type">반복 약점</span><span class="deferred-status">개념 보강</span><span class="deferred-milestone">HF Causal LM</span></div>
+          <h3>MLE·NLL·Entropy·KL 연결</h3>
+          <p><strong>미룬 이유</strong><br>Softmax와 Target Token의 평균 NLL까지는 실제 숫자로 확인했으며, 분포 전체를 비교하는 개념은 같은 예제로 나중에 연결하기로 했습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>사전학습 모델의 NLL·Perplexity 평가를 실행할 때 같은 분포 예제로 함께 검산합니다.</p>
+          <p><strong>완료 증거</strong><br>Log-Likelihood 최대화와 평균 NLL 최소화의 관계를 설명하고, 같은 두 분포에서 Entropy·Cross Entropy·KL Divergence를 계산해 차이를 구분합니다.</p>
+          <a href="roadmaps/roadmap_transformer.html">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="cross-model-kv-cache-transfer-recovery" data-deferred-status="unknown" data-deferred-type="interest">
+          <div class="deferred-card-head"><span class="deferred-type">장기 관심</span><span class="deferred-status">미확인</span><span class="deferred-milestone">KV Cache·Batch</span></div>
+          <h3>Cross-Model KV Cache Transfer 학습 기록 복원</h3>
+          <p><strong>미룬 이유</strong><br>학습 흔적은 남아 있지만 당시 대화 원문이 없어 이해한 범위를 완료 지식으로 확정할 수 없습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>KV Cache 관문에 도달하고 당시 원문이나 실습 근거를 찾았을 때 복원합니다.</p>
+          <p><strong>완료 증거</strong><br>동일 모델 Cache 재사용과 Cross-Model Cache 변환을 구분하고, 호환 조건·변환 비용·품질 한계를 근거와 함께 다시 기록합니다.</p>
+          <a href="roadmaps/roadmap_llm_systems.html#inference-depth-backlog">관련 로드맵 보기 →</a>
+        </article>
+        </div>
+<!-- static-fallback:deferred-learning-items:end --></div>
+    </section>
 
     <section id="optional-session-journeys">
       <span class="eyebrow">Optional session</span>
@@ -307,7 +386,11 @@
           <div class="topic"><h3>마지막 위치 Logit과 Token ID 선택</h3><p><code>logits[:, -1, :]</code>이 모든 Batch의 마지막 Token 위치에서 Vocabulary 후보 전체를 가져와 <code>[B,T,V] → [B,V]</code>로 만드는 슬라이싱임을 확인했다. <code>argmax(dim=-1)</code>는 최댓값 자체가 아니라 그 값이 있던 Vocabulary 인덱스, 즉 Token ID를 반환하고, <code>keepdim=True</code>는 결과를 <code>[B,1]</code>로 유지해 기존 Token ID Tensor 뒤에 붙일 수 있게 한다고 설명했다.</p></div>
           <div class="topic"><h3><code>torch.cat</code> 축과 목록 순서</h3><p>Token ID Tensor가 <code>[Batch,Token]</code>인 2차원이므로 현재 코드에서는 <code>dim=1</code>과 <code>dim=-1</code>이 같은 마지막 Token 축이라는 점을 확인했다. <code>dim=1</code>은 Token 축이라는 역할을, <code>dim=-1</code>은 마지막 축이라는 위치를 강조하며, 새 Token이 뒤에 붙는 것은 <code>[prompt_tokens,next_token]</code> 목록 순서 때문이라고 정리했다. <code>[B,T,D]</code> 3차원에서는 <code>dim=1</code>과 <code>dim=-1</code>이 서로 다른 축이라는 경계도 함께 남겼다.</p></div>
           <div class="topic"><h3>Tiny Decoder LM 자기회귀 생성 완료</h3><p>학습된 모델에 <code>[3]</code>을 넣고 마지막 위치의 Token ID를 선택해 다시 입력 뒤에 붙이는 과정을 세 번 반복했다. 실제 출력은 <code>[3] → [3,7] → [3,7,2] → [3,7,2,9]</code>였고, 학습에서 병렬로 만든 세 Prefix 관계를 생성에서 순차적으로 사용한다는 연결을 설명했다. 이 결과로 Target shift·Causal Mask·Cross Entropy·Optimizer 학습·실패 수정·Autoregressive Generation까지 Tiny Decoder LM 필수 관문을 완료했다.</p></div>
-          <div class="topic"><h3>다음 시작점</h3><p>Tiny Decoder LM 관문은 완료했다. 다음에는 Hugging Face Tokenizer·Dataset·동적 Padding으로 <code>input_ids</code>와 <code>attention_mask</code> 첫 Batch를 만들고, 사전학습 Causal LM의 <code>[B,S,V]</code> Forward와 <code>generate()</code> 없는 마지막 위치 기반 수동 생성에서 같은 흐름을 찾는다.</p></div>
+          <div class="topic"><h3>Hugging Face Tokenizer와 동적 Padding Batch</h3><p><code>sshleifer/tiny-gpt2</code>의 Tokenizer를 모델 이름으로 불러와 문자열을 Token ID와 Token 조각으로 변환했다. 길이가 3·7인 두 문장을 <code>padding=True</code>로 묶어 <code>input_ids</code>와 <code>attention_mask</code> Shape <code>[2,7]</code>을 확인했고, 짧은 문장 뒤의 PAD 위치가 Mask 0이 되는 것을 실행했다. 한 문장만 넣으면 그 Batch의 최장 길이 3까지만 만들어지고, 길이가 다른 여러 문장을 Padding 없이 하나의 Tensor로 묶으려 하면 오류가 나는 이유도 확인했다.</p></div>
+          <div class="topic"><h3>사전학습 Causal LM의 <code>[B,S,V]</code> Forward</h3><p><code>AutoModelForCausalLM</code>으로 실제 <code>GPT2LMHeadModel</code>을 불러와 <code>input_ids</code>와 <code>attention_mask</code>를 전달했다. 입력 <code>[2,7]</code>이 Logit <code>[2,7,50257]</code>이 되는 것을 확인하고, Logit은 정답과 비교해 얻는 Loss가 아니라 각 Batch·Token 위치에서 Vocabulary 전체에 준 원시 점수라고 구분했다.</p></div>
+          <div class="topic"><h3>Batch별 마지막 실제 Token 위치 선택</h3><p><code>attention_mask.sum(dim=1)</code>으로 실제 Token 수 <code>[3,7]</code>을 구하고 1을 빼 마지막 실제 위치 <code>[2,6]</code>을 얻었다. <code>logits[batch_indices,last_real_positions,:]</code>는 <code>(0,2)</code>와 <code>(1,6)</code>을 짝지어 각 문장의 마지막 실제 Token 위치에서 Vocabulary 열 전체를 가져오는 고급 인덱싱이며, <code>[2,7,50257] → [2,50257]</code>이 된다고 설명했다. 전체 고급 인덱싱 실습은 현재 흐름을 끊지 않고 Batch inference 직전 보강 항목으로 남겼다.</p></div>
+          <div class="topic"><h3>Tokenizer·Embedding의 공통 Token ID와 실제 소스 추적</h3><p>Tokenizer는 문자열을 Token ID로 바꾸고, 모델의 <code>nn.Embedding</code>은 그 ID를 행 주소로 사용해 학습된 벡터를 조회하는 서로 다른 객체라고 구분했다. Tokenizer가 만들 수 있는 ID 수, Embedding의 <code>num_embeddings</code>, LM Head의 Vocabulary 출력 수가 같은 ID 체계에 맞아야 하며 연속 ID의 경우 행 수는 최대 ID보다 1 커야 한다고 설명했다. <code>type(model)</code>과 <code>inspect.getfile(type(model))</code>로 실제 GPT-2 구현 파일에 들어가 <code>self.wte = nn.Embedding(...)</code> 선언과 Forward의 <code>inputs_embeds = self.wte(input_ids)</code>를 직접 찾아, 전체 소스 대신 생성 줄과 입력 사용 줄을 연결해 보는 분석법을 익혔다.</p></div>
+          <div class="topic"><h3>다음 시작점</h3><p>현재 <code>last_real_logits</code> Shape <code>[2,50257]</code>까지 만들었다. 다음에는 각 문장의 Vocabulary 축에서 다음 Token ID를 선택하고 문자열로 복원한 뒤, 선택한 Token을 입력 뒤에 반복해서 붙이는 <code>generate()</code> 없는 수동 Greedy 생성 루프를 완성한다.</p></div>
         </article>
         <article class="day" id="study-2026-08-28">
           <time datetime="2026-08-28">2026년 08월 28일</time>
@@ -492,8 +575,8 @@
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
       <article class="session">
-        <div class="session-head"><div><time datetime="2026-08-29">2026년 08월 29일</time><h3>총 학습시간</h3></div><div class="duration">약 2시간 52분</div></div>
-        <div class="session-body"><strong>이날 한 공부</strong><ul><li>2-Batch Tensor에서 <code>[:, :-1]</code>·<code>[:, 1:]</code> Target shift를 자료 없이 다시 구성하고 Shape <code>[2,3]</code> 검증</li><li><code>[B,T,V] → [B×T,V]</code> Logit 점수와 <code>[B,T] → [B×T]</code> Target ID가 <code>CrossEntropyLoss</code>의 좌우 입력에서 짝지어지는 방식 설명</li><li>Accuracy의 최댓값 index 일치와 Cross Entropy의 Target Log-Softmax 채점 차이 확인</li><li>Causal Mask가 <code>[3]→7</code>·<code>[3,7]→2</code>·<code>[3,7,2]→9</code>를 한 Forward에서 병렬 학습하게 하는 구조 설명</li><li>저장 실행에서 <code>d_model=2</code>의 Loss <code>0.462389</code> 정체·<code>[9,2,9]</code> 중복 출력과 <code>d_model=4</code>의 Loss <code>2.5829e-06</code> 과적합 비교</li><li>잘못된 입력·Target 재사용으로 나온 <code>3722</code> 실패를 수정해 <code>3729</code> 생성 복원</li><li><code>logits[:, -1, :]</code>·<code>argmax</code> Token ID·<code>keepdim=True</code>·<code>torch.cat</code>의 Token 축과 목록 순서 설명</li><li><code>[3] → [3,7] → [3,7,2] → [3,7,2,9]</code> 반복 자기회귀 생성 실행으로 Tiny Decoder LM 관문 완료</li></ul><p>학습 내용은 저장된 노트북 셀과 출력으로 확인했다. Seed를 고정하지 않은 Loss의 세부 숫자는 관찰값으로만 기록했고, 새 커널에서도 핵심 정체 경향과 생성 결과를 재검증했다. 코덱스 세션의 첫 실제 학습 선언부터 현재 기록 요청까지의 경과시간에서 약 1시간의 장시간 비학습 공백을 제외해 추정했다.</p></div>
+        <div class="session-head"><div><time datetime="2026-08-29">2026년 08월 29일</time><h3>총 학습시간</h3></div><div class="duration">약 4시간 30분</div></div>
+        <div class="session-body"><strong>이날 한 공부</strong><ul><li>2-Batch Tensor에서 <code>[:, :-1]</code>·<code>[:, 1:]</code> Target shift를 자료 없이 다시 구성하고 Shape <code>[2,3]</code> 검증</li><li><code>[B,T,V] → [B×T,V]</code> Logit 점수와 <code>[B,T] → [B×T]</code> Target ID가 <code>CrossEntropyLoss</code>의 좌우 입력에서 짝지어지는 방식 설명</li><li>Accuracy의 최댓값 index 일치와 Cross Entropy의 Target Log-Softmax 채점 차이 확인</li><li>Causal Mask가 <code>[3]→7</code>·<code>[3,7]→2</code>·<code>[3,7,2]→9</code>를 한 Forward에서 병렬 학습하게 하는 구조 설명</li><li>저장 실행에서 <code>d_model=2</code>의 Loss <code>0.462389</code> 정체·<code>[9,2,9]</code> 중복 출력과 <code>d_model=4</code>의 Loss <code>2.5829e-06</code> 과적합 비교</li><li>잘못된 입력·Target 재사용으로 나온 <code>3722</code> 실패를 수정해 <code>3729</code> 생성 복원</li><li><code>logits[:, -1, :]</code>·<code>argmax</code> Token ID·<code>keepdim=True</code>·<code>torch.cat</code>의 Token 축과 목록 순서 설명</li><li><code>[3] → [3,7] → [3,7,2] → [3,7,2,9]</code> 반복 자기회귀 생성 실행으로 Tiny Decoder LM 관문 완료</li><li>Hugging Face Tokenizer의 Token ID·Token 조각과 길이가 다른 2-Batch의 동적 Padding·<code>attention_mask</code> 확인</li><li>사전학습 GPT-2에 <code>[2,7]</code> 입력을 넣어 Logit <code>[2,7,50257]</code> Forward 실행</li><li>Mask 합으로 마지막 실제 위치 <code>[2,6]</code>을 구하고 Batch별 짝 인덱싱으로 마지막 실제 Logit <code>[2,50257]</code> 선택</li><li>Tokenizer와 Embedding이 공통 Token ID 체계를 공유하고 Vocabulary·Embedding·LM Head 크기를 맞추는 이유 설명</li><li>Python 런타임 객체의 실제 클래스와 파일을 찾아 GPT-2의 <code>self.wte(input_ids)</code> 조회 코드를 직접 추적</li></ul><p>앞선 Tiny Decoder 세션 기록에, 노트북 생성 시각부터 이번 종료 요청까지 이어진 사전학습 Causal LM 학습 약 1시간 38분을 합산했다. 학습 내용은 저장된 노트북 셀과 출력으로 확인했으며, 이전 세션에서 제외한 장시간 비학습 공백은 누적 시간에 포함하지 않았다.</p></div>
       </article>
       <article class="session">
         <div class="session-head"><div><time datetime="2026-08-28">2026년 08월 28일</time><h3>총 학습시간</h3></div><div class="duration">약 1시간 13분</div></div>

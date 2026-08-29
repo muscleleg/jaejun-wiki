@@ -33,6 +33,18 @@ window.HOME_CONTENT = {
       supportingEvidence: "WebSocket 응답과 사용자별 학습 이력",
       image: "assets/images/projects/notion-rag/rag-chat.webp",
       imageAlt: "Notion 문서 기반 RAG 채팅 화면"
+    },
+    {
+      eyebrow: "Personal Learning System · Static Web",
+      title: "개인화 학습 코치 위키",
+      href: "wiki/projects/adaptive-learning-coach.html",
+      description: "학습 중 생긴 의문을 백로그로 기억하고, 검증된 학습 상태에 맞춰 지금 중요한 다음 행동을 제시하는 개인화 학습 코치형 기술 위키입니다.",
+      stack: ["HTML", "JavaScript", "Node.js", "AI Workflow"],
+      role: "학습 정책 · 상태 모델 · 정보 구조 · 검증",
+      evidence: "의문 기록 → 우선순위 판단 → 지금 할 한 단계",
+      supportingEvidence: "보류 이유·재등장 조건·완료 증거를 남겨 현재 학습에 집중",
+      image: "assets/images/projects/adaptive-learning-coach/personal-learning-loop-featured.svg",
+      imageAlt: "학습 행동을 증거와 기억으로 축적해 개인화된 설명과 다음 행동으로 되돌리는 개인화 학습 코치 위키 흐름"
     }
   ],
   knowledgeAreas: [

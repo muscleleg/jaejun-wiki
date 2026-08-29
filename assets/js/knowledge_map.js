@@ -158,6 +158,17 @@
           node("Cinder LVM", "cinder", { status: "reference", href: "wiki/projects/openstack-study-lab-storage-foundations.html", children: [node("loop·LVM", "loop-lvm", { status: "reference", href: "wiki/projects/openstack-study-lab-storage-foundations.html#lvm" }), node("Guest I/O", "block-io-verification", { status: "reference", href: "wiki/projects/openstack-study-lab.html#evidence" })] }),
           node("OpenStack 범용 역량 로드맵", "openstack-roadmap", { status: "reference", href: "roadmaps/roadmap_openstack.html", children: [node("사용·구조·설계", "openstack-generalist-design", { status: "learning", href: "roadmaps/roadmap_openstack.html" }), node("배포·운영·진단", "openstack-generalist-operations", { status: "learning", href: "roadmaps/roadmap_openstack.html" })] }),
         ] }),
+        node("개인화 학습 코치 위키", "adaptive-learning-coach-project", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html", children: [
+          node("개인화 학습 순환", "wiki-personal-learning-loop", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-loop", children: [
+            node("검증된 학습 기억", "wiki-learning-memory", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-memory" }),
+            node("학습 백로그·재등장", "wiki-learning-backlog-priority", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-backlog" }),
+            node("상태 기반 코칭", "wiki-adaptive-coaching", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#adaptive-coaching" }),
+          ] }),
+          node("문서 계층·검색", "wiki-document-hierarchy", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#document-discovery" }),
+          node("다중 관점 지식 지도", "wiki-knowledge-map", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#knowledge-map" }),
+          node("정적·기계 판독 빌드", "wiki-static-build", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#static-build" }),
+          node("검증 파이프라인", "wiki-validation-pipeline", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#validation" }),
+        ] }),
       ] }),
     },
   ];

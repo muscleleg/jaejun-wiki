@@ -415,6 +415,32 @@ function assertJourneyMatches(region, journey, label) {
 if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
 const learningJourney = staticRegion(historyHtml, "learning-journey");
 assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
+const deferredLearning = staticRegion(historyHtml, "deferred-learning-items");
+for (const expectedText of [
+  learningState.deferredLearningItems.policy.reviewWhen,
+  String(learningState.deferredLearningItems.policy.activeLimit),
+  String(learningState.deferredLearningItems.policy.repeatThreshold),
+  ...learningState.deferredLearningItems.policy.types.flatMap((type) => [type.label, type.activation]),
+]) {
+  if (!normalizeText(deferredLearning).includes(normalizeText(expectedText))) throw new Error("Deferred learning policy text is missing");
+}
+const deferredIds = valuesForAttribute(deferredLearning, "data-deferred-id");
+const expectedDeferredIds = learningState.deferredLearningItems.items.map((item) => item.id);
+assertEqual(deferredIds.join("|"), expectedDeferredIds.join("|"), "Deferred learning item order");
+assertEqual(new Set(deferredIds).size, deferredIds.length, "Unique deferred learning items");
+for (const item of learningState.deferredLearningItems.items) {
+  const block = blockByDataValue(deferredLearning, "data-deferred-id", item.id, "article");
+  assertEqual(block.attributes.match(/\bdata-deferred-status=["']([^"']+)["']/i)?.[1] || "", item.status, `Deferred learning status ${item.id}`);
+  assertEqual(block.attributes.match(/\bdata-deferred-type=["']([^"']+)["']/i)?.[1] || "", item.type, `Deferred learning type ${item.id}`);
+  const type = learningState.deferredLearningItems.policy.types.find((candidate) => candidate.id === item.type);
+  if (!type) throw new Error(`Deferred learning type is unknown: ${item.type}`);
+  for (const expectedText of [item.statusLabel, item.title, item.reason, item.resumeWhen, item.completion]) {
+    if (!normalizeText(block.content).includes(normalizeText(expectedText))) throw new Error(`Deferred learning text is missing: ${item.id}`);
+  }
+  assertEqual(valuesForAttribute(block.content, "href").join("|"), item.href, `Deferred learning href ${item.id}`);
+}
+const activeDeferredCount = learningState.deferredLearningItems.items.filter((item) => item.status === "active").length;
+if (activeDeferredCount > learningState.deferredLearningItems.policy.activeLimit) throw new Error("Deferred learning active limit exceeded");
 const codingTestJourney = staticRegion(historyHtml, "coding-test-journey");
 assertJourneyMatches(codingTestJourney, codingTestState.journey, "Coding-test journey");
 const optionalSessionJourneys = sectionById(historyHtml, "optional-session-journeys");
