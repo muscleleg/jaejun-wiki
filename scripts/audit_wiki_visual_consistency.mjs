@@ -29,7 +29,7 @@ for (const file of files) {
   if (!/assets\/css\/site-theme\.css(?:\?[^"']*)?["']/i.test(content)) {
     findings.push(`${href}: 공통 site-theme.css 누락`);
   }
-  if (!/assets\/js\/global_nav\.js\?v=20260828-layout-5["']/i.test(content)) {
+  if (!/assets\/js\/global_nav\.js\?v=20260829-toc-height-1["']/i.test(content)) {
     findings.push(`${href}: 공통 내비게이션·목차 cache-bust 버전 불일치`);
   }
 
@@ -53,6 +53,7 @@ const theme = await readFile(resolve(wikiRoot, "assets/css/site-theme.css"), "ut
 const notion = await readFile(resolve(wikiRoot, "assets/css/notion-import.css"), "utf8");
 const tocCss = await readFile(resolve(wikiRoot, "assets/css/article-toc.css"), "utf8");
 const tocJs = await readFile(resolve(wikiRoot, "assets/js/article_toc.js"), "utf8");
+const globalNavJs = await readFile(resolve(wikiRoot, "assets/js/global_nav.js"), "utf8");
 
 if (!/pre\s*\{[\s\S]*?padding:\s*18px 20px\s*!important/i.test(theme)) {
   findings.push("site-theme.css: 데스크톱 코드 블록 공통 padding 누락");
@@ -65,6 +66,16 @@ if (!/\.notion-import-page \.page-shell\s*\{[\s\S]*?width:\s*min\(1120px/i.test(
 }
 if (!/grid-template-columns:\s*230px minmax\(0, 1fr\)/i.test(tocCss)) {
   findings.push("article-toc.css: 데스크톱 왼쪽 목차 열 누락");
+}
+const directTocGridRule = tocCss.match(/\.document-toc-layout\s*>\s*\.document-toc\s*\{([^}]*)\}/i)?.[1] || "";
+if (!/grid-row:\s*3\s*;/i.test(directTocGridRule)) {
+  findings.push("article-toc.css: 목차가 본문 첫 행과 나란히 배치되지 않음");
+}
+if (/grid-row:[^;]*span\s+\d+/i.test(directTocGridRule)) {
+  findings.push("article-toc.css: 목차의 과도한 grid span이 빈 스크롤을 생성할 수 있음");
+}
+if (!/article-toc\.css\?v=20260829-toc-height-1/i.test(globalNavJs)) {
+  findings.push("global_nav.js: 목차 높이 수정 CSS cache-bust 버전 누락");
 }
 if (!/@media \(max-width:\s*820px\)[\s\S]*?\.document-toc-layout\s*\{[\s\S]*?display:\s*block\s*!important/i.test(tocCss)) {
   findings.push("article-toc.css: 모바일 단일 열 전환 누락");

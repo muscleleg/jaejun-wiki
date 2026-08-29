@@ -20,7 +20,7 @@
   if (currentPath.includes("/wiki/")) {
     const tocStyle = document.createElement("link");
     tocStyle.rel = "stylesheet";
-    tocStyle.href = new URL("assets/css/article-toc.css?v=20260828-unified-2", projectRoot).href;
+    tocStyle.href = new URL("assets/css/article-toc.css?v=20260829-toc-height-1", projectRoot).href;
     document.head.appendChild(tocStyle);
   }
 
