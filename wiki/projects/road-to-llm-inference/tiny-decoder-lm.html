@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Token·Position Embedding, Causal TransformerBlock, LM Head, shifted target, CrossEntropyLoss와 자기회귀 생성을 연결한 Tiny Decoder LM 실습 기록"><title>Tiny Decoder LM · Road to LLM inference</title><link rel="stylesheet" href="../../../assets/css/portal.css?v=20260825-working-style-flat"><link rel="stylesheet" href="../../../assets/css/site-theme.css"><link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Tiny Decoder LM · Road to LLM inference">
+  <meta property="og:description" content="Token·Position Embedding, Causal TransformerBlock, LM Head, shifted target, CrossEntropyLoss와 자기회귀 생성을 연결한 Tiny Decoder LM 실습 기록">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html","name":"Tiny Decoder LM · Road to LLM inference","description":"Token·Position Embedding, Causal TransformerBlock, LM Head, shifted target, CrossEntropyLoss와 자기회귀 생성을 연결한 Tiny Decoder LM 실습 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html"},"headline":"Tiny Decoder LM · Road to LLM inference","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#tiny-decoder-lm","name":"Tiny Decoder LM","identifier":"tiny-decoder-lm"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/tiny-decoder-lm.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"Road to LLM inference","item":"https://muscleleg.github.io/jaejun-wiki/#now-learning"},{"@type":"ListItem","position":3,"name":"Tiny Decoder LM"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference journey-artifact"><main class="wrap" data-learning-milestone="tiny-decoder-lm" data-milestone-status="complete">
+  <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../index.html#now-learning">Road to LLM inference</a><span class="separator">›</span><span aria-current="page">Tiny Decoder LM</span></nav>
+  <header class="hero"><span class="eyebrow">Milestone 04 · complete</span><h1>학습되고 생성하는<br>작은 Decoder 언어 모델</h1><p class="summary">Token Embedding + Position Embedding → Causal TransformerBlock → LM Head를 하나로 조립하고, 한 칸 이동한 Target으로 세 Prefix를 병렬 학습한 뒤 [3]에서 시작해 [3,7,2,9]를 자기회귀로 생성했습니다.</p><div class="stats"><div class="stat">상태<strong>완료</strong></div><div class="stat">Logit Shape<strong>[1,3,10]</strong></div><div class="stat">최종 Loss<strong>0.00000258</strong></div><div class="stat">생성<strong>[3,7,2,9]</strong></div></div></header>
+  <nav aria-label="문서 목차"><a href="#learning-purpose">학습 목적</a><a href="#boundary">모듈과 입력</a><a href="#vocabulary">Vocabulary</a><a href="#forward">Forward Shape</a><a href="#meaning">Prefix 학습</a><a href="#target-shift">Target shift</a><a href="#model">모델 코드</a><a href="#loss">Cross Entropy</a><a href="#gradients">학습 범위</a><a href="#training">용량 실험</a><a href="#generation">생성</a><a href="#corrections">디버깅·한계</a><a href="#evidence">완료 증거</a></nav>
+  <section id="learning-purpose"><h2>이 관문에서 알고자 한 것</h2><p class="learning-purpose-intro"><strong>목적</strong><br>앞에서 만든 Transformer Block이 단순히 같은 Shape을 반환하는 모듈로 끝나지 않고, 실제로 다음 Token을 학습하고 한 개씩 생성할 수 있는지 확인하려고 했습니다. 작은 숫자 Vocabulary와 수열 하나를 사용해 Embedding → Causal 문맥 → LM Head → Target shift → Cross Entropy → Optimizer → 자기회귀 생성의 원인과 결과를 모두 눈으로 볼 수 있게 만들었습니다.</p><div class="learning-sequence">
+    <article class="learning-step"><span>질문 01</span><h3>Token ID 세 개는 모델 안에서 어떤 Tensor로 바뀌는가?</h3><p><strong>사용한 코드</strong> <code>Embedding(10,d_model)</code>·Position Embedding·<code>CausalTransformerBlock</code>·<code>Linear(d_model,10)</code></p><p><strong>확인할 이해</strong> 숫자 3·7·2는 차원이 아니라 ID이며, 각 ID가 벡터가 된 뒤에도 Token 위치 3개는 유지되고 LM Head가 위치마다 Vocabulary 점수 10개를 만듭니다.</p><a href="#forward">Forward Shape 보기 →</a></article>
+    <article class="learning-step"><span>질문 02</span><h3>수열 하나로 어떻게 세 개의 다음 Token 문제를 동시에 학습하는가?</h3><p><strong>사용한 코드</strong> <code>tokens[:, :-1]</code>·<code>tokens[:, 1:]</code>·Causal Mask</p><p><strong>확인할 이해</strong> Target shift와 미래 차단을 결합해 <code>[3]→7</code>, <code>[3,7]→2</code>, <code>[3,7,2]→9</code>를 한 Forward의 세 행으로 병렬 계산합니다.</p><a href="#target-shift">Target shift 보기 →</a></article>
+    <article class="learning-step"><span>질문 03</span><h3><code>[1,3,10]</code> 점수와 <code>[1,3]</code> Target은 어떻게 하나의 Loss가 되는가?</h3><p><strong>사용한 코드</strong> <code>reshape(-1,10)</code>·<code>reshape(-1)</code>·<code>CrossEntropyLoss(reduction="none")</code></p><p><strong>확인할 이해</strong> 각 점수 행에서 Target ID 열을 선택해 <code>-log softmax</code>로 채점하고, 위치별 Loss 세 개의 평균이 전체 학습을 이끄는 Scalar가 됩니다.</p><a href="#loss">Cross Entropy 실습 보기 →</a></article>
+    <article class="learning-step"><span>질문 04</span><h3>Loss가 내려가지 않을 때 학습 코드와 모델 표현력 중 무엇을 확인하는가?</h3><p><strong>사용한 코드</strong> <code>backward()</code>·Adam·300 step·<code>d_model=2</code>와 4 비교·Softmax 행 비교</p><p><strong>확인할 이해</strong> 잘못된 입력·Target 재사용을 먼저 제거하고, 같은 조건에서 작은 표현 공간의 Loss 정체와 차원 확장 후 과적합 성공을 실제 출력으로 비교합니다.</p><a href="#training">학습 실험 보기 →</a></article>
+    <article class="learning-step"><span>질문 05</span><h3>학습에서 만든 위치별 후보를 생성에서는 어떻게 한 Token씩 사용하는가?</h3><p><strong>사용한 코드</strong> <code>logits[:, -1, :]</code>·<code>argmax(...,keepdim=True)</code>·<code>torch.cat(dim=1)</code>·반복 Forward</p><p><strong>확인할 이해</strong> 현재 Prefix의 마지막 위치 후보만 골라 기존 ID 뒤에 붙이고 다시 입력해, 병렬로 학습한 관계를 생성 때는 <code>3→37→372→3729</code> 순서로 사용합니다.</p><a href="#generation">자기회귀 생성 보기 →</a></article>
+  </div></section>
+  <section id="boundary"><h2>1. 클래스를 만든 것과 Token을 실행한 것을 구분했습니다</h2><p><code>TinyDecoderLM</code>의 <code>__init__</code>에서 Token Embedding·Position Embedding·Transformer Block·LM Head를 등록하면 각 모듈의 Weight는 초기화됩니다. 그러나 Token ID가 모델을 통과한 것은 아닙니다. 실제 <code>model(input_tokens)</code> 호출이 일어나야 Embedding 조회부터 Logit 계산까지 Forward가 실행됩니다.</p><pre><code>클래스 정의
+→ 계산 규칙을 작성
+
+model = TinyDecoderLM(...)
+→ Embedding·Linear Weight를 가진 객체 생성
+
+logits, attention_weights = model(input_tokens)
+→ 실제 Token ID를 넣어 Forward 실행</code></pre><p>이 경계를 확인하면서 “리니어에는 초기값이 있지만 정작 Token 자체는 아직 들어가지 않았다”는 표현으로 모듈 준비와 데이터 실행을 구분했습니다.</p></section>
+  <section id="vocabulary"><h2>2. 숫자 ID 0~9가 이 실습의 작은 Vocabulary였습니다</h2><p>이 모델에는 문자열을 Token ID로 바꾸는 Tokenizer가 없습니다. <code>vocab_size=10</code>으로 정하고 <code>3,7,2,9</code>라는 정수 ID를 직접 넣었기 때문에 0~9가 곧 사용 가능한 Token 종류였습니다.</p><pre><code>token_embedding = nn.Embedding(10, d_model)
+
+Weight Shape = [10, d_model]
+0번 행 = Token ID 0의 벡터
+1번 행 = Token ID 1의 벡터
+...
+9번 행 = Token ID 9의 벡터</code></pre><p>Token ID는 벡터가 아니라 조회 주소입니다. <code>self.token_embedding(input_tokens)</code>이 ID 개수만큼 해당 행의 벡터를 가져옵니다. <code>d_model</code>은 Token 하나에 저장할 특징 수이고, <code>vocab_size</code>는 이런 행을 몇 개 둘지 정합니다. 따라서 ID 10·11을 넣으면 <code>[10,d_model]</code> 표에 없는 행을 조회해 오류가 납니다.</p><p>나중에 실제 문자열 단어장을 연결하면 Tokenizer의 ID 체계, Embedding 행 수, LM Head가 출력하는 Vocabulary 열 수가 모두 맞아야 합니다. Tiny 실습은 문자열 단어장 대신 숫자 ID로 이 계약의 모델 쪽만 먼저 검증한 것입니다.</p></section>
+  <section id="forward"><h2>3. Forward는 Token 위치를 유지한 채 마지막 축만 바꿉니다</h2><pre><code>input_tokens              [1,3]
+Token Embedding           [1,3,4]
+Position Embedding        [1,3,4]
+두 Embedding의 합          [1,3,4]
+Causal Transformer Block  [1,3,4]
+LM Head                   [1,3,10]
+Attention Weights         [1,2,3,3]</code></pre><p><code>[1,3,10]</code>은 문장 1개, Token 위치 3개, 위치마다 Vocabulary 후보 10개의 점수입니다. LM Head는 Attention 결과를 하나의 Token으로 합치는 층이 아닙니다. 각 위치의 문맥 벡터 <code>D=4</code>에 같은 <code>Linear(4,10)</code>을 적용해 위치별 후보 점수 행을 만듭니다.</p><pre><code>한 Batch에서 보면
+Block Output [S,D] = [3,4]
+계산 방향의 LM Head Weight [D,V] = [4,10]
+
+[3,4] @ [4,10] = [3,10]</code></pre></section>
+  <section id="meaning"><h2>4. 한 수열에서 세 문제를 병렬 학습합니다</h2><pre><code>original_tokens = [3, 7, 2, 9]
+
+input_tokens = [3, 7, 2]
+targets      = [7, 2, 9]
+
+위치 0: [3]       → 7
+위치 1: [3, 7]    → 2
+위치 2: [3, 7, 2] → 9</code></pre><p><code>logits [1,3,10]</code>은 문장 세 개가 아닙니다. 한 문장의 세 Token 위치마다 Vocabulary 10개의 다음 Token 후보 점수를 만든 것입니다. Causal Mask 때문에 각 위치의 Hidden State는 자기 위치까지의 Prefix만 반영합니다.</p></section>
+  <section id="target-shift"><h2>5. 두 Slice가 입력과 정답을 한 칸 어긋나게 만듭니다</h2><p><code>:</code>는 Batch의 모든 행, <code>:-1</code>은 처음부터 마지막 열 전까지, <code>1:</code>은 index 1부터 마지막까지를 뜻합니다. 원본의 같은 길이에서 시작하지만 입력은 마지막 Token을 버리고 Target은 첫 Token을 버립니다.</p><pre><code>original_tokens = [
+  [3,7,2,9],
+  [4,1,6,8],
+]
+
+input_tokens = original_tokens[:, :-1]
+→ [[3,7,2],
+   [4,1,6]]       Shape [2,3]
+
+targets = original_tokens[:, 1:]
+→ [[7,2,9],
+   [1,6,8]]       Shape [2,3]</code></pre><p>첫 행의 입력·Target을 위치끼리 짝지으면 <code>3→7</code>, <code>7 위치의 문맥→2</code>, <code>2 위치의 문맥→9</code>가 됩니다. Causal Mask가 각 위치의 미래를 가리므로 실제 문맥은 <code>[3]</code>, <code>[3,7]</code>, <code>[3,7,2]</code>입니다. 이 때문에 수열 하나로 여러 다음 Token 문제를 한 Forward에서 병렬 계산할 수 있습니다.</p></section>
+  <section id="model"><h2>6. Tiny Decoder LM 조립 코드</h2><pre><code>class TinyDecoderLM(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        max_seq_len: int,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+    ) -&gt; None:
+        super().__init__()
+        self.token_embedding = nn.Embedding(vocab_size, d_model)
+        self.position_embedding = nn.Embedding(max_seq_len, d_model)
+        self.block = CausalTransformerBlock(d_model, num_heads, d_ff)
+        self.lm_head = nn.Linear(d_model, vocab_size)
+
+    def forward(
+        self,
+        input_tokens: torch.Tensor,
+    ) -&gt; tuple[torch.Tensor, torch.Tensor]:
+        batch_size, token_count = input_tokens.shape
+        positions = torch.arange(
+            token_count, device=input_tokens.device
+        ).unsqueeze(0).expand(batch_size, token_count)
+        hidden_states = (
+            self.token_embedding(input_tokens)
+            + self.position_embedding(positions)
+        )
+        block_output, attention_weights = self.block(hidden_states)
+        logits = self.lm_head(block_output)
+        return logits, attention_weights</code></pre><p>위치 ID는 <code>[0,1,2]</code>를 Batch 수만큼 확장하고, Token Embedding과 같은 Shape에서 원소별로 더합니다. Transformer Block은 위치별 Prefix 문맥을 만들고 LM Head가 각 위치의 마지막 축만 Vocabulary 점수로 바꿉니다.</p></section>
+  <section id="loss"><h2>7. Cross Entropy는 행마다 Target 열 하나를 채점합니다</h2><pre><code>original_tokens = torch.tensor([[3, 7, 2, 9]])
+input_tokens = original_tokens[:, :-1]  # [[3, 7, 2]]
+targets = original_tokens[:, 1:]        # [[7, 2, 9]]
+
+logits, _ = model(input_tokens)         # [1, 3, 10]
+flat_logits = logits.reshape(-1, 10)    # [3, 10]
+flat_targets = targets.reshape(-1)      # [3]
+
+loss_fn = nn.CrossEntropyLoss()
+loss = loss_fn(flat_logits, flat_targets)</code></pre><p><code>reshape(-1,10)</code>의 <code>-1</code>은 Batch×Token 행 수를 전체 원소 수에 맞춰 자동 계산하라는 뜻입니다. 따라서 <code>[1,3,10]→[3,10]</code>이 되고, Target의 <code>reshape(-1)</code>은 <code>[1,3]→[3]</code>으로 펼칩니다. 왼쪽의 각 점수 행과 오른쪽의 Token ID 하나가 같은 행 번호로 짝지어집니다.</p><pre><code>점수 행 0 [Token 0~9의 Logit] + Target 7
+점수 행 1 [Token 0~9의 Logit] + Target 2
+점수 행 2 [Token 0~9의 Logit] + Target 9
+
+각 행:
+Logit → Softmax → Target ID 칸 선택 → -log
+세 Token Loss → mean → 한 개의 평균 Loss</code></pre><p>Target은 모델에 정답을 미리 알려 점수를 올려주는 입력이 아닙니다. 이미 나온 점수표에서 어느 열을 채점할지 지정하는 index입니다. Accuracy는 가장 큰 점수의 index가 Target과 같은지만 보지만 Cross Entropy는 Target 칸이 다른 후보보다 얼마나 강한지까지 연속적인 벌점으로 계산합니다.</p><pre><code># 원리를 확인하려고 세 행의 Logit을 직접 만들었던 예
+three_position_logits = torch.zeros(3, 10)
+three_position_logits[0, 7] = 2.0
+three_position_logits[1, 2] = 1.0
+three_position_logits[2, 9] = 3.0
+three_targets = torch.tensor([7, 2, 9])
+
+loss_fn = nn.CrossEntropyLoss(reduction="none")
+token_losses = loss_fn(three_position_logits, three_targets)
+
+# 위치별 Loss: [0.7966, 1.4612, 0.3702]
+# 평균 Loss: 0.8760</code></pre><p>첫 행에서 7번 칸을 2.0으로 높였어도 다른 아홉 칸도 Softmax 분모에 참여하므로 Loss가 바로 0이 되지 않습니다. <code>reduction="none"</code>은 위치별 Loss 세 개를 보여 주고, 기본 설정은 이 값들의 평균 하나를 반환합니다.</p></section>
+  <section id="gradients"><h2>8. 평균 Loss 하나가 모델 전체를 조정했습니다</h2><p>세 위치 Loss의 평균에서 <code>backward()</code>를 호출하면 LM Head만 바뀌는 것이 아닙니다. 별도로 고정하지 않은 Token Embedding·Position Embedding·QKV와 Output Projection·FFN·LayerNorm까지 Loss에 연결된 모든 학습 파라미터로 Gradient가 전달됩니다.</p><pre><code>평균 Token Loss
+  ↓ backward()
+LM Head
+Transformer Block
+Position Embedding
+Token Embedding
+  ↓ optimizer.step()
+각 Weight가 다음 Token Target 쪽 Loss를 줄이는 방향으로 수정</code></pre><p>학습에서 위치 3개를 한꺼번에 채점하는 이유는 Causal Mask 덕분에 각 행이 서로 다른 길이의 Prefix 문제이기 때문입니다. 세 문제를 순차로 세 번 Forward한 것이 아니라 하나의 Tensor 연산으로 병렬 계산하고 평균 Loss로 한 번 수정했습니다.</p></section>
+  <section id="training"><h2>9. Loss 정체를 진단하고 모델 용량을 바꾼 학습</h2><pre><code>model = TinyDecoderLM(
+    vocab_size=10,
+    max_seq_len=8,
+    d_model=4,
+    num_heads=2,
+    d_ff=16,
+)
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
+
+for step in range(300):
+    optimizer.zero_grad()
+    logits, _ = model(input_tokens)
+    loss = loss_fn(logits.reshape(-1, 10), targets.reshape(-1))
+    loss.backward()
+    optimizer.step()</code></pre><pre><code>d_model=2 저장 실행:
+1 step 2.5403 → 300 step 0.462389 정체
+
+새 d_model=4 모델:
+1 step 6.6828 → 50 step 0.00000334
+→ 300 step 0.00000258</code></pre><p>이 결과는 “차원이 크면 항상 좋다”는 일반 결론이 아니라, 이 작은 구조와 학습 조건에서 <code>d_model=2</code>가 세 Prefix를 구분하는 데 부족했고 <code>d_model=4</code>로 표현 공간을 늘리자 작은 데이터를 암기할 수 있었다는 실험 결과입니다.</p></section>
+  <section id="generation"><h2>10. 마지막 위치만 사용한 자기회귀 생성</h2><pre><code>generated_tokens = torch.tensor([[3]])
+
+for step in range(3):
+    with torch.no_grad():
+        logits, _ = model(generated_tokens)
+    last_position_logits = logits[:, -1, :]
+    next_token = last_position_logits.argmax(dim=-1, keepdim=True)
+    generated_tokens = torch.cat(
+        [generated_tokens, next_token],
+        dim=1,
+    )
+    print(generated_tokens)
+
+# [[3, 7]]
+# [[3, 7, 2]]
+# [[3, 7, 2, 9]]</code></pre><p><code>logits[:, -1, :]</code>은 모든 Batch에서 마지막 Token 위치의 Vocabulary 점수 전체를 가져와 <code>[B,T,V]→[B,V]</code>로 만듭니다. 이 마지막 행은 새 Token 자체가 아니라 현재 Prefix 전체를 반영한 마지막 위치의 문맥에서 계산한 “다음 Token 후보 점수”입니다.</p><p><code>argmax(dim=-1, keepdim=True)</code>는 최댓값이 있던 Vocabulary index를 반환하고 <code>[B,1]</code> Shape을 유지합니다. <code>torch.cat([generated_tokens,next_token],dim=1)</code>은 <code>[B,T]</code>의 Token 축에 새 ID 열을 붙입니다. 현재 2차원 ID Tensor에서는 <code>dim=1</code>과 <code>dim=-1</code>이 같은 축이지만, <code>dim=1</code>은 “Token 축”이라는 역할을 명확히 보여줍니다.</p><pre><code>학습: 한 Forward에서 병렬
+[3]       → 7
+[3,7]     → 2
+[3,7,2]   → 9
+
+생성: 마지막 결과를 다시 입력에 붙여 순차 실행
+[3] → [3,7] → [3,7,2] → [3,7,2,9]</code></pre></section>
+  <section id="corrections"><h2>11. 막혔던 지점과 수정</h2><div class="status-list"><div class="status-row"><strong><code>super</code>·<code>shape</code>·<code>arange</code> 오타</strong><span>부모 초기화와 Tensor API 이름을 고쳐 클래스 생성과 Forward를 재실행했습니다.</span></div><div class="status-row"><strong>[1,3,10] 혼동</strong><span>1=Batch, 3=한 문장의 Token 위치, 10=각 위치의 Vocabulary 후보 점수로 다시 구분했습니다.</span></div><div class="status-row"><strong>오래된 Tensor 재사용</strong><span>이전 셀의 <code>targets</code>를 전제로 설명하면 입력 계약을 놓치기 쉬워, 연습 셀마다 원본·입력·Target을 다시 선언하는 규칙을 만들었습니다.</span></div><div class="status-row"><strong>입력·Target 재사용 오류</strong><span>입력을 실수로 <code>[7,2,9]</code>로 두고 Target도 같은 값을 재사용해 Loss가 작아도 <code>3722</code>가 나왔습니다. 학습 셀에서 입력 <code>[3,7,2]</code>와 Target <code>[7,2,9]</code>을 다시 선언해 <code>3729</code>를 복원했습니다.</span></div><div class="status-row"><strong>3→729가 아님</strong><span>전체 수열을 하나의 입출력으로 외운 것이 아니라 3→7, 37→2, 372→9를 위치별로 병렬 학습한 구조임을 확인했습니다.</span></div><div class="status-row"><strong>마지막 Logit 선택</strong><span>4번째 Token 벡터가 미리 생긴 것이 아니라, 3번째 위치의 문맥 벡터를 LM Head가 다음 Token 후보 점수로 학습한 결과입니다.</span></div><div class="status-row"><strong>저장 Source와 cached output</strong><span>화면에서 수정한 코드·디스크 저장본·이전 실행 출력이 서로 다른 시점일 수 있으므로 최종 Source와 Output을 함께 확인하고 재실행했습니다.</span></div></div></section>
+  <section id="evidence"><h2>12. 완료 증거와 이 결과가 뜻하지 않는 것</h2><ul><li><code>[1,3]→[1,3,D]→[1,3,10]</code> 전체 Forward와 Attention Weight <code>[1,2,3,3]</code>을 실행했습니다.</li><li>Target shift를 2-Batch 예제로 다시 구성하고 세 Prefix 문제가 한 Forward에서 병렬 학습된다고 설명했습니다.</li><li><code>d_model=2</code>의 Loss 정체와 <code>d_model=4</code>의 Loss <code>0.001</code> 미만을 새 커널에서도 비교했습니다.</li><li>잘못된 학습 쌍을 고쳐 <code>[3]→[3,7]→[3,7,2]→[3,7,2,9]</code> 생성을 재현했습니다.</li></ul><div class="warning"><strong>한계</strong><br>Vocabulary는 실제 문자열 단어장이 아니라 0~9의 Token ID였고 데이터도 한 수열뿐입니다. Seed도 고정하지 않아 세부 Loss는 실행마다 달라질 수 있습니다. 일반적인 언어 능력이 아니라 Decoder의 Embedding·Causal 문맥·LM Head·Target shift·Cross Entropy·자기회귀 생성 연결이 실제로 작동함을 검증한 결과입니다.</div></section>
+  <footer class="footer">Road to LLM inference · Milestone 04 · Tiny Decoder LM</footer>
+</main><script src="../../../assets/js/global_nav.js?v=20260829-toc-height-1"></script></body></html>

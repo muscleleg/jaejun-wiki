@@ -137,25 +137,12 @@ const [manifest, graph, homeContent, learningState, codingTestState, homeHtml, t
 
 const homeProjects = staticRegion(homeHtml, "home-projects");
 const homeKnowledge = staticRegion(homeHtml, "home-knowledge");
-const homeCoaching = staticRegion(homeHtml, "home-coaching");
 assertSetEqual(valuesForAttribute(homeProjects, "href"), homeContent.featuredProjects.map((item) => item.href), "Home projects");
 assertSetEqual(valuesForAttribute(homeKnowledge, "href"), homeContent.knowledgeAreas.map((item) => item.href), "Home knowledge areas");
 assertEqual(valuesForAttribute(homeKnowledge, "href").join("|"), homeContent.knowledgeAreas.map((item) => item.href).join("|"), "Home knowledge area order");
-assertEqual((homeCoaching.match(/class=["']status-row["']/g) || []).length, 5, "Home coaching rows");
 assertEqual(textById(homeHtml, "wikiDocumentCount"), `${manifest.documentCount}개 기술 문서`, "Home wiki document count");
-assertEqual(textById(homeHtml, "currentLearning"), learningState.rotation.next, "Home current learning");
-assertEqual(textById(homeHtml, "currentNextAction"), learningState.rotation.after, "Home next action");
 if (typeof learningState.recentCompletion !== "string" || !learningState.recentCompletion.trim()) {
   throw new Error("Learning-state recentCompletion must be a non-empty string");
-}
-for (const value of [
-  learningState.coaching.recentEvidence,
-  learningState.coaching.diagnosis,
-  learningState.coaching.warning,
-  learningState.coaching.completionGate,
-  learningState.coaching.scheduledRotation,
-]) {
-  if (!normalizeText(homeCoaching).includes(normalizeText(value))) throw new Error(`Home coaching value is missing: ${value}`);
 }
 assertEqual(
   learningState.overall.done,
@@ -382,16 +369,25 @@ for (const entry of recordEntries) {
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
-function assertJourneyMatches(region, journey, label) {
+function assertJourneyMatches(region, journey, label, presentation = {}) {
+  const expectedTitle = presentation.title || journey.title;
+  const expectedSummary = presentation.summary || journey.summary;
+  const expectedFinalOutcome = presentation.finalOutcome || journey.finalOutcome;
   const heading = normalizeText(region.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] || "");
   const summary = normalizeText(region.match(/<div\b[^>]*class=["'][^"']*journey-heading[^"']*["'][^>]*>[\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "");
-  assertEqual(heading, journey.title, `${label} title`);
-  assertEqual(summary, journey.summary, `${label} summary`);
-  if (!normalizeText(region).includes(normalizeText(journey.finalOutcome))) throw new Error(`${label} final outcome is missing`);
+  assertEqual(heading, expectedTitle, `${label} title`);
+  assertEqual(summary, expectedSummary, `${label} summary`);
+  if (presentation.interactionHint && !normalizeText(region).includes(normalizeText(presentation.interactionHint))) {
+    throw new Error(`${label} interaction hint is missing`);
+  }
+  if (!normalizeText(region).includes(normalizeText(expectedFinalOutcome))) throw new Error(`${label} final outcome is missing`);
 
   const actualIds = valuesForAttribute(region, "data-milestone-id");
   const expectedIds = journey.milestones.map((milestone) => milestone.id);
   assertEqual(actualIds.join("|"), expectedIds.join("|"), `${label} milestone order`);
+  assertEqual(new Set(actualIds).size, actualIds.length, `${label} unique milestone IDs`);
+  assertEqual(journey.milestones.filter((milestone) => milestone.status === "current").length, 1, `${label} state current count`);
+  assertEqual(journey.milestones.find((milestone) => milestone.status === "current")?.id, journey.currentId, `${label} currentId`);
   assertEqual((region.match(/aria-current=["']step["']/g) || []).length, 1, `${label} current marker count`);
 
   for (const milestone of journey.milestones) {
@@ -408,13 +404,50 @@ function assertJourneyMatches(region, journey, label) {
     assertEqual(textByClass(block.content, "journey-status"), milestone.statusLabel, `${label} status ${milestone.id}`);
     if (!normalizeText(block.content).includes(normalizeText(milestone.goal))) throw new Error(`${label} goal is missing: ${milestone.id}`);
     if (!normalizeText(block.content).includes(normalizeText(milestone.evidence))) throw new Error(`${label} evidence is missing: ${milestone.id}`);
-    assertEqual(valuesForAttribute(block.content, "href").join("|"), milestone.href, `${label} href ${milestone.id}`);
+    const expectedDetailHrefs = milestone.practiceHref ? [milestone.practiceHref] : [];
+    assertEqual(valuesForAttribute(block.content, "href").join("|"), expectedDetailHrefs.join("|"), `${label} practice href ${milestone.id}`);
   }
 }
 
+if (!homeHtml.includes('assets/js/learning_journey.js')) throw new Error("Home learning-journey interaction script is missing");
+if (!homeHtml.includes('assets/js/home_projects.js')) throw new Error("Home project horizontal-rail interaction script is missing");
+for (const id of ["featuredProjectGrid", "projectRailStatus", "projectRailPrevious", "projectRailNext"]) {
+  if (!homeHtml.includes(`id="${id}"`)) throw new Error(`Home project horizontal-rail control is missing: ${id}`);
+}
+const homeLearningJourney = staticRegion(homeHtml, "home-learning-journey");
+assertJourneyMatches(homeLearningJourney, learningState.journey, "Home learning journey", learningState.journey.homePresentation);
+if (!/<section\b[^>]*id=["']now-learning["'][\s\S]*?<\/section>\s*<section\b[^>]*id=["']projects["']/i.test(homeHtml)) {
+  throw new Error("Home learning journey must be the section immediately before personal projects");
+}
+if (homeHtml.includes('id="codingTestJourney"')) throw new Error("Coding-test journey must not be rendered on the home page");
+if (/\bid=["'](?:recentCompletion|currentLearning|currentNextAction|coachingStatus)["']/i.test(homeHtml)) {
+  throw new Error("Legacy current-learning summary must not duplicate the home journey");
+}
 if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
 const learningJourney = staticRegion(historyHtml, "learning-journey");
 assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
+
+for (const milestone of learningState.journey.milestones) {
+  const needsPracticeDocument = milestone.status === "complete" || milestone.status === "current";
+  if (needsPracticeDocument && !milestone.practiceHref) {
+    throw new Error(`Practice document is required for active evidence: ${milestone.id}`);
+  }
+  if (!needsPracticeDocument && milestone.practiceHref) {
+    throw new Error(`Upcoming milestone must not publish an empty practice document: ${milestone.id}`);
+  }
+  if (!milestone.practiceHref) continue;
+  if (!manifest.documents.some((entry) => entry.href === milestone.practiceHref.split("#")[0])) {
+    throw new Error(`Practice document is missing from the knowledge manifest: ${milestone.id}`);
+  }
+  const practicePath = resolve(wikiRoot, milestone.practiceHref.split("#")[0]);
+  const practiceHtml = await readFile(practicePath, "utf8");
+  if (!practiceHtml.includes(`data-learning-milestone="${milestone.id}"`)) {
+    throw new Error(`Practice document milestone ID mismatch: ${milestone.id}`);
+  }
+  if (!practiceHtml.includes(`data-milestone-status="${milestone.status}"`)) {
+    throw new Error(`Practice document status mismatch: ${milestone.id}`);
+  }
+}
 const deferredLearning = staticRegion(historyHtml, "deferred-learning-items");
 for (const expectedText of [
   learningState.deferredLearningItems.policy.reviewWhen,
@@ -462,8 +495,6 @@ assertEqual(
   formatDuration(sessionDates.map((entry) => entry.duration).filter(Boolean)),
   "Recorded study-time total",
 );
-assertEqual(textById(homeHtml, "recentCompletion"), learningState.recentCompletion, "Home recent completion");
-
 console.log(
   `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} codingProblems=${completedProblemHrefs.length} codingAttemptNotes=${attemptNoteHrefs.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
 );

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="같은 사전학습 Causal LM에서 No-cache와 KV Cache 생성, Batch 추론과 측정 조건을 비교하는 PyTorch 추론 Baseline 관문 기록">
+  <title>PyTorch 추론 Baseline · Road to LLM inference</title>
+  <link rel="stylesheet" href="../../../assets/css/portal.css?v=20260825-working-style-flat">
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PyTorch 추론 Baseline · Road to LLM inference">
+  <meta property="og:description" content="같은 사전학습 Causal LM에서 No-cache와 KV Cache 생성, Batch 추론과 측정 조건을 비교하는 PyTorch 추론 Baseline 관문 기록">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html","name":"PyTorch 추론 Baseline · Road to LLM inference","description":"같은 사전학습 Causal LM에서 No-cache와 KV Cache 생성, Batch 추론과 측정 조건을 비교하는 PyTorch 추론 Baseline 관문 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html"},"headline":"PyTorch 추론 Baseline · Road to LLM inference"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"Road to LLM inference","item":"https://muscleleg.github.io/jaejun-wiki/#now-learning"},{"@type":"ListItem","position":3,"name":"PyTorch 추론 Baseline"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference journey-artifact">
+<main class="wrap" data-learning-milestone="pytorch-inference" data-milestone-status="current">
+  <nav class="breadcrumb" aria-label="문서 경로">
+    <a href="../../../index.html">⌂ 홈</a><span class="separator">›</span>
+    <a href="../../../index.html#now-learning">Road to LLM inference</a><span class="separator">›</span>
+    <span aria-current="page">PyTorch 추론 Baseline</span>
+  </nav>
+
+  <header class="hero">
+    <span class="eyebrow">Milestone 06 · current</span>
+    <h1>같은 모델의 추론을<br>No-cache와 KV Cache로 비교하기</h1>
+    <p class="summary">사전학습 Causal LM에서 직접 만든 생성 루프를 기준선으로 삼아, 이미 계산한 Key·Value를 재사용할 때 계산 범위·Tensor Shape·Latency가 어떻게 달라지는지 확인합니다.</p>
+    <div class="stats">
+      <div class="stat">상태<strong>진행 중</strong></div>
+      <div class="stat">현재 행동<strong>No-cache 기준선</strong></div>
+      <div class="stat">후속 비교<strong>KV Cache</strong></div>
+      <div class="stat">환경<strong>로컬 → RunPod</strong></div>
+    </div>
+  </header>
+
+  <nav aria-label="문서 목차">
+    <a href="#purpose">학습 목적</a>
+    <a href="#contract">비교 조건</a>
+    <a href="#no-cache">No-cache</a>
+    <a href="#kv-cache">KV Cache</a>
+    <a href="#batch">Batch 추론</a>
+    <a href="#evidence">완료 증거</a>
+  </nav>
+
+  <section id="purpose">
+    <h2>1. 이 관문에서 알고자 하는 것</h2>
+    <p>수동 생성에서 매 Step마다 전체 Prefix를 다시 모델에 넣으면 이전 Token의 Attention Key·Value도 반복 계산합니다. 먼저 이 동작을 그대로 계측해 기준선을 만들고, 이어 <code>past_key_values</code>를 다음 Forward에 전달해 새 Token에 필요한 계산만 수행하는 흐름과 비교합니다.</p>
+    <div class="callout"><strong>현재의 가장 작은 다음 행동</strong><br>같은 tiny GPT-2, 같은 Prompt, 같은 생성 Token 수로 Cache를 쓰지 않는 Greedy 반복 생성의 입력 Shape과 Step별 시간을 기록합니다.</div>
+  </section>
+
+  <section id="contract">
+    <h2>2. 비교 조건을 먼저 고정합니다</h2>
+    <div class="status-list">
+      <div class="status-row"><strong>고정할 값</strong><span>Model·dtype·Device·Prompt Token 수·생성 Token 수·선택 방식·Seed·Warm-up 횟수를 동일하게 둡니다.</span></div>
+      <div class="status-row"><strong>기록할 값</strong><span>Step별 입력 Shape, 전체 생성 시간, Token당 시간, 출력 Token ID, Cache 사용 시 Layer별 Key·Value Shape을 기록합니다.</span></div>
+      <div class="status-row"><strong>해석 기준</strong><span>출력이 같은지 먼저 확인한 뒤 속도 차이를 비교합니다. Cache 외의 조건이 함께 바뀌면 성능 차이의 원인을 Cache라고 단정하지 않습니다.</span></div>
+    </div>
+  </section>
+
+  <section id="no-cache">
+    <h2>3. No-cache 기준선</h2>
+    <p>현재 사전학습 Causal LM 관문에서 작성한 <code>전체 입력 → 마지막 위치 Logit → 다음 Token ID → 입력 뒤 연결</code> 루프를 그대로 재사용합니다. 생성할 때마다 Prefix 길이가 하나씩 늘고 모델에는 전체 Prefix가 다시 들어갑니다.</p>
+    <div class="warning"><strong>아직 검증 전</strong><br>이 문서는 새 관문의 시작점입니다. 실제 Step별 Shape·시간·출력은 노트북 실행을 확인한 뒤 추가합니다.</div>
+  </section>
+
+  <section id="kv-cache">
+    <h2>4. KV Cache 비교</h2>
+    <p>No-cache 기준선을 얻은 뒤 첫 Forward가 반환한 <code>past_key_values</code>를 보존하고, 다음 Step부터는 새 Token ID 하나와 이전 Cache를 전달합니다. Sequence 축에 과거 Key·Value가 누적되는 Shape과 모델 입력 길이의 차이를 직접 확인합니다.</p>
+  </section>
+
+  <section id="batch">
+    <h2>5. Batch 1과 Batch N</h2>
+    <p>단일 문장의 Cache 흐름을 확인한 다음 길이가 다른 여러 문장을 Batch로 묶습니다. Padding 위치, 문장별 종료 조건, Batch별 Cache Shape과 실제 처리량을 분리해 기록합니다.</p>
+  </section>
+
+  <section id="evidence">
+    <h2>6. 완료 증거</h2>
+    <ul>
+      <li class="todo">○ 같은 입력에서 No-cache와 KV Cache의 출력 Token ID가 일치합니다.</li>
+      <li class="todo">○ 두 방식의 Step별 입력 Shape과 <code>past_key_values</code> Shape을 설명합니다.</li>
+      <li class="todo">○ 조건을 고정한 Latency와 Token당 시간을 비교합니다.</li>
+      <li class="todo">○ Batch 1과 Batch N에서 처리량·메모리 차이를 기록합니다.</li>
+      <li class="todo">○ Model·dtype·Token 길이·장치·Warm-up·측정 경계를 함께 남깁니다.</li>
+    </ul>
+  </section>
+
+  <footer class="footer">Road to LLM inference · Milestone 06 · PyTorch 추론 Baseline</footer>
+</main>
+<script src="../../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>

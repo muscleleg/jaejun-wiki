@@ -123,7 +123,7 @@
         node("Scaled Dot-Product Attention", "attention", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html", children: [node("Score", "attention-score", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" }), node("Scaling", "attention-scaling", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" }), node("Mask·Softmax", "mask-softmax", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" }), node("Value 가중합", "value-weighted-sum", { status: "verified", href: "wiki/transformer/transformer_attention_math_learning.html" })] }),
         node("Multi-Head Attention", "multi-head-attention", { status: "verified", href: "wiki/transformer/transformer_multi_head_attention_learning.html", children: [node("Head 분리·병합", "head-split-merge", { status: "verified", href: "wiki/transformer/transformer_multi_head_attention_learning.html" }), node("Output Projection", "output-projection", { status: "verified", href: "wiki/transformer/transformer_multi_head_attention_learning.html" })] }),
         node("Transformer Block", "transformer-block", { status: "verified", children: [node("Residual", "residual", { status: "verified", href: "wiki/transformer/transformer_residual_learning.html" }), node("LayerNorm", "layer-norm", { status: "verified", href: "wiki/transformer/transformer_layer_norm_learning.html" }), node("FFN", "ffn", { status: "verified", href: "wiki/transformer/transformer_ffn_learning.html" })] }),
-        node("Tiny Decoder LM", "tiny-decoder-lm", { status: "learning", href: "roadmaps/roadmap_transformer.html", children: [node("Target shift", "target-shift", { status: "reference" }), node("Token Loss", "token-loss", { status: "reference" }), node("작은 생성", "generation", { status: "reference" })] }),
+        node("Tiny Decoder LM", "tiny-decoder-lm", { status: "verified", href: "roadmaps/roadmap_transformer.html", children: [node("Target shift", "target-shift", { status: "verified" }), node("Token Loss", "token-loss", { status: "verified" }), node("작은 생성", "generation", { status: "verified" })] }),
       ] }),
     },
     {
@@ -131,6 +131,14 @@
       label: "프로젝트별",
       description: "프로젝트의 구체적인 파일과 일반 개념 문서를 함께 오가며 실행 맥락을 복원합니다.",
       tree: node("개인 프로젝트", "personal-projects", { status: "reference", href: "wiki.html#projects", children: [
+        node("Road to LLM inference", "road-to-llm-inference", { status: "learning", href: "learning_history.html#learningJourney", children: [
+          node("Machine Learning Baseline", "baseline", { status: "verified", href: "wiki/projects/road-to-llm-inference/ml-baseline.html" }),
+          node("PyTorch 학습·평가", "training-loop", { status: "verified", href: "wiki/projects/road-to-llm-inference/pytorch-training.html" }),
+          node("Transformer 핵심 손코딩", "transformer-block", { status: "verified", href: "wiki/projects/road-to-llm-inference/transformer-core.html" }),
+          node("Tiny Decoder LM", "tiny-decoder-lm", { status: "verified", href: "wiki/projects/road-to-llm-inference/tiny-decoder-lm.html" }),
+          node("사전학습 Causal LM 적용", "pretrained-causal-lm", { status: "verified", href: "wiki/projects/road-to-llm-inference/pretrained-causal-lm.html" }),
+          node("PyTorch 추론 Baseline", "pytorch-inference", { status: "learning", href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog" }),
+        ] }),
         node("Kubernetes 운영 관측 AI", "k8s-ai-observability-project", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html", children: [
           node("Metrics·Logs·Events", "observability-data", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#features", children: [node("Kubernetes", "kubernetes", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#architecture" }), node("근거 데이터", "evidence", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#contract" })] }),
           node("LangGraph 분석", "agent-loop", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#architecture", children: [node("직접 신호·추론 분리", "evidence-contract", { status: "reference", href: "wiki/projects/kubernetes-ai-observability.html#contract" }), node("Agentic Loop", "agent-loop", { status: "reference", href: "wiki/external-articles/loop_engineering_agentic_loop_learning.html" })] }),
@@ -159,15 +167,23 @@
           node("OpenStack 범용 역량 로드맵", "openstack-roadmap", { status: "reference", href: "roadmaps/roadmap_openstack.html", children: [node("사용·구조·설계", "openstack-generalist-design", { status: "learning", href: "roadmaps/roadmap_openstack.html" }), node("배포·운영·진단", "openstack-generalist-operations", { status: "learning", href: "roadmaps/roadmap_openstack.html" })] }),
         ] }),
         node("개인화 학습 코치 위키", "adaptive-learning-coach-project", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html", children: [
-          node("개인화 학습 순환", "wiki-personal-learning-loop", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-loop", children: [
-            node("검증된 학습 기억", "wiki-learning-memory", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-memory" }),
-            node("학습 백로그·재등장", "wiki-learning-backlog-priority", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-backlog" }),
-            node("상태 기반 코칭", "wiki-adaptive-coaching", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#adaptive-coaching" }),
+          node("코딩 에이전트 학습 순환", "wiki-personal-learning-loop", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-loop", children: [
+            node("자동 학습 기록과 보류 목록", "wiki-learning-memory", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-memory" }),
+            node("로드맵 기반 우선순위와 다음 행동", "wiki-learning-backlog-priority", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-backlog" }),
+            node("로드맵·학습 기록 기반 코칭", "wiki-adaptive-coaching", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#adaptive-coaching" }),
           ] }),
           node("문서 계층·검색", "wiki-document-hierarchy", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#document-discovery" }),
           node("다중 관점 지식 지도", "wiki-knowledge-map", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#knowledge-map" }),
-          node("정적·기계 판독 빌드", "wiki-static-build", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#static-build" }),
+          node("정적·기계 판독 빌드", "wiki-static-build", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#system-architecture" }),
           node("검증 파이프라인", "wiki-validation-pipeline", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#validation" }),
+        ] }),
+        node("개인화 헬스 기록 코치", "personal-health-coach-project", { status: "reference", href: "wiki/projects/personal-health-coach.html", children: [
+          node("대화형 날짜 기록", "health-dated-records", { status: "reference", href: "wiki/projects/personal-health-coach.html#daily-records" }),
+          node("사실·규칙·해석 분리", "health-evidence-boundary", { status: "reference", href: "wiki/projects/personal-health-coach.html#data-design" }),
+          node("운동 증량 판정", "health-progression-policy", { status: "reference", href: "wiki/projects/personal-health-coach.html#workout-history" }),
+          node("근육 자극 지도", "health-muscle-map", { status: "reference", href: "wiki/projects/personal-health-coach.html#muscle-map" }),
+          node("영양 범위 추정", "health-nutrition-estimation", { status: "reference", href: "wiki/projects/personal-health-coach.html#nutrition-analysis" }),
+          node("개인정보·의료 한계", "health-public-safety", { status: "reference", href: "wiki/projects/personal-health-coach.html#status-limits" }),
         ] }),
       ] }),
     },

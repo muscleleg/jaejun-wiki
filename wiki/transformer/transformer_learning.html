@@ -651,6 +651,58 @@ log_probs[2, 9]  # 위치 2의 정답 Token 9
 token_losses = -선택한 log-softmax 값
 mean_loss = token_losses.mean()</code></pre>
         <p>직접 만든 고정 Logit에서는 <code>reduction="none"</code>으로 위치별 Loss <code>[0.7966, 1.4612, 0.3702]</code>, Shape <code>[3]</code>을 얻었고, 이를 평균내 <code>0.8760</code>을 확인했습니다. <code>nn.CrossEntropyLoss()</code>의 기본 <code>reduction="mean"</code>은 같은 원리로 모든 위치 Loss를 평균한 scalar 하나를 반환합니다.</p>
+
+        <h4 id="cross-entropy-one-hot-mse">MSE와 Cross Entropy를 섞어 기억했을 때 다시 구분하는 법</h4>
+        <p>이 계산을 복습할 때 “정답을 <code>1</code>로 두고 출력과 뺀 뒤 제곱하는가?”라는 혼동이 생겼습니다. 그 식은 <strong>MSE(평균 제곱 오차)</strong>의 위치별 계산 <code>(출력-정답)²</code>입니다. 여러 후보 중 정답 Token 하나를 채점하는 현재 코드는 별도 공식인 <strong>Cross Entropy(교차 엔트로피)</strong>를 사용합니다.</p>
+        <pre><code>MSE의 위치별 오차
+(출력 - 정답)²
+
+Cross Entropy의 Token 하나 Loss
+-Σ(yᵢ × ln(pᵢ))
+
+yᵢ = 정답 One-hot 값
+pᵢ = Softmax로 만든 i번 Token의 선택 비중</code></pre>
+        <p><strong>One-hot(원-핫)</strong>은 정답 칸만 <code>1</code>, 나머지 칸은 <code>0</code>으로 표시한 벡터입니다. Vocabulary가 10개이고 Target Token ID가 <code>7</code>이라면 정답은 다음처럼 생각할 수 있습니다.</p>
+        <pre><code>Token ID:  0  1  2  3  4  5  6  7  8  9
+y:        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+                                      ↑ 정답 ID 7</code></pre>
+        <p>원래 공식에는 Vocabulary의 모든 칸이 들어가지만, 정답이 아닌 칸은 <code>yᵢ=0</code>이라 각 항이 사라집니다. 정답 칸만 <code>y₇=1</code>이므로 결과는 <code>-ln(p₇)</code> 하나로 줄어듭니다.</p>
+        <pre><code>Loss
+= -(0×ln(p₀) + ... + 1×ln(p₇) + ... + 0×ln(p₉))
+= -ln(p₇)
+
+p₇ = 0.4509라면
+ln(0.4509) ≈ -0.7966
+Loss = -(-0.7966) ≈ 0.7966</code></pre>
+        <p>PyTorch의 <code>CrossEntropyLoss</code>에는 이 One-hot 벡터를 직접 만들지 않고 보통 class 또는 Token ID <code>7</code>만 전달합니다. 내부에서 raw Logit에 Log-Softmax를 적용하고 7번 열을 선택해 음수 부호를 붙이므로, 위 One-hot 공식과 수학적으로 같은 결과입니다.</p>
+        <div class="caution"><strong>Accuracy·MSE·Cross Entropy 구분</strong> — Accuracy는 최댓값의 Token ID가 Target ID와 같은지만 <code>0/1</code>로 셉니다. MSE는 출력과 정답의 차이를 제곱합니다. Cross Entropy는 정답 Token 칸에 배정된 선택 비중에 <code>-ln()</code>을 적용합니다. 따라서 정답 ID를 맞혔더라도 그 칸의 선택 비중이 <code>1</code>보다 작으면 Cross Entropy Loss는 남습니다.</div>
+
+        <p><strong>Batch 전체로 넓혀도 같은 계산입니다.</strong> Causal LM의 raw Logit이 <code>[B,S,V]</code>라면 한 칸 뒤로 민 Target과 맞출 수 있는 위치는 문장마다 <code>S-1</code>개입니다. Padding이 없는 단순한 Batch에서는 총 <code>B×(S-1)</code>개의 다음 Token 문제가 생깁니다. 각 문제마다 Target ID가 가리키는 Vocabulary 열의 <code>-log-softmax</code> 값을 하나씩 구하고, 기본 <code>reduction="mean"</code>이 그 값을 모두 평균해 scalar Loss 하나를 만듭니다. 따라서 이 Loss는 문장 전체에 붙은 정답 하나를 채점한 값이 아니라, Batch 안 각 Sequence의 유효한 위치마다 수행한 다음 Token 예측을 합친 평균입니다.</p>
+        <pre><code>raw logits:      [B, S, V]
+채점용 logits:  [B, S-1, V]
+shifted target: [B, S-1]
+
+Padding이 없는 단순화:
+총 채점 문제 수 = B × (S-1)
+
+각 위치 Loss = -log_softmax(logit)[Target Token ID]
+최종 Loss = 모든 위치 Loss의 평균 scalar</code></pre>
+        <p>예를 들어 <code>"I study."</code>가 <code>["I", " study", "."]</code> 세 Token이라면 한 문장 안에서 <code>"I" → " study"</code>, <code>"I study" → "."</code> 두 문제를 채점합니다. Token이 3개라고 정답이 하나 생기는 것이 아니라, 마지막 Token을 제외한 위치마다 다음 Token 정답이 하나씩 생기는 구조입니다.</p>
+
+        <h4 id="perplexity-from-mean-token-loss">평균 Token Cross Entropy Loss를 Perplexity로 바꾸는 이유</h4>
+        <p>Perplexity(퍼플렉서티)는 평균 Token Cross Entropy Loss에 지수함수 <code>exp</code>를 적용한 값입니다. 위치별 정답 Token 선택 비중을 <code>p₁ ... pₙ</code>이라고 하면, 평균 Loss의 음의 로그를 다시 지수 변환하므로 <strong>정답 Token 선택 비중 기하평균의 역수</strong>가 됩니다.</p>
+        <pre><code>mean_token_loss
+= -(ln(p₁) + ln(p₂) + ... + ln(pₙ)) / n
+
+perplexity
+= exp(mean_token_loss)
+= 1 / (p₁ × p₂ × ... × pₙ)^(1/n)
+
+Loss = 0
+→ Perplexity = exp(0) = 1</code></pre>
+        <p>Loss가 0이면 모든 채점 위치에서 정답 Token 선택 비중이 1인 이상적인 경우이므로 Perplexity의 최솟값은 1입니다. 사전학습 Causal LM에 한 고정 문장 <code>"I study."</code>를 넣은 실행에서는 평균 Token Loss <code>10.831886291503906</code>을 얻었고, <code>torch.exp(loss)</code> 결과는 <code>50609.078125</code>였습니다.</p>
+        <div class="caution"><strong>Perplexity 해석의 경계</strong> — 이 값은 해당 한 문장의 두 다음 Token 위치에서 정답 Token에 배정된 선택 비중이 작았다는 실행 결과입니다. 한 문장만으로 모델 전체 품질을 단정할 수 없고, Cross Entropy는 정답 열의 선택 비중을 연속적으로 채점하므로 값이 크다고 각 위치의 <code>argmax</code>가 반드시 모두 틀렸다고 결론낼 수도 없습니다.</div>
+        <div class="caution"><strong>Padding이 있는 Batch의 Loss Mask</strong> — <code>attention_mask</code>는 모델이 PAD 위치를 문맥으로 참고하지 않게 하는 Mask이지만, 이것만으로 모든 구현의 Loss에서 PAD Target이 자동 제외된다고 가정하면 안 됩니다. 직접 labels를 구성하는 후속 적용에서는 PAD 위치를 <code>-100</code>으로 바꿔 <code>CrossEntropyLoss</code>의 <code>ignore_index</code> 대상이 되게 해야 합니다.</div>
         <div class="caution"><strong>Softmax와 Cross Entropy의 코드 경계</strong> — 이해를 위해 위처럼 <code>log_softmax → 정답 열 선택 → 음수 부호</code>로 풀어 쓸 수 있습니다. 실제 <code>nn.CrossEntropyLoss</code>에는 Softmax를 적용하지 않은 raw Logit을 넣으며, 모듈 내부에서 이 계산을 결합해 수행합니다.</div>
 
         <h3>LM Head는 마지막 특징 축만 vocabulary 축으로 바꾼다</h3>
@@ -830,6 +882,7 @@ generated_tokens = torch.cat(
 3번째 생성: [[3, 7, 2, 9]]</code></pre>
         <p>학습에서는 세 Prefix 위치의 후보 점수를 병렬로 만들고 한 번에 Loss를 계산했습니다. 생성에서는 현재까지 만든 Token 전체를 매번 다시 모델에 넣고 마지막 위치 Logit의 Token ID 하나만 골라 뒤에 붙였습니다. 이로써 Token·Position Embedding → Causal Transformer Block → LM Head → shifted Target Cross Entropy → Optimizer 학습 → Autoregressive Generation의 전체 흐름을 직접 구현하고 설명했습니다.</p>
         <div class="caution"><strong>Tiny Decoder LM 완료</strong> — Target shift와 Shape, 위치별 Cross Entropy, Causal Prefix 병렬 학습, 표현 병목과 실패 수정, 마지막 위치 Logit 기반 한 Token 선택, 반복 자기회귀 생성을 실행 결과로 검증했습니다. Temperature·Top-k·Top-p와 KV Cache는 이 관문의 미완료 항목이 아니라 이후 추론 심화 단계입니다.</div>
+        <p><a class="doc-link" href="transformer_token_embedding_learning.html#pretrained-causal-lm-one-step">같은 생성 흐름을 사전학습 GPT-2 계열 모델과 실제 Vocabulary에 연결한 실행 보기 →</a></p>
         <div class="caution"><strong>장기 기억 보강 방식</strong> — 모든 PyTorch 문법을 즉시 외우는 것을 완료 조건으로 두지 않습니다. 이번처럼 코드를 직접 입력하며 Shape과 결과를 설명한 뒤, 다음 복습에서 <code>[:, :-1]</code>·<code>[:, 1:]</code>·<code>reshape</code>·<code>dim</code>을 작은 Tensor로 다시 예측하고, 챕터 복습 때 빈 셀에서 최소 학습·생성 흐름을 재구성합니다. 문법을 잠시 잊어도 실행 구조를 복원할 수 있는지를 장기 이해의 증거로 봅니다.</div>
       </section>
       <section>
