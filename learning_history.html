@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="날짜별 학습 내용과 공부시간을 함께 관리하는 통합 학습 기록">
+  <meta name="description" content="날짜별 학습 내용·공부시간과 간격 회상 결과를 함께 관리하는 통합 학습 기록">
   <title>학습 기록</title>
+  <link rel="alternate" type="application/json" href="assets/data/review_state.json" title="기억 강화 세션 상태 데이터">
   <style>
     :root { --ink:#18211d; --muted:#667069; --paper:#f6f3eb; --panel:#fffdf7; --line:#d9d5c8; --green:#176b4d; --green-soft:#dcecdf; --blue:#3157c8; --blue-soft:#edf2ff; --orange:#d56a3a; --shadow:0 18px 50px rgba(29,39,33,.08); }
     * { box-sizing:border-box; }
@@ -78,6 +79,7 @@
   </style>
   <link rel="stylesheet" href="assets/css/site-theme.css">
   <link rel="stylesheet" href="assets/css/outcome-journey.css?v=20260827">
+  <link rel="stylesheet" href="assets/css/review-queue.css?v=20260830">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/learning_history.html">
   <link rel="alternate" type="application/json" href="site_manifest.json" title="사이트 문서 색인">
@@ -87,10 +89,10 @@
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="학습 기록">
-  <meta property="og:description" content="날짜별 학습 내용과 공부시간을 함께 관리하는 통합 학습 기록">
+  <meta property="og:description" content="날짜별 학습 내용·공부시간과 간격 회상 결과를 함께 관리하는 통합 학습 기록">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/learning_history.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html#page","url":"https://muscleleg.github.io/jaejun-wiki/learning_history.html","name":"학습 기록","description":"날짜별 학습 내용과 공부시간을 함께 관리하는 통합 학습 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html"}},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"학습 기록"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html#page","url":"https://muscleleg.github.io/jaejun-wiki/learning_history.html","name":"학습 기록","description":"날짜별 학습 내용·공부시간과 간격 회상 결과를 함께 관리하는 통합 학습 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html"}},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/learning_history.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"학습 기록"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
 </head>
@@ -100,7 +102,7 @@
     <header class="hero">
       <span class="eyebrow">Learning history</span>
       <h1>학습 기록</h1>
-      <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 확인된 공부시간에는 그 시간에 실제로 진행한 내용을 연결한다.</p>
+      <p class="summary">무엇을 이해하고 구현했는지 날짜별로 보존하고, 시간이 지난 뒤에도 자료 없이 꺼낼 수 있는지는 별도의 회상 근거로 확인한다.</p>
       <div class="stats" aria-label="학습 기록 요약">
         <div class="stat">학습 기록이 있는 날<strong id="historyLearningDayCount">21일</strong></div>
         <div class="stat">기록된 공부시간<strong id="historyRecordedStudyTime">약 55시간 59분</strong></div>
@@ -203,6 +205,364 @@
 <!-- static-fallback:learning-journey:end --></div>
     </header>
 
+    <section id="review-queue" class="review-dashboard" data-review-dashboard data-max-per-session="3">
+      <span class="eyebrow">Active recall</span>
+      <h2>기억 강화 세션</h2>
+      <p class="summary">복습의 방향은 AI 엔지니어로서 성장과 기업 코딩 테스트 합격입니다. 위키에 쌓인 AI 지식과 코딩 테스트 풀이를 문서보다 먼저 기억에서 꺼내고, 실제 결과에 따라 중요도와 다음 확인 간격을 조정합니다.</p>
+      <div id="reviewQueue"><!-- static-fallback:review-queue:start -->
+      <div class="review-stats" aria-label="기억 강화 세션 요약">
+        <div class="review-stat">오늘까지 기한 도래<strong id="reviewDueCount">0개</strong></div>
+        <div class="review-stat">이번 세션 최대<strong id="reviewSessionCount">0개</strong></div>
+        <div class="review-stat">지연 회상 성공률<strong id="reviewDelayedSuccessRate">측정 전</strong></div>
+      </div>
+      <p class="review-session-note" id="reviewSessionMessage"><strong>오늘 기한이 된 회상 없음</strong>다음 회상 예정일은 2026-08-31입니다.</p>
+      <ul class="review-policy-list">
+        <li><strong>복습 방향</strong><span><strong>AI 엔지니어로서 성장</strong> · AI 시스템을 구현·검증·추론·서빙하는 데 반복해서 쓰이는 개념과 코드를 잊지 않도록 유지합니다.<br><strong>기업 코딩 테스트 합격</strong> · 문제 해석, 알고리즘 선택, 경계 조건, 복잡도 설명과 자료 없는 재구현 능력을 유지합니다.</span></li>
+        <li><strong>자료 없이 먼저</strong><span>원문과 채점 기준을 열기 전에 자신의 말·Shape 예측·작은 코드로 먼저 답합니다.</span></li>
+        <li><strong>세션 한도</strong><span>최대 3개·약 8분만 사용합니다. 세션 한도를 넘은 항목은 실패로 처리하지 않고 다음 학습 세션으로 넘깁니다.</span></li>
+        <li><strong>위키에서 누적</strong><span>위키에 새로 추가하거나 보강한 내용 중 설명·예측·구현으로 이해가 확인된 단위를 회상 후보로 추가합니다. 중요도가 낮아도 보존할 수 있으며 priority 숫자를 높여 후순위에 둡니다.</span></li>
+        <li><strong>선택 순서</strong><span>우선순위는 AI 엔지니어로서 성장과 기업 코딩 테스트 합격에 얼마나 반복해서 필요한지를 기준으로 판단합니다. 분야별 고정 할당은 두지 않지만 결과 이력을 확인해 한 방향이 장기간 복습에서 사라지지 않게 합니다. 기한이 된 항목에서 최근 회상 실패, 중요도가 높은 항목(priority 숫자가 낮은 항목), 오래 밀린 날짜 순으로 최대 3개를 선택합니다. 아직 기한이 되지 않은 항목은 현재 학습을 막는 경우에만 예외적으로 꺼냅니다.</span></li>
+        <li><strong>유지 증거</strong><span>처음 배운 날의 성공은 이해 증거이며, 하루 이상 지난 뒤 자료 없이 성공한 결과부터 유지 증거로 셉니다.</span></li>
+      </ul>
+      <div class="review-list" id="reviewQueueItems">
+        <article class="review-card" data-review-id="binary-search-answer-space-boundary" data-topic-label="코딩 테스트" data-prompt-type="rebuild" data-next-due="2026-08-31" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">코드 재구현</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-08-31</span></div>
+          <h3>입국심사·퍼즐 게임의 최초 가능 경계</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>입국심사와 퍼즐 게임 챌린지에서 후보별 가능 판정과 최초 가능 경계를 구현해 프로그래머스 제출에 통과했으며, 문제 독해와 등호 경계는 설명을 받아 교정했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">자료를 보지 않고 입국심사 또는 퍼즐 게임 챌린지 하나를 골라 탐색 후보, 안전한 left·right 범위, mid의 가능 판정, +1·-1 경계 이동과 반복 종료 뒤 left가 답인 이유를 설명하고 전체 코드를 다시 구현합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>입국심사는 시간, 퍼즐 게임은 숙련도가 탐색 후보이고 limit·처리 인원은 후보의 가능 여부를 판정하는 기준임을 구분합니다.</li>
+                <li>가능한 후보에서는 더 작은 쪽, 불가능한 후보에서는 더 큰 쪽을 남기며 이미 검사한 정수 mid를 제외하는 이유를 설명합니다.</li>
+                <li>total == limit을 성공으로 처리하고, 전체 판정 비용을 포함한 시간 복잡도를 자기 말로 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/27-puzzle-game-challenge.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="multi-head-shape-reconstruction" data-topic-label="Transformer" data-prompt-type="shape" data-next-due="2026-08-31" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">Transformer</span><span class="review-badge">Shape 예측</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-08-31</span></div>
+          <h3>Multi-Head Attention Head 분리와 병합</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>Head별 출력 [1,3,2,1]을 Token 기준으로 재정렬해 [1,3,2]로 합치고 Output Projection을 적용했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">자료를 보지 않고 입력 [B,S,D]에서 Q·K·V Projection, Head 분리, Score, Value 가중합, Token 기준 재정렬, Head 병합과 W_O를 거쳐 다시 [B,S,D]가 되는 순서와 각 Shape을 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>[B,S,D]에서 [B,H,S,Dh]로 Head를 분리하는 축 이동을 설명합니다.</li>
+                <li>Score [B,H,S,S]와 Value 가중합 [B,H,S,Dh]를 구분합니다.</li>
+                <li>Token 기준으로 재정렬한 뒤 H×Dh를 D로 합치고 W_O를 적용해 [B,S,D]로 돌아옴을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/transformer/transformer_multi_head_attention_learning.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="padded-batch-last-logit" data-topic-label="LLM 추론" data-prompt-type="rebuild" data-next-due="2026-08-31" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">코드 재구현</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-08-31</span></div>
+          <h3>Padding Batch의 마지막 실제 Token Logit 선택</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>길이 3·7의 동적 Padding에서 실제 마지막 위치 [2,6]을 구하고 GPT-2 Logit [2,7,50257]에서 [2,50257]을 선택했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">오른쪽 Padding된 input_ids [B,S], attention_mask [B,S], logits [B,S,V]가 있습니다. Batch마다 마지막 실제 Token 위치를 구하고 해당 Logit만 [B,V]로 선택하는 코드를 자료 없이 재구성하고, 두 인덱스 Tensor가 어떻게 짝지어지는지 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>attention_mask 합에서 1을 빼 Batch별 마지막 실제 위치 [B]를 구합니다.</li>
+                <li>Batch index [B]와 Token position [B]를 짝지어 logits에서 [B,V]를 선택합니다.</li>
+                <li>슬라이싱과 달리 Batch마다 다른 위치를 고르는 고급 인덱싱임을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="training-generation-position-boundary" data-topic-label="LLM 추론" data-prompt-type="flow" data-next-due="2026-08-31" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-08-31</span></div>
+          <h3>Causal LM 학습 위치와 생성 위치의 경계</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>세 개의 다음 Token 문제를 한 Forward에서 학습하는 구조와 마지막 Logit을 이어 붙이는 반복 생성을 실행했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">Causal LM 학습에서는 왜 모든 위치의 Logit을 한 번에 채점하고, 자기회귀 생성에서는 왜 logits[:, -1, :]만 사용하는지 [3,7,2,9] 예제로 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>학습 입력 [3,7,2]와 Target [7,2,9]의 세 위치가 한 Forward에서 병렬 채점됨을 설명합니다.</li>
+                <li>Causal Mask 때문에 각 위치가 미래 정답을 미리 보지 못함을 연결합니다.</li>
+                <li>생성 시에는 현재 Prefix 다음의 새 Token 하나만 필요하므로 마지막 위치 Logit을 사용한다고 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/tiny-decoder-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="causal-mask-future-block" data-topic-label="Transformer" data-prompt-type="diagnose" data-next-due="2026-09-01" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">Transformer</span><span class="review-badge">오류 진단</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-09-01</span></div>
+          <h3>Causal Mask와 미래 Attention 차단</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>torch.tril Boolean Mask와 masked_fill을 실행하고 미래 Attention Weight가 0임을 확인했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">길이 3의 Attention Score에 하삼각 Boolean Mask를 적용한다고 가정합니다. masked_fill(..., -inf) 뒤 Softmax에서 미래 위치 비중이 0이 되는 이유와 각 Query가 볼 수 있는 Key 위치를 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Query 위치 0·1·2가 각각 Key 0, Key 0~1, Key 0~2를 볼 수 있음을 설명합니다.</li>
+                <li>차단 위치의 Score를 -inf로 바꾸고 exp(-inf)=0이 되어 Softmax 비중이 0이 됨을 연결합니다.</li>
+                <li>Padding Mask와 Causal Mask의 차단 목적을 혼동하지 않습니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/transformer/transformer_attention_score_mask_learning.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="target-shift-token-loss" data-topic-label="LLM 추론" data-prompt-type="shape" data-next-due="2026-09-01" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">Shape 예측</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-09-01</span></div>
+          <h3>Target shift와 위치별 Token Loss</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>2-Batch에서 Target shift를 자료 없이 구성하고 [B,T,V]·[B,T]를 평탄화해 Cross Entropy로 채점했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">Token Tensor [B,T+1]에서 입력과 정답을 한 칸 이동해 만들고, Logit [B,T,V]와 Target [B,T]를 CrossEntropyLoss 입력 [B×T,V], [B×T]로 바꾸는 Shape 흐름을 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>tokens[:, :-1]과 tokens[:, 1:]의 의미와 Shape을 설명합니다.</li>
+                <li>각 [B×T,V] 행이 같은 위치의 Target ID 하나와 짝지어짐을 설명합니다.</li>
+                <li>평균 Loss 하나가 B×T개의 다음 Token 문제를 평균한 값임을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/tiny-decoder-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="tokenizer-vocabulary-axis-contract" data-topic-label="Transformer" data-prompt-type="transfer" data-next-due="2026-09-01" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">Transformer</span><span class="review-badge">변형 적용</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-09-01</span></div>
+          <h3>Tokenizer·Embedding·LM Head의 Vocabulary 계약</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>GPT-2 Tokenizer와 wte Embedding이 같은 Token ID 체계를 공유하고 Vocabulary·Embedding·LM Head 크기를 맞추는 이유를 설명했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">Tokenizer의 Vocabulary 크기와 모델의 Token Embedding 행 수·LM Head 출력 축이 서로 다르면 어떤 문제가 생기는지, Token ID가 입력과 출력에서 공유되는 의미를 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Tokenizer가 문자열을 모델이 사용하는 Token ID로 바꾼다는 역할을 설명합니다.</li>
+                <li>Embedding은 Token ID를 행으로 조회하므로 모든 입력 ID를 포함해야 함을 설명합니다.</li>
+                <li>LM Head의 마지막 Vocabulary 축이 같은 ID 체계의 다음 Token 후보 점수임을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/transformer/transformer_token_embedding_learning.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="coding-queue-original-index" data-topic-label="코딩 테스트" data-prompt-type="diagnose" data-next-due="2026-09-01" data-priority="1" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">오류 진단</span><span class="review-badge review-priority-badge">중요도 · 높음</span><span class="review-badge review-next-due">예정 · 2026-09-01</span></div>
+          <h3>Queue 회전에서 원래 인덱스와 실제 실행 횟수 보존</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>원래 인덱스를 보존하며 Queue 회전과 실제 실행 횟수를 구분하고 O(n²) 구현을 완성했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">프로세스 Queue가 계속 회전해도 처음 location의 항목을 추적하는 자료구조를 재구성합니다. popleft 횟수와 실제 실행 횟수가 왜 다르고, 목표 프로세스를 꺼낸 순간이 아니라 실행이 확정된 뒤 종료해야 하는지 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>priority와 original_index를 Tuple로 함께 저장해 순서 변화와 정체성을 분리합니다.</li>
+                <li>더 높은 우선순위가 있으면 뒤로 보내되 실행 횟수는 늘리지 않습니다.</li>
+                <li>실행이 확정된 분기에서만 횟수를 늘리고 original_index를 검사합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/25-process.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="top-k-top-p-sampling" data-topic-label="LLM 추론" data-prompt-type="flow" data-next-due="2026-09-02" data-priority="2" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 보통</span><span class="review-badge review-next-due">예정 · 2026-09-02</span></div>
+          <h3>Top-k·Top-p 후보 제한과 Token ID 복원</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>Top-k·Top-p 생성 루프를 실행하고 후보 내부 위치를 gather로 실제 Token ID로 복원했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">Top-k와 Top-p가 후보를 제한하는 기준의 차이, 제한된 후보 안에서 재정규화하는 이유, multinomial이 뽑은 임시 위치를 실제 Vocabulary Token ID로 복원하는 흐름을 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Top-k는 후보 수, Top-p는 누적 선택 비중으로 경계를 정한다고 구분합니다.</li>
+                <li>제거된 후보를 제외한 비중의 합을 다시 1로 만드는 이유를 설명합니다.</li>
+                <li>후보 목록 내부 위치와 실제 Vocabulary Token ID를 구분하고 gather 복원을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="loss-perplexity-meaning" data-topic-label="LLM 추론" data-prompt-type="transfer" data-next-due="2026-09-02" data-priority="2" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">변형 적용</span><span class="review-badge review-priority-badge">중요도 · 보통</span><span class="review-badge review-next-due">예정 · 2026-09-02</span></div>
+          <h3>Token Cross Entropy와 Perplexity 해석</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>p=0.4509의 Loss 약 0.7966을 계산하고 고정 텍스트의 평균 Loss 10.831886·Perplexity 50609.078을 실행했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">정답 Token 선택 비중 p=0.4509일 때 Loss=-ln(p)가 무엇을 채점하는지 계산하고, 여러 Token의 평균 Loss에 exp를 적용한 Perplexity를 어떻게 해석해야 하는지 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>한 위치의 Cross Entropy가 정답 Token의 Log-Softmax 또는 -ln(p)임을 설명합니다.</li>
+                <li>여러 위치의 평균 Token Loss와 개별 Token Loss를 구분합니다.</li>
+                <li>Perplexity는 평균 Loss의 exp이며 모델·Tokenizer·평가 텍스트가 같은 조건에서 비교해야 함을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="checkpoint-offline-restore" data-topic-label="LLM 추론" data-prompt-type="flow" data-next-due="2026-09-02" data-priority="2" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">LLM 추론</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 보통</span><span class="review-badge review-next-due">예정 · 2026-09-02</span></div>
+          <h3>Tokenizer·Model Artifact의 로컬 복원</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>Tokenizer와 Model을 저장한 뒤 별도 프로세스에서 로컬 전용으로 복원해 Token ID·Logit Shape·Loss 일치를 확인했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">모델 이름으로 다시 내려받는 것과 로컬 Artifact에서 복원하는 것을 구분하고, 새 프로세스에서 같은 입력의 Token ID·Logit Shape·Loss가 일치해야 복원이 검증되는 이유를 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Tokenizer·Config·Weight를 함께 저장해야 하는 이유를 설명합니다.</li>
+                <li>새 프로세스와 local_files_only가 기존 메모리 객체·원격 다운로드 의존을 차단함을 설명합니다.</li>
+                <li>동일 입력의 Token ID·Logit Shape·Loss 비교가 복원 동등성의 근거임을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="coding-min-heap-invariant" data-topic-label="코딩 테스트" data-prompt-type="diagnose" data-next-due="2026-09-02" data-priority="2" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">오류 진단</span><span class="review-badge review-priority-badge">중요도 · 보통</span><span class="review-badge review-next-due">예정 · 2026-09-02</span></div>
+          <h3>최소 Heap이 보장하는 범위와 원소 부족 종료 조건</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>heap[0]만 최솟값을 보장하는 성질과 heappop·heappush·원소 부족 종료 조건을 적용해 풀이했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">최소 Heap에서 heap[0]과 heap[1]이 각각 무엇을 보장하는지 구분합니다. 가장 작은 두 값을 안전하게 꺼내 섞고 다시 넣는 반복, 원소가 하나만 남았을 때 성공과 실패를 나누는 종료 조건을 자료 없이 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>heap[0]만 전체 최솟값이며 두 번째 최솟값은 heappop으로 꺼내야 함을 설명합니다.</li>
+                <li>초기 heapify와 반복 중 heappop·heappush의 역할과 복잡도를 구분합니다.</li>
+                <li>두 값을 꺼내기 전 원소 수를 확인하고 마지막 한 값이 K 이상인지에 따라 성공·실패를 판단합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/24-more-spicy.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="coding-bfs-shortest-path" data-topic-label="코딩 테스트" data-prompt-type="flow" data-next-due="2026-09-03" data-priority="2" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 보통</span><span class="review-badge review-next-due">예정 · 2026-09-03</span></div>
+          <h3>BFS Queue 순서와 무가중치 최단거리 기록</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>게임 맵 2차원 격자에서 FIFO Queue로 가까운 칸부터 방문하고 부모 거리+1을 기록하는 BFS를 구현했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">2차원 0·1 격자에서 BFS로 최단거리를 구하는 전체 흐름을 자료 없이 설명합니다. Queue에 넣을 때 방문·거리를 기록해야 하는 이유와 DFS가 같은 무가중치 최단거리를 바로 보장하지 않는 이유를 구분합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>FIFO Queue가 같은 거리의 칸을 먼저 처리해 최초 도달 거리가 최단거리가 됨을 설명합니다.</li>
+                <li>상하좌우 좌표와 범위·통과 가능·미방문 조건을 확인합니다.</li>
+                <li>Queue에 넣는 시점에 방문과 부모 거리+1을 기록해 중복 삽입을 막습니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/23-game-map-shortest-path.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="threshold-precision-recall-tradeoff" data-topic-label="Machine Learning" data-prompt-type="transfer" data-next-due="2026-09-03" data-priority="3" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">Machine Learning</span><span class="review-badge">변형 적용</span><span class="review-badge review-priority-badge">중요도 · 낮음</span><span class="review-badge review-next-due">예정 · 2026-09-03</span></div>
+          <h3>Threshold와 Precision·Recall의 비용 판단</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>Threshold 0.5→0.3에서 Yes Recall 55.88%→75.40%, Precision 65.72%→51.93% 변화를 읽고 비용 기준을 설명했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">이탈 예측 Threshold를 0.5에서 0.3으로 낮추면 Yes 예측 수·Recall·Precision이 일반적으로 어떻게 변하는지 설명하고, 이탈자를 놓치는 비용과 불필요한 조치 비용에 따라 어떤 지표를 우선할지 판단합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Threshold를 낮추면 Yes 예측이 늘고 Recall은 오르기 쉬우며 Precision은 내려갈 수 있음을 설명합니다.</li>
+                <li>실제 이탈자를 놓치는 비용이 크면 Recall을 우선한다고 판단합니다.</li>
+                <li>Threshold 변경은 예측 기준 변경이며 모델이 새 패턴을 학습한 것은 아니라고 구분합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/machine-learning/machine_learning_churn_evaluation_learning.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="module-loss-optimizer-loop" data-topic-label="PyTorch" data-prompt-type="flow" data-next-due="2026-09-03" data-priority="3" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">PyTorch</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 낮음</span><span class="review-badge review-next-due">예정 · 2026-09-03</span></div>
+          <h3>Module·Loss·Optimizer 학습 루프 역할</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>nn.Module·MSELoss·SGD의 역할을 구분하고 weight·bias Gradient와 Parameter 수정을 실행했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">한 Batch의 PyTorch 학습에서 model(x), loss 계산, zero_grad(), backward(), step()의 실행 순서와 각 단계가 예측·Gradient·Parameter에 미치는 영향을 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>Forward와 Loss 계산만으로 Parameter가 바뀌지 않음을 설명합니다.</li>
+                <li>backward()가 Gradient를 계산·누적하고 zero_grad()가 이전 Gradient를 비운다고 설명합니다.</li>
+                <li>step()이 현재 Gradient와 학습률로 Parameter를 실제 수정한다고 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/pytorch/pytorch_linear_regression_module_optimizer_dataset_learning.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="transformer-block-execution-flow" data-topic-label="Transformer" data-prompt-type="flow" data-next-due="2026-09-03" data-priority="3" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">Transformer</span><span class="review-badge">흐름 회상</span><span class="review-badge review-priority-badge">중요도 · 낮음</span><span class="review-badge review-next-due">예정 · 2026-09-03</span></div>
+          <h3>TransformerBlock 전체 실행 흐름</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>Causal Attention부터 두 번째 Residual·LayerNorm까지 연결하고 입력·출력 [1,3,2]와 Token별 통계를 검증했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">Token·Position Embedding 이후 Causal Multi-Head Attention, 첫 Residual·LayerNorm, FFN, 두 번째 Residual·LayerNorm까지 실행 순서를 설명하고, Attention과 FFN이 각각 어느 축의 정보를 섞는지 구분합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>두 Residual의 기준 Tensor가 서로 다름을 포함해 Block 순서를 설명합니다.</li>
+                <li>Attention은 Token 위치 사이의 정보를 섞고 FFN은 각 Token의 Feature를 독립적으로 가공한다고 구분합니다.</li>
+                <li>Block 전체에서 외부 Shape [B,S,D]가 유지됨을 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/projects/road-to-llm-inference/transformer-core.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="coding-dfs-choice-state" data-topic-label="코딩 테스트" data-prompt-type="rebuild" data-next-due="2026-09-04" data-priority="3" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">코드 재구현</span><span class="review-badge review-priority-badge">중요도 · 낮음</span><span class="review-badge review-next-due">예정 · 2026-09-04</span></div>
+          <h3>DFS의 선택 상태와 재귀 복귀</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>타겟 넘버의 +·- 이진 선택을 DFS 재귀로 구현해 모든 경로의 정답 개수를 계산했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">숫자마다 + 또는 -를 선택하는 타겟 넘버 문제에서 DFS 재귀 함수의 상태를 정의하고, 두 갈래 호출과 종료 조건을 자료 없이 재구성합니다. 한 경로를 끝낸 뒤 다른 선택으로 돌아오는 의미도 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>재귀 상태를 현재 index와 지금까지의 합으로 정의합니다.</li>
+                <li>각 숫자에서 + 선택과 - 선택의 두 호출을 빠짐없이 만듭니다.</li>
+                <li>index가 끝에 도달했을 때 합이 target인지 확인하고 호출 결과를 합칩니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/22-target-number.html">원문 복습 →</a></div>
+        </article>
+        <article class="review-card" data-review-id="coding-parentheses-early-exit" data-topic-label="코딩 테스트" data-prompt-type="diagnose" data-next-due="2026-09-05" data-priority="3" data-result-count="0" data-last-reviewed="" data-last-outcome="" data-stage-index="0" data-delayed-attempts="0" data-delayed-successes="0">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">코딩 테스트</span><span class="review-badge">오류 진단</span><span class="review-badge review-priority-badge">중요도 · 낮음</span><span class="review-badge review-next-due">예정 · 2026-09-05</span></div>
+          <h3>괄호 Counter 불변식과 조기 종료</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>이전 풀이를 보지 않고 Counter 방식으로 다시 풀고, 순회 중 음수 조기 종료와 마지막 0 검사를 설명했습니다.</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">올바른 괄호를 Stack 전체 대신 열린 괄호 수 Counter로 판정하는 흐름을 자료 없이 재구성합니다. 순회 중 Counter가 음수가 되는 순간과 마지막 Counter가 0이 아닌 경우가 각각 왜 실패인지 설명합니다.</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+                <li>여는 괄호에서 +1, 닫는 괄호에서 -1로 아직 닫히지 않은 괄호 수를 표현합니다.</li>
+                <li>순회 중 음수는 대응할 여는 괄호 없이 닫는 괄호가 먼저 나온 상태라 즉시 실패합니다.</li>
+                <li>순회가 끝나도 0이 아니면 닫히지 않은 여는 괄호가 남았다고 설명합니다.</li>
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · 첫 지연 회상 전</span><a href="wiki/coding-test/04-valid-parentheses.html">원문 복습 →</a></div>
+        </article>
+      </div>
+      <div class="review-result-guide">
+        <h3>결과에 따른 다음 간격</h3>
+        <ul>
+          <li><strong>회상 실패</strong> · 피드백 뒤 같은 세션에서 한 번 다시 시도하고 다음 날 다시 확인합니다.</li>
+          <li><strong>힌트 후 성공</strong> · 현재 단계는 유지하고 2일 뒤 다시 확인합니다.</li>
+          <li><strong>무힌트 성공</strong> · 다음 간격 단계로 이동합니다.</li>
+          <li><strong>변형 적용 성공</strong> · 다른 값·Shape·상황에도 적용했으므로 간격을 두 단계 확장합니다.</li>
+        </ul>
+        <p class="summary">등록된 핵심 개념 <strong id="reviewEnrolledCount">18개</strong> · 가장 가까운 예정일 <strong id="reviewNextDue">2026-08-31</strong></p>
+      </div>
+<!-- static-fallback:review-queue:end --></div>
+    </section>
+
     <section id="deferred-learning">
       <span class="eyebrow">Deferred learning</span>
       <h2>나중에 다시 할 학습</h2>
@@ -249,6 +609,22 @@
           <p><strong>다시 꺼낼 때</strong><br>현재 사전학습 Causal LM의 수동 생성 관문은 중단하지 않습니다. Batch inference 관문에 들어가기 직전, Batch마다 길이·선택 위치가 달라지는 코드를 작성하기 전에 짧은 Tensor 실습으로 꺼냅니다.</p>
           <p><strong>완료 증거</strong><br>기본 정수 인덱싱·Slice·불린 마스크·고급 인덱싱을 결과 Shape과 View/Copy 관점에서 구분하고, [B,S,V] Tensor에서 Batch별 서로 다른 Token 위치를 선택해 [B,V]를 만드는 코드를 자료 없이 작성하고 실제 값으로 검산하면 완료합니다.</p>
           <a href="wiki/transformer/transformer_token_embedding_learning.html#tensor-dim-semantic-axis">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="kimi-k3-toy-architecture-handcoding" data-deferred-status="queued" data-deferred-type="interest">
+          <div class="deferred-card-head"><span class="deferred-type">장기 관심</span><span class="deferred-status">장기 관심 백로그</span><span class="deferred-milestone">KV Cache·Batch</span></div>
+          <h3>Kimi K3 구조 교육용 축소 구현 손코딩</h3>
+          <p><strong>미룬 이유</strong><br>핵심 Road to LLM inference를 먼저 빠르게 완주하기 위해, Kimi 구조 손코딩은 현재 관문을 바꾸지 않는 장기 관심 백로그로 미뤘습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>사용자가 이 항목을 다시 선택하거나 핵심 여정을 완료한 뒤 실제 구현 필요가 생길 때만 꺼냅니다.</p>
+          <p><strong>완료 증거</strong><br>먼저 작은 Tensor로 KDA의 순환 상태 갱신을 구현하고 Shape을 예측한 뒤, Token 수에 따라 커지는 KV Cache [B,H,T,Dh]와 Sequence 길이에 독립적인 KDA 순환 상태 [B,H,Dh,Dh]를 비교합니다. 이어 채널별 감쇠와 Delta Update, 실제 Low-rank 압축을 포함한 Gated MLA, KDA 3개와 MLA 1개의 Hybrid 및 AttnRes를 단계적으로 연결하고, 교육용 축소 구현의 생략·단순화와 충실한 Kimi K3 구조의 차이를 설명하면 완료합니다.</p>
+          <a href="https://github.com/MoonshotAI/Kimi-K3">관련 로드맵 보기 →</a>
+        </article>
+        <article class="deferred-card" data-deferred-id="moe-router-expert-handcoding" data-deferred-status="queued" data-deferred-type="interest">
+          <div class="deferred-card-head"><span class="deferred-type">장기 관심</span><span class="deferred-status">장기 관심 백로그</span><span class="deferred-milestone">TP·NCCL</span></div>
+          <h3>MoE Router·Expert 손코딩과 Expert Parallel 연결</h3>
+          <p><strong>미룬 이유</strong><br>Road to LLM inference를 먼저 빠르게 완주하기 위해, 일반 MoE 구조와 Routing 손코딩은 현재 관문을 바꾸지 않는 이후 학습 백로그로 미뤘습니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>사용자가 이 항목을 다시 명시적으로 선택하거나, 핵심 여정을 완료한 뒤 실제 MoE 서빙·분산 필요가 생길 때만 꺼냅니다.</p>
+          <p><strong>완료 증거</strong><br>1단계에서 Dense FFN과 MoE의 계산 경계를 설명합니다. 2단계에서 작은 Router가 Expert 확률 [B,T,E]와 Top-k Expert Index·Weight [B,T,K]를 만들게 하고, 선택된 작은 Expert로 Token을 보내 출력을 가중 합산합니다. 3단계에서 Expert별 Token 수와 선택되지 않은 Expert가 출력에 기여하지 않음을 검증하고, 전체 Parameter와 Token당 활성 Parameter·FLOPs를 비교합니다. 4단계에서 Load Imbalance·Capacity·Shared Expert의 역할을 설명하고, 단일 장치 Routing을 Expert Parallel의 장치 간 Token 통신과 연결하되 Production 규모 구현을 완료했다고 간주하지 않습니다.</p>
+          <a href="roadmaps/roadmap_llm_systems.html#inference-depth-backlog">관련 로드맵 보기 →</a>
         </article>
         <article class="deferred-card" data-deferred-id="mle-entropy-kl-connection" data-deferred-status="queued" data-deferred-type="reinforcement">
           <div class="deferred-card-head"><span class="deferred-type">반복 약점</span><span class="deferred-status">개념 보강</span><span class="deferred-milestone">HF Causal LM</span></div>
@@ -315,7 +691,7 @@
               <div class="journey-popover">
                 <div class="journey-popover-head"><h3>이분 탐색 경계 설계</h3><span class="journey-status">현재</span></div>
                 <p><strong>성취 목표</strong><br>프로그래머스 입국심사에서 사람을 직접 배치하는 문제를 ‘주어진 시간 안에 n명을 처리할 수 있는가?’라는 가능 여부 문제로 바꿉니다. 첫 대표 풀이에서는 걸린 시간을 기록만 하고 작은 입력의 처리 인원과 경계 이동을 충분히 추적합니다. 이후 단조롭게 변하는 범위, left·right의 의미, mid 판정과 종료 뒤 최소 가능 시간이 어느 변수인지 설명하고 자료 없이 다시 구현합니다.</p>
-                <p><strong>현재까지 확인한 근거</strong><br>개념 문서는 준비되어 있지만 실제 문제 풀이 증거는 아직 없습니다. 작은 입력의 처리 인원 예측, 경계 갱신 추적, 정답 제출, 복잡도 설명과 자료 없는 재구현을 확인하면 완료됩니다.</p>
+                <p><strong>현재까지 확인한 근거</strong><br>입국심사에서 시간 후보의 처리 인원과 폐구간 경계를 추적해 제출에 통과했고, 퍼즐 게임 챌린지에서는 숙련도 후보마다 전체 시간을 Simulation해 같은 최초 가능 경계를 적용하고 제출에 통과했습니다. 두 문제 모두 설명과 힌트를 받아 완성했으므로, 하루 이상 지난 뒤 자료 없이 후보 범위·판정·경계 이동을 다시 구현하고 복잡도를 설명하면 완료됩니다.</p>
               </div>
             </details>
           </li>
@@ -369,6 +745,8 @@
       <div class="timeline">
         <article class="day" id="study-2026-08-30">
           <time datetime="2026-08-30">2026년 08월 30일</time>
+          <div class="topic"><h3>퍼즐 게임 챌린지 이분 탐색 전이 제출 통과</h3><p><code>diffs</code>·<code>times</code>가 같은 인덱스의 순서 있는 퍼즐 목록이고, 숙련도는 입력이 아니라 제한 시간 안에 끝내기 위해 찾아야 할 최소 후보임을 다시 해석했다. 현재 퍼즐 실패 뒤 이전 퍼즐을 다시 푸는 벌칙과 마지막 성공에는 이전 시간이 붙지 않는 순서를 풀어 쓰고, <code>diff-level</code>이 문제에서 직접 정의한 실패 횟수임을 확인했다. 후보 숙련도마다 전체 시간을 Simulation하고 <code>total&lt;=limit</code>이면 더 낮은 숙련도를 찾는 경계를 구현했으며, <code>total==limit</code>을 실패로 처리한 조건을 수정해 프로그래머스 제출에 통과했다. 두 문제의 자료 없는 재구현과 복잡도 설명은 지연 복습으로 등록했다.</p></div>
+          <div class="topic"><h3>입국심사 이분 탐색 제출 통과</h3><p><code>n=6</code>, <code>times=[7,10]</code>에서 후보 시간마다 <code>sum(T // time)</code>으로 처리 인원을 계산하고, 판정이 <code>불가능 → 가능</code>으로 단조롭게 변하는 경계를 추적했다. 중간값은 심사관 수가 아니라 남은 시간 후보 범위를 나누는 값이며, 폐구간에서 <code>mid - 1</code>·<code>mid + 1</code>은 이미 검사한 정수 후보를 제외하는 이동이라고 정리했다. 반복 중 <code>left</code>보다 작은 값은 불가능하고 <code>right</code>보다 큰 값은 가능하다는 의미를 연결해, 교차 뒤 <code>left</code>가 최초 가능 시간으로 남는 코드를 다시 구현하고 프로그래머스 제출에 통과했다. 같은 패턴의 독립 전이와 복잡도 재설명은 다음 확인으로 남겼다.</p></div>
           <div class="topic"><h3>Top-k 후보 제한과 실제 Token ID 복원</h3><p>마지막 위치 Logit의 전체 Vocabulary에서 <code>torch.topk()</code>로 점수가 큰 후보 10개와 그 후보의 실제 Token ID를 함께 가져왔다. <code>softmax(top_values)</code>는 이 10개 안에서만 선택 비중을 다시 만들고, <code>torch.multinomial()</code>은 실제 Token ID가 아니라 Top-k 목록 안의 임시 위치를 반환한다. 따라서 <code>torch.gather(top_token_ids, ..., selected_top_positions)</code>로 그 임시 위치에 대응하는 실제 Vocabulary Token ID를 꺼낸다는 흐름을 설명했다. <code>top_token_pieces</code>는 사람이 후보를 읽기 위한 표시용이며 생성 계산에는 필요하지 않다고 구분했다.</p></div>
           <div class="topic"><h3>Top-k 생성 루프와 Temperature Sampling 비교</h3><p>Token 선택 부분만 Top-k로 바꾸고, 선택한 ID를 <code>torch.cat()</code>으로 기존 입력 뒤에 붙여 다시 Forward하는 자기회귀 반복 구조는 Temperature Sampling과 같다고 확인했다. Temperature는 전체 후보의 격차를 조절하지만, Top-k는 그 전에 후보 수를 상위 <code>k</code>개로 제한한다는 차이를 실제 생성 루프에 연결했다.</p></div>
           <div class="topic"><h3>Top-p 누적 비중과 경계 후보 보존</h3><p>Vocabulary 선택 비중을 큰 순서로 정렬하고 누적합이 <code>top_p</code>를 넘는 위치를 제거 Mask로 만들었다. <code>remove_mask[:, 1:] = remove_mask[:, :-1].clone()</code>은 기존 Mask를 오른쪽으로 한 칸 밀어 임계값을 처음 넘게 만든 경계 후보까지 남기기 위한 처리라고 이해했다. 이 이동이 없으면 누적합을 임계값 위로 처음 올려 준 후보까지 제거될 수 있으므로 단순히 한 칸만 뒤집는 방식보다 Batch마다 다른 경계를 동일한 Tensor 연산으로 처리하는 이유를 설명했다.</p></div>
@@ -684,5 +1062,6 @@
   <script src="assets/js/global_nav.js?v=20260829-toc-height-1"></script>
   <script src="assets/js/learning_calendar.js?v=20260816"></script>
   <script src="assets/js/learning_journey.js?v=20260827-click-fix"></script>
+  <script src="assets/js/review_queue.js?v=20260830"></script>
 </body>
 </html>

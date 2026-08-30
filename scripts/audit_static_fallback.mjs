@@ -120,12 +120,13 @@ function formatDuration(durations) {
   return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
 }
 
-const [manifest, graph, homeContent, learningState, codingTestState, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
+const [manifest, graph, homeContent, learningState, codingTestState, reviewState, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
   loadWindowValue("assets/js/home_content.js", "HOME_CONTENT"),
   loadWindowValue("assets/js/learning_state.js", "LEARNING_STATE"),
   loadWindowValue("assets/js/coding_test_state.js", "CODING_TEST_STATE"),
+  loadJson("assets/data/review_state.json"),
   readFile(resolve(wikiRoot, "index.html"), "utf8"),
   readFile(resolve(wikiRoot, "roadmap.html"), "utf8"),
   readFile(resolve(wikiRoot, "wiki.html"), "utf8"),
@@ -426,6 +427,11 @@ if (/\bid=["'](?:recentCompletion|currentLearning|currentNextAction|coachingStat
 if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
 const learningJourney = staticRegion(historyHtml, "learning-journey");
 assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
+if (!historyHtml.includes('assets/css/review-queue.css')) throw new Error("Review-queue stylesheet is missing");
+if (!historyHtml.includes('assets/js/review_queue.js')) throw new Error("Review-queue interaction script is missing");
+if (!historyHtml.includes('type="application/json" href="assets/data/review_state.json"')) throw new Error("Review JSON alternate link is missing");
+if (!historyHtml.includes('<h2>기억 강화 세션</h2>')) throw new Error("Memory reinforcement session heading is missing");
+if (!historyHtml.includes('title="기억 강화 세션 상태 데이터"')) throw new Error("Memory reinforcement JSON label is missing");
 
 for (const milestone of learningState.journey.milestones) {
   const needsPracticeDocument = milestone.status === "complete" || milestone.status === "current";
@@ -447,6 +453,48 @@ for (const milestone of learningState.journey.milestones) {
   if (!practiceHtml.includes(`data-milestone-status="${milestone.status}"`)) {
     throw new Error(`Practice document status mismatch: ${milestone.id}`);
   }
+}
+const reviewQueue = staticRegion(historyHtml, "review-queue");
+for (const expectedText of [
+  reviewState.policy.attemptRule,
+  reviewState.policy.overflowRule,
+  reviewState.policy.evidenceRule,
+  reviewState.policy.enrollmentRule,
+  reviewState.policy.directionRule,
+  reviewState.policy.selectionRule,
+  String(reviewState.policy.maxPerSession),
+  String(reviewState.policy.timeBudgetMinutes),
+  ...reviewState.directions.flatMap((direction) => [direction.label, direction.description]),
+  ...reviewState.policy.resultTypes.flatMap((type) => [type.label, type.description]),
+]) {
+  if (!normalizeText(reviewQueue).includes(normalizeText(expectedText))) throw new Error(`Review queue policy text is missing: ${expectedText}`);
+}
+const reviewIds = valuesForAttribute(reviewQueue, "data-review-id");
+const expectedReviewIds = [...reviewState.items]
+  .sort((left, right) => left.nextDue.localeCompare(right.nextDue) || left.priority - right.priority)
+  .map((item) => item.id);
+assertEqual(reviewIds.join("|"), expectedReviewIds.join("|"), "Review queue item order");
+assertEqual(new Set(reviewIds).size, reviewIds.length, "Unique review queue items");
+for (const item of reviewState.items) {
+  const block = blockByDataValue(reviewQueue, "data-review-id", item.id, "article");
+  const attribute = (name) => block.attributes.match(new RegExp(`\\b${name}=["']([^"']+)["']`, "i"))?.[1] || "";
+  assertEqual(attribute("data-prompt-type"), item.promptType, `Review prompt type ${item.id}`);
+  assertEqual(attribute("data-topic-label"), item.topicLabel, `Review topic ${item.id}`);
+  assertEqual(attribute("data-priority"), String(item.priority), `Review priority ${item.id}`);
+  assertEqual(attribute("data-next-due"), item.nextDue, `Review next due ${item.id}`);
+  assertEqual(attribute("data-stage-index"), String(item.stageIndex), `Review stage ${item.id}`);
+  assertEqual(attribute("data-result-count"), String(item.results.length), `Review result count ${item.id}`);
+  assertEqual(attribute("data-last-reviewed"), item.lastReviewed || "", `Review last reviewed ${item.id}`);
+  assertEqual(attribute("data-last-outcome"), item.results.at(-1)?.outcome || "", `Review last outcome ${item.id}`);
+  const delayedResults = (item.results || []).filter((result) => Number(result.delayDays) >= 1);
+  const delayedSuccesses = delayedResults.filter((result) => ["recalled", "transferred"].includes(result.outcome));
+  assertEqual(attribute("data-delayed-attempts"), String(delayedResults.length), `Review delayed attempts ${item.id}`);
+  assertEqual(attribute("data-delayed-successes"), String(delayedSuccesses.length), `Review delayed successes ${item.id}`);
+  for (const expectedText of [item.title, item.prompt, item.acquisitionEvidence, ...item.evidenceCriteria]) {
+    if (!normalizeText(block.content).includes(normalizeText(expectedText))) throw new Error(`Review queue text is missing: ${item.id}`);
+  }
+  assertEqual(valuesForAttribute(block.content, "href").join("|"), item.sourceHref, `Review source href ${item.id}`);
+  await readFile(resolve(wikiRoot, item.sourceHref.split("#")[0]), "utf8");
 }
 const deferredLearning = staticRegion(historyHtml, "deferred-learning-items");
 for (const expectedText of [
