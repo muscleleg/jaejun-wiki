@@ -47,7 +47,7 @@
       document.title = `${heading.textContent} · ${document.title}`;
     }
     const tocScript = document.createElement("script");
-    tocScript.src = new URL("assets/js/article_toc.js?v=20260828-unified-5", projectRoot).href;
+    tocScript.src = new URL("assets/js/article_toc.js?v=20260830-page-optout-1", projectRoot).href;
     document.body.appendChild(tocScript);
   }
 })();

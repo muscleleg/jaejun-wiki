@@ -35,16 +35,28 @@ window.HOME_CONTENT = {
       imageAlt: "Notion 문서 기반 RAG 채팅 화면"
     },
     {
-      eyebrow: "Personal Learning System · Static Web",
+      eyebrow: "Coding Agent Workflow · Static Wiki",
       title: "개인화 학습 코치 위키",
       href: "wiki/projects/adaptive-learning-coach.html",
-      description: "학습 중 생긴 의문을 백로그로 기억하고, 검증된 학습 상태에 맞춰 지금 중요한 다음 행동을 제시하는 개인화 학습 코치형 기술 위키입니다.",
+      description: "코딩 에이전트가 로드맵과 학습 기록을 함께 읽어 현재 관문과 실제 학습 근거에 맞는 다음 행동을 정하고, 보류 목록과 기술 문서를 정적 HTML 위키에 축적하는 개인화 학습 시스템입니다.",
       stack: ["HTML", "JavaScript", "Node.js", "AI Workflow"],
       role: "학습 정책 · 상태 모델 · 정보 구조 · 검증",
-      evidence: "의문 기록 → 우선순위 판단 → 지금 할 한 단계",
-      supportingEvidence: "보류 이유·재등장 조건·완료 증거를 남겨 현재 학습에 집중",
+      evidence: "학습 기록 → 로드맵과 비교 → 지금 할 한 단계",
+      supportingEvidence: "현재 관문·완료 조건·확인 근거·보류 이유를 남겨 중요한 학습에 집중",
       image: "assets/images/projects/adaptive-learning-coach/personal-learning-loop-featured.svg",
       imageAlt: "학습 행동을 증거와 기억으로 축적해 개인화된 설명과 다음 행동으로 되돌리는 개인화 학습 코치 위키 흐름"
+    },
+    {
+      eyebrow: "Personal Health Data · AI Coaching",
+      title: "개인화 헬스 기록 코치",
+      href: "wiki/projects/personal-health-coach.html",
+      description: "하루의 운동·식사·체성분을 날짜별로 축적하고, 월별 운동일과 수행 이력, 근육 자극 분포와 영양 구성을 한눈에 확인하는 개인 헬스 기록 시스템입니다.",
+      stack: ["HTML", "JavaScript", "Data Modeling", "AI Coaching"],
+      role: "기록 정책 · 파생 계산 · 코칭 기준 · 정보 구조",
+      evidence: "날짜별 기록 → 월별 운동일·자극·영양 분석",
+      supportingEvidence: "누적 기록을 현재 패턴과 다음 행동의 근거로 재사용",
+      image: "assets/images/projects/personal-health-coach/muscle-stimulation-map.webp",
+      imageAlt: "최근 운동 기록을 앞뒤 인체 도해의 근육 자극 분포로 표시한 개인화 헬스 기록 코치 화면"
     }
   ],
   knowledgeAreas: [

@@ -318,8 +318,14 @@ function renderIntegratedRoadmapCoaching(state) {
   return rows.map(([label, value]) => `        <div class="status-line"><span class="status">${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`).join("\n");
 }
 
-function renderLearningJourney(journey) {
+function renderLearningJourney(journey, presentation = {}) {
   if (!journey?.milestones?.length) throw new Error("Learning journey milestones are missing");
+  const eyebrow = presentation.eyebrow || journey.eyebrow;
+  const title = presentation.title || journey.title;
+  const summary = presentation.summary || journey.summary;
+  const interactionHint = presentation.interactionHint || "";
+  const finalLabel = presentation.finalLabel || "최종적으로 할 수 있어야 하는 것";
+  const finalOutcome = presentation.finalOutcome || journey.finalOutcome;
   const currentIndex = journey.milestones.findIndex((milestone) => milestone.id === journey.currentId);
   if (currentIndex < 0) throw new Error(`Learning journey current milestone not found: ${journey.currentId}`);
   const progress = journey.milestones.length === 1 ? 100 : (currentIndex / (journey.milestones.length - 1)) * 100;
@@ -330,23 +336,33 @@ function renderLearningJourney(journey) {
     if (index === journey.milestones.length - 1) classes.push("is-final");
     const marker = milestone.status === "complete" ? "✓" : String(index + 1);
     const currentText = milestone.id === journey.currentId ? ' aria-current="step"' : "";
+    const detailLink = milestone.practiceHref
+      ? `\n                <a href="${escapeAttribute(milestone.practiceHref)}">실습·코드 정리 보기 →</a>`
+      : "";
+    const evidenceLabel = milestone.status === "complete"
+      ? "확인된 완료 근거"
+      : milestone.status === "current"
+        ? "현재까지 확인한 근거"
+        : "완료 조건";
     return `          <li class="${classes.join(" ")}" data-milestone-id="${escapeAttribute(milestone.id)}"${currentText}>
             <details>
               <summary aria-label="${escapeAttribute(`${milestone.title}: ${milestone.statusLabel}. 성취 목표 보기`)}"><span class="journey-dot" aria-hidden="true">${escapeHtml(marker)}</span><span class="journey-label">${escapeHtml(milestone.shortTitle)}</span></summary>
               <div class="journey-popover">
                 <div class="journey-popover-head"><h3>${escapeHtml(milestone.title)}</h3><span class="journey-status">${escapeHtml(milestone.statusLabel)}</span></div>
                 <p><strong>성취 목표</strong><br>${escapeHtml(milestone.goal)}</p>
-                <p><strong>${milestone.status === "complete" ? "확인된 완료 근거" : "완료 증거"}</strong><br>${escapeHtml(milestone.evidence)}</p>
-                <a href="${escapeAttribute(milestone.href)}">관련 로드맵에서 자세히 보기 →</a>
+                <p><strong>${evidenceLabel}</strong><br>${escapeHtml(milestone.evidence)}</p>${detailLink}
               </div>
             </details>
           </li>`;
   }).join("\n");
-  return `        <div class="journey-heading"><div><span class="eyebrow">${escapeHtml(journey.eyebrow)}</span><h2>${escapeHtml(journey.title)}</h2></div><p>${escapeHtml(journey.summary)}</p></div>
+  const interactionHintMarkup = interactionHint
+    ? `\n        <p class="journey-interaction-hint"><span aria-hidden="true">↳</span>${escapeHtml(interactionHint)}</p>`
+    : "";
+  return `        <div class="journey-heading"><div><span class="eyebrow">${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}</h2></div><p>${escapeHtml(summary)}</p></div>${interactionHintMarkup}
         <ol class="journey-track" style="--journey-count:${journey.milestones.length};--journey-inset:${lineInset.toFixed(2)}%;--journey-progress-width:${progressWidth.toFixed(2)}%;--journey-progress-height:${progress.toFixed(2)}%" aria-label="학습 성취 관문">
 ${steps}
         </ol>
-        <p class="journey-final"><strong>최종적으로 할 수 있어야 하는 것</strong><br>${escapeHtml(journey.finalOutcome)}</p>`;
+        <p class="journey-final"><strong>${escapeHtml(finalLabel)}</strong><br>${escapeHtml(finalOutcome)}</p>`;
 }
 
 function renderDeferredLearningItems(deferredLearningItems, journey) {
@@ -540,13 +556,10 @@ async function renderStaticDiscoveryPages() {
   let home = await readFile(homePath, "utf8");
   for (const [tag, id, value] of [
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
-    ["strong", "recentCompletion", learningState.recentCompletion],
-    ["strong", "currentLearning", learningState.rotation.next],
-    ["strong", "currentNextAction", learningState.rotation.after],
   ]) home = replaceElementContent(home, { tag, id, value });
+  home = replaceStaticRegion(home, { name: "home-learning-journey", tag: "div", id: "homeLearningJourney", markup: renderLearningJourney(learningState.journey, learningState.journey.homePresentation) });
   home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(homeContent.featuredProjects) });
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
-  home = replaceStaticRegion(home, { name: "home-coaching", tag: "div", id: "coachingStatus", markup: renderCoaching(learningState) });
   await writeFile(homePath, home, "utf8");
 
   const topLevelRoadmapPath = resolve(wikiRoot, "roadmap.html");
@@ -621,6 +634,14 @@ function publicUrlForHref(href) {
   return href === "index.html" ? publicBaseUrl : new URL(href, publicBaseUrl).href;
 }
 
+function canonicalizePageUrl(url) {
+  const parsed = new URL(url);
+  if (`${parsed.origin}${parsed.pathname}` === `${publicBaseUrl}index.html`) {
+    return `${publicBaseUrl}${parsed.search}${parsed.hash}`;
+  }
+  return parsed.href;
+}
+
 function classifyPage(href) {
   if (href === "index.html") return "WebSite";
   if (href.startsWith("wiki/") && !href.endsWith("/index.html")) return "TechArticle";
@@ -655,10 +676,10 @@ function extractBreadcrumbs(content, href, title) {
     const label = decodeEntities(match[3]);
     if (!label || label === "›") continue;
     const link = match[2].match(/href=["']([^"']+)["']/i)?.[1] || null;
-    const absoluteHref = link ? new URL(link, new URL(href, publicBaseUrl)).href : null;
+    const absoluteHref = link ? canonicalizePageUrl(new URL(link, new URL(href, publicBaseUrl)).href) : null;
     items.push({
       name: label.replace(/^⌂\s*/, ""),
-      href: absoluteHref === `${publicBaseUrl}index.html` ? publicBaseUrl : absoluteHref,
+      href: absoluteHref,
     });
   }
   if (!items.length) items.push({ name: title, href: publicUrlForHref(href) });

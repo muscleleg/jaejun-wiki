@@ -1,6 +1,6 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-29",
-  recentCompletion: "Tiny Decoder LM에서 한 수열의 세 Prefix를 병렬 학습하고, d_model=2의 Loss 정체 뒤 d_model=4 재학습으로 [3] → [3,7] → [3,7,2] → [3,7,2,9] 자기회귀 생성을 완료했습니다.",
+  updated: "2026-08-30",
+  recentCompletion: "사전학습 tiny GPT-2에서 Tokenizer·동적 Padding·수동 Greedy·Temperature·Top-k·Top-p 생성을 연결하고, 고정 Text Loss·Perplexity 평가와 로컬 Artifact 새 프로세스 복원을 완료했습니다.",
   priorityPolicy: {
     label: "최우선 핵심 여정",
     title: "Road to LLM inference",
@@ -12,7 +12,14 @@ window.LEARNING_STATE = {
     eyebrow: "Road to LLM inference",
     title: "최종 목표까지의 학습 여정",
     summary: "이 여정은 현재 학습의 최우선 방향입니다. 각 점은 읽은 주제가 아니라 직접 구현하고 설명하며 검증해야 닫히는 성취 관문입니다.",
-    currentId: "pretrained-causal-lm",
+    homePresentation: {
+      title: "AI 엔지니어로 성장하는 학습 여정",
+      summary: "모델을 사용하는 데서 멈추지 않고, PyTorch로 추론 원리를 직접 구현한 뒤 서빙·성능 측정·Multi-GPU 병목 분석까지 확장하고 있습니다. 아래 흐름은 그 성장을 위해 현재 쌓고 있는 역량과 도달한 위치를 보여줍니다.",
+      interactionHint: "각 점을 누르면 성취 목표와 확인된 근거가 펼쳐집니다. 완료·진행 중 관문에서는 실습·코드 정리도 볼 수 있습니다.",
+      finalLabel: "이 여정으로 쌓는 역량",
+      finalOutcome: "모델 내부 동작을 코드로 설명하고, 실제 GPU 환경에서 추론 성능을 측정·최적화하며, 병목의 원인을 데이터와 시스템 관점에서 설명할 수 있는 AI 엔지니어로 성장하는 것이 목표입니다."
+    },
+    currentId: "pytorch-inference",
     finalOutcome: "핵심 종착점은 PyTorch로 이해한 추론 흐름을 vLLM과 Multi-GPU 환경까지 확장하고, 성능 차이를 재현 가능한 수치와 병목 근거로 설명하는 것입니다.",
     milestones: [
       {
@@ -22,6 +29,7 @@ window.LEARNING_STATE = {
         status: "complete",
         statusLabel: "완료",
         href: "roadmaps/roadmap_machine_learning.html",
+        practiceHref: "wiki/projects/road-to-llm-inference/ml-baseline.html",
         goal: "파일을 Pandas로 읽고 데이터 품질·Label 분포를 확인한 뒤 Train·Validation을 분리합니다. 같은 전처리 기준에서 Dummy·Logistic Regression·Decision Tree를 비교하고 Accuracy만이 아니라 Precision·Recall·F1과 일반화 차이를 근거로 모델을 판단합니다.",
         evidence: "회원 이탈 7,043행 데이터에서 전처리·Baseline·Threshold·과적합 비교를 수행하고, 평가 결과와 한계를 설명했습니다."
       },
@@ -32,6 +40,7 @@ window.LEARNING_STATE = {
         status: "complete",
         statusLabel: "완료",
         href: "roadmaps/roadmap_pytorch.html",
+        practiceHref: "wiki/projects/road-to-llm-inference/pytorch-training.html",
         goal: "NumPy·Pandas 데이터를 Tensor·Dataset·DataLoader로 연결하고, nn.Module·Loss·Optimizer로 학습 루프를 구성합니다. Train과 Validation을 구분해 평가하고 state_dict 저장·복원과 원본 데이터 한 건의 추론까지 재현합니다.",
         evidence: "회원 이탈 MLP를 학습·평가하고 Validation Metric, Weight 복원 결과, 원본 고객 한 명의 전처리와 추론까지 확인했습니다."
       },
@@ -42,6 +51,7 @@ window.LEARNING_STATE = {
         status: "complete",
         statusLabel: "완료",
         href: "roadmaps/roadmap_transformer.html",
+        practiceHref: "wiki/projects/road-to-llm-inference/transformer-core.html",
         goal: "Token·Position Embedding부터 Q·K·V, Score Scaling, Mask, Softmax, Value 가중합, Multi-Head 병합, Output Projection, FFN, Residual, LayerNorm을 직접 연결합니다. 각 연산의 실제 숫자와 Batch·Token·Feature Shape을 예측하고 검증합니다.",
         evidence: "Causal Multi-Head Attention과 TransformerBlock을 구현하고 입력·출력 [1,3,2], Attention Weight [1,2,3,3], 미래 위치 0을 검증했습니다."
       },
@@ -52,6 +62,7 @@ window.LEARNING_STATE = {
         status: "complete",
         statusLabel: "완료",
         href: "roadmaps/roadmap_transformer.html",
+        practiceHref: "wiki/projects/road-to-llm-inference/tiny-decoder-lm.html",
         goal: "Token Embedding + Position Embedding → Causal TransformerBlock → LM Head를 하나의 모델로 조립합니다. 한 칸 이동한 Target과 Token Cross Entropy를 연결하고, 아주 작은 데이터에 학습해 Loss가 감소하는지 확인한 뒤 이전 Token만 보며 다음 Token을 한 개씩 생성합니다.",
         evidence: "[3]→7·[3,7]→2·[3,7,2]→9를 한 Forward에서 병렬 학습한다고 설명하고, 저장 실행에서 d_model=2의 Loss 0.462389 정체를 관찰한 뒤 새 d_model=4 모델에서 0.00000258까지 낮추고 [3,7,2,9] 반복 생성을 실행했습니다."
       },
@@ -59,19 +70,21 @@ window.LEARNING_STATE = {
         id: "pretrained-causal-lm",
         title: "사전학습 Causal LM 적용",
         shortTitle: "HF Causal LM",
-        status: "current",
-        statusLabel: "현재",
+        status: "complete",
+        statusLabel: "완료",
         href: "roadmaps/roadmap_transformer.html",
+        practiceHref: "wiki/projects/road-to-llm-inference/pretrained-causal-lm.html",
         goal: "Hugging Face Dataset·Tokenizer·동적 Padding으로 input_ids와 attention_mask를 만들고 사전학습 모델의 Logit [B,S,V]를 확인합니다. generate() 없이 마지막 위치 Logit에서 Token을 선택·추가하는 루프를 만들고 Greedy·Temperature·Top-k·Top-p의 차이를 비교합니다.",
-        evidence: "길이 3·7의 문장을 동적 Padding해 input_ids·attention_mask [2,7]을 만들고 GPT-2 Logit [2,7,50257]을 확인했습니다. Mask에서 마지막 실제 위치 [2,6]을 계산해 Batch별 마지막 Logit [2,50257]까지 선택했으며, 수동 생성·평가·Artifact 복원은 남아 있습니다."
+        evidence: "길이 3·7 문장의 동적 Padding과 GPT-2 Logit [2,7,50257], Batch별 마지막 실제 위치를 확인하고 generate() 없이 Greedy·Temperature·Top-k·Top-p 생성을 실행했습니다. \"I study.\"의 평균 Token Loss 10.831886·Perplexity 50609.078을 평가했으며, Tokenizer·Model을 로컬에 저장한 뒤 별도 프로세스에서 local_files_only로 복원해 Token ID [[40,2050,13]]·Logit [1,3,50257]·Loss가 일치함을 검증했습니다."
       },
       {
         id: "pytorch-inference",
         title: "PyTorch 추론 Baseline",
         shortTitle: "KV Cache·Batch",
-        status: "upcoming",
-        statusLabel: "예정",
+        status: "current",
+        statusLabel: "현재",
         href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog",
+        practiceHref: "wiki/projects/road-to-llm-inference/pytorch-inference.html",
         goal: "같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교합니다. RoPE·GQA·RMSNorm·SwiGLU를 작은 Module과 Shape으로 이해하고, 조건을 고정한 Naive PyTorch 추론 기준선을 만듭니다.",
         evidence: "Sequence Length·Batch 크기별 Latency·Peak VRAM·품질 결과와 Cache Shape을 기록하고, Model·dtype·Token 길이·동시 요청·측정 경계를 명시하면 완료됩니다."
       },
@@ -127,8 +140,8 @@ window.LEARNING_STATE = {
         id: "hf-local-artifact-offline-restore",
         title: "Tokenizer·Model 로컬 저장과 오프라인 복원",
         type: "required",
-        status: "queued",
-        statusLabel: "보류",
+        status: "complete",
+        statusLabel: "완료",
         milestoneId: "pretrained-causal-lm",
         reason: "모델 이름으로 Tokenizer를 자동 다운로드하는 흐름을 먼저 확인한 뒤, 같은 Artifact를 로컬 파일만으로 불러오는 흐름도 익히기로 했습니다.",
         resumeWhen: "사전학습 Causal LM의 Tokenizer·Forward·수동 생성을 한 번 연결한 뒤 Artifact 저장·복원 완료 조건에서 다시 진행합니다.",
@@ -198,27 +211,27 @@ window.LEARNING_STATE = {
     ]
   },
   coaching: {
-    recentEvidence: "길이 3·7의 문장을 Tokenizer로 동적 Padding해 input_ids·attention_mask [2,7]을 만들고, GPT-2 Forward에서 Logit [2,7,50257]을 확인했습니다. Mask 합으로 마지막 실제 위치 [2,6]을 계산하고 Batch별 짝 인덱싱으로 마지막 실제 Logit [2,50257]을 선택했습니다.",
-    diagnosis: "Tokenizer·동적 Padding·사전학습 모델 [B,S,V] Forward와 마지막 실제 위치 선택까지 연결했습니다. 이제 선택한 Vocabulary Logit에서 다음 Token ID를 고르고 입력 뒤에 반복 추가하는 수동 생성 루프를 완성할 단계입니다.",
-    warning: "사전학습 모델에서는 Tokenizer의 PAD·Special token과 attention_mask를 먼저 확인합니다. Tiny 예제처럼 모든 위치가 유효하다고 가정하거나 PAD 위치까지 Loss에 포함하지 않습니다.",
-    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM 결과물을 닫았습니다. → 현재: 사전학습 GPT-2의 마지막 실제 위치 Logit [B,V]까지 선택했습니다. → 남음: 수동 생성·평가·Artifact 복원으로 Transformer 1차 순환을 닫습니다.",
-    scheduledRotation: "1차 순환 · 현재: 길이가 다른 Batch의 마지막 실제 Token 위치에서 Vocabulary Logit을 선택했습니다. → 다음: generate() 없이 Token 선택·추가를 반복해 사전학습 모델의 수동 생성을 완성합니다."
+    recentEvidence: "사전학습 tiny GPT-2의 Greedy·Temperature·Top-k·Top-p 수동 생성을 실행했습니다. \"I study.\"의 평균 Token Loss 10.831886·Perplexity 50609.078을 확인하고, 로컬 Artifact를 별도 프로세스에서 복원해 Token ID·Logit Shape·Loss 일치를 검증했습니다.",
+    diagnosis: "사전학습 Causal LM 적용 관문을 닫았습니다. 이제 같은 모델·Prompt·출력 길이에서 No-cache와 KV Cache 생성의 계산량·Latency·Cache Shape을 비교해 PyTorch 추론 Baseline을 만들 단계입니다.",
+    warning: "추론 최적화 비교에서는 모델·dtype·Prompt Token 수·생성 Token 수·장치·워밍업 조건을 고정합니다. Cache 사용 여부 외의 조건이 함께 바뀌면 속도 차이의 원인을 설명할 수 없습니다.",
+    completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP·Transformer Block·Tiny Decoder LM·사전학습 Causal LM 적용을 닫았습니다. → 현재: PyTorch 추론 Baseline에서 No-cache와 KV Cache를 같은 조건으로 비교합니다.",
+    scheduledRotation: "현재: PyTorch 추론 Baseline → 다음: Benchmark 계약을 고정한 뒤 vLLM 서빙·관측으로 이동합니다."
   },
   rotation: {
-    trigger: "회원 이탈 Baseline·PyTorch MLP와 Tiny Decoder LM의 작은 데이터 학습·자기회귀 생성을 완료했습니다.",
-    next: "마지막 실제 위치 Logit [B,V]에서 다음 Token ID를 선택·복원하고 입력 뒤에 붙입니다.",
-    after: "Token 선택과 추가를 반복하는 수동 생성 루프를 완성한 뒤 평가·저장·복원을 연결합니다.",
-    returnTo: "사전학습 Causal LM 적용 → PyTorch 추론 Baseline"
+    trigger: "사전학습 Causal LM의 Tokenizer·Forward·수동 생성·평가·Artifact 복원을 완료했습니다.",
+    next: "같은 tiny GPT-2와 Prompt에서 Cache를 쓰지 않는 반복 생성부터 계측해 Naive PyTorch 기준선을 만듭니다.",
+    after: "동일 조건의 KV Cache 생성과 Batch 1·Batch N을 비교하고 Cache Shape·Latency 차이를 기록합니다.",
+    returnTo: "PyTorch 추론 Baseline"
   },
   tracks: [
     {
       id: "transformer",
       title: "Transformer 손코딩·적용",
       href: "roadmaps/roadmap_transformer.html",
-      done: 6,
+      done: 7,
       total: 7,
-      current: "Hugging Face Tokenizer로 길이 3·7의 동적 Padding Batch [2,7]을 만들고, GPT-2 Logit [2,7,50257]과 마지막 실제 위치 [2,6]·선택 Logit [2,50257]을 확인했습니다.",
-      next: "마지막 실제 위치의 Vocabulary Logit에서 다음 Token ID를 선택·추가하고 generate() 없는 수동 생성 루프를 완성합니다.",
+      current: "사전학습 tiny GPT-2의 Tokenizer·동적 Padding·[B,S,V] Forward·Greedy·Temperature·Top-k·Top-p 수동 생성·고정 Text 평가·Artifact 복원을 완료했습니다.",
+      next: "완료한 Transformer 1차 순환을 바탕으로 PyTorch 추론 Baseline의 No-cache·KV Cache 비교로 이동합니다.",
       reinforcement: "Tokenizer·Embedding·LM Head가 공통 Token ID 체계를 공유하는 이유와 Python 런타임 소스 추적법을 확인했습니다. 고급 인덱싱은 Batch inference 직전 짧은 실습으로 남깁니다."
     },
     {
@@ -245,8 +258,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_llm_systems.html",
       done: 1,
       total: 5,
-      current: "Forward·Hidden State·Logits와 MTP 검증 흐름을 정리했습니다.",
-      next: "사전학습 Causal LM 관문을 마친 뒤 같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교해 Naive PyTorch 추론 Baseline을 만듭니다."
+      current: "PyTorch 추론 Baseline 관문을 시작합니다. 같은 모델·Prompt에서 No-cache와 KV Cache 생성의 Latency·Cache Shape을 비교할 단계입니다.",
+      next: "먼저 Cache를 쓰지 않는 반복 생성 루프를 고정 조건으로 계측하고, 이어 동일 조건에서 past_key_values를 재사용합니다."
     }
   ]
 };

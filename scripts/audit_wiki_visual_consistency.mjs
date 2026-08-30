@@ -25,11 +25,15 @@ for (const file of files) {
   const content = await readFile(file, "utf8");
   const bodyClass = content.match(/<body\b[^>]*class=["']([^"']*)["']/i)?.[1] || "";
   const headingCount = [...content.matchAll(/<h[23](?:\s|>)/gi)].length;
+  const documentTocDisabled = /<body\b[^>]*data-document-toc=["']off["']/i.test(content);
 
   if (!/assets\/css\/site-theme\.css(?:\?[^"']*)?["']/i.test(content)) {
     findings.push(`${href}: 공통 site-theme.css 누락`);
   }
-  if (!/assets\/js\/global_nav\.js\?v=20260829-toc-height-1["']/i.test(content)) {
+  const expectedGlobalNavVersion = documentTocDisabled
+    ? /assets\/js\/global_nav\.js\?v=20260830-page-optout-1["']/i
+    : /assets\/js\/global_nav\.js\?v=20260829-toc-height-1["']/i;
+  if (!expectedGlobalNavVersion.test(content)) {
     findings.push(`${href}: 공통 내비게이션·목차 cache-bust 버전 불일치`);
   }
 
@@ -82,6 +86,9 @@ if (!/@media \(max-width:\s*820px\)[\s\S]*?\.document-toc-layout\s*\{[\s\S]*?dis
 }
 if (!/headings\.length < 2/.test(tocJs) || !/document-toc-layout/.test(tocJs)) {
   findings.push("article_toc.js: 긴 문서 자동 목차 기준 누락");
+}
+if (!/dataset\.documentToc === "off"/.test(tocJs)) {
+  findings.push("article_toc.js: 문서별 이동형 목차 비활성화 기준 누락");
 }
 
 if (findings.length) {

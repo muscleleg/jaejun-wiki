@@ -1,5 +1,6 @@
 (() => {
   if (!location.pathname.includes("/wiki/") || location.pathname.endsWith("/wiki.html")) return;
+  if (document.body.dataset.documentToc === "off") return;
   if (document.querySelector(".document-toc")) return;
 
   const existingToc = document.querySelector(

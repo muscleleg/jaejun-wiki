@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Road to LLM inference의 첫 관문에서 회원 이탈 데이터를 전처리하고 Dummy·Logistic Regression·Decision Tree를 같은 Validation으로 비교한 실습 기록">
+  <title>표 데이터 ML Baseline · Road to LLM inference</title>
+  <link rel="stylesheet" href="../../../assets/css/portal.css?v=20260825-working-style-flat">
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="표 데이터 ML Baseline · Road to LLM inference">
+  <meta property="og:description" content="Road to LLM inference의 첫 관문에서 회원 이탈 데이터를 전처리하고 Dummy·Logistic Regression·Decision Tree를 같은 Validation으로 비교한 실습 기록">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html","name":"표 데이터 ML Baseline · Road to LLM inference","description":"Road to LLM inference의 첫 관문에서 회원 이탈 데이터를 전처리하고 Dummy·Logistic Regression·Decision Tree를 같은 Validation으로 비교한 실습 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html"},"headline":"표 데이터 ML Baseline · Road to LLM inference","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#baseline","name":"Baseline","identifier":"baseline"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/ml-baseline.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"Road to LLM inference","item":"https://muscleleg.github.io/jaejun-wiki/#now-learning"},{"@type":"ListItem","position":3,"name":"표 데이터 ML Baseline"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference journey-artifact">
+  <main class="wrap" data-learning-milestone="ml-baseline" data-milestone-status="complete">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../index.html#now-learning">Road to LLM inference</a><span class="separator">›</span><span aria-current="page">표 데이터 ML Baseline</span></nav>
+    <header class="hero">
+      <span class="eyebrow">Milestone 01 · complete</span>
+      <h1>표 데이터에서<br>판단 가능한 Baseline 만들기</h1>
+      <p class="summary">회원 이탈 7,043행을 읽어 데이터 품질과 Label 불균형을 확인하고, 같은 Train·Validation과 같은 전처리 기준에서 Dummy·Logistic Regression·Decision Tree를 비교한 관문 기록입니다.</p>
+      <div class="stats"><div class="stat">상태<strong>완료</strong></div><div class="stat">데이터<strong>7,043 × 21</strong></div><div class="stat">Logistic Accuracy<strong>80.55%</strong></div><div class="stat">Yes F1<strong>60.40%</strong></div></div>
+    </header>
+
+    <nav aria-label="문서 목차"><a href="#learning-purpose">학습 목적</a><a href="#result">완성 결과</a><a href="#problem">문제 정의</a><a href="#audit">데이터 점검</a><a href="#flow">전처리 흐름</a><a href="#models">모델 비교</a><a href="#threshold">Threshold</a><a href="#code">전체 연결 코드</a><a href="#corrections">디버깅·한계</a><a href="#evidence">완료 증거</a></nav>
+
+    <section id="learning-purpose">
+      <h2>이 관문에서 알고자 한 것</h2>
+      <p class="learning-purpose-intro"><strong>목적</strong><br>표 데이터가 있다고 해서 바로 머신러닝 문제가 되는 것은 아닙니다. 원본 한 행과 Label의 의미를 정하고, 데이터 누출 없이 숫자 행렬로 바꾸고, 아무것도 학습하지 않은 기준선보다 실제 모델이 나은지 동일한 평가 조건에서 판단하는 전체 흐름을 배우기 위해 이 실습을 진행했습니다.</p>
+      <div class="learning-sequence">
+        <article class="learning-step"><span>질문 01</span><h3>원본 표의 어떤 열을 입력과 정답으로 써야 하는가?</h3><p><strong>사용한 코드</strong> <code>shape</code>·<code>dtypes</code>·<code>str.strip()</code>·<code>pd.to_numeric()</code>·<code>drop()</code>·<code>map()</code></p><p><strong>확인할 이해</strong> 고객 한 행, 19개 Feature, <code>Churn Yes=1</code>이라는 문제 계약과 숫자처럼 보이는 문자열·공백 결측을 먼저 해결합니다.</p><a href="#problem">문제 정의부터 보기 →</a></article>
+        <article class="learning-step"><span>질문 02</span><h3>Train과 Validation을 같은 기준으로 어떻게 숫자화하는가?</h3><p><strong>사용한 코드</strong> <code>train_test_split(stratify=y)</code>·<code>ColumnTransformer</code>·<code>OneHotEncoder</code>·<code>StandardScaler</code>·<code>fit_transform/transform</code></p><p><strong>확인할 이해</strong> 전처리 기준은 Train에서만 학습하고 Validation에는 재사용해야 두 입력이 같은 45열 의미를 가지며 데이터 누출도 막을 수 있습니다.</p><a href="#flow">전처리 코드로 이동 →</a></article>
+        <article class="learning-step"><span>질문 03</span><h3>Accuracy 80%라는 숫자가 정말 학습 성능을 뜻하는가?</h3><p><strong>사용한 코드</strong> <code>DummyClassifier</code>·<code>LogisticRegression</code>·<code>DecisionTreeClassifier</code>·Train/Validation Accuracy</p><p><strong>확인할 이해</strong> 다수 Label만 예측해도 73.46%가 나오므로 Dummy를 최소 기준으로 두고, Tree의 Train 99.80%·Validation 72.89% 차이로 과적합을 판별합니다.</p><a href="#models">모델 비교로 이동 →</a></article>
+        <article class="learning-step"><span>질문 04</span><h3>모델 점수는 어떻게 최종 0·1 판단과 평가 지표가 되는가?</h3><p><strong>사용한 코드</strong> <code>predict_proba()[:,1]</code>·<code>&gt;= threshold</code>·Precision·Recall·F1</p><p><strong>확인할 이해</strong> 학습된 점수와 사람이 선택한 Threshold는 다른 단계이며, 0.5→0.3 변경은 Recall을 늘리는 대신 Precision을 낮춥니다.</p><a href="#threshold">Threshold 실험으로 이동 →</a></article>
+        <article class="learning-step"><span>연결</span><h3>각 질문의 코드를 하나의 재현 가능한 Pipeline으로 잇습니다</h3><p><strong>최종 코드</strong> 데이터 정리 → split → Train 기준 전처리 → 세 모델 학습 → 동일 Validation 평가 → Threshold 비교</p><p><strong>완료 기준</strong> 모델 수치만 외우는 것이 아니라 왜 그 순서로 실행하고 각 출력 Shape과 Metric이 무엇을 뜻하는지 설명합니다.</p><a href="#code">전체 연결 코드 보기 →</a></article>
+      </div>
+    </section>
+
+    <section id="result">
+      <h2>1. 완성 결과 미리보기</h2>
+      <div class="table-scroll"><table><thead><tr><th>모델·조건</th><th>Train</th><th>Validation</th><th>판단</th></tr></thead><tbody><tr><td>Dummy</td><td>다수 Label만 선택</td><td>Accuracy 73.46%</td><td>모델이 최소한 넘어야 할 기준</td></tr><tr><td>Logistic Regression</td><td>같은 전처리</td><td>Accuracy 80.55%, Yes Recall 55.88%, Precision 65.72%, F1 60.40%</td><td>단순하지만 일반화가 안정적인 기준선</td></tr><tr><td>Decision Tree 무제한</td><td>Accuracy 99.80%</td><td>Accuracy 72.89%</td><td>Train 암기와 과적합 확인</td></tr><tr><td>Decision Tree depth=5</td><td>Accuracy 80.39%</td><td>Accuracy 79.84%</td><td>복잡도 제한으로 일반화 회복</td></tr></tbody></table></div>
+      <p>Accuracy만 보면 이탈 고객을 놓치는 정도를 알 수 없었습니다. Threshold를 0.5에서 0.3으로 낮추자 Yes Recall은 55.88%에서 75.40%로 늘고 Precision은 51.93%로 낮아졌습니다. 따라서 Threshold는 모델의 고정 진리가 아니라 업무 비용에 맞춰 선택하는 기준으로 정리했습니다.</p>
+    </section>
+
+    <section id="problem">
+      <h2>2. 먼저 예측 문제의 계약을 정했습니다</h2>
+      <p>이 관문은 단순히 CSV를 모델에 넣는 실습이 아니었습니다. 한 행을 한 고객으로 보고, 고객의 19개 Feature로 <code>Churn</code>을 예측하는 이진 분류 문제로 정의했습니다. Label은 <code>No=0</code>, <code>Yes=1</code>로 두었기 때문에 이후의 <code>predict_proba(... )[:, 1]</code>, Recall, Threshold는 모두 “이탈인 1을 얼마나 잘 찾는가”라는 같은 계약 위에서 해석했습니다.</p>
+      <pre><code>원본 한 행 = 고객 한 명
+X = 19개 입력 Feature
+y = Churn Label
+
+No  → 0 = 비이탈
+Yes → 1 = 이탈
+
+모델 출력의 1번 열 → 이탈 쪽 점수
+Threshold 이상      → 최종 이탈 예측</code></pre>
+      <p>처음에는 모델이 “정답을 맞힌다”는 표현만으로 흐름을 보려 했지만, 실제로는 <strong>Feature → 원시 점수 → 0~1 출력 → Threshold → 0·1 예측 → 실제 Label과 비교</strong>의 단계가 따로 있다는 점을 확인했습니다. Label 숫자를 반대로 매핑하면 같은 출력도 비이탈 쪽을 뜻하게 되므로 숫자 자체보다 먼저 Label 계약을 고정해야 합니다.</p>
+    </section>
+
+    <section id="audit">
+      <h2>3. 모델보다 먼저 데이터가 실제로 계산 가능한지 확인했습니다</h2>
+      <p>원본은 <code>7,043행 × 21열</code>이었지만 모든 열이 곧바로 학습 Feature가 되지는 않았습니다. <code>customerID</code>는 식별자라 제외했고, <code>Churn</code>은 정답으로 분리했습니다. 숫자처럼 보이던 <code>TotalCharges</code>가 문자열 <code>object</code>로 읽힌 이유를 확인하자 공백 값이 11개 있었고, 숫자 변환 뒤 생긴 결측을 처리해야 했습니다.</p>
+      <div class="status-list">
+        <div class="status-row"><strong>Shape·dtype</strong><span><code>df.shape</code>와 <code>df.dtypes</code>로 행·열 수와 숫자/문자 열을 먼저 확인했습니다.</span></div>
+        <div class="status-row"><strong>공백과 결측</strong><span><code>str.strip().eq("")</code>으로 공백 문자열을 찾고 <code>pd.to_numeric(..., errors="coerce")</code> 뒤 <code>isna()</code>로 변환 실패를 확인했습니다.</span></div>
+        <div class="status-row"><strong>중복</strong><span>중복 행과 식별자 중복을 따로 확인해 같은 고객이 학습과 평가에 반복되는 위험을 점검했습니다.</span></div>
+        <div class="status-row"><strong>Label 분포</strong><span>No 73.46%, Yes 26.54%로 불균형하므로 Accuracy 하나만으로 모델을 고를 수 없다고 판단했습니다.</span></div>
+      </div>
+      <p>Pandas <code>DataFrame</code>은 열 이름과 dtype을 가진 표이고, <code>Series</code>는 Label처럼 index와 이름을 가진 1차원 자료구조입니다. 이후 전처리 결과가 NumPy 배열로 바뀌면서 이 Label 정보가 사라지고 값과 Shape 중심으로 넘어간다는 경계도 이 데이터 점검에서 처음 연결했습니다.</p>
+    </section>
+
+    <section id="flow">
+      <h2>4. Train 기준을 Validation에 그대로 적용했습니다</h2>
+      <pre><code>원본 DataFrame [7043, 21]
+  ↓ customerID 제외, Churn → y
+X [7043, 19], y [7043]
+  ↓ stratify를 사용한 80:20 분리
+Train [5634, 19] / Validation [1409, 19]
+  ↓ Train에서만 전처리 기준 fit
+OneHotEncoder + StandardScaler
+  ↓ 같은 기준으로 Validation transform
+X_train_processed [5634, 45]
+X_valid_processed [1409, 45]
+  ↓ 동일 Validation에서 모델·Threshold 비교</code></pre>
+      <p>핵심은 Validation의 평균·표준편차나 범주 목록을 따로 학습하지 않는 것입니다. <code>fit_transform(X_train)</code>으로 기준을 만든 뒤 <code>transform(X_valid)</code>만 적용해 데이터 누출을 막았습니다.</p>
+      <div class="table-scroll"><table><thead><tr><th>Feature 종류</th><th>처리</th><th>실제로 바뀌는 것</th></tr></thead><tbody><tr><td>범주형</td><td><code>OneHotEncoder</code></td><td>문자 범주를 서로 다른 0·1 열로 펼쳐 범주 사이에 가짜 크기 순서가 생기지 않게 했습니다.</td></tr><tr><td>숫자형</td><td><code>StandardScaler</code></td><td>Train 평균을 빼고 Train 표준편차로 나눠 Feature별 규모를 맞췄습니다. 0~1 범위로 제한하는 Min-Max Scaling과는 다릅니다.</td></tr><tr><td>Validation</td><td><code>transform</code>만 호출</td><td>Train에서 정한 범주 열의 자리와 숫자 기준을 재사용해 두 입력 모두 45열이 되게 했습니다.</td></tr></tbody></table></div>
+      <p><code>ColumnTransformer</code>의 각 항목은 <code>(작업 이름, 실제 변환기, 적용할 열 목록)</code>입니다. 이 구성을 통해 원본 19열을 모델이 계산할 수 있는 45개 숫자 Feature로 만들었고, 이후 PyTorch 관문에서도 같은 전처리 객체를 재사용했습니다.</p>
+    </section>
+
+    <section id="models">
+      <h2>5. 세 모델은 서로 다른 질문에 답했습니다</h2>
+      <div class="status-list">
+        <div class="status-row"><strong>Dummy Baseline</strong><span>Feature를 전혀 보지 않고 가장 많은 No만 예측했습니다. 73.46%라는 Accuracy가 나와도 학습한 패턴은 없으므로, 이후 모델이 넘어야 할 최소 기준이 됐습니다.</span></div>
+        <div class="status-row"><strong>Logistic Regression</strong><span>45개 Feature의 가중합 <code>z=w·x+b</code> 하나를 만들고 sigmoid로 이탈 쪽 출력을 냅니다. 각 Feature의 Weight를 학습하지만 중간 Hidden Layer는 없습니다.</span></div>
+        <div class="status-row"><strong>Decision Tree</strong><span>현재 고객 묶음을 가장 잘 나누는 질문을 Gini 기준으로 반복 선택합니다. 제한 없는 깊이는 Train을 거의 외웠고, 깊이를 제한하자 Train·Validation 격차가 줄었습니다.</span></div>
+      </div>
+      <p>이 비교에서 “복잡한 모델이 항상 낫다”가 아니라 <strong>동일한 split·전처리·Metric에서 단순한 기준부터 비교해야 과적합과 개선을 말할 수 있다</strong>는 실험 순서를 얻었습니다. Logistic Regression은 이후 PyTorch MLP(다층 퍼셉트론)의 중간 층이 어떤 추가 표현력을 주는지 비교하는 기준도 됐습니다.</p>
+    </section>
+
+    <section id="threshold">
+      <h2>6. 모델 점수와 최종 판단 기준을 분리했습니다</h2>
+      <p>Logistic Regression의 0~1 출력은 Threshold를 통과하기 전의 이탈 쪽 점수입니다. <code>0.5</code>를 사용하면 0.5 이상을 Yes로 보지만, 이 값은 학습된 Weight가 아니라 사람이 정한 최종 판단선입니다. 같은 모델의 Weight를 그대로 둔 채 Threshold만 낮춰도 예측 Label 수와 Metric이 달라집니다.</p>
+      <div class="table-scroll"><table><thead><tr><th>Threshold</th><th>Yes Recall</th><th>Yes Precision</th><th>해석</th></tr></thead><tbody><tr><td>0.5</td><td>55.88%</td><td>65.72%</td><td>이탈이라고 말할 때는 비교적 정확하지만 실제 이탈을 더 많이 놓쳤습니다.</td></tr><tr><td>0.3</td><td>75.40%</td><td>51.93%</td><td>실제 이탈을 더 많이 찾는 대신 비이탈 고객을 이탈로 경고하는 경우가 늘었습니다.</td></tr></tbody></table></div>
+      <p>Precision은 “이탈이라고 예측한 고객 중 실제 이탈”, Recall은 “실제 이탈 고객 중 찾아낸 비율”입니다. F1은 둘 중 하나만 높은 모델을 피하기 위해 조화평균을 사용합니다. 어떤 Threshold가 더 좋은지는 이탈을 놓치는 비용과 잘못 경고하는 비용을 먼저 정해야 판단할 수 있습니다.</p>
+    </section>
+
+    <section id="code">
+      <h2>7. 관문을 다시 실행하는 핵심 코드</h2>
+      <pre><code>import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+
+df["TotalCharges"] = pd.to_numeric(
+    df["TotalCharges"],
+    errors="coerce",
+).fillna(0)
+X = df.drop(columns=["customerID", "Churn"])
+y = df["Churn"].map({"No": 0, "Yes": 1})
+
+X_train, X_valid, y_train, y_valid = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+numeric_columns = X_train.select_dtypes(exclude="object").columns
+categorical_columns = X_train.select_dtypes(include="object").columns
+
+preprocessor = ColumnTransformer([
+    ("categorical", OneHotEncoder(
+        sparse_output=False,
+        handle_unknown="ignore",
+    ), categorical_columns),
+    ("numeric", StandardScaler(), numeric_columns),
+])
+
+X_train_processed = preprocessor.fit_transform(X_train)
+X_valid_processed = preprocessor.transform(X_valid)
+
+dummy = DummyClassifier(strategy="most_frequent").fit(
+    X_train_processed, y_train
+)
+logistic = LogisticRegression(max_iter=1000).fit(
+    X_train_processed, y_train
+)
+tree = DecisionTreeClassifier(random_state=42).fit(
+    X_train_processed, y_train
+)
+
+for name, model in [("Dummy", dummy), ("Logistic", logistic), ("Tree", tree)]:
+    predictions = model.predict(X_valid_processed)
+    print(name, accuracy_score(y_valid, predictions))
+
+yes_probabilities = logistic.predict_proba(X_valid_processed)[:, 1]
+lower_threshold_predictions = (yes_probabilities &gt;= 0.3).astype(int)
+print(classification_report(y_valid, lower_threshold_predictions))</code></pre>
+    </section>
+
+    <section id="corrections">
+      <h2>8. 막혔던 지점과 수정</h2>
+      <div class="status-list"><div class="status-row"><strong>숫자처럼 보이는 문자열</strong><span><code>TotalCharges</code>를 숫자로 변환한 뒤 변환 실패로 생긴 결측치 11개를 <code>0</code>으로 채워 저장된 실습 흐름을 재현했습니다.</span></div><div class="status-row"><strong>전처리 누출</strong><span>Train과 Validation에서 서로 다른 기준을 만들지 않고 Train 기준을 재사용했습니다.</span></div><div class="status-row"><strong>Accuracy 착시</strong><span>다수 Label만 맞히는 Dummy가 73.46%였기 때문에 Recall·Precision·F1과 Threshold를 함께 봤습니다.</span></div><div class="status-row"><strong>Tree 과적합</strong><span>Train 99.80%와 Validation 72.89%의 차이를 보고 depth를 제한해 비교했습니다.</span></div></div>
+    </section>
+
+    <section id="evidence">
+      <h2>9. 확인된 완료 증거와 한계</h2>
+      <ul><li>문제 입력 <code>X</code>와 이진 Label <code>y</code>를 분리하고 Label 1이 이탈을 뜻한다고 설명했습니다.</li><li>동일한 Validation에서 세 모델과 Threshold를 비교하고 Tree의 과적합을 Train·Validation 차이로 판단했습니다.</li><li>다음 관문에서 같은 split과 전처리 결과를 PyTorch Tensor로 넘길 수 있는 45개 Feature를 만들었습니다.</li></ul>
+      <div class="warning"><strong>한계</strong><br>이 결과는 공개 회원 이탈 샘플의 한 번의 split에서 얻은 학습용 기준선입니다. 교차 검증·Calibration·비용 기반 Threshold·배포 후 Drift 검증은 수행하지 않았습니다.</div>
+    </section>
+    <footer class="footer">Road to LLM inference · Milestone 01 · 표 데이터 ML Baseline</footer>
+  </main>
+  <script src="../../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>
