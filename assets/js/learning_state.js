@@ -185,6 +185,30 @@ window.LEARNING_STATE = {
         href: "wiki/transformer/transformer_token_embedding_learning.html#tensor-dim-semantic-axis"
       },
       {
+        id: "kimi-k3-toy-architecture-handcoding",
+        title: "Kimi K3 구조 교육용 축소 구현 손코딩",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "pytorch-inference",
+        reason: "핵심 Road to LLM inference를 먼저 빠르게 완주하기 위해, Kimi 구조 손코딩은 현재 관문을 바꾸지 않는 장기 관심 백로그로 미뤘습니다.",
+        resumeWhen: "사용자가 이 항목을 다시 선택하거나 핵심 여정을 완료한 뒤 실제 구현 필요가 생길 때만 꺼냅니다.",
+        completion: "먼저 작은 Tensor로 KDA의 순환 상태 갱신을 구현하고 Shape을 예측한 뒤, Token 수에 따라 커지는 KV Cache [B,H,T,Dh]와 Sequence 길이에 독립적인 KDA 순환 상태 [B,H,Dh,Dh]를 비교합니다. 이어 채널별 감쇠와 Delta Update, 실제 Low-rank 압축을 포함한 Gated MLA, KDA 3개와 MLA 1개의 Hybrid 및 AttnRes를 단계적으로 연결하고, 교육용 축소 구현의 생략·단순화와 충실한 Kimi K3 구조의 차이를 설명하면 완료합니다.",
+        href: "https://github.com/MoonshotAI/Kimi-K3"
+      },
+      {
+        id: "moe-router-expert-handcoding",
+        title: "MoE Router·Expert 손코딩과 Expert Parallel 연결",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "distributed-inference",
+        reason: "Road to LLM inference를 먼저 빠르게 완주하기 위해, 일반 MoE 구조와 Routing 손코딩은 현재 관문을 바꾸지 않는 이후 학습 백로그로 미뤘습니다.",
+        resumeWhen: "사용자가 이 항목을 다시 명시적으로 선택하거나, 핵심 여정을 완료한 뒤 실제 MoE 서빙·분산 필요가 생길 때만 꺼냅니다.",
+        completion: "1단계에서 Dense FFN과 MoE의 계산 경계를 설명합니다. 2단계에서 작은 Router가 Expert 확률 [B,T,E]와 Top-k Expert Index·Weight [B,T,K]를 만들게 하고, 선택된 작은 Expert로 Token을 보내 출력을 가중 합산합니다. 3단계에서 Expert별 Token 수와 선택되지 않은 Expert가 출력에 기여하지 않음을 검증하고, 전체 Parameter와 Token당 활성 Parameter·FLOPs를 비교합니다. 4단계에서 Load Imbalance·Capacity·Shared Expert의 역할을 설명하고, 단일 장치 Routing을 Expert Parallel의 장치 간 Token 통신과 연결하되 Production 규모 구현을 완료했다고 간주하지 않습니다.",
+        href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog"
+      },
+      {
         id: "mle-entropy-kl-connection",
         title: "MLE·NLL·Entropy·KL 연결",
         type: "reinforcement",

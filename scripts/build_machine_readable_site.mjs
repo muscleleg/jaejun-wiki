@@ -27,6 +27,7 @@ async function loadWindowValue(sourcePath, property) {
 const homeContent = await loadWindowValue(resolve(wikiRoot, "assets/js/home_content.js"), "HOME_CONTENT");
 const learningState = await loadWindowValue(resolve(wikiRoot, "assets/js/learning_state.js"), "LEARNING_STATE");
 const codingTestState = await loadWindowValue(resolve(wikiRoot, "assets/js/coding_test_state.js"), "CODING_TEST_STATE");
+const reviewState = JSON.parse(await readFile(resolve(wikiRoot, "assets/data/review_state.json"), "utf8"));
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -400,6 +401,108 @@ ${items}
         </div>`;
 }
 
+function renderReviewQueue(reviewStateValue) {
+  if (!reviewStateValue?.items?.length) throw new Error("Review queue items are missing");
+  if (!reviewStateValue?.directions?.length) throw new Error("Review directions are missing");
+  if (reviewStateValue.title !== "기억 강화 세션") throw new Error(`Unexpected review feature title: ${reviewStateValue.title}`);
+  if (reviewStateValue.schemaVersion !== 1) throw new Error(`Unsupported review schema version: ${reviewStateValue.schemaVersion}`);
+  if (!reviewStateValue.policy?.promptTypes?.length) throw new Error("Review prompt types are missing");
+  if (!reviewStateValue.policy?.resultTypes?.length) throw new Error("Review result types are missing");
+  if (!reviewStateValue.policy?.priorityLevels?.length) throw new Error("Review priority levels are missing");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(reviewStateValue.updated)) throw new Error("Review state updated date is invalid");
+
+  const promptTypeById = new Map(reviewStateValue.policy.promptTypes.map((type) => [type.id, type]));
+  const resultTypeById = new Map(reviewStateValue.policy.resultTypes.map((type) => [type.id, type]));
+  const priorityById = new Map(reviewStateValue.policy.priorityLevels.map((level) => [level.id, level]));
+  if (priorityById.size !== reviewStateValue.policy.priorityLevels.length) throw new Error("Review priority IDs must be unique");
+  const ids = new Set();
+  const sortedItems = [...reviewStateValue.items].sort((left, right) => (
+    left.nextDue.localeCompare(right.nextDue) || left.priority - right.priority
+  ));
+  const itemMarkup = sortedItems.map((item) => {
+    if (ids.has(item.id)) throw new Error(`Duplicate review queue item: ${item.id}`);
+    ids.add(item.id);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(item.acquiredDate) || !/^\d{4}-\d{2}-\d{2}$/.test(item.nextDue)) {
+      throw new Error(`Review queue item date is invalid: ${item.id}`);
+    }
+    if (!Number.isInteger(item.stageIndex) || item.stageIndex < 0 || item.stageIndex >= reviewStateValue.policy.intervalsDays.length) {
+      throw new Error(`Review queue stage is invalid: ${item.id}`);
+    }
+    if (!Array.isArray(item.evidenceCriteria) || !item.evidenceCriteria.length) {
+      throw new Error(`Review queue evidence criteria are missing: ${item.id}`);
+    }
+    if (!item.topicLabel?.trim()) throw new Error(`Review queue topic label is missing: ${item.id}`);
+    const priority = priorityById.get(item.priority);
+    if (!priority) throw new Error(`Review queue priority not found: ${item.priority}`);
+    const promptType = promptTypeById.get(item.promptType);
+    if (!promptType) throw new Error(`Review queue prompt type not found: ${item.promptType}`);
+    const results = Array.isArray(item.results) ? item.results : [];
+    for (const [index, result] of results.entries()) {
+      if (!resultTypeById.has(result.outcome)) throw new Error(`Review queue outcome not found: ${result.outcome}`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(result.reviewedAt)) throw new Error(`Review result date is invalid: ${item.id}`);
+      if (!Number.isInteger(result.delayDays) || result.delayDays < 0) throw new Error(`Review delay is invalid: ${item.id}`);
+      if (!result.evidence?.trim()) throw new Error(`Review result evidence is missing: ${item.id}`);
+      if (index && results[index - 1].reviewedAt > result.reviewedAt) throw new Error(`Review results must be oldest-first: ${item.id}`);
+    }
+    const delayedResults = results.filter((result) => Number(result.delayDays) >= 1);
+    const delayedSuccesses = delayedResults.filter((result) => ["recalled", "transferred"].includes(result.outcome)).length;
+    const lastResult = results.at(-1);
+    if ((lastResult?.reviewedAt || null) !== item.lastReviewed) throw new Error(`Review lastReviewed mismatch: ${item.id}`);
+    const lastResultLabel = lastResult ? resultTypeById.get(lastResult.outcome).label : "첫 지연 회상 전";
+    const criteria = item.evidenceCriteria.map((criterion) => `                <li>${escapeHtml(criterion)}</li>`).join("\n");
+    return `        <article class="review-card" data-review-id="${escapeAttribute(item.id)}" data-topic-label="${escapeAttribute(item.topicLabel)}" data-prompt-type="${escapeAttribute(item.promptType)}" data-next-due="${escapeAttribute(item.nextDue)}" data-priority="${escapeAttribute(String(item.priority))}" data-result-count="${results.length}" data-last-reviewed="${escapeAttribute(item.lastReviewed || "")}" data-last-outcome="${escapeAttribute(lastResult?.outcome || "")}" data-stage-index="${escapeAttribute(String(item.stageIndex))}" data-delayed-attempts="${delayedResults.length}" data-delayed-successes="${delayedSuccesses}">
+          <div class="review-card-head"><span class="review-badge review-topic-badge">${escapeHtml(item.topicLabel)}</span><span class="review-badge">${escapeHtml(promptType.label)}</span><span class="review-badge review-priority-badge">중요도 · ${escapeHtml(priority.label)}</span><span class="review-badge review-next-due">예정 · ${escapeHtml(item.nextDue)}</span></div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="review-acquisition"><strong>처음 확인한 근거</strong><br>${escapeHtml(item.acquisitionEvidence)}</p>
+          <details class="review-prompt">
+            <summary>자료 없이 회상 문제 열기</summary>
+            <p class="review-question">${escapeHtml(item.prompt)}</p>
+            <details class="review-criteria">
+              <summary>답한 뒤 채점 기준 확인</summary>
+              <ul>
+${criteria}
+              </ul>
+            </details>
+          </details>
+          <div class="review-card-footer"><span>현재 유지 근거 · ${escapeHtml(lastResultLabel)}</span><a href="${escapeAttribute(item.sourceHref)}">원문 복습 →</a></div>
+        </article>`;
+  }).join("\n");
+
+  const delayedResults = reviewStateValue.items.flatMap((item) => item.results || []).filter((result) => Number(result.delayDays) >= 1);
+  const delayedSuccesses = delayedResults.filter((result) => ["recalled", "transferred"].includes(result.outcome)).length;
+  const dueCount = reviewStateValue.items.filter((item) => item.nextDue <= reviewStateValue.updated).length;
+  const sessionCount = Math.min(dueCount, reviewStateValue.policy.maxPerSession);
+  const successRate = delayedResults.length ? `${Math.round(delayedSuccesses / delayedResults.length * 100)}%` : "측정 전";
+  const nextDue = [...reviewStateValue.items].map((item) => item.nextDue).sort()[0] || "미정";
+  const resultGuide = reviewStateValue.policy.resultTypes.map((result) => `          <li><strong>${escapeHtml(result.label)}</strong> · ${escapeHtml(result.description)}</li>`).join("\n");
+  const directionSummary = reviewStateValue.directions.map((direction) => `<strong>${escapeHtml(direction.label)}</strong> · ${escapeHtml(direction.description)}`).join("<br>");
+
+  return `      <div class="review-stats" aria-label="기억 강화 세션 요약">
+        <div class="review-stat">오늘까지 기한 도래<strong id="reviewDueCount">${dueCount}개</strong></div>
+        <div class="review-stat">이번 세션 최대<strong id="reviewSessionCount">${sessionCount}개</strong></div>
+        <div class="review-stat">지연 회상 성공률<strong id="reviewDelayedSuccessRate">${escapeHtml(successRate)}</strong></div>
+      </div>
+      <p class="review-session-note" id="reviewSessionMessage"><strong>${dueCount ? `이번 세션 회상 ${sessionCount}개` : "오늘 기한이 된 회상 없음"}</strong>${dueCount ? `기한이 된 ${dueCount}개 중 우선순위가 높은 ${sessionCount}개만 먼저 확인합니다.` : `다음 회상 예정일은 ${escapeHtml(nextDue)}입니다.`}</p>
+      <ul class="review-policy-list">
+        <li><strong>복습 방향</strong><span>${directionSummary}</span></li>
+        <li><strong>자료 없이 먼저</strong><span>${escapeHtml(reviewStateValue.policy.attemptRule)}</span></li>
+        <li><strong>세션 한도</strong><span>최대 ${escapeHtml(reviewStateValue.policy.maxPerSession)}개·약 ${escapeHtml(reviewStateValue.policy.timeBudgetMinutes)}분만 사용합니다. ${escapeHtml(reviewStateValue.policy.overflowRule)}</span></li>
+        <li><strong>위키에서 누적</strong><span>${escapeHtml(reviewStateValue.policy.enrollmentRule)}</span></li>
+        <li><strong>선택 순서</strong><span>${escapeHtml(reviewStateValue.policy.directionRule)} ${escapeHtml(reviewStateValue.policy.selectionRule)}</span></li>
+        <li><strong>유지 증거</strong><span>${escapeHtml(reviewStateValue.policy.evidenceRule)}</span></li>
+      </ul>
+      <div class="review-list" id="reviewQueueItems">
+${itemMarkup}
+      </div>
+      <div class="review-result-guide">
+        <h3>결과에 따른 다음 간격</h3>
+        <ul>
+${resultGuide}
+        </ul>
+        <p class="summary">등록된 핵심 개념 <strong id="reviewEnrolledCount">${reviewStateValue.items.length}개</strong> · 가장 가까운 예정일 <strong id="reviewNextDue">${escapeHtml(nextDue)}</strong></p>
+      </div>`;
+}
+
 function hierarchyFor(entry, documentByHref, cache) {
   if (cache.has(entry.href)) return cache.get(entry.href);
   const chain = [];
@@ -611,6 +714,7 @@ async function renderStaticDiscoveryPages() {
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
   history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
+  history = replaceStaticRegion(history, { name: "review-queue", tag: "div", id: "reviewQueue", markup: renderReviewQueue(reviewState) });
   history = replaceStaticRegion(history, { name: "deferred-learning-items", tag: "div", id: "deferredLearningItems", markup: renderDeferredLearningItems(learningState.deferredLearningItems, learningState.journey) });
   history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
   await writeFile(historyPath, history, "utf8");

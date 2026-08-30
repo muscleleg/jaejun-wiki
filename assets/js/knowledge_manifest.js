@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 154,
-  "indexedCount": 155,
+  "documentCount": 156,
+  "indexedCount": 157,
   "categories": [
     {
       "id": "llm-systems",
@@ -738,10 +738,54 @@ window.KNOWLEDGE_MANIFEST = {
       ]
     },
     {
+      "id": "wiki-coding-test-26-immigration",
+      "title": "입국심사",
+      "description": "사람을 직접 배치하는 대신 시간 후보가 가능한지를 판정하고, 불가능과 가능이 갈리는 최초 경계를 이분 탐색으로 찾은 과정을 기록한다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 입국심사 입국심사 사람 배치에서 시간 판정으로 바꾼다 최댓값은 안전한 시간 상한이다 중간값은 사람 수가 아니라 시간 범위를 나눈다 검사한 중간값을 제외하고 경계를 옮긴다 범위가 교차하면 최초 가능 시간이 남는다 실제로 막혔던 지점 제출에 통과한 코드 복잡도 남은 확인",
+      "href": "wiki/coding-test/26-immigration.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/26-immigration.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "입국심사"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-coding-test-27-puzzle-game-challenge",
+      "title": "퍼즐 게임 챌린지",
+      "description": "숙련도는 입력이 아니라 찾아야 할 후보라는 점부터 다시 해석하고, 후보 숙련도로 전체 퍼즐 시간을 Simulation한 뒤 제한 시간 안에 가능한 최초 경계를 찾았다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 퍼즐 게임 챌린지 퍼즐 게임 챌린지 입력과 출력 현재 퍼즐 실패 뒤 이전 퍼즐을 다시 푼다 첫 퍼즐에 이전 시간이 필요 없는 이유 후보 숙련도의 총시간 탐색 대상은 숙련도다 제한 시간과 같아도 성공이다 제출에 통과한 흐름 실제로 막혔던 지점 다음 복습 기준",
+      "href": "wiki/coding-test/27-puzzle-game-challenge.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/27-puzzle-game-challenge.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "퍼즐 게임 챌린지"
+      ],
+      "conceptKeys": []
+    },
+    {
       "id": "wiki-coding-test-algorithm_complexity_search",
       "title": "알고리즘 복잡도와 순차·이분 탐색",
       "description": "Big-O·Omega·Theta 표기, 연산별 시간·공간 복잡도, 순차 탐색의 평균 비교 횟수, 이분 탐색 invariant와 경계 오류를 설명한 문서",
-      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 복잡도·탐색 알고리즘 복잡도와 순차·이분 탐색 1. Big-O는 충분히 큰 입력에서의 증가율 상한이다 2. 복잡도는 함수 전체가 아니라 특정 연산을 기준으로 센다 3. 보조 공간과 입력·출력 공간을 구분한다 4. 순차 탐색은 정렬이 필요 없고 최악에는 모두 본다 5. 이분 탐색은 정렬된 구간을 절반씩 버린다 6. loop invariant가 경계 이동의 근거다 7. 구현 전에 구간 표현을 하나로 고정한다 8. 정렬 비용까지 포함해 탐색 방법을 선택한다 9. 최소 검증 집합 10. 결론 참고 자료",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 복잡도·탐색 알고리즘 복잡도와 순차·이분 탐색 1. Big-O는 충분히 큰 입력에서의 증가율 상한이다 2. 복잡도는 함수 전체가 아니라 특정 연산을 기준으로 센다 3. 보조 공간과 입력·출력 공간을 구분한다 4. 순차 탐색은 정렬이 필요 없고 최악에는 모두 본다 5. 이분 탐색은 정렬된 구간을 절반씩 버린다 5-1. 정답 공간에서는 가능 여부가 바뀌는 경계를 찾는다 6. loop invariant가 경계 이동의 근거다 7. 구현 전에 구간 표현을 하나로 고정한다 8. 정렬 비용까지 포함해 탐색 방법을 선택한다 9. 최소 검증 집합 10. 결론 참고 자료",
       "href": "wiki/coding-test/algorithm_complexity_search.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/algorithm_complexity_search.html",
       "category": "코딩 테스트",
@@ -2361,8 +2405,8 @@ window.KNOWLEDGE_MANIFEST = {
     {
       "id": "wiki-projects-adaptive-learning-coach",
       "title": "개인화 학습 코치 위키",
-      "description": "Codex와 같은 코딩 에이전트와 공부한 과정이 다음 학습까지 이어지도록 만든 저장소 기반 학습 자동화 하네스 입니다. 로드맵은 최종 목표·현재 관문·완료 조건·다음 순서를 기억하고, 학습 기록은 실제로 공부한 내용·확인한 이해·막힌 지점을 남깁니다. 코딩 에이전트는 둘을 함께 읽어 지금 할 한 단계와 다음 설명을 갱신합니다.",
-      "searchText": "⌂ 홈 › 기술 위키 › 개인 프로젝트 › 개인화 학습 코치 위키 개인화 학습 코치 위키 개발 배경 핵심 목표 주요 기능 자동 학습 기록과 보류 목록 로드맵·학습 기록 기반 코칭 체계적인 문서 축적과 빠른 탐색 학습이 이어지는 과정 자동화의 역할과 경계 사용자가 결정하고 수행하는 일 코딩 에이전트가 보조하는 일 학습 기록을 신뢰할 수 있는 이유",
+      "description": "Codex와 같은 코딩 에이전트와 공부한 과정이 다음 학습까지 이어지도록 만든 저장소 기반 학습 자동화 하네스 입니다. 로드맵은 최종 목표·현재 관문·완료 조건·다음 순서를 기억하고, 학습 기록은 실제로 공부한 내용·확인한 이해·막힌 지점을 남깁니다. 코딩 에이전트는 둘을 함께 읽어 지금 할 한 단계와 다음 설명을 갱신합니다. 한 번 확인한 핵심 개념은 독립적인 기억 강화 세션에서 시간이 지난 뒤 자료 없이 다시 꺼내 장기기억 유지 여부를 확인합니다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 개인 프로젝트 › 개인화 학습 코치 위키 개인화 학습 코치 위키 개발 배경 핵심 목표 주요 기능 자동 학습 기록과 보류 목록 기억 강화 세션 로드맵·학습 기록 기반 코칭 체계적인 문서 축적과 빠른 탐색 학습이 이어지는 과정 자동화의 역할과 경계 사용자가 결정하고 수행하는 일 코딩 에이전트가 보조하는 일 학습 기록을 신뢰할 수 있는 이유",
       "href": "wiki/projects/adaptive-learning-coach.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/projects/adaptive-learning-coach.html",
       "category": "개인 프로젝트",
@@ -2382,6 +2426,7 @@ window.KNOWLEDGE_MANIFEST = {
         "adaptive-learning-coach-project",
         "wiki-personal-learning-loop",
         "wiki-learning-memory",
+        "wiki-memory-reinforcement",
         "wiki-learning-backlog-priority",
         "wiki-adaptive-coaching",
         "wiki-document-hierarchy",

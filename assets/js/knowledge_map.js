@@ -169,6 +169,7 @@
         node("개인화 학습 코치 위키", "adaptive-learning-coach-project", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html", children: [
           node("코딩 에이전트 학습 순환", "wiki-personal-learning-loop", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-loop", children: [
             node("자동 학습 기록과 보류 목록", "wiki-learning-memory", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-memory" }),
+            node("기억 강화 세션", "wiki-memory-reinforcement", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#memory-reinforcement" }),
             node("로드맵 기반 우선순위와 다음 행동", "wiki-learning-backlog-priority", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#learning-backlog" }),
             node("로드맵·학습 기록 기반 코칭", "wiki-adaptive-coaching", { status: "reference", href: "wiki/projects/adaptive-learning-coach.html#adaptive-coaching" }),
           ] }),

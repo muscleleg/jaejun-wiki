@@ -68,6 +68,11 @@ const [
   sitemapSource,
   projectCss,
   featuredSvg,
+  reviewStateSource,
+  learningHistorySource,
+  reviewCss,
+  reviewJs,
+  reviewRecordScript,
 ] = await Promise.all([
   source("assets/js/home_content.js"),
   source("assets/js/knowledge_map.js"),
@@ -81,6 +86,11 @@ const [
   source("sitemap.xml"),
   source("assets/css/wiki-reference.css"),
   source(`${imageRoot}/personal-learning-loop-featured.svg`),
+  source("assets/data/review_state.json"),
+  source("learning_history.html"),
+  source("assets/css/review-queue.css"),
+  source("assets/js/review_queue.js"),
+  source("scripts/record_review_result.mjs"),
 ]);
 
 for (const [location, content] of [
@@ -104,24 +114,24 @@ requireOrdered(homeHtml, ['id="homeLearningJourney"', 'id="projects"'], "index.h
 
 const standardAnchors = ["overview", "background", "goals", "features", "service-flow", "system-architecture", "data-design", "ownership", "validation"];
 const standardHeadings = ["개발 배경", "핵심 목표", "주요 기능", "학습이 이어지는 과정", "자동화의 역할과 경계", "학습 기록을 신뢰할 수 있는 이유"];
-const legacyAnchors = ["problem", "learning-loop", "learning-memory", "learning-backlog", "adaptive-coaching", "ownership", "document-discovery", "knowledge-map", "static-build", "validation", "status-limits"];
+const legacyAnchors = ["problem", "learning-loop", "learning-memory", "learning-backlog", "memory-reinforcement", "adaptive-coaching", "ownership", "document-discovery", "knowledge-map", "static-build", "validation", "status-limits"];
 
 for (const anchor of standardAnchors) requireText(projectSource, `id="${anchor}"`, `${projectHref} 표준 구간`);
 for (const anchor of legacyAnchors) requireText(projectSource, `id="${anchor}"`, `${projectHref} 기존 링크 호환 구간`);
 for (const heading of standardHeadings) requireText(projectSource, `>${heading}</h`, `${projectHref} 독자 중심 목차`);
 requireOrdered(projectSource, standardHeadings.map((heading) => `>${heading}</h`), `${projectHref} 독자 중심 목차`);
 requireText(projectSource, '<body class="wiki-reference audience-first-project adaptive-learning-project" data-document-toc="off">', `${projectHref} 공통·전용 body hook과 이동형 목차 비활성화`);
-requireText(projectSource, '<meta name="description" content="Codex와 같은 코딩 에이전트가 로드맵과 학습 기록을 함께 읽고 지금 할 한 단계·보류 목록·기술 문서를 갱신하도록 만든 저장소 기반 학습 자동화 하네스">', `${projectHref} 구현 정체성을 밝힌 meta description`);
+requireText(projectSource, '<meta name="description" content="Codex와 같은 코딩 에이전트가 로드맵·학습 기록·간격 회상 결과를 함께 읽고 다음 학습과 장기기억 유지를 돕는 저장소 기반 학습 자동화 하네스">', `${projectHref} 구현 정체성을 밝힌 meta description`);
 
 rejectText(projectSource, '<section id="overview">', `${projectHref} 상단과 중복되는 별도 프로젝트 개요`);
 const overviewSection = fragment(projectSource, '<header id="overview" class="hero">', "</header>", `${projectHref} 상단 프로젝트 개요`);
-for (const token of ["Codex와 같은 코딩 에이전트", "저장소 기반 학습 자동화 하네스", "로드맵은 최종 목표·현재 관문·완료 조건·다음 순서를 기억", "학습 기록은 실제로 공부한 내용·확인한 이해·막힌 지점을 남깁니다", "둘을 함께 읽어 지금 할 한 단계", "코딩 에이전트가 저장소를 읽고 수정", "별도의 백엔드 서비스", "HTML·CSS·JavaScript", "Git"]) {
+for (const token of ["Codex와 같은 코딩 에이전트", "저장소 기반 학습 자동화 하네스", "로드맵은 최종 목표·현재 관문·완료 조건·다음 순서를 기억", "학습 기록은 실제로 공부한 내용·확인한 이해·막힌 지점을 남깁니다", "둘을 함께 읽어 지금 할 한 단계", "독립적인 기억 강화 세션", "장기기억 유지 여부", "코딩 에이전트가 저장소를 읽고 수정", "별도의 백엔드 서비스", "HTML·CSS·JavaScript", "Git"]) {
   requireText(overviewSection, token, `${projectHref} 프로젝트 개요의 구현 정체성`);
 }
 rejectText(projectSource, "Node.js", `${projectHref} 프로젝트 정체성과 무관한 내부 구현 도구 노출`);
 
-const featureIds = ["learning-memory", "adaptive-coaching", "document-discovery"];
-const featureNames = ["자동 학습 기록과 보류 목록", "로드맵·학습 기록 기반 코칭", "체계적인 문서 축적과 빠른 탐색"];
+const featureIds = ["learning-memory", "memory-reinforcement", "adaptive-coaching", "document-discovery"];
+const featureNames = ["자동 학습 기록과 보류 목록", "기억 강화 세션", "로드맵·학습 기록 기반 코칭", "체계적인 문서 축적과 빠른 탐색"];
 const featuresSection = fragment(projectSource, '<section id="features">', "</section>", `${projectHref} 주요 기능`);
 requireText(featuresSection, 'class="feature-directory"', `${projectHref} 평면 기능 목차`);
 rejectText(featuresSection, 'class="feature-index"', `${projectHref} 스크롤 이동형 기능 목차`);
@@ -137,7 +147,7 @@ for (let index = 0; index < featureIds.length; index += 1) {
   requireText(story, `<header><span class="feature-number">기능 0${index + 1}</span><h2>${name}</h2></header>`, `${projectHref} ${name} 독립 상세 제목`);
   requireText(story, 'class="feature-summary"', `${projectHref} ${name} 상시 노출 핵심 설명`);
   requireText(story, `<h2>${name}</h2>`, `${projectHref} 기능 제목`);
-  const explanationClass = id === "learning-memory" ? 'class="memory-purpose-list"' : id === "adaptive-coaching" ? 'class="feature-purpose-list"' : 'class="feature-proof"';
+  const explanationClass = id === "learning-memory" ? 'class="memory-purpose-list"' : id === "document-discovery" ? 'class="feature-proof"' : 'class="feature-purpose-list"';
   requireText(story, explanationClass, `${projectHref} ${name} 그림과 이어지는 본문 설명`);
   requireText(story, id === "learning-memory" ? 'class="memory-outcome"' : 'class="feature-outcome"', `${projectHref} ${name} 사용자 변화 설명`);
   rejectText(story, 'class="feature-decision-list"', `${projectHref} ${name} 반복형 목적·입력·결과·흐름 표`);
@@ -157,8 +167,15 @@ for (const markup of ['class="memory-purpose-list"', 'class="memory-decision-ove
   requireText(memoryStory, markup, `${projectHref} 자동 기록과 보류 판단의 시각 구조`);
 }
 requireText(memoryStory, '</div>\n          <div class="memory-decision-overlay">', `${projectHref} 자동 정리 배경 밖의 독립 판단 영역`);
-for (const token of ['class="dom-flow-visual"', 'class="dom-flow"', "학습에 집중", "질문 · 설명 · 실습", "자동 정리", "날짜별 학습 기록", "로드맵 현재 위치", "보류 목록"]) {
+for (const token of ['class="dom-flow-visual"', 'class="dom-flow"', "학습에 집중", "질문 · 설명 · 실습", "자동 정리", "날짜별 학습 기록", "로드맵 현재 위치", "기억 강화 세션", "보류 목록"]) {
   requireText(memoryStory, token, `${projectHref} 자동 기록 흐름의 DOM 도식`);
+}
+for (const token of ["기억 강화 연결", "확인된 지식을 별도의 세션으로 보냅니다", "기억 강화 세션의 JSON 목록", "처음 이해한 기록", "유지 결과"]) {
+  requireText(memoryStory, token, `${projectHref} 자동 기록과 기억 강화 세션 연결`);
+}
+const memoryReinforcementStory = fragment(projectSource, '<article id="memory-reinforcement" class="feature-story feature-section">', "</article>", `${projectHref} 기억 강화 세션`);
+for (const token of ["AI 엔지니어로서 성장", "기업 코딩 테스트 합격", "로드맵별 분류나 분야별 고정 할당량", "JSON 누적", "다음 확인일", "전체 결과 이력", "최근 실패·중요도·밀린 기간", "중요도가 낮은 내용도 버리지 않고 후순위", "실패·힌트·무힌트 성공·변형 적용", "처음 배운 날의 성공", "유지 근거", "learning_history.html#review-queue", "기억 강화 상태 JSON"]) {
+  requireText(memoryReinforcementStory, token, `${projectHref} 기억 강화 세션의 독립 기능 설명`);
 }
 for (const selector of [".memory-bubble-question::before", ".memory-bubble-question::after", "--memory-question-tail"]) {
   rejectText(projectCss, selector, `${projectHref} 판단 질문과 대표 그림 사이의 불필요한 연결 장식`);
@@ -191,6 +208,7 @@ rejectText(projectSource, 'class="project-definition-list', `${projectHref} 기�
 rejectText(projectSource, 'class="evidence-layer-list', `${projectHref} 저장 정보를 반복하는 별도 목록`);
 requireText(projectSource, 'class="project-goal-list"', `${projectHref} 독립된 핵심 목표 카드 목록`);
 rejectText(projectSource, 'class="project-goal-list flat-list"', `${projectHref} 핵심 목표를 평면 목록으로 축소`);
+if ((fragment(projectSource, '<section id="goals">', "</section>", `${projectHref} 핵심 목표`).match(/<li>/g) || []).length !== 5) findings.push(`${projectHref}: 핵심 목표는 장기기억 회수를 포함한 다섯 항목이어야 함`);
 const comparisonCount = (projectSource.match(/class="project-(?:contrast|detail-grid)"/g) || []).length;
 if (comparisonCount !== 2) findings.push(`${projectHref}: 2열 비교는 기존/개선·사용자/AI 두 쌍만 허용함 (${comparisonCount}/2)`);
 rejectText(projectSource, 'class="project-stage-flow"', `${projectHref} 다열 단계 카드`);
@@ -208,6 +226,9 @@ const documentStory = fragment(projectSource, '<article id="document-discovery" 
 requireText(serviceFlow, 'class="feature-cycle"', `${projectHref} 세 기능을 잇는 순환 도식`);
 for (const token of ["학습이 이어지는 과정", "질문하고 직접 확인합니다", "현재 위치와 새 근거를 비교합니다", "로드맵·기록·문서를 갱신합니다", "누적된 상태에서 다시 시작합니다", "다음 질문은 처음부터 시작하지 않습니다"]) {
   requireText(serviceFlow, token, `${projectHref} 학습이 이어지는 과정`);
+}
+for (const token of ["기한이 된 회상 문제", "지연 회상 결과", "다음 확인 간격", "최대 세 개", "장기기억에 남아 있는지"]) {
+  requireText(serviceFlow, token, `${projectHref} 간격 회상을 포함한 학습 순환`);
 }
 if ((serviceFlow.match(/<li>/g) || []).length !== 4) findings.push(`${projectHref}: 학습이 이어지는 과정은 학습·판단·갱신·재사용 네 단계여야 함`);
 rejectText(serviceFlow, "현재 학습 완료", `${projectHref} 기능 01과 중복되는 세부 사용 단계`);
@@ -229,7 +250,7 @@ for (const token of ["검색을 해제하면", "전체 문서 계층으로 돌�
 }
 
 const architectureSection = fragment(projectSource, '<section id="system-architecture">', "</section>", `${projectHref} 자동화의 역할과 경계`);
-for (const token of ["자동화의 역할과 경계", 'id="data-design" class="fragment-alias"', 'id="ownership" class="fragment-alias"', "architecture-summary", "사용자는 학습하고 판단하며", "별도의 백엔드 서비스는 아닙니다", "코딩 에이전트가 저장소의 지침과 누적 상태를 읽고 갱신", "사용자가 결정하고 수행하는 일", "코딩 에이전트가 보조하는 일", "저장과 열람의 경계", "로드맵은 앞으로 갈 방향", "학습 기록은 지금까지 확인한 근거", "보류 목록은 나중에 다시 볼 의문", "정적 HTML 위키"]) {
+for (const token of ["자동화의 역할과 경계", 'id="data-design" class="fragment-alias"', 'id="ownership" class="fragment-alias"', "architecture-summary", "사용자는 학습하고 판단하며", "별도의 백엔드 서비스는 아닙니다", "코딩 에이전트가 저장소의 지침과 누적 상태를 읽고 갱신", "사용자가 결정하고 수행하는 일", "코딩 에이전트가 보조하는 일", "저장과 열람의 경계", "로드맵은 앞으로 갈 방향", "학습 기록은 지금까지 확인한 근거", "기억 강화 상태 JSON", "전체 결과 이력", "HTML은 JSON에서 생성한 열람 화면"]) {
   requireText(architectureSection, token, `${projectHref} 자동화의 역할과 경계`);
 }
 requireOrdered(architectureSection, ["architecture-summary", 'class="project-detail-grid"', "저장과 열람의 경계", "장기 목표를 임의로 바꾸거나"], `${projectHref} 자동화 경계의 설명 순서`);
@@ -240,8 +261,38 @@ if ((architectureSection.match(/<section\b/g) || []).length !== 1) findings.push
 for (const token of [".architecture-summary {", ".trust-list", "grid-template-columns: 1fr"]) {
   requireText(projectCss, token, `${projectHref} 자동화 경계·검증의 데스크톱·모바일 CSS`);
 }
-for (const token of ["학습 기록을 신뢰할 수 있는 이유", "이해 확인", "다음 행동", "공개 기록", "학습 → 판단 → 기록 → 다음 학습"]) {
+for (const token of ["학습 기록을 신뢰할 수 있는 이유", "이해 확인", "장기 유지", "처음 배운 날의 성공과 지연 회상 성공", "다음 행동", "공개 기록", "학습 → 간격 회상 → 판단 → 기록 → 다음 학습"]) {
   requireText(validationSection, token, `${projectHref} 학습 기록의 신뢰 근거`);
+}
+
+for (const token of ['"schemaVersion": 1', '"maxPerSession": 3', '"timeBudgetMinutes": 8', '"id": "failed"', '"id": "hinted"', '"id": "recalled"', '"id": "transferred"', '"id": "ai-engineer-growth"', '"id": "coding-test-pass"', '"resultRecordRule"', '"priorityLevels"']) {
+  requireText(reviewStateSource, token, "assets/data/review_state.json 회상 정책과 이력");
+}
+for (const token of ['id="review-queue"', 'data-review-dashboard', 'static-fallback:review-queue:start', 'assets/data/review_state.json', 'assets/css/review-queue.css', 'assets/js/review_queue.js']) {
+  requireText(learningHistorySource, token, "learning_history.html 기억 강화 세션");
+}
+for (const token of [".review-dashboard", ".review-card.is-session-active", ".review-topic-badge", ".review-priority-badge", "@media (max-width: 720px)"]) {
+  requireText(reviewCss, token, "assets/css/review-queue.css 반응형 회상 화면");
+}
+for (const token of ["data-review-dashboard", "lastOutcome", "is-session-active", "reviewDueCount", "reviewDelayedSuccessRate", "최근 실패·중요도·밀린 기간"]) {
+  requireText(reviewJs, token, "assets/js/review_queue.js 기한 표시 동작");
+}
+for (const token of ["review_state.json", "reviewedAt", "delayDays", "stageIndex", "nextDue", "REVIEW_RESULT_RECORDED"]) {
+  requireText(reviewRecordScript, token, "scripts/record_review_result.mjs 회상 결과 기록");
+}
+rejectText(reviewStateSource, '"milestoneId"', "assets/data/review_state.json 로드맵 독립 회상 목록");
+rejectText(reviewStateSource, '"trackId"', "assets/data/review_state.json 분야별 고정 할당 없는 회상 목록");
+const reviewState = JSON.parse(reviewStateSource);
+if (reviewState.title !== "기억 강화 세션") findings.push("assets/data/review_state.json: 공개 기능명은 기억 강화 세션이어야 함");
+if (reviewState.directions.map((direction) => direction.id).join("|") !== "ai-engineer-growth|coding-test-pass") {
+  findings.push("assets/data/review_state.json: 복습 방향은 AI 엔지니어 성장과 기업 코딩 테스트 합격이어야 함");
+}
+if (new Set(reviewState.items.map((item) => item.id)).size !== reviewState.items.length) findings.push("assets/data/review_state.json: 회상 항목 ID가 중복됨");
+if (!reviewState.items.some((item) => item.sourceHref.startsWith("wiki/coding-test/")) || !reviewState.items.some((item) => !item.sourceHref.startsWith("wiki/coding-test/"))) {
+  findings.push("assets/data/review_state.json: AI 지식과 코딩 테스트 지식이 모두 있어야 함");
+}
+for (const item of reviewState.items) {
+  if (!item.topicLabel || !Number.isInteger(item.priority) || !Array.isArray(item.results)) findings.push(`assets/data/review_state.json: 회상 항목 구조 불일치 ${item.id}`);
 }
 
 const siteManifest = JSON.parse(siteManifestSource);
@@ -253,6 +304,7 @@ const projectConcepts = conceptGraph.concepts.filter(({ conceptKey }) => concept
 if (sitePages.length !== 1 || sitePages[0].title !== projectName) findings.push("site_manifest.json: 프로젝트 문서가 기존 이름과 경로에 맞게 정확히 한 번 있어야 함");
 if (knowledgeDocuments.length !== 1 || knowledgeDocuments[0].title !== projectName) findings.push("knowledge_manifest.json: 프로젝트 문서가 기존 이름과 경로에 맞게 정확히 한 번 있어야 함");
 if (projectConcepts.length !== 1 || !projectConcepts[0].labels.includes(projectName) || !projectConcepts[0].hrefs.includes(projectHref)) findings.push("concept_graph.json: 프로젝트 concept key·기존 이름·문서 연결 불일치");
+for (const token of ["기억 강화 세션", "wiki-memory-reinforcement", `${projectHref}#memory-reinforcement`]) requireText(mapSource, token, "assets/js/knowledge_map.js 기억 강화 세션 노드");
 requireText(projectSource, `<link rel="canonical" href="${projectUrl}">`, `${projectHref} 기존 canonical URL`);
 requireText(sitemapSource, `/jaejun-wiki/${projectHref}`, "sitemap.xml");
 
