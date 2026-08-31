@@ -185,6 +185,18 @@ window.LEARNING_STATE = {
         href: "wiki/transformer/transformer_token_embedding_learning.html#tensor-dim-semantic-axis"
       },
       {
+        id: "autograd-inference-internal-tracking",
+        title: "Autograd 내부 추적 심화",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "pytorch-inference",
+        reason: "현재 No-cache·KV Cache 추론 비교에는 model.eval()과 torch.inference_mode()를 함께 선택하고, 계산 그래프와 backward가 비활성화된다는 점만 알면 충분합니다. Version Counter·View Tracking·in-place 변경 감지까지 파고드는 일은 현재 관문을 막지 않아 나중으로 미뤘습니다.",
+        resumeWhen: "in-place 연산 때문에 backward 오류가 발생하거나, 추론의 성능·메모리 오버헤드를 실제로 분석할 때 다시 꺼냅니다.",
+        completion: "작은 Tensor 코드에서 torch.no_grad()와 torch.inference_mode()의 Version Counter·View Tracking·in-place 변경 감지 차이를 먼저 예측한 뒤 실행 결과와 비교합니다. 이어 inference Tensor를 학습 계산에 재사용할 때의 제약을 실제 오류 또는 허용되는 성공 조건으로 구분해 설명하면 완료합니다.",
+        href: "wiki/pytorch/pytorch_linear_regression_module_optimizer_dataset_learning.html#module-optimizer"
+      },
+      {
         id: "kimi-k3-toy-architecture-handcoding",
         title: "Kimi K3 구조 교육용 축소 구현 손코딩",
         type: "interest",
@@ -235,16 +247,16 @@ window.LEARNING_STATE = {
     ]
   },
   coaching: {
-    recentEvidence: "사전학습 tiny GPT-2의 Greedy·Temperature·Top-k·Top-p 수동 생성을 실행했습니다. \"I study.\"의 평균 Token Loss 10.831886·Perplexity 50609.078을 확인하고, 로컬 Artifact를 별도 프로세스에서 복원해 Token ID·Logit Shape·Loss 일치를 검증했습니다.",
-    diagnosis: "사전학습 Causal LM 적용 관문을 닫았습니다. 이제 같은 모델·Prompt·출력 길이에서 No-cache와 KV Cache 생성의 계산량·Latency·Cache Shape을 비교해 PyTorch 추론 Baseline을 만들 단계입니다.",
+    recentEvidence: "같은 tiny GPT-2·CPU·float32·Prompt 2 Token·Greedy·새 Token 20개 조건에서 각 방식 Warm-up 3회 뒤 10회 측정했습니다. 출력 일치를 유지하면서 No-cache 평균 74.1009 ms, KV Cache 평균 11.6883 ms로 현재 조건에서 약 6.34배 차이를 확인했습니다.",
+    diagnosis: "단일 문장의 No-cache·KV Cache 기능 일치, Cache 누적 Shape과 첫 로컬 Latency 기준선을 확보했습니다. 이제 Batch 1과 Batch N의 입력·Cache Shape, 처리량과 메모리 차이를 비교할 단계입니다.",
     warning: "추론 최적화 비교에서는 모델·dtype·Prompt Token 수·생성 Token 수·장치·워밍업 조건을 고정합니다. Cache 사용 여부 외의 조건이 함께 바뀌면 속도 차이의 원인을 설명할 수 없습니다.",
     completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP·Transformer Block·Tiny Decoder LM·사전학습 Causal LM 적용을 닫았습니다. → 현재: PyTorch 추론 Baseline에서 No-cache와 KV Cache를 같은 조건으로 비교합니다.",
     scheduledRotation: "현재: PyTorch 추론 Baseline → 다음: Benchmark 계약을 고정한 뒤 vLLM 서빙·관측으로 이동합니다."
   },
   rotation: {
     trigger: "사전학습 Causal LM의 Tokenizer·Forward·수동 생성·평가·Artifact 복원을 완료했습니다.",
-    next: "같은 tiny GPT-2와 Prompt에서 Cache를 쓰지 않는 반복 생성부터 계측해 Naive PyTorch 기준선을 만듭니다.",
-    after: "동일 조건의 KV Cache 생성과 Batch 1·Batch N을 비교하고 Cache Shape·Latency 차이를 기록합니다.",
+    next: "같은 tiny GPT-2와 Prompt에서 No-cache·KV Cache의 출력 일치·Cache Shape 누적·첫 로컬 Latency 차이를 확인했습니다.",
+    after: "Batch 1·Batch N의 입력·Cache Shape, 처리량·메모리 차이를 기록합니다.",
     returnTo: "PyTorch 추론 Baseline"
   },
   tracks: [
@@ -282,8 +294,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_llm_systems.html",
       done: 1,
       total: 5,
-      current: "PyTorch 추론 Baseline 관문을 시작합니다. 같은 모델·Prompt에서 No-cache와 KV Cache 생성의 Latency·Cache Shape을 비교할 단계입니다.",
-      next: "먼저 Cache를 쓰지 않는 반복 생성 루프를 고정 조건으로 계측하고, 이어 동일 조건에서 past_key_values를 재사용합니다."
+      current: "같은 모델·Prompt·Greedy·생성 길이에서 출력 일치와 Cache 누적을 확인하고, CPU 첫 기준선에서 No-cache 74.1009 ms와 KV Cache 11.6883 ms를 측정했습니다.",
+      next: "Batch 1과 Batch N의 입력·Cache Shape, 처리량과 메모리 차이를 비교합니다."
     }
   ]
 };

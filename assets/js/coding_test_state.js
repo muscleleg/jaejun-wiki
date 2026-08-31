@@ -3,7 +3,7 @@ window.CODING_TEST_STATE = {
     eyebrow: "Road to coding test",
     title: "실전 문제 해결까지의 학습 여정",
     summary: "사용자가 코딩 테스트를 하겠다고 선택한 세션에만 진행합니다. 속도는 처음부터 기록하되 기초 단계에서는 합격 판정이 아니라 막힌 지점을 찾는 데 사용하고, 대표 문제 학습 → 같은 패턴 전이 → 제한시간 혼합 세트의 세 단계로 올라갑니다. 매 시도의 시간·막힌 위치·힌트·재풀이 증거로 다음 문제 또는 보강 방식을 결정합니다.",
-    currentId: "heap-general-graph",
+    currentId: "weighted-path-dp",
     finalOutcome: "핵심 종착점은 유형 이름을 미리 보지 않은 문제에서도 제약을 읽고 후보 풀이를 비교한 뒤, 제한 시간 안에 구현·검증하고 실패 원인과 시간·공간 복잡도를 설명하며 다시 풀 수 있는 상태입니다.",
     milestones: [
       {
@@ -34,7 +34,7 @@ window.CODING_TEST_STATE = {
         statusLabel: "기초 적용 완료",
         href: "wiki/coding-test/index.html#current-position",
         goal: "DP에서는 저장할 상태와 이전 상태의 관계를 정하고, DFS에서는 한 경로의 선택과 복귀를 추적하며, BFS에서는 FIFO Queue가 같은 거리의 상태를 먼저 처리해 무가중치 최단거리를 만드는 이유를 설명합니다.",
-        evidence: "피보나치 수에서 이전 값을 저장했고, 타겟 넘버의 이진 선택을 DFS로, 게임 맵 최단거리를 2차원 BFS로 구현했습니다. 일반 그래프와 2차원 DP로의 전이는 아직 남아 있습니다."
+        evidence: "피보나치 수에서 이전 값을 저장했고, 타겟 넘버의 이진 선택을 DFS로, 게임 맵 최단거리를 2차원 BFS로 구현했습니다. 이후 네트워크의 연결 요소를 DFS로, 단어 변환의 최소 단계를 BFS로 구현해 일반 그래프까지 전이했습니다. 2차원 DP 상태 설계는 다음 관문에 남아 있습니다."
       },
       {
         id: "binary-search",
@@ -50,18 +50,18 @@ window.CODING_TEST_STATE = {
         id: "heap-general-graph",
         title: "Heap 적용·일반 그래프 탐색",
         shortTitle: "Heap·Graph",
-        status: "current",
-        statusLabel: "현재 · 일반 그래프 전이",
+        status: "complete",
+        statusLabel: "완료",
         href: "wiki/coding-test/index.html#first-loop",
         goal: "더 맵게에서 매 단계 최솟값 두 개를 꺼내야 하는 이유와 Heap이 반복 정렬보다 유리한 조건을 설명합니다. 네트워크·단어 변환에서는 격자가 아닌 연결 관계를 만들고, 연결 요소 개수와 최소 단계라는 목표에 따라 DFS와 BFS를 선택합니다.",
-        evidence: "더 맵게에서 heap[0]만 최솟값을 보장한다는 점과 heappop·heappush·원소 부족 종료 조건을 적용했습니다. 이 관문 전체를 닫으려면 네트워크·단어 변환에서 인접 관계 구성, 방문 처리와 DFS/BFS 선택 근거를 구현하고 자료 없이 다시 설명해야 합니다."
+        evidence: "더 맵게에서 heap[0]만 최솟값을 보장한다는 점과 heappop·heappush·원소 부족 종료 조건을 적용했습니다. 네트워크에서는 인접 행렬의 연결 요소를 DFS 시작 횟수로 세고 O(n²) 복잡도를 설명했으며, 단어 변환에서는 한 글자 차이 상태를 BFS Queue와 방문 집합으로 탐색해 최소 단계를 구하고 두 문제 모두 제출에 통과했습니다."
       },
       {
         id: "weighted-path-dp",
         title: "가중치 최단경로·DP 상태 설계",
         shortTitle: "Dijkstra·DP",
-        status: "upcoming",
-        statusLabel: "예정",
+        status: "current",
+        statusLabel: "현재 · 가중치 최단경로",
         href: "wiki/coding-test/index.html#first-loop",
         goal: "배달 문제에서 가중치가 다르면 일반 BFS로 최소 비용을 보장할 수 없는 이유를 설명하고, 거리 갱신과 우선순위 Queue를 연결합니다. 정수 삼각형·등굣길에서는 dp[r][c]의 뜻을 먼저 문장으로 정의하고 점화식·초깃값·계산 순서를 구현합니다.",
         evidence: "직접 만든 작은 그래프의 거리 갱신 순서와 DP Table을 손으로 추적하고, 대표 문제와 조건을 바꾼 문제에서 같은 상태 정의를 다시 구성하면 완료됩니다."

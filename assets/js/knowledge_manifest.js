@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 156,
-  "indexedCount": 157,
+  "documentCount": 160,
+  "indexedCount": 161,
   "categories": [
     {
       "id": "llm-systems",
@@ -778,6 +778,50 @@ window.KNOWLEDGE_MANIFEST = {
         "기술 위키",
         "코딩 테스트",
         "퍼즐 게임 챌린지"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-coding-test-28-network",
+      "title": "네트워크",
+      "description": "인접 행렬의 한 행을 현재 컴퓨터의 이웃 목록으로 읽고, 아직 방문하지 않은 시작점마다 DFS를 수행해 연결 요소 수를 셌다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 네트워크 네트워크 인접 행렬의 행은 현재 정점의 이웃을 나타낸다 한 번의 DFS가 하나의 네트워크를 모두 방문한다 DFS 시작 횟수가 연결 요소 개수다 인접 행렬에서는 시간 복잡도가 O(n²)이다 확인한 완료 증거",
+      "href": "wiki/coding-test/28-network.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/28-network.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "네트워크"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-coding-test-29-word-transformation",
+      "title": "단어 변환",
+      "description": "단어를 그래프의 상태로 보고, 한 글자만 다른 후보를 다음 상태로 연결해 BFS의 깊이로 최소 변환 횟수를 구했다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 단어 변환 단어 변환 Queue에는 현재 단어와 변환 횟수를 함께 넣는다 글자 차이가 정확히 하나일 때만 이동할 수 있다 BFS의 첫 도착이 최소 변환 횟수다 방문 집합은 Queue에 넣는 순간 갱신한다 확인한 완료 증거",
+      "href": "wiki/coding-test/29-word-transformation.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/29-word-transformation.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "단어 변환"
       ],
       "conceptKeys": []
     },
@@ -1682,7 +1726,7 @@ window.KNOWLEDGE_MANIFEST = {
       "id": "wiki-llm-systems-llm_serving_stack_learning",
       "title": "모델 파일·추론 엔진·API 서버를 분리해서 이해하기",
       "description": "BF16·INT4 같은 숫자 형식, llama.cpp 같은 추론 엔진, llama-server·Ollama·vLLM 같은 서버 계층을 한 프로젝트 안에서 구분한다.",
-      "searchText": "⌂ 홈 › LLM 시스템·에이전트 › LLM 서빙 계층과 정밀도 모델 파일·추론 엔진·API 서버를 분리해서 이해하기 현재 이해도 1. BF16과 INT4는 같은 종류의 선택이 아니다 2. 모델·엔진·서버의 계층 3. OpenAI-compatible API의 의미 5. 적용 사례로 이동하기",
+      "searchText": "⌂ 홈 › LLM 시스템·에이전트 › LLM 서빙 계층과 정밀도 모델 파일·추론 엔진·API 서버를 분리해서 이해하기 현재 이해도 1. BF16과 INT4는 같은 종류의 선택이 아니다 2. 모델·엔진·서버의 계층 3. OpenAI-compatible API의 의미 4. 추론 속도는 측정 경계와 조건을 함께 기록합니다 5. 적용 사례로 이동하기",
       "href": "wiki/llm-systems/llm_serving_stack_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html",
       "category": "LLM 시스템·에이전트",
@@ -2968,7 +3012,7 @@ window.KNOWLEDGE_MANIFEST = {
       "id": "wiki-projects-road-to-llm-inference-pytorch-inference",
       "title": "같은 모델의 추론을 No-cache와 KV Cache로 비교하기",
       "description": "사전학습 Causal LM에서 직접 만든 생성 루프를 기준선으로 삼아, 이미 계산한 Key·Value를 재사용할 때 계산 범위·Tensor Shape·Latency가 어떻게 달라지는지 확인합니다.",
-      "searchText": "⌂ 홈 › Road to LLM inference › PyTorch 추론 Baseline 같은 모델의 추론을 No-cache와 KV Cache로 비교하기 1. 이 관문에서 알고자 하는 것 2. 비교 조건을 먼저 고정합니다 3. No-cache 기준선 4. KV Cache 비교 5. Batch 1과 Batch N 6. 완료 증거",
+      "searchText": "⌂ 홈 › Road to LLM inference › PyTorch 추론 Baseline 같은 모델의 추론을 No-cache와 KV Cache로 비교하기 1. 이 관문에서 알고자 하는 것 2. 비교 조건을 먼저 고정합니다 3. Token 수와 Transformer Layer 수를 먼저 구분합니다 4. No-cache에서는 전체 Prefix의 Q·K·V를 다시 계산합니다 5. past_key_values 에는 Layer·Head·Token별 K·V가 모입니다 6. Cache 생성에서는 과거 K·V를 재사용하고 새 K·V를 뒤에 붙입니다 7. Warm-up 뒤 함수 전체 Latency를 비교했습니다 8. Batch 1과 Batch N 9. 완료 증거",
       "href": "wiki/projects/road-to-llm-inference/pytorch-inference.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pytorch-inference.html",
       "category": "개인 프로젝트",
@@ -3232,7 +3276,7 @@ window.KNOWLEDGE_MANIFEST = {
       "id": "wiki-pytorch-pytorch_linear_regression_derivative_backward_learning",
       "title": "평균변화율·순간변화율·backward()",
       "description": "상위 학습 흐름에서 평균변화율·순간변화율·backward()에 필요한 계산·코드·검증 내용을 자세히 정리한다.",
-      "searchText": "⌂ 홈 › 기술 위키 › PyTorch 선형 회귀 › 평균변화율·순간변화율·backward() 평균변화율·순간변화율·backward() 5. 평균변화율에서 순간변화율로 두 점 사이의 평균변화율 두 번째 점을 기준점에 점점 가깝게 가져온다 왼쪽에서 접근해도 같은가? 실제 실습 데이터에서 평균변화율과 w.grad 구분하기 학습할 값이 여러 개라면 각각 구한다 6. backward()가 Gradient를 계산한다 부호는 어느 방향으로 움직일지 알려준다",
+      "searchText": "⌂ 홈 › 기술 위키 › PyTorch 선형 회귀 › 평균변화율·순간변화율·backward() 평균변화율·순간변화율·backward() 5. 평균변화율에서 순간변화율로 두 점 사이의 평균변화율 두 번째 점을 기준점에 점점 가깝게 가져온다 왼쪽에서 접근해도 같은가? 실제 실습 데이터에서 평균변화율과 w.grad 구분하기 학습할 값이 여러 개라면 각각 구한다 6. backward()가 Gradient를 계산한다 부호는 어느 방향으로 움직일지 알려준다 하나의 Weight에서 행렬 전체 학습까지 1. 가장 단순한 모델 2. 예측과 정답의 차이를 Loss로 나타낸다 3. 조금 움직인 구간의 평균변화율 4. 평균변화율에서 순간변화율로 5. Gradient의 반대 방향으로 Weight를 조정한다 6. Linear(4, 4) 의 Weight와 Bias 7. 출력마다 직접 연결된 Weight 행이 다르다 8. 최종 Loss 하나가 모든 파라미터와 연결된다 9. 각 파라미터 방향의 순간변화율 10. backward() 는 실제로 하나씩 움직여보지 않는다 11. 한 학습 Step에서 모든 원소를 각자 업데이트한다 12. “병렬로 학습한다”는 의미 전체 흐름",
       "href": "wiki/pytorch/pytorch_linear_regression_derivative_backward_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_derivative_backward_learning.html",
       "category": "PyTorch",
@@ -3489,6 +3533,56 @@ window.KNOWLEDGE_MANIFEST = {
       ],
       "conceptKeys": [
         "ffn"
+      ]
+    },
+    {
+      "id": "wiki-transformer-transformer_kv_cache_input_ids_flow_learning",
+      "title": "KV Cache를 실제로 전달하고 과거 input_ids를 다시 넣지 않는 이유",
+      "description": "Prompt 전체를 처음 한 번 계산한 뒤에는 왜 새 Token ID 하나와 past_key_values 만 모델에 전달하는지, A·B → C → D 예제와 실제 Cache Shape 변화로 연결합니다.",
+      "searchText": "⌂ 홈 › 기술 위키 › Transformer › QKV Projection › KV Cache와 input_ids 전달 KV Cache를 실제로 전달하고 과거 input_ids를 다시 넣지 않는 이유 현재 이해도 1. 첫 Forward에는 Prompt 전체를 넣습니다 2. 마지막 Logit에서 다음 Token C를 선택합니다 3. 새 Token ID와 past_key_values 를 함께 전달합니다 4. 두 번째 Forward에서는 새 Token C의 Q·K·V만 계산합니다 5. 과거 input_ids 를 다시 넣을 필요가 없습니다 6. Cache의 Token 축이 실제로 S → S+1 이 되었습니다 7. 계산용 input_ids 와 Decode용 전체 ID 보관은 구분합니다 8. 결론",
+      "href": "wiki/transformer/transformer_kv_cache_input_ids_flow_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_input_ids_flow_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_projection_learning.html",
+      "parentId": "wiki-transformer-transformer_projection_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "QKV Projection",
+        "KV Cache와 input_ids 전달"
+      ],
+      "conceptKeys": [
+        "kv-cache-input-flow"
+      ]
+    },
+    {
+      "id": "wiki-transformer-transformer_kv_cache_qkv_projection_learning",
+      "title": "KV Cache는 무엇을 저장하고 GPT-2는 Q·K·V를 어떻게 만드는가",
+      "description": "개념적인 Q·K·V Projection과 GPT-2의 합쳐진 구현을 연결하고, 그 결과 중 어떤 Tensor가 KV Cache에 남아 다음 Token 생성에 재사용되는지 정리합니다.",
+      "searchText": "⌂ 홈 › 기술 위키 › Transformer › QKV Projection › GPT-2 QKV와 KV Cache KV Cache는 무엇을 저장하고 GPT-2는 Q·K·V를 어떻게 만드는가 현재 이해도 1. 개념적으로는 Q·K·V Projection이 따로 있습니다 2. KV Cache는 K·V Projection의 출력 Tensor를 저장합니다 3. GPT-2는 합쳐진 QKV Projection 한 번으로 계산합니다 4. 합쳐진 Projection도 구간별 Gradient가 다릅니다 5. Head 분리 후 past_key_values 에 저장합니다 6. Prompt를 처음 계산한 뒤 새 Token의 K·V만 추가합니다 7. 과거 Q는 Cache하지 않습니다 8. 한 줄 결론",
+      "href": "wiki/transformer/transformer_kv_cache_qkv_projection_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_qkv_projection_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_projection_learning.html",
+      "parentId": "wiki-transformer-transformer_projection_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "QKV Projection",
+        "GPT-2 QKV와 KV Cache"
+      ],
+      "conceptKeys": [
+        "kv-cache"
       ]
     },
     {
