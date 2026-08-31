@@ -1,5 +1,5 @@
 window.LEARNING_STATE = {
-  updated: "2026-08-30",
+  updated: "2026-08-31",
   recentCompletion: "사전학습 tiny GPT-2에서 Tokenizer·동적 Padding·수동 Greedy·Temperature·Top-k·Top-p 생성을 연결하고, 고정 Text Loss·Perplexity 평가와 로컬 Artifact 새 프로세스 복원을 완료했습니다.",
   priorityPolicy: {
     label: "최우선 핵심 여정",
