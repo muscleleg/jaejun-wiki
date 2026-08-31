@@ -69,6 +69,7 @@ const [
   projectCss,
   featuredSvg,
   reviewStateSource,
+  learningHistoryDataSource,
   learningHistorySource,
   reviewCss,
   reviewJs,
@@ -87,6 +88,7 @@ const [
   source("assets/css/wiki-reference.css"),
   source(`${imageRoot}/personal-learning-loop-featured.svg`),
   source("assets/data/review_state.json"),
+  source("assets/data/learning_history.json"),
   source("learning_history.html"),
   source("assets/css/review-queue.css"),
   source("assets/js/review_queue.js"),
@@ -162,6 +164,9 @@ for (const token of ["학습보다 정리에 더 많은 시간이", "LLM을 사�
 }
 for (const token of ["관문별 실습 기록", "실행 근거", "주제별 기술 문서", "다시 쓸 수 있는 설명", "홈의 Road 학습 여정"]) {
   requireText(memoryStory, token, `${projectHref} 관문 실습 기록과 범용 기술 문서의 역할 분리`);
+}
+for (const token of ["날짜·학습 주제·총 공부시간", "하나의 학습 기록 JSON", "캘린더·날짜별 기록·공부시간 화면", "학습 기록 JSON"]) {
+  requireText(memoryStory, token, `${projectHref} 학습 기록 JSON 단일 원본 설명`);
 }
 for (const markup of ['class="memory-purpose-list"', 'class="memory-decision-overlay"', 'class="memory-speech-bubbles"', 'class="memory-speech-bubble memory-now"', 'class="memory-speech-bubble memory-later"', 'class="memory-outcome"']) {
   requireText(memoryStory, markup, `${projectHref} 자동 기록과 보류 판단의 시각 구조`);
@@ -250,7 +255,7 @@ for (const token of ["검색을 해제하면", "전체 문서 계층으로 돌�
 }
 
 const architectureSection = fragment(projectSource, '<section id="system-architecture">', "</section>", `${projectHref} 자동화의 역할과 경계`);
-for (const token of ["자동화의 역할과 경계", 'id="data-design" class="fragment-alias"', 'id="ownership" class="fragment-alias"', "architecture-summary", "사용자는 학습하고 판단하며", "별도의 백엔드 서비스는 아닙니다", "코딩 에이전트가 저장소의 지침과 누적 상태를 읽고 갱신", "사용자가 결정하고 수행하는 일", "코딩 에이전트가 보조하는 일", "저장과 열람의 경계", "로드맵은 앞으로 갈 방향", "학습 기록은 지금까지 확인한 근거", "기억 강화 상태 JSON", "전체 결과 이력", "HTML은 JSON에서 생성한 열람 화면"]) {
+for (const token of ["자동화의 역할과 경계", 'id="data-design" class="fragment-alias"', 'id="ownership" class="fragment-alias"', "architecture-summary", "사용자는 학습하고 판단하며", "별도의 백엔드 서비스는 아닙니다", "코딩 에이전트가 저장소의 지침과 누적 상태를 읽고 갱신", "사용자가 결정하고 수행하는 일", "코딩 에이전트가 보조하는 일", "저장과 열람의 경계", "로드맵은 앞으로 갈 방향", "학습 기록 JSON은 날짜·공부한 내용·총 공부시간", "기억 강화 상태 JSON", "전체 결과 이력", "각 JSON에서 생성한 열람 화면"]) {
   requireText(architectureSection, token, `${projectHref} 자동화의 역할과 경계`);
 }
 requireOrdered(architectureSection, ["architecture-summary", 'class="project-detail-grid"', "저장과 열람의 경계", "장기 목표를 임의로 바꾸거나"], `${projectHref} 자동화 경계의 설명 순서`);
@@ -264,9 +269,20 @@ for (const token of [".architecture-summary {", ".trust-list", "grid-template-co
 for (const token of ["학습 기록을 신뢰할 수 있는 이유", "이해 확인", "장기 유지", "처음 배운 날의 성공과 지연 회상 성공", "다음 행동", "공개 기록", "학습 → 간격 회상 → 판단 → 기록 → 다음 학습"]) {
   requireText(validationSection, token, `${projectHref} 학습 기록의 신뢰 근거`);
 }
+for (const token of ["JSON 원본", "캘린더 링크", "날짜별 카드", "공부시간 카드", "상단 합계"]) {
+  requireText(validationSection, token, `${projectHref} 학습 기록 JSON 교차 검증`);
+}
 
 for (const token of ['"schemaVersion": 1', '"maxPerSession": 3', '"timeBudgetMinutes": 8', '"id": "failed"', '"id": "hinted"', '"id": "recalled"', '"id": "transferred"', '"id": "ai-engineer-growth"', '"id": "coding-test-pass"', '"resultRecordRule"', '"priorityLevels"']) {
   requireText(reviewStateSource, token, "assets/data/review_state.json 회상 정책과 이력");
+}
+const learningHistoryData = JSON.parse(learningHistoryDataSource);
+if (learningHistoryData.version !== 1 || !Array.isArray(learningHistoryData.records) || !learningHistoryData.records.length) findings.push("assets/data/learning_history.json: version 1 records 누락");
+for (const record of learningHistoryData.records || []) {
+  if (!record.date || !Array.isArray(record.topics) || !record.topics.length || !("studyTime" in record)) findings.push(`assets/data/learning_history.json: ${record.date || "날짜 없음"} 데이터 계약 불완전`);
+}
+for (const token of ["assets/data/learning_history.json", "static-fallback:learning-calendar:start", "static-fallback:learning-records:start", "static-fallback:study-time:start"]) {
+  requireText(token.startsWith("assets/") ? memoryStory : learningHistorySource, token, "학습 기록 JSON과 정적 렌더링 연결");
 }
 for (const token of ['id="review-queue"', 'data-review-dashboard', 'static-fallback:review-queue:start', 'assets/data/review_state.json', 'assets/css/review-queue.css', 'assets/js/review_queue.js']) {
   requireText(learningHistorySource, token, "learning_history.html 기억 강화 세션");
