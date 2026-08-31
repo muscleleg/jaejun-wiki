@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 160,
-  "indexedCount": 161,
+  "documentCount": 162,
+  "indexedCount": 163,
   "categories": [
     {
       "id": "llm-systems",
@@ -850,10 +850,54 @@ window.KNOWLEDGE_MANIFEST = {
       ]
     },
     {
+      "id": "wiki-coding-test-company-coding-test-research",
+      "title": "기업 코딩 테스트 공개 자료 조사",
+      "description": "엑셈 공식 채용 정보, 프로그래머스 고득점 Kit와 공식 공개 문제, 여러 기업의 공개 코딩 테스트 사례를 구분해 기업 코딩 테스트 대비 범위를 정리한 조사 기록",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 기업 공개 자료 조사 기업 코딩 테스트 공개 자료 조사 1. 조사 범위 2. 근거 수준 3. 엑셈에서 현재 확인되는 범위 플랫폼 직무별 차이 공개되지 않은 정보 4. 프로그래머스 공식 고득점 Kit 5. 문제 문장에서 찾을 선택 신호 6. 공개 기업 사례 23건의 공통점 7. 공식 공개 기업 문제 세트 8. 대비에 적용할 기본값 9. 해석의 한계 10. 참고 출처 공식 자료 공개 개인 후기",
+      "href": "wiki/coding-test/company-coding-test-research.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/company-coding-test-research.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "기업 공개 자료 조사"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-coding-test-delivery-dijkstra-note",
+      "title": "배달 · 다익스트라 첫 학습",
+      "description": "1번 마을에서 각 마을까지의 최소 누적 비용을 갱신하고, 비용이 K 이하인 마을 수를 센다. 구조는 이해했지만 전체 코드를 안내받았으므로 아직 완료 문제로 세지 않는다.",
+      "searchText": "⌂ 홈 › 기술 위키 › 코딩 테스트 › 배달·다익스트라 첫 학습 배달 · 다익스트라 첫 학습 구하려는 것은 방문 횟수가 아니라 최소 누적 비용이다 distance에는 출발점부터 현재까지 알려진 최소 비용을 적는다 도로 목록을 양방향 인접 리스트로 바꾼다 Heap에는 누적 비용과 마을을 함께 넣는다 더 싼 경로를 찾았을 때만 거리와 Heap을 갱신한다 Heap에 남은 오래된 후보는 건너뛴다 마지막 결과와 제너레이터 문법 현재 판정과 다음 복습 기준",
+      "href": "wiki/coding-test/delivery-dijkstra-note.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/delivery-dijkstra-note.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "배달·다익스트라 첫 학습"
+      ],
+      "conceptKeys": []
+    },
+    {
       "id": "wiki-coding-test-index",
       "title": "코딩 테스트 역량 로드맵",
       "description": "프로그래머스 문제만 사용한다. 푼 개수를 늘리는 데서 멈추지 않고, 처음 보는 문제의 제약을 읽고 자료구조와 알고리즘을 선택해 구현·검증·설명하는 힘을 만든다.",
-      "searchText": "⌂ 홈 › 전체 학습 로드맵 › 코딩 테스트 코딩 테스트 역량 로드맵 로드맵 운영 원칙 기초체력에서 제한시간 실력으로 가는 3단계 대표 문제를 충분히 이해한다 같은 패턴을 새 조건에 적용한다 제한시간 혼합 세트로 검증한다 문제 제시 → 풀이·질문 → 기록 → 다음 처방 힌트 사다리 문제별 기록 현재 위치와 진단 첫 순환 · 다음 필수 관문 전이 확인 · 이미 본 패턴을 새 조건에 적용 Hash(해시) Stack·Queue 정렬 완전탐색·백트래킹 구현·Simulation(시뮬레이션) 언제 수행할까 문제 하나를 완료하는 6개 관문 실전 전환과 로드맵 완료 조건 문제별 학습 문서 풀이 시도·응용 메모 문제를 풀며 확인한 Python 문법 dict와 set 삭제와 Queue 순회와 문자열 문자 검사와 변경 변환과 정렬 재귀와 nonlocal 지금까지 연결한 알고리즘 사고 바로 다음 학습 지점",
+      "searchText": "⌂ 홈 › 전체 학습 로드맵 › 코딩 테스트 코딩 테스트 역량 로드맵 로드맵 운영 원칙 기업 코딩 테스트 조사에서 가져온 기준 핵심 패턴 습득에서 혼합 문제 적용으로 가는 3단계 대표 문제를 안내받아 빠르게 한 번 구현한다 이전 정답 없이 같은 구조를 다시 꺼낸다 유형을 밝히지 않은 문제에서 패턴을 선택한다 문제 제시 → 풀이·질문 → 기록 → 다음 처방 힌트 사다리 문제별 기록 오답 기록 네 항목 현재 위치와 진단 핵심 패턴 첫 순환 핵심 패턴 묶음과 복습 방식 Hash(해시) Stack·Queue 정렬 Greedy(그리디) 완전탐색·백트래킹 DFS·BFS 이분 탐색·Heap 구현·Simulation(시뮬레이션) 가중치 최단경로·DP 누적합·투 포인터·슬라이딩 윈도우 Union-Find·MST·위상 정렬 세션 운영 첫 순환의 범위 백엔드 직무 SQL 병행 트랙 문제 하나를 완료하는 6개 관문 혼합 문제 전환과 로드맵 완료 조건 문제별 학습 문서 풀이 시도·응용 메모 문제를 풀며 확인한 Python 문법 dict와 set 삭제와 Queue 순회와 문자열 문자 검사와 변경 변환과 정렬 재귀와 nonlocal 지금까지 연결한 알고리즘 사고 바로 다음 학습 지점",
       "href": "wiki/coding-test/index.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/index.html",
       "category": "코딩 테스트",
