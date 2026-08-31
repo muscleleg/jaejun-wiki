@@ -3,7 +3,7 @@ window.CODING_TEST_STATE = {
     eyebrow: "Road to coding test",
     title: "실전 문제 해결까지의 학습 여정",
     summary: "사용자가 코딩 테스트를 하겠다고 선택한 세션에만 진행합니다. 속도는 처음부터 기록하되 기초 단계에서는 합격 판정이 아니라 막힌 지점을 찾는 데 사용하고, 대표 문제 학습 → 같은 패턴 전이 → 제한시간 혼합 세트의 세 단계로 올라갑니다. 매 시도의 시간·막힌 위치·힌트·재풀이 증거로 다음 문제 또는 보강 방식을 결정합니다.",
-    currentId: "binary-search",
+    currentId: "heap-general-graph",
     finalOutcome: "핵심 종착점은 유형 이름을 미리 보지 않은 문제에서도 제약을 읽고 후보 풀이를 비교한 뒤, 제한 시간 안에 구현·검증하고 실패 원인과 시간·공간 복잡도를 설명하며 다시 풀 수 있는 상태입니다.",
     milestones: [
       {
@@ -40,18 +40,18 @@ window.CODING_TEST_STATE = {
         id: "binary-search",
         title: "이분 탐색 경계 설계",
         shortTitle: "이분 탐색",
-        status: "current",
-        statusLabel: "현재",
+        status: "complete",
+        statusLabel: "완료",
         href: "wiki/coding-test/index.html#first-loop",
         goal: "프로그래머스 입국심사에서 사람을 직접 배치하는 문제를 ‘주어진 시간 안에 n명을 처리할 수 있는가?’라는 가능 여부 문제로 바꿉니다. 첫 대표 풀이에서는 걸린 시간을 기록만 하고 작은 입력의 처리 인원과 경계 이동을 충분히 추적합니다. 이후 단조롭게 변하는 범위, left·right의 의미, mid 판정과 종료 뒤 최소 가능 시간이 어느 변수인지 설명하고 자료 없이 다시 구현합니다.",
-        evidence: "입국심사에서 시간 후보의 처리 인원과 폐구간 경계를 추적해 제출에 통과했고, 퍼즐 게임 챌린지에서는 숙련도 후보마다 전체 시간을 Simulation해 같은 최초 가능 경계를 적용하고 제출에 통과했습니다. 두 문제 모두 설명과 힌트를 받아 완성했으므로, 하루 이상 지난 뒤 자료 없이 후보 범위·판정·경계 이동을 다시 구현하고 복잡도를 설명하면 완료됩니다."
+        evidence: "입국심사와 퍼즐 게임 챌린지 제출 통과 뒤 하루가 지난 2026-08-31에 입국심사를 기존 코드 없이 다시 구현해 전체 테스트에 통과했습니다. 27분은 불가능하고 28분은 최초 가능인 경계에서 left·right가 교차하는 이유를 설명하고, 심사관 m명을 매번 확인하는 전체 시간 복잡도를 O(m log R)로 교정해 이분 탐색 관문을 완료했습니다."
       },
       {
         id: "heap-general-graph",
         title: "Heap 적용·일반 그래프 탐색",
         shortTitle: "Heap·Graph",
-        status: "upcoming",
-        statusLabel: "Heap 적용 완료 · Graph 예정",
+        status: "current",
+        statusLabel: "현재 · 일반 그래프 전이",
         href: "wiki/coding-test/index.html#first-loop",
         goal: "더 맵게에서 매 단계 최솟값 두 개를 꺼내야 하는 이유와 Heap이 반복 정렬보다 유리한 조건을 설명합니다. 네트워크·단어 변환에서는 격자가 아닌 연결 관계를 만들고, 연결 요소 개수와 최소 단계라는 목표에 따라 DFS와 BFS를 선택합니다.",
         evidence: "더 맵게에서 heap[0]만 최솟값을 보장한다는 점과 heappop·heappush·원소 부족 종료 조건을 적용했습니다. 이 관문 전체를 닫으려면 네트워크·단어 변환에서 인접 관계 구성, 방문 처리와 DFS/BFS 선택 근거를 구현하고 자료 없이 다시 설명해야 합니다."
