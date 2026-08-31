@@ -120,13 +120,14 @@ function formatDuration(durations) {
   return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
 }
 
-const [manifest, graph, homeContent, learningState, codingTestState, reviewState, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
+const [manifest, graph, homeContent, learningState, codingTestState, reviewState, learningHistoryData, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
   loadWindowValue("assets/js/home_content.js", "HOME_CONTENT"),
   loadWindowValue("assets/js/learning_state.js", "LEARNING_STATE"),
   loadWindowValue("assets/js/coding_test_state.js", "CODING_TEST_STATE"),
   loadJson("assets/data/review_state.json"),
+  loadJson("assets/data/learning_history.json"),
   readFile(resolve(wikiRoot, "index.html"), "utf8"),
   readFile(resolve(wikiRoot, "roadmap.html"), "utf8"),
   readFile(resolve(wikiRoot, "wiki.html"), "utf8"),
@@ -361,12 +362,34 @@ const recordEntries = [...learningRecords.matchAll(/<article\b([^>]*\bclass=["']
   .map((match) => ({ attributes: match[1], date: match[2] }));
 const recordedDates = recordEntries.map((entry) => entry.date);
 const uniqueRecordedDates = [...new Set(recordedDates)].sort().reverse();
+if (learningHistoryData.version !== 1 || !Array.isArray(learningHistoryData.records) || !learningHistoryData.records.length) {
+  throw new Error("Learning-history JSON must contain version 1 records");
+}
+const jsonRecordDates = learningHistoryData.records.map((record) => record.date);
+assertEqual(jsonRecordDates.length, new Set(jsonRecordDates).size, "Unique learning-history JSON dates");
+assertEqual(jsonRecordDates.join("|"), [...jsonRecordDates].sort().reverse().join("|"), "Learning-history JSON newest-first order");
 assertEqual(recordedDates.length, uniqueRecordedDates.length, "Unique dated learning records");
 assertEqual(recordedDates.join("|"), uniqueRecordedDates.join("|"), "Learning records newest-first order");
+assertEqual(recordedDates.join("|"), jsonRecordDates.join("|"), "Learning records rendered from JSON");
 for (const entry of recordEntries) {
   const id = entry.attributes.match(/\bid=["']([^"']+)["']/i)?.[1] || "";
   assertEqual(id, `study-${entry.date}`, `Learning-record anchor for ${entry.date}`);
 }
+const expectedTopicCount = learningHistoryData.records.reduce((sum, record) => sum + record.topics.length, 0);
+assertEqual((learningRecords.match(/<div\b[^>]*\bclass=["'][^"']*\btopic\b[^"']*["']/gi) || []).length, expectedTopicCount, "Learning topic count from JSON");
+for (const record of learningHistoryData.records) {
+  for (const topic of record.topics) {
+    if (!normalizeText(learningRecords).includes(normalizeText(topic.titleHtml)) || !normalizeText(learningRecords).includes(normalizeText(topic.bodyHtml))) {
+      throw new Error(`Learning-history JSON topic missing from HTML: ${record.date}`);
+    }
+  }
+}
+const learningCalendar = staticRegion(historyHtml, "learning-calendar");
+assertSetEqual(
+  valuesForAttribute(learningCalendar, "href").filter((href) => href.startsWith("#study-")),
+  jsonRecordDates.map((date) => `#study-${date}`),
+  "Learning calendar dates from JSON",
+);
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
@@ -534,13 +557,19 @@ if (!normalizeText(historyHtml).includes(normalizeText(learningState.priorityPol
 const studyTime = sectionById(historyHtml, "study-time");
 const sessionDates = [...studyTime.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bsession\b[^"']*["'])[^>]*>[\s\S]*?<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>[\s\S]*?<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
   .map((match) => ({ date: match[1], duration: durationMinutes(match[2]) }));
+const jsonSessions = learningHistoryData.records.filter((record) => record.studyTime).map((record) => ({
+  date: record.date,
+  duration: { minutes: record.studyTime.minutes, approximate: record.studyTime.approximate },
+}));
 assertEqual(sessionDates.length, new Set(sessionDates.map((entry) => entry.date)).size, "Unique study-time sessions");
+assertEqual(sessionDates.map((entry) => entry.date).join("|"), jsonSessions.map((entry) => entry.date).join("|"), "Study-time dates rendered from JSON");
+assertEqual(sessionDates.map((entry) => `${entry.duration?.minutes}:${entry.duration?.approximate}`).join("|"), jsonSessions.map((entry) => `${entry.duration.minutes}:${entry.duration.approximate}`).join("|"), "Study-time values rendered from JSON");
 for (const { date } of sessionDates) {
   if (!uniqueRecordedDates.includes(date)) throw new Error(`Study-time session has no dated learning record: ${date}`);
 }
 assertEqual(
   textById(historyHtml, "historyRecordedStudyTime"),
-  formatDuration(sessionDates.map((entry) => entry.duration).filter(Boolean)),
+  formatDuration(jsonSessions.map((entry) => entry.duration)),
   "Recorded study-time total",
 );
 console.log(

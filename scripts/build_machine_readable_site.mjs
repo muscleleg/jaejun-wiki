@@ -28,6 +28,7 @@ const homeContent = await loadWindowValue(resolve(wikiRoot, "assets/js/home_cont
 const learningState = await loadWindowValue(resolve(wikiRoot, "assets/js/learning_state.js"), "LEARNING_STATE");
 const codingTestState = await loadWindowValue(resolve(wikiRoot, "assets/js/coding_test_state.js"), "CODING_TEST_STATE");
 const reviewState = JSON.parse(await readFile(resolve(wikiRoot, "assets/data/review_state.json"), "utf8"));
+const learningHistory = JSON.parse(await readFile(resolve(wikiRoot, "assets/data/learning_history.json"), "utf8"));
 
 async function collectHtmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -115,56 +116,110 @@ function sectionById(content, id) {
   return match[0];
 }
 
-function normalizeLearningRecordIds(content) {
-  const sectionPattern = /(<section\b(?=[^>]*\bid=["']learning-records["'])[^>]*>)([\s\S]*?)(<\/section>)/i;
-  const match = content.match(sectionPattern);
-  if (!match) throw new Error("Learning-records section not found");
-  const seenDates = new Set();
-  const articlePattern = /<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>(\s*)(<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>)/gi;
-  const normalizedBody = match[2].replace(articlePattern, (full, attributes, spacing, timeTag, date) => {
-    if (seenDates.has(date)) throw new Error(`Duplicate dated learning record: ${date}`);
-    seenDates.add(date);
-    const expectedId = `study-${date}`;
-    const idMatch = attributes.match(/\bid=["']([^"']+)["']/i);
-    if (idMatch && idMatch[1] !== expectedId) {
-      throw new Error(`Learning-record id mismatch for ${date}: ${idMatch[1]}`);
+function replaceSectionById(content, { id, markup }) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`<section\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i");
+  if (!pattern.test(content)) throw new Error(`Section not found: ${id}`);
+  return content.replace(pattern, markup);
+}
+
+function validateLearningHistory(data) {
+  if (data.version !== 1 || !Array.isArray(data.records) || !data.records.length) {
+    throw new Error("learning_history.json must contain version 1 and at least one record");
+  }
+  const dates = [];
+  for (const record of data.records) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(record.date)) throw new Error(`Invalid learning-history date: ${record.date}`);
+    if (!Array.isArray(record.topics) || !record.topics.length) throw new Error(`No learning topics: ${record.date}`);
+    for (const topic of record.topics) {
+      if (typeof topic.titleHtml !== "string" || !topic.titleHtml.trim() || typeof topic.bodyHtml !== "string" || !topic.bodyHtml.trim()) {
+        throw new Error(`Invalid learning topic: ${record.date}`);
+      }
     }
-    const normalizedAttributes = idMatch ? attributes : `${attributes} id="${expectedId}"`;
-    return `<article${normalizedAttributes}>${spacing}${timeTag}`;
+    if (record.studyTime !== null) {
+      const session = record.studyTime;
+      if (!Number.isInteger(session?.minutes) || session.minutes < 0 || typeof session.approximate !== "boolean" || typeof session.label !== "string" || !session.label.trim() || typeof session.bodyHtml !== "string") {
+        throw new Error(`Invalid study time: ${record.date}`);
+      }
+    }
+    dates.push(record.date);
+  }
+  if (new Set(dates).size !== dates.length) throw new Error("Duplicate dates in learning_history.json");
+  if (dates.join("|") !== [...dates].sort().reverse().join("|")) throw new Error("learning_history.json records must be newest first");
+  if (typeof data.studyTimeNoteHtml !== "string") throw new Error("learning_history.json studyTimeNoteHtml must be a string");
+}
+
+validateLearningHistory(learningHistory);
+
+function formatDurationMinutes(minutes, approximate = false) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  const value = [hours ? `${hours}시간` : "", remainingMinutes ? `${remainingMinutes}분` : ""].filter(Boolean).join(" ") || "0분";
+  return `${approximate ? "약 " : ""}${value}`;
+}
+
+function recordedStudyTime(data) {
+  const sessions = data.records.map((record) => record.studyTime).filter(Boolean);
+  if (!sessions.length) return "미기록";
+  return formatDurationMinutes(
+    sessions.reduce((sum, session) => sum + session.minutes, 0),
+    sessions.some((session) => session.approximate),
+  );
+}
+
+function formatKoreanDate(date) {
+  const [year, month, day] = date.split("-");
+  return `${year}년 ${month}월 ${day}일`;
+}
+
+function renderLearningRecords(data) {
+  return data.records.map((record) => {
+    const topics = record.topics.map((topic) => `          <div class="topic"><h3>${topic.titleHtml}</h3><p>${topic.bodyHtml}</p></div>`).join("\n");
+    return `        <article class="day" id="study-${escapeAttribute(record.date)}">
+          <time datetime="${escapeAttribute(record.date)}">${formatKoreanDate(record.date)}</time>
+${topics}
+        </article>`;
+  }).join("\n");
+}
+
+function renderStudyTime(data) {
+  const sessions = data.records.filter((record) => record.studyTime).map((record) => {
+    const session = record.studyTime;
+    return `      <article class="session">
+        <div class="session-head"><div><time datetime="${escapeAttribute(record.date)}">${formatKoreanDate(record.date)}</time><h3>총 학습시간</h3></div><div class="duration">${formatDurationMinutes(session.minutes, session.approximate)}</div></div>
+        <div class="session-body"><strong>${escapeHtml(session.label)}</strong>${session.bodyHtml}</div>
+      </article>`;
   });
-  if (!seenDates.size) throw new Error("No dated learning records found in learning_history.html");
-  return content.replace(sectionPattern, `$1${normalizedBody}$3`);
+  if (data.studyTimeNoteHtml.trim()) sessions.push(`      <div class="note">${data.studyTimeNoteHtml}</div>`);
+  return sessions.join("\n");
 }
 
-function learningRecordDates(content) {
-  const records = sectionById(content, "learning-records");
-  const dates = [...records.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bday\b[^"']*["'])[^>]*>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)].map((match) => match[1]);
-  return [...new Set(dates)].sort().reverse();
-}
-
-function parseDurationMinutes(text) {
-  const normalized = decodeEntities(text);
-  if (normalized === "미기록") return null;
-  const hours = normalized.match(/(\d+)시간/);
-  const minutes = normalized.match(/(\d+)분/);
-  if (!hours && !minutes) throw new Error(`Unsupported study duration: ${normalized}`);
-  return {
-    minutes: Number(hours?.[1] || 0) * 60 + Number(minutes?.[1] || 0),
-    approximate: normalized.startsWith("약 "),
-  };
-}
-
-function recordedStudyTime(content) {
-  const studyTime = sectionById(content, "study-time");
-  const durations = [...studyTime.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
-    .map((match) => parseDurationMinutes(match[1]))
-    .filter(Boolean);
-  if (!durations.length) return "미기록";
-  const totalMinutes = durations.reduce((sum, duration) => sum + duration.minutes, 0);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  const value = [hours ? `${hours}시간` : "", minutes ? `${minutes}분` : ""].filter(Boolean).join(" ") || "0분";
-  return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
+function renderLearningCalendar(data) {
+  const dates = data.records.map((record) => record.date);
+  const studiedDates = new Set(dates);
+  const months = [...new Set(dates.map((date) => date.slice(0, 7)))].sort().reverse();
+  const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
+  return months.map((monthKey) => {
+    const [year, month] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const leadingBlanks = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const cells = [];
+    for (let index = 0; index < leadingBlanks; index += 1) cells.push('          <span class="calendar-day empty" aria-hidden="true"></span>');
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      cells.push(studiedDates.has(date)
+        ? `          <a class="calendar-day studied" href="#study-${date}" title="${date} 학습 기록으로 이동" aria-label="${year}년 ${month}월 ${day}일, 학습 기록 있음">${day}</a>`
+        : `          <span class="calendar-day" aria-label="${year}년 ${month}월 ${day}일">${day}</span>`);
+    }
+    const studiedCount = dates.filter((date) => date.startsWith(monthKey)).length;
+    return `      <article class="calendar-month" aria-label="${year}년 ${month}월 학습 캘린더">
+        <div class="calendar-month-head"><h3>${year}년 ${month}월</h3><span class="calendar-count">${studiedCount}일 학습</span></div>
+        <div class="calendar-weekdays">${weekdays.map((name) => `<span>${name}</span>`).join("")}</div>
+        <div class="calendar-grid">
+${cells.join("\n")}
+        </div>
+      </article>`;
+  }).join("\n");
 }
 
 function renderHomeProjects(projects) {
@@ -706,11 +761,40 @@ async function renderStaticDiscoveryPages() {
 
   const historyPath = resolve(wikiRoot, "learning_history.html");
   let history = await readFile(historyPath, "utf8");
-  history = normalizeLearningRecordIds(history);
-  const uniqueStudyDates = learningRecordDates(history);
-  if (!uniqueStudyDates.length) throw new Error("No dated learning records found in learning_history.html");
+  const uniqueStudyDates = learningHistory.records.map((record) => record.date);
+  history = replaceSectionById(history, {
+    id: "study-calendar",
+    markup: `    <section id="study-calendar">
+      <h2>학습 캘린더</h2>
+      <p class="summary">색이 채워진 날짜는 학습 기록이 있는 날이다. 날짜를 누르면 그날 공부한 내용으로 이동한다.</p>
+      <div class="calendar-list" id="calendar-list"><!-- static-fallback:learning-calendar:start -->
+${renderLearningCalendar(learningHistory)}
+<!-- static-fallback:learning-calendar:end --></div>
+      <div class="calendar-legend">공부한 날</div>
+    </section>`,
+  });
+  history = replaceSectionById(history, {
+    id: "learning-records",
+    markup: `    <section id="learning-records">
+      <h2>날짜별 학습 기록</h2>
+      <p class="summary">학습 내용 JSON을 날짜별 기록으로 렌더링합니다.</p>
+      <div class="timeline" id="learning-record-list"><!-- static-fallback:learning-records:start -->
+${renderLearningRecords(learningHistory)}
+<!-- static-fallback:learning-records:end --></div>
+    </section>`,
+  });
+  history = replaceSectionById(history, {
+    id: "study-time",
+    markup: `    <section id="study-time">
+      <h2>공부시간</h2>
+      <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
+<!-- static-fallback:study-time:start -->
+${renderStudyTime(learningHistory)}
+<!-- static-fallback:study-time:end -->
+    </section>`,
+  });
   history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
-  history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(history) });
+  history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(learningHistory) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
   history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
