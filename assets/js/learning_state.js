@@ -95,8 +95,8 @@ window.LEARNING_STATE = {
         status: "upcoming",
         statusLabel: "예정",
         href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog",
-        goal: "RunPod GPU에서 같은 Benchmark 계약으로 vLLM을 서빙하고 Continuous Batching·Paged KV Cache·Prefix Caching·Chunked Prefill과 Scheduler 설정을 하나씩 바꿉니다. Prometheus·Grafana·DCGM 또는 Profiler로 요청 지표와 GPU 상태를 함께 관찰합니다.",
-        evidence: "PyTorch 기준선과 TTFT·TPOT/ITL·E2E Latency·Throughput·Peak VRAM·P50/P95/P99를 비교하고, 어떤 설정이 어떤 Workload에서 유효한지 설명하면 완료됩니다."
+        goal: "RunPod GPU에서 Model·Revision·dtype·입출력 길이·Concurrency·Warmup·반복 횟수·Seed와 Timing 경계를 고정한 Benchmark 계약으로 vLLM을 서빙합니다. Continuous Batching·Paged KV Cache·Prefix Caching·Chunked Prefill과 Scheduler 설정을 하나씩 바꾸고, Prometheus·Grafana·DCGM 또는 Profiler로 요청 지표와 GPU 상태를 함께 관찰합니다.",
+        evidence: "같은 Sampling 설정과 Seed에서 Token ID 재현을 확인한 뒤 PyTorch 기준선과 TTFT·TPOT/ITL·E2E Latency·Throughput·Peak VRAM·P50/P95/P99를 비교하고, 어떤 설정이 어떤 Workload에서 유효한지 설명하면 완료됩니다."
       },
       {
         id: "distributed-inference",
@@ -105,8 +105,8 @@ window.LEARNING_STATE = {
         status: "upcoming",
         statusLabel: "핵심 종착점",
         href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog",
-        goal: "Tensor Parallel 1·2·4 GPU를 같은 조건에서 실행하고 GPU 수가 늘 때 연산과 통신이 어떻게 나뉘는지 확인합니다. nvidia-smi topo -m, nccl-tests, NVLink·PCIe와 AllReduce를 실제 Scaling 결과에 연결합니다.",
-        evidence: "GPU 수별 Throughput·TTFT·TPOT·GPU당 VRAM과 Scaling Efficiency 표를 만들고, 선형 확장을 막는 통신 병목을 근거로 설명하면 핵심 여정이 완료됩니다. 이후 측정된 필요가 있을 때만 Prefill/Decode 분리·NIXL·RDMA로 확장합니다."
+        goal: "작은 Tensor로 AllReduce·AllGather·ReduceScatter의 입출력 Shape·값·통신 Byte를 먼저 검산합니다. 이어 Tensor Parallel 1·2·4 GPU를 같은 조건에서 실행하고 GPU 수가 늘 때 연산과 통신이 어떻게 나뉘는지 확인하며, nvidia-smi topo -m·nccl-tests·NVLink·PCIe를 실제 Scaling 결과에 연결합니다.",
+        evidence: "세 Collective 결과와 통신량을 직접 계산한 뒤 GPU 수별 Throughput·TTFT·TPOT·GPU당 VRAM과 Scaling Efficiency 표를 만들고, 선형 확장을 막는 통신 병목을 근거로 설명하면 핵심 여정이 완료됩니다. 이후 측정된 필요가 있을 때만 Prefill/Decode 분리·NIXL·RDMA로 확장합니다."
       }
     ]
   },
@@ -115,6 +115,7 @@ window.LEARNING_STATE = {
     summary: "학습 중 사용자가 나중에 하기로 확정한 항목입니다. 현재 관문의 순서를 바꾸지 않고, 다시 꺼낼 조건과 완료 증거를 함께 보존합니다.",
     policy: {
       reviewWhen: "평소에는 목록을 진행하지 않고, 현재 관문을 닫을 때 전체 목록을 한 번 검토합니다.",
+      branchRule: "대기 중인 항목은 백로그에만 둡니다. 실제로 꺼내 학습 중이거나 검증을 마친 항목만 연결된 로드맵 관문 옆에 심화 가지로 표시하며, 이 가지는 본선 진행률·현재 관문·다음 행동을 바꾸지 않습니다.",
       activeLimit: 1,
       repeatThreshold: 2,
       types: [
@@ -255,6 +256,78 @@ window.LEARNING_STATE = {
         resumeWhen: "KV Cache 관문에 도달하고 당시 원문이나 실습 근거를 찾았을 때 복원합니다.",
         completion: "동일 모델 Cache 재사용과 Cross-Model Cache 변환을 구분하고, 호환 조건·변환 비용·품질 한계를 근거와 함께 다시 기록합니다.",
         href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog"
+      },
+      {
+        id: "small-lm-training-foundations",
+        title: "작은 언어 모델 학습 기반 재구성",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "tiny-decoder-lm",
+        reason: "현재 Tiny Decoder LM은 아주 작은 고정 Token 패턴을 과적합해 추론 원리를 확인했습니다. 실제 문자열 말뭉치에서 Tokenizer를 만들고 초기화·Optimizer·Checkpoint까지 연결하는 학습 시스템은 별도의 깊이이므로 핵심 추론 여정 뒤에 보존합니다.",
+        resumeWhen: "핵심 추론 여정을 완주한 뒤 모델을 처음부터 학습하는 방향을 선택하거나, 사전학습 Artifact의 생성 과정을 직접 재현할 필요가 생길 때 꺼냅니다.",
+        completion: "작은 공개 말뭉치에서 Tokenizer를 학습하고 Vocabulary·Special Token을 고정합니다. 작은 Decoder LM의 초기화·AdamW·학습률·Gradient 누적·Checkpoint 저장과 중단 후 재개를 연결하고, Train·Validation Loss와 Perplexity·재현 조건을 기록하면 완료합니다.",
+        href: "roadmaps/roadmap_transformer.html"
+      },
+      {
+        id: "distributed-training-memory-sharding",
+        title: "분산 학습과 메모리 Sharding",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "distributed-inference",
+        reason: "DDP·FSDP·ZeRO·Activation Checkpointing·Offload는 Multi-GPU 통신을 사용하지만 현재 목표인 분산 추론 Tensor Parallel과 최적화 대상이 다릅니다. 가치 있는 별도 학습 방향으로 잃지 않되 현재 종착점을 지연시키지 않습니다.",
+        resumeWhen: "분산 추론 관문을 닫은 뒤 모델 학습 메모리가 실제 제약이 되거나 사용자가 분산 학습 방향을 선택할 때 꺼냅니다.",
+        completion: "같은 작은 모델과 Global Batch에서 단일 GPU·DDP·Sharded 학습의 Parameter·Gradient·Optimizer State·Activation 메모리와 Collective 통신량을 비교합니다. FSDP 또는 ZeRO 한 경로와 Activation Checkpointing·CPU Offload 중 필요한 조건 하나를 실행해 Step Time·Peak VRAM·수치 일치를 기록하면 완료합니다.",
+        href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog"
+      },
+      {
+        id: "scaling-law-data-quality-pipeline",
+        title: "Scaling Law와 학습 데이터 품질 파이프라인",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "tiny-decoder-lm",
+        reason: "모델·Token·Compute 규모의 관계와 Data Filtering·Deduplication·Mixing·Lineage는 모델 학습 결과를 좌우하지만, 현재의 추론 Baseline을 완성하는 선수 조건은 아닙니다.",
+        resumeWhen: "작은 언어 모델을 실제 말뭉치로 학습하는 방향을 선택하고, 데이터 양이나 혼합 비율을 근거 없이 정하게 되는 시점에 꺼냅니다.",
+        completion: "작은 여러 규모의 Model·Token·Compute 실험을 고정 조건에서 반복해 Loss 추세를 적합하고 예측과 실제를 비교합니다. 이어 중복 제거·품질 필터·Dataset Mixing 조건 하나씩을 바꿔 Validation Loss와 오류 사례를 비교하고, 데이터 출처·License·변환 이력을 재현 가능하게 남기면 완료합니다.",
+        href: "roadmaps/roadmap_transformer.html"
+      },
+      {
+        id: "post-training-alignment-evaluation",
+        title: "Post-training과 선호 정렬 평가",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "pretrained-causal-lm",
+        reason: "SFT·Preference Optimization·RLHF·GRPO는 사전학습 모델을 목적에 맞게 조정하는 중요한 단계지만, 현재는 동일 모델의 추론 원리와 시스템 성능을 고정하는 중입니다.",
+        resumeWhen: "추론 핵심 여정 뒤 특정 Task에 모델을 조정해야 하고, Base·SFT·선호 학습의 품질 차이를 측정할 데이터와 평가 기준을 정했을 때 꺼냅니다.",
+        completion: "작은 공개 데이터와 고정 평가 세트에서 Base와 SFT를 먼저 비교합니다. 이후 DPO 같은 선호 최적화 한 경로 또는 작은 Reward 기반 학습 한 경로를 선택해 Objective·Reference Model·Reward·KL 역할을 설명하고, Task 품질·일반 품질·안전 실패·과적합을 함께 평가하면 완료합니다.",
+        href: "roadmaps/roadmap_transformer.html"
+      },
+      {
+        id: "serving-runtime-prefix-cache-scheduler-comparison",
+        title: "Prefix Cache와 Cache-aware Scheduler Runtime 비교",
+        type: "interest",
+        status: "queued",
+        statusLabel: "조건부 Serving 심화 백로그",
+        milestoneId: "vllm-benchmark",
+        reason: "vLLM의 Prefix Caching을 먼저 같은 Benchmark 계약으로 검증한 뒤에는 Radix Tree 기반 Prefix 재사용과 Cache-aware Scheduling을 다른 Runtime에서 비교할 가치가 있습니다. 하지만 제공 Runtime 사용은 vLLM 필수 관문의 선행 조건이 아닙니다.",
+        resumeWhen: "vLLM Baseline을 완료했고 반복 Prefix가 많은 실제 Workload에서 Prefix Cache 정책 차이를 비교할 필요가 생길 때 꺼냅니다.",
+        completion: "같은 Model·Revision·dtype·Prompt 집합·Sampling·Seed·Concurrency에서 vLLM Prefix Caching과 Radix Tree 기반 Runtime의 TTFT·Throughput·Peak VRAM·Cache Hit 또는 Reuse를 비교합니다. Scheduler나 Cache를 직접 구현한 증거와 제공 Runtime을 설정·측정한 증거를 구분하면 완료합니다.",
+        href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog"
+      },
+      {
+        id: "framework-autodiff-graph-compiler",
+        title: "ML Framework의 Autodiff·Graph·Compiler 내부",
+        type: "interest",
+        status: "queued",
+        statusLabel: "장기 관심 백로그",
+        milestoneId: "pytorch-training",
+        reason: "PyTorch Autograd를 사용해 학습을 완주했지만 Reverse-mode Autodiff, 계산 Graph 실행, Operator Fusion과 Compiler 최적화가 Framework 내부에서 어떻게 연결되는지는 별도 시스템 깊이입니다.",
+        resumeWhen: "직접 연산 Engine을 이해해야 하거나 Graph Break·Compile·Fusion이 실제 성능 또는 디버깅 문제로 나타날 때 꺼냅니다.",
+        completion: "작은 Scalar·Tensor 연산 Graph에서 Topological 순서와 Reverse-mode Gradient를 직접 계산하는 최소 Engine을 만들고 PyTorch 결과와 비교합니다. 이어 같은 함수를 Eager와 Compile 경로에서 실행해 Graph Break·Operator 수·Fusion·Latency를 관찰하고, Framework·Compiler·Kernel의 역할 경계를 설명하면 완료합니다.",
+        href: "roadmaps/roadmap_pytorch.html"
       }
     ]
   },

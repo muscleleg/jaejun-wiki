@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 172,
-  "indexedCount": 173,
+  "documentCount": 174,
+  "indexedCount": 175,
   "categories": [
     {
       "id": "llm-systems",
@@ -860,6 +860,52 @@ window.KNOWLEDGE_MANIFEST = {
       "conceptKeys": []
     },
     {
+      "id": "wiki-coding-test-31-land-taking",
+      "title": "땅따먹기",
+      "description": "각 행에서 한 칸을 고르되 같은 열을 연속으로 선택할 수 없다. 모든 경로를 보관하지 않고, 이전 행의 각 열에 도착한 최고 누적점수 네 개만 다음 행으로 전달하는 DP로 정확성·효율성 테스트를 모두 통과하고 시간·공간 복잡도를 설명했다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "땅따먹기 각 행에서 한 칸을 고르되 같은 열을 연속으로 선택할 수 없다. 모든 경로를 보관하지 않고, 이전 행의 각 열에 도착한 최고 누적점수 네 개만 다음 행으로 전달하는 DP로 정확성·효율성 테스트를 모두 통과하고 시간·공간 복잡도를 설명했다. ⌂ 홈 › 기술 위키 › 코딩 테스트 › 땅따먹기 땅따먹기 마지막 행에서 가장 큰 누적점수를 찾는다 같은 도착 열의 여러 경로는 최고점 하나로 압축한다 현재 열과 같은 이전 열만 제외한다 직접 완성해 통과한 코드 구조 그리디와 계산 중 갱신을 DP로 교정했다 열이 4개로 고정되어 시간 O(N), 추가 공간 O(1)이다 제출 증거 첫 학습 완료와 남은 재구현",
+      "href": "wiki/coding-test/31-land-taking.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/31-land-taking.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "땅따먹기"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-coding-test-32-integer-triangle",
+      "title": "정수 삼각형",
+      "description": "첫 행의 누적값에서 시작해 각 위치에 도착할 수 있는 이전 위치의 최고 누적값을 더하고, 마지막 행의 최댓값을 반환한다. 상태 전이를 직접 설명·구현해 정확성·효율성 20개 테스트를 모두 통과했으며 복잡도 설명은 아직 확인 전이다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "정수 삼각형 첫 행의 누적값에서 시작해 각 위치에 도착할 수 있는 이전 위치의 최고 누적값을 더하고, 마지막 행의 최댓값을 반환한다. 상태 전이를 직접 설명·구현해 정확성·효율성 20개 테스트를 모두 통과했으며 복잡도 설명은 아직 확인 전이다. ⌂ 홈 › 기술 위키 › 코딩 테스트 › 정수 삼각형 정수 삼각형 이전 행의 각 위치까지 최고 누적합만 보관한다 왼쪽 끝·가운데·오른쪽 끝의 이전 후보가 다르다 직접 구현해 통과한 코드 경계 조건과 행 상태 교체를 교정했다 제출 증거 아직 남은 첫 학습 증거",
+      "href": "wiki/coding-test/32-integer-triangle.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/32-integer-triangle.html",
+      "category": "코딩 테스트",
+      "categoryKey": "coding-test",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/coding-test/index.html",
+      "parentId": "wiki-coding-test-index",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "코딩 테스트",
+        "정수 삼각형"
+      ],
+      "conceptKeys": []
+    },
+    {
       "id": "wiki-coding-test-algorithm_complexity_search",
       "title": "알고리즘 복잡도와 순차·이분 탐색",
       "description": "Big-O·Omega·Theta 표기, 연산별 시간·공간 복잡도, 순차 탐색의 평균 비교 횟수, 이분 탐색 invariant와 경계 오류를 설명한 문서",
@@ -935,7 +981,7 @@ window.KNOWLEDGE_MANIFEST = {
       "title": "코딩 테스트 역량 로드맵",
       "description": "프로그래머스 문제만 사용한다. 푼 개수를 늘리는 데서 멈추지 않고, 처음 보는 문제의 제약을 읽고 자료구조와 알고리즘을 선택해 구현·검증·설명하는 힘을 만든다.",
       "publishedAt": "2026-08-13",
-      "searchText": "코딩 테스트 역량 로드맵 프로그래머스 문제만 사용한다. 푼 개수를 늘리는 데서 멈추지 않고, 처음 보는 문제의 제약을 읽고 자료구조와 알고리즘을 선택해 구현·검증·설명하는 힘을 만든다. ⌂ 홈 › 전체 학습 로드맵 › 코딩 테스트 코딩 테스트 역량 로드맵 로드맵 운영 원칙 기업 코딩 테스트 조사에서 가져온 기준 핵심 패턴 습득에서 혼합 문제 적용으로 가는 3단계 대표 문제를 안내받아 빠르게 한 번 구현한다 이전 정답 없이 같은 구조를 다시 꺼낸다 유형을 밝히지 않은 문제에서 패턴을 선택한다 문제 제시 → 풀이·질문 → 기록 → 다음 처방 힌트 사다리 문제별 기록 오답 기록 네 항목 현재 위치와 진단 핵심 패턴 첫 순환 핵심 패턴 묶음과 복습 방식 Hash(해시) Stack·Queue 정렬 Greedy(그리디) 완전탐색·백트래킹 DFS·BFS 이분 탐색·Heap 구현·Simulation(시뮬레이션) 가중치 최단경로·DP 누적합·투 포인터·슬라이딩 윈도우 Union-Find·MST·위상 정렬 세션 운영 첫 순환의 범위 백엔드 직무 SQL 병행 트랙 문제 하나를 완료하는 6개 관문 혼합 문제 전환과 로드맵 완료 조건 문제별 학습 문서 풀이 시도·응용 메모 문제를 풀며 확인한 Python 문법 dict와 set 삭제와 Queue 순회와 문자열 문자 검사와 변경 변환과 정렬 재귀와 nonlocal 지금까지 연결한 알고리즘 사고 바로 다음 학습 지점",
+      "searchText": "코딩 테스트 역량 로드맵 프로그래머스 문제만 사용한다. 푼 개수를 늘리는 데서 멈추지 않고, 처음 보는 문제의 제약을 읽고 자료구조와 알고리즘을 선택해 구현·검증·설명하는 힘을 만든다. ⌂ 홈 › 전체 학습 로드맵 › 코딩 테스트 코딩 테스트 역량 로드맵 실전 문제 해결까지의 학습 여정 문제 해석·Python 기초 완전탐색·그리디·Stack·Queue DP·DFS·BFS 기초 적용 이분 탐색 경계 설계 Heap 적용·일반 그래프 탐색 가중치 최단경로·DP 상태 설계 구간 탐색·백트래킹 패턴 Union-Find·MST·위상 정렬 유형 비공개 혼합 문제 적용 로드맵 운영 원칙 기업 코딩 테스트 조사에서 가져온 기준 핵심 패턴 습득에서 혼합 문제 적용으로 가는 3단계 대표 문제를 안내받아 빠르게 한 번 구현한다 이전 정답 없이 같은 구조를 다시 꺼낸다 유형을 밝히지 않은 문제에서 패턴을 선택한다 문제 제시 → 풀이·질문 → 기록 → 다음 처방 힌트 사다리 문제별 기록 오답 기록 네 항목 현재 위치와 진단 핵심 패턴 첫 순환 핵심 패턴 묶음과 복습 방식 Hash(해시) Stack·Queue 정렬 Greedy(그리디) 완전탐색·백트래킹 DFS·BFS 이분 탐색·Heap 구현·Simulation(시뮬레이션) 가중치 최단경로·DP 누적합·투 포인터·슬라이딩 윈도우 Union-Find·MST·위상 정렬 세션 운영 첫 순환의 범위 백엔드 직무 SQL 병행 트랙 문제 하나를 완료하는 6개 관문 혼합 문제 전환과 로드맵 완료 조건 문제별 학습 문서 풀이 시도·응용 메모 문제를 풀며 확인한 Python 문법 dict와 set 삭제와 Queue 순회와 문자열 문자 검사와 변경 변환과 정렬 재귀와 nonlocal 지금까지 연결한 알고리즘 사고 바로 다음 학습 지점",
       "href": "wiki/coding-test/index.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/index.html",
       "category": "코딩 테스트",

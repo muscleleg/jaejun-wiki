@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { itemsForPlacement, loadContentCatalog } from "./content_catalog.mjs";
+import { roadmapVisualizationDefinitions } from "./roadmap_visualization_config.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -90,6 +91,27 @@ function sectionById(html, id) {
   const match = html.match(new RegExp(`<section\\b(?=[^>]*\\bid=["']${escaped}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i"));
   if (!match) throw new Error(`Section not found: ${id}`);
   return match[0];
+}
+
+function sectionByHeading(html, heading) {
+  const sections = [...html.matchAll(/<section\b[^>]*>[\s\S]*?<\/section>/gi)];
+  const section = sections.find((match) => normalizeText(match[0].match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1]) === heading);
+  if (!section) throw new Error(`Section not found for heading: ${heading}`);
+  return section[0];
+}
+
+function roadmapSourceTitles(html, definition) {
+  const section = sectionByHeading(html, definition.sourceHeading);
+  if (definition.sourceType === "status-list") {
+    return [...section.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bstatus-row\b[^"']*["'])[^>]*>[\s\S]*?<strong>([\s\S]*?)<\/strong>/gi)].map((match) => normalizeText(match[1]));
+  }
+  if (definition.sourceType === "checklist") {
+    return [...section.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bcheck\b[^"']*["'])[^>]*>[\s\S]*?<strong>([\s\S]*?)<\/strong>/gi)].map((match) => normalizeText(match[1]));
+  }
+  if (definition.sourceType === "cards") {
+    return [...section.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bcard\b[^"']*["'])[^>]*>[\s\S]*?<h3>([\s\S]*?)<\/h3>/gi)].map((match) => normalizeText(match[1]));
+  }
+  throw new Error(`Unknown roadmap source type: ${definition.sourceType}`);
 }
 
 function completionGateCount(html, label) {
@@ -182,8 +204,8 @@ const codingCurrentMilestone = codingTestState.journey.milestones.find((item) =>
 if (!aiCurrentMilestone || !codingCurrentMilestone) throw new Error("Top-level roadmap current milestone is missing");
 const codingCompletedCount = codingTestState.journey.milestones.filter((item) => item.status === "complete").length;
 const topLevelExpectations = [
-  { region: topLevelRoadmapTracks, id: "ai-ml", href: "pytorch_professional_roadmap.html", values: [learningState.priorityPolicy.label, learningState.priorityPolicy.title, aiCurrentMilestone.title, learningState.rotation.next, `코어 완료 조건 ${learningState.overall.done} / ${learningState.overall.total}`] },
-  { region: optionalSessionRoadmaps, id: "coding-test", href: "wiki/coding-test/index.html", values: ["사용자 선택 세션", "코딩 테스트 역량 로드맵", codingCurrentMilestone.title, codingCurrentMilestone.goal, `성취 관문 ${codingCompletedCount} / ${codingTestState.journey.milestones.length}`] },
+  { region: topLevelRoadmapTracks, id: "ai-ml", href: "pytorch_professional_roadmap.html", journey: learningState.journey, values: [learningState.priorityPolicy.label, learningState.priorityPolicy.title, aiCurrentMilestone.title, learningState.rotation.next, `코어 완료 조건 ${learningState.overall.done} / ${learningState.overall.total}`] },
+  { region: optionalSessionRoadmaps, id: "coding-test", href: "wiki/coding-test/index.html", journey: codingTestState.journey, values: ["사용자 선택 세션", "코딩 테스트 역량 로드맵", codingCurrentMilestone.title, codingCurrentMilestone.goal, `성취 관문 ${codingCompletedCount} / ${codingTestState.journey.milestones.length}`] },
 ];
 for (const expectation of topLevelExpectations) {
   const card = blockByDataValue(expectation.region, "data-roadmap-id", expectation.id, "article");
@@ -192,6 +214,10 @@ for (const expectation of topLevelExpectations) {
     if (!cardText.includes(normalizeText(value))) throw new Error(`Top-level roadmap ${expectation.id} is missing: ${value}`);
   }
   if (!valuesForAttribute(card.html, "href").includes(expectation.href)) throw new Error(`Top-level roadmap ${expectation.id} href is stale`);
+  const compactMilestoneIds = valuesForAttribute(card.html, "data-milestone-id");
+  assertEqual(compactMilestoneIds.join("|"), expectation.journey.milestones.map((item) => item.id).join("|"), `Top-level compact journey order ${expectation.id}`);
+  const compactCurrentIds = [...card.html.matchAll(/<li\b(?=[^>]*\baria-current=["']step["'])(?=[^>]*\bdata-milestone-id=["']([^"']+)["'])[^>]*>/gi)].map((match) => match[1]);
+  assertEqual(compactCurrentIds.join("|"), expectation.journey.currentId, `Top-level compact journey current ${expectation.id}`);
 }
 if (/전체\s*(?:진행률|완료율)|통합\s*(?:진행률|완료율)/.test(normalizeText(`${topLevelRoadmapTracks} ${optionalSessionRoadmaps}`))) {
   throw new Error("Top-level roadmap must not merge AI and coding-test progress into one percentage");
@@ -421,7 +447,7 @@ for (const record of learningHistoryData.records) {
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
-function assertJourneyMatches(region, journey, label, presentation = {}) {
+function assertJourneyMatches(region, journey, label, presentation = {}, deferredLearningItems = null) {
   const expectedTitle = presentation.title || journey.title;
   const expectedSummary = presentation.summary || journey.summary;
   const expectedFinalOutcome = presentation.finalOutcome || journey.finalOutcome;
@@ -456,7 +482,10 @@ function assertJourneyMatches(region, journey, label, presentation = {}) {
     assertEqual(textByClass(block.content, "journey-status"), milestone.statusLabel, `${label} status ${milestone.id}`);
     if (!normalizeText(block.content).includes(normalizeText(milestone.goal))) throw new Error(`${label} goal is missing: ${milestone.id}`);
     if (!normalizeText(block.content).includes(normalizeText(milestone.evidence))) throw new Error(`${label} evidence is missing: ${milestone.id}`);
-    const expectedDetailHrefs = milestone.practiceHref ? [milestone.practiceHref] : [];
+    const branchHrefs = deferredLearningItems?.items
+      .filter((item) => item.milestoneId === milestone.id && ["active", "complete"].includes(item.status))
+      .map((item) => `learning_backlog.html#deferred-${item.id}`) || [];
+    const expectedDetailHrefs = [...(milestone.practiceHref ? [milestone.practiceHref] : []), ...branchHrefs];
     assertEqual(valuesForAttribute(block.content, "href").join("|"), expectedDetailHrefs.join("|"), `${label} practice href ${milestone.id}`);
   }
 }
@@ -467,7 +496,25 @@ for (const id of ["featuredProjectGrid", "projectRailStatus", "projectRailPrevio
   if (!homeHtml.includes(`id="${id}"`)) throw new Error(`Home project horizontal-rail control is missing: ${id}`);
 }
 const homeLearningJourney = staticRegion(homeHtml, "home-learning-journey");
-assertJourneyMatches(homeLearningJourney, learningState.journey, "Home learning journey", learningState.journey.homePresentation);
+assertJourneyMatches(homeLearningJourney, learningState.journey, "Home learning journey", learningState.journey.homePresentation, learningState.deferredLearningItems);
+const topLevelLearningJourney = staticRegion(topLevelRoadmapHtml, "primary-roadmap-journey-visual");
+assertJourneyMatches(topLevelLearningJourney, learningState.journey, "Top-level roadmap journey", {}, learningState.deferredLearningItems);
+const integratedLearningJourney = staticRegion(roadmapHtml, "integrated-roadmap-journey-visual");
+assertJourneyMatches(integratedLearningJourney, learningState.journey, "Integrated roadmap journey", {}, learningState.deferredLearningItems);
+if (!/<section\b(?=[^>]*\bclass=["'][^"']*\bhero\b[^"']*["'])[^>]*>[\s\S]*?<\/section>\s*<section\b[^>]*\bid=["']integrated-roadmap-journey-visual["']/i.test(roadmapHtml)) {
+  throw new Error("Integrated roadmap journey must appear immediately after the hero");
+}
+const codingTestRoadmapJourney = staticRegion(codingTestIndexHtml, "coding-test-roadmap-journey");
+assertJourneyMatches(codingTestRoadmapJourney, codingTestState.journey, "Coding-test roadmap journey");
+for (const [label, source, prefix] of [
+  ["Top-level roadmap", topLevelRoadmapHtml, "assets/"],
+  ["Integrated roadmap", roadmapHtml, "assets/"],
+  ["Coding-test roadmap", codingTestIndexHtml, "../../assets/"],
+]) {
+  if (!source.includes(`${prefix}css/outcome-journey.css`) || !source.includes(`${prefix}js/learning_journey.js`)) {
+    throw new Error(`${label} journey assets are missing`);
+  }
+}
 if (!/<section\b[^>]*id=["']now-learning["'][\s\S]*?<\/section>\s*<section\b[^>]*id=["']projects["']/i.test(homeHtml)) {
   throw new Error("Home learning journey must be the section immediately before personal projects");
 }
@@ -477,7 +524,7 @@ if (/\bid=["'](?:recentCompletion|currentLearning|currentNextAction|coachingStat
 }
 if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
 const learningJourney = staticRegion(historyHtml, "learning-journey");
-assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
+assertJourneyMatches(learningJourney, learningState.journey, "Learning journey", {}, learningState.deferredLearningItems);
 if (!/<\/header>\s*<section\b[^>]*id=["']study-calendar["'][\s\S]*?<\/section>\s*<!-- learning-calendar-placement -->\s*<section\b[^>]*id=["']primary-learning-journey["']/i.test(historyHtml)) {
   throw new Error("Learning calendar must follow the top summary and precede the primary learning journey");
 }
@@ -556,6 +603,7 @@ for (const item of reviewState.items) {
 const deferredLearning = staticRegion(backlogHtml, "deferred-learning-items");
 for (const expectedText of [
   learningState.deferredLearningItems.policy.reviewWhen,
+  learningState.deferredLearningItems.policy.branchRule,
   String(learningState.deferredLearningItems.policy.activeLimit),
   String(learningState.deferredLearningItems.policy.repeatThreshold),
   ...learningState.deferredLearningItems.policy.types.flatMap((type) => [type.label, type.activation]),
@@ -568,6 +616,7 @@ assertEqual(deferredIds.join("|"), expectedDeferredIds.join("|"), "Deferred lear
 assertEqual(new Set(deferredIds).size, deferredIds.length, "Unique deferred learning items");
 for (const item of learningState.deferredLearningItems.items) {
   const block = blockByDataValue(deferredLearning, "data-deferred-id", item.id, "article");
+  if (!block.attributes.includes(`id="deferred-${item.id}"`)) throw new Error(`Deferred learning anchor is missing: ${item.id}`);
   assertEqual(block.attributes.match(/\bdata-deferred-status=["']([^"']+)["']/i)?.[1] || "", item.status, `Deferred learning status ${item.id}`);
   assertEqual(block.attributes.match(/\bdata-deferred-type=["']([^"']+)["']/i)?.[1] || "", item.type, `Deferred learning type ${item.id}`);
   const type = learningState.deferredLearningItems.policy.types.find((candidate) => candidate.id === item.type);
@@ -579,6 +628,58 @@ for (const item of learningState.deferredLearningItems.items) {
 }
 const activeDeferredCount = learningState.deferredLearningItems.items.filter((item) => item.status === "active").length;
 if (activeDeferredCount > learningState.deferredLearningItems.policy.activeLimit) throw new Error("Deferred learning active limit exceeded");
+
+for (const definition of roadmapVisualizationDefinitions) {
+  const roadmapSource = await readFile(resolve(wikiRoot, definition.href), "utf8");
+  if (!roadmapSource.includes("assets/css/outcome-journey.css") || !roadmapSource.includes("assets/js/learning_journey.js")) {
+    throw new Error(`Roadmap journey assets are missing: ${definition.href}`);
+  }
+  if (/<section\b[^>]*\bid=["']roadmap-learning-branches["']/i.test(roadmapSource)) {
+    throw new Error(`Legacy detached branch section must be removed: ${definition.href}`);
+  }
+  const localJourney = staticRegion(roadmapSource, "roadmap-local-journey");
+  const sourceTitles = roadmapSourceTitles(roadmapSource, definition);
+  const renderedTitles = [...localJourney.matchAll(/<span\b(?=[^>]*\bclass=["'][^"']*\bjourney-label\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi)]
+    .map((match) => normalizeText(match[1]));
+  assertEqual(renderedTitles.join("|"), sourceTitles.join("|"), `Roadmap journey source order ${definition.href}`);
+
+  const track = definition.trackId ? learningState.tracks.find((item) => item.id === definition.trackId) : null;
+  const activeMilestone = learningState.journey.milestones.find((item) => item.id === learningState.journey.currentId);
+  const activeRoadmap = activeMilestone.href.split("#")[0] === definition.href;
+  let expectedCompleteCount = track && definition.progressSource !== "milestones" ? Math.min(track.done, sourceTitles.length) : 0;
+  let expectedCurrentCount = track && definition.progressSource !== "milestones" && activeRoadmap && expectedCompleteCount < sourceTitles.length ? 1 : 0;
+  if (definition.progressSource === "milestones") {
+    const activeStepIndex = definition.milestoneStepIndices?.[learningState.journey.currentId];
+    if (activeRoadmap && Number.isInteger(activeStepIndex)) {
+      expectedCompleteCount = activeStepIndex;
+      expectedCurrentCount = 1;
+    } else {
+      const completedIndices = learningState.journey.milestones
+        .filter((milestone) => milestone.status === "complete")
+        .map((milestone) => definition.milestoneStepIndices?.[milestone.id])
+        .filter(Number.isInteger);
+      expectedCompleteCount = completedIndices.length ? Math.max(...completedIndices) + 1 : 0;
+      expectedCurrentCount = 0;
+    }
+  }
+  assertEqual((localJourney.match(/\bjourney-step is-complete\b/g) || []).length, expectedCompleteCount, `Roadmap complete steps ${definition.href}`);
+  assertEqual((localJourney.match(/\baria-current=["']step["']/g) || []).length, expectedCurrentCount, `Roadmap current step ${definition.href}`);
+
+  const anchoredMilestones = new Set(Object.keys(definition.milestoneStepIndices || {}));
+  const expectedBranches = learningState.deferredLearningItems.items.filter((item) => (
+    anchoredMilestones.has(item.milestoneId) && ["active", "complete"].includes(item.status)
+  ));
+  assertEqual(
+    valuesForAttribute(localJourney, "data-deferred-id").join("|"),
+    expectedBranches.map((item) => item.id).join("|"),
+    `Roadmap attached branch order ${definition.href}`,
+  );
+  for (const item of expectedBranches) {
+    const branch = blockByDataValue(localJourney, "data-deferred-id", item.id, "li");
+    if (!normalizeText(branch.content).includes(normalizeText(item.title))) throw new Error(`Roadmap branch title is missing: ${item.id}`);
+    assertEqual(valuesForAttribute(branch.content, "href").join("|"), `../learning_backlog.html#deferred-${item.id}`, `Roadmap branch href ${item.id}`);
+  }
+}
 const codingTestJourney = staticRegion(historyHtml, "coding-test-journey");
 assertJourneyMatches(codingTestJourney, codingTestState.journey, "Coding-test journey");
 const optionalSessionJourneys = sectionById(historyHtml, "optional-session-journeys");

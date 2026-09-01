@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { itemsForPlacement, loadContentCatalog } from "./content_catalog.mjs";
+import { roadmapVisualizationDefinitions } from "./roadmap_visualization_config.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -335,6 +336,46 @@ function currentJourneyMilestone(journey) {
   return milestone;
 }
 
+function visibleLearningBranches(deferredLearningItems, milestoneId) {
+  if (!deferredLearningItems?.items) return [];
+  return deferredLearningItems.items.filter((item) => (
+    item.milestoneId === milestoneId && ["active", "complete"].includes(item.status)
+  ));
+}
+
+function renderJourneyBranches(branches, backlogHref) {
+  if (!branches.length) return "";
+  const labels = { active: "심화 학습 중", complete: "심화 완료" };
+  const items = branches.map((item) => `              <li class="journey-branch-item is-${escapeAttribute(item.status)}" data-deferred-id="${escapeAttribute(item.id)}">
+                <a href="${escapeAttribute(`${backlogHref}#deferred-${item.id}`)}"><span>${escapeHtml(labels[item.status])}</span>${escapeHtml(item.title)}</a>
+              </li>`).join("\n");
+  return `
+            <ul class="journey-branch-list" aria-label="이 관문에서 확장한 심화 학습">
+${items}
+            </ul>`;
+}
+
+function renderCompactRoadmapJourney(journey, label) {
+  const currentIndex = journey.milestones.findIndex((milestone) => milestone.id === journey.currentId);
+  const progressIndex = currentIndex >= 0
+    ? currentIndex
+    : journey.milestones.reduce((latest, milestone, index) => milestone.status === "complete" ? index : latest, 0);
+  const count = journey.milestones.length;
+  const inset = 50 / count;
+  const progressWidth = progressIndex / count * 100;
+  const steps = journey.milestones.map((milestone, index) => {
+    const statusClass = milestone.status === "complete" ? "is-complete" : milestone.id === journey.currentId || milestone.status === "current" ? "is-current" : "is-upcoming";
+    const marker = statusClass === "is-complete" ? "✓" : index + 1;
+    const statusText = statusClass === "is-complete" ? "완료" : statusClass === "is-current" ? "현재" : "예정";
+    return `              <li class="${statusClass}" data-milestone-id="${escapeAttribute(milestone.id)}"${statusClass === "is-current" ? ' aria-current="step"' : ""} title="${escapeAttribute(`${milestone.title} · ${statusText}`)}"><span>${marker}</span><small>${escapeHtml(milestone.shortTitle || milestone.title)}</small></li>`;
+  }).join("\n");
+  return `          <div class="roadmap-card-journey" style="--roadmap-card-count:${count};--roadmap-card-inset:${inset.toFixed(2)}%;--roadmap-card-progress:${progressWidth.toFixed(2)}%" aria-label="${escapeAttribute(label)}">
+            <ol>
+${steps}
+            </ol>
+          </div>`;
+}
+
 function renderRoadmapCard(card) {
   const percent = Math.round(card.done / card.total * 100);
   return `        <article class="card roadmap-track-card" data-roadmap-id="${escapeAttribute(card.id)}">
@@ -342,6 +383,7 @@ function renderRoadmapCard(card) {
           <h2>${escapeHtml(card.title)}</h2>
           <div class="progress"><span style="width:${percent}%"></span></div>
           <div class="meta"><span>${escapeHtml(card.unit)} ${card.done} / ${card.total}</span><span>${percent}%</span></div>
+${card.journey ? renderCompactRoadmapJourney(card.journey, `${card.title} 관문 진행`) : ""}
           <div class="roadmap-track-current"><strong>${escapeHtml(card.currentLabel || "현재 관문")}</strong>${escapeHtml(card.current)}</div>
           <p class="roadmap-track-next"><strong>${escapeHtml(card.nextLabel || "다음 행동")}</strong><br>${escapeHtml(card.next)}</p>
           <a class="button" href="${escapeAttribute(card.href)}">${escapeHtml(card.link)}</a>
@@ -359,6 +401,7 @@ function renderPrimaryRoadmapTrack(state) {
     unit: "코어 완료 조건",
     current: aiCurrent.title,
     next: state.rotation.next,
+    journey: state.journey,
     href: "pytorch_professional_roadmap.html",
     link: "핵심 여정 실행 로드맵 열기",
   });
@@ -378,6 +421,7 @@ function renderOptionalSessionRoadmap(codingState) {
     current: codingCurrent.title,
     nextLabel: "세션을 선택했을 때의 목표",
     next: codingCurrent.goal,
+    journey: codingState.journey,
     href: "wiki/coding-test/index.html",
     link: "코딩 테스트 로드맵 열기",
   });
@@ -437,7 +481,7 @@ function renderIntegratedRoadmapCoaching(state) {
   return rows.map(([label, value]) => `        <div class="status-line"><span class="status">${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`).join("\n");
 }
 
-function renderLearningJourney(journey, presentation = {}) {
+function renderLearningJourney(journey, presentation = {}, options = {}) {
   if (!journey?.milestones?.length) throw new Error("Learning journey milestones are missing");
   const eyebrow = presentation.eyebrow || journey.eyebrow;
   const title = presentation.title || journey.title;
@@ -452,6 +496,8 @@ function renderLearningJourney(journey, presentation = {}) {
   const progressWidth = progress * (100 - lineInset * 2) / 100;
   const steps = journey.milestones.map((milestone, index) => {
     const classes = ["journey-step", `is-${milestone.status}`];
+    const branches = visibleLearningBranches(options.deferredLearningItems, milestone.id);
+    if (branches.length) classes.push("has-branches");
     if (index === journey.milestones.length - 1) classes.push("is-final");
     const marker = milestone.status === "complete" ? "✓" : String(index + 1);
     const currentText = milestone.id === journey.currentId ? ' aria-current="step"' : "";
@@ -472,6 +518,7 @@ function renderLearningJourney(journey, presentation = {}) {
                 <p><strong>${evidenceLabel}</strong><br>${escapeHtml(milestone.evidence)}</p>${detailLink}
               </div>
             </details>
+${renderJourneyBranches(branches, options.backlogHref || "learning_backlog.html")}
           </li>`;
   }).join("\n");
   const interactionHintMarkup = interactionHint
@@ -482,6 +529,153 @@ function renderLearningJourney(journey, presentation = {}) {
 ${steps}
         </ol>
         <p class="journey-final"><strong>${escapeHtml(finalLabel)}</strong><br>${escapeHtml(finalOutcome)}</p>`;
+}
+
+function sectionByHeading(content, heading) {
+  const sections = [...content.matchAll(/<section\b[^>]*>[\s\S]*?<\/section>/gi)];
+  const section = sections.find((match) => extract(match[0], /<h2\b[^>]*>([\s\S]*?)<\/h2>/i) === heading);
+  if (!section) throw new Error(`Roadmap source section not found: ${heading}`);
+  return section[0];
+}
+
+function roadmapSourceSteps(content, definition) {
+  const section = sectionByHeading(content, definition.sourceHeading);
+  if (definition.sourceType === "status-list") {
+    return [...section.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bstatus-row\b[^"']*["'])[^>]*>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<span>([\s\S]*?)<\/span>[\s\S]*?<\/div>/gi)]
+      .map((match) => ({ title: decodeEntities(match[1]), description: decodeEntities(match[2]) }));
+  }
+  if (definition.sourceType === "checklist") {
+    return [...section.matchAll(/<div\b(?=[^>]*\bclass=["'][^"']*\bcheck\b[^"']*["'])[^>]*>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<span\b(?=[^>]*\bclass=["'][^"']*\bsummary\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/gi)]
+      .map((match) => ({ title: decodeEntities(match[1]), description: decodeEntities(match[2]) }));
+  }
+  if (definition.sourceType === "cards") {
+    return [...section.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bcard\b[^"']*["'])[^>]*>[\s\S]*?<h3>([\s\S]*?)<\/h3>([\s\S]*?)<\/article>/gi)]
+      .map((match) => ({
+        title: decodeEntities(match[1]),
+        description: extract(match[2], /<p\b[^>]*>([\s\S]*?)<\/p>/i),
+      }));
+  }
+  throw new Error(`Unknown roadmap source type: ${definition.sourceType}`);
+}
+
+function roadmapStepStatuses(definition, stepCount, state) {
+  const statuses = Array.from({ length: stepCount }, () => "upcoming");
+  const track = definition.trackId ? state.tracks.find((item) => item.id === definition.trackId) : null;
+  const activeMilestone = currentJourneyMilestone(state.journey);
+  const isActiveRoadmap = activeMilestone.href.split("#")[0] === definition.href;
+
+  if (definition.progressSource === "milestones") {
+    const activeStepIndex = definition.milestoneStepIndices?.[state.journey.currentId];
+    if (isActiveRoadmap && Number.isInteger(activeStepIndex)) {
+      for (let index = 0; index < activeStepIndex; index += 1) statuses[index] = "complete";
+      statuses[activeStepIndex] = "current";
+      return { statuses, track, isActiveRoadmap };
+    }
+    const completedIndices = state.journey.milestones
+      .filter((milestone) => milestone.status === "complete")
+      .map((milestone) => definition.milestoneStepIndices?.[milestone.id])
+      .filter(Number.isInteger);
+    const completedThrough = completedIndices.length ? Math.max(...completedIndices) : -1;
+    for (let index = 0; index <= completedThrough; index += 1) statuses[index] = "complete";
+    return { statuses, track, isActiveRoadmap };
+  }
+
+  if (track) {
+    const doneCount = Math.min(track.done, stepCount);
+    for (let index = 0; index < doneCount; index += 1) statuses[index] = "complete";
+    if (isActiveRoadmap && doneCount < stepCount) statuses[doneCount] = "current";
+  }
+  return { statuses, track, isActiveRoadmap };
+}
+
+function renderLocalRoadmapJourney(content, definition, state) {
+  const sourceSteps = roadmapSourceSteps(content, definition);
+  if (!sourceSteps.length) throw new Error(`Roadmap visualization has no steps: ${definition.href}`);
+  const { statuses, track, isActiveRoadmap } = roadmapStepStatuses(definition, sourceSteps.length, state);
+  const currentIndex = statuses.indexOf("current");
+  const lastCompleteIndex = statuses.lastIndexOf("complete");
+  const allComplete = statuses.every((status) => status === "complete");
+  const progressIndex = currentIndex >= 0 ? currentIndex : lastCompleteIndex;
+  const progress = allComplete ? 100 : sourceSteps.length === 1 ? (progressIndex >= 0 ? 100 : 0) : Math.max(0, progressIndex / (sourceSteps.length - 1) * 100);
+  const lineInset = 100 / (sourceSteps.length * 2);
+  const progressWidth = progress * (100 - lineInset * 2) / 100;
+  const pageTitle = extract(content, /<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  const stateLabel = allComplete
+    ? "완료"
+    : isActiveRoadmap
+      ? "현재 활성"
+      : track && lastCompleteIndex >= 0
+        ? "완료 증거 보존"
+        : "보관 중";
+  const summary = allComplete
+    ? "이 하위 로드맵의 검증 관문을 모두 닫았습니다. 완료한 심화 가지가 있으면 해당 관문 아래에 함께 표시합니다."
+    : isActiveRoadmap
+      ? "파란 점이 지금 진행 중인 세부 관문입니다. 완료한 단계와 앞으로 진행할 단계를 한 선에서 확인할 수 있습니다."
+      : "현재 핵심 여정의 다음 행동을 바꾸지 않고 보관 중인 로드맵입니다. 이미 확인한 증거만 초록색으로 남깁니다.";
+  const finalOutcome = track?.next || "사용자가 이 로드맵을 선택해 활성화하기 전까지 현재 Road to LLM inference의 진행률과 다음 행동을 바꾸지 않습니다.";
+  const branchesByIndex = new Map();
+  for (const [milestoneId, stepIndex] of Object.entries(definition.milestoneStepIndices || {})) {
+    const branches = visibleLearningBranches(state.deferredLearningItems, milestoneId);
+    if (branches.length) branchesByIndex.set(stepIndex, [...(branchesByIndex.get(stepIndex) || []), ...branches]);
+  }
+  const steps = sourceSteps.map((step, index) => {
+    const status = statuses[index];
+    const branches = branchesByIndex.get(index) || [];
+    const classes = ["journey-step", `is-${status}`];
+    if (index === sourceSteps.length - 1) classes.push("is-final");
+    if (branches.length) classes.push("has-branches");
+    const marker = status === "complete" ? "✓" : String(index + 1);
+    const statusText = status === "complete" ? "완료" : status === "current" ? "현재" : "예정";
+    const evidence = status === "complete"
+      ? "이 단계는 로드맵 진행 상태에서 완료 증거가 확인되었습니다."
+      : status === "current"
+        ? "현재 이 단계를 구현·설명·검증하고 있습니다."
+        : "아직 이 단계의 완료 증거를 활성화하지 않았습니다.";
+    return `          <li class="${classes.join(" ")}" data-roadmap-step="${index + 1}"${status === "current" ? ' aria-current="step"' : ""}>
+            <details>
+              <summary aria-label="${escapeAttribute(`${step.title}: ${statusText}. 단계 설명 보기`)}"><span class="journey-dot" aria-hidden="true">${escapeHtml(marker)}</span><span class="journey-label">${escapeHtml(step.title)}</span></summary>
+              <div class="journey-popover">
+                <div class="journey-popover-head"><h3>${escapeHtml(step.title)}</h3><span class="journey-status">${escapeHtml(statusText)}</span></div>
+                <p><strong>이 단계에서 확인할 것</strong><br>${escapeHtml(step.description)}</p>
+                <p><strong>현재 판정</strong><br>${escapeHtml(evidence)}</p>
+              </div>
+            </details>${renderJourneyBranches(branches, "../learning_backlog.html")}
+          </li>`;
+  }).join("\n");
+  return `        <div class="journey-heading"><div><span class="eyebrow">Sub-roadmap position · ${escapeHtml(stateLabel)}</span><h2>${escapeHtml(pageTitle)}의 현재 위치</h2></div><p>${escapeHtml(summary)}</p></div>
+        <ol class="journey-track" style="--journey-count:${sourceSteps.length};--journey-inset:${lineInset.toFixed(2)}%;--journey-progress-width:${progressWidth.toFixed(2)}%;--journey-progress-height:${progress.toFixed(2)}%" aria-label="${escapeAttribute(`${pageTitle} 세부 학습 관문`)}">
+${steps}
+        </ol>
+        <p class="journey-final"><strong>전체 핵심 여정과의 연결</strong><br>${escapeHtml(finalOutcome)} <a href="../roadmap.html">전체 로드맵에서 보기 →</a></p>`;
+}
+
+function ensureJourneyAssets(content, prefix) {
+  const stylesheetHref = `${prefix}assets/css/outcome-journey.css?v=20260901-roadmap-tree-2`;
+  const scriptSrc = `${prefix}assets/js/learning_journey.js?v=20260901-roadmap-tree-2`;
+  let result = content
+    .replace(new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}assets/css/outcome-journey\\.css(?:\\?v=[^"']+)?`, "g"), stylesheetHref)
+    .replace(new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}assets/js/learning_journey\\.js(?:\\?v=[^"']+)?`, "g"), scriptSrc);
+  if (!result.includes(stylesheetHref)) {
+    result = result.replace(/<\/head>/i, `  <link rel="stylesheet" href="${stylesheetHref}">\n</head>`);
+  }
+  if (!result.includes(scriptSrc)) {
+    result = result.replace(/<\/body>/i, `  <script src="${scriptSrc}"></script>\n</body>`);
+  }
+  return result;
+}
+
+function ensureJourneySection(content, { sectionId, containerId, label, containerClass = "learning-journey roadmap-local-journey" }) {
+  let result = removeSectionById(content, sectionId);
+  const markup = `\n  <section id="${sectionId}" class="roadmap-visual-section">
+    <div id="${containerId}" class="${escapeAttribute(containerClass)}" data-outcome-journey aria-label="${escapeAttribute(label)}"></div>
+  </section>`;
+  const heroPatterns = [
+    /(<header\b(?=[^>]*\bclass=["'][^"']*\bhero\b[^"']*["'])[^>]*>[\s\S]*?<\/header>)/i,
+    /(<section\b(?=[^>]*\bclass=["'][^"']*\bhero\b[^"']*["'])[^>]*>[\s\S]*?<\/section>)/i,
+  ];
+  const pattern = heroPatterns.find((candidate) => candidate.test(result)) || /(<header\b[^>]*>[\s\S]*?<\/header>)/i;
+  if (!pattern.test(result)) throw new Error(`Roadmap hero not found for visualization: ${sectionId}`);
+  return result.replace(pattern, `$1${markup}`);
 }
 
 function renderDeferredLearningItems(deferredLearningItems, journey) {
@@ -497,7 +691,7 @@ function renderDeferredLearningItems(deferredLearningItems, journey) {
     if (!milestone) throw new Error(`Deferred learning milestone not found: ${item.milestoneId}`);
     const type = typeById.get(item.type);
     if (!type) throw new Error(`Deferred learning type not found: ${item.type}`);
-    return `        <article class="deferred-card" data-deferred-id="${escapeAttribute(item.id)}" data-deferred-status="${escapeAttribute(item.status)}" data-deferred-type="${escapeAttribute(item.type)}">
+    return `        <article class="deferred-card" id="deferred-${escapeAttribute(item.id)}" data-deferred-id="${escapeAttribute(item.id)}" data-deferred-status="${escapeAttribute(item.status)}" data-deferred-type="${escapeAttribute(item.type)}">
           <div class="deferred-card-head"><span class="deferred-type">${escapeHtml(type.label)}</span><span class="deferred-status">${escapeHtml(item.statusLabel)}</span><span class="deferred-milestone">${escapeHtml(milestone.shortTitle)}</span></div>
           <h3>${escapeHtml(item.title)}</h3>
           <p><strong>미룬 이유</strong><br>${escapeHtml(item.reason)}</p>
@@ -509,6 +703,7 @@ function renderDeferredLearningItems(deferredLearningItems, journey) {
   const policyTypes = deferredLearningItems.policy.types.map((type) => `            <li><strong>${escapeHtml(type.label)}</strong> · ${escapeHtml(type.activation)}</li>`).join("\n");
   return `        <div class="deferred-policy">
           <p><strong>검토 시점</strong><br>${escapeHtml(deferredLearningItems.policy.reviewWhen)}</p>
+          <p><strong>로드맵 심화 가지</strong><br>${escapeHtml(deferredLearningItems.policy.branchRule)}</p>
           <p><strong>활성 제한</strong><br>한 번에 최대 ${escapeHtml(deferredLearningItems.policy.activeLimit)}개만 꺼내고, 반복 약점은 같은 막힘이 ${escapeHtml(deferredLearningItems.policy.repeatThreshold)}회 확인될 때 활성화합니다.</p>
           <ul>
 ${policyTypes}
@@ -778,10 +973,11 @@ function renderStaticRelationPaths(graph) {
 async function renderStaticDiscoveryPages() {
   const homePath = resolve(wikiRoot, "index.html");
   let home = await readFile(homePath, "utf8");
+  home = ensureJourneyAssets(home, "");
   for (const [tag, id, value] of [
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
   ]) home = replaceElementContent(home, { tag, id, value });
-  home = replaceStaticRegion(home, { name: "home-learning-journey", tag: "div", id: "homeLearningJourney", markup: renderLearningJourney(learningState.journey, learningState.journey.homePresentation) });
+  home = replaceStaticRegion(home, { name: "home-learning-journey", tag: "div", id: "homeLearningJourney", markup: renderLearningJourney(learningState.journey, learningState.journey.homePresentation, { deferredLearningItems: learningState.deferredLearningItems }) });
   const orderedProjects = itemsForPlacement(contentCatalog, "projects");
   home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(orderedProjects.slice(0, 5)) });
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
@@ -794,6 +990,19 @@ async function renderStaticDiscoveryPages() {
 
   const topLevelRoadmapPath = resolve(wikiRoot, "roadmap.html");
   let topLevelRoadmap = await readFile(topLevelRoadmapPath, "utf8");
+  topLevelRoadmap = ensureJourneySection(topLevelRoadmap, {
+    sectionId: "primary-roadmap-journey-visual",
+    containerId: "primaryRoadmapJourneyVisual",
+    containerClass: "learning-journey",
+    label: "Road to LLM inference 전체 진행선",
+  });
+  topLevelRoadmap = ensureJourneyAssets(topLevelRoadmap, "");
+  topLevelRoadmap = replaceStaticRegion(topLevelRoadmap, {
+    name: "primary-roadmap-journey-visual",
+    tag: "div",
+    id: "primaryRoadmapJourneyVisual",
+    markup: renderLearningJourney(learningState.journey, {}, { deferredLearningItems: learningState.deferredLearningItems }),
+  });
   topLevelRoadmap = replaceStaticRegion(topLevelRoadmap, {
     name: "top-level-roadmap-tracks",
     tag: "div",
@@ -833,6 +1042,7 @@ async function renderStaticDiscoveryPages() {
 
   const historyPath = resolve(wikiRoot, "learning_history.html");
   let history = await readFile(historyPath, "utf8");
+  history = ensureJourneyAssets(history, "");
   const uniqueStudyDates = learningHistory.records.map((record) => record.date);
   history = replaceSectionById(history, {
     id: "study-calendar",
@@ -865,7 +1075,7 @@ ${renderLearningRecords(learningHistory)}
   history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(learningHistory) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
-  history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
+  history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey, {}, { deferredLearningItems: learningState.deferredLearningItems }) });
   history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
   history = removeSectionById(history, "review-queue");
   history = removeSectionById(history, "deferred-learning");
@@ -876,6 +1086,43 @@ ${renderLearningRecords(learningHistory)}
   backlog = replaceStaticRegion(backlog, { name: "deferred-learning-items", tag: "div", id: "deferredLearningItems", markup: renderDeferredLearningItems(learningState.deferredLearningItems, learningState.journey) });
   await writeFile(backlogPath, backlog, "utf8");
 
+  for (const definition of roadmapVisualizationDefinitions) {
+    const roadmapFilePath = resolve(wikiRoot, definition.href);
+    let roadmapContent = await readFile(roadmapFilePath, "utf8");
+    roadmapContent = removeSectionById(roadmapContent, "roadmap-learning-branches")
+      .replace(/\n?\s*<!-- roadmap-learning-branches-placement -->/g, "");
+    roadmapContent = ensureJourneySection(roadmapContent, {
+      sectionId: "roadmap-visual-position",
+      containerId: "roadmapLocalJourney",
+      label: `${extract(roadmapContent, /<h1\b[^>]*>([\s\S]*?)<\/h1>/i)} 세부 진행선`,
+    });
+    roadmapContent = ensureJourneyAssets(roadmapContent, "../");
+    roadmapContent = replaceStaticRegion(roadmapContent, {
+      name: "roadmap-local-journey",
+      tag: "div",
+      id: "roadmapLocalJourney",
+      markup: renderLocalRoadmapJourney(roadmapContent, definition, learningState),
+    });
+    await writeFile(roadmapFilePath, roadmapContent, "utf8");
+  }
+
+  const codingTestRoadmapPath = resolve(wikiRoot, "wiki/coding-test/index.html");
+  let codingTestRoadmap = await readFile(codingTestRoadmapPath, "utf8");
+  codingTestRoadmap = ensureJourneySection(codingTestRoadmap, {
+    sectionId: "coding-test-journey-visual",
+    containerId: "codingTestRoadmapJourney",
+    containerClass: "learning-journey",
+    label: "코딩 테스트 성취 관문 진행선",
+  });
+  codingTestRoadmap = ensureJourneyAssets(codingTestRoadmap, "../../");
+  codingTestRoadmap = replaceStaticRegion(codingTestRoadmap, {
+    name: "coding-test-roadmap-journey",
+    tag: "div",
+    id: "codingTestRoadmapJourney",
+    markup: renderLearningJourney(codingTestState.journey),
+  });
+  await writeFile(codingTestRoadmapPath, codingTestRoadmap, "utf8");
+
   const reviewPath = resolve(wikiRoot, "learning_review.html");
   let review = await readFile(reviewPath, "utf8");
   review = replaceStaticRegion(review, { name: "review-queue", tag: "div", id: "reviewQueue", markup: renderReviewQueue(reviewState) });
@@ -883,6 +1130,19 @@ ${renderLearningRecords(learningHistory)}
 
   const roadmapPath = resolve(wikiRoot, "pytorch_professional_roadmap.html");
   let roadmap = await readFile(roadmapPath, "utf8");
+  roadmap = ensureJourneySection(roadmap, {
+    sectionId: "integrated-roadmap-journey-visual",
+    containerId: "integratedRoadmapJourneyVisual",
+    containerClass: "learning-journey",
+    label: "AI·ML 통합 로드맵 전체 진행선",
+  });
+  roadmap = ensureJourneyAssets(roadmap, "");
+  roadmap = replaceStaticRegion(roadmap, {
+    name: "integrated-roadmap-journey-visual",
+    tag: "div",
+    id: "integratedRoadmapJourneyVisual",
+    markup: renderLearningJourney(learningState.journey, {}, { deferredLearningItems: learningState.deferredLearningItems }),
+  });
   roadmap = replaceStaticRegion(roadmap, { name: "roadmap-progress", tag: "div", id: "roadmapProgress", markup: renderIntegratedRoadmapProgress(learningState) });
   roadmap = replaceStaticRegion(roadmap, { name: "roadmap-tracks", tag: "div", id: "integratedRoadmapTracks", markup: renderIntegratedRoadmapTracks(learningState) });
   roadmap = replaceStaticRegion(roadmap, { name: "roadmap-coaching", tag: "div", id: "coachingStatus", markup: renderIntegratedRoadmapCoaching(learningState) });
