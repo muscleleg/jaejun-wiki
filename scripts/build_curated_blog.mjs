@@ -12,6 +12,8 @@ const cardsEnd = "<!-- curated-blog:cards:end -->";
 const noteStart = "<!-- curated-blog:document-note:start -->";
 const noteEnd = "<!-- curated-blog:document-note:end -->";
 const styleMarker = "<!-- curated-blog:document-style -->";
+const pageSize = 10;
+const pageGroupSize = 10;
 
 function escapeHtml(value) {
   return String(value)
@@ -29,6 +31,22 @@ function replaceRegion(content, start, end, markup) {
   return content.replace(pattern, `${start}\n${markup}\n${end}`);
 }
 
+function renderInitialPagination(postCount) {
+  const totalPages = Math.max(1, Math.ceil(postCount / pageSize));
+  const lastPageInGroup = Math.min(pageGroupSize, totalPages);
+  const pageButtons = Array.from({ length: lastPageInGroup }, (_, index) => {
+    const page = index + 1;
+    const current = page === 1 ? ' aria-current="page"' : "";
+    return `<button class="curated-blog-page-button${page === 1 ? " is-active" : ""}" type="button" data-blog-page="${page}"${current}>${page}</button>`;
+  }).join("");
+
+  return `        <nav class="curated-blog-pagination" id="curatedBlogPagination" aria-label="블로그 페이지" data-page-size="${pageSize}" data-page-group-size="${pageGroupSize}">
+          <button class="curated-blog-page-button curated-blog-page-move" type="button" data-blog-page="previous" aria-label="이전 페이지" disabled>이전</button>
+          <span class="curated-blog-page-numbers">${pageButtons}</span>
+          <button class="curated-blog-page-button curated-blog-page-move" type="button" data-blog-page="next" aria-label="다음 페이지"${totalPages === 1 ? " disabled" : ""}>다음</button>
+        </nav>`;
+}
+
 function renderBlog(tags, posts, documentsByHref) {
   const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
   const filterButtons = [
@@ -40,7 +58,7 @@ function renderBlog(tags, posts, documentsByHref) {
       if (!document) throw new Error(`Blog post href is absent from knowledge_manifest.json: ${post.href}`);
       const displayDate = post.publishedAt.replaceAll("-", ".");
       const tagMarkup = post.tagIds.map((tagId) => `<span class="curated-blog-tag">#${escapeHtml(tagsById.get(tagId).label)}</span>`).join("");
-      return `        <a class="curated-blog-card" href="${escapeHtml(document.href)}" data-blog-tags="${escapeHtml(post.tagIds.join(" "))}">
+      return `        <a class="curated-blog-card" href="${escapeHtml(document.href)}?view=blog" data-blog-tags="${escapeHtml(post.tagIds.join(" "))}">
           <span class="curated-blog-card-meta"><span>${escapeHtml(document.category)}</span><time datetime="${escapeHtml(post.publishedAt)}">${escapeHtml(displayDate)}</time></span>
           <h3>${escapeHtml(post.title)}</h3>
           <p>${escapeHtml(post.summary)}</p>
@@ -52,10 +70,11 @@ function renderBlog(tags, posts, documentsByHref) {
   return `        <div class="curated-blog-filter-bar" aria-label="태그로 글 필터링">
           ${filterButtons}
         </div>
-        <p class="curated-blog-filter-status" id="curatedBlogFilterStatus" aria-live="polite">전체 ${posts.length}편</p>
+        <p class="curated-blog-filter-status" id="curatedBlogFilterStatus" aria-live="polite">전체 ${posts.length}편 · 1/${Math.max(1, Math.ceil(posts.length / pageSize))}페이지</p>
         <div class="curated-blog-cards" id="curatedBlogPosts">
 ${cards}
-        </div>`;
+        </div>
+${renderInitialPagination(posts.length)}`;
 }
 
 async function collectWikiHtml(directory) {
@@ -74,20 +93,6 @@ function stripGeneratedNote(content) {
   return content.replace(notePattern, "\n").replace(stylePattern, "");
 }
 
-function addGeneratedNote(content, href) {
-  const depth = href.split("/").length - 1;
-  const rootPrefix = "../".repeat(depth);
-  const style = `  ${styleMarker}\n  <link rel="stylesheet" href="${rootPrefix}assets/css/curated-blog.css?v=20260901-1">`;
-  const note = `${noteStart}
-    <aside class="curated-blog-document-note" aria-label="블로그 글 정보"><strong>기술 블로그</strong><span>이 글은 기술 블로그의 글 목록에서도 볼 수 있습니다.</span><a href="${rootPrefix}blog.html">블로그로 돌아가기 →</a></aside>
-${noteEnd}`;
-  let updated = content.replace(/\n?<\/head>/i, `\n${style}\n</head>`);
-  const breadcrumb = updated.match(/<nav\b[^>]*class=["'][^"']*breadcrumb[^"']*["'][^>]*>[\s\S]*?<\/nav>/i);
-  if (!breadcrumb) throw new Error(`Breadcrumb not found in curated document: ${href}`);
-  updated = updated.replace(breadcrumb[0], `${breadcrumb[0]}\n${note}`);
-  return updated;
-}
-
 const catalog = await loadContentCatalog();
 const posts = itemsForPlacement(catalog, "blog");
 const usedTagIds = new Set(posts.flatMap((post) => post.tagIds));
@@ -99,12 +104,9 @@ let blog = await readFile(blogPath, "utf8");
 blog = replaceRegion(blog, cardsStart, cardsEnd, renderBlog(blogTags, posts, documentsByHref));
 await writeFile(blogPath, blog, "utf8");
 
-const selectedHrefs = new Set(posts.map((item) => item.href));
 for (const articlePath of await collectWikiHtml(resolve(wikiRoot, "wiki"))) {
-  const href = articlePath.slice(wikiRoot.length + 1).replaceAll("\\", "/");
   const content = await readFile(articlePath, "utf8");
-  let updated = stripGeneratedNote(content);
-  if (selectedHrefs.has(href)) updated = addGeneratedNote(updated, href);
+  const updated = stripGeneratedNote(content);
   if (updated !== content) await writeFile(articlePath, updated, "utf8");
 }
 

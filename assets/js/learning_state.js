@@ -85,8 +85,8 @@ window.LEARNING_STATE = {
         statusLabel: "현재",
         href: "roadmaps/roadmap_llm_systems.html#inference-depth-backlog",
         practiceHref: "wiki/projects/road-to-llm-inference/pytorch-inference.html",
-        goal: "같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교합니다. RoPE·GQA·RMSNorm·SwiGLU를 작은 Module과 Shape으로 이해하고, 조건을 고정한 Naive PyTorch 추론 기준선을 만듭니다.",
-        evidence: "Sequence Length·Batch 크기별 Latency·Peak VRAM·품질 결과와 Cache Shape을 기록하고, Model·dtype·Token 길이·동시 요청·측정 경계를 명시하면 완료됩니다."
+        goal: "같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교합니다. GPU 실험에서는 모델·Tensor의 장치와 CPU↔GPU 메모리 이동, PyTorch의 CUDA 장치 디스패치, CUDA 비동기 실행과 동기화된 측정 경계를 확인합니다. RoPE·GQA·RMSNorm·SwiGLU를 작은 Module과 Shape으로 이해하고, 조건을 고정한 Naive PyTorch 추론 기준선을 만듭니다.",
+        evidence: "Sequence Length·Batch 크기별 Latency·Peak VRAM·품질 결과와 Cache Shape을 기록합니다. Model·dtype·Token 길이·동시 요청·측정 경계를 명시하고, CPU·GPU 출력 일치, 모델·입력·Logit의 Device, H2D·D2H 이동, synchronize 전후 Timing 차이와 Profiler의 메모리 복사·CUDA Kernel 구분까지 확인하면 완료됩니다."
       },
       {
         id: "vllm-benchmark",
@@ -195,6 +195,18 @@ window.LEARNING_STATE = {
         resumeWhen: "in-place 연산 때문에 backward 오류가 발생하거나, 추론의 성능·메모리 오버헤드를 실제로 분석할 때 다시 꺼냅니다.",
         completion: "작은 Tensor 코드에서 torch.no_grad()와 torch.inference_mode()의 Version Counter·View Tracking·in-place 변경 감지 차이를 먼저 예측한 뒤 실행 결과와 비교합니다. 이어 inference Tensor를 학습 계산에 재사용할 때의 제약을 실제 오류 또는 허용되는 성공 조건으로 구분해 설명하면 완료합니다.",
         href: "wiki/pytorch/pytorch_linear_regression_module_optimizer_dataset_learning.html#module-optimizer"
+      },
+      {
+        id: "cuda-kernel-execution-optimization-internals",
+        title: "CUDA 병렬 실행 내부와 Kernel 최적화",
+        type: "interest",
+        status: "queued",
+        statusLabel: "조건부 GPU 심화 백로그",
+        milestoneId: "vllm-benchmark",
+        reason: "장치 이동·CUDA 디스패치·비동기 실행·동기화된 Benchmark는 PyTorch 추론 Baseline의 필수 범위로 편입했습니다. 반면 Grid·Block·Thread·Warp, 메모리 계층과 직접 Kernel 최적화까지 지금 선행하면 현재 Batch·KV Cache·Benchmark 관문을 지연시키므로 실제 병목이 확인될 때만 심화합니다.",
+        resumeWhen: "RunPod의 PyTorch Profiler·Nsight 또는 vLLM Benchmark에서 특정 CUDA Kernel, H2D·D2H 복사, Memory bandwidth, 낮은 GPU utilization이 실제 병목으로 관찰되고 라이브러리 설정만으로 원인을 설명할 수 없을 때 꺼냅니다.",
+        completion: "Grid·Block·Thread·Warp의 실행 계층과 Global·Shared·Register Memory의 역할을 작은 Vector 또는 Matrix Kernel의 Index 계산으로 설명합니다. 이어 Coalescing·Occupancy·Memory bandwidth와 Compute-bound 차이를 Profiler 근거에 연결하고, 실제 필요가 있을 때만 Triton 또는 CUDA Kernel 하나를 작성해 PyTorch 기준 연산과 출력·Latency를 비교합니다.",
+        href: "wiki/pytorch/pytorch_device_cuda_parallel_learning.html"
       },
       {
         id: "kimi-k3-toy-architecture-handcoding",

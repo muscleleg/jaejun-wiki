@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 164,
-  "indexedCount": 165,
+  "documentCount": 171,
+  "indexedCount": 172,
   "categories": [
     {
       "id": "llm-systems",
@@ -3455,6 +3455,29 @@ window.KNOWLEDGE_MANIFEST = {
       ]
     },
     {
+      "id": "wiki-pytorch-pytorch_device_cuda_parallel_learning",
+      "title": ".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가",
+      "description": "모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": ".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가 모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다. ⌂ 홈 › 기술 위키 › PyTorch 학습 원리 › Device·CUDA·병렬 연산 .to(device) 로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가 현재 이해도 1. 시작한 의문 2. device 는 계산할 장치를 표현한다 3. .to(device) 는 해당 장치의 메모리로 옮긴다 4. 실제 계산은 model(...) 에서 시작된다 5. PyTorch는 Tensor의 장치를 확인한다 6. CUDA는 PyTorch 연산을 GPU 작업으로 연결한다 7. GPU는 문장을 이해하지 않고 Tensor Shape을 처리한다 8. 여러 문장을 하나의 Batch Tensor로 구성하는 이유 9. 생성에서는 무엇이 병렬이고 무엇이 순차적인가 10. 전체 흐름 11. 결론",
+      "href": "wiki/pytorch/pytorch_device_cuda_parallel_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html",
+      "parentId": "wiki-pytorch-pytorch_linear_regression_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "PyTorch 학습 원리",
+        "Device·CUDA·병렬 연산"
+      ],
+      "conceptKeys": []
+    },
+    {
       "id": "wiki-pytorch-pytorch_jaxtyping_learning_policy",
       "title": "학습 코드에 jaxtyping을 제한적으로 도입하는 이유",
       "description": "일반적인 Python 타입 힌트로는 보이지 않는 Tensor의 dtype·Shape·축 의미를 코드에 보존하되, 모든 변수에 새 문법을 강제하지 않고 학습에 실제로 도움이 되는 경계에만 적용합니다.",
@@ -3528,7 +3551,7 @@ window.KNOWLEDGE_MANIFEST = {
       "title": "데이터에서 y = 3x + 2 를 찾아내기",
       "description": "1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름",
       "publishedAt": "2026-08-13",
-      "searchText": "데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름 ⌂ 홈 › 기술 위키 › PyTorch › 수동 선형회귀 데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 2. 한 번의 학습 흐름 3. 랜덤한 파라미터에서 시작한다 4. MSE Loss로 예측 오차를 측정한다 5. 평균변화율에서 순간변화율로 간다 6. backward() 가 Gradient를 계산한다 7. Gradient의 반대 방향으로 파라미터를 수정한다 8. nn.Linear 와 Optimizer가 같은 역할을 나눠 맡는다 9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다 10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다 11. Tensor의 Shape과 축 의미를 타입에 보존한다",
+      "searchText": "데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름 ⌂ 홈 › 기술 위키 › PyTorch › 수동 선형회귀 데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 2. 한 번의 학습 흐름 3. 랜덤한 파라미터에서 시작한다 4. MSE Loss로 예측 오차를 측정한다 5. 평균변화율에서 순간변화율로 간다 6. backward() 가 Gradient를 계산한다 7. Gradient의 반대 방향으로 파라미터를 수정한다 8. nn.Linear 와 Optimizer가 같은 역할을 나눠 맡는다 9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다 10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다 11. Tensor의 Shape과 축 의미를 타입에 보존한다 12. 장치 이동에서 GPU 병렬 연산까지 연결한다",
       "href": "wiki/pytorch/pytorch_linear_regression_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html",
       "category": "PyTorch",
@@ -3752,6 +3775,100 @@ window.KNOWLEDGE_MANIFEST = {
       ]
     },
     {
+      "id": "wiki-transformer-transformer_generated_token_mask_position_learning",
+      "title": "새 Token이 생성될 때 Attention Mask와 Position ID를 갱신하는 방법",
+      "description": "길이가 다른 문장 두 개가 들어 있는 Batch에서 새 Token을 하나씩 생성했다고 가정하고, 다음 Forward에 필요한 Attention Mask와 Position ID를 코드가 어떻게 준비하는지 실제 Shape과 값으로 연결합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "새 Token이 생성될 때 Attention Mask와 Position ID를 갱신하는 방법 길이가 다른 문장 두 개가 들어 있는 Batch에서 새 Token을 하나씩 생성했다고 가정하고, 다음 Forward에 필요한 Attention Mask와 Position ID를 코드가 어떻게 준비하는지 실제 Shape과 값으로 연결합니다. ⌂ 홈 › 기술 위키 › Transformer › 생성 Token의 Mask·Position 갱신 새 Token이 생성될 때 Attention Mask와 Position ID를 갱신하는 방법 1. 이 코드에서 해결하려는 문제 2. 현재 Attention Mask를 준비한다 3. 새 Token에 추가할 Mask를 만든다 4. 기존 Attention Mask에 새 Token Mask를 붙인다 5. 새 Token의 Position ID를 계산한다 6. 마지막 Position ID만 선택한다 7. 코드가 문제를 해결한 전체 흐름 8. 결론",
+      "href": "wiki/transformer/transformer_generated_token_mask_position_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_generated_token_mask_position_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html",
+      "parentId": "wiki-transformer-transformer_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "생성 Token의 Mask·Position 갱신"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-transformer-transformer_input_tensor_flow_learning",
+      "title": "Transformer에는 최종적으로 어떤 데이터가 들어가는가",
+      "description": "여러 문장이 Tokenizer를 거쳐 Token ID가 되고, Embedding·Transformer Block·LM Head를 지나 다음 Token 후보 점수로 바뀌는 Tensor Shape을 실제 축 의미로 연결합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "Transformer에는 최종적으로 어떤 데이터가 들어가는가 여러 문장이 Tokenizer를 거쳐 Token ID가 되고, Embedding·Transformer Block·LM Head를 지나 다음 Token 후보 점수로 바뀌는 Tensor Shape을 실제 축 의미로 연결합니다. ⌂ 홈 › 기술 위키 › Transformer › Transformer 입력 Tensor 흐름 Transformer에는 최종적으로 어떤 데이터가 들어가는가 현재 이해도 1. 시작은 여러 문장이다 2. Tokenizer의 출력은 [문장 수, Token 수] 다 3. 모델 외부에서 전달하는 것은 Token ID다 4. Embedding이 Token ID를 Vector로 바꾼다 5. Transformer Block에 실제로 들어가는 구조 6. Attention에서는 Head 축이 추가된다 7. Attention이 끝나면 다시 원래 구조로 돌아온다 8. LM Head는 Token 정보 차원을 Vocabulary 점수로 바꾼다 9. 전체 흐름 10. 결론",
+      "href": "wiki/transformer/transformer_input_tensor_flow_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_input_tensor_flow_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_learning.html",
+      "parentId": "wiki-transformer-transformer_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "Transformer 입력 Tensor 흐름"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-transformer-transformer_kv_cache_followup_forward_mask_learning",
+      "title": "KV Cache 후속 Forward에는 새 Token과 전체 Attention Mask를 함께 넣습니다",
+      "description": "과거 K·V를 재사용하는 후속 Forward에서 input_ids와 position_ids에는 새 Token만 넣고, Padding을 구분할 attention_mask에는 과거와 현재를 포함한 전체 길이를 넣는 이유를 두 문장 Batch로 설명합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "KV Cache 후속 Forward에는 새 Token과 전체 Attention Mask를 함께 넣습니다 과거 K·V를 재사용하는 후속 Forward에서 input_ids와 position_ids에는 새 Token만 넣고, Padding을 구분할 attention_mask에는 과거와 현재를 포함한 전체 길이를 넣는 이유를 두 문장 Batch로 설명합니다. ⌂ 홈 › 기술 위키 › Transformer › 새 Token Mask·Position › KV Cache 후속 Forward 입력 KV Cache 후속 Forward에는 새 Token과 전체 Attention Mask를 함께 넣습니다 첫 번째 Forward에는 전체 문장이 들어갑니다 후속 Forward에는 새 Token만 들어갑니다 Position ID도 새 Token 위치만 전달합니다 왜 Attention Mask는 전체 길이가 필요합니까? 결론",
+      "href": "wiki/transformer/transformer_kv_cache_followup_forward_mask_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_followup_forward_mask_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_generated_token_mask_position_learning.html",
+      "parentId": "wiki-transformer-transformer_generated_token_mask_position_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "새 Token Mask·Position",
+        "KV Cache 후속 Forward 입력"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-transformer-transformer_kv_cache_in_place_update_learning",
+      "title": "추론 전후 KV Cache는 같은 객체이고 내부 상태만 갱신된다",
+      "description": "추론 전후 Cache Shape은 6에서 7로 변하지만 prompt_cache와 updated_cache가 동일한 객체를 가리켜 Forward 후 둘 다 갱신된 Shape을 보여 주는 이유를 객체 참조와 코드로 증명합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "추론 전후 KV Cache는 같은 객체이고 내부 상태만 갱신된다 추론 전후 Cache Shape은 6에서 7로 변하지만 prompt_cache와 updated_cache가 동일한 객체를 가리켜 Forward 후 둘 다 갱신된 Shape을 보여 주는 이유를 객체 참조와 코드로 증명합니다. ⌂ 홈 › 기술 위키 › Transformer › QKV Projection › KV Cache 객체의 제자리 갱신 추론 전후 KV Cache는 같은 객체이고 내부 상태만 갱신된다 1. 주제 2. 첫 Forward에서 Cache 객체를 얻습니다 3. 같은 Cache 객체를 두 번째 Forward에 전달합니다 4. updated_cache 도 같은 객체를 가리킵니다 5. 객체 동일성과 길이 변화를 코드로 증명합니다 6. Forward 후 두 Shape이 모두 7로 보인 이유 7. 추론 전 값을 비교하려면 호출 전에 보존해야 합니다 8. 결론",
+      "href": "wiki/transformer/transformer_kv_cache_in_place_update_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_projection_learning.html",
+      "parentId": "wiki-transformer-transformer_projection_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "QKV Projection",
+        "KV Cache 객체의 제자리 갱신"
+      ],
+      "conceptKeys": []
+    },
+    {
       "id": "wiki-transformer-transformer_kv_cache_input_ids_flow_learning",
       "title": "KV Cache를 실제로 전달하고 과거 input_ids를 다시 넣지 않는 이유",
       "description": "Prompt 전체를 처음 한 번 계산한 뒤에는 왜 새 Token ID 하나와 past_key_values 만 모델에 전달하는지, A·B → C → D 예제와 실제 Cache Shape 변화로 연결합니다.",
@@ -3826,6 +3943,30 @@ window.KNOWLEDGE_MANIFEST = {
       "conceptKeys": [
         "kv-cache"
       ]
+    },
+    {
+      "id": "wiki-transformer-transformer_kv_cache_use_cache_multi_token_learning",
+      "title": "KV Cache를 끄거나 켰을 때 input_ids 는 어떻게 처리되는가",
+      "description": "use_cache 가 K·V 계산 자체를 끄는 옵션인지부터, past_key_values 뒤에 새 Token을 여러 개 넣었을 때 Cache와 현재 Forward가 각각 어느 구간을 담당하는지까지 연결합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "KV Cache를 끄거나 켰을 때 input_ids 는 어떻게 처리되는가 use_cache 가 K·V 계산 자체를 끄는 옵션인지부터, past_key_values 뒤에 새 Token을 여러 개 넣었을 때 Cache와 현재 Forward가 각각 어느 구간을 담당하는지까지 연결합니다. ⌂ 홈 › 기술 위키 › Transformer › QKV Projection › KV Cache 반환과 여러 새 Token KV Cache를 끄거나 켰을 때 input_ids 는 어떻게 처리되는가 1. use_cache=False 는 K·V를 계산하지 않는다는 뜻이 아닙니다 2. Cache와 함께 전달하는 input_ids 는 과거 문맥 뒤에 이어집니다 3. Cache 뒤에는 새 Token을 여러 개 넣을 수도 있습니다 4. Cache에 없는 새 구간의 K·V는 현재 Forward에서 계산합니다 5. 일반 생성이 한 Token씩 진행되는 이유는 입력 제한이 아닙니다 6. 결론",
+      "href": "wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_projection_learning.html",
+      "parentId": "wiki-transformer-transformer_projection_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "QKV Projection",
+        "KV Cache 반환과 여러 새 Token"
+      ],
+      "conceptKeys": []
     },
     {
       "id": "wiki-transformer-transformer_layer_norm_learning",
@@ -3903,6 +4044,30 @@ window.KNOWLEDGE_MANIFEST = {
         "head-split-merge",
         "output-projection"
       ]
+    },
+    {
+      "id": "wiki-transformer-transformer_padding_side_learning",
+      "title": "Padding은 왼쪽과 오른쪽 중 어디에 붙일 수 있는가",
+      "description": "길이가 다른 문장을 Batch Tensor로 묶을 때 왼쪽과 오른쪽 Padding이 만드는 Token·Attention Mask 배치와 Decoder-only 다음 Token 생성의 차이를 설명합니다.",
+      "publishedAt": "2026-09-01",
+      "searchText": "Padding은 왼쪽과 오른쪽 중 어디에 붙일 수 있는가 길이가 다른 문장을 Batch Tensor로 묶을 때 왼쪽과 오른쪽 Padding이 만드는 Token·Attention Mask 배치와 Decoder-only 다음 Token 생성의 차이를 설명합니다. ⌂ 홈 › 기술 위키 › Transformer › 입력 Tensor 흐름 › Padding 방향 Padding은 왼쪽과 오른쪽 중 어디에 붙일 수 있는가 현재 이해도 1. 길이가 다른 문장을 하나의 Batch로 묶는다 2. 왼쪽 Padding 3. 오른쪽 Padding 4. 어떤 방향을 선택해야 하는가 5. 결론",
+      "href": "wiki/transformer/transformer_padding_side_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_padding_side_learning.html",
+      "category": "Transformer",
+      "categoryKey": "transformer",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/transformer/transformer_input_tensor_flow_learning.html",
+      "parentId": "wiki-transformer-transformer_input_tensor_flow_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Transformer",
+        "입력 Tensor 흐름",
+        "Padding 방향"
+      ],
+      "conceptKeys": []
     },
     {
       "id": "wiki-transformer-transformer_positional_div_term_learning",
