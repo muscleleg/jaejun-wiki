@@ -32,8 +32,8 @@ async function requireAsset(path) {
   }
 }
 
-const [homeSource, mapSource, projectSource, wikiSource, homeHtml, mapHtml, siteManifestSource, knowledgeManifestSource, conceptGraphSource, sitemapSource, featuredSvg] = await Promise.all([
-  source("assets/js/home_content.js"),
+const [catalogSource, mapSource, projectSource, wikiSource, homeHtml, mapHtml, siteManifestSource, knowledgeManifestSource, conceptGraphSource, sitemapSource, featuredSvg] = await Promise.all([
+  source("assets/data/content_catalog.json"),
   source("assets/js/knowledge_map.js"),
   source(projectHref),
   source("wiki.html"),
@@ -46,13 +46,20 @@ const [homeSource, mapSource, projectSource, wikiSource, homeHtml, mapHtml, site
   source(`${imageRoot}/health-coaching-loop-featured.svg`),
 ]);
 
-for (const [location, content] of [["home_content.js", homeSource], ["knowledge_map.js", mapSource], [projectHref, projectSource], ["wiki.html", wikiSource], ["index.html", homeHtml], ["knowledge_map.html", mapHtml]]) {
+for (const [location, content] of [["content_catalog.json", catalogSource], ["knowledge_map.js", mapSource], [projectHref, projectSource], ["wiki.html", wikiSource], ["index.html", homeHtml], ["knowledge_map.html", mapHtml]]) {
   requireText(content, projectName, location);
   requireText(content, projectHref, location);
 }
 
-for (const token of ["운동·식사·체성분", "월별 운동일", "근육 자극 분포", "영양 구성"]) requireText(homeSource, token, "assets/js/home_content.js 프로젝트 카드");
-requireText(homeSource, `image: "${imageRoot}/muscle-stimulation-map.webp"`, "assets/js/home_content.js 프로젝트 썸네일");
+const catalog = JSON.parse(catalogSource);
+const catalogProject = catalog.items.find(({ href }) => href === projectHref);
+if (!catalogProject) {
+  findings.push("content_catalog.json: 개인화 헬스 기록 코치 프로젝트 항목 누락");
+} else {
+  const catalogProjectSource = JSON.stringify(catalogProject);
+  for (const token of ["운동·식사·체성분", "월별 운동일", "근육 자극 분포", "영양 구성"]) requireText(catalogProjectSource, token, "content_catalog.json 프로젝트 카드");
+  if (catalogProject.thumbnail?.src !== `${imageRoot}/muscle-stimulation-map.webp`) findings.push("content_catalog.json: 개인화 헬스 기록 코치 대표 썸네일 경로 불일치");
+}
 const requiredAnchors = ["overview", "background", "goals", "features", "daily-records", "workout-calendar", "workout-history", "muscle-map", "nutrition-analysis", "body-composition", "record-coaching", "service-flow", "system-architecture", "data-design", "ownership", "validation", "status-limits"];
 const legacyAnchors = ["problem", "coaching-loop", "record-model", "evidence-boundary", "decision-views", "workout-coaching", "nutrition-body"];
 for (const anchor of requiredAnchors) requireText(projectSource, `id="${anchor}"`, `${projectHref} 필수 기능 구간`);
@@ -95,7 +102,7 @@ if (knowledgeDocuments.length !== 1 || knowledgeDocuments[0].title !== projectNa
 if (projectConcepts.length !== 1 || !projectConcepts[0].labels.includes(projectName) || !projectConcepts[0].hrefs.includes(projectHref)) findings.push("concept_graph.json: 프로젝트 concept key·이름·문서 연결 불일치");
 requireText(sitemapSource, `/jaejun-wiki/${projectHref}`, "sitemap.xml");
 
-const publicPortfolioSource = `${homeSource}\n${mapSource}\n${projectSource}\n${wikiSource}\n${homeHtml}\n${mapHtml}\n${siteManifestSource}\n${knowledgeManifestSource}\n${conceptGraphSource}\n${sitemapSource}`;
+const publicPortfolioSource = `${catalogSource}\n${mapSource}\n${projectSource}\n${wikiSource}\n${homeHtml}\n${mapHtml}\n${siteManifestSource}\n${knowledgeManifestSource}\n${conceptGraphSource}\n${sitemapSource}`;
 for (const forbidden of ["/Users/", "file://", "헬스 저장소"]) rejectText(publicPortfolioSource, forbidden, "프로젝트 공개 원본");
 requireText(featuredSvg, projectName, `${imageRoot}/health-coaching-loop-featured.svg`);
 

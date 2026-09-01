@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="일반적인 torch.Tensor 타입 힌트에서 보이지 않는 dtype·Shape·축 의미를 학습 코드에 보존하기 위해 jaxtyping을 제한적으로 도입하는 이유와 적용 범위를 정리합니다.">
+  <title>학습 코드에 jaxtyping을 제한적으로 도입하는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- curated-blog:document-style -->
+  <link rel="stylesheet" href="../../assets/css/curated-blog.css?v=20260901-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="학습 코드에 jaxtyping을 제한적으로 도입하는 이유">
+  <meta property="og:description" content="일반적인 torch.Tensor 타입 힌트에서 보이지 않는 dtype·Shape·축 의미를 학습 코드에 보존하기 위해 jaxtyping을 제한적으로 도입하는 이유와 적용 범위를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html","name":"학습 코드에 jaxtyping을 제한적으로 도입하는 이유","description":"일반적인 torch.Tensor 타입 힌트에서 보이지 않는 dtype·Shape·축 의미를 학습 코드에 보존하기 위해 jaxtyping을 제한적으로 도입하는 이유와 적용 범위를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html"},"headline":"학습 코드에 jaxtyping을 제한적으로 도입하는 이유"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_jaxtyping_learning_policy.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch 학습 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":4,"name":"jaxtyping 도입 원칙"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><span aria-current="page">jaxtyping 도입 원칙</span></nav>
+<!-- curated-blog:document-note:start -->
+    <aside class="curated-blog-document-note" aria-label="블로그 글 정보"><strong>기술 블로그</strong><span>이 글은 기술 블로그의 글 목록에서도 볼 수 있습니다.</span><a href="../../blog.html">블로그로 돌아가기 →</a></aside>
+<!-- curated-blog:document-note:end -->
+<header class="hero">
+      <span class="eyebrow">PyTorch · Tensor Shape typing</span>
+      <h1>학습 코드에 jaxtyping을 제한적으로 도입하는 이유</h1>
+      <p class="lead">일반적인 Python 타입 힌트로는 보이지 않는 Tensor의 dtype·Shape·축 의미를 코드에 보존하되, 모든 변수에 새 문법을 강제하지 않고 학습에 실제로 도움이 되는 경계에만 적용합니다.</p>
+      <div class="detail-actions"><a href="pytorch_linear_regression_learning.html">← PyTorch 학습 원리</a><a href="../transformer/transformer_token_embedding_learning.html#concrete-python-type-hints">기존 Python 타입 힌트 학습</a><a href="https://docs.kidger.site/jaxtyping/">jaxtyping 공식 문서 ↗</a></div>
+    </header>
+
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">현재 이해도</h2>
+      <p><code>torch.Tensor</code>만으로는 Shape과 축 의미가 블랙박스로 남는 문제를 설명했고, jaxtyping을 함수 경계와 핵심 Tensor에 제한적으로 적용한다는 원칙을 정했습니다. 아직 패키지를 설치해 실제 함수에 적용하거나 런타임 검사를 실행한 단계는 아닙니다.</p>
+      <div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span style="width: 50%"></span></div>
+      <div class="meter-label"><span>도입 결정·적용 원칙 2 / 4 확인</span><strong>50%</strong></div>
+      <ul>
+        <li class="done">● 일반 타입 힌트만으로 Tensor의 dtype·Shape·축 의미를 알 수 없다는 도입 이유를 설명했습니다.</li>
+        <li class="done">● 함수 입출력·핵심 Tensor·축 변환 경계·Batch 코드에만 제한적으로 적용하기로 정했습니다.</li>
+        <li class="todo">○ 실제 학습 함수에 jaxtyping 표기를 적용하고 <code>.shape</code> 출력과 대조해야 합니다.</li>
+        <li class="todo">○ 필요성이 확인되면 일부 함수에서만 런타임 검사 도구를 시험해야 합니다.</li>
+      </ul>
+    </section>
+
+    <nav aria-label="문서 목차">
+      <a href="#background">도입 배경</a>
+      <a href="#problem">해결하려는 문제</a>
+      <a href="#expression">표현할 정보</a>
+      <a href="#scope">도입할 범위</a>
+      <a href="#out-of-scope">도입하지 않을 범위</a>
+      <a href="#shape-learning">Shape 학습 유지</a>
+      <a href="#documentation-first">초기 문서화 용도</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section id="background" class="detail-section">
+      <h2>1. 도입 배경</h2>
+      <p>처음 Python과 PyTorch 코드를 작성할 때는 변수의 타입을 명시하지 않았습니다.</p>
+      <pre><code>def generate(prompt_ids):
+    ...</code></pre>
+      <p>이 방식은 코드를 빠르게 작성할 수 있지만, 시간이 지난 뒤 다시 읽으면 <code>prompt_ids</code>가 문자열인지, Token ID 목록인지, PyTorch Tensor인지 코드만 보고 바로 판단하기 어려웠습니다.</p>
+      <p>이 문제를 줄이기 위해 주요 객체와 Tensor에 일반적인 타입 힌트를 넣기 시작했습니다.</p>
+      <pre><code>def generate(
+    prompt_ids: torch.Tensor,
+) -&gt; torch.Tensor:
+    ...</code></pre>
+      <p>이제 입력과 반환값이 PyTorch Tensor라는 사실은 알 수 있습니다. 하지만 Tensor를 사용하는 코드에서는 이것만으로 충분하지 않았습니다.</p>
+      <p><code>torch.Tensor</code>라는 표기만으로는 다음 정보를 알 수 없기 때문입니다.</p>
+      <pre><code>Tensor의 dtype은 무엇인가?
+축은 몇 개인가?
+각 축은 무엇을 의미하는가?
+현재 Shape은 [Batch, Token]인가?
+[Batch, Token, Vocabulary]인가?
+[Batch, Head, Token, Head dimension]인가?</code></pre>
+      <p>결국 Python 타입은 보이지만, 실제 Transformer 계산에서 더 중요한 Tensor Shape과 축의 의미는 여전히 주석이나 기억에 의존해야 했습니다.</p>
+    </section>
+
+    <section id="problem" class="detail-section">
+      <h2>2. 해결하려는 문제</h2>
+      <p>현재 학습에서는 다음과 같은 Tensor가 반복해서 등장합니다.</p>
+      <pre><code>Token ID      [Batch, Token]
+Hidden State  [Batch, Token, Model dimension]
+Logit         [Batch, Token, Vocabulary]
+Attention     [Batch, Head, Query Token, Key Token]
+KV Cache      [Batch, Head, Cached Token, Head dimension]</code></pre>
+      <p>모두 Python에서는 같은 <code>torch.Tensor</code>입니다.</p>
+      <pre><code>input_ids: torch.Tensor
+hidden_states: torch.Tensor
+logits: torch.Tensor
+key_cache: torch.Tensor</code></pre>
+      <p>하지만 이 Tensor들은 역할과 Shape이 완전히 다릅니다. 코드에서 이 차이가 바로 드러나지 않으면 다음과 같은 혼란이 생깁니다.</p>
+      <pre><code>현재 두 번째 축이 Token인가 Head인가?
+마지막 축이 Vocabulary인가 Feature인가?
+argmax(dim=-1)은 어느 축에서 실행되는가?
+torch.cat(dim=1)은 Token 축을 이어 붙이는 것인가?
+KV Cache에서 Batch와 Head는 어디에 있는가?</code></pre>
+      <div class="caution"><strong>jaxtyping을 도입하는 목적은 새로운 문법을 많이 사용하는 것이 아니라, Tensor를 사용하는 함수의 입력과 반환값에서 Shape과 축의 의미가 보이게 만들어 학습 코드의 블랙박스를 줄이는 것입니다.</strong></div>
+    </section>
+
+    <section id="expression" class="detail-section">
+      <h2>3. jaxtyping으로 표현할 정보</h2>
+      <p>jaxtyping을 사용하면 Tensor의 dtype과 축 의미를 타입 위치에 함께 적을 수 있습니다.</p>
+      <pre><code>from jaxtyping import Float, Int64
+from torch import Tensor
+
+TokenIds = Int64[
+    Tensor,
+    "batch token",
+]
+
+HiddenStates = Float[
+    Tensor,
+    "batch token model_dimension",
+]
+
+Logits = Float[
+    Tensor,
+    "batch token vocabulary",
+]
+
+KeyCache = Float[
+    Tensor,
+    "batch head cached_token head_dimension",
+]</code></pre>
+      <p>다음 함수의 입력을 보면 <code>prompt_ids</code>가 PyTorch Tensor이고, 정수 Token ID가 들어 있으며, 첫 번째 축은 Batch, 두 번째 축은 Token이고, 반환값도 같은 축 구조라는 사실을 바로 복원할 수 있습니다.</p>
+      <pre><code>def generate(
+    prompt_ids: TokenIds,
+) -&gt; TokenIds:
+    ...</code></pre>
+      <p>축이 바뀌는 함수에서는 변화도 더 명확하게 표현할 수 있습니다.</p>
+      <pre><code>def select_last_logits(
+    logits: Float[
+        Tensor,
+        "batch token vocabulary",
+    ],
+) -&gt; Float[
+    Tensor,
+    "batch vocabulary",
+]:
+    return logits[:, -1, :]</code></pre>
+      <pre><code>[Batch, Token, Vocabulary]
+→ [Batch, Vocabulary]</code></pre>
+    </section>
+
+    <section id="scope" class="detail-section">
+      <h2>4. 도입할 범위</h2>
+      <p>jaxtyping은 모든 변수에 적용하지 않고, Shape이 코드를 이해하는 데 중요한 경계에만 적용합니다.</p>
+
+      <h3>학습 함수의 입력과 반환값</h3>
+      <p>함수를 호출하기 전에 입력 Shape을 예측하고, 반환 Shape을 확인할 수 있게 합니다.</p>
+      <pre><code>def generate_batch_with_cache(
+    model: GPT2LMHeadModel,
+    prompt_ids: TokenIds,
+    max_new_tokens: int,
+) -&gt; TokenIds:
+    ...</code></pre>
+
+      <h3>Transformer의 핵심 Tensor</h3>
+      <p><code>input_ids</code>, <code>targets</code>, <code>hidden_states</code>, <code>logits</code>, Attention Score·Weight, Q·K·V, KV Cache에서 꺼낸 Key·Value처럼 역할과 Shape을 혼동하기 쉬운 Tensor에 적용합니다.</p>
+
+      <h3>축이 변하는 연산의 경계</h3>
+      <p><code>reshape</code>, <code>view</code>, <code>transpose</code>, <code>permute</code>, <code>flatten</code>, concatenate, Head Split·Merge, Batch별 위치 선택, 마지막 Token Logit 선택처럼 연산 전후의 축 의미가 달라지는 경계에 적극적으로 사용합니다.</p>
+
+      <h3>Batch 처리 코드</h3>
+      <p>Batch inference에서는 문장·Token·Head 축을 반복해서 구분해야 하므로 함수 입력과 반환값에 다음 Shape을 명시합니다.</p>
+      <pre><code>[Batch, Token]
+[Batch, Token, Vocabulary]
+[Batch, Head, Cached Token, Head dimension]</code></pre>
+    </section>
+
+    <section id="out-of-scope" class="detail-section">
+      <h2>5. 도입하지 않을 범위</h2>
+      <p>jaxtyping을 도입한다고 모든 코드에 Shape 타입을 붙이지는 않습니다.</p>
+
+      <h3>단순한 지역 변수</h3>
+      <p>반복문 Index나 결과가 명확한 Boolean처럼 의미가 바로 보이는 값에는 과도한 타입을 붙이지 않습니다.</p>
+      <pre><code>for step in range(max_new_tokens):
+    ...
+
+same_result: bool = torch.equal(
+    no_cache_ids,
+    cache_ids,
+)</code></pre>
+
+      <h3>모델과 Tokenizer 같은 일반 객체</h3>
+      <p>Tensor Shape과 관계없는 객체는 기존 Python 타입을 사용합니다.</p>
+      <pre><code>model: GPT2LMHeadModel
+tokenizer: GPT2TokenizerFast
+device: torch.device</code></pre>
+
+      <h3>외부 라이브러리 전체</h3>
+      <p>Transformers나 PyTorch 내부 코드 전체에 jaxtyping을 강제로 적용하지 않습니다. 우리가 직접 작성하는 학습 함수의 경계에만 사용합니다.</p>
+
+      <h3>모든 중간 Tensor</h3>
+      <p>한 함수 안에서 잠시 사용되고 역할이 명확한 모든 중간값까지 전부 표기하면 핵심 계산보다 타입 문법이 더 많이 보일 수 있습니다.</p>
+      <div class="caution"><strong>Shape을 잘못 이해했을 때 계산 의미가 달라지거나, 나중에 다시 읽을 때 축을 복원하기 어려운 Tensor에만 적용합니다.</strong></div>
+    </section>
+
+    <section id="shape-learning" class="detail-section">
+      <h2>6. Shape 학습을 대신하지 않는다</h2>
+      <p>jaxtyping은 Shape을 대신 생각해주는 도구로 사용하지 않습니다. 학습 순서는 계속 다음처럼 유지합니다.</p>
+      <pre><code>1. 연산 전 Shape을 직접 예상한다.
+2. jaxtyping으로 입력·반환 Shape의 의도를 명시한다.
+3. 실제 .shape을 출력한다.
+4. 예상과 실제 결과를 비교한다.
+5. 각 축의 의미를 자신의 말로 설명한다.</code></pre>
+      <p>예를 들어 다음 타입이 적혀 있어도 그냥 읽고 넘어가지 않습니다.</p>
+      <pre><code>KeyCache = Float[
+    Tensor,
+    "batch head cached_token head_dimension",
+]</code></pre>
+      <p>실제 출력도 계속 확인합니다.</p>
+      <pre><code>print(key_cache.shape)
+
+torch.Size([4, 2, 2, 1])</code></pre>
+      <p>그 뒤 각 숫자를 직접 <code>Batch 4</code>, <code>Head 2</code>, <code>Cached Token 2</code>, <code>Head dimension 1</code>로 해석합니다.</p>
+      <div class="caution"><strong>jaxtyping은 Shape 추론을 생략하기 위한 도구가 아니라, 추론한 내용을 코드에 보존하는 도구입니다.</strong></div>
+    </section>
+
+    <section id="documentation-first" class="detail-section">
+      <h2>7. 초기에는 문서화 용도로 사용한다</h2>
+      <p>처음에는 jaxtyping을 함수 입력과 반환값의 문서화 용도로 사용합니다.</p>
+      <pre><code>def select_last_logits(
+    logits: Logits,
+) -&gt; Float[
+    Tensor,
+    "batch vocabulary",
+]:
+    ...</code></pre>
+      <p>이 단계에서는 프로젝트 전체에 런타임 검사를 강제하지 않습니다.</p>
+      <p>jaxtyping 표기를 실제 실행 중 검사하려면 <code>beartype</code>이나 <code>typeguard</code> 같은 별도 런타임 타입 검사 도구와 결합할 수 있습니다. 하지만 처음부터 이를 전역 적용하면 외부 라이브러리와의 상호작용이나 새로운 오류 메시지가 학습 흐름을 방해할 수 있습니다. Shape·dtype 표기와 런타임 검사의 구분은 <a href="https://docs.kidger.site/jaxtyping/api/runtime-type-checking/">jaxtyping 런타임 검사 공식 문서</a>에서도 확인할 수 있습니다.</p>
+      <p>따라서 도입 순서는 다음과 같이 정합니다.</p>
+      <pre><code>1단계
+jaxtyping으로 핵심 Tensor의 dtype·축 의미 명시
+
+2단계
+기존 .shape 출력과 직접 Shape 예측 유지
+
+3단계
+필요성이 확인되면 일부 학습 함수에만 런타임 검사 적용</code></pre>
+      <p>전역 런타임 검사와 모든 Tensor에 대한 강제 적용은 현재 범위에 포함하지 않습니다.</p>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>8. 결론</h2>
+      <p>jaxtyping은 PyTorch나 LLM 개발의 필수 업계 표준이기 때문에 도입하는 것이 아닙니다.</p>
+      <p>현재 학습에서 일반적인 <code>torch.Tensor</code> 타입 힌트만으로는 Tensor의 Shape과 축 의미를 복원하기 어렵고, 그 결과 중요한 계산 과정이 다시 블랙박스가 되는 문제가 있었습니다.</p>
+      <p>따라서 다음 범위에서 제한적으로 사용합니다.</p>
+      <pre><code>학습 함수의 입력과 반환값
+Transformer의 핵심 Tensor
+축이 변하는 연산의 경계
+Batch inference와 KV Cache</code></pre>
+      <p>반면 단순한 지역 변수, 외부 라이브러리 전체, 모든 중간 Tensor에는 적용하지 않습니다.</p>
+      <div class="caution"><strong>jaxtyping으로 Tensor Shape을 자동으로 이해하려는 것이 아니라, 직접 이해한 Shape과 축의 의미를 코드에 명시적으로 보존해 나중에도 계산 흐름을 복원할 수 있게 만드는 것이 최종 목적입니다.</strong></div>
+      <p>현재 확인된 것은 도입 이유와 적용 원칙입니다. 실제 설치, 학습 함수 적용, <code>.shape</code> 대조와 런타임 검사는 다음 실행에서 검증해야 합니다.</p>
+      <ul class="reference-list">
+        <li><a href="https://docs.kidger.site/jaxtyping/">jaxtyping 공식 문서</a></li>
+        <li><a href="https://docs.kidger.site/jaxtyping/api/runtime-type-checking/">jaxtyping 런타임 타입 검사 공식 문서</a></li>
+        <li><a href="../transformer/transformer_token_embedding_learning.html#concrete-python-type-hints">Python 타입 힌트와 런타임 검증의 차이</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>

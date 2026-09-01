@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Cache가 Transformer Layer마다 따로 존재하고 Head별로 나뉜 K·V Tensor를 저장하는 이유를 실제 Batch Shape과 다음 Token Attention 흐름으로 설명합니다.">
+  <title>Transformer · KV Cache의 Layer·Head별 저장 구조</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer · KV Cache의 Layer·Head별 저장 구조">
+  <meta property="og:description" content="KV Cache가 Transformer Layer마다 따로 존재하고 Head별로 나뉜 K·V Tensor를 저장하는 이유를 실제 Batch Shape과 다음 Token Attention 흐름으로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html","name":"Transformer · KV Cache의 Layer·Head별 저장 구조","description":"KV Cache가 Transformer Layer마다 따로 존재하고 Head별로 나뉜 K·V Tensor를 저장하는 이유를 실제 Batch Shape과 다음 Token Attention 흐름으로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html"},"headline":"Transformer · KV Cache의 Layer·Head별 저장 구조"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_layer_head_shape_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"QKV Projection","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_projection_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache의 Layer·Head별 저장 구조"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_projection_learning.html">QKV Projection</a><span class="separator">›</span><span aria-current="page">KV Cache의 Layer·Head별 저장 구조</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">Transformer detail · KV Cache Shape</span>
+      <h1>KV Cache는 왜 Layer별·Head별 형태로 저장되는가</h1>
+      <p class="lead">Token마다 계산한 Key와 Value를 단순한 목록으로 보관하는 것이 아니라, 왜 각 Transformer Layer와 Attention Head를 구분한 <code>[Batch, Head, Token, Head dimension]</code> Tensor로 저장하는지 실제 Shape과 다음 Token 계산으로 연결합니다.</p>
+      <div class="detail-actions"><a href="transformer_kv_cache_qkv_projection_learning.html">← KV Cache 저장 Tensor와 GPT-2 QKV</a><a href="transformer_kv_cache_input_ids_flow_learning.html">새 Token과 Cache 전달 흐름</a><a href="../projects/road-to-llm-inference/pytorch-inference.html#batch">Batch 실습 기록</a></div>
+    </header>
+
+    <section class="article-understanding" aria-labelledby="understanding-title">
+      <h2 id="understanding-title">현재 이해도</h2>
+      <p>KV Cache가 Layer별로 필요한 이유와 Head별 Split 상태로 저장되는 이유를 자신의 말로 설명했고, Batch만 <code>1 → 4</code>로 바꾼 실행에서 Key Cache의 첫 축만 <code>1 → 4</code>로 변하는 것을 확인했습니다.</p>
+      <div class="bar" role="progressbar" aria-label="현재 이해도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span style="width: 100%"></span></div>
+      <div class="meter-label"><span>검증 완료 5 / 5</span><strong>100%</strong></div>
+      <ul>
+        <li class="done">● Layer마다 Hidden State와 K·V Projection Weight가 달라 Cache도 따로 필요하다고 설명합니다.</li>
+        <li class="done">● Layer Cache 안의 Key Tensor와 Value Tensor가 모든 Head를 Head 축으로 보관한다고 설명합니다.</li>
+        <li class="done">● K·V가 Projection 뒤 Head별로 Split된 <code>[B,H,S,Dh]</code> 상태로 저장된다고 설명합니다.</li>
+        <li class="done">● 새 Token의 Query가 같은 Head의 과거 K·V와 Attention을 수행하는 흐름을 설명합니다.</li>
+        <li class="done">● 입력 <code>[1,2]</code>·<code>[4,2]</code>와 Key Cache <code>[1,2,2,1]</code>·<code>[4,2,2,1]</code>을 실제 출력으로 확인했습니다.</li>
+      </ul>
+    </section>
+
+    <nav aria-label="문서 목차">
+      <a href="#question">처음 생긴 의문</a>
+      <a href="#per-layer">Layer별 K·V</a>
+      <a href="#layer-tensors">Layer 안의 K·V Tensor</a>
+      <a href="#head-split">Head별 Split</a>
+      <a href="#next-token">다음 Token 계산</a>
+      <a href="#merge-heads">Head 병합</a>
+      <a href="#batch-axis">Batch 축 실험</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section id="question" class="detail-section">
+      <h2>1. 처음 생긴 의문</h2>
+      <p>KV Cache를 처음 접하면 각 Token에서 계산한 Key와 Value를 하나의 배열에 차례대로 보관한다고 생각하기 쉽습니다. 하지만 GPT-2의 <code>past_key_values</code>를 직접 출력해 보면 Cache가 단순한 Token 목록이 아니라 다음 Shape을 가진다는 것을 확인할 수 있습니다.</p>
+      <pre><code>[Batch, Head, Token, Head dimension]</code></pre>
+      <p>이번 실습에서 tiny GPT-2 Layer 0의 Key Cache Shape은 다음과 같았습니다.</p>
+      <pre><code>Batch 1: [1, 2, 2, 1]
+Batch 4: [4, 2, 2, 1]</code></pre>
+      <p>각 숫자의 의미는 다음과 같습니다.</p>
+      <pre><code>Batch          = 동시에 처리하는 문장 수
+Head           = Multi-Head Attention의 Head 수
+Token          = Cache에 저장된 Token 수
+Head dimension = Head 하나가 사용하는 K·V 벡터 차원</code></pre>
+      <div class="caution"><strong>여기서 생긴 의문은 “KV Cache는 왜 Transformer Layer마다 따로 존재하며, 왜 K와 V를 Head별로 나눈 상태로 저장하는가?”였습니다.</strong></div>
+    </section>
+
+    <section id="per-layer" class="detail-section">
+      <h2>2. Layer마다 다른 K·V가 만들어진다</h2>
+      <p>Transformer는 여러 Layer를 순서대로 통과합니다. 각 Layer는 서로 다른 Attention Module과 Q·K·V Projection Weight를 가지고 있습니다.</p>
+      <pre><code>Layer 0
+Hidden State
+→ Layer 0의 K·V Projection
+→ Layer 0의 K·V
+
+Layer 1
+Layer 0의 출력
+→ Layer 1의 K·V Projection
+→ Layer 1의 K·V</code></pre>
+      <p>Layer 1에 들어가는 Hidden State는 이미 Layer 0의 Attention과 FFN(Feed Forward Network, 피드포워드 신경망)을 통과한 값입니다. Projection Weight도 Layer마다 다릅니다.</p>
+      <pre><code>Layer 0의 K·V
+≠
+Layer 1의 K·V</code></pre>
+      <p>이 때문에 KV Cache도 Layer별로 따로 보관해야 합니다.</p>
+      <pre><code>past_key_values[0]  # Layer 0의 KV Cache
+past_key_values[1]  # Layer 1의 KV Cache</code></pre>
+    </section>
+
+    <section id="layer-tensors" class="detail-section">
+      <h2>3. 한 Layer에는 Key Tensor와 Value Tensor가 있다</h2>
+      <p>각 Layer의 Cache에는 Key Tensor와 Value Tensor가 하나씩 들어 있습니다.</p>
+      <pre><code>past_key_values[layer][0]  # 해당 Layer의 Key Tensor
+past_key_values[layer][1]  # 해당 Layer의 Value Tensor</code></pre>
+      <p>여기서 “Key Tensor 하나”라는 표현은 모든 Head의 Key가 하나의 벡터로 합쳐졌다는 뜻이 아닙니다. Key Tensor 내부에 Head 축이 존재합니다.</p>
+      <pre><code>Key Shape   = [Batch, Head, Token, Head dimension]
+Value Shape = [Batch, Head, Token, Head dimension]</code></pre>
+      <p>예를 들어 <code>[4,2,2,1]</code>은 다음 값을 한 Tensor에 모아 놓았다는 뜻입니다.</p>
+      <pre><code>문장 4개
+× 각 문장의 Attention Head 2개
+× 각 Head가 기억하는 Token 2개
+× Token별 K 벡터 차원 1</code></pre>
+      <p>특정 문장·Head·Token의 Key 벡터는 다음처럼 선택할 수 있습니다.</p>
+      <pre><code>key_vector: torch.Tensor = batch_four_key[
+    0,  # 0번 문장
+    1,  # 1번 Head
+    0,  # 0번 Token
+    :,  # Key 벡터 전체
+]</code></pre>
+    </section>
+
+    <section id="head-split" class="detail-section">
+      <h2>4. K·V는 Head별로 Split된 상태로 저장된다</h2>
+      <p>한 Layer에 들어온 Hidden State를 다음 Shape이라고 하겠습니다.</p>
+      <pre><code>X: [Batch, Token, d_model]</code></pre>
+      <p>Q·K·V Projection을 거친 결과는 Multi-Head Attention 계산을 위해 Head별로 나뉩니다.</p>
+      <pre><code>K: [Batch, Token, d_model]
+→ Head별 Split
+→ [Batch, Head, Token, Head dimension]
+
+V: [Batch, Token, d_model]
+→ Head별 Split
+→ [Batch, Head, Token, Head dimension]</code></pre>
+      <p>GPT-2의 KV Cache는 이처럼 Projection을 마치고 Head별로 나눈 K·V 결과를 저장합니다.</p>
+      <p>즉 Cache가 저장하는 것은 다음 항목이 아닙니다.</p>
+      <pre><code>× K·V Projection Weight
+× K·V Projection Module
+× 원본 Token ID
+× 최종 Logit</code></pre>
+      <p>실제로 저장하는 것은 각 Layer에서 Token의 Hidden State에 K·V Projection을 적용하고, Head별로 나눈 결과 Tensor입니다.</p>
+    </section>
+
+    <section id="next-token" class="detail-section">
+      <h2>5. 다음 Token을 계산할 때 Head별 Cache가 필요하다</h2>
+      <p>Prompt가 <code>[A,B]</code> 두 Token으로 구성되어 있다고 가정하겠습니다. 첫 Forward에서는 A와 B의 Q·K·V를 계산하고, 그중 K와 V가 Cache에 저장됩니다.</p>
+      <pre><code>K Cache = [K_A, K_B]
+V Cache = [V_A, V_B]</code></pre>
+      <p>모델이 다음 Token C를 예측했다면, 다음 Forward에는 전체 <code>[A,B,C]</code>를 다시 넣지 않습니다. 모델에는 새 Token C 하나와 기존 KV Cache를 전달합니다.</p>
+      <pre><code>입력: C
+Cache: A와 B의 K·V</code></pre>
+      <p>새 Token에서는 <code>Q_C</code>·<code>K_C</code>·<code>V_C</code>가 계산됩니다. 그리고 각 Head의 <code>Q_C</code>가 같은 Head에 저장된 과거 K들과 Attention Score를 계산합니다.</p>
+      <pre><code>Q_C
+×
+[K_A, K_B, K_C]ᵀ
+→ Attention Score
+→ Softmax</code></pre>
+      <p>만들어진 Attention 비율은 같은 Head의 V들과 계산됩니다.</p>
+      <pre><code>Attention Weight
+×
+[V_A, V_B, V_C]
+→ C 위치의 Head별 Attention 출력</code></pre>
+      <p>이를 Head 축까지 포함해서 표현하면 다음과 같습니다.</p>
+      <pre><code>Q_C Shape:
+[Batch, Head, 1, Head dimension]
+
+전체 K Shape:
+[Batch, Head, Token, Head dimension]
+
+Q_C × Kᵀ:
+[Batch, Head, 1, Token]</code></pre>
+      <p>각 Head는 자신의 Q와 같은 Head에 속한 K·V를 사용합니다. 따라서 K·V를 Head별로 나눈 상태로 Cache에 저장하면 다음 Forward에서 바로 Attention 계산에 사용할 수 있습니다.</p>
+    </section>
+
+    <section id="merge-heads" class="detail-section">
+      <h2>6. Head별 결과는 다시 병합된다</h2>
+      <p>KV Cache가 Head별로 나뉘어 있다고 해서 최종 출력까지 Head별로 분리된 채 유지되는 것은 아닙니다. 각 Head에서 Attention 계산을 마치면 결과를 다시 합칩니다.</p>
+      <pre><code>Head 0 Attention 결과 ─┐
+Head 1 Attention 결과 ─┤
+...                    ├→ Head 병합
+Head N Attention 결과 ─┘</code></pre>
+      <p>이후 흐름은 다음과 같습니다.</p>
+      <pre><code>Head별 Attention 결과
+→ Head 병합
+→ Output Projection
+→ Residual·Normalization·FFN
+→ 다음 Transformer Layer
+→ 최종 LM Head
+→ Vocabulary Logits</code></pre>
+      <p>KV Cache는 최종 Logit을 직접 저장하거나 만드는 기능이 아닙니다. 각 Transformer Layer의 Multi-Head Attention에서 과거 Token의 K·V를 다시 계산하지 않게 해주는 중간 결과 저장소입니다.</p>
+    </section>
+
+    <section id="batch-axis" class="detail-section">
+      <h2>7. Batch가 늘어날 때 바뀌는 축</h2>
+      <p>같은 Prompt <code>"I study"</code>를 Batch 1과 Batch 4로 만들어 비교했습니다. 문장 내용과 Prompt 길이는 고정하고 Batch 크기만 바꾼 실험입니다.</p>
+      <pre><code>Batch 1 Input: [1, 2]
+Batch 4 Input: [4, 2]</code></pre>
+      <p>Prompt 길이와 모델 구조는 동일하므로 Key Cache에서 바뀌는 것은 Batch 축뿐이었습니다.</p>
+      <pre><code>Batch 1 Key Cache: [1, 2, 2, 1]
+Batch 4 Key Cache: [4, 2, 2, 1]</code></pre>
+      <p>각 축을 비교하면 다음과 같습니다.</p>
+      <pre><code>Batch          1 → 4
+Head           2 → 2
+Token          2 → 2
+Head dimension 1 → 1</code></pre>
+      <p>이 실행을 통해 KV Cache가 문장 전체를 하나로 합쳐 저장하는 것이 아니라, 각 문장·Layer·Head·Token의 K·V를 구분해 보관한다는 사실을 확인했습니다. 이 실험이 검증한 것은 Shape 변화이며, Batch 처리량과 Latency 비교는 별도의 실행 결과로 확인해야 합니다.</p>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>8. 결론</h2>
+      <p>KV Cache는 각 Transformer Layer에서 K·V Projection을 마치고, Multi-Head Attention을 위해 Head별로 나눈 K·V 결과를 저장합니다.</p>
+      <p>Layer별 Cache가 필요한 이유는 Layer마다 입력 Hidden State와 Projection Weight가 다르기 때문입니다. Head별 Split 상태가 필요한 이유는 새 Token의 Query가 각 Head에서 과거 Token의 Key·Value와 바로 Attention 연산을 수행해야 하기 때문입니다.</p>
+      <pre><code>Layer별로 다른 K·V 계산
+→ Head별 Split
+→ [Batch, Head, Token, Head dimension] 형태로 저장
+→ 새 Token의 Q와 즉시 Attention 계산</code></pre>
+      <div class="caution"><strong>KV Cache는 다음 Token의 Multi-Head Attention에서 과거 Token의 K·V를 다시 계산하지 않도록, 각 Layer의 K·V Projection 결과를 Head별로 나눈 상태로 저장한 Tensor입니다.</strong></div>
+      <ul class="reference-list">
+        <li><a href="transformer_kv_cache_qkv_projection_learning.html">KV Cache가 저장하는 Tensor와 GPT-2의 합쳐진 QKV Projection</a></li>
+        <li><a href="transformer_kv_cache_input_ids_flow_learning.html">새 Token ID와 과거 KV Cache의 전달 흐름</a></li>
+        <li><a href="../projects/road-to-llm-inference/pytorch-inference.html#batch">Batch 1·Batch N 비교 실습 기록</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
+import { itemsForPlacement, loadContentCatalog } from "./content_catalog.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -10,9 +11,11 @@ const metadataStart = "  <!-- machine-readable-metadata:start -->";
 const metadataEnd = "  <!-- machine-readable-metadata:end -->";
 
 await import(new URL("./build_knowledge_manifest.mjs", import.meta.url));
+await import(new URL("./build_curated_blog.mjs", import.meta.url));
 
 const knowledgeManifest = JSON.parse(await readFile(resolve(wikiRoot, "knowledge_manifest.json"), "utf8"));
 const conceptGraph = JSON.parse(await readFile(resolve(wikiRoot, "concept_graph.json"), "utf8"));
+const contentCatalog = await loadContentCatalog();
 const knowledgeByHref = new Map(knowledgeManifest.documents.map((document) => [document.href, document]));
 const conceptLabelByKey = new Map(conceptGraph.concepts.map((concept) => [concept.conceptKey, concept.labels[0] || concept.conceptKey]));
 
@@ -224,18 +227,20 @@ ${cells.join("\n")}
 
 function renderHomeProjects(projects) {
   return projects.map((project) => {
-    const visual = project.image
-      ? `<div class="home-project-visual"><img src="${escapeAttribute(project.image)}" alt="${escapeAttribute(project.imageAlt || "")}" loading="lazy"></div>`
-      : `<div class="home-project-visual home-project-result"><span>대표 평가 결과</span><strong>${escapeHtml(project.evidence)}</strong><small>${escapeHtml(project.supportingEvidence || "")}</small></div>`;
+    const card = project.projectCard;
+    const position = project.thumbnail?.position ? ` style="object-position:${escapeAttribute(project.thumbnail.position)}"` : "";
+    const visual = project.thumbnail
+      ? `<div class="home-project-visual"><img src="${escapeAttribute(project.thumbnail.src)}" alt="${escapeAttribute(project.thumbnail.alt)}" loading="lazy"${position}></div>`
+      : `<div class="home-project-visual home-project-result"><span>대표 평가 결과</span><strong>${escapeHtml(card.evidence)}</strong><small>${escapeHtml(card.supportingEvidence)}</small></div>`;
     return `        <a class="card home-project-card" href="${escapeAttribute(project.href)}">
           ${visual}
-          <span class="eyebrow">${escapeHtml(project.eyebrow)}</span>
+          <span class="eyebrow">${escapeHtml(card.eyebrow)}</span>
           <h3>${escapeHtml(project.title)}</h3>
-          <p>${escapeHtml(project.description)}</p>
-          <strong class="home-project-role">${escapeHtml(project.role)}</strong>
-          <div class="home-card-tags">${project.stack.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
-          <strong class="home-card-evidence">${escapeHtml(project.evidence)}</strong>
-          <small class="home-card-supporting">${escapeHtml(project.supportingEvidence || "")}</small>
+          <p>${escapeHtml(project.summary)}</p>
+          <strong class="home-project-role">${escapeHtml(card.role)}</strong>
+          <div class="home-card-tags">${card.stack.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+          <strong class="home-card-evidence">${escapeHtml(card.evidence)}</strong>
+          <small class="home-card-supporting">${escapeHtml(card.supportingEvidence)}</small>
         </a>`;
   }).join("\n");
 }
@@ -605,7 +610,10 @@ function renderWikiTree(manifest) {
         const depth = Math.max(0, path.filter((item) => item.categoryKey === groupKey).length - 1);
         const childClass = depth > 0 ? " wiki-search-child" : "";
         const meta = parent ? `${entry.category} · ${parent.title}의 하위 문서` : `${entry.category} · 상위 문서`;
-        return `          <a class="wiki-link wiki-search-result${childClass}" style="--wiki-depth:${Math.min(depth, 4)}" data-depth="${depth}" href="${escapeAttribute(entry.href)}"><em>${escapeHtml(meta)}</em><strong>${escapeHtml(entry.title)}</strong><span>${escapeHtml(entry.description || "연결된 학습 문서")}</span></a>`;
+        const publishedDate = entry.publishedAt
+          ? `<time datetime="${escapeAttribute(entry.publishedAt)}">${escapeHtml(entry.publishedAt.replaceAll("-", "."))}</time>`
+          : "";
+        return `          <a class="wiki-link wiki-search-result${childClass}" style="--wiki-depth:${Math.min(depth, 4)}" data-depth="${depth}" href="${escapeAttribute(entry.href)}"><em>${escapeHtml(meta)}${publishedDate}</em><strong>${escapeHtml(entry.title)}</strong><span>${escapeHtml(entry.description || "연결된 학습 문서")}</span></a>`;
       };
       const rootGroups = [];
       for (const entry of group.entries) {
@@ -716,9 +724,14 @@ async function renderStaticDiscoveryPages() {
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
   ]) home = replaceElementContent(home, { tag, id, value });
   home = replaceStaticRegion(home, { name: "home-learning-journey", tag: "div", id: "homeLearningJourney", markup: renderLearningJourney(learningState.journey, learningState.journey.homePresentation) });
-  home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(homeContent.featuredProjects) });
+  home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(itemsForPlacement(contentCatalog, "home")) });
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
   await writeFile(homePath, home, "utf8");
+
+  const projectsPath = resolve(wikiRoot, "projects.html");
+  let projects = await readFile(projectsPath, "utf8");
+  projects = replaceStaticRegion(projects, { name: "projects-page", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(itemsForPlacement(contentCatalog, "projects")) });
+  await writeFile(projectsPath, projects, "utf8");
 
   const topLevelRoadmapPath = resolve(wikiRoot, "roadmap.html");
   let topLevelRoadmap = await readFile(topLevelRoadmapPath, "utf8");
@@ -852,7 +865,7 @@ function inferParentHref(href, knowledgeDocument) {
   ].includes(href)) return "roadmap.html";
   if (href.startsWith("roadmaps/")) return "pytorch_professional_roadmap.html";
   if (href === "pytorch_professional_roadmap.html") return "roadmap.html";
-  if (["wiki.html", "learning_history.html", "roadmap.html"].includes(href)) return "index.html";
+  if (["wiki.html", "projects.html", "learning_history.html", "roadmap.html"].includes(href)) return "index.html";
   if (href === "knowledge_map.html") return "wiki.html";
   return null;
 }
@@ -1032,7 +1045,9 @@ const llmsText = `# 공부의 흐름을 기록하는 기술 위키
 ## 주요 진입점
 
 - [홈](${publicBaseUrl})
+- [개인 프로젝트](${publicBaseUrl}projects.html)
 - [기술 위키 전체 문서](${publicBaseUrl}wiki.html)
+- [기술 블로그](${publicBaseUrl}blog.html)
 - [지식 지도](${publicBaseUrl}knowledge_map.html)
 - [전체 학습 로드맵](${publicBaseUrl}roadmap.html)
 - [AI·ML 통합 로드맵](${publicBaseUrl}pytorch_professional_roadmap.html)

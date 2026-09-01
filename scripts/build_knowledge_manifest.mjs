@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
+import { loadContentCatalog } from "./content_catalog.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -11,6 +12,8 @@ const jsonOutputPath = resolve(wikiRoot, "knowledge_manifest.json");
 const conceptOutputPath = resolve(wikiRoot, "concept_graph.json");
 const knowledgeMapSourcePath = resolve(wikiRoot, "assets/js/knowledge_map.js");
 const publicBaseUrl = "https://muscleleg.github.io/jaejun-wiki/";
+const contentCatalog = await loadContentCatalog();
+const catalogByHref = new Map(contentCatalog.items.map((item) => [item.href, item]));
 
 // 기술 위키의 대분류 노출 순서다. 현재 AI 전환 학습과 실제로 자주
 // 복습하는 영역을 먼저 두고, 기존 경력·참고 영역은 뒤에서 보존한다.
@@ -173,15 +176,18 @@ for (const file of files) {
   const breadcrumbTitle = extractAll(breadcrumbContent, /<span[^>]*>([\s\S]*?)<\/span>/gi)
     .filter((label) => label !== "›")
     .at(-1) || "";
-  const title = extract(content, /<h1[^>]*>([\s\S]*?)<\/h1>/i)
+  const extractedTitle = extract(content, /<h1[^>]*>([\s\S]*?)<\/h1>/i)
     || breadcrumbTitle
     || extract(content, /<h2[^>]*>([\s\S]*?)<\/h2>/i)
     || extract(content, /<title>([\s\S]*?)<\/title>/i);
-  const description = extract(content, /<p[^>]*class=["'][^"']*(?:summary|lead|intro)[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
+  const extractedDescription = extract(content, /<p[^>]*class=["'][^"']*(?:summary|lead|intro)[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
     || extract(content, /<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i)
     || headings.slice(1, 3).join(" · ")
     || headings[0]
-    || title;
+    || extractedTitle;
+  const catalogItem = catalogByHref.get(href);
+  const title = catalogItem?.title || extractedTitle;
+  const description = catalogItem?.summary || extractedDescription;
   const parentLink = content.match(/<a[^>]+href=["']([^"']+\.html(?:#[^"']*)?)["'][^>]*>\s*←[^<]*학습 경로/i);
   const breadcrumbParent = [...breadcrumbContent.matchAll(/<a[^>]+href=["']([^"']+\.html(?:#[^"']*)?)["']/gi)]
     .map((match) => resolve(dirname(file), match[1].split("#")[0]))
@@ -203,7 +209,8 @@ for (const file of files) {
     id: href.replace(/\.html$/, "").replaceAll("/", "-"),
     title,
     description,
-    searchText: [breadcrumb, ...headings].filter(Boolean).join(" "),
+    publishedAt: contentCatalog.documentDates[href],
+    searchText: [title, description, breadcrumb, ...headings].filter(Boolean).join(" "),
     href,
     url: new URL(href, publicBaseUrl).href,
     category: categoryLabels[categoryKey] || categoryKey,
@@ -219,6 +226,9 @@ for (const file of files) {
 }
 
 const documentByHref = new Map(documents.map((document) => [document.href, document]));
+for (const item of contentCatalog.items) {
+  if (!documentByHref.has(item.href)) throw new Error(`content_catalog.json href is absent from the wiki manifest: ${item.href}`);
+}
 for (const document of documents) {
   document.parentId = document.parentHref ? documentByHref.get(document.parentHref)?.id || null : null;
 }
