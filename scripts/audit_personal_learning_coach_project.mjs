@@ -56,7 +56,7 @@ async function requireAsset(path) {
 }
 
 const [
-  homeSource,
+  catalogSource,
   mapSource,
   projectSource,
   wikiSource,
@@ -75,7 +75,7 @@ const [
   reviewJs,
   reviewRecordScript,
 ] = await Promise.all([
-  source("assets/js/home_content.js"),
+  source("assets/data/content_catalog.json"),
   source("assets/js/knowledge_map.js"),
   source(projectHref),
   source("wiki.html"),
@@ -96,7 +96,7 @@ const [
 ]);
 
 for (const [location, content] of [
-  ["home_content.js", homeSource],
+  ["content_catalog.json", catalogSource],
   ["knowledge_map.js", mapSource],
   [projectHref, projectSource],
   ["wiki.html", wikiSource],
@@ -107,10 +107,19 @@ for (const [location, content] of [
   requireText(content, projectHref, location);
 }
 
-for (const token of ["코딩 에이전트", "로드맵과 학습 기록", "현재 관문", "실제 학습 근거", "다음 행동", "보류 목록"]) {
-  requireText(homeSource, token, "assets/js/home_content.js 프로젝트 카드");
+const catalog = JSON.parse(catalogSource);
+const catalogProject = catalog.items.find(({ href }) => href === projectHref);
+if (!catalogProject) {
+  findings.push("content_catalog.json: 개인화 학습 코치 프로젝트 항목 누락");
+} else {
+  const catalogProjectSource = JSON.stringify(catalogProject);
+  for (const token of ["코딩 에이전트", "로드맵과 학습 기록", "현재 관문", "실제 학습 근거", "다음 행동", "보류 목록"]) {
+    requireText(catalogProjectSource, token, "content_catalog.json 프로젝트 카드");
+  }
+  if (catalogProject.thumbnail?.src !== `${imageRoot}/personal-learning-loop-featured.svg`) {
+    findings.push("content_catalog.json: 개인화 학습 코치 대표 썸네일 경로 불일치");
+  }
 }
-requireText(homeSource, `image: "${imageRoot}/personal-learning-loop-featured.svg"`, "assets/js/home_content.js 프로젝트 썸네일");
 requireText(homeHtml, 'id="homeLearningJourney"', "index.html Road 학습 여정");
 requireOrdered(homeHtml, ['id="homeLearningJourney"', 'id="projects"'], "index.html Road 학습 여정과 프로젝트 순서");
 
@@ -324,7 +333,7 @@ for (const token of ["기억 강화 세션", "wiki-memory-reinforcement", `${pro
 requireText(projectSource, `<link rel="canonical" href="${projectUrl}">`, `${projectHref} 기존 canonical URL`);
 requireText(sitemapSource, `/jaejun-wiki/${projectHref}`, "sitemap.xml");
 
-const publicPortfolioSource = `${homeSource}\n${mapSource}\n${projectSource}\n${wikiSource}\n${homeHtml}\n${mapHtml}\n${siteManifestSource}\n${knowledgeManifestSource}\n${conceptGraphSource}\n${sitemapSource}`;
+const publicPortfolioSource = `${catalogSource}\n${mapSource}\n${projectSource}\n${wikiSource}\n${homeHtml}\n${mapHtml}\n${siteManifestSource}\n${knowledgeManifestSource}\n${conceptGraphSource}\n${sitemapSource}`;
 for (const forbidden of ["/Users/", "file://", "재등장", "Learning Loop", "Adaptive Learning Coach", "wiki/projects/learning-loop", "assets/images/projects/learning-loop", "wiki/projects/jaejun-wiki", "assets/images/projects/jaejun-wiki"]) {
   rejectText(publicPortfolioSource, forbidden, "프로젝트 공개 원본");
 }

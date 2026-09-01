@@ -111,6 +111,12 @@
     meta.textContent = parent
       ? `${entry.category} · ${parent.title}의 하위 문서`
       : `${entry.category} · 상위 문서`;
+    if (entry.publishedAt) {
+      const publishedDate = document.createElement("time");
+      publishedDate.dateTime = entry.publishedAt;
+      publishedDate.textContent = entry.publishedAt.replaceAll("-", ".");
+      meta.append(publishedDate);
+    }
     const title = document.createElement("strong");
     title.textContent = entry.title;
     const description = document.createElement("span");

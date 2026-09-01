@@ -6,9 +6,10 @@
     || currentPath === new URL("index.html", projectRoot).pathname;
   const items = [
     ["index.html", "⌂ 홈", isProjectHome],
+    ["projects.html", "프로젝트", currentPath.endsWith("/projects.html")],
+    ["blog.html", "블로그", currentPath.endsWith("/blog.html")],
+    ["wiki.html", "위키", currentPath.includes("/wiki/") || currentPath.endsWith("/wiki.html") || currentPath.endsWith("/knowledge_map.html")],
     ["roadmap.html", "로드맵", currentPath.includes("/roadmaps/") || currentPath.endsWith("/roadmap.html") || currentPath.endsWith("/pytorch_professional_roadmap.html") || currentPath.endsWith("/wiki/coding-test/index.html")],
-    ["wiki.html", "위키", currentPath.includes("/wiki/") || currentPath.endsWith("/wiki.html")],
-    ["knowledge_map.html", "지도", currentPath.endsWith("/knowledge_map.html")],
     ["learning_history.html", "기록", currentPath.endsWith("/learning_history.html")],
   ];
 

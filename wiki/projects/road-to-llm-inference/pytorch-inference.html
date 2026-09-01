@@ -169,7 +169,16 @@ elapsed_seconds = end - start</code></pre>
 
   <section id="batch">
     <h2>8. Batch 1과 Batch N</h2>
-    <p>단일 문장의 Cache 흐름을 확인한 다음 길이가 다른 여러 문장을 Batch로 묶습니다. Padding 위치, 문장별 종료 조건, Batch별 Cache Shape과 실제 처리량을 분리해 기록합니다.</p>
+    <p>먼저 문장 내용과 Prompt 길이를 고정하고 Batch 크기만 <code>1 → 4</code>로 바꿨습니다. 같은 <code>"I study"</code>를 한 문장과 네 문장으로 Tokenize한 결과 입력 Shape은 각각 <code>[1,2]</code>와 <code>[4,2]</code>였습니다.</p>
+    <pre><code>Batch 1 Input IDs Shape = [1,2]
+Batch 4 Input IDs Shape = [4,2]</code></pre>
+    <p>각 입력을 <code>use_cache=True</code>로 첫 Forward한 뒤 Layer 0의 Key Cache를 비교했습니다. Head 수·Prompt Token 수·Head dimension은 같은 모델과 같은 문장을 사용했으므로 그대로 유지되고, 문장 수를 나타내는 Batch 축만 <code>1 → 4</code>로 변했습니다.</p>
+    <pre><code>Batch 1 Layer 0 Key = [1,2,2,1]
+Batch 4 Layer 0 Key = [4,2,2,1]
+
+[Batch, Head, Token, Head dimension]</code></pre>
+    <p>이 출력으로 Cache가 Layer별 Key·Value Tensor를 가지면서도 각 Tensor 내부에서는 문장·Head·Token을 구분해 보관한다는 Shape을 확인했습니다. 다음 실험에서는 KV Cache 사용을 고정하고 Batch 1과 Batch 4의 전체 생성시간과 처리량을 같은 측정 경계에서 비교합니다. 길이가 다른 문장의 Padding·<code>attention_mask</code>와 문장별 종료 조건은 그 뒤에 분리해 확인합니다.</p>
+    <p><a href="../../transformer/transformer_kv_cache_layer_head_shape_learning.html">KV Cache가 Layer별·Head별 형태로 저장되는 이유 보기 →</a></p>
   </section>
 
   <section id="evidence">
@@ -182,6 +191,7 @@ elapsed_seconds = end - start</code></pre>
       <li class="done">● 같은 Prompt·Greedy·생성 길이에서 No-cache와 KV Cache가 동일한 Token ID와 문장을 생성했습니다.</li>
       <li class="done">● Cache 반복 루프에서 첫 입력은 <code>[1,2]</code>, 이후 입력은 <code>[1,1]</code>이고 Key Cache Token 축이 <code>2 → 6</code>으로 늘어나는 것을 확인했습니다.</li>
       <li class="done">● CPU·float32·Prompt 2 Token·새 Token 20개·Warm-up 3회·측정 10회 조건에서 No-cache <code>74.1009 ms</code>와 KV Cache <code>11.6883 ms</code>를 비교했습니다.</li>
+      <li class="done">● 같은 2-Token Prompt로 Batch만 <code>1 → 4</code>로 바꾸고 입력 <code>[1,2] → [4,2]</code>, Layer 0 Key Cache <code>[1,2,2,1] → [4,2,2,1]</code>을 확인했습니다.</li>
       <li class="todo">○ Batch 1과 Batch N에서 처리량·메모리 차이를 기록합니다.</li>
       <li class="done">● Model·dtype·Token 길이·장치·Warm-up·측정 경계와 첫 로컬 결과의 일반화 한계를 함께 남겼습니다.</li>
     </ul>

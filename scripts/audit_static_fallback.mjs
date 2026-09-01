@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
+import { itemsForPlacement, loadContentCatalog } from "./content_catalog.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
@@ -120,9 +121,10 @@ function formatDuration(durations) {
   return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
 }
 
-const [manifest, graph, homeContent, learningState, codingTestState, reviewState, learningHistoryData, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
+const [manifest, graph, contentCatalog, homeContent, learningState, codingTestState, reviewState, learningHistoryData, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
+  loadContentCatalog(),
   loadWindowValue("assets/js/home_content.js", "HOME_CONTENT"),
   loadWindowValue("assets/js/learning_state.js", "LEARNING_STATE"),
   loadWindowValue("assets/js/coding_test_state.js", "CODING_TEST_STATE"),
@@ -139,7 +141,9 @@ const [manifest, graph, homeContent, learningState, codingTestState, reviewState
 
 const homeProjects = staticRegion(homeHtml, "home-projects");
 const homeKnowledge = staticRegion(homeHtml, "home-knowledge");
-assertSetEqual(valuesForAttribute(homeProjects, "href"), homeContent.featuredProjects.map((item) => item.href), "Home projects");
+const expectedHomeProjects = itemsForPlacement(contentCatalog, "home");
+assertSetEqual(valuesForAttribute(homeProjects, "href"), expectedHomeProjects.map((item) => item.href), "Home projects");
+assertEqual(valuesForAttribute(homeProjects, "href").join("|"), expectedHomeProjects.map((item) => item.href).join("|"), "Home project date/pin order");
 assertSetEqual(valuesForAttribute(homeKnowledge, "href"), homeContent.knowledgeAreas.map((item) => item.href), "Home knowledge areas");
 assertEqual(valuesForAttribute(homeKnowledge, "href").join("|"), homeContent.knowledgeAreas.map((item) => item.href).join("|"), "Home knowledge area order");
 assertEqual(textById(homeHtml, "wikiDocumentCount"), `${manifest.documentCount}개 기술 문서`, "Home wiki document count");
@@ -573,5 +577,5 @@ assertEqual(
   "Recorded study-time total",
 );
 console.log(
-  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${homeContent.featuredProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} codingProblems=${completedProblemHrefs.length} codingAttemptNotes=${attemptNoteHrefs.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
+  `STATIC_FALLBACK_AUDIT=PASS homeProjects=${expectedHomeProjects.length} homeKnowledge=${homeContent.knowledgeAreas.length} wikiDocuments=${manifest.indexedCount} mapOccurrences=${expectedOccurrenceIds.length} mapRelations=${expectedRelationPathIds.length} codingProblems=${completedProblemHrefs.length} codingAttemptNotes=${attemptNoteHrefs.length} overall=${learningState.overall.done}/${learningState.overall.total} learningDays=${uniqueRecordedDates.length} studyTime=${textById(historyHtml, "historyRecordedStudyTime")} latest=${uniqueRecordedDates[0]}`,
 );
