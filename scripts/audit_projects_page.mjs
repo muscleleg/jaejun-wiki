@@ -30,7 +30,7 @@ for (const project of expectedProjects) {
   if (!projects.includes(`<h3>${project.title}</h3>`)) findings.push(`projects.html: 프로젝트 제목 누락 ${project.title}`);
 }
 
-const expectedNavigationOrder = ["⌂ 홈", "프로젝트", "블로그", "위키", "로드맵", "기록"];
+const expectedNavigationOrder = ["홈", "프로젝트", "블로그", "위키", "로드맵", "기록"];
 let previousIndex = -1;
 for (const label of expectedNavigationOrder) {
   const index = navigation.indexOf(`"${label}"`);
@@ -39,6 +39,9 @@ for (const label of expectedNavigationOrder) {
   previousIndex = index;
 }
 if (navigation.includes('["knowledge_map.html", "지도"')) findings.push("global_nav.js: 지도가 전역 메뉴에 남아 있음");
+for (const token of ["navigation.css?v=20260901-record-pages-1", "global-learning-nav-record-trigger", "학습 기록", "나중에 다시 할 학습", "기억 강화 세션", "learning_backlog.html", "learning_review.html", 'aria-expanded', 'event.key === "Escape"']) {
+  if (!navigation.includes(token)) findings.push(`global_nav.js: 기록 하위 메뉴 동작 누락 ${token}`);
+}
 if (!wiki.includes('<a class="wiki-map-button" href="knowledge_map.html">관계로 찾기 →</a>')) findings.push("wiki.html: 관계로 찾기 링크 누락");
 if (!home.includes('href="projects.html">개인 프로젝트 전체 보기 →</a>')) findings.push("index.html: 프로젝트 화면 링크 누락");
 if (!siteManifest.pages.some((page) => page.href === "projects.html")) findings.push("site_manifest.json: projects.html 누락");

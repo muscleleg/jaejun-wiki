@@ -40,6 +40,7 @@
       <a href="#followup-forward">후속 Forward</a>
       <a href="#position-id">새 Token Position ID</a>
       <a href="#full-attention-mask">전체 Attention Mask</a>
+      <a href="#generation-cross-check">Token 생성 교차검증</a>
       <a href="#conclusion">결론</a>
     </nav>
 
@@ -209,6 +210,34 @@ position_ids    [2,1]
 attention_mask  [2,7]</code></pre>
     </section>
 
+    <section id="generation-cross-check" class="detail-section">
+      <h2>수동 생성은 Token 생성 메서드의 전체 ID와 비교합니다</h2>
+      <p>수동 KV Cache 루프가 오류 없이 끝났다는 사실만으로 Position ID·Attention Mask·Cache 전달이 정확하다고 결론내리지는 않습니다. 같은 모델과 원본 입력을 라이브러리의 <code>generate()</code> Token 생성 메서드에도 넣고, 선택 방식과 생성 길이를 같게 고정한 뒤 전체 Token ID Tensor를 비교할 수 있습니다.</p>
+      <pre><code>with torch.inference_mode():
+    method_generated_ids = model.generate(
+        input_ids=original_input_ids,
+        attention_mask=original_attention_mask,
+        max_new_tokens=5,
+        do_sample=False,
+        use_cache=True,
+        pad_token_id=tokenizer.pad_token_id,
+    )
+
+torch.equal(
+    generated_ids,
+    method_generated_ids,
+)  # True</code></pre>
+      <p>길이가 다른 두 문장을 왼쪽 Padding한 실험에서 수동 루프와 Token 생성 메서드는 Padding을 포함한 전체 ID 행렬부터 새 Token 5개까지 완전히 같은 결과를 냈습니다.</p>
+      <pre><code>수동 생성 IDs
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]
+
+Token 생성 메서드 IDs
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]</code></pre>
+      <p><code>torch.equal(...)=True</code>는 현재 입력·Greedy 선택·새 Token 수·Cache 설정에서 두 방식의 외부 결과가 같다는 증거입니다. 라이브러리 내부의 모든 연산 순서가 수동 코드와 줄마다 동일하다는 증명은 아닙니다. 따라서 수동 생성 구현은 먼저 전체 Token ID 일치를 확인하고, 그 다음에 성능을 비교하는 순서가 안전합니다.</p>
+    </section>
+
     <section id="conclusion" class="detail-section">
       <h2>결론</h2>
       <p>첫 번째 Forward에서는 아직 Cache가 없으므로 전체 문장을 넣습니다.</p>
@@ -226,6 +255,6 @@ past_key_values 과거 문맥의 KV Cache</code></pre>
     </section>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
 </body>
 </html>

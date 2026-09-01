@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Cache가 저장하는 K·V Tensor부터 첫 Forward, 후속 Token 생성, Padding Batch, DynamicCache 갱신, 수동 생성 검증과 성능 비교까지 하나의 흐름으로 설명합니다.">
+  <title>Transformer · KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</title>
+  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260825-working-style-flat">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer · KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가">
+  <meta property="og:description" content="KV Cache가 저장하는 K·V Tensor부터 첫 Forward, 후속 Token 생성, Padding Batch, DynamicCache 갱신, 수동 생성 검증과 성능 비교까지 하나의 흐름으로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html","name":"Transformer · KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","description":"KV Cache가 저장하는 K·V Tensor부터 첫 Forward, 후속 Token 생성, Padding Batch, DynamicCache 갱신, 수동 생성 검증과 성능 비교까지 하나의 흐름으로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},"headline":"Transformer · KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"KV Cache 전체 생성 흐름"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><span aria-current="page">KV Cache 전체 생성 흐름</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">Transformer · KV Cache end-to-end</span>
+      <h1>KV Cache는 무엇을 저장하고<br>다음 Token 생성에서 어떻게 재사용되는가</h1>
+      <p class="lead">같은 Prefix를 반복 계산하는 문제에서 출발해 K·V 저장, 첫 Forward와 후속 Forward의 입력 계약, 길이가 다른 Batch 생성, 수동 루프 검증과 CPU 성능 비교까지 하나의 실행 흐름으로 연결합니다.</p>
+      <div class="detail-actions"><a href="transformer_learning.html">← Transformer 학습 문서</a><a href="transformer_kv_cache_qkv_projection_learning.html">QKV Projection 상세</a><a href="transformer_kv_cache_followup_forward_mask_learning.html">후속 Forward 입력 상세</a><a href="../projects/road-to-llm-inference/pytorch-inference.html#batch">실제 관문 기록</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#repeated-prefix">1. 반복 계산 문제</a>
+      <a href="#cache-values">2. 실제 저장 값</a>
+      <a href="#first-forward">3. 첫 Cache 생성</a>
+      <a href="#new-token-only">4. 새 Token만 입력</a>
+      <a href="#followup-contract">5. 세 입력 계약</a>
+      <a href="#uneven-batch">6. 길이가 다른 Batch</a>
+      <a href="#dynamic-cache">7. DynamicCache 갱신</a>
+      <a href="#manual-loop">8. 수동 생성 루프</a>
+      <a href="#generate-cross-check">9. 전체 ID 교차검증</a>
+      <a href="#performance">10. 성능 비교</a>
+      <a href="#verification-boundary">11. 확인·미확인</a>
+      <a href="#conclusion">12. 결론</a>
+    </nav>
+
+    <section id="repeated-prefix" class="detail-section">
+      <h2>1. 같은 Prefix를 왜 계속 다시 계산하는가</h2>
+      <p>KV Cache가 필요한 이유는 다음 Token을 하나 생성할 때마다 이미 처리한 Prefix 전체를 다시 계산하는 낭비를 줄이기 위해서입니다.</p>
+      <ul class="reference-list">
+        <li><strong>No-cache</strong> — 매 Step 늘어난 Prefix 전체를 다시 모델에 넣습니다.</li>
+        <li><strong>KV Cache</strong> — 과거 K·V 결과를 남기고 새 Token 위치의 계산을 이어 갑니다.</li>
+      </ul>
+      <p>Decoder-only 언어 모델은 현재까지의 Token을 보고 다음 Token 하나를 예측합니다. Prompt가 <code>[A,B]</code>일 때 C를 선택했다면 다음 Step의 문맥은 <code>[A,B,C]</code>가 되고, 그다음에는 <code>[A,B,C,D]</code>로 한 칸씩 길어집니다.</p>
+      <p>다음 예시는 Cache가 없을 때 같은 Prefix가 어떻게 반복해서 입력되는지 보여 줍니다.</p>
+      <pre><code>Step 1  [A,B]       → C 예측
+Step 2  [A,B,C]     → D 예측
+Step 3  [A,B,C,D]   → E 예측</code></pre>
+      <p><strong>관찰 결과</strong> — 실제 No-cache 실습에서는 Batch는 1로 유지된 채 모델 입력의 Token 축이 <code>[1,3] → [1,4] → … → [1,12]</code>로 계속 늘어났습니다.</p>
+      <p><strong>해석</strong> — A와 B는 이미 이전 Step에서 Attention의 Q·K·V를 계산했지만, Prefix 전체를 다시 넣으면 같은 과거 Token의 계산도 반복됩니다.</p>
+      <div class="callout"><strong>문제의 핵심</strong><br>새로 필요한 것은 마지막에 붙은 Token 한 위치의 출력인데, 과거 Token 전체의 K·V까지 매번 다시 계산하고 있습니다. 따라서 KV Cache는 이 반복 계산을 줄이기 위해 과거 K·V 결과를 남깁니다.</div>
+    </section>
+
+    <section id="cache-values" class="detail-section">
+      <h2>2. KV Cache가 실제로 저장하는 값</h2>
+      <p>KV Cache는 Projection Module이나 Weight를 저장하는 기능이 아닙니다. 각 Transformer Layer의 Hidden State에 K·V Projection을 적용해 얻은 <strong>과거 Token별 Key·Value 출력 Tensor</strong>를 저장합니다.</p>
+      <p>저장 대상과 저장하지 않는 대상을 먼저 대비하면 다음과 같습니다.</p>
+      <pre><code>저장하지 않는 것
+× W_Q, W_K, W_V Weight
+× QKV Projection Module
+× Attention Score와 Softmax Weight
+
+저장하는 것
+○ 각 Layer·Head·Token의 K 출력 Tensor
+○ 각 Layer·Head·Token의 V 출력 Tensor</code></pre>
+      <p>개념적으로는 같은 Hidden State <code>X [B,S,D]</code>에 서로 다른 Weight를 적용합니다.</p>
+      <pre><code>Q = XW_Q + b_Q
+K = XW_K + b_K
+V = XW_V + b_V</code></pre>
+      <p>현재 사용한 GPT-2 계열 구현은 이 세 Projection을 각각 호출하지 않고, <code>c_attn</code>이라는 합쳐진 Projection으로 마지막 차원을 <code>D → 3D</code>로 늘린 뒤 Q·K·V 구간으로 나눕니다. 한 Weight를 공유한다는 뜻이 아니라, 개념적인 <code>W_Q</code>·<code>W_K</code>·<code>W_V</code>를 큰 Tensor에 나란히 붙여 한 번에 계산한다는 뜻입니다.</p>
+      <pre><code>W_QKV = [W_Q | W_K | W_V]
+XW_QKV = [XW_Q | XW_K | XW_V]
+               ↓ split
+              Q | K | V</code></pre>
+      <p>과거 Q는 Cache하지 않습니다. 과거 Token의 Query는 그 위치의 출력을 만들 때 이미 역할을 마쳤기 때문입니다.</p>
+      <ul class="reference-list">
+        <li><strong>현재 Token</strong> — 새 Query를 계산해 과거와 현재의 K·V를 조회합니다.</li>
+        <li><strong>과거 Cache</strong> — 새 Query가 다시 사용할 과거 K·V를 제공합니다.</li>
+      </ul>
+      <pre><code>새 Q × [과거 K + 새 K]ᵀ → Attention Weight
+Attention Weight × [과거 V + 새 V] → 새 위치의 출력</code></pre>
+      <p>따라서 다음 Token 생성에 재사용되는 것은 과거 Q가 아니라, 새 Query가 조회할 과거 K·V입니다.</p>
+    </section>
+
+    <section id="first-forward" class="detail-section">
+      <h2>3. 첫 Forward에서 Cache 만들기</h2>
+      <p>첫 Forward에는 아직 과거 Cache가 없으므로 Prompt 전체를 모델에 넣습니다. <code>use_cache=True</code>를 켜면 모델은 Logit과 함께 Layer별 K·V를 <code>past_key_values</code>로 반환합니다.</p>
+      <ul class="reference-list">
+        <li><strong>첫 Forward</strong> — Prompt 전체를 입력해 Cache를 처음 만듭니다.</li>
+        <li><strong>후속 Forward</strong> — 만들어진 Cache와 새 Token을 함께 사용합니다.</li>
+      </ul>
+      <p>실제 예시의 <code>"I study"</code>는 Token ID <code>[40,2050]</code>의 두 Token이고 입력 Shape은 <code>[1,2]</code>였습니다.</p>
+      <p>이 코드에서 볼 것은 <code>use_cache=True</code>와 반환값의 <code>past_key_values</code>입니다.</p>
+      <pre><code>prompt_input_ids = tokenizer(
+    "I study",
+    return_tensors="pt",
+).input_ids.to(device)
+
+with torch.inference_mode():
+    prompt_outputs = model(
+        input_ids=prompt_input_ids,
+        use_cache=True,
+    )
+
+prompt_cache = prompt_outputs.past_key_values</code></pre>
+      <p>tiny GPT-2는 Transformer Layer 2개와 Attention Head 2개를 가지며, 첫 Layer의 Key Cache는 다음 Shape으로 확인했습니다.</p>
+      <pre><code>prompt_input_ids                 [1,2]
+prompt_cache[0][0]  # Layer 0 K [1,2,2,1]
+prompt_cache[0][1]  # Layer 0 V [1,2,2,1]
+
+[Batch, Head, Token, Head dimension]</code></pre>
+      <p><strong>관찰 결과</strong> — 바깥 Index는 Layer, 안쪽 <code>0</code>은 Key, <code>1</code>은 Value를 선택했습니다. Tensor 하나 안에는 해당 Layer의 모든 Batch 행·Head·Token 위치가 함께 들어 있었습니다.</p>
+      <p>이로써 첫 Forward가 Prompt 전체를 처리하고 Layer별 K·V Cache를 만든다는 것을 확인했습니다.</p>
+    </section>
+
+    <section id="new-token-only" class="detail-section">
+      <h2>4. 후속 Forward에는 왜 새 Token만 넣는가</h2>
+      <p>KV Cache가 만들어진 뒤에는 모델에 과거 Token을 다시 넣지 않고, 새로 생성된 Token만 입력합니다.</p>
+      <p>과거 Token의 K·V가 <code>past_key_values</code>에 이미 있으므로, 같은 Token ID를 다시 입력해 계산할 필요가 없기 때문입니다. 새 Token의 Query는 Cache에 보관된 과거 K·V와 이번에 계산한 새 K·V를 함께 조회합니다.</p>
+      <p>실제 예시에서는 <code>"I study"</code>의 마지막 위치 Logit에서 Greedy 방식으로 Token ID <code>16046</code>, 즉 <code>" stairs"</code>를 선택했습니다. 다음 Forward에는 <code>"I study"</code>의 Token ID를 다시 넣지 않고, 방금 선택한 <code>" stairs"</code>의 ID 하나와 Prompt Cache를 전달했습니다.</p>
+      <ul class="reference-list">
+        <li><strong>현재 Token</strong> — 모델에 실제로 전달하는 새 Token ID 하나입니다.</li>
+        <li><strong>과거 Cache</strong> — Prompt의 과거 K·V를 담고 있습니다.</li>
+      </ul>
+      <pre><code>Prompt 전체 입력       [1,2]
+첫 Key Cache           [1,2,2,1]
+선택한 새 Token ID     [[16046]]
+
+후속 Forward 입력      [1,1]
+갱신된 Key Cache       [1,2,3,1]</code></pre>
+      <p><strong>관찰 결과</strong> — 후속 입력은 <code>[1,1]</code>이었지만 갱신된 Key Cache의 Token 축은 2에서 3으로 늘었습니다.</p>
+      <div class="caution"><strong>따라서 모델에 실제로 전달하는 <code>input_ids</code>는 새 Token 하나뿐이지만, Attention에서는 과거 Prompt와 새 Token을 합친 전체 문맥을 사용합니다.</strong></div>
+    </section>
+
+    <section id="followup-contract" class="detail-section">
+      <h2>5. 후속 Forward의 세 입력 계약</h2>
+      <p>KV Cache를 사용하는 후속 Forward에서는 새 Token에 해당하는 <code>input_ids</code>·<code>position_ids</code>와 전체 문맥에 해당하는 <code>attention_mask</code>를 함께 전달해야 합니다.</p>
+      <ul class="reference-list">
+        <li><strong><code>input_ids [B,1]</code></strong> — Batch의 각 문장에 이번에 새로 계산할 Token 하나를 전달합니다.</li>
+        <li><strong><code>position_ids [B,1]</code></strong> — 그 새 Token의 실제 위치만 전달합니다. 과거 위치는 Cache를 만들 때 이미 사용했습니다.</li>
+        <li><strong><code>attention_mask [B,past+new]</code></strong> — 새 Query가 조회할 과거와 현재 전체 범위에서 Padding 위치를 구분합니다.</li>
+      </ul>
+      <p>세 입력의 Shape을 한곳에 모으면 다음과 같습니다.</p>
+      <pre><code>input_ids       [B,1]
+position_ids    [B,1]
+attention_mask  [B,past + new]
+past_key_values 과거 문맥의 Layer별 K·V</code></pre>
+      <p>Cache에 과거 K·V가 있어도 어느 과거 위치가 Padding인지는 Cache 자체가 아니라 Mask가 알려 줍니다. 그래서 <code>attention_mask</code>만 과거와 새 Token을 합친 전체 길이를 유지합니다.</p>
+      <p>이 코드에서 볼 것은 새 Token 길이의 <code>input_ids</code>·<code>position_ids</code>와 전체 길이의 <code>attention_mask</code>가 동시에 전달된다는 점입니다.</p>
+      <pre><code>next_outputs = model(
+    input_ids=next_token_ids,              # [B,1]
+    position_ids=next_position_ids,        # [B,1]
+    attention_mask=extended_attention_mask,# [B,past+1]
+    past_key_values=prompt_cache,
+    use_cache=True,
+)</code></pre>
+      <p>따라서 후속 Forward의 세 입력은 같은 Token 길이를 억지로 맞추는 것이 아니라, 각각 새 계산과 전체 Attention 범위라는 역할에 맞는 길이를 가집니다.</p>
+    </section>
+
+    <section id="uneven-batch" class="detail-section">
+      <h2>6. 길이가 다른 문장을 하나의 Batch로 생성하기</h2>
+      <p>길이가 다른 문장을 하나의 Batch로 생성하려면 왼쪽 Padding으로 Token 축을 맞추고, Attention Mask와 Position ID로 각 문장의 실제 Token 범위를 보존해야 합니다.</p>
+      <p>두 문장을 같은 Tensor에 담으면서도 짧은 문장의 새 Token이 기존 실제 Token 뒤의 올바른 위치를 이어받아야 하기 때문입니다.</p>
+      <p>실제 예시인 <code>"I study"</code>와 <code>"I study machine learning every day"</code>는 각각 2개와 6개 Token입니다. Tokenizer의 Padding 방향을 왼쪽으로 두고 짧은 문장 앞을 EOS Token ID <code>50256</code>으로 채웠습니다.</p>
+      <p>이 코드에서 볼 것은 짧은 문장 왼쪽의 Padding ID와, 같은 위치를 <code>0</code>으로 표시한 Attention Mask입니다.</p>
+      <pre><code>tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "left"
+
+input_ids
+[[50256,50256,50256,50256,   40,2050],
+ [   40, 2050, 4572, 4673,  790,1110]]
+
+attention_mask
+[[0,0,0,0,1,1],
+ [1,1,1,1,1,1]]</code></pre>
+      <p>Position ID는 Mask의 누적합으로 실제 Token에만 순서를 붙입니다. 누적합은 실제 Token을 만날 때만 1씩 증가하고, 0부터 시작하도록 1을 뺍니다. Padding에서 생기는 <code>-1</code>은 다시 0으로 보정합니다.</p>
+      <pre><code>position_ids = (
+    attention_mask.cumsum(dim=-1) - 1
+).masked_fill(
+    attention_mask == 0,
+    0,
+)
+
+position_ids
+[[0,0,0,0,0,1],
+ [0,1,2,3,4,5]]</code></pre>
+      <p>새 Token을 하나 생성한 뒤에는 각 행의 Attention Mask 오른쪽에 실제 Token을 뜻하는 <code>1</code>을 하나 붙입니다. 확장한 Mask의 누적합에서 마지막 열만 <code>[:, -1:]</code>로 선택하면 각 문장의 새 Token 위치만 얻을 수 있습니다.</p>
+      <p>이 코드에서 볼 것은 Batch의 각 행에 Mask 값 하나를 추가하고, 누적합 결과의 마지막 열만 선택하는 흐름입니다.</p>
+      <pre><code>new_token_mask = torch.ones(
+    (attention_mask.shape[0], 1),
+    dtype=attention_mask.dtype,
+    device=attention_mask.device,
+)
+
+extended_attention_mask = torch.cat(
+    [attention_mask, new_token_mask],
+    dim=1,
+)
+
+next_position_ids = (
+    extended_attention_mask.cumsum(dim=-1) - 1
+)[:, -1:]
+
+# [[2],
+#  [6]]</code></pre>
+      <p><strong>관찰 결과</strong> — 두 문장의 다음 Position ID는 각각 <code>[[2],[6]]</code>이었습니다. 따라서 Padding 길이가 달라도 실제 Token 수를 기준으로 다음 위치를 이어 갈 수 있었습니다.</p>
+    </section>
+
+    <section id="dynamic-cache" class="detail-section">
+      <h2>7. 후속 Forward는 기존 DynamicCache에 새 Token의 K·V를 이어 붙입니다</h2>
+      <p>후속 Forward에 기존 <code>DynamicCache</code>를 전달하면 반환된 Cache도 같은 객체를 가리키며, 객체 안에 새 Token의 K·V가 Token 축으로 추가되어 Sequence 길이가 증가합니다.</p>
+      <p><strong>관찰 결과</strong> — 현재 설치된 Transformers에서 tiny GPT-2의 Cache Type은 <code>transformers.cache_utils.DynamicCache</code>였습니다. 후속 Forward 전 Cache와 반환된 Cache를 <code>is</code>로 비교하면 같은 객체였고, 새 Token의 K·V가 추가된 결과 내부 Sequence 길이는 <code>7 → 8</code>로 증가했습니다.</p>
+      <pre><code>updated_cache = next_outputs.past_key_values
+
+prompt_cache is updated_cache       # True
+cache_length_before                 # 7
+updated_cache.get_seq_length()      # 8</code></pre>
+      <p><strong>따라서</strong> — 새로운 Cache 전체를 별도 객체로 복제한 것이 아니라, 같은 DynamicCache 객체 안에 새 Token의 K·V가 추가되었습니다. 두 변수가 같은 객체를 가리킨 상태에서는 Forward 뒤 어느 변수로 길이를 읽어도 갱신된 값을 봅니다.</p>
+      <p><strong>관찰 결과</strong> — 길이가 다른 두 문장의 5-Step 생성 루프에서도 첫 Forward의 Cache 길이 6부터 새 Token의 K·V가 Token 축에 하나씩 이어 붙을 때마다 내부 길이가 증가했습니다.</p>
+      <pre><code>Step 1  input_ids [2,6]  Cache 길이 6
+Step 2  input_ids [2,1]  Cache 길이 7
+Step 3  input_ids [2,1]  Cache 길이 8
+Step 4  input_ids [2,1]  Cache 길이 9
+Step 5  input_ids [2,1]  Cache 길이 10</code></pre>
+      <p><strong>해석</strong> — 첫 입력 <code>[2,6]</code>으로 길이 6의 K·V Tensor를 만든 뒤, 후속 입력 <code>[2,1]</code>마다 새 Token의 K·V를 같은 객체에 추가했기 때문에 Token 축의 길이가 7부터 10까지 늘어난 것입니다.</p>
+      <p>다만 이 객체 갱신 방식은 현재 실행한 Transformers 버전의 DynamicCache에서 확인한 동작입니다. Cache 구현이 다른 객체까지 모두 같은 방식이라고 일반화하지 않습니다.</p>
+    </section>
+
+    <section id="manual-loop" class="detail-section">
+      <h2>8. 수동 KV Cache Token 생성 루프</h2>
+      <p>지금까지의 규칙을 하나의 반복문으로 연결하면 첫 Step과 이후 Step의 입력 범위가 분명해집니다. 첫 Step에는 전체 Prompt를 넣고, Cache가 생긴 뒤부터는 직전에 선택한 새 Token만 넣습니다.</p>
+      <ul class="reference-list">
+        <li><strong><code>generated_ids</code></strong> — 최종 Decode를 위해 Prompt와 생성 Token 전체를 계속 모읍니다.</li>
+        <li><strong><code>step_input_ids</code></strong> — 이번 Forward에서 모델이 실제로 계산할 Token만 담습니다.</li>
+      </ul>
+      <p>첫 Forward 뒤 <code>step_input_ids</code>는 항상 직전에 고른 <code>[B,1]</code> 새 Token이고, 과거 문맥은 <code>past_key_values</code>가 담당합니다.</p>
+      <p>이 코드에서 볼 것은 첫 Step에서 전체 Position ID를 만들고, 후속 Step에서는 마지막 Position ID와 새 Token만 사용하면서 <code>generated_ids</code>에는 결과를 계속 누적하는 부분입니다.</p>
+      <pre><code>generated_ids = encoded_batch.input_ids.to(device)
+current_attention_mask = encoded_batch.attention_mask.to(device)
+step_input_ids = generated_ids
+past_key_values = None
+
+with torch.inference_mode():
+    for _ in range(max_new_tokens):
+        if past_key_values is None:
+            step_position_ids = (
+                current_attention_mask.cumsum(dim=-1) - 1
+            ).masked_fill(
+                current_attention_mask == 0,
+                0,
+            )
+        else:
+            step_position_ids = (
+                current_attention_mask.cumsum(dim=-1) - 1
+            )[:, -1:]
+
+        outputs = model(
+            input_ids=step_input_ids,
+            attention_mask=current_attention_mask,
+            position_ids=step_position_ids,
+            past_key_values=past_key_values,
+            use_cache=True,
+        )
+
+        past_key_values = outputs.past_key_values
+        next_token_ids = outputs.logits[:, -1, :].argmax(
+            dim=-1,
+            keepdim=True,
+        )
+        generated_ids = torch.cat(
+            [generated_ids, next_token_ids],
+            dim=1,
+        )
+
+        step_input_ids = next_token_ids
+        current_attention_mask = torch.cat(
+            [
+                current_attention_mask,
+                torch.ones(
+                    (current_attention_mask.shape[0], 1),
+                    dtype=current_attention_mask.dtype,
+                    device=current_attention_mask.device,
+                ),
+            ],
+            dim=1,
+        )</code></pre>
+      <p><strong>관찰 결과</strong> — 두 문장 모두 매 Step Token ID <code>16046</code>을 선택해 다음과 같이 생성되었습니다.</p>
+      <pre><code>I study stairs stairs stairs stairs stairs
+I study machine learning every day stairs stairs stairs stairs stairs</code></pre>
+      <p><strong>해석</strong> — 전체 결과를 모으는 Tensor와 이번 Step의 입력 Tensor를 분리했기 때문에, Decode용 기록을 유지하면서도 Cache가 생긴 뒤에는 새 Token만 모델에 전달할 수 있었습니다.</p>
+    </section>
+
+    <section id="generate-cross-check" class="detail-section">
+      <h2>9. <code>generate()</code> Token 생성 메서드와 전체 ID 교차검증</h2>
+      <p>수동 루프의 결과가 올바른지 확인하려면 라이브러리의 <code>generate()</code> Token 생성 메서드와 전체 Token ID를 교차검증해야 합니다.</p>
+      <p>수동 루프가 오류 없이 실행됐다는 사실만으로 Mask·Position ID·Cache 전달이 정확하다고 결론내릴 수는 없기 때문입니다.</p>
+      <p>같은 원본 <code>input_ids</code>와 <code>attention_mask</code>를 라이브러리가 제공하는 <code>generate()</code> Token 생성 메서드에도 넣었습니다.</p>
+      <p>이 코드에서 볼 것은 두 생성 결과를 일부 Decode 문장이 아니라 <code>torch.equal</code>로 전체 Tensor 단위에서 비교한다는 점입니다.</p>
+      <pre><code>with torch.inference_mode():
+    method_generated_ids = model.generate(
+        input_ids=original_input_ids,
+        attention_mask=original_attention_mask,
+        max_new_tokens=5,
+        do_sample=False,
+        use_cache=True,
+        pad_token_id=tokenizer.pad_token_id,
+    )
+
+torch.equal(
+    generated_ids,
+    method_generated_ids,
+)  # True</code></pre>
+      <p><strong>관찰 결과</strong> — 수동 생성과 <code>generate()</code> Token 생성 메서드가 반환한 전체 Token ID Tensor는 Padding부터 새 Token 5개까지 완전히 같았습니다.</p>
+      <pre><code>수동 생성 IDs
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]
+
+Token 생성 메서드 IDs
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]</code></pre>
+      <p><strong>해석</strong> — 현재 조건에서는 수동 루프와 Token 생성 메서드가 외부에서 관찰되는 동일한 전체 ID 결과를 만들었습니다.</p>
+      <div class="caution"><strong><code>torch.equal(...)=True</code>는 현재 모델·입력·Greedy 선택·생성 길이·Cache 조건에서 외부 결과가 같다는 증거입니다. 라이브러리 내부 구현과 수동 코드의 모든 연산 순서가 줄마다 동일하다는 증명은 아닙니다.</strong></div>
+    </section>
+
+    <section id="performance" class="detail-section">
+      <h2>10. No-cache·KV Cache × Batch 1·4 성능 비교</h2>
+      <p><strong>기능 결과 일치 확인 후 실제 실행시간에도 차이가 있는가?</strong></p>
+      <p>이 질문을 확인하기 위해 같은 출력 조건에서 No-cache와 KV Cache의 실행시간과 처리량을 비교했습니다.</p>
+      <ul class="reference-list">
+        <li><strong>No-cache</strong> — <code>use_cache=False</code>로 실행했습니다.</li>
+        <li><strong>KV Cache</strong> — <code>use_cache=True</code>로 실행했습니다.</li>
+      </ul>
+      <p>최종 2×2 Benchmark는 tiny GPT-2·로컬 CPU·Prompt <code>"I study"</code>·문장당 새 Token 20개·Warm-up 3회·측정 20회·Greedy <code>generate()</code> Token 생성 메서드를 고정했습니다. 네 조건에서 바꾼 것은 Batch 크기와 <code>use_cache=False/True</code>뿐입니다.</p>
+      <p>평균 시간은 문장 한 개의 시간이 아니라 해당 Batch의 모든 문장을 처리하는 Token 생성 호출 한 번의 평균 전체 시간입니다. 처리량은 <code>Batch 크기 × 20</code>개의 새 Token을 그 평균 시간으로 나눈 값입니다.</p>
+      <table><thead><tr><th>방식</th><th>Batch</th><th>평균 전체 시간</th><th>처리량</th><th>출력 일치</th></tr></thead><tbody><tr><td>No-cache</td><td>1</td><td><code>23.082 ms</code></td><td><code>866.48 tokens/sec</code></td><td rowspan="2"><code>True</code></td></tr><tr><td>KV Cache</td><td>1</td><td><code>15.488 ms</code></td><td><code>1291.32 tokens/sec</code></td></tr><tr><td>No-cache</td><td>4</td><td><code>26.701 ms</code></td><td><code>2996.09 tokens/sec</code></td><td rowspan="2"><code>True</code></td></tr><tr><td>KV Cache</td><td>4</td><td><code>25.023 ms</code></td><td><code>3197.07 tokens/sec</code></td></tr></tbody></table>
+      <p><strong>관찰 결과</strong> — Batch 1에서는 <code>23.082 ÷ 15.488 ≈ 1.49</code>로 KV Cache가 약 <code>1.49배</code> 빠르게 측정되었습니다. Batch 4에서는 <code>26.701 ÷ 25.023 ≈ 1.07</code>로 약 <code>1.07배</code>였습니다.</p>
+      <p><strong>관찰 결과</strong> — Batch 4의 처리량은 Batch 1과 비교해 No-cache에서 약 <code>3.46배</code>, KV Cache에서 약 <code>2.48배</code>였습니다.</p>
+      <p><strong>해석</strong> — Batch를 키우면 한 번의 호출 시간은 늘지만, 동시에 생성한 전체 Token 수가 더 크게 늘어 처리량이 높아질 수 있음을 확인했습니다.</p>
+      <div class="warning"><strong>성능 수치의 경계</strong><br>이 비율은 작은 tiny GPT-2를 로컬 CPU에서 짧고 같은 Prompt로 측정한 결과입니다. 모델 크기·Prompt와 생성 길이·장치·Batch 구성·실행 환경이 달라지면 결과도 달라집니다. 이 수치를 KV Cache의 일반적인 향상률이나 GPU 성능으로 일반화하지 않으며, Batch 4에서 Cache 차이가 작아진 원인도 이 측정만으로 확정하지 않습니다.</div>
+    </section>
+
+    <section id="verification-boundary" class="detail-section">
+      <h2>11. 확인한 것과 아직 확인하지 않은 것</h2>
+      <div class="status-list">
+        <div class="status-row"><strong>확인</strong><span>KV Cache는 Projection Weight가 아니라 Layer·Head·Token별 K·V 출력 Tensor를 저장합니다.</span></div>
+        <div class="status-row"><strong>확인</strong><span>첫 Forward는 Prompt 전체를 처리하고, 후속 Forward는 새 Token <code>[B,1]</code>과 과거 Cache를 사용합니다.</span></div>
+        <div class="status-row"><strong>확인</strong><span>후속 입력 계약은 <code>input_ids [B,1]</code>·<code>position_ids [B,1]</code>·<code>attention_mask [B,past+new]</code>입니다.</span></div>
+        <div class="status-row"><strong>확인</strong><span>길이가 다른 두 문장을 왼쪽 Padding한 수동 루프의 전체 ID가 <code>generate()</code> Token 생성 메서드와 일치했습니다.</span></div>
+        <div class="status-row"><strong>확인</strong><span>CPU에서 No-cache·KV Cache × Batch 1·4의 출력·Latency·Throughput 기준선을 같은 계약으로 측정했습니다.</span></div>
+        <div class="status-row"><strong>미확인</strong><span>GPU Peak VRAM, 모델·입력·Logit Device, H2D·D2H 이동, CUDA 비동기 실행과 <code>synchronize</code> 전후 Timing 차이는 다음 측정으로 남아 있습니다.</span></div>
+      </div>
+      <p>따라서 KV Cache의 저장·재사용과 로컬 CPU 기능·성능 기준선까지는 확인했지만, GPU 메모리와 비동기 실행 경계를 포함한 PyTorch 추론 Baseline 전체를 완료한 것은 아닙니다.</p>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>12. 결론</h2>
+      <p>KV Cache의 전체 흐름은 다음과 같이 정리할 수 있습니다.</p>
+      <pre><code>첫 Forward
+Prompt 전체 입력
+→ Layer별 Q·K·V 계산
+→ 과거 Token의 K·V를 DynamicCache에 저장
+→ 마지막 Logit에서 새 Token 선택
+
+후속 Forward
+새 Token input_ids [B,1]
++ 새 Token position_ids [B,1]
++ 전체 attention_mask [B,past+new]
++ 과거 past_key_values
+→ 새 Token의 Q·K·V만 계산
+→ 새 Q가 과거+현재 K·V를 조회
+→ 새 K·V를 같은 Cache 뒤에 추가
+→ 다음 Token 선택</code></pre>
+      <div class="caution"><strong>KV Cache는 과거 Token의 K·V Projection 결과를 저장해, 다음 Token 생성에서 과거 Prefix의 K·V를 다시 계산하지 않고 새 Token 한 위치의 계산만 이어 가게 합니다.</strong></div>
+      <p>수동 루프는 <code>generate()</code> Token 생성 메서드와 전체 Token ID가 일치하는지 먼저 확인했고, 그 뒤 같은 출력 조건에서 No-cache·KV Cache의 CPU Latency와 Batch 처리량을 비교했습니다. 다음 단계는 같은 Benchmark 계약을 GPU로 옮겨 Peak VRAM과 CUDA 동기화 측정 경계를 확인하는 것입니다.</p>
+      <ul class="reference-list">
+        <li><a href="transformer_kv_cache_qkv_projection_learning.html">GPT-2 합쳐진 QKV Projection과 역할별 Gradient 상세</a></li>
+        <li><a href="transformer_kv_cache_followup_forward_mask_learning.html">새 Token과 전체 Attention Mask 입력 계약 상세</a></li>
+        <li><a href="transformer_kv_cache_in_place_update_learning.html">DynamicCache 객체 참조와 in-place 갱신 증명</a></li>
+        <li><a href="../projects/road-to-llm-inference/pytorch-inference.html">PyTorch 추론 Baseline 관문 실습 기록</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+</body>
+</html>

@@ -259,16 +259,16 @@ window.LEARNING_STATE = {
     ]
   },
   coaching: {
-    recentEvidence: "같은 tiny GPT-2·CPU·float32·Prompt 2 Token·Greedy·새 Token 20개 조건에서 각 방식 Warm-up 3회 뒤 10회 측정했습니다. 출력 일치를 유지하면서 No-cache 평균 74.1009 ms, KV Cache 평균 11.6883 ms로 현재 조건에서 약 6.34배 차이를 확인했습니다.",
-    diagnosis: "단일 문장의 No-cache·KV Cache 기능 일치, Cache 누적 Shape과 첫 로컬 Latency 기준선을 확보했습니다. 이제 Batch 1과 Batch N의 입력·Cache Shape, 처리량과 메모리 차이를 비교할 단계입니다.",
+    recentEvidence: "같은 tiny GPT-2·CPU·Prompt \"I study\"·Greedy·새 Token 20개 조건에서 Warm-up 3회 뒤 20회 측정했습니다. Batch 1과 4 모두 No-cache·KV Cache 출력이 일치했고, Batch 1은 866.48→1291.32 tokens/sec, Batch 4는 2996.09→3197.07 tokens/sec로 측정했습니다.",
+    diagnosis: "No-cache·KV Cache와 Batch 1·4의 출력 일치, Cache 누적 Shape, 로컬 CPU Latency·Throughput 기준선을 확보했습니다. 이제 GPU에서 Peak VRAM과 CUDA 비동기 실행을 포함한 동기화 측정 경계를 확인할 단계입니다.",
     warning: "추론 최적화 비교에서는 모델·dtype·Prompt Token 수·생성 Token 수·장치·워밍업 조건을 고정합니다. Cache 사용 여부 외의 조건이 함께 바뀌면 속도 차이의 원인을 설명할 수 없습니다.",
     completionGate: "1차 순환 · 완료: 회원 이탈 Baseline·PyTorch MLP·Transformer Block·Tiny Decoder LM·사전학습 Causal LM 적용을 닫았습니다. → 현재: PyTorch 추론 Baseline에서 No-cache와 KV Cache를 같은 조건으로 비교합니다.",
     scheduledRotation: "현재: PyTorch 추론 Baseline → 다음: Benchmark 계약을 고정한 뒤 vLLM 서빙·관측으로 이동합니다."
   },
   rotation: {
     trigger: "사전학습 Causal LM의 Tokenizer·Forward·수동 생성·평가·Artifact 복원을 완료했습니다.",
-    next: "같은 tiny GPT-2와 Prompt에서 No-cache·KV Cache의 출력 일치·Cache Shape 누적·첫 로컬 Latency 차이를 확인했습니다.",
-    after: "Batch 1·Batch N의 입력·Cache Shape, 처리량·메모리 차이를 기록합니다.",
+    next: "같은 tiny GPT-2와 Prompt에서 No-cache·KV Cache의 출력 일치·Cache 누적을 확인하고, Batch 1·4의 로컬 CPU Latency·Throughput 2×2 기준선을 확보했습니다.",
+    after: "GPU에서 Peak VRAM·장치 이동과 CUDA 동기화 전후 Timing 차이를 같은 Benchmark 계약으로 기록합니다.",
     returnTo: "PyTorch 추론 Baseline"
   },
   tracks: [
@@ -306,8 +306,8 @@ window.LEARNING_STATE = {
       href: "roadmaps/roadmap_llm_systems.html",
       done: 1,
       total: 5,
-      current: "같은 모델·Prompt·Greedy·생성 길이에서 출력 일치와 Cache 누적을 확인하고, CPU 첫 기준선에서 No-cache 74.1009 ms와 KV Cache 11.6883 ms를 측정했습니다.",
-      next: "Batch 1과 Batch N의 입력·Cache Shape, 처리량과 메모리 차이를 비교합니다."
+      current: "같은 모델·Prompt·Greedy·생성 길이에서 출력 일치와 Cache 누적을 확인하고, CPU에서 No-cache·KV Cache × Batch 1·4의 Latency·Throughput을 같은 조건으로 비교했습니다.",
+      next: "GPU에서 Peak VRAM과 모델·입력·Logit Device, H2D·D2H 이동, CUDA 동기화 전후 Timing 차이를 기록합니다."
     }
   ]
 };

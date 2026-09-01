@@ -121,7 +121,7 @@ function formatDuration(durations) {
   return `${durations.some((duration) => duration.approximate) ? "약 " : ""}${value}`;
 }
 
-const [manifest, graph, contentCatalog, homeContent, learningState, codingTestState, reviewState, learningHistoryData, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
+const [manifest, graph, contentCatalog, homeContent, learningState, codingTestState, reviewState, learningHistoryData, homeHtml, topLevelRoadmapHtml, wikiHtml, mapHtml, historyHtml, backlogHtml, reviewHtml, roadmapHtml, codingTestIndexHtml] = await Promise.all([
   loadJson("knowledge_manifest.json"),
   loadJson("concept_graph.json"),
   loadContentCatalog(),
@@ -135,13 +135,16 @@ const [manifest, graph, contentCatalog, homeContent, learningState, codingTestSt
   readFile(resolve(wikiRoot, "wiki.html"), "utf8"),
   readFile(resolve(wikiRoot, "knowledge_map.html"), "utf8"),
   readFile(resolve(wikiRoot, "learning_history.html"), "utf8"),
+  readFile(resolve(wikiRoot, "learning_backlog.html"), "utf8"),
+  readFile(resolve(wikiRoot, "learning_review.html"), "utf8"),
   readFile(resolve(wikiRoot, "pytorch_professional_roadmap.html"), "utf8"),
   readFile(resolve(wikiRoot, "wiki/coding-test/index.html"), "utf8"),
 ]);
 
 const homeProjects = staticRegion(homeHtml, "home-projects");
 const homeKnowledge = staticRegion(homeHtml, "home-knowledge");
-const expectedHomeProjects = itemsForPlacement(contentCatalog, "home");
+const expectedProjectPageItems = itemsForPlacement(contentCatalog, "projects");
+const expectedHomeProjects = expectedProjectPageItems.slice(0, 5);
 assertSetEqual(valuesForAttribute(homeProjects, "href"), expectedHomeProjects.map((item) => item.href), "Home projects");
 assertEqual(valuesForAttribute(homeProjects, "href").join("|"), expectedHomeProjects.map((item) => item.href).join("|"), "Home project date/pin order");
 assertSetEqual(valuesForAttribute(homeKnowledge, "href"), homeContent.knowledgeAreas.map((item) => item.href), "Home knowledge areas");
@@ -362,7 +365,7 @@ for (const href of attemptNoteHrefs) {
   if (completedProblemHrefs.includes(href)) throw new Error(`Coding-test attempt note is also counted as completed: ${href}`);
 }
 const learningRecords = sectionById(historyHtml, "learning-records");
-const recordEntries = [...learningRecords.matchAll(/<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)]
+const recordEntries = [...learningRecords.matchAll(/<article\b([^>]*\bclass=["'][^"']*\bday\b[^"']*["'][^>]*)>\s*<div\b[^>]*\bclass=["'][^"']*\bday-heading\b[^"']*["'][^>]*>\s*<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>/gi)]
   .map((match) => ({ attributes: match[1], date: match[2] }));
 const recordedDates = recordEntries.map((entry) => entry.date);
 const uniqueRecordedDates = [...new Set(recordedDates)].sort().reverse();
@@ -394,6 +397,27 @@ assertSetEqual(
   jsonRecordDates.map((date) => `#study-${date}`),
   "Learning calendar dates from JSON",
 );
+for (const token of ["activity-year", "activity-grid"]) {
+  if (!learningCalendar.includes(token)) throw new Error(`Learning activity calendar token is missing: ${token}`);
+}
+for (const token of ["1~29분", "30~59분", "60~119분", "120분 이상", "시간 미기록"]) {
+  if (!historyHtml.includes(token)) throw new Error(`Learning activity legend token is missing: ${token}`);
+}
+for (const record of learningHistoryData.records) {
+  const anchor = learningCalendar.match(new RegExp(`<a\\b(?=[^>]*\\bhref=["']#study-${record.date}["'])([^>]*)>`, "i"));
+  if (!anchor) throw new Error(`Learning activity day is missing: ${record.date}`);
+  const expectedLevel = !record.studyTime
+    ? "unrecorded"
+    : record.studyTime.minutes < 30
+      ? "1"
+      : record.studyTime.minutes < 60
+        ? "2"
+        : record.studyTime.minutes < 120
+          ? "3"
+          : "4";
+  assertEqual(anchor[1].match(/\bdata-activity-level=["']([^"']+)["']/i)?.[1] || "", expectedLevel, `Learning activity level ${record.date}`);
+  if (!new RegExp(`\\blevel-${expectedLevel}\\b`).test(anchor[1])) throw new Error(`Learning activity class mismatch: ${record.date}`);
+}
 assertEqual(textById(historyHtml, "historyLearningDayCount"), `${uniqueRecordedDates.length}일`, "Learning-history day count");
 assertEqual(textById(historyHtml, "historyLatestLearningDate"), uniqueRecordedDates[0], "Learning-history latest date");
 assertEqual(learningState.updated, uniqueRecordedDates[0], "Learning-state latest date");
@@ -454,11 +478,17 @@ if (/\bid=["'](?:recentCompletion|currentLearning|currentNextAction|coachingStat
 if (!historyHtml.includes('assets/js/learning_journey.js')) throw new Error("Learning-journey interaction script is missing");
 const learningJourney = staticRegion(historyHtml, "learning-journey");
 assertJourneyMatches(learningJourney, learningState.journey, "Learning journey");
-if (!historyHtml.includes('assets/css/review-queue.css')) throw new Error("Review-queue stylesheet is missing");
-if (!historyHtml.includes('assets/js/review_queue.js')) throw new Error("Review-queue interaction script is missing");
-if (!historyHtml.includes('type="application/json" href="assets/data/review_state.json"')) throw new Error("Review JSON alternate link is missing");
-if (!historyHtml.includes('<h2>기억 강화 세션</h2>')) throw new Error("Memory reinforcement session heading is missing");
-if (!historyHtml.includes('title="기억 강화 세션 상태 데이터"')) throw new Error("Memory reinforcement JSON label is missing");
+if (!/<\/header>\s*<section\b[^>]*id=["']study-calendar["'][\s\S]*?<\/section>\s*<!-- learning-calendar-placement -->\s*<section\b[^>]*id=["']primary-learning-journey["']/i.test(historyHtml)) {
+  throw new Error("Learning calendar must follow the top summary and precede the primary learning journey");
+}
+if (historyHtml.includes('id="review-queue"') || historyHtml.includes('id="deferred-learning"')) throw new Error("Backlog and review sections must not remain on the learning-history page");
+if (historyHtml.includes('assets/css/review-queue.css') || historyHtml.includes('assets/js/review_queue.js')) throw new Error("Review-only assets must not remain on the learning-history page");
+if (!reviewHtml.includes('assets/css/review-queue.css')) throw new Error("Review-queue stylesheet is missing from the review page");
+if (!reviewHtml.includes('assets/js/review_queue.js')) throw new Error("Review-queue interaction script is missing from the review page");
+if (!reviewHtml.includes('type="application/json" href="assets/data/review_state.json"')) throw new Error("Review JSON alternate link is missing from the review page");
+if (!reviewHtml.includes('<h1>기억 강화 세션</h1>')) throw new Error("Memory reinforcement page heading is missing");
+if (!reviewHtml.includes('title="기억 강화 세션 상태 데이터"')) throw new Error("Memory reinforcement JSON label is missing");
+if (!backlogHtml.includes('<h1>나중에 다시 할 학습</h1>')) throw new Error("Deferred-learning page heading is missing");
 
 for (const milestone of learningState.journey.milestones) {
   const needsPracticeDocument = milestone.status === "complete" || milestone.status === "current";
@@ -481,7 +511,7 @@ for (const milestone of learningState.journey.milestones) {
     throw new Error(`Practice document status mismatch: ${milestone.id}`);
   }
 }
-const reviewQueue = staticRegion(historyHtml, "review-queue");
+const reviewQueue = staticRegion(reviewHtml, "review-queue");
 for (const expectedText of [
   reviewState.policy.attemptRule,
   reviewState.policy.overflowRule,
@@ -523,7 +553,7 @@ for (const item of reviewState.items) {
   assertEqual(valuesForAttribute(block.content, "href").join("|"), item.sourceHref, `Review source href ${item.id}`);
   await readFile(resolve(wikiRoot, item.sourceHref.split("#")[0]), "utf8");
 }
-const deferredLearning = staticRegion(historyHtml, "deferred-learning-items");
+const deferredLearning = staticRegion(backlogHtml, "deferred-learning-items");
 for (const expectedText of [
   learningState.deferredLearningItems.policy.reviewWhen,
   String(learningState.deferredLearningItems.policy.activeLimit),
@@ -558,9 +588,27 @@ if (!optionalSessionJourneys.includes('id="codingTestJourney"') || optionalSessi
 if (!normalizeText(historyHtml).includes(normalizeText(learningState.priorityPolicy.rule))) {
   throw new Error("Learning history must state the primary journey priority rule");
 }
-const studyTime = sectionById(historyHtml, "study-time");
-const sessionDates = [...studyTime.matchAll(/<article\b(?=[^>]*\bclass=["'][^"']*\bsession\b[^"']*["'])[^>]*>[\s\S]*?<time\b(?=[^>]*\bdatetime=["'](\d{4}-\d{2}-\d{2})["'])[^>]*>[\s\S]*?<div\b(?=[^>]*\bclass=["'][^"']*\bduration\b[^"']*["'])[^>]*>([\s\S]*?)<\/div>/gi)]
-  .map((match) => ({ date: match[1], duration: durationMinutes(match[2]) }));
+if (/<section\b[^>]*\bid=["']study-time["']/i.test(historyHtml)) throw new Error("Standalone study-time section must be removed");
+if (!learningRecords.includes('id="study-time"')) throw new Error("Legacy study-time fragment must remain inside learning records");
+if (!normalizeText(learningRecords).includes(normalizeText(learningHistoryData.studyTimeNoteHtml))) throw new Error("Study-time note must remain in learning records");
+const sessionDates = [];
+for (const record of learningHistoryData.records) {
+  const dayMatch = learningRecords.match(new RegExp(`<article\\b(?=[^>]*\\bid=["']study-${record.date}["'])[^>]*>[\\s\\S]*?<\\/article>`, "i"));
+  if (!dayMatch) throw new Error(`Learning record block is missing: ${record.date}`);
+  const dayBlock = dayMatch[0];
+  const durationText = textByClass(dayBlock, "day-duration");
+  if (!record.studyTime) {
+    assertEqual(durationText, "공부시간 미기록", `Unrecorded study-time label ${record.date}`);
+    if (/\bday-study-time\b/i.test(dayBlock)) throw new Error(`Unrecorded date must not render study-time detail: ${record.date}`);
+    continue;
+  }
+  const duration = durationMinutes(durationText);
+  sessionDates.push({ date: record.date, duration });
+  if (!/\bday-study-time\b/i.test(dayBlock)) throw new Error(`Study-time detail is missing from dated record: ${record.date}`);
+  for (const expectedText of [record.studyTime.label, record.studyTime.bodyHtml]) {
+    if (!normalizeText(dayBlock).includes(normalizeText(expectedText))) throw new Error(`Study-time content is missing from dated record: ${record.date}`);
+  }
+}
 const jsonSessions = learningHistoryData.records.filter((record) => record.studyTime).map((record) => ({
   date: record.date,
   duration: { minutes: record.studyTime.minutes, approximate: record.studyTime.approximate },

@@ -123,13 +123,13 @@ for (const href of datedHrefs) {
 }
 
 const placementAudits = [
-  { placement: "home", location: "index.html 프로젝트", region: markerContent(homeHtml, "static-fallback:home-projects") },
+  { placement: "home", location: "index.html 프로젝트", region: markerContent(homeHtml, "static-fallback:home-projects"), items: itemsForPlacement(catalog, "projects").slice(0, 5) },
   { placement: "projects", location: "projects.html 프로젝트", region: markerContent(projectsHtml, "static-fallback:projects-page") },
   { placement: "blog", location: "blog.html 글 목록", region: markerContent(blogHtml, "curated-blog:cards") },
 ];
 
-for (const { placement, location, region } of placementAudits) {
-  const items = itemsForPlacement(catalog, placement);
+for (const { placement, location, region, items: explicitItems } of placementAudits) {
+  const items = explicitItems || itemsForPlacement(catalog, placement);
   for (const item of items) {
     const block = requireItem(region, item, location, placement);
     if (placement === "blog") requirePublishedDate(block, item, location);
