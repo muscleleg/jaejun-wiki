@@ -27,14 +27,19 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function itemLinkBlock(region, item, location) {
-  const match = region.match(new RegExp(`<a\\b[^>]*href=["']${escapeRegExp(item.href)}["'][^>]*>[\\s\\S]*?<\\/a>`, "i"));
+function placementHref(item, placement = "wiki") {
+  return placement === "blog" ? `${item.href}?view=blog` : item.href;
+}
+
+function itemLinkBlock(region, item, location, placement = "wiki") {
+  const href = placementHref(item, placement);
+  const match = region.match(new RegExp(`<a\\b[^>]*href=["']${escapeRegExp(href)}["'][^>]*>[\\s\\S]*?<\\/a>`, "i"));
   if (!match) findings.push(`${location}: ${item.id}의 링크 카드 누락`);
   return match?.[0] || "";
 }
 
-function requireItem(region, item, location) {
-  const block = itemLinkBlock(region, item, location);
+function requireItem(region, item, location, placement = "wiki") {
+  const block = itemLinkBlock(region, item, location, placement);
   for (const value of [item.href, item.title, item.summary]) {
     if (!block.includes(value)) findings.push(`${location}: ${item.id}의 ${JSON.stringify(value)} 누락`);
   }
@@ -46,10 +51,11 @@ function requirePublishedDate(region, item, location) {
   if (!region.includes(expected)) findings.push(`${location}: ${item.id}의 등록일 ${item.publishedAt} 누락`);
 }
 
-function hrefOrder(region, items, location) {
+function hrefOrder(region, items, location, placement = "wiki") {
   let previousIndex = -1;
   for (const item of items) {
-    const index = region.indexOf(`href="${item.href}"`);
+    const href = placementHref(item, placement);
+    const index = region.indexOf(`href="${href}"`);
     if (index === -1) {
       findings.push(`${location}: ${item.href} 링크 누락`);
     } else if (index <= previousIndex) {
@@ -125,10 +131,10 @@ const placementAudits = [
 for (const { placement, location, region } of placementAudits) {
   const items = itemsForPlacement(catalog, placement);
   for (const item of items) {
-    const block = requireItem(region, item, location);
+    const block = requireItem(region, item, location, placement);
     if (placement === "blog") requirePublishedDate(block, item, location);
   }
-  hrefOrder(region, items, location);
+  hrefOrder(region, items, location, placement);
 }
 
 for (const item of itemsForPlacement(catalog, "wiki")) {

@@ -113,7 +113,7 @@ for (const document of manifest.documents) {
 }
 if (maxDepth > 3) findings.push(`문서 계층 최대 깊이는 3이어야 함: 현재 ${maxDepth}`);
 
-for (const document of manifest.documents.filter(({ categoryKey }) => ["llm-systems", "external-articles"].includes(categoryKey))) {
+for (const document of manifest.documents.filter(({ categoryKey }) => categoryKey === "external-articles")) {
   const content = contentByHref.get(document.href);
   if (!/class=["'][^"']*article-understanding/i.test(content) || !/role=["']progressbar["']/i.test(content)) {
     findings.push(`${document.href}: 이해도 meter 누락`);

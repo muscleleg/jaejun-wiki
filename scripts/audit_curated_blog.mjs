@@ -7,12 +7,15 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
 const findings = [];
 
-const [catalog, manifest, blog, siteManifest, sitemap] = await Promise.all([
+const [catalog, manifest, blog, siteManifest, sitemap, globalNavigation, blogScript, blogStyle] = await Promise.all([
   loadContentCatalog(),
   readFile(resolve(wikiRoot, "knowledge_manifest.json"), "utf8").then(JSON.parse),
   readFile(resolve(wikiRoot, "blog.html"), "utf8"),
   readFile(resolve(wikiRoot, "site_manifest.json"), "utf8").then(JSON.parse),
   readFile(resolve(wikiRoot, "sitemap.xml"), "utf8"),
+  readFile(resolve(wikiRoot, "assets/js/global_nav.js"), "utf8"),
+  readFile(resolve(wikiRoot, "assets/js/blog.js"), "utf8"),
+  readFile(resolve(wikiRoot, "assets/css/curated-blog.css"), "utf8"),
 ]);
 
 const posts = itemsForPlacement(catalog, "blog");
@@ -29,8 +32,8 @@ for (const item of posts) {
   const article = await readFile(resolve(wikiRoot, item.href), "utf8");
   const expectedCanonical = `https://muscleleg.github.io/jaejun-wiki/${item.href}`;
   if (!article.includes(`<link rel="canonical" href="${expectedCanonical}">`)) findings.push(`${item.href}: 위키 canonical 누락`);
-  if (!article.includes("curated-blog:document-note:start") || !article.includes("기술 블로그")) findings.push(`${item.href}: 블로그 표식 누락`);
-  if (!blog.includes(`href="${item.href}"`)) findings.push(`blog.html: 문서 링크 누락 ${item.href}`);
+  if (article.includes("curated-blog:document-note:start") || article.includes("curated-blog:document-style")) findings.push(`${item.href}: 블로그 전용 안내 또는 스타일이 원문에 남아 있음`);
+  if (!blog.includes(`href="${item.href}?view=blog"`)) findings.push(`blog.html: 블로그 보기 링크 누락 ${item.href}`);
   if (!blog.includes(`<h3>${item.title}</h3>`) || !blog.includes(`<p>${item.summary}</p>`)) findings.push(`blog.html: 통합 카탈로그 제목·요약 불일치 ${item.href}`);
   if (!blog.includes(document.category)) findings.push(`blog.html: 위키 카테고리 누락 ${item.href}`);
   if (!blog.includes(`data-blog-tags="${item.tagIds.join(" ")}"`)) findings.push(`blog.html: 필터 연결 누락 ${item.href}`);
@@ -53,6 +56,10 @@ if (!sitemap.includes("https://muscleleg.github.io/jaejun-wiki/blog.html")) find
 if (siteManifest.pages.some((page) => /^blog\/.+\.html$/.test(page.href))) findings.push("site_manifest.json: 별도 블로그 본문 URL이 생성됨");
 if (!blog.includes('data-blog-filter="all"') || !blog.includes('id="curatedBlogFilterStatus"')) findings.push("blog.html: 전체 필터 또는 결과 상태 누락");
 if (!blog.includes("assets/js/blog.js")) findings.push("blog.html: 태그 필터 JavaScript 누락");
+if (!blog.includes('id="curatedBlogPagination"') || !blog.includes('data-page-size="10"') || !blog.includes('data-page-group-size="10"')) findings.push("blog.html: 10편·10페이지 단위 Pagination 설정 누락");
+if (!blogScript.includes('searchParams.set("page"') || !blogScript.includes("pageGroupSize") || !blogScript.includes("pageSize")) findings.push("blog.js: Pagination URL·페이지 구간 처리 누락");
+if (!/\.curated-blog-card\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s.test(blogStyle)) findings.push("curated-blog.css: 필터링된 카드의 hidden 표시 우선 규칙 누락");
+if (!globalNavigation.includes('get("view") === "blog"') || !globalNavigation.includes(".article-understanding { display: none")) findings.push("global_nav.js: 블로그 읽기 보기의 이해도 숨김 처리 누락");
 
 if (findings.length) {
   console.error(`CURATED_BLOG_AUDIT=FAIL findings=${findings.length}`);

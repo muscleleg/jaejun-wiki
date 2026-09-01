@@ -2,13 +2,15 @@
   const scriptUrl = new URL(document.currentScript.src);
   const projectRoot = new URL("../../", scriptUrl);
   const currentPath = location.pathname;
+  const isBlogReadingView = currentPath.includes("/wiki/")
+    && new URLSearchParams(location.search).get("view") === "blog";
   const isProjectHome = currentPath === projectRoot.pathname
     || currentPath === new URL("index.html", projectRoot).pathname;
   const items = [
     ["index.html", "⌂ 홈", isProjectHome],
     ["projects.html", "프로젝트", currentPath.endsWith("/projects.html")],
-    ["blog.html", "블로그", currentPath.endsWith("/blog.html")],
-    ["wiki.html", "위키", currentPath.includes("/wiki/") || currentPath.endsWith("/wiki.html") || currentPath.endsWith("/knowledge_map.html")],
+    ["blog.html", "블로그", isBlogReadingView || currentPath.endsWith("/blog.html")],
+    ["wiki.html", "위키", !isBlogReadingView && (currentPath.includes("/wiki/") || currentPath.endsWith("/wiki.html") || currentPath.endsWith("/knowledge_map.html"))],
     ["roadmap.html", "로드맵", currentPath.includes("/roadmaps/") || currentPath.endsWith("/roadmap.html") || currentPath.endsWith("/pytorch_professional_roadmap.html") || currentPath.endsWith("/wiki/coding-test/index.html")],
     ["learning_history.html", "기록", currentPath.endsWith("/learning_history.html")],
   ];
@@ -17,6 +19,13 @@
   navigationStyle.rel = "stylesheet";
   navigationStyle.href = new URL("assets/css/navigation.css", projectRoot).href;
   document.head.appendChild(navigationStyle);
+
+  if (isBlogReadingView) {
+    document.body.classList.add("blog-reading-view");
+    const blogReadingStyle = document.createElement("style");
+    blogReadingStyle.textContent = ".blog-reading-view .article-understanding { display: none !important; }";
+    document.head.appendChild(blogReadingStyle);
+  }
 
   if (currentPath.includes("/wiki/")) {
     const tocStyle = document.createElement("link");

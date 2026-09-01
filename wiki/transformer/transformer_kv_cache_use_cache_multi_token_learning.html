@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="use_cache 설정이 past_key_values 반환을 어떻게 바꾸는지, Cache 뒤에 새 Token을 하나 또는 여러 개 넣을 때 현재 Forward가 K·V를 어떻게 계산하는지 설명합니다.">
+  <title>Transformer · KV Cache 반환과 여러 새 Token 처리</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer · KV Cache 반환과 여러 새 Token 처리">
+  <meta property="og:description" content="use_cache 설정이 past_key_values 반환을 어떻게 바꾸는지, Cache 뒤에 새 Token을 하나 또는 여러 개 넣을 때 현재 Forward가 K·V를 어떻게 계산하는지 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html","name":"Transformer · KV Cache 반환과 여러 새 Token 처리","description":"use_cache 설정이 past_key_values 반환을 어떻게 바꾸는지, Cache 뒤에 새 Token을 하나 또는 여러 개 넣을 때 현재 Forward가 K·V를 어떻게 계산하는지 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html"},"headline":"Transformer · KV Cache 반환과 여러 새 Token 처리"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_use_cache_multi_token_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"QKV Projection","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_projection_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache 반환과 여러 새 Token"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_projection_learning.html">QKV Projection</a><span class="separator">›</span><span aria-current="page">KV Cache 반환과 여러 새 Token</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">Transformer detail · Cached Forward</span>
+      <h1>KV Cache를 끄거나 켰을 때<br><code>input_ids</code>는 어떻게 처리되는가</h1>
+      <p class="lead"><code>use_cache</code>가 K·V 계산 자체를 끄는 옵션인지부터, <code>past_key_values</code> 뒤에 새 Token을 여러 개 넣었을 때 Cache와 현재 Forward가 각각 어느 구간을 담당하는지까지 연결합니다.</p>
+      <div class="detail-actions"><a href="transformer_projection_learning.html">← Q·K·V Projection 학습 경로</a><a href="transformer_kv_cache_input_ids_flow_learning.html">Cache와 input_ids 전달</a><a href="transformer_generated_token_mask_position_learning.html">Mask·Position 갱신</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#cache-off">Cache를 끈 Forward</a>
+      <a href="#cache-input">Cache 뒤의 input_ids</a>
+      <a href="#multiple-tokens">여러 새 Token</a>
+      <a href="#current-kv">현재 구간의 K·V</a>
+      <a href="#one-token-generation">한 Token씩 생성하는 이유</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section id="cache-off" class="detail-section">
+      <h2>1. <code>use_cache=False</code>는 K·V를 계산하지 않는다는 뜻이 아닙니다</h2>
+      <p>Transformer의 Attention을 계산하려면 현재 입력 Token의 Q·K·V가 필요합니다. 따라서 Cache를 끄더라도 현재 Forward에 필요한 K·V는 내부에서 계산됩니다.</p>
+      <pre><code>Hidden State
+→ Q·K·V Projection
+→ Attention
+→ Logits</code></pre>
+      <pre><code>outputs = model(
+    input_ids=input_ids,
+    use_cache=False,
+)
+
+print(outputs.past_key_values)
+# None</code></pre>
+      <p><code>use_cache=False</code>가 바꾸는 것은 현재 Attention 계산이 아니라 Forward가 끝난 뒤의 재사용 여부입니다. 현재 K·V는 계산하지만 다음 Forward에 넘길 <code>past_key_values</code>로 보관하거나 반환하지 않습니다.</p>
+      <pre><code>use_cache=False
+→ 현재 Attention에 필요한 K·V는 계산
+→ Forward 종료 후 K·V를 반환하지 않음
+
+use_cache=True
+→ 현재 Attention에 필요한 K·V를 계산
+→ 다음 Forward에서 재사용하도록 past_key_values 반환</code></pre>
+    </section>
+
+    <section id="cache-input" class="detail-section">
+      <h2>2. Cache와 함께 전달하는 <code>input_ids</code>는 과거 문맥 뒤에 이어집니다</h2>
+      <p>첫 Forward에서 Prompt <code>[A,B]</code> 전체를 처리하고 Cache를 반환했다고 가정합니다.</p>
+      <pre><code>prompt_outputs = model(
+    input_ids=[A,B],
+    use_cache=True,
+)
+
+prompt_cache = prompt_outputs.past_key_values
+# A와 B의 Layer별 K·V</code></pre>
+      <p>마지막 Logit에서 C를 선택했다면 두 번째 Forward에는 과거 ID를 다시 넣지 않고 C와 Cache를 전달합니다.</p>
+      <pre><code>next_outputs = model(
+    input_ids=[C],
+    past_key_values=prompt_cache,
+    use_cache=True,
+)</code></pre>
+      <pre><code>과거 문맥: Cache에 들어 있는 A, B
+현재 입력: input_ids로 전달한 C
+
+전체 Attention 문맥: A, B, C</code></pre>
+      <p><code>past_key_values</code>와 함께 들어오는 <code>input_ids</code>는 Cache가 나타내는 문맥 뒤에 연속해서 등장하는 Token으로 처리됩니다. 그 Token은 모델이 직접 예측한 값일 수도 있지만, 이미 알고 있는 이어쓰기나 다른 모델이 제안한 값일 수도 있습니다. Attention Mask와 Position ID는 이 연속된 위치에 맞아야 합니다.</p>
+    </section>
+
+    <section id="multiple-tokens" class="detail-section">
+      <h2>3. Cache 뒤에는 새 Token을 여러 개 넣을 수도 있습니다</h2>
+      <p>Cache가 <code>[A,B]</code>까지 보관하고 있을 때 현재 입력으로 <code>[C,D]</code> 두 Token을 한꺼번에 전달하는 것도 가능합니다.</p>
+      <pre><code>기존 Cache: [A,B]
+새 input_ids: [C,D]
+
+past_key_values  과거 Token 수 S=2
+input_ids        [Batch, New Token=2]
+attention_mask   [Batch, Past 2 + New 2]
+position_ids     [Batch, New Token=2]</code></pre>
+      <p>예를 들어 과거 Cache의 Token 축이 6이고 새 Token을 두 개 넣으면, Attention Mask는 과거와 현재를 합친 길이 8을 나타내고 Position ID는 새 Token 두 개의 위치를 담아야 합니다.</p>
+      <pre><code>input_ids       [Batch,2]
+attention_mask  [Batch,8]
+position_ids    [Batch,2]
+
+입력 전 Cache Token 축: 6
+반환 Cache Token 축:    8</code></pre>
+    </section>
+
+    <section id="current-kv" class="detail-section">
+      <h2>4. Cache에 없는 새 구간의 K·V는 현재 Forward에서 계산합니다</h2>
+      <p>입력 전 Cache에는 A와 B의 K·V만 있습니다. C와 D의 Q·K·V는 이번 Forward에서 함께 계산됩니다.</p>
+      <pre><code>C → Q_C, K_C, V_C
+D → Q_D, K_D, V_D</code></pre>
+      <p>모델은 기존 Cache의 K·V와 이번에 계산한 K·V를 합쳐 Attention에 사용합니다.</p>
+      <pre><code>기존 Cache:
+K_A, K_B
+V_A, V_B
+
+이번 Forward에서 새로 계산:
+K_C, K_D
+V_C, V_D
+
+전체 Attention에 사용:
+K_A, K_B, K_C, K_D
+V_A, V_B, V_C, V_D</code></pre>
+      <p>C와 D는 같은 Forward에서 계산되지만 Causal Mask가 미래 조회를 막습니다. C의 Query는 과거와 자기 위치까지만 보고, D의 Query는 과거와 C, 자기 위치까지 볼 수 있습니다.</p>
+      <pre><code>Q_C → K_A, K_B, K_C를 볼 수 있음
+Q_D → K_A, K_B, K_C, K_D를 볼 수 있음</code></pre>
+      <div class="caution"><strong>기존 Cache는 이번 입력 직전인 A·B까지만 재사용하고, Cache에 아직 없는 C·D의 K·V는 현재 Forward에서 새로 계산합니다. 따라서 D는 입력 전 Cache에 C가 없더라도 같은 Forward에서 만들어진 C의 K·V를 사용할 수 있습니다.</strong></div>
+      <p>Forward가 끝나면 반환 Cache에는 새로 계산한 C와 D의 K·V까지 포함됩니다.</p>
+      <pre><code>입력 전 Cache: [A,B]
+입력 후 Cache: [A,B,C,D]
+
+Cache Token 축: S → S+2</code></pre>
+    </section>
+
+    <section id="one-token-generation" class="detail-section">
+      <h2>5. 일반 생성이 한 Token씩 진행되는 이유는 입력 제한이 아닙니다</h2>
+      <p>일반적인 자기회귀 생성에서는 C를 계산하기 전에 D가 무엇인지 알 수 없습니다. 모델이 한 번에 새 Token 하나만 받을 수 있어서가 아니라, 두 번째 미래 Token이 아직 결정되지 않았기 때문에 한 Step씩 진행합니다.</p>
+      <pre><code>[A,B]
+→ C를 예측
+
+[A,B,C]
+→ D를 예측</code></pre>
+      <p>C와 D를 이미 알고 있는 Prompt·정답 이어쓰기, 또는 다른 모델이 여러 후보를 먼저 제안하는 Speculative Decoding(추측 디코딩)에서는 여러 Token을 한 번에 전달할 수 있습니다.</p>
+      <ul class="reference-list">
+        <li>이미 존재하는 Prompt나 정답 문장의 일부를 처리할 때</li>
+        <li>여러 Token으로 구성된 알려진 이어쓰기 구간을 처리할 때</li>
+        <li>작은 모델이 제안한 여러 Token을 큰 모델이 한 번에 검증할 때</li>
+      </ul>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>6. 결론</h2>
+      <pre><code>use_cache=False
+→ K·V는 현재 Forward에서 계산
+→ 다음 Forward를 위해 반환하지 않음
+
+use_cache=True
+→ 현재까지 계산한 K·V를 past_key_values로 반환
+
+past_key_values와 함께 전달하는 input_ids
+→ Cache 뒤에 이어지는 새 Token으로 처리
+
+새 Token은 한 개로 제한되지 않음
+→ 여러 Token의 K·V는 현재 Forward에서 계산
+→ 기존 Cache와 합쳐 Causal Attention 수행
+→ 완료 후 Cache가 새 Token 수만큼 증가</code></pre>
+      <div class="caution"><strong>일반 생성이 한 Token씩 진행되는 이유는 KV Cache의 제약이 아니라 아직 두 번째 미래 Token을 알 수 없기 때문입니다.</strong></div>
+      <ul class="reference-list">
+        <li><a href="transformer_kv_cache_input_ids_flow_learning.html">KV Cache와 input_ids 전달 흐름</a></li>
+        <li><a href="transformer_kv_cache_in_place_update_learning.html">추론 전후 KV Cache 객체의 제자리 갱신</a></li>
+        <li><a href="transformer_generated_token_mask_position_learning.html">새 Token의 Attention Mask와 Position ID 갱신</a></li>
+        <li><a href="transformer_kv_cache_qkv_projection_learning.html">KV Cache가 저장하는 Tensor와 GPT-2 QKV Projection</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>

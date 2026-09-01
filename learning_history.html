@@ -174,8 +174,8 @@
               <summary aria-label="PyTorch 추론 Baseline: 현재. 성취 목표 보기"><span class="journey-dot" aria-hidden="true">6</span><span class="journey-label">KV Cache·Batch</span></summary>
               <div class="journey-popover">
                 <div class="journey-popover-head"><h3>PyTorch 추론 Baseline</h3><span class="journey-status">현재</span></div>
-                <p><strong>성취 목표</strong><br>같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교합니다. RoPE·GQA·RMSNorm·SwiGLU를 작은 Module과 Shape으로 이해하고, 조건을 고정한 Naive PyTorch 추론 기준선을 만듭니다.</p>
-                <p><strong>현재까지 확인한 근거</strong><br>Sequence Length·Batch 크기별 Latency·Peak VRAM·품질 결과와 Cache Shape을 기록하고, Model·dtype·Token 길이·동시 요청·측정 경계를 명시하면 완료됩니다.</p>
+                <p><strong>성취 목표</strong><br>같은 모델·Prompt에서 No-cache와 KV Cache 생성, Batch 1과 Batch N을 비교합니다. GPU 실험에서는 모델·Tensor의 장치와 CPU↔GPU 메모리 이동, PyTorch의 CUDA 장치 디스패치, CUDA 비동기 실행과 동기화된 측정 경계를 확인합니다. RoPE·GQA·RMSNorm·SwiGLU를 작은 Module과 Shape으로 이해하고, 조건을 고정한 Naive PyTorch 추론 기준선을 만듭니다.</p>
+                <p><strong>현재까지 확인한 근거</strong><br>Sequence Length·Batch 크기별 Latency·Peak VRAM·품질 결과와 Cache Shape을 기록합니다. Model·dtype·Token 길이·동시 요청·측정 경계를 명시하고, CPU·GPU 출력 일치, 모델·입력·Logit의 Device, H2D·D2H 이동, synchronize 전후 Timing 차이와 Profiler의 메모리 복사·CUDA Kernel 구분까지 확인하면 완료됩니다.</p>
                 <a href="wiki/projects/road-to-llm-inference/pytorch-inference.html">실습·코드 정리 보기 →</a>
               </div>
             </details>
@@ -636,6 +636,14 @@
           <p><strong>완료 증거</strong><br>작은 Tensor 코드에서 torch.no_grad()와 torch.inference_mode()의 Version Counter·View Tracking·in-place 변경 감지 차이를 먼저 예측한 뒤 실행 결과와 비교합니다. 이어 inference Tensor를 학습 계산에 재사용할 때의 제약을 실제 오류 또는 허용되는 성공 조건으로 구분해 설명하면 완료합니다.</p>
           <a href="wiki/pytorch/pytorch_linear_regression_module_optimizer_dataset_learning.html#module-optimizer">관련 로드맵 보기 →</a>
         </article>
+        <article class="deferred-card" data-deferred-id="cuda-kernel-execution-optimization-internals" data-deferred-status="queued" data-deferred-type="interest">
+          <div class="deferred-card-head"><span class="deferred-type">장기 관심</span><span class="deferred-status">조건부 GPU 심화 백로그</span><span class="deferred-milestone">vLLM Benchmark</span></div>
+          <h3>CUDA 병렬 실행 내부와 Kernel 최적화</h3>
+          <p><strong>미룬 이유</strong><br>장치 이동·CUDA 디스패치·비동기 실행·동기화된 Benchmark는 PyTorch 추론 Baseline의 필수 범위로 편입했습니다. 반면 Grid·Block·Thread·Warp, 메모리 계층과 직접 Kernel 최적화까지 지금 선행하면 현재 Batch·KV Cache·Benchmark 관문을 지연시키므로 실제 병목이 확인될 때만 심화합니다.</p>
+          <p><strong>다시 꺼낼 때</strong><br>RunPod의 PyTorch Profiler·Nsight 또는 vLLM Benchmark에서 특정 CUDA Kernel, H2D·D2H 복사, Memory bandwidth, 낮은 GPU utilization이 실제 병목으로 관찰되고 라이브러리 설정만으로 원인을 설명할 수 없을 때 꺼냅니다.</p>
+          <p><strong>완료 증거</strong><br>Grid·Block·Thread·Warp의 실행 계층과 Global·Shared·Register Memory의 역할을 작은 Vector 또는 Matrix Kernel의 Index 계산으로 설명합니다. 이어 Coalescing·Occupancy·Memory bandwidth와 Compute-bound 차이를 Profiler 근거에 연결하고, 실제 필요가 있을 때만 Triton 또는 CUDA Kernel 하나를 작성해 PyTorch 기준 연산과 출력·Latency를 비교합니다.</p>
+          <a href="wiki/pytorch/pytorch_device_cuda_parallel_learning.html">관련 로드맵 보기 →</a>
+        </article>
         <article class="deferred-card" data-deferred-id="kimi-k3-toy-architecture-handcoding" data-deferred-status="queued" data-deferred-type="interest">
           <div class="deferred-card-head"><span class="deferred-type">장기 관심</span><span class="deferred-status">장기 관심 백로그</span><span class="deferred-milestone">KV Cache·Batch</span></div>
           <h3>Kimi K3 구조 교육용 축소 구현 손코딩</h3>
@@ -777,7 +785,7 @@
       </details>
     </section>
 
-                                                                                                                                            <section id="study-calendar">
+                                                                                                                                                                                                            <section id="study-calendar">
       <h2>학습 캘린더</h2>
       <p class="summary">색이 채워진 날짜는 학습 기록이 있는 날이다. 날짜를 누르면 그날 공부한 내용으로 이동한다.</p>
       <div class="calendar-list" id="calendar-list"><!-- static-fallback:learning-calendar:start -->
@@ -864,7 +872,7 @@
       <div class="calendar-legend">공부한 날</div>
     </section>
 
-                                                                                                                                            <section id="learning-records">
+                                                                                                                                                                                                            <section id="learning-records">
       <h2>날짜별 학습 기록</h2>
       <p class="summary">학습 내용 JSON을 날짜별 기록으로 렌더링합니다.</p>
       <div class="timeline" id="learning-record-list"><!-- static-fallback:learning-records:start -->
@@ -1091,7 +1099,7 @@
 <!-- static-fallback:learning-records:end --></div>
     </section>
 
-                                                                                                                                            <section id="study-time">
+                                                                                                                                                                                                            <section id="study-time">
       <h2>공부시간</h2>
       <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
 <!-- static-fallback:study-time:start -->

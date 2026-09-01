@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="추론 전 prompt_cache와 추론 후 updated_cache가 동일한 Cache 객체를 가리키고, Forward가 내부 K·V 상태와 Token 길이를 제자리 갱신하는 과정을 증명합니다.">
+  <title>Transformer · KV Cache 객체의 제자리 갱신</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer · KV Cache 객체의 제자리 갱신">
+  <meta property="og:description" content="추론 전 prompt_cache와 추론 후 updated_cache가 동일한 Cache 객체를 가리키고, Forward가 내부 K·V 상태와 Token 길이를 제자리 갱신하는 과정을 증명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html","name":"Transformer · KV Cache 객체의 제자리 갱신","description":"추론 전 prompt_cache와 추론 후 updated_cache가 동일한 Cache 객체를 가리키고, Forward가 내부 K·V 상태와 Token 길이를 제자리 갱신하는 과정을 증명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html"},"headline":"Transformer · KV Cache 객체의 제자리 갱신"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_in_place_update_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"QKV Projection","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_projection_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache 객체의 제자리 갱신"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_projection_learning.html">QKV Projection</a><span class="separator">›</span><span aria-current="page">KV Cache 객체의 제자리 갱신</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">Transformer detail · Mutable Cache</span>
+      <h1>추론 전후 KV Cache는 같은 객체이고<br>내부 상태만 갱신된다</h1>
+      <p class="lead">Cache의 Token 길이는 분명히 <code>6 → 7</code>로 변했는데 Forward 후 <code>prompt_cache</code>와 <code>updated_cache</code>에서 모두 7이 출력된 이유를 Python의 객체 참조와 제자리 갱신으로 증명합니다.</p>
+      <div class="detail-actions"><a href="transformer_projection_learning.html">← Q·K·V Projection 학습 경로</a><a href="transformer_kv_cache_input_ids_flow_learning.html">Cache와 input_ids 전달</a><a href="transformer_kv_cache_use_cache_multi_token_learning.html">Cache 반환과 여러 새 Token</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#topic">주제</a>
+      <a href="#first-cache">첫 Cache</a>
+      <a href="#second-forward">두 번째 Forward</a>
+      <a href="#same-object">객체 동일성</a>
+      <a href="#proof">코드로 증명</a>
+      <a href="#same-shape-output">둘 다 7로 보인 이유</a>
+      <a href="#snapshot">변경 전 값 보존</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section id="topic" class="detail-section">
+      <h2>1. 주제</h2>
+      <p>첫 Forward에서 Prompt 전체를 처리하면 Token 6개의 K·V가 들어 있는 Cache를 얻습니다. 이 Cache와 새 Token 하나를 두 번째 Forward에 전달하면 새 Token의 K·V가 추가되므로 실제 Cache Token 길이는 <code>6 → 7</code>로 변합니다.</p>
+      <pre><code>추론 전 Cache Shape  = [2,2,6,1]
+추론 후 Cache Shape  = [2,2,7,1]
+
+[Batch, Head, Token, Head dimension]</code></pre>
+      <p>그런데 두 번째 Forward가 끝난 뒤 아래 두 변수를 출력하면 모두 <code>[2,2,7,1]</code>이 나옵니다.</p>
+      <pre><code>print(prompt_cache[0][0].shape)
+print(updated_cache[0][0].shape)
+
+# 둘 다 torch.Size([2,2,7,1])</code></pre>
+      <p>이 결과는 추론 전후의 Shape이 같다는 뜻이 아닙니다. <code>prompt_cache</code>라는 변수가 추론 전 상태의 복사본을 보관하는 것이 아니라, Forward 과정에서 갱신된 동일한 Cache 객체를 계속 가리키기 때문에 발생합니다.</p>
+    </section>
+
+    <section id="first-cache" class="detail-section">
+      <h2>2. 첫 Forward에서 Cache 객체를 얻습니다</h2>
+      <pre><code>with torch.inference_mode():
+    prompt_outputs = model(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        position_ids=position_ids,
+        use_cache=True,
+    )
+
+prompt_cache = prompt_outputs.past_key_values</code></pre>
+      <p>현재 Layer 0의 Key Cache Shape은 <code>[2,2,6,1]</code>입니다. Python 변수는 객체 자체를 복제해 담는 상자라기보다 객체에 연결된 이름으로 이해할 수 있습니다. 자바의 참조 변수와 비슷한 관점입니다.</p>
+      <pre><code>prompt_cache
+      │
+      ▼
+Cache 객체 X
+Token 길이: 6</code></pre>
+    </section>
+
+    <section id="second-forward" class="detail-section">
+      <h2>3. 같은 Cache 객체를 두 번째 Forward에 전달합니다</h2>
+      <pre><code>with torch.inference_mode():
+    next_outputs = model(
+        input_ids=next_token_ids,
+        attention_mask=extended_attention_mask,
+        position_ids=next_position_ids,
+        past_key_values=prompt_cache,
+        use_cache=True,
+    )</code></pre>
+      <p>이번 입력은 새 Token 하나입니다. 모델은 그 Token의 K·V를 계산하고 전달받은 Cache 객체의 내부 상태에 추가합니다.</p>
+      <pre><code>추론 전 Cache
+[A,B,C,D,E,F]
+
+새 Token
+[G]
+
+추론 후 Cache
+[A,B,C,D,E,F,G]
+
+Token 길이: 6 → 7</code></pre>
+    </section>
+
+    <section id="same-object" class="detail-section">
+      <h2>4. <code>updated_cache</code>도 같은 객체를 가리킵니다</h2>
+      <p>모델이 반환한 Cache를 새 변수에 저장해도 Cache 복사본이 자동으로 만들어지는 것은 아닙니다.</p>
+      <pre><code>updated_cache = next_outputs.past_key_values</code></pre>
+      <pre><code>prompt_cache  ─┐
+               ├→ 동일한 Cache 객체 X
+updated_cache ─┘
+
+Cache 객체 X의 현재 Token 길이: 7</code></pre>
+      <p>자바식으로 비유하면 <code>Cache updatedCache = promptCache;</code>처럼 두 참조 변수가 같은 Heap 객체를 바라보는 상태입니다. 변수 이름이 다르다는 사실만으로 추론 전후의 복사본이 생기지는 않습니다.</p>
+    </section>
+
+    <section id="proof" class="detail-section">
+      <h2>5. 객체 동일성과 길이 변화를 코드로 증명합니다</h2>
+      <p>먼저 두 번째 Forward 전에 Cache 길이를 정수로 저장합니다.</p>
+      <pre><code>cache_length_before: int = (
+    prompt_cache.get_seq_length()
+)</code></pre>
+      <p>그다음 두 번째 Forward를 실행하고 반환 Cache를 받습니다.</p>
+      <pre><code>with torch.inference_mode():
+    next_outputs = model(
+        input_ids=next_token_ids,
+        attention_mask=extended_attention_mask,
+        position_ids=next_position_ids,
+        past_key_values=prompt_cache,
+        use_cache=True,
+    )
+
+updated_cache = next_outputs.past_key_values
+
+cache_length_after: int = (
+    updated_cache.get_seq_length()
+)</code></pre>
+      <p><code>is</code>는 두 변수가 동일한 객체를 가리키는지 확인합니다. <code>id()</code>로 객체 식별값도 비교할 수 있습니다.</p>
+      <pre><code>print(
+    "동일한 Cache 객체:",
+    prompt_cache is updated_cache,
+)
+
+print(id(prompt_cache))
+print(id(updated_cache))
+
+print("추론 전 Cache 길이:", cache_length_before)
+print("추론 후 Cache 길이:", cache_length_after)</code></pre>
+      <p>실제 실행에서는 다음 결과를 확인했습니다.</p>
+      <pre><code>동일한 Cache 객체: True
+추론 전 Cache 길이: 7
+추론 후 Cache 길이: 8</code></pre>
+      <p>이 실행에서 시작 길이가 6이 아니라 7이었던 이유는 바로 앞의 두 번째 Forward가 이미 같은 <code>prompt_cache</code> 객체에 새 Token 하나를 추가했기 때문입니다. 후속 확인 셀은 그 상태에서 새 Token을 다시 하나 처리했으므로 길이가 <code>7 → 8</code>로 증가했습니다. 첫 Prompt Forward를 다시 실행해 Cache를 6으로 초기화한 뒤 같은 검증을 실행하면 <code>6 → 7</code>을 확인할 수 있지만, 객체 동일성과 제자리 갱신을 증명하는 데에는 실제 <code>7 → 8</code> 결과로도 충분합니다.</p>
+      <div class="caution"><strong>객체의 동일성과 내부 상태의 동일성은 다른 질문입니다. 객체는 동일하지만 그 객체가 담는 K·V와 Token 길이는 Forward 과정에서 <code>6 → 7</code>로 변경됩니다.</strong></div>
+    </section>
+
+    <section id="same-shape-output" class="detail-section">
+      <h2>6. Forward 후 두 Shape이 모두 7로 보인 이유</h2>
+      <p>Forward 전에는 Cache 객체 X의 Token 길이가 6입니다. Forward 과정에서 같은 객체에 새 Token의 K·V가 추가된 뒤에는 Token 길이가 7이 됩니다.</p>
+      <pre><code>Forward 전
+
+prompt_cache
+      │
+      ▼
+Cache 객체 X
+Token 길이: 6
+
+
+Forward 후
+
+prompt_cache  ─┐
+               ├→ Cache 객체 X
+updated_cache ─┘
+                  Token 길이: 7</code></pre>
+      <p>Forward가 끝난 다음 <code>prompt_cache</code>와 <code>updated_cache</code>를 출력하면 두 이름 모두 현재의 객체 X를 읽습니다. 따라서 양쪽에서 갱신된 Shape <code>[2,2,7,1]</code>이 나옵니다.</p>
+      <p><code>prompt_cache</code>라는 이름이 추론 전 상태를 보존하지는 않습니다. 이름은 그대로지만 그 이름이 가리키는 객체의 내부 상태는 이미 갱신됐습니다.</p>
+    </section>
+
+    <section id="snapshot" class="detail-section">
+      <h2>7. 추론 전 값을 비교하려면 호출 전에 보존해야 합니다</h2>
+      <p>Forward가 끝난 뒤에는 같은 Cache 객체를 통해 변경 전 길이 6을 다시 읽을 수 없습니다. 따라서 길이나 Shape을 모델 호출 전에 별도의 불변 값으로 꺼내 둡니다.</p>
+      <pre><code>cache_length_before: int = (
+    prompt_cache.get_seq_length()
+)
+
+key_shape_before: tuple[int, ...] = tuple(
+    prompt_cache[0][0].shape
+)</code></pre>
+      <p>Forward 후에는 현재 Cache에서 새 값을 읽습니다.</p>
+      <pre><code>cache_length_after: int = (
+    updated_cache.get_seq_length()
+)
+
+key_shape_after: tuple[int, ...] = tuple(
+    updated_cache[0][0].shape
+)
+
+# cache_length_before = 6
+# cache_length_after  = 7
+# key_shape_before    = (2,2,6,1)
+# key_shape_after     = (2,2,7,1)</code></pre>
+      <p>정수와 Shape Tuple을 미리 저장하면 이후 Cache 객체가 갱신되어도 추론 전 값을 비교 근거로 유지할 수 있습니다.</p>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>8. 결론</h2>
+      <pre><code>추론 전 Cache Shape: [2,2,6,1]
+추론 후 Cache Shape: [2,2,7,1]
+
+prompt_cache  ─┐
+               ├→ 동일한 Cache 객체
+updated_cache ─┘
+
+동일한 객체의 내부 Token 길이
+6 → 7</code></pre>
+      <div class="caution"><strong>추론 전 <code>prompt_cache</code>와 추론 후 <code>updated_cache</code>는 동일한 Cache 객체를 가리키며, 두 번째 Forward가 그 객체의 내부 K·V 상태를 Token 6개에서 7개로 갱신합니다. 따라서 변경 전 값을 비교하려면 Forward 전에 길이나 Shape을 별도로 저장해야 합니다.</strong></div>
+      <ul class="reference-list">
+        <li><a href="transformer_kv_cache_input_ids_flow_learning.html">KV Cache와 input_ids 전달 흐름</a></li>
+        <li><a href="transformer_kv_cache_use_cache_multi_token_learning.html">KV Cache 반환과 여러 새 Token 처리</a></li>
+        <li><a href="transformer_generated_token_mask_position_learning.html">새 Token의 Attention Mask와 Position ID 갱신</a></li>
+      </ul>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+</body>
+</html>
