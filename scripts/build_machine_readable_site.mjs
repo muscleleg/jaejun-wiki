@@ -121,9 +121,25 @@ function sectionById(content, id) {
 
 function replaceSectionById(content, { id, markup }) {
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`<section\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i");
+  const pattern = new RegExp(`^[ \\t]*<section\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "im");
   if (!pattern.test(content)) throw new Error(`Section not found: ${id}`);
   return content.replace(pattern, markup);
+}
+
+function removeSectionById(content, id) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\n[ \\t]*<section\\b(?=[^>]*\\bid=["']${escapedId}["'])[^>]*>[\\s\\S]*?<\\/section>`, "i");
+  return content.replace(pattern, "");
+}
+
+function moveSectionBeforeMarker(content, { id, marker }) {
+  const section = sectionById(content, id);
+  const sectionStart = content.indexOf(section);
+  const beforeSection = content.slice(0, sectionStart).replace(/[ \t]*(?:\r?\n[ \t]*)+$/, "\n\n");
+  const afterSection = content.slice(sectionStart + section.length).replace(/^(?:[ \t]*\n)+/, "");
+  const contentWithoutSection = `${beforeSection}${afterSection}`;
+  if (!contentWithoutSection.includes(marker)) throw new Error(`Section placement marker not found: ${marker}`);
+  return contentWithoutSection.replace(marker, `${section}\n\n    ${marker}`);
 }
 
 function validateLearningHistory(data) {
@@ -178,48 +194,90 @@ function formatKoreanDate(date) {
 function renderLearningRecords(data) {
   return data.records.map((record) => {
     const topics = record.topics.map((topic) => `          <div class="topic"><h3>${topic.titleHtml}</h3><p>${topic.bodyHtml}</p></div>`).join("\n");
+    const duration = record.studyTime
+      ? formatDurationMinutes(record.studyTime.minutes, record.studyTime.approximate)
+      : "공부시간 미기록";
+    const durationClass = record.studyTime ? "day-duration" : "day-duration is-unrecorded";
+    const studyTimeDetail = record.studyTime
+      ? `          <div class="day-study-time">
+            <strong class="day-study-time-title">공부시간 상세 기록</strong>
+            <div class="day-study-time-body"><strong>${escapeHtml(record.studyTime.label)}</strong>${record.studyTime.bodyHtml}</div>
+          </div>`
+      : "";
     return `        <article class="day" id="study-${escapeAttribute(record.date)}">
-          <time datetime="${escapeAttribute(record.date)}">${formatKoreanDate(record.date)}</time>
+          <div class="day-heading"><time datetime="${escapeAttribute(record.date)}">${formatKoreanDate(record.date)}</time><span class="${durationClass}">${duration}</span></div>
 ${topics}
+${studyTimeDetail}
         </article>`;
   }).join("\n");
 }
 
-function renderStudyTime(data) {
-  const sessions = data.records.filter((record) => record.studyTime).map((record) => {
-    const session = record.studyTime;
-    return `      <article class="session">
-        <div class="session-head"><div><time datetime="${escapeAttribute(record.date)}">${formatKoreanDate(record.date)}</time><h3>총 학습시간</h3></div><div class="duration">${formatDurationMinutes(session.minutes, session.approximate)}</div></div>
-        <div class="session-body"><strong>${escapeHtml(session.label)}</strong>${session.bodyHtml}</div>
-      </article>`;
-  });
-  if (data.studyTimeNoteHtml.trim()) sessions.push(`      <div class="note">${data.studyTimeNoteHtml}</div>`);
-  return sessions.join("\n");
-}
-
 function renderLearningCalendar(data) {
-  const dates = data.records.map((record) => record.date);
-  const studiedDates = new Set(dates);
-  const months = [...new Set(dates.map((date) => date.slice(0, 7)))].sort().reverse();
+  const recordByDate = new Map(data.records.map((record) => [record.date, record]));
+  const latestDate = data.records[0].date;
+  const latestYear = Number(latestDate.slice(0, 4));
+  const years = [...new Set(data.records.map((record) => Number(record.date.slice(0, 4))))].sort((left, right) => right - left);
   const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
-  return months.map((monthKey) => {
-    const [year, month] = monthKey.split("-").map(Number);
-    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    const leadingBlanks = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
-    const cells = [];
-    for (let index = 0; index < leadingBlanks; index += 1) cells.push('          <span class="calendar-day empty" aria-hidden="true"></span>');
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      cells.push(studiedDates.has(date)
-        ? `          <a class="calendar-day studied" href="#study-${date}" title="${date} 학습 기록으로 이동" aria-label="${year}년 ${month}월 ${day}일, 학습 기록 있음">${day}</a>`
-        : `          <span class="calendar-day" aria-label="${year}년 ${month}월 ${day}일">${day}</span>`);
+  const dayMilliseconds = 24 * 60 * 60 * 1000;
+  const formatIsoDate = (date) => date.toISOString().slice(0, 10);
+  const activityLevel = (record) => {
+    if (!record.studyTime) return "unrecorded";
+    if (record.studyTime.minutes < 30) return "1";
+    if (record.studyTime.minutes < 60) return "2";
+    if (record.studyTime.minutes < 120) return "3";
+    return "4";
+  };
+  return years.map((year) => {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd = year === latestYear
+      ? new Date(`${latestDate}T00:00:00Z`)
+      : new Date(Date.UTC(year, 11, 31));
+    const gridStart = new Date(yearStart);
+    gridStart.setUTCDate(gridStart.getUTCDate() - ((gridStart.getUTCDay() + 6) % 7));
+    const gridEnd = new Date(yearEnd);
+    gridEnd.setUTCDate(gridEnd.getUTCDate() + ((7 - ((gridEnd.getUTCDay() + 6) % 7) - 1) % 7));
+    const weekCount = Math.floor((gridEnd - gridStart) / dayMilliseconds / 7) + 1;
+    const monthLabels = [];
+    for (let month = 0; month <= yearEnd.getUTCMonth(); month += 1) {
+      const monthStart = new Date(Date.UTC(year, month, 1));
+      const nextMonth = new Date(Date.UTC(year, month + 1, 1));
+      const visibleEnd = nextMonth > yearEnd ? new Date(yearEnd.getTime() + dayMilliseconds) : nextMonth;
+      const startWeek = Math.floor((monthStart - gridStart) / dayMilliseconds / 7);
+      const endWeek = Math.max(startWeek + 1, Math.ceil((visibleEnd - gridStart) / dayMilliseconds / 7));
+      monthLabels.push(`          <span class="activity-month-label" style="grid-column:${startWeek + 2} / span ${Math.max(1, endWeek - startWeek)};grid-row:1">${month + 1}월</span>`);
     }
-    const studiedCount = dates.filter((date) => date.startsWith(monthKey)).length;
-    return `      <article class="calendar-month" aria-label="${year}년 ${month}월 학습 캘린더">
-        <div class="calendar-month-head"><h3>${year}년 ${month}월</h3><span class="calendar-count">${studiedCount}일 학습</span></div>
-        <div class="calendar-weekdays">${weekdays.map((name) => `<span>${name}</span>`).join("")}</div>
-        <div class="calendar-grid">
+    const cells = [];
+    for (let cursor = new Date(gridStart); cursor <= gridEnd; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+      const date = formatIsoDate(cursor);
+      const weekIndex = Math.floor((cursor - gridStart) / dayMilliseconds / 7);
+      const weekdayIndex = (cursor.getUTCDay() + 6) % 7;
+      const position = `style="grid-column:${weekIndex + 2};grid-row:${weekdayIndex + 2}"`;
+      if (cursor < yearStart || cursor > yearEnd) {
+        cells.push(`          <span class="activity-day is-outside" ${position} aria-hidden="true"></span>`);
+        continue;
+      }
+      const record = recordByDate.get(date);
+      if (!record) {
+        cells.push(`          <span class="activity-day" ${position} title="${date} · 학습 기록 없음" aria-label="${formatKoreanDate(date)}, 학습 기록 없음"></span>`);
+        continue;
+      }
+      const level = activityLevel(record);
+      const duration = record.studyTime
+        ? formatDurationMinutes(record.studyTime.minutes, record.studyTime.approximate)
+        : "공부시간 미기록";
+      const tooltip = `${date} · ${duration} · ${record.topics.length}개 주제`;
+      cells.push(`          <a class="activity-day is-studied level-${level}" data-activity-level="${level}" href="#study-${date}" ${position} title="${escapeAttribute(tooltip)}" aria-label="${formatKoreanDate(date)}, ${duration}, ${record.topics.length}개 주제"></a>`);
+    }
+    const studiedCount = data.records.filter((record) => record.date.startsWith(`${year}-`)).length;
+    const weekdayLabels = weekdays.map((name, index) => `          <span class="activity-weekday" style="grid-column:1;grid-row:${index + 2}">${name}</span>`).join("\n");
+    return `      <article class="activity-year" aria-label="${year}년 학습 활동">
+        <div class="activity-year-head"><h3>${year}년</h3><span>${studiedCount}일 학습</span></div>
+        <div class="activity-scroll" tabindex="0" aria-label="${year}년 학습 잔디, 가로로 스크롤할 수 있습니다">
+          <div class="activity-grid" style="--activity-weeks:${weekCount}">
+${monthLabels.join("\n")}
+${weekdayLabels}
 ${cells.join("\n")}
+          </div>
         </div>
       </article>`;
   }).join("\n");
@@ -724,13 +782,14 @@ async function renderStaticDiscoveryPages() {
     ["strong", "wikiDocumentCount", `${knowledgeManifest.documentCount}개 기술 문서`],
   ]) home = replaceElementContent(home, { tag, id, value });
   home = replaceStaticRegion(home, { name: "home-learning-journey", tag: "div", id: "homeLearningJourney", markup: renderLearningJourney(learningState.journey, learningState.journey.homePresentation) });
-  home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(itemsForPlacement(contentCatalog, "home")) });
+  const orderedProjects = itemsForPlacement(contentCatalog, "projects");
+  home = replaceStaticRegion(home, { name: "home-projects", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(orderedProjects.slice(0, 5)) });
   home = replaceStaticRegion(home, { name: "home-knowledge", tag: "div", id: "knowledgeAreaGrid", markup: renderKnowledgeAreas(homeContent.knowledgeAreas) });
   await writeFile(homePath, home, "utf8");
 
   const projectsPath = resolve(wikiRoot, "projects.html");
   let projects = await readFile(projectsPath, "utf8");
-  projects = replaceStaticRegion(projects, { name: "projects-page", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(itemsForPlacement(contentCatalog, "projects")) });
+  projects = replaceStaticRegion(projects, { name: "projects-page", tag: "div", id: "featuredProjectGrid", markup: renderHomeProjects(orderedProjects) });
   await writeFile(projectsPath, projects, "utf8");
 
   const topLevelRoadmapPath = resolve(wikiRoot, "roadmap.html");
@@ -779,42 +838,48 @@ async function renderStaticDiscoveryPages() {
     id: "study-calendar",
     markup: `    <section id="study-calendar">
       <h2>학습 캘린더</h2>
-      <p class="summary">색이 채워진 날짜는 학습 기록이 있는 날이다. 날짜를 누르면 그날 공부한 내용으로 이동한다.</p>
+      <p class="summary">최근 학습 활동을 날짜별 칸으로 보여 줍니다. 색이 진할수록 충분한 집중 학습을 했으며, 날짜를 누르면 그날의 기록으로 이동합니다.</p>
       <div class="calendar-list" id="calendar-list"><!-- static-fallback:learning-calendar:start -->
 ${renderLearningCalendar(learningHistory)}
 <!-- static-fallback:learning-calendar:end --></div>
-      <div class="calendar-legend">공부한 날</div>
+      <div class="activity-legend" aria-label="공부시간 색상 기준"><span>학습 없음</span><i class="activity-swatch"></i><i class="activity-swatch level-1"></i><span>1~29분</span><i class="activity-swatch level-2"></i><span>30~59분</span><i class="activity-swatch level-3"></i><span>60~119분</span><i class="activity-swatch level-4"></i><span>120분 이상</span><i class="activity-swatch level-unrecorded"></i><span>시간 미기록</span></div>
     </section>`,
   });
   history = replaceSectionById(history, {
     id: "learning-records",
     markup: `    <section id="learning-records">
       <h2>날짜별 학습 기록</h2>
-      <p class="summary">학습 내용 JSON을 날짜별 기록으로 렌더링합니다.</p>
+      <p class="summary">날짜별 학습 내용과 그날의 총 공부시간을 한 기록에서 함께 보여 줍니다.</p>
+      <div class="note study-time-note" id="study-time">${learningHistory.studyTimeNoteHtml}</div>
       <div class="timeline" id="learning-record-list"><!-- static-fallback:learning-records:start -->
 ${renderLearningRecords(learningHistory)}
 <!-- static-fallback:learning-records:end --></div>
     </section>`,
   });
-  history = replaceSectionById(history, {
-    id: "study-time",
-    markup: `    <section id="study-time">
-      <h2>공부시간</h2>
-      <p class="summary">시작·종료 시각은 남기지 않고 날짜별 총 학습시간만 기록한다. 대화 기록으로 유추한 시간에는 <code>약</code>을 표시한다.</p>
-<!-- static-fallback:study-time:start -->
-${renderStudyTime(learningHistory)}
-<!-- static-fallback:study-time:end -->
-    </section>`,
+  history = removeSectionById(history, "study-time");
+  history = moveSectionBeforeMarker(history, {
+    id: "study-calendar",
+    marker: "<!-- learning-calendar-placement -->",
   });
   history = replaceElementContent(history, { tag: "strong", id: "historyLearningDayCount", value: `${uniqueStudyDates.length}일` });
   history = replaceElementContent(history, { tag: "strong", id: "historyRecordedStudyTime", value: recordedStudyTime(learningHistory) });
   history = replaceElementContent(history, { tag: "strong", id: "historyLatestLearningDate", value: uniqueStudyDates[0] });
   history = replaceStaticRegion(history, { name: "learning-priority-policy", tag: "div", id: "learningPriorityPolicy", markup: renderLearningPriorityNote(learningState) });
   history = replaceStaticRegion(history, { name: "learning-journey", tag: "div", id: "learningJourney", markup: renderLearningJourney(learningState.journey) });
-  history = replaceStaticRegion(history, { name: "review-queue", tag: "div", id: "reviewQueue", markup: renderReviewQueue(reviewState) });
-  history = replaceStaticRegion(history, { name: "deferred-learning-items", tag: "div", id: "deferredLearningItems", markup: renderDeferredLearningItems(learningState.deferredLearningItems, learningState.journey) });
   history = replaceStaticRegion(history, { name: "coding-test-journey", tag: "div", id: "codingTestJourney", markup: renderLearningJourney(codingTestState.journey) });
+  history = removeSectionById(history, "review-queue");
+  history = removeSectionById(history, "deferred-learning");
   await writeFile(historyPath, history, "utf8");
+
+  const backlogPath = resolve(wikiRoot, "learning_backlog.html");
+  let backlog = await readFile(backlogPath, "utf8");
+  backlog = replaceStaticRegion(backlog, { name: "deferred-learning-items", tag: "div", id: "deferredLearningItems", markup: renderDeferredLearningItems(learningState.deferredLearningItems, learningState.journey) });
+  await writeFile(backlogPath, backlog, "utf8");
+
+  const reviewPath = resolve(wikiRoot, "learning_review.html");
+  let review = await readFile(reviewPath, "utf8");
+  review = replaceStaticRegion(review, { name: "review-queue", tag: "div", id: "reviewQueue", markup: renderReviewQueue(reviewState) });
+  await writeFile(reviewPath, review, "utf8");
 
   const roadmapPath = resolve(wikiRoot, "pytorch_professional_roadmap.html");
   let roadmap = await readFile(roadmapPath, "utf8");
@@ -865,6 +930,7 @@ function inferParentHref(href, knowledgeDocument) {
   ].includes(href)) return "roadmap.html";
   if (href.startsWith("roadmaps/")) return "pytorch_professional_roadmap.html";
   if (href === "pytorch_professional_roadmap.html") return "roadmap.html";
+  if (["learning_backlog.html", "learning_review.html"].includes(href)) return "learning_history.html";
   if (["wiki.html", "projects.html", "learning_history.html", "roadmap.html"].includes(href)) return "index.html";
   if (href === "knowledge_map.html") return "wiki.html";
   return null;

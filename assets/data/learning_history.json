@@ -7,9 +7,38 @@
         {
           "titleHtml": "배달 다익스트라 힌트 재구현 완료",
           "bodyHtml": "이전 풀이를 보지 않고 양방향 인접 리스트, <code>distance</code> 무한대 초기화와 <code>distance[1]=0</code>, Heap 반복, 낡은 후보 확인, 거리 완화와 <code>K</code> 이하 개수 계산까지 다시 구성했다. 처음에는 Heap Tuple 순서와 다음 후보에 전달할 도로 하나의 비용·누적 비용을 혼동했지만, <code>heapq</code>가 Tuple의 첫 값부터 비교하므로 표준 다익스트라는 <code>(new_cost, next_village)</code>를 저장해야 한다고 교정했다. 누적 비용을 보존한 채 마을 번호를 첫 값으로 두면 반복 완화로 수렴할 수 있어도 비용 우선 탐색과 효율성 보장을 잃는다는 차이도 설명했다. <code>heapq.heappop(heap)</code> 호출과 변수명 오타를 함께 수정했다. 사용자가 제시한 제출 화면에서 같은 표준 코드의 프로그래머스 정확성 <code>100점</code>과 전체 <code>32개</code> 테스트 통과를 확인했다. 화면의 성공 제출 시각은 이전 날짜로 표시되므로 이번 학습일의 새 제출 시각으로 기록하지 않는다. 일반 BFS는 이동 단계만 최소화하므로 서로 다른 도로 비용의 최소 누적 비용을 보장하지 못한다는 점, 더 비싼 후보는 이후 양수 비용을 더해도 유리해질 수 없어 다시 넣지 않는다는 점을 설명했다. 시간 복잡도에서는 마을 수 <code>V</code>와 도로 수 <code>E</code>가 서로 다른 기준이며, Heap 삽입과 삭제는 각각 <code>O(E log V)</code>로 더한다는 점을 확인했다. 일반식 <code>O((V+E) log V)</code>에서 모든 마을이 거의 연결된 경우에만 <code>E≈V²</code>를 대입해 <code>O(V² log V)</code>가 된다고 자기 말로 정리했다. 핵심 Tuple 상태는 힌트로 교정했으므로 힌트 재구현 성공으로 기록하고, 9월 3일 무자료 복습은 유지한다."
+        },
+        {
+          "titleHtml": "KV Cache의 Batch·Layer·Head Shape와 <code>jaxtyping</code>",
+          "bodyHtml": "Batch 1과 Batch 4의 Prompt를 같은 모델에 넣어 첫 Layer Key Cache가 각각 <code>[1,2,2,1]</code>과 <code>[4,2,2,1]</code>이 되는 것을 실행했다. 이 Shape을 <code>[Batch,Head,Token,Head dimension]</code>으로 읽고, KV Cache는 Attention Head별로 이미 분리된 K·V를 Layer마다 보관하므로 마지막 Token의 Multi-Head Attention에서 바로 재사용할 수 있다고 설명했다. 일반 Python 타입만으로는 Tensor의 dtype·축 의미가 보이지 않는 문제를 줄이기 위해 <code>Int64[Tensor, \"batch prompt_token\"]</code>처럼 변수 옆에 <code>jaxtyping</code>을 제한적으로 적용했고, 실제 <code>.shape</code> 출력으로 표기와 실행 결과를 대조했다. 런타임 타입 검사는 아직 적용하지 않았다."
+        },
+        {
+          "titleHtml": "Batch Tensor와 Latency·Throughput의 기준",
+          "bodyHtml": "모델 호출 한 번에는 여러 문장을 행으로 가진 하나의 Batch Tensor가 들어가며, Token ID 단계는 <code>[문장 수, 문장별 Token 수]</code>, Embedding 뒤는 <code>[문장 수, 문장별 Token 수, Token 정보 차원]</code>이라고 정리했다. Batch 4는 Batch가 네 개라는 뜻이 아니라 한 Batch Tensor의 행이 네 개라는 점을 교정했다. Latency는 문장 하나의 시간이 아니라 그 호출에서 모든 행의 생성을 처리한 평균 전체 시간이고, Throughput은 <code>Batch 크기 × 생성 Token 수 ÷ 평균 전체 시간</code>으로 계산하는 초당 전체 Token 수라고 구분했다."
+        },
+        {
+          "titleHtml": "<code>.to(device)</code>와 CUDA 병렬 실행의 경계",
+          "bodyHtml": "<code>input_ids.to(device)</code>와 <code>attention_mask.to(device)</code>는 Tensor를 선택한 장치 메모리로 옮기는 코드이며, 이 호출 자체가 병렬 연산을 직접 작성하는 명령은 아니라고 구분했다. 모델과 입력이 CUDA 장치에 있으면 PyTorch가 연산 종류와 장치를 보고 CUDA Kernel로 디스패치하고, Kernel 내부에서 Batch·Token·행렬 원소의 작업을 GPU Thread에 나누어 실행한다는 흐름을 연결했다. 이번 실행 장치는 CPU였으므로 GPU 병렬 성능을 확인한 것은 아니며, H2D·D2H 복사·CUDA 비동기 실행·<code>synchronize</code> Timing은 이후 검증 항목으로 남겼다."
+        },
+        {
+          "titleHtml": "왼쪽 Padding과 새 Token의 Mask·Position ID 갱신",
+          "bodyHtml": "길이 2와 6인 문장을 하나의 Tensor로 만들기 위해 <code>padding_side=\"left\"</code>와 EOS Padding을 사용하고, 짧은 문장 앞의 Padding 위치가 Attention Mask <code>0</code>이 되는 것을 확인했다. <code>attention_mask.cumsum(dim=-1)-1</code>은 실제 Token을 만날 때만 위치를 증가시키고, Padding에서 생기는 <code>-1</code>은 <code>masked_fill(attention_mask==0,0)</code>으로 보정한다고 설명했다. 새 Token 하나가 생성될 때는 문장마다 실제 Token을 뜻하는 <code>1</code>을 가진 <code>[B,1]</code> Mask를 만들어 기존 Mask 오른쪽에 붙이고, 누적합의 마지막 열 <code>[:, -1:]</code>로 다음 Position ID <code>[[2],[6]]</code>만 구했다."
+        },
+        {
+          "titleHtml": "KV Cache 후속 Forward 입력 계약과 <code>DynamicCache</code>",
+          "bodyHtml": "첫 Forward에는 Prompt 전체를 넣어 Cache를 만들고, 후속 Forward에는 새 Token <code>input_ids [B,1]</code>과 그 Token의 <code>position_ids [B,1]</code>만 전달하되, 새 Query가 과거 K·V까지 조회할 수 있도록 <code>attention_mask [B,past+new]</code>는 전체 길이를 유지한다고 설명했다. <code>use_cache=False</code>이면 재사용할 <code>past_key_values</code>가 반환되지 않으며, Cache와 함께 새 Token을 두 개 이상 전달하는 것도 가능하고 그 구간의 K·V는 현재 Forward에서 순서대로 계산된다고 구분했다. 저장된 실습에서는 Forward 전후 Cache가 같은 <code>DynamicCache</code> 객체였고 새 Token의 K·V Tensor가 Token 축에 이어 붙은 결과 Sequence 길이가 <code>7→8</code>로 증가했다. 이는 길이 숫자만 바꾸는 동작이 아니라 K·V 내용의 확장임을 현재 설치 버전의 구현과 함께 확인했다."
+        },
+        {
+          "titleHtml": "수동 KV Cache 생성과 Token 생성 메서드 교차검증",
+          "bodyHtml": "길이가 다른 두 문장을 대상으로 첫 Forward에는 <code>[2,6]</code> Prompt 전체를 넣고, 이후에는 직전에 선택한 새 Token <code>[2,1]</code>과 Cache만 넣는 5-Step Greedy 생성 루프를 완성했다. <code>generated_ids</code>는 최종 Decode용 전체 ID를 누적하고 <code>step_input_ids</code>는 이번 Forward의 새 Token만 보관하도록 역할을 분리했으며, Cache 길이가 <code>6→10</code>으로 늘어나는 것을 확인했다. 수동 결과와 라이브러리의 <code>generate()</code> Token 생성 메서드가 Padding부터 새 Token 5개까지 전체 ID Tensor에서 <code>torch.equal(...)=True</code>임을 검증했다. 마지막으로 CPU tiny GPT-2에서 No-cache·KV Cache와 Batch 1·4를 조합해 출력 일치를 확인했고, Batch 1은 <code>23.082 ms/866.48 tokens/sec</code> 대 <code>15.488 ms/1291.32 tokens/sec</code>, Batch 4는 <code>26.701 ms/2996.09 tokens/sec</code> 대 <code>25.023 ms/3197.07 tokens/sec</code>로 측정했다. 이 수치는 작은 CPU 실험의 기준선이며 일반적인 GPU 향상률로 확장하지 않는다."
         }
       ],
-      "studyTime": null
+      "studyTime": {
+        "minutes": 560,
+        "approximate": true,
+        "label": "이날 한 공부",
+        "bodyHtml": "<ul><li>배달 다익스트라 힌트 재구현과 전체 테스트 통과, Heap Tuple·거리 완화·복잡도 교정</li><li>Batch 1·4의 KV Cache <code>[Batch,Head,Token,Head dimension]</code> Shape 비교</li><li>Tensor 축 의미를 변수 옆에 남기는 <code>jaxtyping</code> 제한 적용과 실제 Shape 대조</li><li>하나의 Batch Tensor 안의 문장 수·Token 수·Token 차원 구분과 Latency·Throughput 정의 교정</li><li><code>.to(device)</code>의 메모리 이동과 PyTorch 장치 디스패치·CUDA Kernel 병렬 실행 경계 정리</li><li>왼쪽 Padding·Attention Mask 누적합·Position ID 보정과 새 Token Mask 확장 실행</li><li>KV Cache 후속 Forward의 <code>input_ids [B,1]</code>·<code>position_ids [B,1]</code>·<code>attention_mask [B,past+new]</code> 계약 설명</li><li><code>use_cache</code> 반환 조건, 여러 새 Token 입력, DynamicCache 동일 객체와 K·V Token 축 확장 확인</li><li>길이가 다른 두 문장의 수동 5-Step KV Cache 생성과 Cache 길이 <code>6→10</code> 검증</li><li>수동 생성과 <code>generate()</code> Token 생성 메서드의 전체 ID 일치 확인</li><li>No-cache·KV Cache × Batch 1·4의 CPU Latency·Throughput 기준선 측정과 결과 경계 정리</li></ul><p>코덱스 세션의 첫 실제 학습 메시지부터 이번 기록 요청까지를 기준으로 추정했다. 공개 기록에는 하루 총 학습시간만 남기며, GPU 메모리·H2D/D2H·CUDA 동기화 Timing과 <code>jaxtyping</code> 런타임 검사는 다음 검증 범위로 구분했다.</p>"
+      }
     },
     {
       "date": "2026-08-31",

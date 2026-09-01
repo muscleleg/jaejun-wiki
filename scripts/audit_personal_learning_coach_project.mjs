@@ -71,6 +71,8 @@ const [
   reviewStateSource,
   learningHistoryDataSource,
   learningHistorySource,
+  learningBacklogSource,
+  learningReviewSource,
   reviewCss,
   reviewJs,
   reviewRecordScript,
@@ -90,6 +92,8 @@ const [
   source("assets/data/review_state.json"),
   source("assets/data/learning_history.json"),
   source("learning_history.html"),
+  source("learning_backlog.html"),
+  source("learning_review.html"),
   source("assets/css/review-queue.css"),
   source("assets/js/review_queue.js"),
   source("scripts/record_review_result.mjs"),
@@ -174,7 +178,7 @@ for (const token of ["학습보다 정리에 더 많은 시간이", "LLM을 사�
 for (const token of ["관문별 실습 기록", "실행 근거", "주제별 기술 문서", "다시 쓸 수 있는 설명", "홈의 Road 학습 여정"]) {
   requireText(memoryStory, token, `${projectHref} 관문 실습 기록과 범용 기술 문서의 역할 분리`);
 }
-for (const token of ["날짜·학습 주제·총 공부시간", "하나의 학습 기록 JSON", "캘린더·날짜별 기록·공부시간 화면", "학습 기록 JSON"]) {
+for (const token of ["날짜·학습 주제·총 공부시간", "하나의 학습 기록 JSON", "캘린더와 공부시간을 포함한 날짜별 기록 화면", "학습 기록 JSON"]) {
   requireText(memoryStory, token, `${projectHref} 학습 기록 JSON 단일 원본 설명`);
 }
 for (const markup of ['class="memory-purpose-list"', 'class="memory-decision-overlay"', 'class="memory-speech-bubbles"', 'class="memory-speech-bubble memory-now"', 'class="memory-speech-bubble memory-later"', 'class="memory-outcome"']) {
@@ -188,7 +192,7 @@ for (const token of ["기억 강화 연결", "확인된 지식을 별도의 세�
   requireText(memoryStory, token, `${projectHref} 자동 기록과 기억 강화 세션 연결`);
 }
 const memoryReinforcementStory = fragment(projectSource, '<article id="memory-reinforcement" class="feature-story feature-section">', "</article>", `${projectHref} 기억 강화 세션`);
-for (const token of ["AI 엔지니어로서 성장", "기업 코딩 테스트 합격", "로드맵별 분류나 분야별 고정 할당량", "JSON 누적", "다음 확인일", "전체 결과 이력", "최근 실패·중요도·밀린 기간", "중요도가 낮은 내용도 버리지 않고 후순위", "실패·힌트·무힌트 성공·변형 적용", "처음 배운 날의 성공", "유지 근거", "learning_history.html#review-queue", "기억 강화 상태 JSON"]) {
+for (const token of ["AI 엔지니어로서 성장", "기업 코딩 테스트 합격", "로드맵별 분류나 분야별 고정 할당량", "JSON 누적", "다음 확인일", "전체 결과 이력", "최근 실패·중요도·밀린 기간", "중요도가 낮은 내용도 버리지 않고 후순위", "실패·힌트·무힌트 성공·변형 적용", "처음 배운 날의 성공", "유지 근거", "learning_review.html", "기억 강화 상태 JSON"]) {
   requireText(memoryReinforcementStory, token, `${projectHref} 기억 강화 세션의 독립 기능 설명`);
 }
 for (const selector of [".memory-bubble-question::before", ".memory-bubble-question::after", "--memory-question-tail"]) {
@@ -278,7 +282,7 @@ for (const token of [".architecture-summary {", ".trust-list", "grid-template-co
 for (const token of ["학습 기록을 신뢰할 수 있는 이유", "이해 확인", "장기 유지", "처음 배운 날의 성공과 지연 회상 성공", "다음 행동", "공개 기록", "학습 → 간격 회상 → 판단 → 기록 → 다음 학습"]) {
   requireText(validationSection, token, `${projectHref} 학습 기록의 신뢰 근거`);
 }
-for (const token of ["JSON 원본", "캘린더 링크", "날짜별 카드", "공부시간 카드", "상단 합계"]) {
+for (const token of ["JSON 원본", "캘린더 링크", "공부시간이 결합된 날짜별 카드", "상단 합계"]) {
   requireText(validationSection, token, `${projectHref} 학습 기록 JSON 교차 검증`);
 }
 
@@ -290,12 +294,15 @@ if (learningHistoryData.version !== 1 || !Array.isArray(learningHistoryData.reco
 for (const record of learningHistoryData.records || []) {
   if (!record.date || !Array.isArray(record.topics) || !record.topics.length || !("studyTime" in record)) findings.push(`assets/data/learning_history.json: ${record.date || "날짜 없음"} 데이터 계약 불완전`);
 }
-for (const token of ["assets/data/learning_history.json", "static-fallback:learning-calendar:start", "static-fallback:learning-records:start", "static-fallback:study-time:start"]) {
+for (const token of ["assets/data/learning_history.json", "static-fallback:learning-calendar:start", "static-fallback:learning-records:start", 'id="study-time"']) {
   requireText(token.startsWith("assets/") ? memoryStory : learningHistorySource, token, "학습 기록 JSON과 정적 렌더링 연결");
 }
 for (const token of ['id="review-queue"', 'data-review-dashboard', 'static-fallback:review-queue:start', 'assets/data/review_state.json', 'assets/css/review-queue.css', 'assets/js/review_queue.js']) {
-  requireText(learningHistorySource, token, "learning_history.html 기억 강화 세션");
+  requireText(learningReviewSource, token, "learning_review.html 기억 강화 세션");
 }
+for (const token of ['id="deferred-learning"', 'static-fallback:deferred-learning-items:start']) requireText(learningBacklogSource, token, "learning_backlog.html 보류 학습");
+rejectText(learningHistorySource, 'id="review-queue"', "learning_history.html에서 분리된 기억 강화 세션");
+rejectText(learningHistorySource, 'id="deferred-learning"', "learning_history.html에서 분리된 보류 학습");
 for (const token of [".review-dashboard", ".review-card.is-session-active", ".review-topic-badge", ".review-priority-badge", "@media (max-width: 720px)"]) {
   requireText(reviewCss, token, "assets/css/review-queue.css 반응형 회상 화면");
 }

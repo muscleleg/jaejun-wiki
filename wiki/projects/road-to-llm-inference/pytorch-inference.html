@@ -38,8 +38,8 @@
     <p class="summary">사전학습 Causal LM에서 직접 만든 생성 루프를 기준선으로 삼아, 이미 계산한 Key·Value를 재사용할 때 계산 범위·Tensor Shape·Latency가 어떻게 달라지는지 확인합니다.</p>
     <div class="stats">
       <div class="stat">상태<strong>진행 중</strong></div>
-      <div class="stat">현재 행동<strong>Batch 비교</strong></div>
-      <div class="stat">확인 완료<strong>Cache 6.34×</strong></div>
+      <div class="stat">현재 행동<strong>GPU 측정 경계</strong></div>
+      <div class="stat">확인 완료<strong>Batch 2×2</strong></div>
       <div class="stat">환경<strong>로컬 → RunPod</strong></div>
     </div>
   </header>
@@ -59,7 +59,7 @@
   <section id="purpose">
     <h2>1. 이 관문에서 알고자 하는 것</h2>
     <p>수동 생성에서 매 Step마다 전체 Prefix를 다시 모델에 넣으면 이전 Token의 Attention Key·Value도 반복 계산합니다. 먼저 이 동작을 그대로 계측해 기준선을 만들고, 이어 <code>past_key_values</code>를 다음 Forward에 전달해 새 Token에 필요한 계산만 수행하는 흐름과 비교합니다.</p>
-    <div class="callout"><strong>현재의 가장 작은 다음 행동</strong><br>단일 문장의 No-cache·KV Cache 출력과 Latency 기준선을 확보했습니다. 다음에는 같은 모델에서 Batch 1과 Batch N의 입력·Cache Shape, 처리량과 메모리 차이를 비교합니다.</div>
+    <div class="callout"><strong>현재의 가장 작은 다음 행동</strong><br>No-cache·KV Cache와 Batch 1·4 조합의 출력·Latency·Throughput을 같은 조건에서 비교했습니다. 다음에는 GPU에서 Peak VRAM과 CUDA 비동기 실행을 포함한 동기화 측정 경계를 확인합니다.</div>
   </section>
 
   <section id="contract">
@@ -177,8 +177,38 @@ Batch 4 Input IDs Shape = [4,2]</code></pre>
 Batch 4 Layer 0 Key = [4,2,2,1]
 
 [Batch, Head, Token, Head dimension]</code></pre>
-    <p>이 출력으로 Cache가 Layer별 Key·Value Tensor를 가지면서도 각 Tensor 내부에서는 문장·Head·Token을 구분해 보관한다는 Shape을 확인했습니다. 다음 실험에서는 KV Cache 사용을 고정하고 Batch 1과 Batch 4의 전체 생성시간과 처리량을 같은 측정 경계에서 비교합니다. 길이가 다른 문장의 Padding·<code>attention_mask</code>와 문장별 종료 조건은 그 뒤에 분리해 확인합니다.</p>
+    <p>이 출력으로 Cache가 Layer별 Key·Value Tensor를 가지면서도 각 Tensor 내부에서는 문장·Head·Token을 구분해 보관한다는 Shape을 확인했습니다. 이 Shape 확인 뒤에는 길이가 다른 문장의 Padding·<code>attention_mask</code>와 Token 생성 결과를 교차검증하고, 마지막에 No-cache·KV Cache와 Batch 1·4의 전체 생성시간·처리량을 같은 측정 경계에서 비교했습니다.</p>
     <p><a href="../../transformer/transformer_kv_cache_layer_head_shape_learning.html">KV Cache가 Layer별·Head별 형태로 저장되는 이유 보기 →</a></p>
+    <h3>길이가 다른 두 문장을 하나의 Cache 생성 루프로 처리했습니다</h3>
+    <p>이어서 <code>"I study"</code>와 <code>"I study machine learning every day"</code>를 왼쪽 Padding으로 길이 6에 맞추고, 같은 Batch 안에서 새 Token을 5개씩 생성했습니다. 첫 Forward에는 Prompt 전체 <code>[2,6]</code>과 전체 Position ID를 넣고, 이후 Forward에는 직전에 선택한 Token <code>[2,1]</code>과 그 Token의 Position ID만 넣었습니다. <code>attention_mask</code>에는 매 Step마다 실제 Token을 뜻하는 <code>1</code>을 한 열씩 추가했습니다.</p>
+    <pre><code>시작 Attention Mask
+[[0,0,0,0,1,1],
+ [1,1,1,1,1,1]]
+
+Step 1 · input_ids [2,6] · Cache 길이 6
+Step 2 · input_ids [2,1] · Cache 길이 7 · position_ids [[2],[6]]
+Step 3 · input_ids [2,1] · Cache 길이 8 · position_ids [[3],[7]]
+Step 4 · input_ids [2,1] · Cache 길이 9 · position_ids [[4],[8]]
+Step 5 · input_ids [2,1] · Cache 길이 10 · position_ids [[5],[9]]</code></pre>
+    <p>두 행 모두 매 Step Token ID <code>16046</code>, 즉 <code>" stairs"</code>를 선택했습니다. 최종 Decode 결과는 각각 <code>"I study stairs stairs stairs stairs stairs"</code>와 <code>"I study machine learning every day stairs stairs stairs stairs stairs"</code>였습니다. 이 실행으로 길이가 달라도 행별 Position ID를 따로 계산하면 하나의 Batch에서 Cache Token 축을 <code>6 → 10</code>으로 함께 확장할 수 있음을 확인했습니다.</p>
+    <h3>수동 생성 루프를 Token 생성 메서드와 교차검증했습니다</h3>
+    <p>수동 루프가 단지 실행되는 데 그치지 않고 라이브러리의 생성 규칙과 같은 결과를 내는지 확인하기 위해, 같은 원본 <code>input_ids</code>·<code>attention_mask</code>를 모델의 <code>generate()</code> Token 생성 메서드에도 넣었습니다. 새 Token 수 <code>5</code>, Greedy 선택 <code>do_sample=False</code>, <code>use_cache=True</code>를 수동 루프와 같게 고정했습니다.</p>
+    <pre><code>generated_ids  # 수동 생성 결과
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]
+
+method_generated_ids  # Token 생성 메서드 결과
+[[50256,50256,50256,50256,40,2050,16046,16046,16046,16046,16046],
+ [40,2050,4572,4673,790,1110,16046,16046,16046,16046,16046]]
+
+torch.equal(generated_ids, method_generated_ids)  # True</code></pre>
+    <p>두 전체 Token ID Tensor가 완전히 일치했습니다. 이는 현재 모델·두 Prompt·왼쪽 Padding·Greedy·새 Token 5개 조건에서 수동으로 관리한 Position ID·Attention Mask·KV Cache 반복이 Token 생성 메서드와 같은 최종 결과를 냈다는 검증입니다. 라이브러리 내부 구현이 줄마다 동일하다는 뜻은 아니며, 고정한 조건에서 외부 동작이 같다는 증거입니다. 재사용 가능한 검증 기준은 <a href="../../transformer/transformer_kv_cache_followup_forward_mask_learning.html#generation-cross-check">KV Cache 후속 Forward 입력 문서</a>에 정리했습니다.</p>
+    <h3>No-cache·KV Cache × Batch 1·4를 같은 계약으로 측정했습니다</h3>
+    <p>최종 로컬 Benchmark에서는 <code>sshleifer/tiny-gpt2</code>·CPU·Prompt <code>"I study"</code>·문장당 새 Token 20개·Greedy Token 생성 메서드를 고정했습니다. Batch 1은 문장 하나, Batch 4는 같은 문장 네 개를 한 번의 호출로 처리했으며, Warm-up 3회 뒤 20회 측정했습니다. 네 조건에서 바꾼 값은 Batch 크기와 <code>use_cache=False/True</code>뿐입니다.</p>
+    <p>여기서 평균 시간은 문장 한 개의 시간이 아니라, 해당 Batch의 모든 문장을 포함한 <code>model.generate(...)</code> 호출 한 번의 평균 전체 시간입니다. 처리량은 한 호출에서 새로 생성한 Token 수인 <code>Batch 크기 × 20</code>을 평균 전체 시간으로 나눈 값입니다.</p>
+    <table><thead><tr><th>방식</th><th>Batch</th><th>평균 전체 시간</th><th>처리량</th><th>출력 일치</th></tr></thead><tbody><tr><td>No-cache</td><td>1</td><td><code>23.082 ms</code></td><td><code>866.48 tokens/sec</code></td><td rowspan="2"><code>True</code></td></tr><tr><td>KV Cache</td><td>1</td><td><code>15.488 ms</code></td><td><code>1291.32 tokens/sec</code></td></tr><tr><td>No-cache</td><td>4</td><td><code>26.701 ms</code></td><td><code>2996.09 tokens/sec</code></td><td rowspan="2"><code>True</code></td></tr><tr><td>KV Cache</td><td>4</td><td><code>25.023 ms</code></td><td><code>3197.07 tokens/sec</code></td></tr></tbody></table>
+    <p>Batch 1에서는 <code>23.082 ÷ 15.488 ≈ 1.49</code>이므로 KV Cache가 약 <code>1.49배</code> 빠르게 측정되었습니다. Batch 4에서는 <code>26.701 ÷ 25.023 ≈ 1.07</code>로 약 <code>1.07배</code>였습니다. Batch 4의 처리량은 Batch 1과 비교해 No-cache에서 <code>2996.09 ÷ 866.48 ≈ 3.46배</code>, KV Cache에서 <code>3197.07 ÷ 1291.32 ≈ 2.48배</code>였습니다.</p>
+    <div class="warning"><strong>해석 한계</strong><br>이 값은 작은 tiny GPT-2를 로컬 CPU에서 짧고 동일한 Prompt로 측정한 결과입니다. 모델 크기·Prompt 길이·생성 길이·장치·Batch 구성·실행 환경이 달라지면 비율도 달라지므로, KV Cache의 일반적인 속도 향상률이나 GPU 처리량으로 일반화하지 않습니다. 특히 이 결과만으로 Batch 4에서 Cache 효과가 작아진 원인을 확정하지 않습니다. Peak VRAM과 GPU의 CUDA 비동기 실행·동기화 경계는 아직 측정하지 않았습니다.</div>
   </section>
 
   <section id="evidence">
@@ -192,13 +222,16 @@ Batch 4 Layer 0 Key = [4,2,2,1]
       <li class="done">● Cache 반복 루프에서 첫 입력은 <code>[1,2]</code>, 이후 입력은 <code>[1,1]</code>이고 Key Cache Token 축이 <code>2 → 6</code>으로 늘어나는 것을 확인했습니다.</li>
       <li class="done">● CPU·float32·Prompt 2 Token·새 Token 20개·Warm-up 3회·측정 10회 조건에서 No-cache <code>74.1009 ms</code>와 KV Cache <code>11.6883 ms</code>를 비교했습니다.</li>
       <li class="done">● 같은 2-Token Prompt로 Batch만 <code>1 → 4</code>로 바꾸고 입력 <code>[1,2] → [4,2]</code>, Layer 0 Key Cache <code>[1,2,2,1] → [4,2,2,1]</code>을 확인했습니다.</li>
-      <li class="todo">○ Batch 1과 Batch N에서 처리량·메모리 차이를 기록합니다.</li>
+      <li class="done">● 길이가 다른 두 Prompt를 왼쪽 Padding한 뒤 첫 입력 <code>[2,6]</code>, 후속 입력 <code>[2,1]</code>로 생성하고 Cache 길이가 <code>6 → 10</code>으로 늘어나는 것을 확인했습니다.</li>
+      <li class="done">● 같은 원본 입력·Attention Mask·Greedy·새 Token 5개 조건에서 수동 KV Cache 루프와 <code>generate()</code> Token 생성 메서드의 전체 Token ID가 <code>torch.equal=True</code>로 일치했습니다.</li>
+      <li class="done">● CPU에서 No-cache·KV Cache × Batch 1·4의 평균 전체 시간과 처리량을 비교하고, 두 Batch 모두 Cache 사용 전후 출력이 일치함을 확인했습니다.</li>
+      <li class="todo">○ GPU에서 Peak VRAM과 모델·입력·Logit Device, H2D·D2H 이동, CUDA 동기화 전후 Timing 차이를 기록합니다.</li>
       <li class="done">● Model·dtype·Token 길이·장치·Warm-up·측정 경계와 첫 로컬 결과의 일반화 한계를 함께 남겼습니다.</li>
     </ul>
   </section>
 
   <footer class="footer">Road to LLM inference · Milestone 06 · PyTorch 추론 Baseline</footer>
 </main>
-<script src="../../../assets/js/global_nav.js?v=20260829-toc-height-1"></script>
+<script src="../../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
 </body>
 </html>

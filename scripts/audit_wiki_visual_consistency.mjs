@@ -25,14 +25,10 @@ for (const file of files) {
   const content = await readFile(file, "utf8");
   const bodyClass = content.match(/<body\b[^>]*class=["']([^"']*)["']/i)?.[1] || "";
   const headingCount = [...content.matchAll(/<h[23](?:\s|>)/gi)].length;
-  const documentTocDisabled = /<body\b[^>]*data-document-toc=["']off["']/i.test(content);
-
   if (!/assets\/css\/site-theme\.css(?:\?[^"']*)?["']/i.test(content)) {
     findings.push(`${href}: 공통 site-theme.css 누락`);
   }
-  const expectedGlobalNavVersion = documentTocDisabled
-    ? /assets\/js\/global_nav\.js\?v=20260830-page-optout-1["']/i
-    : /assets\/js\/global_nav\.js\?v=20260829-toc-height-1["']/i;
+  const expectedGlobalNavVersion = /assets\/js\/global_nav\.js\?v=20260901-record-pages-1["']/i;
   if (!expectedGlobalNavVersion.test(content)) {
     findings.push(`${href}: 공통 내비게이션·목차 cache-bust 버전 불일치`);
   }
