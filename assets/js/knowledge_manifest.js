@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 183,
-  "indexedCount": 184,
+  "documentCount": 184,
+  "indexedCount": 185,
   "categories": [
     {
       "id": "llm-systems",
@@ -3669,7 +3669,7 @@ window.KNOWLEDGE_MANIFEST = {
       "title": "데이터에서 y = 3x + 2 를 찾아내기",
       "description": "1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름",
       "publishedAt": "2026-08-13",
-      "searchText": "데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름 ⌂ 홈 › 기술 위키 › PyTorch › 수동 선형회귀 데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 2. 한 번의 학습 흐름 3. 랜덤한 파라미터에서 시작한다 4. MSE Loss로 예측 오차를 측정한다 5. 평균변화율에서 순간변화율로 간다 6. backward() 가 Gradient를 계산한다 7. Gradient의 반대 방향으로 파라미터를 수정한다 8. nn.Linear 와 Optimizer가 같은 역할을 나눠 맡는다 9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다 10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다 11. Tensor의 Shape과 축 의미를 타입에 보존한다 12. 장치 이동에서 GPU 병렬 연산까지 연결한다",
+      "searchText": "데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름 ⌂ 홈 › 기술 위키 › PyTorch › 수동 선형회귀 데이터에서 y = 3x + 2 를 찾아내기 1. 데이터에서 y = 3x + 2 를 찾는다 2. 한 번의 학습 흐름 3. 랜덤한 파라미터에서 시작한다 4. MSE Loss로 예측 오차를 측정한다 5. 평균변화율에서 순간변화율로 간다 6. backward() 가 Gradient를 계산한다 7. Gradient의 반대 방향으로 파라미터를 수정한다 8. nn.Linear 와 Optimizer가 같은 역할을 나눠 맡는다 9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다 10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다 11. Tensor의 Shape과 축 의미를 타입에 보존한다 12. Shape이 다른 Tensor도 호환되는 축끼리 계산한다 13. 장치 이동에서 GPU 병렬 연산까지 연결한다",
       "href": "wiki/pytorch/pytorch_linear_regression_learning.html",
       "url": "https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html",
       "category": "PyTorch",
@@ -3812,6 +3812,29 @@ window.KNOWLEDGE_MANIFEST = {
         "Device와 CUDA 병렬 실행",
         "Profiler 표 읽기",
         "H2D·GPU 계산·D2H 추적"
+      ],
+      "conceptKeys": []
+    },
+    {
+      "id": "wiki-pytorch-pytorch_tensor_broadcasting_learning",
+      "title": "크기가 다른 Tensor끼리 계산할 수 있는 이유: Broadcasting",
+      "description": "서로 다른 Tensor Shape을 오른쪽부터 비교하고, 크기 1인 축과 짧은 Tensor의 생략된 왼쪽 축을 확장해 원소별 연산하는 Broadcasting 규칙을 설명합니다.",
+      "publishedAt": "2026-09-02",
+      "searchText": "크기가 다른 Tensor끼리 계산할 수 있는 이유: Broadcasting 서로 다른 Tensor Shape을 오른쪽부터 비교하고, 크기 1인 축과 짧은 Tensor의 생략된 왼쪽 축을 확장해 원소별 연산하는 Broadcasting 규칙을 설명합니다. ⌂ 홈 › 기술 위키 › PyTorch 학습 원리 › Tensor Broadcasting 크기가 다른 Tensor끼리 계산할 수 있는 이유: Broadcasting 1. Token별 Feature 평균을 구했습니다 2. 마지막 축의 길이가 다른데도 뺄셈이 됩니다 3. Broadcasting이 가능한 조건 4. “한쪽 Tensor에는 비교할 축이 없다”는 의미 5. Broadcasting은 크기가 다르면 항상 적용되는 것이 아닙니다 6. 차원 수와 축의 길이는 다른 개념입니다 7. 크기가 1인 축은 다른 위치에서도 확장될 수 있습니다 8. 차원 수가 다른 Tensor는 오른쪽부터 맞춥니다 9. keepdim=True 가 필요한 이유 10. Broadcasting은 개념적 반복입니다 결론",
+      "href": "wiki/pytorch/pytorch_tensor_broadcasting_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tensor_broadcasting_learning.html",
+      "category": "PyTorch",
+      "categoryKey": "pytorch",
+      "isCategoryIndex": false,
+      "parentHref": "wiki/pytorch/pytorch_linear_regression_learning.html",
+      "parentId": "wiki-pytorch-pytorch_linear_regression_learning",
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "PyTorch 학습 원리",
+        "Tensor Broadcasting"
       ],
       "conceptKeys": []
     },
