@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer Batch의 각 행이 독립적인 Sequence인 이유와 Attention·KV Cache의 문맥 경계, Batch와 Sequence 길이의 차이를 설명합니다.">
+  <title>Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다">
+  <meta property="og:description" content="Transformer Batch의 각 행이 독립적인 Sequence인 이유와 Attention·KV Cache의 문맥 경계, Batch와 Sequence 길이의 차이를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html","name":"Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다","description":"Transformer Batch의 각 행이 독립적인 Sequence인 이유와 Attention·KV Cache의 문맥 경계, Batch와 Sequence 길이의 차이를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html"},"headline":"Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_batch_sequence_context_isolation_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"KV Cache 효과 확인","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html"},{"@type":"ListItem","position":5,"name":"Batch 문맥 분리"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_kv_cache_effect_benchmark_learning.html">KV Cache 효과 확인</a><span class="separator">›</span><span aria-current="page">Batch 문맥 분리</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">Transformer · Batch · Attention Context</span>
+      <h1>Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다</h1>
+      <p class="lead">Batch는 여러 문장을 하나의 문맥으로 합치는 구조가 아니라, 서로 독립적인 여러 Sequence를 한 번에 계산하기 위한 구조입니다.</p>
+      <div class="detail-actions"><a href="transformer_kv_cache_effect_benchmark_learning.html#4-이-batch-benchmark가-처리하는-것은-무엇인가">← KV Cache Batch Benchmark</a><a href="transformer_attention_learning.html">Self-Attention 상세</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#batch-sequences">1. 하나의 Batch에는 여러 개의 독립적인 Sequence가 들어갑니다</a>
+      <a href="#attention-boundary">2. Self-Attention은 같은 Batch 행 안에서만 계산됩니다</a>
+      <a href="#attention-shape">3. Attention Score의 Shape에서도 분리를 확인할 수 있습니다</a>
+      <a href="#shared-context">4. 문장끼리 문맥을 공유하려면 하나의 Sequence로 넣어야 합니다</a>
+      <a href="#batch-vs-sequence">5. Batch를 늘리는 것과 Sequence를 늘리는 것은 다릅니다</a>
+      <a href="#cache-boundary">6. KV Cache도 Batch 행마다 독립적입니다</a>
+      <a href="#client-request">7. Batch의 각 행은 독립적인 클라이언트 요청처럼 볼 수 있습니다</a>
+      <a href="#benchmark">8. 이전 KV Cache Benchmark에서는 어떻게 처리되었을까요?</a>
+      <a href="#input-rule">9. 입력을 구성하는 기준</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section class="detail-section">
+      <p>Transformer에 여러 문장을 한 번에 넣으면 GPU가 이 문장들을 함께 처리합니다.</p>
+      <p>이때 한 가지 의문이 생깁니다.</p>
+      <blockquote><p>Batch에 여러 문장이 들어 있다면 서로 다른 문장의 Token도 Attention할까요?</p></blockquote>
+      <p>결론부터 말하면 일반적인 Transformer에서는 <strong>Batch에 들어 있는 서로 다른 문장끼리 Attention하지 않습니다.</strong></p>
+      <p>Batch는 여러 문장을 하나의 문맥으로 합치는 구조가 아니라, 서로 독립적인 여러 Sequence를 한 번에 계산하기 위한 구조입니다.</p>
+    </section>
+
+    <section id="batch-sequences" class="detail-section">
+      <h2>1. 하나의 Batch에는 여러 개의 독립적인 Sequence가 들어갑니다</h2>
+      <p>Tokenizer에 여러 문장을 전달하면 다음과 같은 Tensor가 만들어집니다.</p>
+      <pre><code class="language-python">prompts: list[str] = [
+    "I study",
+    "Machine learning is interesting",
+    "Today is sunny",
+]</code></pre>
+      <p>Padding을 적용한 <code>input_ids</code>의 Shape이 다음과 같다고 가정하겠습니다.</p>
+      <pre class="text"><code>[Batch, Token]
+[3, 5]</code></pre>
+      <p>이를 실제 내용으로 표현하면 다음과 같습니다.</p>
+      <pre class="text"><code>Batch
+[
+    [I, study, PAD, PAD, PAD],
+    [Machine, learning, is, interesting, PAD],
+    [Today, is, sunny, PAD, PAD],
+]</code></pre>
+      <p>여기서 Batch 크기 <code>3</code>은 서로 독립적인 Sequence가 3개 있다는 뜻입니다.</p>
+      <pre class="text"><code>Batch[0] → "I study"
+Batch[1] → "Machine learning is interesting"
+Batch[2] → "Today is sunny"</code></pre>
+      <p>이 세 문장은 GPU에서 함께 처리되지만 하나의 문맥으로 결합되지는 않습니다.</p>
+    </section>
+
+    <section id="attention-boundary" class="detail-section">
+      <h2>2. Self-Attention은 같은 Batch 행 안에서만 계산됩니다</h2>
+      <p>각 문장의 Token은 자신과 같은 Batch 행에 있는 Token만 참조합니다.</p>
+      <pre class="text"><code>Batch[0]의 Token ↔ Batch[0]의 Token
+Batch[1]의 Token ↔ Batch[1]의 Token
+Batch[2]의 Token ↔ Batch[2]의 Token</code></pre>
+      <p>반면 다음과 같은 Attention은 발생하지 않습니다.</p>
+      <pre class="text"><code>Batch[0]의 Token ↔ Batch[1]의 Token  ❌</code></pre>
+      <p>첫 번째 문장의 <code>study</code>가 두 번째 문장의 <code>Machine</code>이나 세 번째 문장의 <code>sunny</code>를 참조하지 않습니다.</p>
+      <p>GPU가 문장들을 동시에 처리한다는 말은 문장들이 서로 정보를 교환한다는 뜻이 아닙니다.</p>
+      <blockquote><p>서로 독립적인 같은 종류의 연산을 GPU가 한꺼번에 수행한다는 뜻입니다.</p></blockquote>
+    </section>
+
+    <section id="attention-shape" class="detail-section">
+      <h2>3. Attention Score의 Shape에서도 분리를 확인할 수 있습니다</h2>
+      <p>Multi-Head Attention(멀티헤드 어텐션)의 Attention Score는 개념적으로 다음 Shape을 가집니다.</p>
+      <pre class="text"><code>[Batch, Head, Query Token, Key Token]</code></pre>
+      <p>Batch가 3이고 각 문장의 길이가 5라면 다음과 같습니다.</p>
+      <pre class="text"><code>[3, Head, 5, 5]</code></pre>
+      <p>이 구조에는 문장별 <code>5 × 5</code> Attention 행렬이 각각 존재합니다.</p>
+      <pre class="text"><code>Batch[0] → [Head, 5, 5]
+Batch[1] → [Head, 5, 5]
+Batch[2] → [Head, 5, 5]</code></pre>
+      <p>다음처럼 세 문장의 Token을 모두 합친 하나의 Attention 행렬을 만드는 것이 아닙니다.</p>
+      <pre class="text"><code>[Head, 15, 15]  ❌</code></pre>
+      <p>따라서 Batch 크기를 늘려도 한 문장이 참조할 수 있는 문맥이 길어지는 것은 아닙니다. 동시에 처리하는 독립적인 문장의 수만 늘어납니다.</p>
+    </section>
+
+    <section id="shared-context" class="detail-section">
+      <h2>4. 문장끼리 문맥을 공유하려면 하나의 Sequence로 넣어야 합니다</h2>
+      <p>다음 두 문장이 서로 이어지는 문맥이라고 가정하겠습니다.</p>
+      <pre class="text"><code>나는 학교에 갔습니다.
+수업이 끝난 뒤 집에 왔습니다.</code></pre>
+      <p>두 문장을 서로 다른 Batch 행에 넣으면 다음과 같습니다.</p>
+      <pre class="text"><code>Batch[0] → 나는 학교에 갔습니다.
+Batch[1] → 수업이 끝난 뒤 집에 왔습니다.</code></pre>
+      <p>이 경우 두 번째 문장은 첫 번째 문장을 참조할 수 없습니다. 두 문장은 서로 독립적인 입력이기 때문입니다.</p>
+      <p>두 번째 문장이 첫 번째 문장을 문맥으로 사용해야 한다면 하나의 Sequence로 연결해야 합니다.</p>
+      <pre class="text"><code>Batch[0]
+→ 나는 학교에 갔습니다. 수업이 끝난 뒤 집에 왔습니다.</code></pre>
+      <p>Tensor 구조로 보면 <code>[Batch=1, 전체 Token 수]</code>입니다. 이제 두 번째 문장의 Token은 같은 Sequence 앞부분에 있는 첫 번째 문장의 Token을 Attention할 수 있습니다.</p>
+      <p>Causal LM(인과적 언어 모델)에서는 미래 Token을 볼 수 없도록 Causal Mask가 적용됩니다. 따라서 뒤에 있는 두 번째 문장은 앞의 첫 번째 문장을 참조할 수 있지만, 앞의 첫 번째 문장이 뒤의 두 번째 문장을 미리 참조하지는 않습니다.</p>
+      <pre class="text"><code>첫 번째 문장 → 두 번째 문장 참조 불가
+두 번째 문장 → 첫 번째 문장 참조 가능</code></pre>
+    </section>
+
+    <section id="batch-vs-sequence" class="detail-section">
+      <h2>5. Batch를 늘리는 것과 Sequence를 늘리는 것은 다릅니다</h2>
+      <h3>Batch 크기를 늘린 경우</h3>
+      <pre class="text"><code>[
+    [I, study],
+    [I, study],
+    [I, study],
+    [I, study],
+]</code></pre>
+      <p>Shape은 <code>[4,2]</code>입니다. 독립적인 <code>I study</code> 문장 4개를 함께 처리하며, 각 문장의 문맥 길이는 여전히 2 Token입니다.</p>
+      <h3>Sequence 길이를 늘린 경우</h3>
+      <pre class="text"><code>[
+    [I, study, I, study, I, study, I, study]
+]</code></pre>
+      <p>Shape은 <code>[1,8]</code>입니다. 하나의 Sequence 안에 Token 8개가 들어 있으며, 뒤쪽 Token은 같은 행의 앞쪽 Token을 문맥으로 참조할 수 있습니다.</p>
+      <p>두 입력은 전체 Token 수가 8개로 같지만 의미가 다릅니다.</p>
+      <pre class="text"><code>[4, 2] → 독립적인 짧은 문장 4개
+[1, 8] → 문맥을 공유하는 긴 Sequence 1개</code></pre>
+    </section>
+
+    <section id="cache-boundary" class="detail-section">
+      <h2>6. KV Cache도 Batch 행마다 독립적입니다</h2>
+      <p>KV Cache는 각 Layer에서 과거 Token의 Key와 Value를 보관합니다.</p>
+      <pre class="text"><code>[Batch, KV Head, 과거 Token, Head Dimension]</code></pre>
+      <p>Batch 크기가 3이라면 하나의 Cache Tensor 안에 세 문장의 정보가 함께 들어 있지만, 각 행의 Cache는 서로 독립적입니다.</p>
+      <pre class="text"><code>Cache[0] → Batch[0] 문장의 과거 문맥
+Cache[1] → Batch[1] 문장의 과거 문맥
+Cache[2] → Batch[2] 문장의 과거 문맥</code></pre>
+      <p>새 Token을 생성할 때도 각 문장은 자신의 Cache만 사용합니다.</p>
+      <pre class="text"><code>Batch[0]의 새 Token → Cache[0] 참조
+Batch[1]의 새 Token → Cache[1] 참조
+Batch[2]의 새 Token → Cache[2] 참조</code></pre>
+      <p>따라서 여러 문장을 Batch로 함께 생성하더라도 문장들의 생성 결과가 서로의 문맥에 직접 영향을 주지는 않습니다.</p>
+    </section>
+
+    <section id="client-request" class="detail-section">
+      <h2>7. Batch의 각 행은 독립적인 클라이언트 요청처럼 볼 수 있습니다</h2>
+      <p>LLM 추론 환경에서는 Batch의 각 행을 서로 다른 클라이언트 요청처럼 이해할 수 있습니다.</p>
+      <pre class="text"><code>Batch[0] → 클라이언트 A의 요청
+Batch[1] → 클라이언트 B의 요청
+Batch[2] → 클라이언트 C의 요청</code></pre>
+      <p>GPU는 이 요청들을 하나의 Batch로 묶어 함께 처리하지만 요청들의 문맥은 섞이지 않습니다.</p>
+      <p>다만 엄밀하게는 Batch 행을 클라이언트 자체보다 <strong>독립적인 요청 또는 Sequence</strong>라고 표현하는 것이 정확합니다. 한 클라이언트가 여러 요청을 보낼 수도 있고, 하나의 요청에서 여러 후보 Sequence를 생성할 수도 있기 때문입니다.</p>
+      <pre class="text"><code>Batch의 한 행 ≈ 독립적으로 처리할 하나의 Sequence</code></pre>
+    </section>
+
+    <section id="benchmark" class="detail-section">
+      <h2>8. 이전 KV Cache Benchmark에서는 어떻게 처리되었을까요?</h2>
+      <p>이전 실험에서는 먼저 <code>I study</code>라는 문장 1,000개를 만들었습니다.</p>
+      <pre><code class="language-python">tokenizer(
+    ["I study"] * 1000,
+    return_tensors="pt",
+).input_ids</code></pre>
+      <p>이때 Shape은 <code>[1000,2]</code>였으므로 독립적인 짧은 문장 1,000개였습니다.</p>
+      <pre class="text"><code>Batch[0] → I study
+Batch[1] → I study
+...
+Batch[999] → I study</code></pre>
+      <p>이후 <code>.repeat(1,64)</code>를 적용했습니다. 이 연산은 Batch 크기 1,000을 늘리지 않고 각 Batch 행의 Token을 오른쪽으로 반복했습니다.</p>
+      <pre class="text"><code>Batch[0] → I study I study I study ... I study
+Batch[1] → I study I study I study ... I study
+...
+Batch[999] → I study I study I study ... I study</code></pre>
+      <p>최종 Shape은 <code>[1000,128]</code>이었습니다.</p>
+      <pre class="text"><code>독립적인 Sequence: 1000개
+각 Sequence의 문맥 길이: 128 Token</code></pre>
+      <p>각 Sequence 내부에서는 128개의 Token이 서로 Attention할 수 있지만, 1,000개의 Sequence끼리는 서로 Attention하지 않았습니다. KV Cache 역시 각 Sequence마다 독립적으로 유지되었습니다.</p>
+    </section>
+
+    <section id="input-rule" class="detail-section">
+      <h2>9. 입력을 구성하는 기준</h2>
+      <p>여러 문장을 모델에 넣을 때는 먼저 다음 질문을 해야 합니다.</p>
+      <blockquote><p>이 문장들이 하나의 문맥으로 연결되어야 하는가?</p></blockquote>
+      <p>문장들이 서로 이어지는 내용이라면 하나의 Sequence로 연결합니다.</p>
+      <pre class="text"><code>앞 문장을 뒤 문장이 참고해야 함
+→ 같은 Batch 행의 하나의 긴 Sequence</code></pre>
+      <p>문장들이 서로 독립적인 요청이라면 Batch의 서로 다른 행에 넣습니다.</p>
+      <pre class="text"><code>각 문장을 독립적으로 처리해야 함
+→ 하나의 Batch 안의 서로 다른 행</code></pre>
+      <pre class="text"><code>문맥을 공유해야 하는 여러 문장
+→ 한 행에 이어 붙임
+→ [1, 긴 Token 수]
+
+서로 독립적인 여러 문장
+→ Batch의 여러 행으로 구성
+→ [문장 수, 각 문장의 Token 수]</code></pre>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>결론</h2>
+      <p>Batch는 여러 문장을 하나의 문맥으로 합치는 구조가 아닙니다.</p>
+      <p>일반적인 Transformer에서 Batch의 각 행은 서로 독립적인 Sequence입니다. GPU는 여러 행의 연산을 함께 처리하지만, 서로 다른 행의 Token끼리 Attention하지 않습니다.</p>
+      <pre class="text"><code>같은 Batch 행의 Token → 서로 Attention 가능
+서로 다른 Batch 행의 Token → 서로 Attention하지 않음</code></pre>
+      <p>KV Cache도 Batch 행마다 독립적입니다. 각 Sequence가 생성한 과거 K·V는 해당 Sequence의 다음 Token을 계산할 때만 사용됩니다.</p>
+      <p>따라서 Batch의 각 행을 독립적인 클라이언트 요청처럼 이해할 수 있습니다. 더 정확하게는 <strong>독립적으로 처리되는 하나의 Sequence</strong>입니다.</p>
+      <p>문장들이 서로 문맥을 공유해야 한다면 서로 다른 Batch 행으로 분리하지 않고 하나의 긴 Sequence로 연결해야 합니다.</p>
+      <blockquote><p>Batch 크기는 동시에 처리하는 독립적인 Sequence의 수를 결정하고, Sequence 길이는 한 입력 안에서 서로 문맥을 공유하는 Token의 범위를 결정합니다.</p></blockquote>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+</body>
+</html>
