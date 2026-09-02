@@ -1,8 +1,8 @@
 window.KNOWLEDGE_MANIFEST = {
   "schemaVersion": 1,
   "site": "https://muscleleg.github.io/jaejun-wiki/",
-  "documentCount": 174,
-  "indexedCount": 175,
+  "documentCount": 175,
+  "indexedCount": 176,
   "categories": [
     {
       "id": "llm-systems",
@@ -3467,6 +3467,29 @@ window.KNOWLEDGE_MANIFEST = {
         "python-fastapi-notes",
         "python-language-runtime"
       ]
+    },
+    {
+      "id": "wiki-python-python_uv_system_site_packages_runpod_learning",
+      "title": "일회성 RunPod에서 기존 CUDA Package를 재사용해 환경 구성 시간을 줄이기",
+      "description": "반납할 때 초기화되는 GPU 환경에서 CUDA·PyTorch 시스템 패키지를 복사하거나 다시 설치하지 않고 참조하는 구조와, 패키지의 실제 Import 위치를 확인하는 방법을 설명합니다.",
+      "publishedAt": "2026-09-02",
+      "searchText": "일회성 RunPod에서 기존 CUDA Package를 재사용해 환경 구성 시간을 줄이기 반납할 때 초기화되는 GPU 환경에서 CUDA·PyTorch 시스템 패키지를 복사하거나 다시 설치하지 않고 참조하는 구조와, 패키지의 실제 Import 위치를 확인하는 방법을 설명합니다. ⌂ 홈 › 기술 위키 › Python › uv와 시스템 패키지 재사용 일회성 RunPod에서 기존 CUDA Package를 재사용해 환경 구성 시간을 줄이기 1. 겪은 문제 2. GPU 이미지에는 이미 실행 환경이 있었습니다 3. 이미 있는 패키지를 다시 설치하지 않으려는 이유 4. --system-site-packages 를 사용한 가상환경 5. 시스템 패키지를 복사하는 것이 아니라 보이게 합니다 6. 가상환경 패키지가 먼저, 시스템 패키지가 그다음입니다 7. 어떤 패키지를 어디서 가져왔는지는 어떻게 확인하는가 8. pyproject.toml · uv.lock · pyvenv.cfg ·런타임 경로의 역할 9. 무엇을 해결했고 어떤 한계가 남는가 10. 결론",
+      "href": "wiki/python/python_uv_system_site_packages_runpod_learning.html",
+      "url": "https://muscleleg.github.io/jaejun-wiki/wiki/python/python_uv_system_site_packages_runpod_learning.html",
+      "category": "Python",
+      "categoryKey": "python",
+      "isCategoryIndex": false,
+      "parentHref": null,
+      "parentId": null,
+      "documentType": "TechArticle",
+      "language": "ko",
+      "breadcrumbs": [
+        "홈",
+        "기술 위키",
+        "Python",
+        "uv와 시스템 패키지 재사용"
+      ],
+      "conceptKeys": []
     },
     {
       "id": "wiki-pytorch-pytorch_churn_mlp_learning",
