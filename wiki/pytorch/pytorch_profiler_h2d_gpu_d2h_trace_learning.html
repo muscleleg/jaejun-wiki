@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PyTorch Profiler로 CPU 입력의 H2D 복사, GPU 모델 Forward의 ATen·CUDA Kernel 실행, Logit의 D2H 복사를 실제 RunPod 측정값과 연결합니다.">
+  <title>PyTorch Profiler로 H2D 복사 → GPU 계산 → D2H 복사 추적하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PyTorch Profiler로 H2D 복사 → GPU 계산 → D2H 복사 추적하기">
+  <meta property="og:description" content="PyTorch Profiler로 CPU 입력의 H2D 복사, GPU 모델 Forward의 ATen·CUDA Kernel 실행, Logit의 D2H 복사를 실제 RunPod 측정값과 연결합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html","name":"PyTorch Profiler로 H2D 복사 → GPU 계산 → D2H 복사 추적하기","description":"PyTorch Profiler로 CPU 입력의 H2D 복사, GPU 모델 Forward의 ATen·CUDA Kernel 실행, Logit의 D2H 복사를 실제 RunPod 측정값과 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html"},"headline":"PyTorch Profiler로 H2D 복사 → GPU 계산 → D2H 복사 추적하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_h2d_gpu_d2h_trace_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch 학습 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":4,"name":"Device와 CUDA 병렬 실행","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},{"@type":"ListItem","position":5,"name":"Profiler 표 읽기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_profiler_aten_cuda_kernel_table_learning.html"},{"@type":"ListItem","position":6,"name":"H2D·GPU 계산·D2H 추적"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><a href="pytorch_device_cuda_parallel_learning.html">Device와 CUDA 병렬 실행</a><span class="separator">›</span><a href="pytorch_profiler_aten_cuda_kernel_table_learning.html">Profiler 표 읽기</a><span class="separator">›</span><span aria-current="page">H2D·GPU 계산·D2H 추적</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">PyTorch · CUDA Profiler</span>
+      <h1>PyTorch Profiler로 H2D 복사 → GPU 계산 → D2H 복사 추적하기</h1>
+      <p class="lead">CPU에서 만든 Token ID를 GPU로 옮기고, GPU에서 모델을 실행한 뒤, Logit을 다시 CPU로 가져오는 세 구간을 실제 Profiler 기록과 연결합니다.</p>
+      <div class="detail-actions"><a href="pytorch_profiler_aten_cuda_kernel_table_learning.html#conclusion">← Profiler 표 읽기</a><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#tokenizer-cpu">CPU·GPU Tensor 이동</a><a href="pytorch_peak_vram_kv_cache_benchmark_learning.html#conclusion">Peak VRAM 측정</a><a href="../projects/road-to-llm-inference/pytorch-inference.html#profiler-transfer">PyTorch 추론 Baseline 통합 기록</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#full-code">1. 전체 코드</a><a href="#profiler-layers">2. Profiler 세 계층</a><a href="#h2d">3. H2D 복사</a><a href="#h2d-aten">4. .to(cuda)의 ATen 경로</a><a href="#blocking">5. Blocking과 Async</a><a href="#h2d-limit">6. 16Byte 입력의 한계</a><a href="#forward">7. GPU Forward</a><a href="#kernel">8. aten::mm과 Kernel</a><a href="#cpu-role">9. CPU의 역할</a><a href="#d2h">10. D2H 복사</a><a href="#pageable">11. Pageable</a><a href="#observed">12. 실제 관찰값</a><a href="#benchmark-limit">13. 해석 한계</a><a href="#conclusion">결론</a>
+    </nav>
+
+    <section class="detail-section">
+      <p>PyTorch에서 GPU 모델을 실행할 때는 모델만 GPU에 올린다고 끝나지 않습니다. 모델이 GPU에 있다면 입력 Tensor도 GPU 메모리에 있어야 하며, GPU에서 계산한 결과를 CPU 코드에서 사용하려면 출력 Tensor를 다시 CPU 메모리로 가져와야 합니다.</p>
+      <pre class="text"><code>CPU Input IDs
+      │
+      │ H2D 복사
+      ▼
+GPU Input IDs
+      │
+      │ GPU 모델 Forward
+      ▼
+GPU Logits
+      │
+      │ D2H 복사
+      ▼
+CPU Logits</code></pre>
+      <p>이번 실습의 질문은 다음과 같습니다.</p>
+      <blockquote><p><code>.to("cuda")</code>, GPU 모델 Forward, <code>.to("cpu")</code>는 Profiler에서 각각 어떤 연산으로 나타날까요?</p></blockquote>
+    </section>
+
+    <section id="full-code" class="detail-section">
+      <h2>1. 실습에서 관찰한 전체 코드</h2>
+      <p>Jupyter Kernel을 재시작한 뒤에도 이 셀 하나만 실행할 수 있도록 모델과 Tokenizer까지 셀 안에서 준비했습니다.</p>
+      <pre><code>import torch
+
+from torch import Tensor
+from jaxtyping import Float, Int64
+from torch.profiler import (
+    ProfilerActivity,
+    profile,
+)
+from transformers import (
+    GPT2LMHeadModel,
+    GPT2TokenizerFast,
+)
+from transformers.modeling_outputs import (
+    CausalLMOutputWithCrossAttentions,
+)
+
+transfer_model_name: str = "sshleifer/tiny-gpt2"
+transfer_cuda_device: torch.device = torch.device("cuda")
+
+transfer_tokenizer: GPT2TokenizerFast = (
+    GPT2TokenizerFast.from_pretrained(
+        transfer_model_name,
+    )
+)
+
+transfer_gpu_model: GPT2LMHeadModel = (
+    GPT2LMHeadModel
+    .from_pretrained(transfer_model_name)
+    .to(transfer_cuda_device)
+)
+transfer_gpu_model.eval()
+
+# Tokenizer가 만든 CPU Tensor
+transfer_cpu_input_ids: Int64[
+    Tensor,
+    "1 prompt_token",
+] = transfer_tokenizer(
+    ["I study"],
+    return_tensors="pt",
+).input_ids
+
+torch.cuda.synchronize(transfer_cuda_device)
+
+with profile(
+    activities=[
+        ProfilerActivity.CPU,
+        ProfilerActivity.CUDA,
+    ],
+    record_shapes=True,
+    profile_memory=True,
+) as transfer_profiler:
+
+    # CPU → GPU: H2D 복사
+    transfer_gpu_input_ids: Int64[
+        Tensor,
+        "1 prompt_token",
+    ] = transfer_cpu_input_ids.to(
+        device=transfer_cuda_device,
+        non_blocking=False,
+    )
+
+    # GPU에서 모델 Forward 계산
+    with torch.inference_mode():
+        transfer_gpu_outputs: (
+            CausalLMOutputWithCrossAttentions
+        ) = transfer_gpu_model(
+            input_ids=transfer_gpu_input_ids,
+            use_cache=False,
+        )
+
+    # GPU → CPU: D2H 복사
+    transfer_cpu_logits: Float[
+        Tensor,
+        "1 prompt_token vocabulary",
+    ] = transfer_gpu_outputs.logits.to(
+        device="cpu",
+        non_blocking=False,
+    )
+
+    # Profiler가 닫히기 전에 장치 측 CUDA 작업 완료
+    torch.cuda.synchronize(transfer_cuda_device)
+
+print(
+    transfer_profiler
+    .key_averages()
+    .table(
+        sort_by="self_cuda_time_total",
+        row_limit=40,
+    )
+)</code></pre>
+      <p>모델과 Tokenizer를 만드는 코드는 <code>with profile(...)</code> 밖에 있습니다. 따라서 Profiler가 직접 관찰하는 핵심 구간은 다음 세 작업입니다.</p>
+      <pre class="text"><code>입력을 GPU로 복사
+→ GPU 모델 Forward
+→ Logit을 CPU로 복사</code></pre>
+    </section>
+
+    <section id="profiler-layers" class="detail-section">
+      <h2>2. Profiler에는 세 계층의 이름이 함께 나타납니다</h2>
+      <p>Python 코드에서는 <code>cpu_tensor.to("cuda")</code>, <code>gpu_model(...)</code>, <code>gpu_tensor.to("cpu")</code>만 보이지만 Profiler에는 세 계층의 이름이 섞여서 나타납니다.</p>
+      <h3>PyTorch의 ATen 연산</h3>
+      <pre class="text"><code>aten::to
+aten::_to_copy
+aten::copy_
+aten::embedding
+aten::native_layer_norm
+aten::addmm
+aten::bmm
+aten::mm</code></pre>
+      <p>ATen은 PyTorch가 Tensor 연산을 공통된 방식으로 나타내는 핵심 연산 계층입니다.</p>
+      <h3>CPU가 호출한 CUDA Runtime API</h3>
+      <pre class="text"><code>cudaMemcpyAsync
+cudaStreamSynchronize
+cudaLaunchKernel</code></pre>
+      <p>CPU가 CUDA에 복사나 Kernel 실행을 등록할 때 호출한 API입니다.</p>
+      <h3>GPU 장치에서 실제 실행된 활동</h3>
+      <pre class="text"><code>Memcpy DtoH (Device -&gt; Pageable)
+ampere_sgemm_128x32_tn
+gemmSN_NN_kernel&lt;...&gt;</code></pre>
+      <p>GPU에서 실제로 일어난 메모리 복사 또는 계산 Kernel입니다.</p>
+      <pre class="text"><code>Python 코드
+→ ATen 연산
+→ CUDA Runtime API
+→ 실제 GPU 복사 또는 Kernel 실행</code></pre>
+    </section>
+
+    <section id="h2d" class="detail-section">
+      <h2>3. 첫 번째 구간: CPU Input IDs를 GPU로 옮기기</h2>
+      <p>Tokenizer로 <code>"I study"</code>를 Token ID로 바꾸면 기본적으로 CPU Tensor가 만들어집니다.</p>
+      <pre><code>transfer_cpu_input_ids = transfer_tokenizer(
+    ["I study"],
+    return_tensors="pt",
+).input_ids</code></pre>
+      <pre class="text"><code>값:    [[40, 2050]]
+Shape: [1, 2]
+dtype: int64
+device: cpu</code></pre>
+      <p>이 시점에 Token ID는 CPU가 사용하는 시스템 메모리에 있고 GPU에는 아직 해당 입력이 없습니다.</p>
+      <pre class="text"><code>CPU 메모리
+└─ transfer_cpu_input_ids
+   [[40, 2050]]
+
+GPU 메모리
+└─ 아직 해당 입력 없음</code></pre>
+      <p><code>.to("cuda")</code>를 실행하면 GPU 메모리에 같은 값을 가진 새로운 CUDA Tensor가 만들어집니다.</p>
+      <pre><code>transfer_gpu_input_ids = transfer_cpu_input_ids.to(
+    device=transfer_cuda_device,
+    non_blocking=False,
+)</code></pre>
+      <pre class="text"><code>이동 후
+
+CPU 메모리                 GPU 메모리
+└─ [[40, 2050]]            └─ [[40, 2050]]</code></pre>
+      <p>CPU Tensor 자체가 GPU Tensor로 변신한 것은 아닙니다. <code>transfer_cpu_input_ids</code>는 CPU Tensor를, <code>transfer_gpu_input_ids</code>는 새 CUDA Tensor를 가리킵니다.</p>
+      <p>CUDA 용어에서 CPU 쪽 시스템과 메모리를 Host, GPU와 GPU 메모리를 Device라고 부릅니다.</p>
+      <pre class="text"><code>Host   = CPU 쪽 시스템과 메모리
+Device = GPU와 GPU 메모리
+
+CPU 메모리 → GPU 메모리
+Host       → Device
+H          → D</code></pre>
+      <p>따라서 이 이동을 H2D(Host to Device) 복사라고 부릅니다. <code>2</code>는 영어 <code>to</code>와 발음이 비슷해서 쓰는 표기이며, 반대 방향은 D2H(Device to Host)입니다.</p>
+    </section>
+
+    <section id="h2d-aten" class="detail-section">
+      <h2>4. <code>.to("cuda")</code>의 ATen 복사 경로</h2>
+      <p>사용자 코드에서는 한 줄이지만 PyTorch 내부에서는 개념적으로 다음 과정이 진행됩니다.</p>
+      <pre class="text"><code>aten::to
+→ aten::_to_copy
+→ aten::empty_strided
+→ aten::copy_
+→ CUDA 복사 API</code></pre>
+      <h3><code>aten::to</code></h3>
+      <p><code>aten::to</code>는 Tensor의 장치 또는 dtype을 바꾸라는 PyTorch 공통 연산입니다. 이번에는 dtype은 <code>int64</code>로 같지만 장치가 CPU에서 CUDA로 바뀌므로 실제 복사가 필요합니다.</p>
+      <h3><code>aten::_to_copy</code></h3>
+      <p><code>aten::to</code>가 장치 변경을 확인하고 새 CUDA Tensor를 만든 뒤 값을 복사해야 하는 실제 복사 경로로 들어갑니다.</p>
+      <pre class="text"><code>aten::to
+“CUDA 장치의 Tensor가 필요합니다”
+        ↓
+aten::_to_copy
+“새 CUDA Tensor를 만들고 값을 복사해야 합니다”</code></pre>
+      <h3><code>aten::empty_strided</code></h3>
+      <p>데이터를 복사하기 전에 GPU 메모리에 결과를 담을 공간을 준비합니다.</p>
+      <pre class="text"><code>CPU 원본       GPU 목적지
+[[40, 2050]]   [[?, ?]]</code></pre>
+      <h3><code>aten::copy_</code></h3>
+      <p>준비된 GPU Tensor에 CPU Tensor의 값을 써 넣는 PyTorch 연산입니다. 이름 끝의 <code>_</code>는 일반적으로 기존 Tensor의 내용을 직접 변경하는 In-place 연산을 뜻합니다.</p>
+      <pre class="text"><code>Python
+cpu_tensor.to("cuda")
+        ↓
+PyTorch ATen
+aten::to
+        ↓
+aten::_to_copy
+        ↓
+aten::copy_
+        ↓
+CUDA Runtime
+cudaMemcpyAsync
+        ↓
+CPU → GPU 데이터 복사</code></pre>
+    </section>
+
+    <section id="blocking" class="detail-section">
+      <h2>5. <code>non_blocking=False</code>인데 왜 <code>cudaMemcpyAsync</code>가 나타날까요?</h2>
+      <p><code>non_blocking=False</code>는 사용자 코드 관점에서 복사가 끝날 때까지 기다리는 Blocking 방식입니다.</p>
+      <pre class="text"><code>복사 요청
+→ 복사 완료 대기
+→ 다음 Python 코드 실행</code></pre>
+      <p>하지만 PyTorch 내부에서는 비동기 복사 API로 작업을 등록한 뒤 동기화하는 방식으로 구현될 수 있습니다.</p>
+      <pre class="text"><code>cudaMemcpyAsync로 복사 등록
+→ cudaStreamSynchronize로 완료 대기
+→ 다음 Python 코드 실행</code></pre>
+      <p>따라서 Profiler에 <code>cudaMemcpyAsync</code>가 나타났다고 해서 사용자 코드도 복사를 기다리지 않고 넘어갔다고 판단하면 안 됩니다. 내부 API는 비동기 복사 등록을 사용했지만, 동기화로 완료를 기다렸기 때문에 사용자에게는 Blocking 동작을 제공합니다.</p>
+    </section>
+
+    <section id="h2d-limit" class="detail-section">
+      <h2>6. 16Byte 입력에서는 <code>Memcpy HtoD</code>가 상위 표에 보이지 않았습니다</h2>
+      <p>현재 입력 Shape은 <code>[Batch=1, Token=2]</code>이고 Token ID의 dtype은 <code>int64</code>이므로 값 하나가 8Byte입니다.</p>
+      <pre class="text"><code>1 × 2 × 8Byte
+= 16Byte</code></pre>
+      <p>GPU로 복사한 데이터가 겨우 16Byte이므로 매우 작습니다. 현재 표는 CUDA 자체 실행 시간이 큰 순서로 상위 40행만 보여줍니다.</p>
+      <pre><code>sort_by="self_cuda_time_total"
+row_limit=40</code></pre>
+      <p>그래서 매우 작은 H2D 장치 이벤트는 현재 출력의 상위 40행에서 <code>Memcpy HtoD</code>라는 이름으로 눈에 띄지 않았습니다. 다만 CPU Tensor에서 CUDA Tensor를 새로 만들었고, <code>aten::to → aten::_to_copy → aten::copy_</code> 복사 경로와 CUDA 복사 API가 호출된 사실은 확인했습니다.</p>
+      <p>정확한 <code>Memcpy HtoD</code> 장치 이벤트를 별도로 확인하려면 입력을 키우거나 전체 Trace를 확인할 수 있습니다. 이번 실습에서는 H2D의 개념과 PyTorch 복사 경로를 연결하는 데 초점을 둡니다.</p>
+    </section>
+
+    <section id="forward" class="detail-section">
+      <h2>7. 두 번째 구간: GPU에서 모델 Forward 실행하기</h2>
+      <p>H2D 복사가 끝난 뒤 입력과 모델은 모두 <code>cuda:0</code>에 있으므로 모델의 주요 Tensor 계산은 GPU에서 실행됩니다.</p>
+      <pre class="text"><code>transfer_gpu_input_ids
+Shape:  [1, 2]
+dtype:  int64
+device: cuda:0
+
+transfer_gpu_model
+device: cuda:0</code></pre>
+      <p>Python에는 모델 호출 하나만 보이지만 tiny GPT-2 내부에서는 여러 계산이 순서대로 실행됩니다.</p>
+      <pre class="text"><code>Token Embedding 조회
+→ Position Embedding 조회
+→ Layer Normalization
+→ Q·K·V 계산
+→ Attention 계산
+→ MLP 계산
+→ 최종 Layer Normalization
+→ Vocabulary Logit 계산</code></pre>
+      <p>각 단계는 다시 여러 Tensor 연산으로 나뉘므로 Profiler에 다음 ATen 연산들이 나타났습니다.</p>
+      <pre class="text"><code>aten::embedding
+aten::index_select
+aten::native_layer_norm
+aten::addmm
+aten::bmm
+aten::mul
+aten::add
+aten::mm</code></pre>
+
+      <h3>Embedding 조회</h3>
+      <p>정수 Token ID <code>40</code>과 <code>2050</code>에 해당하는 Embedding Table의 행을 가져옵니다. Profiler에서는 <code>aten::embedding</code>과 내부의 <code>aten::index_select</code> 같은 연산으로 나타날 수 있습니다.</p>
+      <pre class="text"><code>Token ID 40   → Embedding Table의 40번 행
+Token ID 2050 → Embedding Table의 2050번 행</code></pre>
+
+      <h3>Layer Normalization</h3>
+      <p><code>aten::native_layer_norm</code>은 Hidden State의 평균과 분산을 계산하고 정규화한 뒤 Scale과 Bias를 적용합니다. GPU에서는 <code>RowwiseMoments...</code>, <code>LayerNormForward...</code> 같은 CUDA Kernel로 이어질 수 있습니다.</p>
+      <pre class="text"><code>aten::native_layer_norm
+호출 횟수:       5회
+Self CUDA:      18.432us
+CUDA total:     34.048us
+CUDA time avg:   6.810us
+CUDA Mem:        7.50KB</code></pre>
+      <p><code>Self CUDA</code>는 해당 연산 자체에 귀속된 CUDA 시간이고, <code>CUDA total</code>은 연결된 하위 연산을 포함한 CUDA 시간입니다.</p>
+
+      <h3><code>aten::addmm</code></h3>
+      <p><code>addmm</code>은 <code>출력 = Bias + Input × Weight</code>처럼 행렬 곱셈 결과에 Bias를 더하는 연산입니다. GPT-2에서는 Q·K·V Projection, Attention 출력 Projection, MLP Projection 같은 Linear 계열 계산으로 나타날 수 있습니다.</p>
+      <pre class="text"><code>aten::addmm
+호출 횟수:       8회
+Self CUDA:      16.127us
+CUDA total:     26.687us
+CUDA time avg:   3.336us
+
+aten::addmm
+        ↓
+gemmSN_NN_kernel&lt;...&gt;</code></pre>
+      <p>GEMM은 General Matrix Multiplication, 즉 일반적인 행렬 곱셈을 뜻합니다.</p>
+
+      <h3><code>aten::bmm</code></h3>
+      <p><code>bmm</code>은 Batch Matrix Multiplication, 즉 여러 행렬 곱셈을 Batch 축으로 묶어 실행하는 연산입니다.</p>
+      <pre class="text"><code>[B, M, K] × [B, K, N]
+→ [B, M, N]</code></pre>
+      <p>Attention에서는 대표적으로 <code>Q × Kᵀ</code>로 Attention Score를 만들고, Attention Weight와 V를 곱해 결과를 만드는 데 행렬 곱셈이 필요합니다.</p>
+      <pre class="text"><code>aten::bmm
+호출 횟수:       4회
+Self CUDA:       5.985us
+CUDA total:     19.489us
+CUDA time avg:   4.872us</code></pre>
+      <p>다만 집계 표만으로 각 <code>bmm</code> 호출이 정확히 어느 코드 줄에서 발생했는지 하나씩 확정한 것은 아닙니다. 확인한 사실은 Forward 안에서 <code>aten::bmm</code>이 4번 호출되고 CUDA Kernel 실행으로 연결됐다는 점입니다.</p>
+    </section>
+
+    <section id="kernel" class="detail-section">
+      <h2>8. <code>aten::mm</code>과 실제 CUDA Kernel</h2>
+      <p><code>aten::mm</code>은 Matrix Multiplication, 즉 행렬 곱셈입니다. 이번 실행에서는 최종 Hidden State를 Vocabulary Logit으로 바꾸는 LM Head 행렬 곱셈일 가능성이 큽니다.</p>
+      <pre class="text"><code>Hidden State
+[Batch=1, Token=2, Hidden]
+
+LM Head Weight
+[Hidden, Vocabulary=50257]
+
+[1, 2, Hidden] × [Hidden, 50257]
+→ [1, 2, 50257]</code></pre>
+      <p>Profiler에서는 이 ATen 연산이 실제 CUDA Kernel로 연결됐습니다.</p>
+      <pre class="text"><code>aten::mm
+        ↓
+ampere_sgemm_128x32_tn</code></pre>
+      <p>최신 실행에서 두 행의 CUDA 시간은 같았습니다.</p>
+      <pre class="text"><code>aten::mm
+Self CUDA: 18.432us
+
+ampere_sgemm_128x32_tn
+Self CUDA: 18.432us</code></pre>
+      <p>두 번의 행렬 곱셈이 실행된 것이 아닙니다. <code>aten::mm</code>은 PyTorch 관점의 행렬 곱셈이고, <code>ampere_sgemm_128x32_tn</code>은 GPU가 실제로 실행한 CUDA Kernel입니다. 같은 실행을 서로 다른 계층에서 보여준 것이므로 두 시간을 더하면 안 됩니다.</p>
+      <blockquote><p>이번 환경에서는 PyTorch의 <code>aten::mm</code> 요청이 CUDA 구현으로 연결됐고, GPU에서는 <code>ampere_sgemm_128x32_tn</code> Kernel이 실제 행렬 곱셈을 수행했습니다.</p></blockquote>
+      <p>GPU, Tensor Shape, dtype과 CUDA 라이브러리 버전이 바뀌면 다른 Kernel이 선택될 수 있습니다.</p>
+    </section>
+
+    <section id="cpu-role" class="detail-section">
+      <h2>9. CPU는 GPU 계산을 준비하고 등록합니다</h2>
+      <p>모델과 입력이 GPU에 있다고 해서 CPU가 아무 일도 하지 않는 것은 아닙니다.</p>
+      <pre class="text"><code>Python 모델 코드 실행
+→ 다음 ATen 연산 결정
+→ Tensor 장치 확인
+→ CUDA용 구현 선택
+→ CUDA Kernel 실행 등록</code></pre>
+      <p>실습 과정의 Profiler 표에는 <code>cudaLaunchKernel</code>이 93번 호출된 기록도 나타났습니다. 이는 CPU가 CUDA Kernel 실행을 93번 등록했다는 뜻입니다.</p>
+      <pre class="text"><code>CPU                           GPU
+──────────────────────────────────────────
+aten::embedding 결정
+→ CUDA Kernel 등록           → Embedding 계산
+
+aten::native_layer_norm 결정
+→ CUDA Kernel 등록           → 정규화 계산
+
+aten::addmm 결정
+→ CUDA Kernel 등록           → 행렬 곱셈 계산
+
+aten::bmm 결정
+→ CUDA Kernel 등록           → Attention 계산
+
+aten::mm 결정
+→ CUDA Kernel 등록           → Logit 계산</code></pre>
+      <p>CPU 시간은 연산 호출·장치 선택·Kernel 등록 등에 사용된 시간이고, CUDA 시간은 GPU가 실제 Kernel을 실행한 시간입니다. CPU 시간이 크게 나타났다고 해서 CPU가 GPU 대신 모델의 행렬 계산을 수행했다고 해석하면 안 됩니다.</p>
+    </section>
+
+    <section id="d2h" class="detail-section">
+      <h2>10. 세 번째 구간: GPU Logits를 CPU로 가져오기</h2>
+      <p>Forward가 끝난 직후 Logit은 GPU 메모리에 있는 CUDA Tensor입니다.</p>
+      <pre class="text"><code>transfer_gpu_outputs.logits
+Shape:  [1, 2, 50257]
+dtype:  float32
+device: cuda:0</code></pre>
+      <p><code>.to("cpu")</code>를 실행하면 CPU 메모리에 같은 값을 가진 새로운 Tensor가 만들어집니다.</p>
+      <pre><code>transfer_cpu_logits = transfer_gpu_outputs.logits.to(
+    device="cpu",
+    non_blocking=False,
+)</code></pre>
+      <pre class="text"><code>GPU 메모리                  CPU 메모리
+└─ GPU Logits               └─ CPU Logits</code></pre>
+      <p>GPU Tensor가 CPU Tensor로 변신한 것이 아닙니다. <code>transfer_gpu_outputs.logits</code>는 기존 GPU Tensor이고, <code>transfer_cpu_logits</code>는 새로 생성된 CPU Tensor입니다. GPU Tensor에 대한 참조가 유지되는 동안 두 Tensor가 동시에 존재합니다.</p>
+      <p>이번 이동 방향은 Device인 GPU에서 Host인 CPU이므로 D2H(Device to Host) 복사입니다.</p>
+      <pre class="text"><code>GPU Logits
+    │
+    │ D2H
+    ▼
+CPU Logits</code></pre>
+      <p>PyTorch 내부의 개념적인 경로는 다음과 같습니다.</p>
+      <pre class="text"><code>aten::to
+→ aten::_to_copy
+→ CPU 목적지 메모리 준비
+→ aten::copy_
+→ cudaMemcpyAsync
+→ cudaStreamSynchronize
+→ Memcpy DtoH</code></pre>
+      <p><code>aten::to</code>는 GPU Tensor를 CPU 장치에서 사용할 수 있게 해 달라는 요청이고, <code>aten::_to_copy</code>는 새 CPU Tensor를 만들고 GPU 값을 복사하는 경로입니다. <code>aten::copy_</code>가 GPU Logit을 준비된 CPU Tensor에 기록합니다.</p>
+      <p>Logit Shape이 <code>[1,2,50257]</code>이고 dtype이 <code>float32</code>이므로 목적지 CPU 메모리는 약 393KiB입니다.</p>
+      <pre class="text"><code>1 × 2 × 50257 × 4Byte
+= 402,056Byte
+≈ 393KiB</code></pre>
+      <p>Profiler에서도 약 <code>392.63KB</code>의 CPU 메모리 할당이 관찰됐습니다.</p>
+      <p><code>cudaMemcpyAsync</code>는 CPU가 CUDA Runtime에 복사를 요청한 기록입니다. 이 이름은 H2D와 D2H에서 모두 사용될 수 있고, <code>key_averages()</code>는 같은 이름을 한 행으로 합치므로 그 집계 행 하나만 보고 각 호출 방향을 구분할 수는 없습니다.</p>
+      <p><code>non_blocking=False</code>이므로 내부에서 비동기 복사를 등록했더라도 <code>cudaStreamSynchronize</code>로 완료를 기다린 뒤 CPU Tensor를 반환합니다. 따라서 <code>.to("cpu")</code>가 끝난 뒤에는 CPU Logit을 안전하게 사용할 수 있습니다.</p>
+    </section>
+
+    <section id="pageable" class="detail-section">
+      <h2>11. <code>Memcpy DtoH (Device -&gt; Pageable)</code>의 의미</h2>
+      <p>최신 Profiler 실행에는 다음 실제 장치 이벤트가 나타났습니다.</p>
+      <pre class="text"><code>Memcpy DtoH (Device -&gt; Pageable)
+
+Self CUDA:      31.424us
+Self CUDA %:      16.72%
+CUDA total:     31.424us
+CUDA time avg:  31.424us
+호출 횟수:            1회</code></pre>
+      <p><code>DtoH</code>가 Device에서 Host로 가는 방향을 직접 표시하므로, 이 행은 <code>transfer_gpu_outputs.logits.to("cpu")</code>로 발생한 실제 D2H 복사라고 판단할 수 있습니다.</p>
+      <p><code>Pageable</code>은 일반적인 CPU 메모리를 뜻합니다. CUDA 전송 관점에서 CPU 메모리는 일반적인 Pageable Memory와 물리 메모리에 고정한 Pinned Memory로 구분할 수 있습니다.</p>
+      <pre class="text"><code>Pageable Memory
+일반적인 CPU 메모리
+
+Pinned Memory
+CUDA 전송을 위해 물리 메모리에 고정한 CPU 메모리</code></pre>
+      <p>이번 코드에서는 Pinned Memory를 별도로 만들지 않았기 때문에 GPU Logit이 일반 CPU 메모리로 복사됐고, Profiler에 <code>Device -&gt; Pageable</code>이라고 나타났습니다.</p>
+      <p>Profiler에는 CPU가 CUDA Runtime에 복사를 요청한 <code>cudaMemcpyAsync</code>와 실제 장치 측 복사 활동인 <code>Memcpy DtoH</code>가 함께 나타날 수 있습니다.</p>
+      <pre class="text"><code>cudaMemcpyAsync의 CPU 시간
+= CPU 측 CUDA API 호출에 기록된 시간
+
+Memcpy DtoH의 CUDA 시간
+= 실제 장치 측 복사 활동 시간</code></pre>
+      <p>두 값은 서로 다른 계층의 시간이므로 같은 종류의 시간으로 비교하면 안 됩니다.</p>
+    </section>
+
+    <section id="observed" class="detail-section">
+      <h2>12. 세 구간의 코드와 실제 관찰값 연결</h2>
+      <h3>H2D 복사</h3>
+      <pre><code>transfer_cpu_input_ids.to("cuda")</code></pre>
+      <pre class="text"><code>aten::to
+→ aten::_to_copy
+→ 목적지 GPU 메모리 준비
+→ aten::copy_
+→ CUDA 복사 API
+→ H2D 복사</code></pre>
+      <h3>GPU 모델 Forward</h3>
+      <pre><code>transfer_gpu_model(
+    input_ids=transfer_gpu_input_ids,
+)</code></pre>
+      <pre class="text"><code>aten::embedding
+aten::native_layer_norm
+aten::addmm
+aten::bmm
+aten::mm
+        ↓
+장치에 맞는 CUDA 구현 선택
+        ↓
+ampere_sgemm_128x32_tn 등의 CUDA Kernel 실행</code></pre>
+      <h3>D2H 복사</h3>
+      <pre><code>transfer_gpu_outputs.logits.to("cpu")</code></pre>
+      <pre class="text"><code>aten::to
+→ aten::_to_copy
+→ 목적지 CPU 메모리 준비
+→ aten::copy_
+→ cudaMemcpyAsync
+→ cudaStreamSynchronize
+→ Memcpy DtoH</code></pre>
+      <p>최신 RunPod 출력에서 확인한 대표 값은 다음과 같습니다.</p>
+      <pre class="text"><code>Memcpy DtoH
+Self CUDA: 31.424us
+역할: GPU Logit을 일반 CPU 메모리로 복사
+
+aten::mm
+Self CUDA: 18.432us
+역할: PyTorch 관점의 행렬 곱셈
+
+ampere_sgemm_128x32_tn
+Self CUDA: 18.432us
+역할: GPU가 실제 실행한 행렬 곱셈 Kernel
+
+aten::addmm
+호출 횟수: 8회
+Self CUDA: 16.127us
+역할: Bias를 포함한 Linear 계열 행렬 곱셈
+
+aten::bmm
+호출 횟수: 4회
+Self CUDA: 5.985us
+역할: Attention 등에 사용되는 배치 행렬 곱셈
+
+Self CUDA time total: 187.968us</code></pre>
+      <p>전체 실행 경계는 다음과 같이 연결됩니다.</p>
+      <pre class="text"><code>CPU Input IDs
+[1, 2], int64
+      │ H2D 복사
+      ▼
+GPU Input IDs
+[1, 2], int64
+      │ GPU 모델 Forward
+      ▼
+GPU Logits
+[1, 2, 50257], float32
+      │ D2H 복사
+      ▼
+CPU Logits
+[1, 2, 50257], float32</code></pre>
+    </section>
+
+    <section id="benchmark-limit" class="detail-section">
+      <h2>13. 이번 수치는 성능 Benchmark가 아닙니다</h2>
+      <p>이번 실습의 모델과 입력은 매우 작습니다.</p>
+      <pre class="text"><code>모델: tiny GPT-2
+Batch: 1
+Prompt Token: 2
+Forward: 1회</code></pre>
+      <p>또한 Jupyter Kernel을 재시작한 뒤 처음 실행한 Forward에는 CUDA 라이브러리와 Kernel의 Lazy Loading이 포함될 수 있습니다. 필요한 CUDA 기능이 처음 호출되는 순간 로딩 비용이 발생할 수 있기 때문입니다.</p>
+      <p>따라서 이번 표를 GPU 모델의 정확한 성능 Benchmark, H2D와 D2H의 일반적인 속도 비교, CPU와 GPU의 우열 판단에 사용하면 안 됩니다.</p>
+      <pre class="text"><code>GPU 모델의 정확한 성능 Benchmark      ❌
+H2D와 D2H의 일반적인 속도 비교       ❌
+CPU와 GPU 중 어느 쪽이 빠른지 판단    ❌</code></pre>
+      <p>이번 표의 목적은 세 실행 경계가 Profiler에서 어떻게 나타나는지 확인하는 것입니다.</p>
+      <pre class="text"><code>.to("cuda")가 복사 연산으로 나타나는지 확인
+GPU Forward가 ATen과 CUDA Kernel로 나타나는지 확인
+.to("cpu")가 D2H 복사로 나타나는지 확인</code></pre>
+      <p>정확한 성능 측정은 Warm-up, 반복 횟수, 입력 Shape과 동기화 경계를 별도로 고정해야 합니다.</p>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>결론</h2>
+      <p>이번 실습에서는 다음 세 줄을 Profiler의 실제 연산과 연결했습니다.</p>
+      <pre><code>cpu_input_ids.to("cuda")
+gpu_model(...)
+gpu_logits.to("cpu")</code></pre>
+      <pre class="text"><code>H2D 복사
+→ GPU 계산
+→ D2H 복사</code></pre>
+      <p>장치 이동은 <code>aten::to → aten::_to_copy → aten::copy_</code>와 CUDA 메모리 복사 API·장치 이벤트로 나타났고, GPU 계산은 <code>aten::embedding</code>·<code>aten::native_layer_norm</code>·<code>aten::addmm</code>·<code>aten::bmm</code>·<code>aten::mm</code>과 실제 CUDA Kernel로 나타났습니다.</p>
+      <p>최신 실행에서는 실제로 다음 장치 활동을 확인했습니다.</p>
+      <pre class="text"><code>Memcpy DtoH (Device -&gt; Pageable)
+31.424us
+
+ampere_sgemm_128x32_tn
+18.432us</code></pre>
+      <blockquote><p>PyTorch에서 Tensor를 장치 사이에 옮기는 <code>.to()</code>는 메모리 복사 연산으로 나타나고, GPU 모델 Forward는 여러 ATen 연산과 실제 CUDA Kernel 실행으로 나타납니다. PyTorch Profiler를 사용하면 <strong>H2D 복사 → GPU 계산 → D2H 복사</strong>라는 전체 실행 경계를 코드, Tensor의 장치와 실제 Runtime·Kernel 기록으로 연결해서 확인할 수 있습니다.</p></blockquote>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+</body>
+</html>
