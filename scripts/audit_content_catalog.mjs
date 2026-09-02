@@ -27,6 +27,14 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 function placementHref(item, placement = "wiki") {
   return placement === "blog" ? `${item.href}?view=blog` : item.href;
 }
@@ -41,7 +49,7 @@ function itemLinkBlock(region, item, location, placement = "wiki") {
 function requireItem(region, item, location, placement = "wiki") {
   const block = itemLinkBlock(region, item, location, placement);
   for (const value of [item.href, item.title, item.summary]) {
-    if (!block.includes(value)) findings.push(`${location}: ${item.id}의 ${JSON.stringify(value)} 누락`);
+    if (!block.includes(value) && !block.includes(escapeHtml(value))) findings.push(`${location}: ${item.id}의 ${JSON.stringify(value)} 누락`);
   }
   return block;
 }

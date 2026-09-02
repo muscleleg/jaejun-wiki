@@ -7,6 +7,14 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const wikiRoot = resolve(scriptDirectory, "..");
 const findings = [];
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 const [catalog, manifest, blog, siteManifest, sitemap, globalNavigation, blogScript, blogStyle] = await Promise.all([
   loadContentCatalog(),
   readFile(resolve(wikiRoot, "knowledge_manifest.json"), "utf8").then(JSON.parse),
@@ -34,7 +42,7 @@ for (const item of posts) {
   if (!article.includes(`<link rel="canonical" href="${expectedCanonical}">`)) findings.push(`${item.href}: 위키 canonical 누락`);
   if (article.includes("curated-blog:document-note:start") || article.includes("curated-blog:document-style")) findings.push(`${item.href}: 블로그 전용 안내 또는 스타일이 원문에 남아 있음`);
   if (!blog.includes(`href="${item.href}?view=blog"`)) findings.push(`blog.html: 블로그 보기 링크 누락 ${item.href}`);
-  if (!blog.includes(`<h3>${item.title}</h3>`) || !blog.includes(`<p>${item.summary}</p>`)) findings.push(`blog.html: 통합 카탈로그 제목·요약 불일치 ${item.href}`);
+  if (!blog.includes(`<h3>${escapeHtml(item.title)}</h3>`) || !blog.includes(`<p>${escapeHtml(item.summary)}</p>`)) findings.push(`blog.html: 통합 카탈로그 제목·요약 불일치 ${item.href}`);
   if (!blog.includes(document.category)) findings.push(`blog.html: 위키 카테고리 누락 ${item.href}`);
   if (!blog.includes(`data-blog-tags="${item.tagIds.join(" ")}"`)) findings.push(`blog.html: 필터 연결 누락 ${item.href}`);
   for (const tagId of item.tagIds) {
