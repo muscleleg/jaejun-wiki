@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tokenizer가 만든 input_ids가 이미 CPU Tensor인 이유와 .to(cuda)가 수행하는 H2D 이동, GPU Logit의 D2H 이동 및 실제 추론에서 불필요한 왕복을 줄이는 흐름을 설명합니다.">
+  <title>Tokenizer가 만든 Tensor는 언제 CPU에 있고, .to("cuda")는 무엇을 옮기는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Tokenizer가 만든 Tensor는 언제 CPU에 있고, .to(&quot;cuda&quot;)는 무엇을 옮기는가">
+  <meta property="og:description" content="Tokenizer가 만든 input_ids가 이미 CPU Tensor인 이유와 .to(cuda)가 수행하는 H2D 이동, GPU Logit의 D2H 이동 및 실제 추론에서 불필요한 왕복을 줄이는 흐름을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html","name":"Tokenizer가 만든 Tensor는 언제 CPU에 있고, .to(\"cuda\")는 무엇을 옮기는가","description":"Tokenizer가 만든 input_ids가 이미 CPU Tensor인 이유와 .to(cuda)가 수행하는 H2D 이동, GPU Logit의 D2H 이동 및 실제 추론에서 불필요한 왕복을 줄이는 흐름을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html"},"headline":"Tokenizer가 만든 Tensor는 언제 CPU에 있고, .to(\"cuda\")는 무엇을 옮기는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch 학습 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":4,"name":"CPU·GPU Tensor 이동"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+</head>
+<body class="wiki-reference transformer-detail">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><span aria-current="page">CPU·GPU Tensor 이동</span></nav>
+
+    <header class="hero">
+      <span class="eyebrow">PyTorch · CPU, GPU &amp; Tensor Transfer</span>
+      <h1>Tokenizer가 만든 Tensor는 언제 CPU에 있고, <code>.to("cuda")</code>는 무엇을 옮기는가</h1>
+      <p class="lead">Tokenizer가 만든 입력 Tensor의 최초 장치부터 H2D·D2H 이동, GPU에서 다음 Token 선택과 후속 Forward를 유지하는 실제 추론 흐름까지 연결합니다.</p>
+      <div class="detail-actions"><a href="pytorch_linear_regression_learning.html">← PyTorch 학습 경로</a><a href="pytorch_device_cuda_parallel_learning.html#move">Device·CUDA·병렬 연산</a></div>
+    </header>
+
+    <nav aria-label="문서 목차">
+      <a href="#purpose">실습 목적</a>
+      <a href="#tokenizer-cpu">Tokenizer와 CPU</a>
+      <a href="#h2d">CUDA로 이동</a>
+      <a href="#same-device">같은 장치</a>
+      <a href="#gpu-logits">GPU Logit</a>
+      <a href="#d2h">CPU로 이동</a>
+      <a href="#reduce-transfer">불필요한 왕복 줄이기</a>
+      <a href="#whole-flow">전체 흐름</a>
+      <a href="#conclusion">결론</a>
+    </nav>
+
+    <section id="purpose" class="detail-section">
+      <h2>1. 이번 실습에서 확인하려던 것</h2>
+      <p>RunPod의 GPU 환경에서 모델과 입력 Tensor를 CUDA 장치로 옮긴 뒤 다음 항목을 직접 확인했습니다.</p>
+      <pre><code>모델은 어느 장치에 있는가?
+Tokenizer가 만든 input_ids는 어디에 있는가?
+.to("cuda") 이후에는 어디로 이동하는가?
+모델이 반환한 Logit은 어디에 있는가?
+GPU 결과를 CPU로 가져오면 무엇이 달라지는가?</code></pre>
+      <p>실행 결과는 다음과 같았습니다.</p>
+      <pre><code>Model Device: cuda:0
+이동 전 Input Device: cpu
+이동 후 Input Device: cuda:0
+GPU Logits Device: cuda:0
+D2H 후 Logits Device: cpu
+Logits Shape: torch.Size([1, 3, 50257])</code></pre>
+      <p>이 결과를 통해 CPU와 GPU 사이에서 Tensor가 어떻게 이동하는지 확인할 수 있었습니다.</p>
+    </section>
+
+    <section id="tokenizer-cpu" class="detail-section">
+      <h2>2. Tokenizer가 만든 Tensor는 이미 CPU에 있습니다</h2>
+      <p>입력 Token ID는 다음 코드로 만들었습니다.</p>
+      <pre><code>cpu_input_ids: Int64[
+    Tensor,
+    "batch token",
+] = tokenizer(
+    "I study.",
+    return_tensors="pt",
+).input_ids</code></pre>
+      <p>처음에는 이 코드에 <code>.to("cpu")</code>가 없기 때문에 아직 CPU나 GPU 어느 쪽에도 들어가지 않은 중간 상태처럼 보일 수 있습니다.</p>
+      <p>하지만 Tensor에는 장치가 정해지지 않은 상태가 없습니다. PyTorch Tensor는 생성되는 순간 반드시 어떤 장치의 메모리에 존재합니다.</p>
+      <p>Tokenizer는 별도의 장치를 지정하지 않으면 PyTorch Tensor를 CPU 메모리에 생성합니다.</p>
+      <pre><code>print(cpu_input_ids.device)
+# cpu</code></pre>
+      <p>따라서 다음 두 코드는 장치 관점에서 같은 결과를 만듭니다.</p>
+      <pre><code>input_ids = tokenizer(
+    "I study.",
+    return_tensors="pt",
+).input_ids</code></pre>
+      <pre><code>input_ids = tokenizer(
+    "I study.",
+    return_tensors="pt",
+).input_ids.to("cpu")</code></pre>
+      <p>두 번째 코드는 이미 CPU에 있는 Tensor를 다시 CPU로 지정하므로 <code>.to("cpu")</code>가 불필요합니다.</p>
+    </section>
+
+    <section id="h2d" class="detail-section">
+      <h2>3. <code>.to(cuda_device)</code>는 CPU Tensor를 GPU로 옮깁니다</h2>
+      <p>Tokenizer가 만든 CPU Tensor를 GPU에서 계산하려면 CUDA 장치로 이동시켜야 합니다.</p>
+      <pre><code>gpu_input_ids: Int64[
+    Tensor,
+    "batch token",
+] = cpu_input_ids.to(cuda_device)</code></pre>
+      <p>이때 일어나는 일은 다음과 같습니다.</p>
+      <pre><code>CPU 메모리의 input_ids
+→ H2D 복사
+→ GPU 메모리의 input_ids</code></pre>
+      <p>H2D는 Host to Device의 약자입니다.</p>
+      <ul>
+        <li>Host: CPU와 CPU 메모리</li>
+        <li>Device: GPU와 GPU 메모리</li>
+      </ul>
+      <p>이동 전후의 Tensor는 같은 Token ID를 가지지만 저장된 장치가 다릅니다.</p>
+      <pre><code>print(cpu_input_ids.device)
+# cpu
+
+print(gpu_input_ids.device)
+# cuda:0</code></pre>
+      <p>학습을 위해 변수를 나누지 않아도 됩니다. 실제 코드에서는 다음처럼 Tokenizer 결과에 바로 <code>.to(cuda_device)</code>를 연결할 수 있습니다.</p>
+      <pre><code>gpu_input_ids: Int64[
+    Tensor,
+    "batch token",
+] = tokenizer(
+    "I study.",
+    return_tensors="pt",
+).input_ids.to(cuda_device)</code></pre>
+      <p>이번 실습에서는 이동 전후의 장치를 비교하기 위해 <code>cpu_input_ids</code>와 <code>gpu_input_ids</code>를 일부러 분리했습니다.</p>
+    </section>
+
+    <section id="same-device" class="detail-section">
+      <h2>4. 모델과 입력 Tensor는 같은 장치에 있어야 합니다</h2>
+      <p>모델도 GPU로 이동시켰습니다.</p>
+      <pre><code>gpu_model: GPT2LMHeadModel = (
+    GPT2LMHeadModel
+    .from_pretrained(model_name)
+    .to(cuda_device)
+)</code></pre>
+      <p>모델이 사용하는 Weight와 입력 Tensor가 모두 <code>cuda:0</code>에 있어야 GPU에서 계산할 수 있습니다.</p>
+      <pre><code>모델 Weight: cuda:0
+입력 Tensor: cuda:0
+→ GPU 연산 가능</code></pre>
+      <p>반대로 모델만 GPU에 있고 입력 Tensor는 CPU에 남아 있으면 서로 다른 장치의 값을 직접 계산할 수 없으므로 오류가 발생합니다.</p>
+      <pre><code>모델 Weight: cuda:0
+입력 Tensor: cpu
+→ 장치 불일치 오류</code></pre>
+      <p>모델의 장치는 첫 번째 Parameter를 통해 확인할 수 있습니다.</p>
+      <pre><code>print(
+    next(gpu_model.parameters()).device
+)
+# cuda:0</code></pre>
+    </section>
+
+    <section id="gpu-logits" class="detail-section">
+      <h2>5. GPU 모델이 만든 Logit도 GPU에 있습니다</h2>
+      <p>GPU 모델에 GPU 입력을 넣어 Forward를 실행했습니다.</p>
+      <pre><code>with torch.inference_mode():
+    gpu_outputs: CausalLMOutputWithCrossAttentions = (
+        gpu_model(
+            input_ids=gpu_input_ids,
+            use_cache=False,
+        )
+    )</code></pre>
+      <p>반환된 Logit도 GPU 메모리에 있습니다.</p>
+      <pre><code>gpu_logits: Float[
+    Tensor,
+    "batch token vocabulary",
+] = gpu_outputs.logits
+
+print(gpu_logits.device)
+# cuda:0</code></pre>
+      <p>이번 입력의 Shape은 다음과 같습니다.</p>
+      <pre><code>input_ids  [1,3]
+logits     [1,3,50257]</code></pre>
+      <p>각 축은 다음 의미입니다.</p>
+      <pre><code>[Batch, Token 위치, Vocabulary 후보 점수]</code></pre>
+      <p>즉 한 문장의 세 Token 위치마다 Vocabulary 50,257개에 대한 다음 Token 점수가 만들어졌습니다.</p>
+    </section>
+
+    <section id="d2h" class="detail-section">
+      <h2>6. <code>.to("cpu")</code>를 호출해야 GPU 결과가 CPU로 돌아옵니다</h2>
+      <p>GPU Logit을 CPU 메모리로 옮기기 위해 다음 코드를 실행했습니다.</p>
+      <pre><code>cpu_logits: Float[
+    Tensor,
+    "batch token vocabulary",
+] = gpu_logits.to("cpu")</code></pre>
+      <p>이 이동은 D2H 복사입니다.</p>
+      <pre><code>GPU 메모리의 Logit
+→ D2H 복사
+→ CPU 메모리의 Logit</code></pre>
+      <p>D2H는 Device to Host의 약자입니다.</p>
+      <pre><code>print(gpu_logits.device)
+# cuda:0
+
+print(cpu_logits.device)
+# cpu</code></pre>
+      <p>이번 실습에서는 GPU 결과를 CPU로 옮길 수 있다는 사실을 확인하기 위해 전체 Logit을 이동시켰습니다.</p>
+      <p>하지만 실제 Token 생성에서 매번 전체 Logit을 CPU로 옮길 필요는 없습니다.</p>
+    </section>
+
+    <section id="reduce-transfer" class="detail-section">
+      <h2>7. 실제 추론에서는 불필요한 왕복을 줄입니다</h2>
+      <p>이번 실습의 흐름만 보면 데이터가 다음처럼 계속 왕복하는 것처럼 보일 수 있습니다.</p>
+      <pre><code>CPU input_ids
+→ GPU input_ids
+→ GPU logits
+→ CPU logits</code></pre>
+      <p>그러나 이것은 장치 이동을 확인하기 위한 실습 구조입니다.</p>
+      <p>실제 GPU Token 생성에서는 보통 Logit과 다음 Token 선택을 GPU에서 계속 처리합니다.</p>
+      <pre><code>Tokenizer가 CPU에 input_ids 생성
+→ input_ids를 GPU로 한 번 이동
+→ GPU에서 Forward
+→ GPU에서 argmax 또는 Sampling
+→ 선택한 next_token_ids를 GPU에 유지
+→ 다음 Forward에 다시 사용</code></pre>
+      <p>예를 들면 다음과 같습니다.</p>
+      <pre><code>next_token_ids: Int64[
+    Tensor,
+    "batch 1",
+] = gpu_logits[:, -1, :].argmax(
+    dim=-1,
+    keepdim=True,
+)</code></pre>
+      <p><code>gpu_logits</code>가 GPU Tensor이므로 <code>argmax()</code> 결과인 <code>next_token_ids</code>도 GPU에 남습니다.</p>
+      <p>따라서 다음 Forward에 다시 넣기 위해 CPU로 내렸다가 GPU로 올릴 필요가 없습니다.</p>
+      <p>최종 문자열 Decode나 CPU 기반 분석에 필요한 작은 결과만 마지막에 CPU로 가져오면 됩니다.</p>
+    </section>
+
+    <section id="whole-flow" class="detail-section">
+      <h2>8. 전체 흐름</h2>
+      <pre><code>문자열 "I study."
+        ↓
+Tokenizer
+        ↓
+CPU input_ids [1,3]
+        ↓ .to("cuda")
+H2D 복사
+        ↓
+GPU input_ids [1,3]
+        ↓
+GPU Model Forward
+        ↓
+GPU logits [1,3,50257]
+        ↓
+GPU에서 argmax 또는 Sampling
+        ↓
+GPU next_token_ids [1,1]
+        ↓
+다음 GPU Forward에 그대로 사용</code></pre>
+      <p>전체 Logit을 CPU에서 확인해야 할 때만 다음 이동이 추가됩니다.</p>
+      <pre><code>GPU logits
+    ↓ .to("cpu")
+D2H 복사
+    ↓
+CPU logits</code></pre>
+    </section>
+
+    <section id="conclusion" class="detail-section">
+      <h2>9. 결론</h2>
+      <p>Tokenizer가 <code>return_tensors="pt"</code>로 만든 Tensor는 장치 미지정 상태가 아니라 이미 CPU 메모리에 존재합니다.</p>
+      <pre><code>Tensor 생성 시 장치 미지정
+→ 기본적으로 CPU Tensor 생성</code></pre>
+      <p><code>.to("cuda")</code>는 그 CPU Tensor를 GPU 메모리로 옮깁니다. GPU 모델에 GPU 입력을 전달하면 결과 Logit도 GPU에 생성됩니다.</p>
+      <pre><code>CPU input_ids
+→ H2D
+→ GPU input_ids
+→ GPU Model
+→ GPU logits</code></pre>
+      <p>이번 실습에서는 장치 이동을 확인하기 위해 GPU Logit을 다시 CPU로 옮겼지만, 실제 추론에서는 전체 Logit을 매번 CPU로 가져오지 않습니다. 다음 Token 선택과 후속 Forward를 GPU에서 계속 처리하고, 최종적으로 필요한 결과만 CPU로 가져오는 것이 일반적인 흐름입니다.</p>
+      <p><a href="pytorch_device_cuda_parallel_learning.html#dispatch">Tensor의 장치가 PyTorch의 CUDA 연산 선택과 GPU 병렬 실행으로 이어지는 과정 보기 →</a></p>
+    </section>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+</body>
+</html>
