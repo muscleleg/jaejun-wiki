@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/pytorch/pytorch_device_cuda_parallel_learning.md. Do not edit directly. source-sha256:7b5d76c10682c60bdfcfcc3db648cf0b1960a60eb147caa2d3767105699ebca8 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="PyTorch의 .to(device)가 모델과 Tensor를 GPU 메모리로 옮긴 뒤, 장치 디스패치와 CUDA Kernel을 거쳐 GPU 병렬 연산으로 이어지는 과정을 설명합니다.">
+  <meta name="description" content="모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다.">
+  <meta name="source-sha256" content="7b5d76c10682c60bdfcfcc3db648cf0b1960a60eb147caa2d3767105699ebca8">
   <title>.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -17,43 +19,46 @@
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content=".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가">
-  <meta property="og:description" content="PyTorch의 .to(device)가 모델과 Tensor를 GPU 메모리로 옮긴 뒤, 장치 디스패치와 CUDA Kernel을 거쳐 GPU 병렬 연산으로 이어지는 과정을 설명합니다.">
+  <meta property="og:description" content="모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html","name":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가","description":"PyTorch의 .to(device)가 모델과 Tensor를 GPU 메모리로 옮긴 뒤, 장치 디스패치와 CUDA Kernel을 거쳐 GPU 병렬 연산으로 이어지는 과정을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},"headline":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch 학습 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":4,"name":"Device·CUDA·병렬 연산"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html","name":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가","description":"모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},"headline":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-pytorch"},{"@type":"ListItem","position":4,"name":"데이터에서 y = 3x + 2 를 찾아내기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":5,"name":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference transformer-detail">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><span aria-current="page">Device·CUDA·병렬 연산</span></nav>
-
-    <header class="hero">
-      <span class="eyebrow">PyTorch · Device, CUDA &amp; Parallelism</span>
-      <h1><code>.to(device)</code>로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</h1>
-      <p class="lead">모델과 Tensor를 장치로 옮기는 코드가 어떻게 PyTorch의 장치 디스패치, CUDA Kernel, GPU 병렬 실행으로 이어지는지 한 흐름으로 연결합니다.</p>
-      <div class="detail-actions"><a href="pytorch_linear_regression_learning.html">← PyTorch 학습 경로</a><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#purpose">CPU·GPU Tensor 이동 실습</a><a href="pytorch_cuda_async_model_return_timing_learning.html#async-execution">CUDA 비동기 Timing 실습</a><a href="pytorch_peak_vram_kv_cache_benchmark_learning.html#baseline">Peak VRAM 측정 기준</a><a href="pytorch_profiler_h2d_gpu_d2h_trace_learning.html#full-code">Profiler로 H2D·GPU 계산·D2H 추적</a><a href="../transformer/transformer_input_tensor_flow_learning.html">Transformer 입력 Tensor 흐름</a></div>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-pytorch">PyTorch</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">데이터에서 y = 3x + 2 를 찾아내기</a><span class="separator">›</span><span aria-current="page">.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">PyTorch</span>
+      <h1>.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</h1>
+      <p class="lead">모델과 Tensor를 장치로 옮기는 코드가 PyTorch의 장치 디스패치, CUDA Kernel, GPU Thread의 병렬 실행으로 이어지는 과정을 Batch Tensor Shape과 함께 연결합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-    <nav aria-label="문서 목차">
-      <a href="#question">시작한 의문</a>
-      <a href="#device">장치 선택</a>
-      <a href="#move">메모리 이동</a>
-      <a href="#forward">실제 계산</a>
-      <a href="#dispatch">장치 디스패치</a>
-      <a href="#cuda">CUDA Kernel</a>
-      <a href="#shape">Tensor Shape</a>
-      <a href="#batch">Batch 구성</a>
-      <a href="#generation">생성의 순차성과 병렬성</a>
-      <a href="#whole-flow">전체 흐름</a>
-      <a href="#conclusion">결론</a>
-    </nav>
-
-    <section id="question" class="detail-section">
-      <h2>1. 시작한 의문</h2>
-      <p>우리가 작성한 코드는 생각보다 단순합니다.</p>
-      <pre><code>device: torch.device = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#question">1. 시작한 의문</a>
+        <a href="#device">2. <code>device</code>는 계산할 장치를 표현한다</a>
+        <a href="#move">3. <code>.to(device)</code>는 해당 장치의 메모리로 옮긴다</a>
+        <a href="#forward">4. 실제 계산은 <code>model(...)</code>에서 시작된다</a>
+        <a href="#dispatch">5. PyTorch는 Tensor의 장치를 확인한다</a>
+        <a href="#cuda">6. CUDA는 PyTorch 연산을 GPU 작업으로 연결한다</a>
+        <a href="#shape">7. GPU는 문장을 이해하지 않고 Tensor Shape을 처리한다</a>
+        <a href="#batch">8. 여러 문장을 하나의 Batch Tensor로 구성하는 이유</a>
+        <a href="#generation">9. 생성에서는 무엇이 병렬이고 무엇이 순차적인가</a>
+        <a href="#whole-flow">10. 전체 흐름</a>
+        <a href="#conclusion">11. 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="question" class="markdown-section">
+<h2>1. 시작한 의문</h2>
+<p>우리가 작성한 코드는 생각보다 단순합니다.</p>
+<pre><code>device: torch.device = torch.device(
+    &quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;
 )
 
 model = model.to(device)
@@ -61,138 +66,156 @@ input_ids: torch.Tensor = input_ids.to(device)
 
 outputs = model(
     input_ids=input_ids,
-)</code></pre>
-      <p>직접 한 것은 모델과 입력 Tensor를 <code>device</code>로 옮긴 뒤 입력 Tensor를 모델에 넣은 것뿐입니다. 그런데 이 코드만으로 어떻게 GPU 병렬 처리가 실행되는 걸까요?</p>
-      <p>GPU가 “이 Tensor의 첫 번째 축은 문장들이니 문장별로 병렬 처리해야겠다”고 알아내는 것은 아닙니다.</p>
-      <div class="caution"><strong>PyTorch는 Tensor가 저장된 장치를 보고 CPU용 연산과 CUDA용 연산 중 무엇을 실행할지 선택하고, CUDA용 연산은 큰 Tensor 계산을 수많은 작은 계산으로 나눠 GPU에서 동시에 실행합니다.</strong></div>
-    </section>
+)
+</code></pre>
+<p>직접 한 것은 모델과 입력 Tensor를 <code>device</code>로 옮긴 뒤 입력 Tensor를 모델에 넣은 것뿐입니다. 그런데 이 코드만으로 어떻게 GPU 병렬 처리가 실행되는 걸까요?</p>
+<p>GPU가 “이 Tensor의 첫 번째 축은 문장들이니 문장별로 병렬 처리해야겠다”고 알아내는 것은 아닙니다.</p>
+<p><strong>PyTorch는 Tensor가 저장된 장치를 보고 CPU용 연산과 CUDA용 연산 중 무엇을 실행할지 선택하고, CUDA용 연산은 큰 Tensor 계산을 수많은 작은 계산으로 나눠 GPU에서 동시에 실행합니다.</strong></p>
 
-    <section id="device" class="detail-section">
-      <h2>2. <code>device</code>는 계산할 장치를 표현한다</h2>
-      <pre><code>device: torch.device = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
-)</code></pre>
-      <p>CUDA를 사용할 수 있다면 <code>device</code>는 <code>cuda</code>, 그렇지 않다면 <code>cpu</code>가 됩니다. 하지만 변수를 선언했다고 바로 계산 장치가 바뀌지는 않습니다. 이 변수는 앞으로 사용할 장치를 나타낼 뿐입니다.</p>
-    </section>
+</section>
+<section id="device" class="markdown-section">
+<h2>2. <code>device</code>는 계산할 장치를 표현한다</h2>
+<pre><code>device: torch.device = torch.device(
+    &quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;
+)
+</code></pre>
+<p>CUDA를 사용할 수 있다면 <code>device</code>는 <code>cuda</code>, 그렇지 않다면 <code>cpu</code>가 됩니다. 하지만 변수를 선언했다고 바로 계산 장치가 바뀌지는 않습니다. 이 변수는 앞으로 사용할 장치를 나타낼 뿐입니다.</p>
 
-    <section id="move" class="detail-section">
-      <h2>3. <code>.to(device)</code>는 해당 장치의 메모리로 옮긴다</h2>
-      <pre><code>input_ids = input_ids.to(device)
-model = model.to(device)</code></pre>
-      <p>GPU를 사용하는 경우 입력 Tensor와 모델의 Weight·Bias가 CPU 메모리에서 GPU 메모리로 이동합니다.</p>
-      <pre><code>input_ids
+</section>
+<section id="move" class="markdown-section">
+<h2>3. <code>.to(device)</code>는 해당 장치의 메모리로 옮긴다</h2>
+<pre><code>input_ids = input_ids.to(device)
+model = model.to(device)
+</code></pre>
+<p>GPU를 사용하는 경우 입력 Tensor와 모델의 Weight·Bias가 CPU 메모리에서 GPU 메모리로 이동합니다.</p>
+<pre><code>input_ids
 CPU 메모리 → GPU 메모리
 
 model의 Weight와 Bias
-CPU 메모리 → GPU 메모리</code></pre>
-      <p><code>.to(device)</code> 자체가 Attention이나 행렬곱을 실행하는 코드는 아닙니다.</p>
-      <pre><code>.to(device)
+CPU 메모리 → GPU 메모리
+</code></pre>
+<p><code>.to(device)</code> 자체가 Attention이나 행렬곱을 실행하는 코드는 아닙니다.</p>
+<pre><code>.to(device)
 → 계산할 데이터를 해당 장치의 메모리로 이동
 
 model(...)
-→ 실제 모델 계산 시작</code></pre>
-      <p>모델과 입력 Tensor는 같은 장치에 있어야 합니다. 모델은 GPU에 있는데 입력 Tensor가 CPU에 있으면 두 장치의 데이터를 바로 행렬곱할 수 없으므로 오류가 발생합니다.</p>
-      <p><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#tokenizer-cpu">Tokenizer가 만든 Tensor의 최초 장치와 H2D·D2H 이동을 실제 출력으로 확인한 실습 보기 →</a></p>
-    </section>
+→ 실제 모델 계산 시작
+</code></pre>
+<p>모델과 입력 Tensor는 같은 장치에 있어야 합니다. 모델은 GPU에 있는데 입력 Tensor가 CPU에 있으면 두 장치의 데이터를 바로 행렬곱할 수 없으므로 오류가 발생합니다.</p>
+<p><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#tokenizer-cpu">Tokenizer가 만든 Tensor의 최초 장치와 H2D·D2H 이동을 실제 출력으로 확인한 실습 보기 →</a></p>
 
-    <section id="forward" class="detail-section">
-      <h2>4. 실제 계산은 <code>model(...)</code>에서 시작된다</h2>
-      <pre><code>outputs = model(
+</section>
+<section id="forward" class="markdown-section">
+<h2>4. 실제 계산은 <code>model(...)</code>에서 시작된다</h2>
+<pre><code>outputs = model(
     input_ids=input_ids,
-)</code></pre>
-      <p>이 호출이 실행되면 모델 내부에서 다음 연산들이 시작됩니다.</p>
-      <pre><code>Token Embedding
+)
+</code></pre>
+<p>이 호출이 실행되면 모델 내부에서 다음 연산들이 시작됩니다.</p>
+<pre><code>Token Embedding
 → Q·K·V Projection
 → Attention Score
 → Softmax
 → Value 결합
 → FFN
-→ LM Head</code></pre>
-      <p>각 단계의 실제 작업은 Embedding 조회, 행렬곱, 덧셈, Softmax, 정규화 같은 Tensor 연산입니다.</p>
-    </section>
+→ LM Head
+</code></pre>
+<p>각 단계의 실제 작업은 Embedding 조회, 행렬곱, 덧셈, Softmax, 정규화 같은 Tensor 연산입니다.</p>
 
-    <section id="dispatch" class="detail-section">
-      <h2>5. PyTorch는 Tensor의 장치를 확인한다</h2>
-      <p>같은 행렬곱 코드라도 Tensor의 장치에 따라 실행되는 내부 구현이 달라집니다.</p>
-      <pre><code>result = input_tensor @ weight</code></pre>
-      <pre><code>입력과 Weight가 CPU에 있음
+</section>
+<section id="dispatch" class="markdown-section">
+<h2>5. PyTorch는 Tensor의 장치를 확인한다</h2>
+<p>같은 행렬곱 코드라도 Tensor의 장치에 따라 실행되는 내부 구현이 달라집니다.</p>
+<pre><code>result = input_tensor @ weight
+</code></pre>
+<pre><code>입력과 Weight가 CPU에 있음
 → PyTorch가 CPU용 행렬곱 구현 선택
 → CPU에서 실행
 
 입력과 Weight가 CUDA 장치에 있음
 → PyTorch가 CUDA용 행렬곱 구현 선택
-→ GPU에서 실행</code></pre>
-      <p>따라서 사용자가 CPU용 함수와 GPU용 함수를 직접 나눠 호출할 필요가 없습니다. PyTorch가 Tensor에 기록된 장치 정보를 보고 적절한 연산 구현을 선택합니다. 이를 장치에 따른 연산 Dispatch(디스패치)라고 볼 수 있습니다.</p>
-    </section>
+→ GPU에서 실행
+</code></pre>
+<p>따라서 사용자가 CPU용 함수와 GPU용 함수를 직접 나눠 호출할 필요가 없습니다. PyTorch가 Tensor에 기록된 장치 정보를 보고 적절한 연산 구현을 선택합니다. 이를 장치에 따른 연산 Dispatch(디스패치)라고 볼 수 있습니다.</p>
 
-    <section id="cuda" class="detail-section">
-      <h2>6. CUDA는 PyTorch 연산을 GPU 작업으로 연결한다</h2>
-      <p>PyTorch가 CUDA용 연산을 선택하면 CUDA Kernel이 실행됩니다. CUDA Kernel은 GPU에서 실행되는 계산 함수입니다.</p>
-      <p>예를 들어 큰 행렬곱 <code>X @ W</code>가 있다면, 그 행렬의 각 출력 원소를 만드는 수많은 곱셈과 덧셈을 많은 GPU Thread가 나눠 처리할 수 있습니다.</p>
-      <pre><code>큰 행렬곱 하나
+</section>
+<section id="cuda" class="markdown-section">
+<h2>6. CUDA는 PyTorch 연산을 GPU 작업으로 연결한다</h2>
+<p>PyTorch가 CUDA용 연산을 선택하면 CUDA Kernel이 실행됩니다. CUDA Kernel은 GPU에서 실행되는 계산 함수입니다.</p>
+<p>예를 들어 큰 행렬곱 <code>X @ W</code>가 있다면, 그 행렬의 각 출력 원소를 만드는 수많은 곱셈과 덧셈을 많은 GPU Thread가 나눠 처리할 수 있습니다.</p>
+<pre><code>큰 행렬곱 하나
 → 출력 원소를 계산하는 작은 작업들로 분할
 → 작업들을 여러 GPU Thread에 배정
-→ 많은 작업을 동시에 실행</code></pre>
-      <p>우리가 CUDA Thread를 직접 생성하거나 계산 위치를 배정하는 것은 아닙니다. PyTorch와 CUDA 라이브러리가 Tensor의 Shape에 맞는 Kernel을 실행하고 계산 작업을 분할합니다.</p>
-    </section>
+→ 많은 작업을 동시에 실행
+</code></pre>
+<p>우리가 CUDA Thread를 직접 생성하거나 계산 위치를 배정하는 것은 아닙니다. PyTorch와 CUDA 라이브러리가 Tensor의 Shape에 맞는 Kernel을 실행하고 계산 작업을 분할합니다.</p>
 
-    <section id="shape" class="detail-section">
-      <h2>7. GPU는 문장을 이해하지 않고 Tensor Shape을 처리한다</h2>
-      <p>길이가 같은 문장 네 개가 Token ID로 변환되었다고 해보겠습니다.</p>
-      <pre><code>input_ids Shape = [4, 6]</code></pre>
-      <p>사람이 해석하면 문장 네 개와 각 문장의 Token 여섯 개입니다. Embedding을 통과하면 다음 Shape이 됩니다.</p>
-      <pre><code>hidden_states Shape = [4, 6, D]
+</section>
+<section id="shape" class="markdown-section">
+<h2>7. GPU는 문장을 이해하지 않고 Tensor Shape을 처리한다</h2>
+<p>길이가 같은 문장 네 개가 Token ID로 변환되었다고 해보겠습니다.</p>
+<pre><code>input_ids Shape = [4, 6]
+</code></pre>
+<p>사람이 해석하면 문장 네 개와 각 문장의 Token 여섯 개입니다. Embedding을 통과하면 다음 Shape이 됩니다.</p>
+<pre><code>hidden_states Shape = [4, 6, D]
 
-[문장 수, 문장마다 Token 수, Token 하나의 정보 차원]</code></pre>
-      <p>GPU는 <code>4</code>가 문장 수라는 의미를 알지 못합니다. GPU가 보는 것은 계산할 값이 많이 들어 있는 Tensor입니다.</p>
-      <pre><code>[4, 6, D] 크기의 Tensor
+[문장 수, 문장마다 Token 수, Token 하나의 정보 차원]
+</code></pre>
+<p>GPU는 <code>4</code>가 문장 수라는 의미를 알지 못합니다. GPU가 보는 것은 계산할 값이 많이 들어 있는 Tensor입니다.</p>
+<pre><code>[4, 6, D] 크기의 Tensor
 → 각 위치에 필요한 계산이 존재함
-→ 가능한 계산을 여러 Thread에 분배함</code></pre>
-      <p>따라서 GPU 병렬 처리의 직접적인 원인은 “첫 번째 축이 Batch이기 때문”이라기보다, 큰 Tensor 연산 안에 동시에 수행할 수 있는 계산이 많이 존재하기 때문입니다.</p>
-    </section>
+→ 가능한 계산을 여러 Thread에 분배함
+</code></pre>
+<p>따라서 GPU 병렬 처리의 직접적인 원인은 “첫 번째 축이 Batch이기 때문”이라기보다, 큰 Tensor 연산 안에 동시에 수행할 수 있는 계산이 많이 존재하기 때문입니다.</p>
 
-    <section id="batch" class="detail-section">
-      <h2>8. 여러 문장을 하나의 Batch Tensor로 구성하는 이유</h2>
-      <p>서로 다른 문장을 완전히 따로 모델에 호출하면 각각 별개의 연산으로 실행됩니다.</p>
-      <pre><code>model(sentence_1)
+</section>
+<section id="batch" class="markdown-section">
+<h2>8. 여러 문장을 하나의 Batch Tensor로 구성하는 이유</h2>
+<p>서로 다른 문장을 완전히 따로 모델에 호출하면 각각 별개의 연산으로 실행됩니다.</p>
+<pre><code>model(sentence_1)
 model(sentence_2)
 model(sentence_3)
-model(sentence_4)</code></pre>
-      <p>반면 문장들을 하나의 Tensor로 묶으면 PyTorch는 한 번의 모델 호출에서 더 큰 Tensor 연산으로 처리할 수 있습니다.</p>
-      <pre><code>input_ids.shape == [4, 6]
+model(sentence_4)
+</code></pre>
+<p>반면 문장들을 하나의 Tensor로 묶으면 PyTorch는 한 번의 모델 호출에서 더 큰 Tensor 연산으로 처리할 수 있습니다.</p>
+<pre><code>input_ids.shape == [4, 6]
 
 outputs = model(
     input_ids=input_ids,
-)</code></pre>
-      <pre><code>문장 네 개를 하나의 Batch Tensor로 구성
+)
+</code></pre>
+<pre><code>문장 네 개를 하나의 Batch Tensor로 구성
 → 모델에 한 번 전달
 → 큰 행렬 연산 생성
 → CUDA가 작은 계산들로 분할
-→ GPU에서 병렬 실행</code></pre>
-      <p>사용자 코드는 여러 입력을 하나의 Batch Tensor로 구성하고 모델과 Tensor를 GPU로 옮긴 뒤 모델을 호출합니다. PyTorch와 CUDA는 CUDA용 연산을 선택하고 Tensor Shape에 맞는 GPU Kernel을 실행해 계산을 여러 Thread에 분배합니다.</p>
-    </section>
+→ GPU에서 병렬 실행
+</code></pre>
+<p>사용자 코드는 여러 입력을 하나의 Batch Tensor로 구성하고 모델과 Tensor를 GPU로 옮긴 뒤 모델을 호출합니다. PyTorch와 CUDA는 CUDA용 연산을 선택하고 Tensor Shape에 맞는 GPU Kernel을 실행해 계산을 여러 Thread에 분배합니다.</p>
 
-    <section id="generation" class="detail-section">
-      <h2>9. 생성에서는 무엇이 병렬이고 무엇이 순차적인가</h2>
-      <p>Autoregressive Generation(자기회귀 생성)은 다음 Token을 하나씩 생성합니다.</p>
-      <pre><code>첫 번째 새 Token 생성
+</section>
+<section id="generation" class="markdown-section">
+<h2>9. 생성에서는 무엇이 병렬이고 무엇이 순차적인가</h2>
+<p>Autoregressive Generation(자기회귀 생성)은 다음 Token을 하나씩 생성합니다.</p>
+<pre><code>첫 번째 새 Token 생성
 → 그 결과를 사용해 두 번째 새 Token 생성
-→ 그 결과를 사용해 세 번째 새 Token 생성</code></pre>
-      <p>두 번째 Token을 만들려면 첫 번째 Token 결과가 필요하므로 생성 Step 사이는 순차적입니다. 하지만 하나의 Step 안에서는 Batch의 여러 문장과 대규모 Tensor 연산을 함께 처리할 수 있습니다.</p>
-      <pre><code>생성 Step 사이
+→ 그 결과를 사용해 세 번째 새 Token 생성
+</code></pre>
+<p>두 번째 Token을 만들려면 첫 번째 Token 결과가 필요하므로 생성 Step 사이는 순차적입니다. 하지만 하나의 Step 안에서는 Batch의 여러 문장과 대규모 Tensor 연산을 함께 처리할 수 있습니다.</p>
+<pre><code>생성 Step 사이
 → 순차적
 
 한 생성 Step 내부
-→ 여러 문장의 행렬 연산을 병렬 처리 가능</code></pre>
-    </section>
+→ 여러 문장의 행렬 연산을 병렬 처리 가능
+</code></pre>
 
-    <section id="whole-flow" class="detail-section">
-      <h2>10. 전체 흐름</h2>
-      <pre><code>여러 문장을 Token ID로 변환
+</section>
+<section id="whole-flow" class="markdown-section">
+<h2>10. 전체 흐름</h2>
+<pre><code>여러 문장을 Token ID로 변환
         ↓
 [Batch, Sequence] Tensor 생성
         ↓
-input_ids.to("cuda")
+input_ids.to(&quot;cuda&quot;)
         ↓
 Tensor가 GPU 메모리로 이동
         ↓
@@ -208,17 +231,29 @@ CUDA Kernel 실행
         ↓
 GPU Thread들이 동시에 처리
         ↓
-Logits 반환</code></pre>
-    </section>
+Logits 반환
+</code></pre>
 
-    <section id="conclusion" class="detail-section">
-      <h2>11. 결론</h2>
-      <div class="caution"><strong><code>.to(device)</code>가 직접 병렬 처리를 실행하는 것은 아닙니다. <code>.to("cuda")</code>는 모델과 Tensor를 GPU 메모리로 옮기고, 이후 <code>model(...)</code>에서 PyTorch가 Tensor의 장치를 보고 CUDA용 연산을 선택합니다. CUDA는 큰 Batch Tensor의 행렬 계산을 수많은 작은 작업으로 나눠 GPU Thread에서 동시에 실행합니다.</strong></div>
-      <p>CPU에서도 여러 Core·Thread와 최적화된 행렬곱 구현을 사용할 수 있으므로 CPU가 반드시 모든 원소를 하나씩 순서대로 처리하는 것은 아닙니다. 다만 GPU는 같은 종류의 계산을 많은 데이터에 반복하는 Tensor 연산에 훨씬 많은 연산 장치를 사용할 수 있습니다.</p>
-      <p>이 연결은 CUDA GPU의 동기화된 Batch 생성 실험에 이어 <a href="pytorch_profiler_aten_cuda_kernel_table_learning.html#kernel">실제 PyTorch Profiler 표의 <code>aten::mm → ampere_sgemm_128x32_tn</code> 실행에서도 확인했습니다 →</a></p>
-    </section>
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>11. 결론</h2>
+<p><strong><code>.to(device)</code>가 직접 병렬 처리를 실행하는 것은 아닙니다. <code>.to(&quot;cuda&quot;)</code>는 모델과 Tensor를 GPU 메모리로 옮기고, 이후 <code>model(...)</code>에서 PyTorch가 Tensor의 장치를 보고 CUDA용 연산을 선택합니다. CUDA는 큰 Batch Tensor의 행렬 계산을 수많은 작은 작업으로 나눠 GPU Thread에서 동시에 실행합니다.</strong></p>
+<p>CPU에서도 여러 Core·Thread와 최적화된 행렬곱 구현을 사용할 수 있으므로 CPU가 반드시 모든 원소를 하나씩 순서대로 처리하는 것은 아닙니다. 다만 GPU는 같은 종류의 계산을 많은 데이터에 반복하는 Tensor 연산에 훨씬 많은 연산 장치를 사용할 수 있습니다.</p>
+<p>이 연결은 CUDA GPU의 동기화된 Batch 생성 실험에 이어 <a href="pytorch_profiler_aten_cuda_kernel_table_learning.html#kernel">실제 PyTorch Profiler 표의 <code>aten::mm → ampere_sgemm_128x32_tn</code> 실행에서도 확인했습니다 →</a></p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="pytorch_cuda_async_model_return_timing_learning.html">CUDA 비동기 실행에서 Python 호출 반환과 GPU 계산 완료를 비교하기</a></li>
+<li><a href="pytorch_profiler_aten_cuda_kernel_table_learning.html">실제 Profiler 출력으로 PyTorch GPU 연산 흐름 이해하기</a></li></ul>
+  </section>
+      </article>
+    </div>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

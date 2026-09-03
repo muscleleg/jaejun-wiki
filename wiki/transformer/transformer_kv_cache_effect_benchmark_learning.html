@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.md. Do not edit directly. source-sha256:3d66f28749e3574bb647d9d41ee149748de08c4a31242c2d541379e96f505183 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="짧은 Prompt와 작은 Batch에서 시작해 문장 수와 Prompt 길이를 늘리며 KV Cache의 계산량·Latency·Throughput 효과를 검증합니다.">
+  <meta name="description" content="짧은 Prompt에서 작게 보였던 KV Cache 효과를 Batch와 Prompt 길이를 키운 GPU 실험으로 다시 측정하고, 생성 Step·Token-position·실험 한계를 해석합니다.">
+  <meta name="source-sha256" content="3d66f28749e3574bb647d9d41ee149748de08c4a31242c2d541379e96f505183">
   <title>KV Cache 효과 확인하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -17,89 +19,90 @@
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="KV Cache 효과 확인하기">
-  <meta property="og:description" content="짧은 Prompt와 작은 Batch에서 시작해 문장 수와 Prompt 길이를 늘리며 KV Cache의 계산량·Latency·Throughput 효과를 검증합니다.">
+  <meta property="og:description" content="짧은 Prompt에서 작게 보였던 KV Cache 효과를 Batch와 Prompt 길이를 키운 GPU 실험으로 다시 측정하고, 생성 Step·Token-position·실험 한계를 해석합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html","name":"KV Cache 효과 확인하기","description":"짧은 Prompt와 작은 Batch에서 시작해 문장 수와 Prompt 길이를 늘리며 KV Cache의 계산량·Latency·Throughput 효과를 검증합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html"},"headline":"KV Cache 효과 확인하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"KV Cache 전체 생성 흐름","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache 효과 확인"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html","name":"KV Cache 효과 확인하기","description":"짧은 Prompt에서 작게 보였던 KV Cache 효과를 Batch와 Prompt 길이를 키운 GPU 실험으로 다시 측정하고, 생성 Step·Token-position·실험 한계를 해석합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html"},"headline":"KV Cache 효과 확인하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_effect_benchmark_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"KV Cache 효과 확인하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference transformer-detail">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_kv_cache_end_to_end_generation_learning.html">KV Cache 전체 생성 흐름</a><span class="separator">›</span><span aria-current="page">KV Cache 효과 확인</span></nav>
-
-    <header class="hero">
-      <span class="eyebrow">Transformer · KV Cache GPU Benchmark</span>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><a href="transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="separator">›</span><span aria-current="page">KV Cache 효과 확인하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
       <h1>KV Cache 효과 확인하기</h1>
-      <p class="lead">짧은 Prompt에서 작게 보였던 KV Cache 효과가 문장 수와 각 문장의 길이를 키웠을 때 어떻게 달라지는지 실제 GPU 생성으로 확인합니다.</p>
-      <div class="detail-actions"><a href="transformer_kv_cache_end_to_end_generation_learning.html#performance">← KV Cache 전체 생성 흐름</a><a href="transformer_batch_sequence_context_isolation_learning.html">Batch 문맥 분리</a><a href="../pytorch/pytorch_peak_vram_kv_cache_benchmark_learning.html#result">Peak VRAM 증가 실험</a><a href="../projects/road-to-llm-inference/pytorch-inference.html#batch">PyTorch 추론 Baseline 통합 기록</a></div>
+      <p class="lead">짧은 Prompt에서 작게 보였던 KV Cache 효과를 Batch와 Prompt 길이를 키운 GPU 실험으로 다시 측정하고, 생성 Step·Token-position·실험 한계를 해석합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-    <nav aria-label="문서 목차">
-      <a href="#1-처음에는-kv-cache의-효과가-작아-보였습니다">1. 처음에는 KV Cache의 효과가 작아 보였습니다</a>
-      <a href="#2-문장-수만-늘리는-것과-문장을-길게-만드는-것은-다릅니다">2. 문장 수만 늘리는 것과 문장을 길게 만드는 것은 다릅니다</a>
-      <a href="#3-이번에는-각-문장을-실제로-길게-만들었습니다">3. 이번에는 각 문장을 실제로 길게 만들었습니다</a>
-      <a href="#4-이-batch-benchmark가-처리하는-것은-무엇인가">4. 이 Batch Benchmark가 처리하는 것은 무엇인가</a>
-      <a href="#5-max_new_tokens는-사실상-생성-step-수입니다">5. max_new_tokens는 사실상 생성 Step 수입니다</a>
-      <a href="#6-현재-수동-loop에서는-정확히-20-step을-실행합니다">6. 현재 수동 Loop에서는 정확히 20 Step을 실행합니다</a>
-      <a href="#7-max_new_tokens는-모델의-최대-context-길이가-아닙니다">7. max_new_tokens는 모델의 최대 Context 길이가 아닙니다</a>
-      <a href="#8-측정-조건은-동일하게-유지했습니다">8. 측정 조건은 동일하게 유지했습니다</a>
-      <a href="#9-입력을-길게-만들자-차이가-크게-벌어졌습니다">9. 입력을 길게 만들자 차이가 크게 벌어졌습니다</a>
-      <a href="#10-no-cache는-긴-문장을-생성-step마다-다시-계산합니다">10. No-cache는 긴 문장을 생성 Step마다 다시 계산합니다</a>
-      <a href="#11-kv-cache는-긴-prompt를-한-번만-계산합니다">11. KV Cache는 긴 Prompt를 한 번만 계산합니다</a>
-      <a href="#12-계산량은-1871배-줄었는데-시간은-왜-554배만-줄었을까요">12. 계산량은 18.71배 줄었는데 시간은 왜 5.54배만 줄었을까요?</a>
-      <a href="#13-이번-결과를-해석할-때-주의할-점">13. 이번 결과를 해석할 때 주의할 점</a>
-      <a href="#결론">결론</a>
-    </nav>
-
-    <section class="detail-section">
-<p>KV Cache를 사용하면 과거 Token의 Key와 Value를 다시 계산하지 않아도 된다고 배웠습니다. 그렇다면 실제 GPU 생성에서도 눈에 띄는 속도 차이가 발생해야 합니다.</p>
+    <div class="markdown-lead"><p>KV Cache를 사용하면 과거 Token의 Key와 Value를 다시 계산하지 않아도 된다고 배웠습니다. 그렇다면 실제 GPU 생성에서도 눈에 띄는 속도 차이가 발생해야 합니다.</p>
 <p>하지만 짧은 Prompt와 작은 Batch로 처음 측정했을 때는 예상보다 차이가 작았습니다. 이번 실습에서는 문장 수와 각 문장의 길이를 크게 늘려 다시 측정하고, Batch Benchmark가 실제로 무엇을 처리하는지까지 확인했습니다.</p>
-    </section>
-    <section id="1-처음에는-kv-cache의-효과가-작아-보였습니다" class="detail-section">
-<h2 id="1-처음에는-kv-cache의-효과가-작아-보였습니다">1. 처음에는 KV Cache의 효과가 작아 보였습니다</h2>
-<p>처음에는 <code>"I study"</code>라는 짧은 Prompt로 각 문장마다 새 Token 20개를 생성했습니다.</p>
-<pre class="text"><code>Prompt: I study
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#1-처음에는-kv-cache의-효과가-작아-보였습니다">1. 처음에는 KV Cache의 효과가 작아 보였습니다</a>
+        <a href="#2-문장-수만-늘리는-것과-문장을-길게-만드는-것은-다릅니다">2. 문장 수만 늘리는 것과 문장을 길게 만드는 것은 다릅니다</a>
+        <a href="#3-이번에는-각-문장을-실제로-길게-만들었습니다">3. 이번에는 각 문장을 실제로 길게 만들었습니다</a>
+        <a href="#4-이-batch-benchmark가-처리하는-것은-무엇인가">4. 이 Batch Benchmark가 처리하는 것은 무엇인가</a>
+        <a href="#5-max_new_tokens는-사실상-생성-step-수입니다">5. <code>max_new_tokens</code>는 사실상 생성 Step 수입니다</a>
+        <a href="#6-현재-수동-loop에서는-정확히-20-step을-실행합니다">6. 현재 수동 Loop에서는 정확히 20 Step을 실행합니다</a>
+        <a href="#7-max_new_tokens는-모델의-최대-context-길이가-아닙니다">7. <code>max_new_tokens</code>는 모델의 최대 Context 길이가 아닙니다</a>
+        <a href="#8-측정-조건은-동일하게-유지했습니다">8. 측정 조건은 동일하게 유지했습니다</a>
+        <a href="#9-입력을-길게-만들자-차이가-크게-벌어졌습니다">9. 입력을 길게 만들자 차이가 크게 벌어졌습니다</a>
+        <a href="#10-no-cache는-긴-문장을-생성-step마다-다시-계산합니다">10. No-cache는 긴 문장을 생성 Step마다 다시 계산합니다</a>
+        <a href="#11-kv-cache는-긴-prompt를-한-번만-계산합니다">11. KV Cache는 긴 Prompt를 한 번만 계산합니다</a>
+        <a href="#12-계산량은-1871배-줄었는데-시간은-왜-554배만-줄었을까요">12. 계산량은 18.71배 줄었는데 시간은 왜 5.54배만 줄었을까요?</a>
+        <a href="#13-이번-결과를-해석할-때-주의할-점">13. 이번 결과를 해석할 때 주의할 점</a>
+        <a href="#결론">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="1-처음에는-kv-cache의-효과가-작아-보였습니다" class="markdown-section">
+<h2>1. 처음에는 KV Cache의 효과가 작아 보였습니다</h2>
+<p>처음에는 <code>&quot;I study&quot;</code>라는 짧은 Prompt로 각 문장마다 새 Token 20개를 생성했습니다.</p>
+<pre><code class="language-text">Prompt: I study
 Prompt 길이: 2 Token
-생성 길이: 문장마다 20 Token</code></pre>
+생성 길이: 문장마다 20 Token
+</code></pre>
 <p>Batch 1과 Batch 4에서 No-cache와 KV Cache를 비교한 결과는 다음과 같았습니다.</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>조건</th>
-<th style="text-align: right;">실행 시간</th>
-<th style="text-align: right;">처리량</th>
+<th align="right">실행 시간</th>
+<th align="right">처리량</th>
 </tr>
 </thead>
-<tbody>
-<tr class="odd">
+<tbody><tr>
 <td>No-cache · Batch 1</td>
-<td style="text-align: right;">48.395 ms</td>
-<td style="text-align: right;">413.26 tokens/sec</td>
+<td align="right">48.395 ms</td>
+<td align="right">413.26 tokens/sec</td>
 </tr>
-<tr class="even">
+<tr>
 <td>KV Cache · Batch 1</td>
-<td style="text-align: right;">42.857 ms</td>
-<td style="text-align: right;">466.66 tokens/sec</td>
+<td align="right">42.857 ms</td>
+<td align="right">466.66 tokens/sec</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>No-cache · Batch 4</td>
-<td style="text-align: right;">49.180 ms</td>
-<td style="text-align: right;">1,626.66 tokens/sec</td>
+<td align="right">49.180 ms</td>
+<td align="right">1,626.66 tokens/sec</td>
 </tr>
-<tr class="even">
+<tr>
 <td>KV Cache · Batch 4</td>
-<td style="text-align: right;">43.671 ms</td>
-<td style="text-align: right;">1,831.89 tokens/sec</td>
+<td align="right">43.671 ms</td>
+<td align="right">1,831.89 tokens/sec</td>
 </tr>
-</tbody>
-</table>
+</tbody></table>
 <p>KV Cache가 조금 빠르기는 했지만 약 11% 정도의 차이였습니다.</p>
 <p>두 방식이 생성한 Token ID는 완전히 같았습니다.</p>
-<pre class="text"><code>GPU Batch 1 출력 일치: True
-GPU Batch 4 출력 일치: True</code></pre>
+<pre><code class="language-text">GPU Batch 1 출력 일치: True
+GPU Batch 4 출력 일치: True
+</code></pre>
 <p>결과가 잘못된 것이 아니라 입력이 너무 짧았습니다.</p>
-<p><code>"I study"</code>는 2개의 Token으로만 구성되어 있습니다. No-cache 방식이 과거 Token을 매번 다시 계산하더라도 다시 계산할 과거 자체가 많지 않았습니다.</p>
+<p><code>&quot;I study&quot;</code>는 2개의 Token으로만 구성되어 있습니다. No-cache 방식이 과거 Token을 매번 다시 계산하더라도 다시 계산할 과거 자체가 많지 않았습니다.</p>
 <p>작은 모델과 짧은 입력에서는 다음과 같은 고정 비용의 비중도 큽니다.</p>
 <ul>
 <li>Python 생성 반복문</li>
@@ -109,101 +112,118 @@ GPU Batch 4 출력 일치: True</code></pre>
 <li>KV Cache 관리</li>
 </ul>
 <p>따라서 KV Cache가 줄여준 연산량이 전체 실행 시간에서 크게 드러나지 않았습니다.</p>
-    </section>
-    <section id="2-문장-수만-늘리는-것과-문장을-길게-만드는-것은-다릅니다" class="detail-section">
-<h2 id="2-문장-수만-늘리는-것과-문장을-길게-만드는-것은-다릅니다">2. 문장 수만 늘리는 것과 문장을 길게 만드는 것은 다릅니다</h2>
-<p>다음에는 <code>"I study"</code>를 여러 문장으로 복제했습니다.</p>
-<pre class="text"><code>문장 1: I study
+
+</section>
+<section id="2-문장-수만-늘리는-것과-문장을-길게-만드는-것은-다릅니다" class="markdown-section">
+<h2>2. 문장 수만 늘리는 것과 문장을 길게 만드는 것은 다릅니다</h2>
+<p>다음에는 <code>&quot;I study&quot;</code>를 여러 문장으로 복제했습니다.</p>
+<pre><code class="language-text">문장 1: I study
 문장 2: I study
 문장 3: I study
 ...
-문장 3000: I study</code></pre>
+문장 3000: I study
+</code></pre>
 <p>이 경우 Batch에 들어가는 문장 수는 크게 늘었지만, 각 문장의 길이는 여전히 2 Token이었습니다.</p>
-<pre class="text"><code>Batch 크기: 3000
-각 문장의 Prompt 길이: 2 Token</code></pre>
+<pre><code class="language-text">Batch 크기: 3000
+각 문장의 Prompt 길이: 2 Token
+</code></pre>
 <p>측정 결과는 다음과 같았습니다.</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>조건</th>
-<th style="text-align: right;">실행 시간</th>
-<th style="text-align: right;">처리량</th>
+<th align="right">실행 시간</th>
+<th align="right">처리량</th>
 </tr>
 </thead>
-<tbody>
-<tr class="odd">
+<tbody><tr>
 <td>No-cache</td>
-<td style="text-align: right;">372.289 ms</td>
-<td style="text-align: right;">161,164.97 tokens/sec</td>
+<td align="right">372.289 ms</td>
+<td align="right">161,164.97 tokens/sec</td>
 </tr>
-<tr class="even">
+<tr>
 <td>KV Cache</td>
-<td style="text-align: right;">275.249 ms</td>
-<td style="text-align: right;">217,984.06 tokens/sec</td>
+<td align="right">275.249 ms</td>
+<td align="right">217,984.06 tokens/sec</td>
 </tr>
-</tbody>
-</table>
+</tbody></table>
 <p>Batch를 늘리자 차이는 이전보다 커졌습니다. 하지만 각 문장은 여전히 짧았기 때문에, 한 문장 안에서 KV Cache가 재계산을 줄여주는 효과는 제한적이었습니다.</p>
 <p>여기서 다음 두 조건을 구분해야 합니다.</p>
-<pre class="text"><code>Batch 크기를 늘린다
+<pre><code class="language-text">Batch 크기를 늘린다
 → 동시에 처리하는 문장 수가 늘어납니다.
 
 Prompt 길이를 늘린다
-→ 각 문장 안에서 과거로 누적되는 Token 수가 늘어납니다.</code></pre>
+→ 각 문장 안에서 과거로 누적되는 Token 수가 늘어납니다.
+</code></pre>
 <p>KV Cache는 과거 Token의 재계산을 줄이는 기능이므로 각 문장이 길어질수록 효과를 확인하기 쉬워집니다.</p>
-    </section>
-    <section id="3-이번에는-각-문장을-실제로-길게-만들었습니다" class="detail-section">
-<h2 id="3-이번에는-각-문장을-실제로-길게-만들었습니다">3. 이번에는 각 문장을 실제로 길게 만들었습니다</h2>
-<p>먼저 <code>"I study"</code>라는 문장 1,000개를 Tokenizer로 변환했습니다.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tokenizer(</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">&quot;I study&quot;</span>] <span class="op">*</span> <span class="dv">1000</span>,</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    return_tensors<span class="op">=</span><span class="st">&quot;pt&quot;</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>).input_ids</span></code></pre></div>
+
+</section>
+<section id="3-이번에는-각-문장을-실제로-길게-만들었습니다" class="markdown-section">
+<h2>3. 이번에는 각 문장을 실제로 길게 만들었습니다</h2>
+<p>먼저 <code>&quot;I study&quot;</code>라는 문장 1,000개를 Tokenizer로 변환했습니다.</p>
+<pre><code class="language-{.sourceCode">tokenizer(
+    [&quot;I study&quot;] * 1000,
+    return_tensors=&quot;pt&quot;,
+).input_ids
+</code></pre>
 <p>이때 Tensor의 Shape은 다음과 같습니다.</p>
-<pre class="text"><code>[1000, 2]</code></pre>
+<pre><code class="language-text">[1000, 2]
+</code></pre>
 <p>의미는 다음과 같습니다.</p>
-<pre class="text"><code>문장 수: 1000
-각 문장의 Token 수: 2</code></pre>
+<pre><code class="language-text">문장 수: 1000
+각 문장의 Token 수: 2
+</code></pre>
 <p>그다음 각 문장의 Token ID를 64번 반복했습니다.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>.repeat(<span class="dv">1</span>, <span class="dv">64</span>)</span></code></pre></div>
+<pre><code class="language-{.sourceCode">.repeat(1, 64)
+</code></pre>
 <p>이 연산은 문장 수를 늘리는 것이 아닙니다. 기존 문장 하나의 Token 배열을 오른쪽으로 반복해 각 문장을 길게 만듭니다.</p>
 <p>개념적으로는 다음과 같은 입력이 만들어집니다.</p>
-<pre class="text"><code>I study I study I study I study ... I study</code></pre>
-<p><code>"I study"</code>가 2 Token이고 이를 64번 반복했으므로 각 문장의 길이는 128 Token이 됩니다.</p>
-<pre class="text"><code>2 Token × 64회 = 128 Token</code></pre>
+<pre><code class="language-text">I study I study I study I study ... I study
+</code></pre>
+<p><code>&quot;I study&quot;</code>가 2 Token이고 이를 64번 반복했으므로 각 문장의 길이는 128 Token이 됩니다.</p>
+<pre><code class="language-text">2 Token × 64회 = 128 Token
+</code></pre>
 <p>최종 입력 Shape은 다음과 같습니다.</p>
-<pre class="text"><code>[1000, 128]</code></pre>
+<pre><code class="language-text">[1000, 128]
+</code></pre>
 <p>실제 입력을 상상하면 다음과 같습니다.</p>
-<pre class="text"><code>문장 1: I study I study I study ... I study
+<pre><code class="language-text">문장 1: I study I study I study ... I study
 문장 2: I study I study I study ... I study
 문장 3: I study I study I study ... I study
 ...
-문장 1000: I study I study I study ... I study</code></pre>
+문장 1000: I study I study I study ... I study
+</code></pre>
 <p>이 입력은 의미 있는 자연어를 만들기 위한 문장이 아닙니다. 긴 입력에서 No-cache와 KV Cache의 연산 차이를 확인하기 위한 합성 입력입니다.</p>
-    </section>
-    <section id="4-이-batch-benchmark가-처리하는-것은-무엇인가" class="detail-section">
-<h2 id="4-이-batch-benchmark가-처리하는-것은-무엇인가">4. 이 Batch Benchmark가 처리하는 것은 무엇인가</h2>
+
+</section>
+<section id="4-이-batch-benchmark가-처리하는-것은-무엇인가" class="markdown-section">
+<h2>4. 이 Batch Benchmark가 처리하는 것은 무엇인가</h2>
 <p>이번 Benchmark의 조건은 다음과 같습니다.</p>
-<pre class="text"><code>Batch 크기: 1000
+<pre><code class="language-text">Batch 크기: 1000
 각 Prompt 길이: 128 Token
 max_new_tokens: 20
-KV Cache 사용 여부 비교</code></pre>
+KV Cache 사용 여부 비교
+</code></pre>
 <p>첫 Forward에서는 1,000개 문장의 Prompt 전체가 하나의 Batch Tensor로 모델에 들어갑니다.</p>
-<pre class="text"><code>input_ids Shape: [1000, 128]</code></pre>
+<pre><code class="language-text">input_ids Shape: [1000, 128]
+</code></pre>
 <p>이때 GPU의 Tensor 연산은 1,000개 문장을 함께 처리합니다.</p>
 <p>KV Cache를 사용하면 첫 Forward에서 각 문장의 과거 Token에 대한 Key와 Value가 저장됩니다.</p>
 <p>개념적인 Cache Shape은 다음과 같습니다.</p>
-<pre class="text"><code>[Batch, KV Head, 과거 Token, Head Dimension]</code></pre>
+<pre><code class="language-text">[Batch, KV Head, 과거 Token, Head Dimension]
+</code></pre>
 <p>여기에는 Batch에 포함된 각 문장의 Cache가 Batch 축을 따라 함께 들어 있습니다.</p>
 <p>첫 Forward가 끝나면 각 문장에서 새로운 Token 하나가 선택됩니다.</p>
-<pre class="text"><code>문장 1 → 새 Token 1개
+<pre><code class="language-text">문장 1 → 새 Token 1개
 문장 2 → 새 Token 1개
 ...
-문장 1000 → 새 Token 1개</code></pre>
+문장 1000 → 새 Token 1개
+</code></pre>
 <p>따라서 후속 Forward에 들어가는 새 Token의 Shape은 다음과 같습니다.</p>
-<pre class="text"><code>[1000, 1]</code></pre>
+<pre><code class="language-text">[1000, 1]
+</code></pre>
 <p>후속 생성 흐름은 다음과 같습니다.</p>
-<pre class="text"><code>Step 1
+<pre><code class="language-text">Step 1
 → 1000개 문장의 첫 번째 새 Token을 함께 계산
 
 Step 2
@@ -217,198 +237,235 @@ Step 3
 ...
 
 Step 20
-→ 1000개 문장의 스무 번째 새 Token을 함께 계산</code></pre>
+→ 1000개 문장의 스무 번째 새 Token을 함께 계산
+</code></pre>
 <p>각 Step 안에서는 Batch의 문장들이 함께 처리됩니다. 하지만 같은 문장의 첫 번째 생성 Token과 두 번째 생성 Token은 순서대로 만들어져야 합니다.</p>
-<pre class="text"><code>문장 사이       → Batch로 함께 처리
-생성 Step 사이  → Autoregressive 특성상 순차 처리</code></pre>
+<pre><code class="language-text">문장 사이       → Batch로 함께 처리
+생성 Step 사이  → Autoregressive 특성상 순차 처리
+</code></pre>
 <p>두 번째 Token을 예측하려면 첫 번째 Token이 먼저 결정되어야 하기 때문입니다.</p>
-    </section>
-    <section id="5-max_new_tokens는-사실상-생성-step-수입니다" class="detail-section">
-<h2 id="5-max_new_tokens는-사실상-생성-step-수입니다">5. <code>max_new_tokens</code>는 사실상 생성 Step 수입니다</h2>
+
+</section>
+<section id="5-max_new_tokens는-사실상-생성-step-수입니다" class="markdown-section">
+<h2>5. <code>max_new_tokens</code>는 사실상 생성 Step 수입니다</h2>
 <p>Benchmark 코드에는 다음 값이 전달됩니다.</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>max_new_tokens<span class="op">=</span>max_new_tokens</span></code></pre></div>
+<pre><code class="language-{.sourceCode">max_new_tokens=max_new_tokens
+</code></pre>
 <p>이 값은 전체 Batch에서 생성할 Token의 총개수가 아닙니다.</p>
 <p>각 문장마다 새 Token을 몇 개까지 생성할지 지정하는 값입니다.</p>
 <p>현재 수동 생성 함수는 다음과 같은 반복 구조를 사용합니다.</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> step <span class="kw">in</span> <span class="bu">range</span>(max_new_tokens):</span></code></pre></div>
+<pre><code class="language-{.sourceCode">for step in range(max_new_tokens):
+</code></pre>
 <p>한 번 반복할 때마다 Batch에 포함된 모든 문장에서 새 Token 하나씩을 생성합니다.</p>
 <p>따라서 현재 코드에서는 다음 관계가 성립합니다.</p>
-<pre class="text"><code>max_new_tokens
+<pre><code class="language-text">max_new_tokens
 = 문장 하나당 생성할 Token 수
-= Autoregressive 생성 Loop의 Step 수</code></pre>
+= Autoregressive 생성 Loop의 Step 수
+</code></pre>
 <p>현재 설정이 다음과 같다면:</p>
-<pre class="text"><code>Batch 크기: 1000
-max_new_tokens: 20</code></pre>
+<pre><code class="language-text">Batch 크기: 1000
+max_new_tokens: 20
+</code></pre>
 <p>생성 과정은 20 Step 진행되고, 각 Step에서 1,000개의 Token이 선택됩니다.</p>
-<pre class="text"><code>Step 수: 20회
+<pre><code class="language-text">Step 수: 20회
 Step마다 생성되는 Token: 1000개
-전체 생성 Token: 1000 × 20 = 20,000개</code></pre>
+전체 생성 Token: 1000 × 20 = 20,000개
+</code></pre>
 <p>따라서 Benchmark의 <code>tokens/sec</code>는 한 문장의 Token 20개만을 기준으로 계산하는 것이 아닙니다.</p>
 <p>한 번의 생성 실행에서 Batch 전체가 생성한 Token 수를 기준으로 계산합니다.</p>
-<pre class="text"><code>전체 생성 Token 수
-= Batch 크기 × max_new_tokens</code></pre>
+<pre><code class="language-text">전체 생성 Token 수
+= Batch 크기 × max_new_tokens
+</code></pre>
 <p>현재 실험에서는 다음과 같습니다.</p>
-<pre class="text"><code>1000 × 20 = 20,000 Token</code></pre>
+<pre><code class="language-text">1000 × 20 = 20,000 Token
+</code></pre>
 <p>이를 실행 시간으로 나누면 처리량을 구할 수 있습니다.</p>
-<pre class="text"><code>throughput
-= 전체 생성 Token 수 / 평균 실행 시간</code></pre>
+<pre><code class="language-text">throughput
+= 전체 생성 Token 수 / 평균 실행 시간
+</code></pre>
 <p>예를 들어 No-cache 결과는 다음과 같습니다.</p>
-<pre class="text"><code>20,000 / 0.838082초
-≈ 23,864 tokens/sec</code></pre>
+<pre><code class="language-text">20,000 / 0.838082초
+≈ 23,864 tokens/sec
+</code></pre>
 <p>KV Cache 결과는 다음과 같습니다.</p>
-<pre class="text"><code>20,000 / 0.151391초
-≈ 132,108 tokens/sec</code></pre>
+<pre><code class="language-text">20,000 / 0.151391초
+≈ 132,108 tokens/sec
+</code></pre>
 <p>따라서 이번 처리량은 문장 하나의 생성 속도가 아니라, GPU가 Batch 전체에서 처리한 총 생성 Token 수를 기준으로 한 속도입니다.</p>
-    </section>
-    <section id="6-현재-수동-loop에서는-정확히-20-step을-실행합니다" class="detail-section">
-<h2 id="6-현재-수동-loop에서는-정확히-20-step을-실행합니다">6. 현재 수동 Loop에서는 정확히 20 Step을 실행합니다</h2>
+
+</section>
+<section id="6-현재-수동-loop에서는-정확히-20-step을-실행합니다" class="markdown-section">
+<h2>6. 현재 수동 Loop에서는 정확히 20 Step을 실행합니다</h2>
 <p><code>max_new_tokens</code>라는 이름만 보면 최대 20개 이내에서 생성이 끝날 수 있다고 생각할 수 있습니다.</p>
 <p>일반적인 Token 생성 메서드인 <code>model.generate()</code>는 EOS(문장 종료 Token)가 나오면 <code>max_new_tokens</code>에 도달하기 전에 생성을 끝낼 수 있습니다.</p>
 <p>이때는 정말로 최대 생성 개수라는 의미입니다.</p>
-<pre class="text"><code>EOS가 일찍 나옴
-→ 20개보다 적게 생성하고 종료 가능</code></pre>
+<pre><code class="language-text">EOS가 일찍 나옴
+→ 20개보다 적게 생성하고 종료 가능
+</code></pre>
 <p>하지만 현재 작성한 수동 생성 Loop에는 문장별 EOS 중단 처리가 없습니다.</p>
-<div class="sourceCode" id="cb32"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> step <span class="kw">in</span> <span class="bu">range</span>(max_new_tokens):</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    ...</span></code></pre></div>
+<pre><code class="language-{.sourceCode">for step in range(max_new_tokens):
+    ...
+</code></pre>
 <p>따라서 현재 Benchmark에서는 각 문장에 정확히 20개의 Token을 생성합니다.</p>
-<pre class="text"><code>문장마다 정확히 20 Token
+<pre><code class="language-text">문장마다 정확히 20 Token
 Batch 1000개
-전체 생성 Token 20,000개</code></pre>
+전체 생성 Token 20,000개
+</code></pre>
 <p>즉 이번 코드에서는 <code>max_new_tokens</code>가 사실상 정확한 생성 Step 수로 동작합니다.</p>
-    </section>
-    <section id="7-max_new_tokens는-모델의-최대-context-길이가-아닙니다" class="detail-section">
-<h2 id="7-max_new_tokens는-모델의-최대-context-길이가-아닙니다">7. <code>max_new_tokens</code>는 모델의 최대 Context 길이가 아닙니다</h2>
+
+</section>
+<section id="7-max_new_tokens는-모델의-최대-context-길이가-아닙니다" class="markdown-section">
+<h2>7. <code>max_new_tokens</code>는 모델의 최대 Context 길이가 아닙니다</h2>
 <p><code>max_new_tokens=20</code>은 모델이 최대 20개의 Token만 처리할 수 있다는 뜻이 아닙니다.</p>
 <p>이는 우리가 이번 생성에서 새 Token을 20개까지만 만들겠다고 정한 값입니다.</p>
 <p>모델이 실제로 처리할 수 있는 최대 범위는 Context 길이 제한과 관련됩니다.</p>
 <p>일반적으로 다음 조건을 확인해야 합니다.</p>
-<pre class="text"><code>Prompt Token 수 + 생성 Token 수
-≤ 모델이 지원하는 최대 Context 길이</code></pre>
+<pre><code class="language-text">Prompt Token 수 + 생성 Token 수
+≤ 모델이 지원하는 최대 Context 길이
+</code></pre>
 <p>이번 실험에서는 다음 길이를 사용했습니다.</p>
-<pre class="text"><code>Prompt 길이: 128
+<pre><code class="language-text">Prompt 길이: 128
 생성 길이: 20
-최종 길이: 148 Token</code></pre>
+최종 길이: 148 Token
+</code></pre>
 <p>따라서 <code>max_new_tokens</code>는 생성 반복 횟수를 결정하고, 모델의 최대 Context 길이는 Prompt와 생성 결과를 합쳐 어디까지 보관하고 참조할 수 있는지를 제한합니다.</p>
-    </section>
-    <section id="8-측정-조건은-동일하게-유지했습니다" class="detail-section">
-<h2 id="8-측정-조건은-동일하게-유지했습니다">8. 측정 조건은 동일하게 유지했습니다</h2>
+
+</section>
+<section id="8-측정-조건은-동일하게-유지했습니다" class="markdown-section">
+<h2>8. 측정 조건은 동일하게 유지했습니다</h2>
 <p>No-cache와 KV Cache를 비교할 때는 Cache 사용 여부만 달라져야 합니다.</p>
 <p>이번 측정에서는 다음 조건을 동일하게 유지했습니다.</p>
-<pre class="text"><code>Model: tiny GPT-2
+<pre><code class="language-text">Model: tiny GPT-2
 Batch 크기: 1000
 Prompt 길이: 128 Token
 생성 길이: 문장마다 20 Token
 Warmup: 3회
 측정: 20회
-GPU 동기화: 적용</code></pre>
+GPU 동기화: 적용
+</code></pre>
 <p>측정 전에는 Warmup을 실행하여 초기 CUDA 준비 비용이 본 측정에 섞이는 것을 줄였습니다.</p>
 <p>GPU 연산은 비동기적으로 실행될 수 있으므로 측정 시작과 종료 지점에 동기화를 적용하여 GPU 계산이 실제로 완료된 시간을 측정했습니다.</p>
 <p>또한 No-cache와 KV Cache가 서로 다른 답을 생성하면서 속도만 달라지는 상황을 피하기 위해 생성 결과도 비교했습니다.</p>
-<pre class="text"><code>출력 일치: True</code></pre>
+<pre><code class="language-text">출력 일치: True
+</code></pre>
 <p>따라서 두 방식은 같은 Token을 생성했고, Cache 사용 여부에 따른 실행 시간 차이를 비교할 수 있었습니다.</p>
-    </section>
-    <section id="9-입력을-길게-만들자-차이가-크게-벌어졌습니다" class="detail-section">
-<h2 id="9-입력을-길게-만들자-차이가-크게-벌어졌습니다">9. 입력을 길게 만들자 차이가 크게 벌어졌습니다</h2>
+
+</section>
+<section id="9-입력을-길게-만들자-차이가-크게-벌어졌습니다" class="markdown-section">
+<h2>9. 입력을 길게 만들자 차이가 크게 벌어졌습니다</h2>
 <p>최종 측정 결과는 다음과 같았습니다.</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>조건</th>
-<th style="text-align: right;">실행 시간</th>
-<th style="text-align: right;">처리량</th>
+<th align="right">실행 시간</th>
+<th align="right">처리량</th>
 </tr>
 </thead>
-<tbody>
-<tr class="odd">
+<tbody><tr>
 <td>No-cache</td>
-<td style="text-align: right;">838.082 ms</td>
-<td style="text-align: right;">23,864.01 tokens/sec</td>
+<td align="right">838.082 ms</td>
+<td align="right">23,864.01 tokens/sec</td>
 </tr>
-<tr class="even">
+<tr>
 <td>KV Cache</td>
-<td style="text-align: right;">151.391 ms</td>
-<td style="text-align: right;">132,108.06 tokens/sec</td>
+<td align="right">151.391 ms</td>
+<td align="right">132,108.06 tokens/sec</td>
 </tr>
-</tbody>
-</table>
+</tbody></table>
 <p>KV Cache를 사용했을 때 실행 시간은 다음과 같이 줄었습니다.</p>
-<pre class="text"><code>838.082 ms → 151.391 ms</code></pre>
+<pre><code class="language-text">838.082 ms → 151.391 ms
+</code></pre>
 <p>속도 향상 배수는 약 5.54배입니다.</p>
-<pre class="text"><code>838.082 / 151.391 ≈ 5.54</code></pre>
+<pre><code class="language-text">838.082 / 151.391 ≈ 5.54
+</code></pre>
 <p>실행 시간으로 보면 약 81.94% 감소했습니다.</p>
-<pre class="text"><code>(838.082 - 151.391) / 838.082 × 100
-≈ 81.94%</code></pre>
+<pre><code class="language-text">(838.082 - 151.391) / 838.082 × 100
+≈ 81.94%
+</code></pre>
 <p>처리량 역시 약 5.54배 증가했습니다.</p>
-<pre class="text"><code>23,864.01 → 132,108.06 tokens/sec</code></pre>
-<p>짧은 <code>"I study"</code>만 사용했을 때는 작게 보였던 KV Cache의 효과가, <code>"I study"</code>가 반복되는 긴 문장 1,000개를 처리하자 크게 나타났습니다.</p>
-    </section>
-    <section id="10-no-cache는-긴-문장을-생성-step마다-다시-계산합니다" class="detail-section">
-<h2 id="10-no-cache는-긴-문장을-생성-step마다-다시-계산합니다">10. No-cache는 긴 문장을 생성 Step마다 다시 계산합니다</h2>
+<pre><code class="language-text">23,864.01 → 132,108.06 tokens/sec
+</code></pre>
+<p>짧은 <code>&quot;I study&quot;</code>만 사용했을 때는 작게 보였던 KV Cache의 효과가, <code>&quot;I study&quot;</code>가 반복되는 긴 문장 1,000개를 처리하자 크게 나타났습니다.</p>
+
+</section>
+<section id="10-no-cache는-긴-문장을-생성-step마다-다시-계산합니다" class="markdown-section">
+<h2>10. No-cache는 긴 문장을 생성 Step마다 다시 계산합니다</h2>
 <p>Prompt 길이가 128 Token이고 새 Token을 20개 생성한다고 가정하겠습니다.</p>
 <p>No-cache 방식은 새로운 Token을 생성할 때마다 지금까지의 전체 입력을 다시 모델에 넣습니다.</p>
-<pre class="text"><code>Step 1: 128 Token 계산 → 첫 번째 새 Token 선택
+<pre><code class="language-text">Step 1: 128 Token 계산 → 첫 번째 새 Token 선택
 Step 2: 129 Token 계산 → 두 번째 새 Token 선택
 Step 3: 130 Token 계산 → 세 번째 새 Token 선택
 ...
-Step 20: 147 Token 계산 → 스무 번째 새 Token 선택</code></pre>
+Step 20: 147 Token 계산 → 스무 번째 새 Token 선택
+</code></pre>
 <p>문장 하나를 기준으로 모델이 처리하는 Token 위치 수를 모두 더하면 다음과 같습니다.</p>
-<pre class="text"><code>128 + 129 + 130 + ... + 147
-= 2,750</code></pre>
+<pre><code class="language-text">128 + 129 + 130 + ... + 147
+= 2,750
+</code></pre>
 <p>Batch에 문장이 1,000개 있으므로 전체 처리량은 다음과 같습니다.</p>
-<pre class="text"><code>2,750 × 1,000
-= 2,750,000 Token 위치</code></pre>
+<pre><code class="language-text">2,750 × 1,000
+= 2,750,000 Token 위치
+</code></pre>
 <p>즉 No-cache 방식은 각 문장의 앞부분인:</p>
-<pre class="text"><code>I study I study I study ... I study</code></pre>
+<pre><code class="language-text">I study I study I study ... I study
+</code></pre>
 <p>를 새 Token 하나를 생성할 때마다 반복해서 계산합니다.</p>
-    </section>
-    <section id="11-kv-cache는-긴-prompt를-한-번만-계산합니다" class="detail-section">
-<h2 id="11-kv-cache는-긴-prompt를-한-번만-계산합니다">11. KV Cache는 긴 Prompt를 한 번만 계산합니다</h2>
+
+</section>
+<section id="11-kv-cache는-긴-prompt를-한-번만-계산합니다" class="markdown-section">
+<h2>11. KV Cache는 긴 Prompt를 한 번만 계산합니다</h2>
 <p>KV Cache를 사용하면 첫 Step에서만 128 Token 전체를 계산합니다.</p>
-<pre class="text"><code>Step 1: Prompt 128 Token 계산</code></pre>
+<pre><code class="language-text">Step 1: Prompt 128 Token 계산
+</code></pre>
 <p>이때 만들어진 과거 Token의 Key와 Value는 <code>past_key_values</code>에 저장됩니다.</p>
 <p>이후 Step에서는 직전에 생성된 새 Token 하나만 모델 입력으로 전달합니다.</p>
-<pre class="text"><code>Step 2: 새 Token 1개 계산
+<pre><code class="language-text">Step 2: 새 Token 1개 계산
 Step 3: 새 Token 1개 계산
 ...
-Step 20: 새 Token 1개 계산</code></pre>
+Step 20: 새 Token 1개 계산
+</code></pre>
 <p>따라서 문장 하나를 기준으로 계산하는 Token 위치 수는 다음과 같습니다.</p>
-<pre class="text"><code>128 + 19
-= 147</code></pre>
+<pre><code class="language-text">128 + 19
+= 147
+</code></pre>
 <p>Batch 1,000개를 적용하면 다음과 같습니다.</p>
-<pre class="text"><code>147 × 1,000
-= 147,000 Token 위치</code></pre>
+<pre><code class="language-text">147 × 1,000
+= 147,000 Token 위치
+</code></pre>
 <p>두 방식을 비교하면 다음과 같습니다.</p>
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th>방식</th>
-<th style="text-align: right;">전체 Token 위치 계산량</th>
+<th align="right">전체 Token 위치 계산량</th>
 </tr>
 </thead>
-<tbody>
-<tr class="odd">
+<tbody><tr>
 <td>No-cache</td>
-<td style="text-align: right;">2,750,000</td>
+<td align="right">2,750,000</td>
 </tr>
-<tr class="even">
+<tr>
 <td>KV Cache</td>
-<td style="text-align: right;">147,000</td>
+<td align="right">147,000</td>
 </tr>
-</tbody>
-</table>
+</tbody></table>
 <p>KV Cache가 모델에 새롭게 넣어 계산하는 Token 위치는 약 18.71배 적습니다.</p>
-<pre class="text"><code>2,750,000 / 147,000
-≈ 18.71</code></pre>
+<pre><code class="language-text">2,750,000 / 147,000
+≈ 18.71
+</code></pre>
 <p>후속 Step에서 <code>input_ids</code>는 <code>[1000,1]</code>이지만 Attention은 새 Token만 보는 것이 아닙니다.</p>
-<pre class="text"><code>input_ids
+<pre><code class="language-text">input_ids
 → 이번에 새롭게 계산할 Token
 
 past_key_values
-→ 이전 Step까지 저장된 과거 문맥</code></pre>
+→ 이전 Step까지 저장된 과거 문맥
+</code></pre>
 <p>따라서 새 Token은 Cache에 저장된 과거 Token의 K·V를 참조하면서 다음 Token을 예측할 수 있습니다.</p>
-    </section>
-    <section id="12-계산량은-1871배-줄었는데-시간은-왜-554배만-줄었을까요" class="detail-section">
-<h2 id="12-계산량은-1871배-줄었는데-시간은-왜-554배만-줄었을까요">12. 계산량은 18.71배 줄었는데 시간은 왜 5.54배만 줄었을까요?</h2>
+
+</section>
+<section id="12-계산량은-1871배-줄었는데-시간은-왜-554배만-줄었을까요" class="markdown-section">
+<h2>12. 계산량은 18.71배 줄었는데 시간은 왜 5.54배만 줄었을까요?</h2>
 <p>모델이 처리하는 Token 위치는 약 18.71배 줄었지만 실제 실행 시간은 약 5.54배 개선되었습니다.</p>
 <p>두 수치가 같지 않은 이유는 전체 실행 시간이 모델의 Token 연산으로만 구성되지 않기 때문입니다.</p>
 <p>KV Cache를 사용해도 다음 작업은 여전히 필요합니다.</p>
@@ -424,48 +481,56 @@ past_key_values
 </ul>
 <p>따라서 줄어든 Token 계산량이 그대로 실행 시간 배수로 변환되지는 않습니다.</p>
 <p>그럼에도 약 5.54배의 실제 속도 향상이 나타났다는 것은 긴 입력의 후속 생성에서 과거 Token 재계산이 큰 비용이었다는 사실을 보여줍니다.</p>
-    </section>
-    <section id="13-이번-결과를-해석할-때-주의할-점" class="detail-section">
-<h2 id="13-이번-결과를-해석할-때-주의할-점">13. 이번 결과를 해석할 때 주의할 점</h2>
+
+</section>
+<section id="13-이번-결과를-해석할-때-주의할-점" class="markdown-section">
+<h2>13. 이번 결과를 해석할 때 주의할 점</h2>
 <p>처음 실험은 짧은 Prompt와 작은 Batch를 사용했습니다.</p>
-<pre class="text"><code>Batch 1 또는 4
-Prompt 길이 2</code></pre>
+<pre><code class="language-text">Batch 1 또는 4
+Prompt 길이 2
+</code></pre>
 <p>최종 실험은 문장 수와 각 문장의 길이를 모두 크게 늘렸습니다.</p>
-<pre class="text"><code>Batch 1000
-Prompt 길이 128</code></pre>
+<pre><code class="language-text">Batch 1000
+Prompt 길이 128
+</code></pre>
 <p>따라서 이번 결과만으로 속도 향상의 원인이 오직 Prompt 길이 때문이라고 분리해서 말할 수는 없습니다. Batch 크기와 Prompt 길이가 함께 달라졌기 때문입니다.</p>
 <p>두 조건의 영향을 엄밀하게 분리하려면 한 번에 하나만 바꿔야 합니다.</p>
 <p>예를 들어 Batch 크기를 1,000으로 고정하고 다음 조건을 비교할 수 있습니다.</p>
-<pre class="text"><code>조건 A: Batch 1000, Prompt 2
-조건 B: Batch 1000, Prompt 128</code></pre>
+<pre><code class="language-text">조건 A: Batch 1000, Prompt 2
+조건 B: Batch 1000, Prompt 128
+</code></pre>
 <p>이렇게 하면 문장 수는 동일하게 유지하면서 각 문장이 길어졌을 때 KV Cache의 효과가 어떻게 달라지는지 확인할 수 있습니다.</p>
 <p>이번 실험은 원인을 완전히 분리한 최종 Benchmark라기보다, 입력 규모가 커질수록 KV Cache의 효과가 실제 실행 시간에서 뚜렷해진다는 것을 확인한 Stress Test입니다.</p>
-    </section>
-    <section id="결론" class="detail-section">
-<h2 id="결론">결론</h2>
-<p>처음 사용한 <code>"I study"</code>는 2 Token밖에 되지 않았습니다. 과거 Token을 다시 계산하는 No-cache 방식도 처리할 양이 적었기 때문에 KV Cache의 장점은 약 11% 정도로 작게 보였습니다.</p>
+
+</section>
+<section id="결론" class="markdown-section">
+<h2>결론</h2>
+<p>처음 사용한 <code>&quot;I study&quot;</code>는 2 Token밖에 되지 않았습니다. 과거 Token을 다시 계산하는 No-cache 방식도 처리할 양이 적었기 때문에 KV Cache의 장점은 약 11% 정도로 작게 보였습니다.</p>
 <p>하지만 입력을 다음과 같이 확장했습니다.</p>
-<pre class="text"><code>문장 1: I study I study I study ... I study
+<pre><code class="language-text">문장 1: I study I study I study ... I study
 문장 2: I study I study I study ... I study
 ...
-문장 1000: I study I study I study ... I study</code></pre>
+문장 1000: I study I study I study ... I study
+</code></pre>
 <p>각 문장은 128 Token이 되었고, 이런 문장 1,000개에서 문장마다 Token 20개를 생성했습니다.</p>
 <p>이번 Batch Benchmark의 생성 구조는 다음과 같습니다.</p>
-<pre class="text"><code>Batch 문장 수                  1000개
+<pre><code class="language-text">Batch 문장 수                  1000개
 문장마다 생성하는 Token        20개
 생성 Step                     20회
 한 Step에서 생성되는 Token     1000개
-전체 생성 Token               20,000개</code></pre>
+전체 생성 Token               20,000개
+</code></pre>
 <p>각 생성 Step에서는 Batch의 1,000개 문장이 함께 처리되지만, Step끼리는 앞에서 생성된 Token이 필요하므로 순차적으로 진행됩니다.</p>
 <p>KV Cache를 사용하면 첫 Step에서 Prompt 전체를 처리한 뒤, 후속 Step에는 Batch 문장마다 새 Token 하나만 입력합니다. 과거 문맥은 <code>past_key_values</code>가 담당합니다.</p>
 <p>최종 결과는 다음과 같았습니다.</p>
-<pre class="text"><code>No-cache: 838.082 ms
+<pre><code class="language-text">No-cache: 838.082 ms
 KV Cache: 151.391 ms
 
 실행 시간 약 5.54배 개선
 실행 시간 약 81.94% 감소
 처리량 약 5.54배 증가
-출력 Token ID 일치</code></pre>
+출력 Token ID 일치
+</code></pre>
 <p>이 실습을 통해 확인한 핵심은 다음과 같습니다.</p>
 <blockquote>
 <p><code>max_new_tokens</code>는 현재 수동 생성 코드에서 문장마다 실행할 생성 Step 수이며, 각 Step에서는 Batch의 모든 문장에 대해 새 Token 하나씩을 함께 계산합니다.</p>
@@ -475,9 +540,20 @@ KV Cache: 151.391 ms
 <p>과거 문맥이 길어져 No-cache 방식이 반복해서 계산해야 할 Token이 많아질수록 KV Cache가 제거하는 중복 연산도 커집니다.</p>
 </blockquote>
 <p>짧은 입력에서 차이가 작았던 것은 KV Cache가 무의미해서가 아니라 줄일 수 있는 중복 계산 자체가 작았기 때문입니다. 입력을 실제로 길게 만들자 KV Cache가 제거하는 중복 계산이 커졌고, 그 차이가 GPU 실행 시간에서도 약 5.54배의 성능 향상으로 나타났습니다.</p>
-    </section>
+<p>관련해서 <a href="transformer_batch_sequence_context_isolation_learning.html">Batch의 각 문장이 서로 문맥을 공유하지 않는 이유</a>, <a href="../pytorch/pytorch_peak_vram_kv_cache_benchmark_learning.html#result">KV Cache 사용 시 Peak VRAM 증가 실험</a>, <a href="../projects/road-to-llm-inference/pytorch-inference.html#batch">PyTorch 추론 Baseline 통합 기록</a>도 이어서 볼 수 있습니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_batch_sequence_context_isolation_learning.html">Transformer의 Batch 문장들은 서로 문맥을 공유하지 않습니다</a></li></ul>
+  </section>
+      </article>
+    </div>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

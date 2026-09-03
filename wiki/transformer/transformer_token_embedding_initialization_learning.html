@@ -1,459 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_token_embedding_initialization_learning.md. Do not edit directly. source-sha256:f9352229dd3f7365bb8d93beaed1604a18c334ed47c8ac23f9421876352d9f1c -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Token Embedding Weight 초기화의 평균·표준편차와 벡터 제곱합 예산을 실제 Tensor로 확인한 문서">
-  <title>Transformer · Token Embedding</title>
-  <style>
-    :root {
-      --ink: #18211d;
-      --muted: #667069;
-      --paper: #f6f3eb;
-      --panel: #fffdf7;
-      --line: #d9d5c8;
-      --green: #176b4d;
-      --green-soft: #dcecdf;
-      --orange: #d56a3a;
-      --code: #17211d;
-      --code-ink: #eaf3ec;
-      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
-        var(--paper);
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.7;
-    }
-
-    .page {
-      width: min(1120px, calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    header {
-      padding: 76px 0 52px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .eyebrow {
-      margin: 0 0 16px;
-      color: var(--green);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2.6rem, 7vw, 5.7rem);
-      font-weight: 800;
-      letter-spacing: -0.065em;
-      line-height: 1.02;
-    }
-
-    .lead {
-      max-width: 680px;
-      margin: 28px 0 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .doc-link {
-      display: inline-block;
-      margin-top: 22px;
-      padding: 9px 13px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 750;
-      text-decoration: none;
-    }
-
-    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
-    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      gap: 56px;
-      padding: 52px 0 100px;
-    }
-
-    nav {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-    }
-
-    nav p {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    nav a {
-      display: block;
-      margin: 2px 0;
-      padding: 9px 12px;
-      color: var(--muted);
-      border-left: 2px solid transparent;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    nav a:hover, nav a:focus-visible {
-      color: var(--green);
-      border-left-color: var(--green);
-      outline: none;
-    }
-
-    nav .current {
-      color: var(--ink);
-      font-weight: 750;
-      border-left-color: var(--orange);
-    }
-
-    main { min-width: 0; }
-
-    .cell-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      color: var(--orange);
-      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .cell-label::before {
-      width: 9px;
-      height: 9px;
-      content: "";
-      background: var(--orange);
-      border-radius: 50%;
-    }
-
-    h2 {
-      margin: 0 0 18px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      font-weight: 760;
-      letter-spacing: -0.045em;
-      line-height: 1.13;
-    }
-
-    h3 {
-      margin: 52px 0 14px;
-      font-size: 1.28rem;
-      letter-spacing: -0.02em;
-    }
-
-    p { margin: 0 0 18px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .summary {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.03rem;
-    }
-
-    .code-card {
-      position: relative;
-      overflow: hidden;
-      margin: 30px 0;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 13px 18px;
-      color: #9db0a4;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    pre {
-      margin: 0;
-      padding: 24px;
-      overflow-x: auto;
-      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-      tab-size: 4;
-    }
-
-    .kw { color: #f1a567; }
-    .type { color: #80d6a6; }
-    .fn { color: #e7d17d; }
-    .num { color: #a9bff7; }
-    .comment { color: #819389; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 28px 0 8px;
-    }
-
-    .flow-item {
-      position: relative;
-      min-height: 134px;
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .flow-item:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -16px;
-      width: 21px;
-      height: 21px;
-      content: "→";
-      color: var(--green);
-      background: var(--paper);
-      text-align: center;
-      line-height: 19px;
-    }
-
-    .flow-item strong { display: block; margin-bottom: 9px; }
-    .flow-item span { color: var(--muted); font-size: 0.86rem; }
-
-    .shape {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 7px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 5px;
-      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .explain-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .note {
-      padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .note .number {
-      display: block;
-      margin-bottom: 12px;
-      color: var(--orange);
-      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .note strong { display: block; margin-bottom: 7px; }
-    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-
-    .formula {
-      margin: 30px 0;
-      padding: 28px;
-      background: var(--green-soft);
-      border-left: 4px solid var(--green);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .formula .math {
-      display: block;
-      margin-bottom: 10px;
-      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
-        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    }
-
-    .reasoning {
-      margin: 52px 0 0;
-      padding: 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .reasoning h3 { margin-top: 0; }
-
-    .equivalence {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 14px;
-      margin: 24px 0 30px;
-    }
-
-    .equivalence article {
-      padding: 20px;
-      background: var(--paper);
-      border-radius: 10px;
-    }
-
-    .equivalence strong { display: block; margin-bottom: 10px; }
-    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
-
-    .path-map {
-      display: grid;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .path-row {
-      display: grid;
-      grid-template-columns: 86px 1fr;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 17px;
-      background: var(--green-soft);
-      border-radius: 9px;
-    }
-
-    .path-row strong { color: var(--green); }
-    .path-row code { font-size: 0.83rem; }
-
-    .caution {
-      margin: 24px 0 0;
-      padding: 17px 19px;
-      color: var(--muted);
-      background: #f4eadf;
-      border-left: 3px solid var(--orange);
-      border-radius: 0 9px 9px 0;
-      font-size: 0.9rem;
-    }
-
-    table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-
-    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
-    td { font-size: 0.92rem; }
-    tr:last-child td { border-bottom: 0; }
-
-    .checkpoint {
-      margin-top: 52px;
-      padding: 28px;
-      color: white;
-      background: var(--green);
-      border-radius: 16px;
-    }
-
-    .checkpoint h3 { margin: 0 0 18px; }
-    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-    summary { cursor: pointer; font-weight: 700; }
-    details p { margin: 12px 0 0; color: #dcecdf; }
-
-    .cell-start {
-      margin-top: 92px;
-      padding-top: 72px;
-      border-top: 2px solid var(--line);
-    }
-
-    .concept-figure {
-      margin: 28px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .trig-axis { stroke: #667069; stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
-    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
-    .trig-point { fill: #d56a3a; }
-    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
-    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
-    .position-radius { stroke: #d56a3a; stroke-width: 3; }
-    .position-point { fill: #d56a3a; }
-    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .wave-axis { stroke: #667069; stroke-width: 1.5; }
-    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
-    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
-    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
-    .wave-sin-dot { fill: #176b4d; }
-    .wave-cos-dot { fill: #d56a3a; }
-    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    footer {
-      padding: 24px 0 42px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 800px) {
-      header { padding-top: 48px; }
-      .layout { grid-template-columns: 1fr; gap: 30px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      nav .current { border-bottom-color: var(--orange); }
-      .flow { grid-template-columns: 1fr 1fr; }
-      .flow-item:not(:last-child)::after { display: none; }
-      .equivalence { grid-template-columns: 1fr; }
-      .equals { justify-self: center; }
-    }
-
-    @media (max-width: 540px) {
-      .page { width: min(100% - 24px, 1120px); }
-      .flow, .explain-grid { grid-template-columns: 1fr; }
-      .reasoning { padding: 22px; }
-      .path-row { grid-template-columns: 1fr; gap: 4px; }
-      pre { padding: 18px; font-size: 0.78rem; }
-      th, td { padding: 11px 10px; }
-    }
-  </style>
+  <meta name="description" content="작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.">
+  <meta name="source-sha256" content="f9352229dd3f7365bb8d93beaed1604a18c334ed47c8ac23f9421876352d9f1c">
+  <title>임베딩 초기화의 분산과 제곱합</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -462,189 +18,149 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · Token Embedding">
-  <meta property="og:description" content="Token Embedding Weight 초기화의 평균·표준편차와 벡터 제곱합 예산을 실제 Tensor로 확인한 문서">
+  <meta property="og:title" content="임베딩 초기화의 분산과 제곱합">
+  <meta property="og:description" content="작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html","name":"Transformer · Token Embedding","description":"Token Embedding Weight 초기화의 평균·표준편차와 벡터 제곱합 예산을 실제 Tensor로 확인한 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html"},"headline":"Transformer · Token Embedding"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Token Embedding","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html"},{"@type":"ListItem","position":4,"name":"임베딩 초기화"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html","name":"임베딩 초기화의 분산과 제곱합","description":"작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html"},"headline":"임베딩 초기화의 분산과 제곱합"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_initialization_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Token Embedding, 코드에서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html"},{"@type":"ListItem","position":6,"name":"임베딩 초기화의 분산과 제곱합"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference"><main class="page"><nav class="breadcrumb"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_token_embedding_learning.html">Token Embedding</a><span class="separator">›</span><span aria-current="page">임베딩 초기화</span></nav><header><p class="eyebrow">Token Embedding · 심화 설명</p><h1>임베딩 초기화의 분산과 제곱합</h1><p class="lead">작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.</p></header><p><a class="doc-link" href="transformer_token_embedding_learning.html#embedding-init">← Token Embedding 학습 경로</a></p><section id="embedding-init">
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><a href="transformer_token_embedding_learning.html">Token Embedding, 코드에서 이해하기</a><span class="separator">›</span><span aria-current="page">임베딩 초기화의 분산과 제곱합</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>임베딩 초기화의 분산과 제곱합</h1>
+      <p class="lead">작은 랜덤값이라는 말을 벡터 전체의 크기, 분산, 표준편차와 PyTorch 코드까지 연결한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#content">본문</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="content" class="markdown-section">
+<h2>본문</h2>
+<p><a href="transformer_token_embedding_learning.html#embedding-init">← Token Embedding 학습 경로</a></p>
+<span class="md-anchor" id="embedding-init" aria-hidden="true"></span>
 <h3>임베딩 행렬은 실제로 어떻게 초기화될까?</h3>
-        <p>임베딩 가중치는 <code>[vocab_size, d_model]</code> 크기의 행렬입니다. 각 행은 토큰 하나의 임베딩 벡터이고, 행 안의 각 칸은 해당 벡터의 한 차원을 나타냅니다.</p>
-
-        <div class="code-card" aria-label="임베딩 행렬 구조">
-          <div class="code-head"><span>embedding.weight</span><span>[vocab_size, d_model]</span></div>
-          <pre><code>[
-  [w₁₁, w₁₂, ..., w₁d],  <span class="comment"># 토큰 1의 임베딩 벡터</span>
-  [w₂₁, w₂₂, ..., w₂d],  <span class="comment"># 토큰 2의 임베딩 벡터</span>
+<p>임베딩 가중치는 <code>[vocab_size, d_model]</code> 크기의 행렬입니다. 각 행은 토큰 하나의 임베딩 벡터이고, 행 안의 각 칸은 해당 벡터의 한 차원을 나타냅니다.</p>
+<p>embedding.weight[vocab_size, d_model]</p>
+<pre><code>[
+  [w₁₁, w₁₂, ..., w₁d],  # 토큰 1의 임베딩 벡터
+  [w₂₁, w₂₂, ..., w₂d],  # 토큰 2의 임베딩 벡터
   ...
-]</code></pre>
-        </div>
-
-        <p>초기화 함수는 이 행렬의 각 원소에 확률분포에서 뽑은 랜덤 값 하나를 넣습니다. 모든 원소가 같은 확률 규칙을 사용하지만 실제로 뽑히는 값은 서로 다릅니다.</p>
-
-        <div class="code-card" aria-label="임베딩 초기화의 개념적 반복 과정">
-          <div class="code-head"><span>개념적 동작</span><span>실제 코드는 행렬 전체를 한 번에 처리</span></div>
-          <pre><code><span class="kw">for</span> token <span class="kw">in</span> range(vocab_size):
-    <span class="kw">for</span> dimension <span class="kw">in</span> range(d_model):
-        embedding[token, dimension] = 기댓값이_0인_분포에서_하나_뽑기()</code></pre>
-        </div>
-
-        <div class="path-map" aria-label="임베딩 한 행을 만드는 랜덤 초기화 예시">
-          <div class="path-row"><strong>1번 차원</strong><code>분포에서 추출 → 0.21</code></div>
-          <div class="path-row"><strong>2번 차원</strong><code>분포에서 추출 → -0.48</code></div>
-          <div class="path-row"><strong>3번 차원</strong><code>분포에서 추출 → 0.07</code></div>
-          <div class="path-row"><strong>4번 차원</strong><code>분포에서 추출 → -0.33</code></div>
-        </div>
-
-        <div class="formula">
-          <span class="math">W = [0.21, -0.48, 0.07, -0.33]</span>
-          <span>각 차원에서 실제로 뽑힌 값을 모으면 토큰 하나의 임베딩 벡터가 됩니다.</span>
-        </div>
-
-        <p><strong>기댓값이 0이라는 것은 실제 초기값이 0이라는 뜻이 아닙니다.</strong> 각 원소가 가질 수 있는 모든 랜덤 값에 <code>값 × 확률</code>을 적용해 더했을 때 0이 되는 분포를 사용한다는 뜻입니다. 실제로 한 번 뽑힌 값은 대부분 0이 아닌 작은 양수 또는 음수입니다.</p>
-
-        <div class="equivalence">
-          <article>
-            <strong>분포의 기댓값</strong>
-            <p><code>E[wᵢ] = 0</code><br>랜덤 추출 규칙의 이론적인 중심</p>
-          </article>
-          <div class="equals" aria-label="서로 같지 않음">≠</div>
-          <article>
-            <strong>한 번 생성된 벡터의 합</strong>
-            <p><code>w₁+w₂+...+w_d</code><br>정확히 0일 필요가 없는 실제 결과</p>
-          </article>
-        </div>
-
-        <div class="caution"><strong>초기화에서 하지 않는 일</strong> — 벡터 좌표를 모두 더하지 않고, 차원 수로 나누지 않으며, 실제 평균이나 기댓값을 계산하지도 않습니다. 기댓값이 0인 분포를 지정한 뒤 각 원소를 그 분포에서 독립적으로 한 번씩 뽑습니다.</div>
-
-        <h3>임베딩 벡터 초기화: 전체 흐름</h3>
-
-        <h3>1. 토큰 하나는 <code>d_model</code>개의 원소를 가진다</h3>
-        <p><code>d_model=512</code>라면 토큰 하나의 임베딩 벡터에는 랜덤한 숫자 512개가 들어갑니다.</p>
-        <div class="formula">
-          <span class="math">W = [w₁, w₂, ..., w₅₁₂]</span>
-        </div>
-
-        <h3>2. 각 원소는 평균 0인 분포에서 뽑는다</h3>
-        <p>각 원소를 평균이 0인 같은 정규분포에서 독립적으로 하나씩 뽑습니다.</p>
-        <div class="formula">
-          <span class="math">wᵢ ~ N(0, σ²)</span>
-          <span><code>E[wᵢ]=0</code>은 가능한 양수와 음수 값의 확률적 기여도가 상쇄된다는 뜻입니다. 실제로 뽑힌 값이 0이라는 뜻은 아닙니다.</span>
-        </div>
-
-        <h3>3. 평균 0만으로는 값의 크기를 결정할 수 없다</h3>
-        <p><code>-0.01/+0.01</code>, <code>-1/+1</code>, <code>-100/+100</code>은 모두 기댓값이 0일 수 있지만 퍼지는 크기는 완전히 다릅니다.</p>
-        <div class="equivalence">
-          <article>
-            <strong>평균 또는 기댓값</strong>
-            <p>어디를 중심으로 랜덤 값을 뽑을 것인가</p>
-          </article>
-          <div class="equals" aria-hidden="true">+</div>
-          <article>
-            <strong>표준편차</strong>
-            <p>그 중심에서 얼마나 퍼지게 뽑을 것인가</p>
-          </article>
-        </div>
+]
+</code></pre>
+<p>초기화 함수는 이 행렬의 각 원소에 확률분포에서 뽑은 랜덤 값 하나를 넣습니다. 모든 원소가 같은 확률 규칙을 사용하지만 실제로 뽑히는 값은 서로 다릅니다.</p>
+<p>개념적 동작실제 코드는 행렬 전체를 한 번에 처리</p>
+<pre><code>for token in range(vocab_size):
+    for dimension in range(d_model):
+        embedding[token, dimension] = 기댓값이_0인_분포에서_하나_뽑기()
+</code></pre>
+<p><strong>1번 차원</strong><code>분포에서 추출 → 0.21</code></p>
+<p><strong>2번 차원</strong><code>분포에서 추출 → -0.48</code></p>
+<p><strong>3번 차원</strong><code>분포에서 추출 → 0.07</code></p>
+<p><strong>4번 차원</strong><code>분포에서 추출 → -0.33</code></p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>W = [0.21, -0.48, 0.07, -0.33] 각 차원에서 실제로 뽑힌 값을 모으면 토큰 하나의 임베딩 벡터가 됩니다.</p>
+</div></aside>
+<p><strong>기댓값이 0이라는 것은 실제 초기값이 0이라는 뜻이 아닙니다.</strong> 각 원소가 가질 수 있는 모든 랜덤 값에 <code>값 × 확률</code>을 적용해 더했을 때 0이 되는 분포를 사용한다는 뜻입니다. 실제로 한 번 뽑힌 값은 대부분 0이 아닌 작은 양수 또는 음수입니다.</p>
+<p><strong>분포의 기댓값</strong></p>
+<p><code>E[wᵢ] = 0</code><br>랜덤 추출 규칙의 이론적인 중심</p>
+<p>≠</p>
+<p><strong>한 번 생성된 벡터의 합</strong></p>
+<p><code>w₁+w₂+...+w_d</code><br>정확히 0일 필요가 없는 실제 결과</p>
+<p><strong>초기화에서 하지 않는 일</strong> — 벡터 좌표를 모두 더하지 않고, 차원 수로 나누지 않으며, 실제 평균이나 기댓값을 계산하지도 않습니다. 기댓값이 0인 분포를 지정한 뒤 각 원소를 그 분포에서 독립적으로 한 번씩 뽑습니다.</p>
+<h3>임베딩 벡터 초기화: 전체 흐름</h3>
+<h3>1. 토큰 하나는 <code>d_model</code>개의 원소를 가진다</h3>
+<p><code>d_model=512</code>라면 토큰 하나의 임베딩 벡터에는 랜덤한 숫자 512개가 들어갑니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>W = [w₁, w₂, ..., w₅₁₂]</p>
+</div></aside>
+<h3>2. 각 원소는 평균 0인 분포에서 뽑는다</h3>
+<p>각 원소를 평균이 0인 같은 정규분포에서 독립적으로 하나씩 뽑습니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>wᵢ ~ N(0, σ²) <code>E[wᵢ]=0</code>은 가능한 양수와 음수 값의 확률적 기여도가 상쇄된다는 뜻입니다. 실제로 뽑힌 값이 0이라는 뜻은 아닙니다.</p>
+</div></aside>
+<h3>3. 평균 0만으로는 값의 크기를 결정할 수 없다</h3>
+<p><code>-0.01/+0.01</code>, <code>-1/+1</code>, <code>-100/+100</code>은 모두 기댓값이 0일 수 있지만 퍼지는 크기는 완전히 다릅니다.</p>
+<p><strong>평균 또는 기댓값</strong></p>
+<p>어디를 중심으로 랜덤 값을 뽑을 것인가</p>
+<ul>
+<li></li>
+</ul>
+<p><strong>표준편차</strong></p>
+<p>그 중심에서 얼마나 퍼지게 뽑을 것인가</p>
 <h3>4. 원본 임베딩 벡터 전체의 제곱합을 약 1로 만들고 싶다</h3>
-        <p>벡터 길이 제곱은 모든 원소 제곱의 합입니다. 우리가 원하는 것은 분산 자체가 1이 되는 것이 아니라, 512개 원소의 제곱합 기댓값이 1이 되는 것입니다.</p>
-        <div class="formula">
-          <span class="math">||W||² = w₁²+w₂²+...+w₅₁₂²</span>
-          <span><code>E[||W||²] = 1</code></span>
-        </div>
-        <p><strong>여기서 분산과 연결합니다.</strong> 먼저 512개 원소의 제곱합 기댓값을 1로 정했기 때문에, 이제 512개 원소를 하나의 자료 집합처럼 놓고 분산 공식으로 연결할 수 있습니다. 초기화 분포의 평균이 0이라는 조건을 함께 사용하면 <code>(원소-평균)²</code>이 <code>원소²</code>로 단순해지고, 제곱합 예산 1에서 각 원소의 분산과 표준편차를 거꾸로 구할 수 있습니다.</p>
-
-        <h3>5. 512개 원소를 자료 집합처럼 보고 분산 공식으로 연결한다</h3>
-        <p>512개 원소를 하나의 자료 집합처럼 보면, 분산은 각 원소에서 평균을 뺀 뒤 제곱하고 모두 더한 다음 512로 나눈 값입니다.</p>
-        <div class="formula">
-          <span class="math">분산 =</span>
-          <span class="math">((w₁-평균)² + ... + (w₅₁₂-평균)²)<br>──────────────<br>512</span>
-          <span>초기화 분포의 평균을 0으로 보면, 각 원소에서 평균을 뺀 값은 원소 자체가 됩니다.</span>
-        </div>
-
-        <h3>6. 제곱 크기 예산 1을 512개 원소가 나눠 가진다</h3>
-        <p>평균이 0이면 분산은 원소 제곱의 평균과 같은 모양이 됩니다. 제곱합의 기댓값이 1이므로, 원소 하나의 제곱 기여도는 평균적으로 <code>1/512</code>가 됩니다.</p>
-        <div class="formula">
-          <span class="math">분산 ≈</span>
-          <span class="math">(w₁²+w₂²+...+w₅₁₂²)<br>──────────────<br>512</span>
-          <span><code>제곱합 ≈ 1</code>이면 <code>분산 ≈ 1/512</code></span>
-        </div>
-        <p>실제 벡터에서 제곱합이나 평균이 정확히 이 값이 된다는 뜻은 아닙니다. 같은 초기화 규칙으로 랜덤 추출을 반복했을 때 평균적으로 이 목표에 가까워진다는 뜻입니다.</p>
-
-        <div class="formula">
-          <span class="math">E[wᵢ²] = 1/512</span>
-          <span><code>E[||W||²] = 512 × (1/512) = 1</code></span>
-        </div>
+<p>벡터 길이 제곱은 모든 원소 제곱의 합입니다. 우리가 원하는 것은 분산 자체가 1이 되는 것이 아니라, 512개 원소의 제곱합 기댓값이 1이 되는 것입니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>||W||² = w₁²+w₂²+...+w₅₁₂² <code>E[||W||²] = 1</code></p>
+</div></aside>
+<p><strong>여기서 분산과 연결합니다.</strong> 먼저 512개 원소의 제곱합 기댓값을 1로 정했기 때문에, 이제 512개 원소를 하나의 자료 집합처럼 놓고 분산 공식으로 연결할 수 있습니다. 초기화 분포의 평균이 0이라는 조건을 함께 사용하면 <code>(원소-평균)²</code>이 <code>원소²</code>로 단순해지고, 제곱합 예산 1에서 각 원소의 분산과 표준편차를 거꾸로 구할 수 있습니다.</p>
+<h3>5. 512개 원소를 자료 집합처럼 보고 분산 공식으로 연결한다</h3>
+<p>512개 원소를 하나의 자료 집합처럼 보면, 분산은 각 원소에서 평균을 뺀 뒤 제곱하고 모두 더한 다음 512로 나눈 값입니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>분산 = ((w₁-평균)² + ... + (w₅₁₂-평균)²)<br>──────────────<br>512 초기화 분포의 평균을 0으로 보면, 각 원소에서 평균을 뺀 값은 원소 자체가 됩니다.</p>
+</div></aside>
+<h3>6. 제곱 크기 예산 1을 512개 원소가 나눠 가진다</h3>
+<p>평균이 0이면 분산은 원소 제곱의 평균과 같은 모양이 됩니다. 제곱합의 기댓값이 1이므로, 원소 하나의 제곱 기여도는 평균적으로 <code>1/512</code>가 됩니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>분산 ≈ (w₁²+w₂²+...+w₅₁₂²)<br>──────────────<br>512 <code>제곱합 ≈ 1</code>이면 <code>분산 ≈ 1/512</code></p>
+</div></aside>
+<p>실제 벡터에서 제곱합이나 평균이 정확히 이 값이 된다는 뜻은 아닙니다. 같은 초기화 규칙으로 랜덤 추출을 반복했을 때 평균적으로 이 목표에 가까워진다는 뜻입니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>E[wᵢ²] = 1/512 <code>E[||W||²] = 512 × (1/512) = 1</code></p>
+</div></aside>
 <h3>7. 초기화 함수에는 분산이 아니라 표준편차를 넣는다</h3>
-        <p>분산이 <code>1/512</code>라면 표준편차는 분산의 제곱근입니다. 따라서 코드에 전달할 표준편차는 <code>1/√512</code>입니다.</p>
-        <div class="formula">
-          <span class="math">σ = √(1/512) = 1/√512 ≈ 0.044</span>
-        </div>
-
-        <h3>8. PyTorch 코드로 표현한다</h3>
-        <div class="code-card" aria-label="512차원 임베딩의 정규분포 초기화">
-          <div class="code-head"><span>embedding_init.py</span><span>mean과 std</span></div>
-          <pre><code>nn.init.normal_(
+<p>분산이 <code>1/512</code>라면 표준편차는 분산의 제곱근입니다. 따라서 코드에 전달할 표준편차는 <code>1/√512</code>입니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>σ = √(1/512) = 1/√512 ≈ 0.044</p>
+</div></aside>
+<h3>8. PyTorch 코드로 표현한다</h3>
+<p>embedding_init.pymean과 std</p>
+<pre><code>nn.init.normal_(
     self.embedding.weight,
-    mean=<span class="num">0.0</span>,
-    std=<span class="num">1</span> / math.sqrt(d_model),
-)</code></pre>
-        </div>
-        <p><code>1/√512</code>는 실제 초기값이나 최대 범위가 아니라, 랜덤 값이 0 주변에서 퍼지는 정도인 표준편차입니다.</p>
+    mean=0.0,
+    std=1 / math.sqrt(d_model),
+)
+</code></pre>
+<p><code>1/√512</code>는 실제 초기값이나 최대 범위가 아니라, 랜덤 값이 0 주변에서 퍼지는 정도인 표준편차입니다.</p>
+<p><strong>중심</strong><code>mean=0 → E[wᵢ]=0</code></p>
+<p><strong>전체 목표</strong><code>E[||W||²]=1</code></p>
+<p><strong>원소 기여</strong><code>E[wᵢ²]=1/d_model</code></p>
+<p><strong>분산</strong><code>Var(wᵢ)=1/d_model</code></p>
+<p><strong>표준편차</strong><code>std=1/√d_model</code></p>
+<p><strong>예산 1이 의미하는 것</strong></p>
+<p>예산 1은 <code>w₁+w₂+...+w₅₁₂=1</code>이라는 뜻이 아닙니다. 원소 제곱합으로 계산하는 벡터 길이 제곱의 기댓값, 즉 <code>E[w₁²+w₂²+...+w₅₁₂²]=1</code>이라는 뜻입니다.</p>
+<p><code>mean=0</code></p>
+<p>랜덤 값들이 특정 양수나 음수 방향으로 치우치지 않고 0을 중심으로 나오게 합니다.</p>
+<ul>
+<li></li>
+</ul>
+<p><code>std=1/√512</code></p>
+<p>각 원소 제곱의 기대 기여도가 <code>1/512</code>이 되도록 랜덤 값의 퍼짐을 정합니다.</p>
+<p><strong>최종 정리</strong> — 512차원 임베딩 벡터의 원소 제곱합이 평균적으로 1이 되도록 원소 하나의 분산을 <code>1/512</code>로 정합니다. 초기화 함수에는 분산의 제곱근인 표준편차를 전달해야 하므로 <code>1/√512</code>를 사용합니다. 평균은 0으로 설정해 랜덤 값들이 특정 방향으로 편향되지 않고 0을 중심으로 나오게 합니다.</p>
+<h3>전체 예산에 맞춰 표준편차를 정한다</h3>
+<p>벡터 길이 제곱의 목표 예산을 <code>B</code>라고 하면, 먼저 <code>E[||W||²]=B</code>로 둡니다. 원소가 <code>d_model</code>개이고 각 원소의 분산이 <code>σ²</code>이면 전체 예산은 다음과 같습니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>d_{model} × σ² = B <code>σ² = B/d_model</code><br><code>σ = √(B/d_model)</code></p>
+</div></aside>
+<p><strong>제곱 크기 예산 <code>B=1</code></strong></p>
+<p><code>std = √(1/d_model) = 1/√d_model</code></p>
+<p><strong>목표 벡터 길이 <code>r</code></strong></p>
+<p><code>B=r²</code>이므로 <code>std=r/√d_model</code></p>
+<p>예를 들어 벡터 길이를 약 <code>2</code>로 만들고 싶다면 제곱 크기 예산은 <code>B=2²=4</code>이고, 표준편차는 <code>2/√d_model</code>이 됩니다.</p>
+<p><strong>길이 목표</strong><code>원하는 벡터 길이 r 결정</code></p>
+<p><strong>제곱 예산</strong><code>B = r²</code></p>
+<p><strong>원소 분산</strong><code>σ² = B/d_model</code></p>
+<p><strong>표준편차</strong><code>σ = √(B/d_model) = r/√d_model</code></p>
 
-        <div class="path-map" aria-label="임베딩 초기화 수식의 전체 연결">
-          <div class="path-row"><strong>중심</strong><code>mean=0 → E[wᵢ]=0</code></div>
-          <div class="path-row"><strong>전체 목표</strong><code>E[||W||²]=1</code></div>
-          <div class="path-row"><strong>원소 기여</strong><code>E[wᵢ²]=1/d_model</code></div>
-          <div class="path-row"><strong>분산</strong><code>Var(wᵢ)=1/d_model</code></div>
-          <div class="path-row"><strong>표준편차</strong><code>std=1/√d_model</code></div>
-        </div>
-
-        <div class="caution">
-          <strong>예산 1이 의미하는 것</strong>
-          <p>예산 1은 <code>w₁+w₂+...+w₅₁₂=1</code>이라는 뜻이 아닙니다. 원소 제곱합으로 계산하는 벡터 길이 제곱의 기댓값, 즉 <code>E[w₁²+w₂²+...+w₅₁₂²]=1</code>이라는 뜻입니다.</p>
-        </div>
-
-        <div class="equivalence">
-          <article>
-            <strong><code>mean=0</code></strong>
-            <p>랜덤 값들이 특정 양수나 음수 방향으로 치우치지 않고 0을 중심으로 나오게 합니다.</p>
-          </article>
-          <div class="equals" aria-hidden="true">+</div>
-          <article>
-            <strong><code>std=1/√512</code></strong>
-            <p>각 원소 제곱의 기대 기여도가 <code>1/512</code>이 되도록 랜덤 값의 퍼짐을 정합니다.</p>
-          </article>
-        </div>
-
-        <div class="caution"><strong>최종 정리</strong> — 512차원 임베딩 벡터의 원소 제곱합이 평균적으로 1이 되도록 원소 하나의 분산을 <code>1/512</code>로 정합니다. 초기화 함수에는 분산의 제곱근인 표준편차를 전달해야 하므로 <code>1/√512</code>를 사용합니다. 평균은 0으로 설정해 랜덤 값들이 특정 방향으로 편향되지 않고 0을 중심으로 나오게 합니다.</div>
-
-        <h3>전체 예산에 맞춰 표준편차를 정한다</h3>
-        <p>벡터 길이 제곱의 목표 예산을 <code>B</code>라고 하면, 먼저 <code>E[||W||²]=B</code>로 둡니다. 원소가 <code>d_model</code>개이고 각 원소의 분산이 <code>σ²</code>이면 전체 예산은 다음과 같습니다.</p>
-        <div class="formula">
-          <span class="math">d<sub>model</sub> × σ² = B</span>
-          <span><code>σ² = B/d_model</code><br><code>σ = √(B/d_model)</code></span>
-        </div>
-
-        <div class="compare">
-          <article>
-            <strong>제곱 크기 예산 <code>B=1</code></strong>
-            <p><code>std = √(1/d_model) = 1/√d_model</code></p>
-          </article>
-          <article>
-            <strong>목표 벡터 길이 <code>r</code></strong>
-            <p><code>B=r²</code>이므로 <code>std=r/√d_model</code></p>
-          </article>
-        </div>
-
-        <p>예를 들어 벡터 길이를 약 <code>2</code>로 만들고 싶다면 제곱 크기 예산은 <code>B=2²=4</code>이고, 표준편차는 <code>2/√d_model</code>이 됩니다.</p>
-
-        <div class="path-map" aria-label="벡터 크기 예산으로 표준편차를 정하는 과정">
-          <div class="path-row"><strong>길이 목표</strong><code>원하는 벡터 길이 r 결정</code></div>
-          <div class="path-row"><strong>제곱 예산</strong><code>B = r²</code></div>
-          <div class="path-row"><strong>원소 분산</strong><code>σ² = B/d_model</code></div>
-          <div class="path-row"><strong>표준편차</strong><code>σ = √(B/d_model) = r/√d_model</code></div>
-        </div>
-</section></main><script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script></body></html>
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

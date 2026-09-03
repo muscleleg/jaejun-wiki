@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.md. Do not edit directly. source-sha256:36f9efed93cdb56b99871b83daa93b26e4790979a1bd2c35e1bc4903fb74b7fc -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Benchmark 함수가 모델을 인자로 받고 실제 Parameter 장치를 확인하도록 리팩터링하며, next(model.parameters())의 Iterator 동작과 적용 범위를 설명합니다.">
+  <meta name="description" content="전역 모델·장치 의존성을 제거하고, Iterator의 첫 Parameter 장치로 단일 장치 모델과 입력 Tensor의 일치를 Forward 전에 검증합니다.">
+  <meta name="source-sha256" content="36f9efed93cdb56b99871b83daa93b26e4790979a1bd2c35e1bc4903fb74b7fc">
   <title>Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -17,66 +19,72 @@
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기">
-  <meta property="og:description" content="Benchmark 함수가 모델을 인자로 받고 실제 Parameter 장치를 확인하도록 리팩터링하며, next(model.parameters())의 Iterator 동작과 적용 범위를 설명합니다.">
+  <meta property="og:description" content="전역 모델·장치 의존성을 제거하고, Iterator의 첫 Parameter 장치로 단일 장치 모델과 입력 Tensor의 일치를 Forward 전에 검증합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html","name":"Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기","description":"Benchmark 함수가 모델을 인자로 받고 실제 Parameter 장치를 확인하도록 리팩터링하며, next(model.parameters())의 Iterator 동작과 적용 범위를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html"},"headline":"Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch 학습 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":4,"name":"Device와 CUDA 병렬 실행","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},{"@type":"ListItem","position":5,"name":"CUDA 비동기 Timing","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_async_model_return_timing_learning.html"},{"@type":"ListItem","position":6,"name":"Benchmark 모델 장치 검증"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html","name":"Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기","description":"전역 모델·장치 의존성을 제거하고, Iterator의 첫 Parameter 장치로 단일 장치 모델과 입력 Tensor의 일치를 Forward 전에 검증합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html"},"headline":"Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_benchmark_model_device_iterator_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-pytorch"},{"@type":"ListItem","position":4,"name":"데이터에서 y = 3x + 2 를 찾아내기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":5,"name":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},{"@type":"ListItem","position":6,"name":"CUDA 비동기 실행에서 Python 호출 반환과 GPU 계산 완료를 비교하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_async_model_return_timing_learning.html"},{"@type":"ListItem","position":7,"name":"Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference transformer-detail">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">PyTorch 학습 원리</a><span class="separator">›</span><a href="pytorch_device_cuda_parallel_learning.html">Device와 CUDA 병렬 실행</a><span class="separator">›</span><a href="pytorch_cuda_async_model_return_timing_learning.html">CUDA 비동기 Timing</a><span class="separator">›</span><span aria-current="page">Benchmark 모델 장치 검증</span></nav>
-
-    <header class="hero">
-      <span class="eyebrow">PyTorch · Benchmark Function &amp; Model Device</span>
-      <h1>Benchmark 함수에서 모델 장치를 직접 확인하고 <code>next(model.parameters())</code> 이해하기</h1>
-      <p class="lead">전역 모델·장치에 의존하던 생성 Benchmark를 명시적인 함수 입력으로 바꾸고, 실제 전달된 모델의 Parameter 장치와 입력 Tensor 장치를 Forward 전에 검증합니다.</p>
-      <div class="detail-actions"><a href="pytorch_cuda_async_model_return_timing_learning.html#full-code">← CUDA 비동기 Timing 실습</a><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#same-device">모델·Tensor 장치 일치</a></div>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-pytorch">PyTorch</a><span class="separator">›</span><a href="pytorch_linear_regression_learning.html">데이터에서 y = 3x + 2 를 찾아내기</a><span class="separator">›</span><a href="pytorch_device_cuda_parallel_learning.html">.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</a><span class="separator">›</span><a href="pytorch_cuda_async_model_return_timing_learning.html">CUDA 비동기 실행에서 Python 호출 반환과 GPU 계산 완료를 비교하기</a><span class="separator">›</span><span aria-current="page">Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">PyTorch</span>
+      <h1>Benchmark 함수에서 모델 장치를 직접 확인하고 next(model.parameters()) 이해하기</h1>
+      <p class="lead">전역 모델·장치 의존성을 제거하고, Iterator의 첫 Parameter 장치로 단일 장치 모델과 입력 Tensor의 일치를 Forward 전에 검증합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#problem">1. 전역 <code>model</code>과 <code>device</code>에 의존하면 Benchmark 대상을 혼동할 수 있습니다</a>
+        <a href="#refactor">2. 측정할 모델을 함수 인자로 직접 받습니다</a>
+        <a href="#model-device">3. 함수 안에서 실제 전달된 모델의 장치를 구합니다</a>
+        <a href="#next-confusion">4. 처음에는 <code>next()</code>가 두 번째 Parameter를 꺼낸다고 생각했습니다</a>
+        <a href="#cursor">5. JDBC ResultSet처럼 커서는 첫 원소 앞에서 시작하지만, Python은 값을 함께 반환합니다</a>
+        <a href="#device-check">6. 모델과 입력 Tensor의 장치가 다르면 Forward 전에 중단합니다</a>
+        <a href="#full-code">7. 리팩터링한 Benchmark 함수</a>
+        <a href="#scope">8. 첫 Parameter의 장치를 모델 전체의 장치로 볼 수 있는 범위</a>
+        <a href="#conclusion">9. 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="problem" class="markdown-section">
+<h2>1. 전역 <code>model</code>과 <code>device</code>에 의존하면 Benchmark 대상을 혼동할 수 있습니다</h2>
+<p>기존 <code>generate_for_benchmark()</code>와 <code>measure_generation()</code>은 함수 밖의 전역 <code>model</code>과 <code>device</code>를 사용했습니다.</p>
+<pre><code>generated_ids = model.generate(...)
 
-    <nav aria-label="문서 목차">
-      <a href="#problem">전역 상태 문제</a>
-      <a href="#refactor">함수 입력 리팩터링</a>
-      <a href="#model-device">실제 모델 장치</a>
-      <a href="#next-confusion">next() 오해</a>
-      <a href="#cursor">Iterator 커서</a>
-      <a href="#device-check">장치 불일치 검사</a>
-      <a href="#full-code">전체 함수 코드</a>
-      <a href="#scope">적용 범위</a>
-      <a href="#conclusion">결론</a>
-    </nav>
+if device.type == &quot;cuda&quot;:
+    torch.cuda.synchronize()
+</code></pre>
+<p>이 구조에서는 CPU 모델과 GPU 모델을 함께 만든 뒤에도 함수가 실제로 어느 모델을 사용하는지 호출부만 보고 알기 어렵습니다. <code>prompt_ids</code>는 GPU에 있는데 전역 <code>model</code>은 CPU 모델을 가리키거나, 실제 모델은 CPU인데 전역 <code>device</code>가 CUDA를 가리키는 식으로 상태가 어긋날 수도 있습니다.</p>
+<pre><code>전역 model  → 무엇을 가리키는지 함수 밖 상태에 의존
+전역 device → 실제 전달된 모델의 장치와 다를 수 있음
+</code></pre>
+<p>Benchmark에서는 비교할 대상을 명확하게 고정해야 하므로, 모델과 장치를 함수 밖의 암묵적인 상태에 맡기지 않는 편이 안전합니다.</p>
 
-    <section id="problem" class="detail-section">
-      <h2>1. 전역 <code>model</code>과 <code>device</code>에 의존하면 Benchmark 대상을 혼동할 수 있습니다</h2>
-      <p>기존 <code>generate_for_benchmark()</code>와 <code>measure_generation()</code>은 함수 밖의 전역 <code>model</code>과 <code>device</code>를 사용했습니다.</p>
-      <pre><code>generated_ids = model.generate(...)
-
-if device.type == "cuda":
-    torch.cuda.synchronize()</code></pre>
-      <p>이 구조에서는 CPU 모델과 GPU 모델을 함께 만든 뒤에도 함수가 실제로 어느 모델을 사용하는지 호출부만 보고 알기 어렵습니다. <code>prompt_ids</code>는 GPU에 있는데 전역 <code>model</code>은 CPU 모델을 가리키거나, 실제 모델은 CPU인데 전역 <code>device</code>가 CUDA를 가리키는 식으로 상태가 어긋날 수도 있습니다.</p>
-      <pre><code>전역 model  → 무엇을 가리키는지 함수 밖 상태에 의존
-전역 device → 실제 전달된 모델의 장치와 다를 수 있음</code></pre>
-      <p>Benchmark에서는 비교할 대상을 명확하게 고정해야 하므로, 모델과 장치를 함수 밖의 암묵적인 상태에 맡기지 않는 편이 안전합니다.</p>
-    </section>
-
-    <section id="refactor" class="detail-section">
-      <h2>2. 측정할 모델을 함수 인자로 직접 받습니다</h2>
-      <p>리팩터링한 함수는 <code>model: GPT2LMHeadModel</code>을 직접 입력받습니다.</p>
-      <pre><code>def generate_for_benchmark(
+</section>
+<section id="refactor" class="markdown-section">
+<h2>2. 측정할 모델을 함수 인자로 직접 받습니다</h2>
+<p>리팩터링한 함수는 <code>model: GPT2LMHeadModel</code>을 직접 입력받습니다.</p>
+<pre><code>def generate_for_benchmark(
     model: GPT2LMHeadModel,
     prompt_ids: Int64[
         Tensor,
-        "batch prompt_token",
+        &quot;batch prompt_token&quot;,
     ],
     max_new_tokens: int,
     use_cache: bool,
 ) -&gt; Int64[
     Tensor,
-    "batch generated_token",
-]:</code></pre>
-      <p>이제 호출부에 CPU 모델을 넣으면 CPU 모델을 측정하고, GPU 모델을 넣으면 GPU 모델을 측정합니다.</p>
-      <pre><code>generate_for_benchmark(
+    &quot;batch generated_token&quot;,
+]:
+</code></pre>
+<p>이제 호출부에 CPU 모델을 넣으면 CPU 모델을 측정하고, GPU 모델을 넣으면 GPU 모델을 측정합니다.</p>
+<pre><code>generate_for_benchmark(
     model=cpu_model,
     prompt_ids=cpu_prompt_ids,
     ...
@@ -86,93 +94,104 @@ generate_for_benchmark(
     model=gpu_model,
     prompt_ids=gpu_prompt_ids,
     ...
-)</code></pre>
-      <p>함수 입력과 출력의 역할은 다음과 같습니다.</p>
-      <ul>
-        <li><code>model</code>: 이번 호출에서 실제로 생성에 사용할 모델입니다.</li>
-        <li><code>prompt_ids [Batch,Prompt Token]</code>: 같은 장치에 있어야 하는 입력 Token ID입니다.</li>
-        <li><code>max_new_tokens</code>: 새로 생성할 Token 수입니다.</li>
-        <li><code>use_cache</code>: KV Cache 사용 여부입니다.</li>
-        <li>반환값 <code>[Batch,Generated Token]</code>: Prompt와 새 Token을 포함한 생성 ID입니다.</li>
-      </ul>
-    </section>
+)
+</code></pre>
+<p>함수 입력과 출력의 역할은 다음과 같습니다.</p>
+<ul>
+<li><code>model</code>: 이번 호출에서 실제로 생성에 사용할 모델입니다.</li>
+<li><code>prompt_ids [Batch,Prompt Token]</code>: 같은 장치에 있어야 하는 입력 Token ID입니다.</li>
+<li><code>max_new_tokens</code>: 새로 생성할 Token 수입니다.</li>
+<li><code>use_cache</code>: KV Cache 사용 여부입니다.</li>
+<li>반환값 <code>[Batch,Generated Token]</code>: Prompt와 새 Token을 포함한 생성 ID입니다.</li>
+</ul>
 
-    <section id="model-device" class="detail-section">
-      <h2>3. 함수 안에서 실제 전달된 모델의 장치를 구합니다</h2>
-      <pre><code>model_device: torch.device = (
+</section>
+<section id="model-device" class="markdown-section">
+<h2>3. 함수 안에서 실제 전달된 모델의 장치를 구합니다</h2>
+<pre><code>model_device: torch.device = (
     next(model.parameters()).device
-)</code></pre>
-      <p><code>model.parameters()</code>는 모델이 가진 Parameter를 차례대로 꺼낼 수 있는 Iterator를 반환합니다. <code>next(...)</code>로 그중 첫 번째 Parameter를 꺼내고, 그 Parameter의 <code>.device</code>를 읽습니다.</p>
-      <pre><code>cpu_model 전체를 .to("cpu")
+)
+</code></pre>
+<p><code>model.parameters()</code>는 모델이 가진 Parameter를 차례대로 꺼낼 수 있는 Iterator를 반환합니다. <code>next(...)</code>로 그중 첫 번째 Parameter를 꺼내고, 그 Parameter의 <code>.device</code>를 읽습니다.</p>
+<pre><code>cpu_model 전체를 .to(&quot;cpu&quot;)
 → 첫 Parameter Device: cpu
 
 gpu_model 전체를 .to(cuda_device)
-→ 첫 Parameter Device: cuda:0</code></pre>
-      <p>현재 실습은 모델 전체를 하나의 장치로 옮긴 단일 GPU 구성입니다. 따라서 첫 Parameter의 장치를 현재 모델의 대표 장치로 사용할 수 있습니다.</p>
-    </section>
+→ 첫 Parameter Device: cuda:0
+</code></pre>
+<p>현재 실습은 모델 전체를 하나의 장치로 옮긴 단일 GPU 구성입니다. 따라서 첫 Parameter의 장치를 현재 모델의 대표 장치로 사용할 수 있습니다.</p>
 
-    <section id="next-confusion" class="detail-section">
-      <h2>4. 처음에는 <code>next()</code>가 두 번째 Parameter를 꺼낸다고 생각했습니다</h2>
-      <p><code>next(model.parameters())</code>를 처음 보았을 때, 이름이 <code>next</code>이므로 현재 Parameter 다음에 있는 두 번째 Parameter를 꺼내는 것처럼 느껴졌습니다.</p>
-      <p>하지만 <code>model.parameters()</code>를 방금 호출해 만든 Iterator는 아직 어떤 Parameter도 꺼내지 않은 상태입니다. Iterator의 커서는 첫 원소 위가 아니라 첫 원소 앞에 있습니다.</p>
-      <pre><code>Iterator 생성 직후
-
-커서
- ↓
-[첫 Parameter] [두 번째 Parameter] [세 번째 Parameter] ...</code></pre>
-      <p>따라서 최초의 <code>next()</code>는 커서를 첫 Parameter로 이동시키면서 그 값을 반환합니다.</p>
-    </section>
-
-    <section id="cursor" class="detail-section">
-      <h2>5. JDBC ResultSet처럼 커서는 첫 원소 앞에서 시작하지만, Python은 값을 함께 반환합니다</h2>
-      <p>이 동작은 과거 JSP·JDBC에서 사용했던 <code>ResultSet</code>의 커서와 연결해서 이해할 수 있습니다. JDBC ResultSet도 처음에는 커서가 첫 행 바깥, 즉 첫 행 앞에 있습니다.</p>
-      <pre><code>ResultSet 생성 직후
+</section>
+<section id="next-confusion" class="markdown-section">
+<h2>4. 처음에는 <code>next()</code>가 두 번째 Parameter를 꺼낸다고 생각했습니다</h2>
+<p><code>next(model.parameters())</code>를 처음 보았을 때, 이름이 <code>next</code>이므로 현재 Parameter 다음에 있는 두 번째 Parameter를 꺼내는 것처럼 느껴졌습니다.</p>
+<p>하지만 <code>model.parameters()</code>를 방금 호출해 만든 Iterator는 아직 어떤 Parameter도 꺼내지 않은 상태입니다. Iterator의 커서는 첫 원소 위가 아니라 첫 원소 앞에 있습니다.</p>
+<pre><code>Iterator 생성 직후
 
 커서
  ↓
-[첫 번째 행] [두 번째 행] [세 번째 행] ...</code></pre>
-      <p>JDBC에서는 <code>resultSet.next()</code>가 커서를 다음 행으로 이동시키고, 이동에 성공했는지를 <code>boolean</code>으로 반환합니다. 실제 열 값은 그 뒤 <code>getString()</code> 같은 메서드로 별도로 읽습니다.</p>
-      <pre><code>if (resultSet.next()) {
-    String name = resultSet.getString("name");
-}</code></pre>
-      <p>Python Iterator의 <code>next(iterator)</code>도 첫 호출에서 커서를 첫 원소로 이동시킨다는 점은 같습니다. 차이는 이동 성공 여부만 반환하는 것이 아니라, 이동한 위치의 값을 동시에 반환한다는 점입니다.</p>
-      <pre><code>parameter_iterator = model.parameters()
+[첫 Parameter] [두 번째 Parameter] [세 번째 Parameter] ...
+</code></pre>
+<p>따라서 최초의 <code>next()</code>는 커서를 첫 Parameter로 이동시키면서 그 값을 반환합니다.</p>
+
+</section>
+<section id="cursor" class="markdown-section">
+<h2>5. JDBC ResultSet처럼 커서는 첫 원소 앞에서 시작하지만, Python은 값을 함께 반환합니다</h2>
+<p>이 동작은 과거 JSP·JDBC에서 사용했던 <code>ResultSet</code>의 커서와 연결해서 이해할 수 있습니다. JDBC ResultSet도 처음에는 커서가 첫 행 바깥, 즉 첫 행 앞에 있습니다.</p>
+<pre><code>ResultSet 생성 직후
+
+커서
+ ↓
+[첫 번째 행] [두 번째 행] [세 번째 행] ...
+</code></pre>
+<p>JDBC에서는 <code>resultSet.next()</code>가 커서를 다음 행으로 이동시키고, 이동에 성공했는지를 <code>boolean</code>으로 반환합니다. 실제 열 값은 그 뒤 <code>getString()</code> 같은 메서드로 별도로 읽습니다.</p>
+<pre><code>if (resultSet.next()) {
+    String name = resultSet.getString(&quot;name&quot;);
+}
+</code></pre>
+<p>Python Iterator의 <code>next(iterator)</code>도 첫 호출에서 커서를 첫 원소로 이동시킨다는 점은 같습니다. 차이는 이동 성공 여부만 반환하는 것이 아니라, 이동한 위치의 값을 동시에 반환한다는 점입니다.</p>
+<pre><code>parameter_iterator = model.parameters()
 
 first_parameter = next(parameter_iterator)
-# 첫 Parameter로 이동하면서 첫 Parameter 자체를 반환</code></pre>
-      <p>두 번째 Parameter를 얻으려면 <strong>같은 Iterator</strong>에 <code>next()</code>를 두 번 호출해야 합니다.</p>
-      <pre><code>parameter_iterator = model.parameters()
+# 첫 Parameter로 이동하면서 첫 Parameter 자체를 반환
+</code></pre>
+<p>두 번째 Parameter를 얻으려면 같은 Iterator에 <code>next()</code>를 두 번 호출해야 합니다.</p>
+<pre><code>parameter_iterator = model.parameters()
 
 first_parameter = next(parameter_iterator)
-second_parameter = next(parameter_iterator)</code></pre>
-      <p>반면 다음 코드는 호출할 때마다 <code>model.parameters()</code>가 새 Iterator를 만듭니다.</p>
-      <pre><code>next(model.parameters())
-next(model.parameters())</code></pre>
-      <p>두 Iterator 모두 커서가 첫 원소 앞에서 시작하므로, 두 호출은 각각 첫 Parameter를 반환합니다.</p>
-    </section>
+second_parameter = next(parameter_iterator)
+</code></pre>
+<p>반면 다음 코드는 호출할 때마다 <code>model.parameters()</code>가 새 Iterator를 만듭니다.</p>
+<pre><code>next(model.parameters())
+next(model.parameters())
+</code></pre>
+<p>두 Iterator 모두 커서가 첫 원소 앞에서 시작하므로, 두 호출은 각각 첫 Parameter를 반환합니다.</p>
 
-    <section id="device-check" class="detail-section">
-      <h2>6. 모델과 입력 Tensor의 장치가 다르면 Forward 전에 중단합니다</h2>
-      <pre><code>if prompt_ids.device != model_device:
+</section>
+<section id="device-check" class="markdown-section">
+<h2>6. 모델과 입력 Tensor의 장치가 다르면 Forward 전에 중단합니다</h2>
+<pre><code>if prompt_ids.device != model_device:
     raise ValueError(
-        "모델과 prompt_ids의 장치가 다릅니다: "
-        f"model={model_device}, "
-        f"prompt_ids={prompt_ids.device}"
-    )</code></pre>
-      <p>모델 Weight와 입력 Tensor가 다른 장치에 있으면 모델 Forward는 정상적으로 계산될 수 없습니다. 이 검사는 깊은 모델 호출 안에서 장치 오류가 발생하기 전에, 무엇이 어긋났는지를 이해할 수 있는 메시지로 알려 줍니다.</p>
-      <pre><code>model_device      cuda:0
+        &quot;모델과 prompt_ids의 장치가 다릅니다: &quot;
+        f&quot;model={model_device}, &quot;
+        f&quot;prompt_ids={prompt_ids.device}&quot;
+    )
+</code></pre>
+<p>모델 Weight와 입력 Tensor가 다른 장치에 있으면 모델 Forward는 정상적으로 계산될 수 없습니다. 이 검사는 깊은 모델 호출 안에서 장치 오류가 발생하기 전에, 무엇이 어긋났는지를 이해할 수 있는 메시지로 알려 줍니다.</p>
+<pre><code>model_device      cuda:0
 prompt_ids.device cpu
 → ValueError: 모델과 prompt_ids의 장치가 다릅니다
 
 model_device      cuda:0
 prompt_ids.device cuda:0
-→ Forward 실행 가능</code></pre>
-      <p><code>torch.ones_like(prompt_ids)</code>로 만드는 Attention Mask는 <code>prompt_ids</code>와 같은 장치에 생성됩니다. 따라서 입력 장치 검사가 통과하면 Mask도 모델과 같은 장치에서 사용할 수 있습니다.</p>
-    </section>
+→ Forward 실행 가능
+</code></pre>
+<p><code>torch.ones_like(prompt_ids)</code>로 만드는 Attention Mask는 <code>prompt_ids</code>와 같은 장치에 생성됩니다. 따라서 입력 장치 검사가 통과하면 Mask도 모델과 같은 장치에서 사용할 수 있습니다.</p>
 
-    <section id="full-code" class="detail-section">
-      <h2>7. 리팩터링한 Benchmark 함수</h2>
-      <pre><code>import time
+</section>
+<section id="full-code" class="markdown-section">
+<h2>7. 리팩터링한 Benchmark 함수</h2>
+<pre><code>import time
 import torch
 
 from torch import Tensor
@@ -184,13 +203,13 @@ def generate_for_benchmark(
     model: GPT2LMHeadModel,
     prompt_ids: Int64[
         Tensor,
-        "batch prompt_token",
+        &quot;batch prompt_token&quot;,
     ],
     max_new_tokens: int,
     use_cache: bool,
 ) -&gt; Int64[
     Tensor,
-    "batch generated_token",
+    &quot;batch generated_token&quot;,
 ]:
     model_device: torch.device = (
         next(model.parameters()).device
@@ -198,20 +217,20 @@ def generate_for_benchmark(
 
     if prompt_ids.device != model_device:
         raise ValueError(
-            "모델과 prompt_ids의 장치가 다릅니다: "
-            f"model={model_device}, "
-            f"prompt_ids={prompt_ids.device}"
+            &quot;모델과 prompt_ids의 장치가 다릅니다: &quot;
+            f&quot;model={model_device}, &quot;
+            f&quot;prompt_ids={prompt_ids.device}&quot;
         )
 
     attention_mask: Int64[
         Tensor,
-        "batch prompt_token",
+        &quot;batch prompt_token&quot;,
     ] = torch.ones_like(prompt_ids)
 
     with torch.inference_mode():
         generated_ids: Int64[
             Tensor,
-            "batch generated_token",
+            &quot;batch generated_token&quot;,
         ] = model.generate(
             input_ids=prompt_ids,
             attention_mask=attention_mask,
@@ -228,7 +247,7 @@ def measure_generation(
     model: GPT2LMHeadModel,
     prompt_ids: Int64[
         Tensor,
-        "batch prompt_token",
+        &quot;batch prompt_token&quot;,
     ],
     max_new_tokens: int,
     use_cache: bool,
@@ -239,7 +258,7 @@ def measure_generation(
     float,
     Int64[
         Tensor,
-        "batch generated_token",
+        &quot;batch generated_token&quot;,
     ],
 ]:
     model_device: torch.device = (
@@ -248,7 +267,7 @@ def measure_generation(
 
     generated_ids: Int64[
         Tensor,
-        "batch generated_token",
+        &quot;batch generated_token&quot;,
     ]
 
     for _ in range(warmup_runs):
@@ -259,7 +278,7 @@ def measure_generation(
             use_cache=use_cache,
         )
 
-    if model_device.type == "cuda":
+    if model_device.type == &quot;cuda&quot;:
         torch.cuda.synchronize()
 
     start_time: float = time.perf_counter()
@@ -272,7 +291,7 @@ def measure_generation(
             use_cache=use_cache,
         )
 
-    if model_device.type == "cuda":
+    if model_device.type == &quot;cuda&quot;:
         torch.cuda.synchronize()
 
     elapsed_seconds: float = (
@@ -295,39 +314,50 @@ def measure_generation(
         average_seconds,
         tokens_per_second,
         generated_ids,
-    )</code></pre>
-      <p><code>measure_generation()</code>도 전달받은 <code>model</code>을 매번 생성 함수에 넘기고, 그 모델의 실제 장치가 CUDA일 때만 측정 전후에 동기화합니다. 전역 <code>device</code>가 아니라 측정 대상 모델의 장치를 기준으로 Timing 경계를 결정합니다.</p>
-    </section>
+    )
+</code></pre>
+<p><code>measure_generation()</code>도 전달받은 <code>model</code>을 매번 생성 함수에 넘기고, 그 모델의 실제 장치가 CUDA일 때만 측정 전후에 동기화합니다. 전역 <code>device</code>가 아니라 측정 대상 모델의 장치를 기준으로 Timing 경계를 결정합니다.</p>
 
-    <section id="scope" class="detail-section">
-      <h2>8. 첫 Parameter의 장치를 모델 전체의 장치로 볼 수 있는 범위</h2>
-      <p>이번 실습에서는 다음처럼 모델 전체를 하나의 장치로 옮겼습니다.</p>
-      <pre><code>cpu_model.to("cpu")
-gpu_model.to(cuda_device)</code></pre>
-      <p>모든 Parameter가 같은 장치에 있으므로 첫 Parameter의 <code>.device</code>를 모델의 대표 장치로 사용해도 됩니다.</p>
-      <p>하지만 Model Parallel이나 <code>device_map</code>을 사용해 Parameter가 여러 GPU 또는 CPU·GPU에 나뉘어 있다면, 첫 Parameter의 장치만으로 모델 전체의 배치를 대표할 수 없습니다.</p>
-      <pre><code>첫 Parameter   cuda:0
+</section>
+<section id="scope" class="markdown-section">
+<h2>8. 첫 Parameter의 장치를 모델 전체의 장치로 볼 수 있는 범위</h2>
+<p>이번 실습에서는 다음처럼 모델 전체를 하나의 장치로 옮겼습니다.</p>
+<pre><code>cpu_model.to(&quot;cpu&quot;)
+gpu_model.to(cuda_device)
+</code></pre>
+<p>모든 Parameter가 같은 장치에 있으므로 첫 Parameter의 <code>.device</code>를 모델의 대표 장치로 사용해도 됩니다.</p>
+<p>하지만 Model Parallel이나 <code>device_map</code>을 사용해 Parameter가 여러 GPU 또는 CPU·GPU에 나뉘어 있다면, 첫 Parameter의 장치만으로 모델 전체의 배치를 대표할 수 없습니다.</p>
+<pre><code>첫 Parameter   cuda:0
 중간 Layer     cuda:1
 마지막 Layer   cuda:1
 
 next(model.parameters()).device
 → cuda:0만 알려 줌
-→ 모델 전체의 장치 배치를 설명하지 못함</code></pre>
-      <p>따라서 <code>next(model.parameters()).device</code>는 현재처럼 모델 전체가 한 장치에 있는 단일 장치 실습의 검증 방법입니다. 여러 장치에 나뉜 모델에서는 해당 Framework의 입력 장치 계약과 Device Map을 별도로 확인해야 합니다.</p>
-    </section>
+→ 모델 전체의 장치 배치를 설명하지 못함
+</code></pre>
+<p>따라서 <code>next(model.parameters()).device</code>는 현재처럼 모델 전체가 한 장치에 있는 단일 장치 실습의 검증 방법입니다. 여러 장치에 나뉜 모델에서는 해당 Framework의 입력 장치 계약과 Device Map을 별도로 확인해야 합니다.</p>
 
-    <section id="conclusion" class="detail-section">
-      <h2>9. 결론</h2>
-      <p>Benchmark 함수가 전역 <code>model</code>과 <code>device</code>를 암묵적으로 사용하면 CPU·GPU 비교에서 실제 측정 대상을 혼동할 수 있습니다. 모델을 함수 인자로 직접 받고, 전달된 모델의 실제 Parameter 장치와 입력 Tensor 장치를 확인하면 호출 자체가 측정 조건을 설명하게 됩니다.</p>
-      <pre><code>model을 명시적으로 전달
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>9. 결론</h2>
+<p>Benchmark 함수가 전역 <code>model</code>과 <code>device</code>를 암묵적으로 사용하면 CPU·GPU 비교에서 실제 측정 대상을 혼동할 수 있습니다. 모델을 함수 인자로 직접 받고, 전달된 모델의 실제 Parameter 장치와 입력 Tensor 장치를 확인하면 호출 자체가 측정 조건을 설명하게 됩니다.</p>
+<pre><code>model을 명시적으로 전달
 → 첫 Parameter에서 현재 단일 장치 확인
 → prompt_ids.device와 비교
 → 불일치하면 Forward 전에 ValueError
-→ 실제 모델 장치를 기준으로 CUDA 동기화</code></pre>
-      <p><code>next(model.parameters())</code>는 두 번째 Parameter를 고르는 코드가 아닙니다. 새 Iterator의 커서가 첫 원소 앞에서 시작하므로 최초 <code>next()</code>가 첫 Parameter로 이동하면서 그 값을 반환합니다. 두 번째 Parameter는 같은 Iterator에 <code>next()</code>를 한 번 더 호출해야 얻을 수 있습니다.</p>
-    </section>
+→ 실제 모델 장치를 기준으로 CUDA 동기화
+</code></pre>
+<p><code>next(model.parameters())</code>는 두 번째 Parameter를 고르는 코드가 아닙니다. 새 Iterator의 커서가 첫 원소 앞에서 시작하므로 최초 <code>next()</code>가 첫 Parameter로 이동하면서 그 값을 반환합니다. 두 번째 Parameter는 같은 Iterator에 <code>next()</code>를 한 번 더 호출해야 얻을 수 있습니다.</p>
+
+</section>
+        
+      </article>
+    </div>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

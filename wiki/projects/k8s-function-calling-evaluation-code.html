@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/projects/k8s-function-calling-evaluation-code.md. Do not edit directly. source-sha256:b8c170dbd52630e9c46c64399b4f5b641e6d4a5e626d4c4523a79a948d09d188 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Kubernetes Function Calling 프로젝트의 Base·Tuned 평가 코드, 채점 계약, RunPod 실행 순서를 설명하는 문서">
-  <title>평가 코드 상세 · Kubernetes Function Calling</title>
-  <link rel="stylesheet" href="../../assets/css/portal.css?v=20260820">
+  <meta name="description" content="vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.">
+  <meta name="source-sha256" content="b8c170dbd52630e9c46c64399b4f5b641e6d4a5e626d4c4523a79a948d09d188">
+  <title>Function Calling 평가 코드를 처음부터 끝까지 읽기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -16,95 +18,145 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="평가 코드 상세 · Kubernetes Function Calling">
-  <meta property="og:description" content="Kubernetes Function Calling 프로젝트의 Base·Tuned 평가 코드, 채점 계약, RunPod 실행 순서를 설명하는 문서">
+  <meta property="og:title" content="Function Calling 평가 코드를 처음부터 끝까지 읽기">
+  <meta property="og:description" content="vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html","name":"평가 코드 상세 · Kubernetes Function Calling","description":"Kubernetes Function Calling 프로젝트의 Base·Tuned 평가 코드, 채점 계약, RunPod 실행 순서를 설명하는 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html"},"headline":"평가 코드 상세 · Kubernetes Function Calling","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-evaluation","name":"평가","identifier":"project-evaluation"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#projects"},{"@type":"ListItem","position":3,"name":"Kubernetes Function Calling","item":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/ko-k8s-function-calling.html"},{"@type":"ListItem","position":4,"name":"평가 코드 상세"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html","name":"Function Calling 평가 코드를 처음부터 끝까지 읽기","description":"vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html"},"headline":"Function Calling 평가 코드를 처음부터 끝까지 읽기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-evaluation","name":"평가","identifier":"project-evaluation"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/k8s-function-calling-evaluation-code.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-projects"},{"@type":"ListItem","position":4,"name":"한국어 Kubernetes Function Calling","item":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/ko-k8s-function-calling.html"},{"@type":"ListItem","position":5,"name":"Function Calling 평가 코드를 처음부터 끝까지 읽기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html#projects">개인 프로젝트</a><span class="separator">›</span><a href="ko-k8s-function-calling.html">Kubernetes Function Calling</a><span class="separator">›</span><span aria-current="page">평가 코드 상세</span></nav>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="separator">›</span><a href="ko-k8s-function-calling.html">한국어 Kubernetes Function Calling</a><span class="separator">›</span><span aria-current="page">Function Calling 평가 코드를 처음부터 끝까지 읽기</span></nav>
     <header class="hero">
-      <span class="eyebrow">Project code study · evaluation pipeline</span>
-      <h1>Function Calling 평가 코드를<br>처음부터 끝까지 읽기</h1>
-      <p class="summary">vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.</p>
-      <div class="hero-actions"><a class="button" href="#source">전체 평가 코드 보기</a><a class="button secondary" href="k8s-function-calling-evaluation-code-explained.html">코드 블록별 해설</a><a class="button secondary" href="ko-k8s-function-calling.html#evaluation">프로젝트 평가 결과</a><a class="button secondary" href="k8s-function-calling-training-code.html">학습 코드 상세</a></div>
-      <div class="stats"><div class="stat">평가 집합<strong>Holdout 100건</strong></div><div class="stat">기대 호출<strong>85건</strong></div><div class="stat">기대 no-call<strong>15건</strong></div><div class="stat">Full success<strong>36% → 96%</strong></div></div>
+      <span class="eyebrow">개인 프로젝트</span>
+      <h1>Function Calling 평가 코드를 처음부터 끝까지 읽기</h1>
+      <p class="lead">vLLM 서버에 OpenAI SDK로 같은 holdout을 보내고, 응답의 tool call을 JSON·Schema·인자 계약과 비교해 Base와 Tuned의 차이를 기록한 코드다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-    <nav aria-label="문서 목차"><a href="#overview">전체 흐름</a><a href="#files">파일 책임</a><a href="#request">요청·응답</a><a href="#scoring">채점 계약</a><a href="#aggregate">집계 지표</a><a href="#runner">RunPod 실행</a><a href="#artifacts">산출물</a><a href="#source">전체 코드</a></nav>
-
-    <section id="overview">
-      <h2>1. 평가가 답하려는 질문</h2>
-      <p>파인튜닝 전후의 모델이 같은 사용자 요청에 대해 같은 도구 계약을 얼마나 잘 지키는지 비교한다. 이 코드는 Kubernetes API를 호출하지 않는다. 모델이 반환한 함수 후보를 검증하고 점수로 바꾸는 <strong>평가 하네스</strong>다.</p>
-      <pre><code>같은 holdout JSONL
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#overview">1. 평가가 답하려는 질문</a>
+        <a href="#files">2. 파일별 책임</a>
+        <a href="#request">3. 모델 요청과 응답 추출</a>
+        <a href="#scoring">4. 한 건을 채점하는 순서</a>
+        <a href="#aggregate">5. 100건을 집계하는 지표</a>
+        <a href="#runner">6. RunPod 평가 러너의 실행 순서</a>
+        <a href="#artifacts">7. 결과 파일을 읽는 법</a>
+        <a href="#source">8. 평가 코드 전체 · 클릭 가능한 연속 원본</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="overview" class="markdown-section">
+<h2>1. 평가가 답하려는 질문</h2>
+<p>파인튜닝 전후의 모델이 같은 사용자 요청에 대해 같은 도구 계약을 얼마나 잘 지키는지 비교한다. 이 코드는 Kubernetes API를 호출하지 않는다. 모델이 반환한 함수 후보를 검증하고 점수로 바꾸는 평가 하네스다.</p>
+<pre><code>같은 holdout JSONL
   → vLLM OpenAI-compatible 서버
   → OpenAI SDK chat.completions.create()
   → message.tool_calls 추출
   → score_case()로 한 건 채점
   → summarize()로 100건 집계
-  → details.jsonl + summary.json</code></pre>
-      <div class="caution"><strong>공정 비교의 핵심</strong><br>Base와 Tuned를 서로 다른 문장이나 다른 생성 조건으로 평가하면 개선인지 데이터 차이인지 알 수 없다. 그래서 같은 holdout 100건, BF16, <code>temperature=0</code>, <code>tool_choice=&quot;auto&quot;</code>, thinking 비활성화 조건을 고정했다.</div>
-    </section>
+  → details.jsonl + summary.json
+</code></pre>
+<p><strong>공정 비교의 핵심</strong><br>Base와 Tuned를 서로 다른 문장이나 다른 생성 조건으로 평가하면 개선인지 데이터 차이인지 알 수 없다. 그래서 같은 holdout 100건, BF16, <code>temperature=0</code>, <code>tool_choice=&quot;auto&quot;</code>, thinking 비활성화 조건을 고정했다.</p>
 
-    <section id="files">
-      <h2>2. 파일별 책임</h2>
-      <p>평가 코드는 입력을 준비하는 파일, 모델을 호출하는 파일, 한 건을 채점하는 파일, RunPod에서 전체 순서를 묶는 셸 파일로 나뉜다.</p>
-      <div class="table-scroll"><table><thead><tr><th>파일</th><th>책임</th><th>읽을 때 볼 것</th></tr></thead><tbody>
-        <tr><td><code>ko_k8s_fc/evaluate_baseline.py</code></td><td>기존 baseline JSONL을 평가 입력으로 정규화하고 모델을 호출한다.</td><td>compact 행과 학습 형식 행을 같은 expected call로 바꾸는 과정</td></tr>
-        <tr><td><code>ko_k8s_fc/evaluate_runpod_bf16.py</code></td><td>최종 holdout 평가의 CLI, OpenAI SDK 호출, 결과 파일 저장을 담당한다.</td><td>dataset checksum과 server metadata를 결과에 남기는 이유</td></tr>
-        <tr><td><code>ko_k8s_fc/scoring.py</code></td><td>호출 여부·도구명·JSON·Schema·인자·no-call·Full success를 계산한다.</td><td>한 건의 점수가 어떤 조건의 AND인지</td></tr>
-        <tr><td><code>ko_k8s_fc/tools.py</code></td><td>도구 Schema 원본을 OpenAI <code>tools</code>와 검증용 딕셔너리로 제공한다.</td><td>호출할 때 준 계약과 채점할 때 읽은 계약이 같은지</td></tr>
-        <tr><td><code>scripts/run_runpod_bf16_eval.sh</code></td><td>vLLM 시작·health 확인·alias 검사·평가 호출·정리까지 연결한다.</td><td>두 모델을 같은 서버 조건에 올리는 실행 순서</td></tr>
-        <tr><td><code>tests/test_scoring.py</code></td><td>정상 호출, no-call, 잘못된 JSON·Schema·인자를 검증한다.</td><td>채점기가 경계 사례를 놓치지 않는지</td></tr>
-        <tr><td><code>tests/test_evaluate_runpod_bf16.py</code></td><td>평가 CLI가 예외와 결과 저장을 올바르게 처리하는지 검증한다.</td><td>실패한 API 호출도 결과 행으로 남는지</td></tr>
-      </tbody></table></div>
-      <p>학습 코드의 전체 원본과 줄별 해설은 <a href="k8s-function-calling-training-code.html#source">학습 코드 상세의 원본 스크립트</a>에서, 도구 Schema의 의미는 <a href="k8s-function-calling-tools.html">도구 계약 문서</a>에서 다시 본다.</p>
-    </section>
+</section>
+<section id="files" class="markdown-section">
+<h2>2. 파일별 책임</h2>
+<p>평가 코드는 입력을 준비하는 파일, 모델을 호출하는 파일, 한 건을 채점하는 파일, RunPod에서 전체 순서를 묶는 셸 파일로 나뉜다.</p>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>책임</th>
+<th>읽을 때 볼 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ko_k8s_fc/evaluate_baseline.py</td>
+<td>기존 baseline JSONL을 평가 입력으로 정규화하고 모델을 호출한다.</td>
+<td>compact 행과 학습 형식 행을 같은 expected call로 바꾸는 과정</td>
+</tr>
+<tr>
+<td>ko_k8s_fc/evaluate_runpod_bf16.py</td>
+<td>최종 holdout 평가의 CLI, OpenAI SDK 호출, 결과 파일 저장을 담당한다.</td>
+<td>dataset checksum과 server metadata를 결과에 남기는 이유</td>
+</tr>
+<tr>
+<td>ko_k8s_fc/scoring.py</td>
+<td>호출 여부·도구명·JSON·Schema·인자·no-call·Full success를 계산한다.</td>
+<td>한 건의 점수가 어떤 조건의 AND인지</td>
+</tr>
+<tr>
+<td>ko_k8s_fc/tools.py</td>
+<td>도구 Schema 원본을 OpenAI tools 와 검증용 딕셔너리로 제공한다.</td>
+<td>호출할 때 준 계약과 채점할 때 읽은 계약이 같은지</td>
+</tr>
+<tr>
+<td>scripts/run_runpod_bf16_eval.sh</td>
+<td>vLLM 시작·health 확인·alias 검사·평가 호출·정리까지 연결한다.</td>
+<td>두 모델을 같은 서버 조건에 올리는 실행 순서</td>
+</tr>
+<tr>
+<td>tests/test_scoring.py</td>
+<td>정상 호출, no-call, 잘못된 JSON·Schema·인자를 검증한다.</td>
+<td>채점기가 경계 사례를 놓치지 않는지</td>
+</tr>
+<tr>
+<td>tests/test_evaluate_runpod_bf16.py</td>
+<td>평가 CLI가 예외와 결과 저장을 올바르게 처리하는지 검증한다.</td>
+<td>실패한 API 호출도 결과 행으로 남는지</td>
+</tr>
+</tbody></table>
+<p>학습 코드의 전체 원본과 줄별 해설은 <a href="k8s-function-calling-training-code.html#source">학습 코드 상세의 원본 스크립트</a>에서, 도구 Schema의 의미는 <a href="k8s-function-calling-tools.html">도구 계약 문서</a>에서 다시 본다.</p>
 
-    <section id="request">
-      <h2>3. 모델 요청과 응답 추출</h2>
-      <h3>OpenAI-compatible 요청</h3>
-      <pre><code>response = client.chat.completions.create(
+</section>
+<section id="request" class="markdown-section">
+<h2>3. 모델 요청과 응답 추출</h2>
+<h3>OpenAI-compatible 요청</h3>
+<pre><code>response = client.chat.completions.create(
     model=model,
     messages=[
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": case.prompt},
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: SYSTEM_PROMPT},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: case.prompt},
     ],
     tools=TOOLS,
-    tool_choice="auto",
+    tool_choice=&quot;auto&quot;,
     temperature=0,
     max_tokens=256,
-    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-)</code></pre>
-      <p><code>client</code>는 외부 OpenAI 모델을 뜻하지 않는다. <code>base_url</code>을 RunPod의 vLLM 주소로 지정한 OpenAI Python SDK 객체다. SDK 형식은 같지만 실제 추론은 RunPod의 Qwen Base 또는 Merged Tuned 모델이 수행한다.</p>
-      <ul>
-        <li><code>tools=TOOLS</code>: 모델이 선택할 수 있는 전체 다섯 도구의 계약</li>
-        <li><code>tool_choice=&quot;auto&quot;</code>: 요청에 따라 호출 또는 no-call을 모델이 결정</li>
-        <li><code>temperature=0</code>: 비교 시 샘플링 변동을 줄이는 고정 조건</li>
-        <li><code>max_tokens=256</code>: 한 응답이 과도하게 길어지지 않도록 제한</li>
-        <li><code>enable_thinking=False</code>: 평가 대상인 tool call 전에 reasoning 출력이 끼지 않도록 고정</li>
-      </ul>
-      <h3>tool_calls를 내부 구조로 바꾸기</h3>
-      <pre><code>message = response.choices[0].message
+    extra_body={&quot;chat_template_kwargs&quot;: {&quot;enable_thinking&quot;: False}},
+)
+</code></pre>
+<p><code>client</code>는 외부 OpenAI 모델을 뜻하지 않는다. <code>base_url</code>을 RunPod의 vLLM 주소로 지정한 OpenAI Python SDK 객체다. SDK 형식은 같지만 실제 추론은 RunPod의 Qwen Base 또는 Merged Tuned 모델이 수행한다.</p>
+<ul>
+<li><code>tools=TOOLS</code>: 모델이 선택할 수 있는 전체 다섯 도구의 계약</li>
+<li><code>tool_choice=&quot;auto&quot;</code>: 요청에 따라 호출 또는 no-call을 모델이 결정</li>
+<li><code>temperature=0</code>: 비교 시 샘플링 변동을 줄이는 고정 조건</li>
+<li><code>max_tokens=256</code>: 한 응답이 과도하게 길어지지 않도록 제한</li>
+<li><code>enable_thinking=False</code>: 평가 대상인 tool call 전에 reasoning 출력이 끼지 않도록 고정</li>
+</ul>
+<h3>tool_calls를 내부 구조로 바꾸기</h3>
+<pre><code>message = response.choices[0].message
 calls = [
     ActualCall(
         name=call.function.name,
         arguments_json=call.function.arguments,
     )
     for call in (message.tool_calls or [])
-]</code></pre>
-      <p>OpenAI 응답의 <code>message.tool_calls</code>가 없으면 빈 리스트다. 각 호출에서 함수 이름과 인자 JSON 문자열만 꺼내 <code>ActualCall</code>로 감싼다. 아직 Kubernetes handler를 실행하거나 tool 결과를 다시 모델에 넣지 않는다.</p>
-      <div class="caution"><strong>예외도 평가 데이터다.</strong><br>서버 오류나 응답 파싱 오류가 나면 예외를 버리지 않고 <code>score_case(case, [], error=...)</code>로 전달한다. 그래야 API 오류와 모델의 no-call을 구분해 결과 파일에 남길 수 있다.</div>
-    </section>
+]
+</code></pre>
+<p>OpenAI 응답의 <code>message.tool_calls</code>가 없으면 빈 리스트다. 각 호출에서 함수 이름과 인자 JSON 문자열만 꺼내 <code>ActualCall</code>로 감싼다. 아직 Kubernetes handler를 실행하거나 tool 결과를 다시 모델에 넣지 않는다.</p>
+<p><strong>예외도 평가 데이터다.</strong><br>서버 오류나 응답 파싱 오류가 나면 예외를 버리지 않고 <code>score_case(case, [], error=...)</code>로 전달한다. 그래야 API 오류와 모델의 no-call을 구분해 결과 파일에 남길 수 있다.</p>
 
-    <section id="scoring">
-      <h2>4. 한 건을 채점하는 순서</h2>
-      <p><code>scoring.py</code>의 <code>score_case()</code>는 결과를 한 번에 “맞다/틀리다”로 판단하지 않고, 계약의 층을 아래 순서로 분해한다.</p>
-      <pre><code>expected가 있는가? ── 아니오 → 실제 호출이 없고 오류도 없으면 no-call 성공
+</section>
+<section id="scoring" class="markdown-section">
+<h2>4. 한 건을 채점하는 순서</h2>
+<p><code>scoring.py</code>의 <code>score_case()</code>는 결과를 한 번에 “맞다/틀리다”로 판단하지 않고, 계약의 층을 아래 순서로 분해한다.</p>
+<pre><code>expected가 있는가? ── 아니오 → 실제 호출이 없고 오류도 없으면 no-call 성공
        │
        예
        ↓
@@ -114,38 +166,101 @@ calls = [
   → dict인지 확인
   → canonical Schema로 jsonschema.validate()
   → 기대 arguments와 exact match
-  → 모든 조건이 참이면 full_success</code></pre>
-      <div class="table-scroll"><table><thead><tr><th>필드</th><th>의미</th><th>판정 예</th></tr></thead><tbody>
-        <tr><td>call decision</td><td>호출이 필요한 요청에 호출했고, no-call 요청에는 호출하지 않았는가</td><td><code>expects_call == emitted_call</code></td></tr>
-        <tr><td>tool selection</td><td>호출 함수명이 기대한 도구명과 정확히 같은가</td><td><code>list_pods</code>와 <code>get_pod</code>는 다름</td></tr>
-        <tr><td>JSON validity</td><td>인자 문자열이 JSON으로 파싱되는가</td><td>따옴표가 깨지면 실패</td></tr>
-        <tr><td>Schema validity</td><td>파싱된 dict가 도구의 타입·필수·enum 계약을 지키는가</td><td>허용되지 않은 키나 enum이면 실패</td></tr>
-        <tr><td>Argument exact match</td><td>기대 인자 dict와 실제 dict가 완전히 같은가</td><td>사용자가 말하지 않은 namespace를 넣으면 실패</td></tr>
-        <tr><td>Full success</td><td>위 호출·도구·JSON·Schema·인자 조건을 모두 통과했는가</td><td>모든 계약의 AND</td></tr>
-      </tbody></table></div>
-      <h3>인자 precision·recall</h3>
-      <p>정확히 같은 dict만 보는 지표 외에, 키 단위로 맞은 수(TP)·추가/오답(FP)·누락/오답(FN)을 세어 argument precision·recall·F1도 계산한다. 그래서 “인자 하나만 틀린 호출”과 “전혀 다른 호출”을 구분해 볼 수 있다.</p>
-      <p>기대 호출이 없는 행에서는 도구명·Schema를 평가하지 않고 <code>no_call_correct</code>만 본다. 단순히 빈 응답이면 성공이라는 뜻이 아니라, 지원하지 않는 요청에 도구를 억지로 호출하지 않았고 API 오류도 없어야 한다.</p>
-    </section>
+  → 모든 조건이 참이면 full_success
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>의미</th>
+<th>판정 예</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>call decision</td>
+<td>호출이 필요한 요청에 호출했고, no-call 요청에는 호출하지 않았는가</td>
+<td>expects_call == emitted_call</td>
+</tr>
+<tr>
+<td>tool selection</td>
+<td>호출 함수명이 기대한 도구명과 정확히 같은가</td>
+<td>list_pods 와 get_pod 는 다름</td>
+</tr>
+<tr>
+<td>JSON validity</td>
+<td>인자 문자열이 JSON으로 파싱되는가</td>
+<td>따옴표가 깨지면 실패</td>
+</tr>
+<tr>
+<td>Schema validity</td>
+<td>파싱된 dict가 도구의 타입·필수·enum 계약을 지키는가</td>
+<td>허용되지 않은 키나 enum이면 실패</td>
+</tr>
+<tr>
+<td>Argument exact match</td>
+<td>기대 인자 dict와 실제 dict가 완전히 같은가</td>
+<td>사용자가 말하지 않은 namespace를 넣으면 실패</td>
+</tr>
+<tr>
+<td>Full success</td>
+<td>위 호출·도구·JSON·Schema·인자 조건을 모두 통과했는가</td>
+<td>모든 계약의 AND</td>
+</tr>
+</tbody></table>
+<h3>인자 precision·recall</h3>
+<p>정확히 같은 dict만 보는 지표 외에, 키 단위로 맞은 수(TP)·추가/오답(FP)·누락/오답(FN)을 세어 argument precision·recall·F1도 계산한다. 그래서 “인자 하나만 틀린 호출”과 “전혀 다른 호출”을 구분해 볼 수 있다.</p>
+<p>기대 호출이 없는 행에서는 도구명·Schema를 평가하지 않고 <code>no_call_correct</code>만 본다. 단순히 빈 응답이면 성공이라는 뜻이 아니라, 지원하지 않는 요청에 도구를 억지로 호출하지 않았고 API 오류도 없어야 한다.</p>
 
-    <section id="aggregate">
-      <h2>5. 100건을 집계하는 지표</h2>
-      <p><code>summarize(scores)</code>는 개별 <code>CaseScore</code> 목록을 전체 수치로 바꾼다. 이번 holdout은 기대 tool call 85건과 기대 no-call 15건으로 구성했다.</p>
-      <div class="table-scroll"><table><thead><tr><th>지표</th><th>분모</th><th>질문</th></tr></thead><tbody>
-        <tr><td>Call decision accuracy</td><td>전체 100건</td><td>호출/비호출 결정을 맞혔는가</td></tr>
-        <tr><td>Tool selection accuracy</td><td>기대 호출 85건</td><td>호출할 도구명을 맞혔는가</td></tr>
-        <tr><td>JSON·Schema validity</td><td>실제 호출이 하나인 행</td><td>출력 형식과 계약을 지켰는가</td></tr>
-        <tr><td>Argument exact match</td><td>기대 호출 85건</td><td>인자 dict가 완전히 같은가</td></tr>
-        <tr><td>No-call accuracy</td><td>기대 no-call 15건</td><td>지원하지 않는 요청을 호출하지 않았는가</td></tr>
-        <tr><td>Full success</td><td>전체 100건</td><td>한 건의 최종 계약을 끝까지 통과했는가</td></tr>
-      </tbody></table></div>
-      <p>최종 결과는 Base BF16의 Full success 36/100에서 Tuned BF16 96/100으로 올랐다. 이 수치는 단순히 호출 여부만 본 것이 아니라, 도구명·JSON·Schema·정확한 인자와 no-call까지 포함한 엄격한 결과다. 모든 지표의 정의는 <a href="../llm-systems/llm_evaluation_contract_learning.html#metrics">범용 평가 계약 문서</a>에서 개념적으로 다시 확인할 수 있다.</p>
-    </section>
+</section>
+<section id="aggregate" class="markdown-section">
+<h2>5. 100건을 집계하는 지표</h2>
+<p><code>summarize(scores)</code>는 개별 <code>CaseScore</code> 목록을 전체 수치로 바꾼다. 이번 holdout은 기대 tool call 85건과 기대 no-call 15건으로 구성했다.</p>
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>분모</th>
+<th>질문</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Call decision accuracy</td>
+<td>전체 100건</td>
+<td>호출/비호출 결정을 맞혔는가</td>
+</tr>
+<tr>
+<td>Tool selection accuracy</td>
+<td>기대 호출 85건</td>
+<td>호출할 도구명을 맞혔는가</td>
+</tr>
+<tr>
+<td>JSON·Schema validity</td>
+<td>실제 호출이 하나인 행</td>
+<td>출력 형식과 계약을 지켰는가</td>
+</tr>
+<tr>
+<td>Argument exact match</td>
+<td>기대 호출 85건</td>
+<td>인자 dict가 완전히 같은가</td>
+</tr>
+<tr>
+<td>No-call accuracy</td>
+<td>기대 no-call 15건</td>
+<td>지원하지 않는 요청을 호출하지 않았는가</td>
+</tr>
+<tr>
+<td>Full success</td>
+<td>전체 100건</td>
+<td>한 건의 최종 계약을 끝까지 통과했는가</td>
+</tr>
+</tbody></table>
+<p>최종 결과는 Base BF16의 Full success 36/100에서 Tuned BF16 96/100으로 올랐다. 이 수치는 단순히 호출 여부만 본 것이 아니라, 도구명·JSON·Schema·정확한 인자와 no-call까지 포함한 엄격한 결과다. 모든 지표의 정의는 <a href="../llm-systems/llm_evaluation_contract_learning.html#metrics">범용 평가 계약 문서</a>에서 개념적으로 다시 확인할 수 있다.</p>
 
-    <section id="runner">
-      <h2>6. RunPod 평가 러너의 실행 순서</h2>
-      <p><code>scripts/run_runpod_bf16_eval.sh</code>는 단순히 Python 평가 파일을 실행하지 않는다. 동일한 서버 조건인지 확인하고, 평가가 끝나면 서버 프로세스도 정리한다.</p>
-      <pre><code>필수 명령·Python import 확인
+</section>
+<section id="runner" class="markdown-section">
+<h2>6. RunPod 평가 러너의 실행 순서</h2>
+<p><code>scripts/run_runpod_bf16_eval.sh</code>는 단순히 Python 평가 파일을 실행하지 않는다. 동일한 서버 조건인지 확인하고, 평가가 끝나면 서버 프로세스도 정리한다.</p>
+<pre><code>필수 명령·Python import 확인
   → holdout SHA-256 검증
   → 포트 사용 여부 확인
   → 모델 revision과 실행 metadata 확정
@@ -154,49 +269,73 @@ calls = [
   → /v1/models에서 served alias 확인
   → evaluate_runpod_bf16 호출
   → details·summary 저장
-  → EXIT trap으로 vLLM 종료</code></pre>
-      <h3>vLLM 서버 플래그</h3>
-      <pre><code>python -m vllm.entrypoints.openai.api_server \
-  --model "$MODEL" \
-  --served-model-name "$MODEL_ALIAS" \
+  → EXIT trap으로 vLLM 종료
+</code></pre>
+<h3>vLLM 서버 플래그</h3>
+<pre><code>python -m vllm.entrypoints.openai.api_server \
+  --model &quot;$MODEL&quot; \
+  --served-model-name &quot;$MODEL_ALIAS&quot; \
   --dtype bfloat16 \
   --max-model-len 4096 \
   --gpu-memory-utilization 0.85 \
   --enable-auto-tool-choice \
   --tool-call-parser hermes \
   --reasoning-parser qwen3 \
-  --generation-config vllm</code></pre>
-      <p><code>--served-model-name</code>은 SDK 요청의 model 문자열과 서버가 광고하는 이름을 일치시킨다. <code>--enable-auto-tool-choice</code>와 Hermes parser는 모델의 구조화된 tool call을 OpenAI 응답으로 변환하는 서버 측 설정이다. 서버 설정의 일반적인 계층은 <a href="k8s-function-calling-environment.html#sequence">프로젝트 실행 환경 문서</a>에서 이어 본다.</p>
-      <h3>checksum과 metadata</h3>
-      <p>러너는 holdout 파일의 SHA-256이 기대값과 다르면 즉시 중단한다. 서버 metadata에는 run id, 모델 alias·revision, dtype, vLLM 버전, host·port, max length, GPU 사용률, parser와 실제 실행 명령을 기록한다. 따라서 나중에 “어떤 모델을 어떤 조건에서 평가했는가”를 결과만 보고도 확인할 수 있다.</p>
-    </section>
+  --generation-config vllm
+</code></pre>
+<p><code>--served-model-name</code>은 SDK 요청의 model 문자열과 서버가 광고하는 이름을 일치시킨다. <code>--enable-auto-tool-choice</code>와 Hermes parser는 모델의 구조화된 tool call을 OpenAI 응답으로 변환하는 서버 측 설정이다. 서버 설정의 일반적인 계층은 <a href="k8s-function-calling-environment.html#sequence">프로젝트 실행 환경 문서</a>에서 이어 본다.</p>
+<h3>checksum과 metadata</h3>
+<p>러너는 holdout 파일의 SHA-256이 기대값과 다르면 즉시 중단한다. 서버 metadata에는 run id, 모델 alias·revision, dtype, vLLM 버전, host·port, max length, GPU 사용률, parser와 실제 실행 명령을 기록한다. 따라서 나중에 “어떤 모델을 어떤 조건에서 평가했는가”를 결과만 보고도 확인할 수 있다.</p>
 
-    <section id="artifacts">
-      <h2>7. 결과 파일을 읽는 법</h2>
-      <div class="table-scroll"><table><thead><tr><th>파일</th><th>내용</th><th>읽는 목적</th></tr></thead><tbody>
-        <tr><td><code>*_details.jsonl</code></td><td>holdout 한 건마다 expected·actual·각 세부 판정·오류</td><td>어떤 요청에서 도구명·인자·Schema가 틀렸는지 추적</td></tr>
-        <tr><td><code>*_summary.json</code></td><td>전체 지표, argument F1, no-call, category별 Full success</td><td>Base와 Tuned를 표로 비교</td></tr>
-        <tr><td><code>server_metadata.json</code></td><td>모델 revision·정밀도·vLLM·parser·서버 명령</td><td>평가 조건 재현</td></tr>
-        <tr><td><code>server.log</code></td><td>vLLM 시작과 요청 처리 로그</td><td>health 실패·parser·GPU 문제 진단</td></tr>
-      </tbody></table></div>
-      <pre><code>python scripts/validate_training_data.py
+</section>
+<section id="artifacts" class="markdown-section">
+<h2>7. 결과 파일을 읽는 법</h2>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+<th>읽는 목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>*_details.jsonl</td>
+<td>holdout 한 건마다 expected·actual·각 세부 판정·오류</td>
+<td>어떤 요청에서 도구명·인자·Schema가 틀렸는지 추적</td>
+</tr>
+<tr>
+<td>*_summary.json</td>
+<td>전체 지표, argument F1, no-call, category별 Full success</td>
+<td>Base와 Tuned를 표로 비교</td>
+</tr>
+<tr>
+<td>server_metadata.json</td>
+<td>모델 revision·정밀도·vLLM·parser·서버 명령</td>
+<td>평가 조건 재현</td>
+</tr>
+<tr>
+<td>server.log</td>
+<td>vLLM 시작과 요청 처리 로그</td>
+<td>health 실패·parser·GPU 문제 진단</td>
+</tr>
+</tbody></table>
+<pre><code>python scripts/validate_training_data.py
 python scripts/train_runpod_bf16_lora.py --config configs/runpod_bf16_lora.yaml
 MODEL=Qwen/Qwen3-1.7B RUN_LABEL=base bash scripts/run_runpod_bf16_eval.sh
-MODEL=output/merged_bf16 RUN_LABEL=tuned bash scripts/run_runpod_bf16_eval.sh</code></pre>
-      <p>두 실행은 <code>RUN_LABEL</code>만 달라지고 holdout checksum·생성 조건·채점기는 같다. 평가 결과의 대표 수치와 한계는 <a href="ko-k8s-function-calling.html#evaluation">프로젝트 허브의 평가 결과</a>에 요약했다.</p>
-    </section>
+MODEL=output/merged_bf16 RUN_LABEL=tuned bash scripts/run_runpod_bf16_eval.sh
+</code></pre>
+<p>두 실행은 <code>RUN_LABEL</code>만 달라지고 holdout checksum·생성 조건·채점기는 같다. 평가 결과의 대표 수치와 한계는 <a href="ko-k8s-function-calling.html#evaluation">프로젝트 허브의 평가 결과</a>에 요약했다.</p>
 
-    <section id="source">
-      <h2>8. 평가 코드 전체 · 클릭 가능한 연속 원본</h2>
-      <p>아래에는 최종 평가에 직접 관여하는 Python 파일과 RunPod 셸 러너의 전체 소스를 파일별로 보존했다. 각 파일 안의 코드는 하나의 연속된 패널이고, 의미 단위별 구간 전체를 클릭하면 <a href="k8s-function-calling-evaluation-code-explained.html">평가 코드 블록별 해설</a>의 해당 절로 이동한다.</p>
-      <div class="caution"><strong>공개 문서용 환경값</strong><br>소스의 loopback 기본 주소는 공개 문서에서 환경 변수 placeholder로 표시했다. 실제 실행에서는 RunPod 서버 주소를 환경 변수로 주입하며, 평가 로직과 채점 순서는 바뀌지 않는다.</div>
-      <h3>evaluate_runpod_bf16.py</h3>
-      <p class="source-file-note"><code>ko_k8s_fc/evaluate_runpod_bf16.py</code> · 전체 133행</p>
-      <div class="source-code-stack" aria-label="evaluate_runpod_bf16.py 전체 소스, 의미 단위별 링크">
-        <a id="source-evaluate-cli" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#eval-cli">
-          <span class="code-source-heading"><strong>1–31행 · 최종 평가 CLI</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-from __future__ import annotations
+</section>
+<section id="source" class="markdown-section">
+<h2>8. 평가 코드 전체 · 클릭 가능한 연속 원본</h2>
+<p>아래에는 최종 평가에 직접 관여하는 Python 파일과 RunPod 셸 러너의 전체 소스를 파일별로 보존했다. 각 파일 안의 코드는 하나의 연속된 패널이고, 의미 단위별 구간 전체를 클릭하면 <a href="k8s-function-calling-evaluation-code-explained.html">평가 코드 블록별 해설</a>의 해당 절로 이동한다.</p>
+<p><strong>공개 문서용 환경값</strong><br>소스의 loopback 기본 주소는 공개 문서에서 환경 변수 placeholder로 표시했다. 실제 실행에서는 RunPod 서버 주소를 환경 변수로 주입하며, 평가 로직과 채점 순서는 바뀌지 않는다.</p>
+<h3>evaluate_runpod_bf16.py</h3>
+<p><code>ko_k8s_fc/evaluate_runpod_bf16.py</code> · 전체 133행</p>
+<span class="md-anchor" id="source-evaluate-cli" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#eval-cli">1–31행 · 최종 평가 CLI 이 부분 자세히 보기 ↗</a></p>
+<pre><code>from __future__ import annotations
 
 import argparse
 import json
@@ -227,12 +366,10 @@ def parse_args() -&gt; argparse.Namespace:
     return parser.parse_args()
 
 
-          </code></pre>
-        </a>
-        <a id="source-evaluate-call" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#eval-call">
-          <span class="code-source-heading"><strong>32–70행 · OpenAI 요청과 CaseScore</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]:
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#eval-call">32–70행 · OpenAI 요청과 CaseScore 이 부분 자세히 보기 ↗</a></p>
+<pre><code>def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]:
     scores: list[CaseScore] = []
     for index, case in enumerate(cases, start=1):
         try:
@@ -265,18 +402,17 @@ def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]
         scores.append(score)
         print(
             f&quot;[{index:03d}/{len(cases):03d}] {case.case_id}: &quot;
-            f&quot;{&#x27;PASS&#x27; if score.full_success else &#x27;FAIL&#x27;}&quot;,
+            f&quot;{&#39;PASS&#39; if score.full_success else &#39;FAIL&#39;}&quot;,
             flush=True,
         )
     return scores
 
 
-          </code></pre>
-        </a>
-        <a id="source-evaluate-output" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#eval-output">
-          <span class="code-source-heading"><strong>71–133행 · details·summary 저장</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-def write_results(
+          
+</code></pre>
+<span class="md-anchor" id="source-evaluate-output" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#eval-output">71–133행 · details·summary 저장 이 부분 자세히 보기 ↗</a></p>
+<pre><code>def write_results(
     *,
     output_dir: Path,
     run_id: str,
@@ -339,16 +475,13 @@ def main() -&gt; None:
 
 if __name__ == &quot;__main__&quot;:
     main()
-          </code></pre>
-        </a>
-      </div>
-      <h3>evaluate_baseline.py</h3>
-      <p class="source-file-note"><code>ko_k8s_fc/evaluate_baseline.py</code> · 전체 166행</p>
-      <div class="source-code-stack" aria-label="evaluate_baseline.py 전체 소스, 의미 단위별 링크">
-        <a id="source-baseline-cli" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#base-cli">
-          <span class="code-source-heading"><strong>1–36행 · baseline CLI와 기본값</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-from __future__ import annotations
+          
+</code></pre>
+<h3>evaluate_baseline.py</h3>
+<p><code>ko_k8s_fc/evaluate_baseline.py</code> · 전체 166행</p>
+<span class="md-anchor" id="source-baseline-cli" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#base-cli">1–36행 · baseline CLI와 기본값 이 부분 자세히 보기 ↗</a></p>
+<pre><code>from __future__ import annotations
 
 import argparse
 import json
@@ -384,12 +517,10 @@ def parse_args() -&gt; argparse.Namespace:
     return parser.parse_args()
 
 
-          </code></pre>
-        </a>
-        <a id="source-baseline-normalize" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#base-normalize">
-          <span class="code-source-heading"><strong>37–86행 · 데이터 형식 정규화</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-def _normalize_dataset_row(value: dict[str, Any]) -&gt; dict[str, Any]:
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#base-normalize">37–86행 · 데이터 형식 정규화 이 부분 자세히 보기 ↗</a></p>
+<pre><code>def _normalize_dataset_row(value: dict[str, Any]) -&gt; dict[str, Any]:
     &quot;&quot;&quot;Accept both compact evaluation rows and held-out training-format rows.&quot;&quot;&quot;
     if &quot;prompt&quot; in value:
         return value
@@ -439,12 +570,10 @@ def load_dataset(path: Path) -&gt; list[Any]:
     return cases
 
 
-          </code></pre>
-        </a>
-        <a id="source-baseline-call" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#base-call">
-          <span class="code-source-heading"><strong>87–166행 · baseline 호출과 저장</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]:
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#base-call">87–166행 · baseline 호출과 저장 이 부분 자세히 보기 ↗</a></p>
+<pre><code>def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]:
     scores = []
     for index, case in enumerate(cases, start=1):
         try:
@@ -473,7 +602,7 @@ def evaluate(client: OpenAI, model: str, cases: list[Any]) -&gt; list[CaseScore]
         scores.append(score)
         print(
             f&quot;[{index:03d}/{len(cases):03d}] {case.case_id}: &quot;
-            f&quot;{&#x27;PASS&#x27; if score.full_success else &#x27;FAIL&#x27;}&quot;
+            f&quot;{&#39;PASS&#39; if score.full_success else &#39;FAIL&#39;}&quot;
         )
     return scores
 
@@ -524,16 +653,13 @@ def main() -&gt; None:
 
 if __name__ == &quot;__main__&quot;:
     main()
-          </code></pre>
-        </a>
-      </div>
-      <h3>scoring.py</h3>
-      <p class="source-file-note"><code>ko_k8s_fc/scoring.py</code> · 전체 272행</p>
-      <div class="source-code-stack" aria-label="scoring.py 전체 소스, 의미 단위별 링크">
-        <a id="source-score-types" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#score-types">
-          <span class="code-source-heading"><strong>1–73행 · 평가 자료형과 case 로딩</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-from __future__ import annotations
+          
+</code></pre>
+<h3>scoring.py</h3>
+<p><code>ko_k8s_fc/scoring.py</code> · 전체 272행</p>
+<span class="md-anchor" id="source-score-types" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#score-types">1–73행 · 평가 자료형과 case 로딩 이 부분 자세히 보기 ↗</a></p>
+<pre><code>from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
@@ -606,12 +732,10 @@ def load_case(value: dict[str, Any]) -&gt; EvaluationCase:
         expected=expected,
     )
 
-          </code></pre>
-        </a>
-        <a id="source-score-parse" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#score-parse">
-          <span class="code-source-heading"><strong>74–139행 · JSON·Schema 파싱</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#score-parse">74–139행 · JSON·Schema 파싱 이 부분 자세히 보기 ↗</a></p>
+<pre><code>
 def _argument_counts(
     expected: dict[str, Any], actual: dict[str, Any]
 ) -&gt; tuple[int, int, int]:
@@ -677,12 +801,10 @@ def score_case(
             for call in actual_calls
         )
 
-          </code></pre>
-        </a>
-        <a id="source-score-case" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#score-case">
-          <span class="code-source-heading"><strong>140–205행 · 호출·no-call·Full success</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-    if case.expected is None:
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#score-case">140–205행 · 호출·no-call·Full success 이 부분 자세히 보기 ↗</a></p>
+<pre><code>    if case.expected is None:
         no_call_correct = not actual_calls and error is None
         return CaseScore(
             case_id=case.case_id,
@@ -748,12 +870,10 @@ def score_case(
         full_success=full_success,
         error=error,
     )
-          </code></pre>
-        </a>
-        <a id="source-score-aggregate" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#score-aggregate">
-          <span class="code-source-heading"><strong>206–272행 · 전체 지표 집계</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#score-aggregate">206–272행 · 전체 지표 집계 이 부분 자세히 보기 ↗</a></p>
+<pre><code>
 
 def _rate(numerator: int, denominator: int) -&gt; float | None:
     return round(numerator / denominator, 4) if denominator else None
@@ -820,16 +940,13 @@ def summarize(scores: list[CaseScore]) -&gt; dict[str, Any]:
         ),
         &quot;by_category&quot;: by_category,
     }
-          </code></pre>
-        </a>
-      </div>
-      <h3>tools.py</h3>
-      <p class="source-file-note"><code>ko_k8s_fc/tools.py</code> · 전체 15행</p>
-      <div class="source-code-stack" aria-label="tools.py 전체 소스, 의미 단위별 링크">
-        <a id="source-tools" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#tools">
-          <span class="code-source-heading"><strong>1–15행 · Schema 원본 로딩</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-&quot;&quot;&quot;Load the canonical OpenAI-compatible Kubernetes tool definitions.&quot;&quot;&quot;
+          
+</code></pre>
+<h3>tools.py</h3>
+<p><code>ko_k8s_fc/tools.py</code> · 전체 15행</p>
+<span class="md-anchor" id="source-tools" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#tools">1–15행 · Schema 원본 로딩 이 부분 자세히 보기 ↗</a></p>
+<pre><code>&quot;&quot;&quot;Load the canonical OpenAI-compatible Kubernetes tool definitions.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -844,16 +961,13 @@ TOOL_SCHEMAS = {
     tool[&quot;function&quot;][&quot;name&quot;]: tool[&quot;function&quot;][&quot;parameters&quot;] for tool in TOOLS
 }
 EXECUTOR_DEFAULTS = SCHEMA_DOCUMENT[&quot;executor_defaults&quot;]
-          </code></pre>
-        </a>
-      </div>
-      <h3>run_runpod_bf16_eval.sh</h3>
-      <p class="source-file-note"><code>scripts/run_runpod_bf16_eval.sh</code> · 전체 234행</p>
-      <div class="source-code-stack" aria-label="run_runpod_bf16_eval.sh 전체 소스, 의미 단위별 링크">
-        <a id="source-runner-checks" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#runner-checks">
-          <span class="code-source-heading"><strong>1–58행 · 변수·의존성·checksum</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-#!/usr/bin/env bash
+          
+</code></pre>
+<h3>run_runpod_bf16_eval.sh</h3>
+<p><code>scripts/run_runpod_bf16_eval.sh</code> · 전체 234행</p>
+<span class="md-anchor" id="source-runner-checks" aria-hidden="true"></span>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#runner-checks">1–58행 · 변수·의존성·checksum 이 부분 자세히 보기 ↗</a></p>
+<pre><code>#!/usr/bin/env bash
 set -euo pipefail
 
 PROJECT_DIR=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)/..&quot; &amp;&amp; pwd)&quot;
@@ -886,7 +1000,7 @@ for command_name in python curl sha256sum; do
   fi
 done
 
-python - &lt;&lt;&#x27;PY&#x27;
+python - &lt;&lt;&#39;PY&#39;
 import importlib.metadata
 import re
 
@@ -904,20 +1018,18 @@ if match is None or tuple(map(int, match.groups())) &lt; (0, 9, 0):
     )
 PY
 
-actual_dataset_sha256=&quot;$(sha256sum &quot;$DATASET&quot; | awk &#x27;{print $1}&#x27;)&quot;
+actual_dataset_sha256=&quot;$(sha256sum &quot;$DATASET&quot; | awk &#39;{print $1}&#39;)&quot;
 if [[ &quot;$actual_dataset_sha256&quot; != &quot;$EXPECTED_DATASET_SHA256&quot; ]]; then
   echo &quot;evaluation dataset checksum mismatch; refusing an unfair comparison&quot; &gt;&amp;2
   echo &quot;expected: $EXPECTED_DATASET_SHA256&quot; &gt;&amp;2
   echo &quot;actual:   $actual_dataset_sha256&quot; &gt;&amp;2
   exit 1
 fi
-          </code></pre>
-        </a>
-        <a id="source-runner-revision" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#runner-revision">
-          <span class="code-source-heading"><strong>59–114행 · 포트·revision·실행 디렉터리</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
-if ! python - &quot;$SERVER_HOST&quot; &quot;$SERVER_PORT&quot; &lt;&lt;&#x27;PY&#x27;
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#runner-revision">59–114행 · 포트·revision·실행 디렉터리 이 부분 자세히 보기 ↗</a></p>
+<pre><code>
+if ! python - &quot;$SERVER_HOST&quot; &quot;$SERVER_PORT&quot; &lt;&lt;&#39;PY&#39;
 import socket
 import sys
 
@@ -935,7 +1047,7 @@ resolved_model_revision=&quot;$MODEL_REVISION&quot;
 if [[ -z &quot;$resolved_model_revision&quot; ]]; then
   if [[ -d &quot;$MODEL&quot; ]]; then
     echo &quot;Computing a content hash for the local model directory...&quot;
-    resolved_model_revision=&quot;local-tree-sha256:$(python - &quot;$MODEL&quot; &lt;&lt;&#x27;PY&#x27;
+    resolved_model_revision=&quot;local-tree-sha256:$(python - &quot;$MODEL&quot; &lt;&lt;&#39;PY&#39;
 from __future__ import annotations
 
 import hashlib
@@ -954,7 +1066,7 @@ print(digest.hexdigest())
 PY
 )&quot;
   else
-    resolved_model_revision=&quot;$(python - &quot;$MODEL&quot; &lt;&lt;&#x27;PY&#x27;
+    resolved_model_revision=&quot;$(python - &quot;$MODEL&quot; &lt;&lt;&#39;PY&#39;
 import sys
 from huggingface_hub import HfApi
 
@@ -965,19 +1077,17 @@ PY
 fi
 
 timestamp=&quot;$(date -u +%Y%m%dT%H%M%SZ)&quot;
-safe_label=&quot;$(printf &#x27;%s&#x27; &quot;$RUN_LABEL&quot; | tr -cs &#x27;[:alnum:]_.-&#x27; &#x27;_&#x27;)&quot;
+safe_label=&quot;$(printf &#39;%s&#39; &quot;$RUN_LABEL&quot; | tr -cs &#39;[:alnum:]_.-&#39; &#39;_&#39;)&quot;
 RUN_ID=&quot;${timestamp}_${safe_label}&quot;
 RUN_DIR=&quot;$OUTPUT_DIR/$RUN_ID&quot;
 LOG_PATH=&quot;$RUN_DIR/vllm-server.log&quot;
 METADATA_PATH=&quot;$RUN_DIR/server_metadata.json&quot;
 mkdir -p &quot;$RUN_DIR&quot;
 
-          </code></pre>
-        </a>
-        <a id="source-runner-server" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#runner-server">
-          <span class="code-source-heading"><strong>115–177행 · vLLM 시작·health·alias</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-VLLM_COMMAND=(
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#runner-server">115–177행 · vLLM 시작·health·alias 이 부분 자세히 보기 ↗</a></p>
+<pre><code>VLLM_COMMAND=(
   python -m vllm.entrypoints.openai.api_server
   --model &quot;$MODEL&quot;
   --served-model-name &quot;$MODEL_ALIAS&quot;
@@ -1011,10 +1121,10 @@ if [[ -d &quot;$MODEL&quot; ]]; then
   VLLM_COMMAND=(&quot;${command_without_revision[@]}&quot;)
 fi
 
-printf &#x27;Starting vLLM:&#x27;
-printf &#x27; %q&#x27; &quot;${VLLM_COMMAND[@]}&quot;
-printf &#x27;\n&#x27;
-printf -v rendered_server_command &#x27;%q &#x27; &quot;${VLLM_COMMAND[@]}&quot;
+printf &#39;Starting vLLM:&#39;
+printf &#39; %q&#39; &quot;${VLLM_COMMAND[@]}&quot;
+printf &#39;\n&#39;
+printf -v rendered_server_command &#39;%q &#39; &quot;${VLLM_COMMAND[@]}&quot;
 rendered_server_command=&quot;${rendered_server_command% }&quot;
 &quot;${VLLM_COMMAND[@]}&quot; &gt;&quot;$LOG_PATH&quot; 2&gt;&amp;1 &amp;
 SERVER_PID=$!
@@ -1035,22 +1145,20 @@ until curl -fsS &quot;$health_url&quot; &gt;/dev/null 2&gt;&amp;1; do
 done
 
 if ! curl -fsS &quot;http://$SERVER_HOST:$SERVER_PORT/v1/models&quot; \
-  | python -c &#x27;import json,sys; expected=sys.argv[1]; data=json.load(sys.stdin); raise SystemExit(0 if any(model.get(&quot;id&quot;) == expected for model in data.get(&quot;data&quot;, [])) else 1)&#x27; \
+  | python -c &#39;import json,sys; expected=sys.argv[1]; data=json.load(sys.stdin); raise SystemExit(0 if any(model.get(&quot;id&quot;) == expected for model in data.get(&quot;data&quot;, [])) else 1)&#39; \
     &quot;$MODEL_ALIAS&quot;; then
   echo &quot;vLLM is healthy but did not advertise expected model alias: $MODEL_ALIAS&quot; &gt;&amp;2
   exit 1
 fi
-          </code></pre>
-        </a>
-        <a id="source-runner-metadata" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#runner-metadata">
-          <span class="code-source-heading"><strong>178–218행 · server metadata 기록</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
-vllm_version=&quot;$(python -c &#x27;import importlib.metadata; print(importlib.metadata.version(&quot;vllm&quot;))&#x27;)&quot;
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#runner-metadata">178–218행 · server metadata 기록 이 부분 자세히 보기 ↗</a></p>
+<pre><code>
+vllm_version=&quot;$(python -c &#39;import importlib.metadata; print(importlib.metadata.version(&quot;vllm&quot;))&#39;)&quot;
 python - \
   &quot;$MODEL&quot; &quot;$MODEL_ALIAS&quot; &quot;$resolved_model_revision&quot; &quot;$vllm_version&quot; \
   &quot;$SERVER_HOST&quot; &quot;$SERVER_PORT&quot; &quot;$MAX_MODEL_LEN&quot; &quot;$GPU_MEMORY_UTILIZATION&quot; \
-  &quot;$LOG_PATH&quot; &quot;$RUN_ID&quot; &quot;$rendered_server_command&quot; &gt;&quot;$METADATA_PATH&quot; &lt;&lt;&#x27;PY&#x27;
+  &quot;$LOG_PATH&quot; &quot;$RUN_ID&quot; &quot;$rendered_server_command&quot; &gt;&quot;$METADATA_PATH&quot; &lt;&lt;&#39;PY&#39;
 import json
 import sys
 
@@ -1086,13 +1194,11 @@ print(json.dumps({
     &quot;server_log&quot;: log_path,
 }, indent=2))
 PY
-          </code></pre>
-        </a>
-        <a id="source-runner-eval" class="code-source-block" href="k8s-function-calling-evaluation-code-explained.html#runner-eval">
-          <span class="code-source-heading"><strong>219–234행 · 평가 호출과 종료 출력</strong><span>이 부분 자세히 보기 ↗</span></span>
-          <pre><code>
-
-dataset_case_count=&quot;$(awk &#x27;NF { count += 1 } END { print count + 0 }&#x27; &quot;$DATASET&quot;)&quot;
+          
+</code></pre>
+<p><a href="k8s-function-calling-evaluation-code-explained.html#runner-eval">219–234행 · 평가 호출과 종료 출력 이 부분 자세히 보기 ↗</a></p>
+<pre><code>
+dataset_case_count=&quot;$(awk &#39;NF { count += 1 } END { print count + 0 }&#39; &quot;$DATASET&quot;)&quot;
 echo &quot;Evaluating $MODEL_ALIAS as $RUN_LABEL against the locked ${dataset_case_count}-case dataset&quot;
 cd &quot;$PROJECT_DIR&quot;
 python -m ko_k8s_fc.evaluate_runpod_bf16 \
@@ -1107,13 +1213,21 @@ python -m ko_k8s_fc.evaluate_runpod_bf16 \
 
 echo &quot;server_log=$LOG_PATH&quot;
 echo &quot;metadata=$METADATA_PATH&quot;
-          </code></pre>
-        </a>
-      </div>
-    </section>
+          
+</code></pre>
 
-    <footer class="footer">프로젝트 상세 문서 · 평가 코드·채점·RunPod 실행</footer>
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="k8s-function-calling-evaluation-code-explained.html">평가 코드를 클릭해서 채점 흐름 이해하기</a></li></ul>
+  </section>
+      </article>
+    </div>
   </main>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

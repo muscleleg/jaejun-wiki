@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_ffn_execution_verification_learning.md. Do not edit directly. source-sha256:b55f7459758ec5ecb3f32f3130895039e56b78782811f25a826d0add695797c0 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="FFN 이후 두 번째 Residual과 LayerNorm, Dropout의 train·eval 차이, TransformerBlock 통합 출력을 실제 Tensor로 검증한 상세 문서">
-  <title>Transformer · FFN 실행 검증</title>
+  <meta name="description" content="FFN의 핵심 흐름을 이해한 뒤, 두 번째 Residual과 LayerNorm의 숫자·Shape, Dropout의 훈련·평가 모드, 전체 TransformerBlock 출력을 단계별로 확인한다.">
+  <meta name="source-sha256" content="b55f7459758ec5ecb3f32f3130895039e56b78782811f25a826d0add695797c0">
+  <title>Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -16,53 +18,69 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · FFN 실행 검증">
-  <meta property="og:description" content="FFN 이후 두 번째 Residual과 LayerNorm, Dropout의 train·eval 차이, TransformerBlock 통합 출력을 실제 Tensor로 검증한 상세 문서">
+  <meta property="og:title" content="Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기">
+  <meta property="og:description" content="FFN의 핵심 흐름을 이해한 뒤, 두 번째 Residual과 LayerNorm의 숫자·Shape, Dropout의 훈련·평가 모드, 전체 TransformerBlock 출력을 단계별로 확인한다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html","name":"Transformer · FFN 실행 검증","description":"FFN 이후 두 번째 Residual과 LayerNorm, Dropout의 train·eval 차이, TransformerBlock 통합 출력을 실제 Tensor로 검증한 상세 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html"},"headline":"Transformer · FFN 실행 검증"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"FFN","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html"},{"@type":"ListItem","position":5,"name":"실행 검증"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html","name":"Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기","description":"FFN의 핵심 흐름을 이해한 뒤, 두 번째 Residual과 LayerNorm의 숫자·Shape, Dropout의 훈련·평가 모드, 전체 TransformerBlock 출력을 단계별로 확인한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html"},"headline":"Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_execution_verification_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Token끼리 섞은 다음 각 Token을 따로 가공하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html"},{"@type":"ListItem","position":6,"name":"Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference transformer-detail">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><a href="transformer_ffn_learning.html">FFN</a><span class="separator">›</span><span aria-current="page">실행 검증</span></nav>
-    <header class="hero">
-      <span class="eyebrow">FFN · 실행 검증 상세</span>
-      <h1>Residual·LayerNorm·Dropout을<br>실제 Tensor로 검증하기</h1>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><a href="transformer_ffn_learning.html">Token끼리 섞은 다음 각 Token을 따로 가공하기</a><span class="separator">›</span><span aria-current="page">Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기</h1>
       <p class="lead">FFN의 핵심 흐름을 이해한 뒤, 두 번째 Residual과 LayerNorm의 숫자·Shape, Dropout의 훈련·평가 모드, 전체 TransformerBlock 출력을 단계별로 확인한다.</p>
-      <div class="detail-actions"><a href="transformer_ffn_learning.html#execution-verification">← FFN 학습 경로</a><a href="transformer_layer_norm_learning.html">LayerNorm 복습</a></div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-    <section class="detail-section" id="second-residual-result">
-      <h2>두 번째 Residual 실제 결과</h2>
-      <pre><code>normalized_output:
+    <span class="md-anchor" id="second-residual-result" aria-hidden="true"></span>
+
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#document-section-1">두 번째 Residual 실제 결과</a>
+        <a href="#document-section-2">두 번째 LayerNorm 실제 결과</a>
+        <a href="#document-section-3">Dropout의 훈련·평가 모드 비교</a>
+        <a href="#document-section-4">TransformerBlock 통합 검증 완료</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="document-section-1" class="markdown-section">
+<h2>두 번째 Residual 실제 결과</h2>
+<pre><code>normalized_output:
 tensor([[[ 1.0000, -1.0000],
          [-1.0000,  1.0000]]])
 
 contracted_output:
 tensor([[[-0.5793,  0.4936],
-         [-0.4502,  0.3765]]])</code></pre>
-      <p>같은 Token의 같은 차원끼리 더했다.</p>
-      <pre><code>ffn_residual_output
+         [-0.4502,  0.3765]]])
+</code></pre>
+<p>같은 Token의 같은 차원끼리 더했다.</p>
+<pre><code>ffn_residual_output
 = normalized_output + contracted_output
 
 tensor([[[ 0.4207, -0.5063],
          [-1.4502,  1.3765]]])
 
 shape:
-torch.Size([1, 2, 2])</code></pre>
-      <p><code>normalized_output</code>과 <code>contracted_output</code>이 모두 <code>[batch, token, d_model]=[1,2,2]</code>이므로 원소별로 더할 수 있었고, 결과 Shape도 <code>[1,2,2]</code>로 유지됐다.</p>
-      <div class="caution"><strong>실행 검증 완료</strong> — 원래 정돈된 표현 <code>normalized_output</code>에 FFN이 만든 수정값 <code>contracted_output</code>을 더한다는 설명이 실제 숫자와 Shape에서도 확인됐다.</div>
-      <p>결과를 본 뒤 사용자는 “그럼 또 normalized 진행하겠네?”라고 다음 단계를 예측했다. Transformer Block의 현재 흐름에서 이 예측은 맞다. 두 번째 Residual 결과를 다시 LayerNorm에 넣어 Token별 마지막 차원의 평균과 퍼짐을 정돈한다.</p>
-      <div class="caution"><strong>당시 다음 검증</strong> — 두 번째 <code>nn.LayerNorm(d_model)</code>을 <code>ffn_residual_output</code>에 적용하고, Shape 유지와 Token별 평균·분산을 확인하는 것이 다음 질문이었다.</div>
-    </section>
+torch.Size([1, 2, 2])
+</code></pre>
+<p><code>normalized_output</code>과 <code>contracted_output</code>이 모두 <code>[batch, token, d_model]=[1,2,2]</code>이므로 원소별로 더할 수 있었고, 결과 Shape도 <code>[1,2,2]</code>로 유지됐다.</p>
+<p><strong>실행 검증 완료</strong> — 원래 정돈된 표현 <code>normalized_output</code>에 FFN이 만든 수정값 <code>contracted_output</code>을 더한다는 설명이 실제 숫자와 Shape에서도 확인됐다.</p>
+<p>결과를 본 뒤 사용자는 “그럼 또 normalized 진행하겠네?”라고 다음 단계를 예측했다. Transformer Block의 현재 흐름에서 이 예측은 맞다. 두 번째 Residual 결과를 다시 LayerNorm에 넣어 Token별 마지막 차원의 평균과 퍼짐을 정돈한다.</p>
+<p><strong>당시 다음 검증</strong> — 두 번째 <code>nn.LayerNorm(d_model)</code>을 <code>ffn_residual_output</code>에 적용하고, Shape 유지와 Token별 평균·분산을 확인하는 것이 다음 질문이었다.</p>
 
-    <section class="detail-section" id="second-layernorm-result">
-      <h2>두 번째 LayerNorm 실제 결과</h2>
-      <pre><code>layer_norm_2 = nn.LayerNorm(d_model)
-block_output = layer_norm_2(ffn_residual_output)</code></pre>
-      <p><code>nn.LayerNorm(d_model)</code>로 두 번째 LayerNorm 모듈을 만들고, <code>layer_norm_2(ffn_residual_output)</code>으로 실제 Residual 결과를 넣어 실행했다.</p>
-      <pre><code>입력 ffn_residual_output:
+</section>
+<section id="document-section-2" class="markdown-section">
+<h2>두 번째 LayerNorm 실제 결과</h2>
+<pre><code>layer_norm_2 = nn.LayerNorm(d_model)
+block_output = layer_norm_2(ffn_residual_output)
+</code></pre>
+<p><code>nn.LayerNorm(d_model)</code>로 두 번째 LayerNorm 모듈을 만들고, <code>layer_norm_2(ffn_residual_output)</code>으로 실제 Residual 결과를 넣어 실행했다.</p>
+<pre><code>입력 ffn_residual_output:
 tensor([[[ 0.4207, -0.5063],
          [-1.4502,  1.3765]]])
 
@@ -77,19 +95,21 @@ Token별 평균:
 tensor([[0.0000e+00, -2.9802e-08]])
 
 Token별 분산 (unbiased=False):
-tensor([[1.0000, 1.0000]])</code></pre>
-      <p>Shape은 <code>[batch, token, d_model]=[1,2,2]</code>로 유지됐고, 각 Token의 마지막 차원에서 평균은 사실상 0, 분산은 1이 됐다. <code>-2.9802e-08</code>도 <code>-0.000000029802</code>이므로 float32 반올림 오차 수준의 0이다.</p>
-      <div class="caution"><strong>당시 Post-LN 흐름 연결</strong> — 이 단계에서는 <code>Attention → Residual → LayerNorm → FFN → Residual → LayerNorm</code>을 실제 Tensor로 연결했다. Dropout 통합 전이었으므로 당시에는 Transformer Block 전체를 완료 처리하지 않았다.</div>
-      <div class="caution"><strong>아직 남은 설명 검증</strong> — 현재 기본 초기값의 LayerNorm 출력에서 평균 0·분산 1을 확인했다. 학습 후 <code>γ</code>와 <code>β</code>가 조정되면 최종 출력의 평균과 분산이 정확히 0과 1일 필요는 없다는 점은 아직 자기 말로 다시 설명하는 검증이 남아 있다.</div>
-    </section>
+tensor([[1.0000, 1.0000]])
+</code></pre>
+<p>Shape은 <code>[batch, token, d_model]=[1,2,2]</code>로 유지됐고, 각 Token의 마지막 차원에서 평균은 사실상 0, 분산은 1이 됐다. <code>-2.9802e-08</code>도 <code>-0.000000029802</code>이므로 float32 반올림 오차 수준의 0이다.</p>
+<p><strong>당시 Post-LN 흐름 연결</strong> — 이 단계에서는 <code>Attention → Residual → LayerNorm → FFN → Residual → LayerNorm</code>을 실제 Tensor로 연결했다. Dropout 통합 전이었으므로 당시에는 Transformer Block 전체를 완료 처리하지 않았다.</p>
+<p><strong>아직 남은 설명 검증</strong> — 현재 기본 초기값의 LayerNorm 출력에서 평균 0·분산 1을 확인했다. 학습 후 <code>γ</code>와 <code>β</code>가 조정되면 최종 출력의 평균과 분산이 정확히 0과 1일 필요는 없다는 점은 아직 자기 말로 다시 설명하는 검증이 남아 있다.</p>
 
-    <section class="detail-section" id="dropout">
-      <h2>Dropout의 훈련·평가 모드 비교</h2>
-      <p>현재 FFN 분기에서는 두 번째 Linear가 만든 <code>contracted_output</code>에 Dropout을 적용한 뒤 Residual로 더한다.</p>
-      <pre><code>ffn_residual_output
-= normalized_output + dropout(contracted_output)</code></pre>
-      <h3><code>train()</code>에서는 일부 원소를 무작위로 끈다</h3>
-      <pre><code>p = 0.5
+</section>
+<section id="document-section-3" class="markdown-section">
+<h2>Dropout의 훈련·평가 모드 비교</h2>
+<p>현재 FFN 분기에서는 두 번째 Linear가 만든 <code>contracted_output</code>에 Dropout을 적용한 뒤 Residual로 더한다.</p>
+<pre><code>ffn_residual_output
+= normalized_output + dropout(contracted_output)
+</code></pre>
+<h3><code>train()</code>에서는 일부 원소를 무작위로 끈다</h3>
+<pre><code>p = 0.5
 torch.manual_seed(0)
 
 contracted_output:
@@ -101,25 +121,28 @@ tensor([[[-0.0000,  0.0000],
          [-0.9004,  0.0000]]])
 
 shape:
-torch.Size([1, 2, 2])</code></pre>
-      <p><code>p=0.5</code>는 전체 네 원소 중 정확히 두 개를 반드시 끈다는 뜻이 아니다. 각 원소를 서로 독립적으로 50% 확률로 끄므로, 이번처럼 네 개 중 세 개가 0이 될 수도 있다.</p>
-      <p>살아남은 값은 평균적인 출력 크기를 유지하도록 <code>1 / (1-p)</code>배 된다.</p>
-      <pre><code>p = 0.5
+torch.Size([1, 2, 2])
+</code></pre>
+<p><code>p=0.5</code>는 전체 네 원소 중 정확히 두 개를 반드시 끈다는 뜻이 아니다. 각 원소를 서로 독립적으로 50% 확률로 끄므로, 이번처럼 네 개 중 세 개가 0이 될 수도 있다.</p>
+<p>살아남은 값은 평균적인 출력 크기를 유지하도록 <code>1 / (1-p)</code>배 된다.</p>
+<pre><code>p = 0.5
 1 / (1 - 0.5) = 2
 
--0.4502 × 2 = -0.9004</code></pre>
-      <h3><code>eval()</code>에서는 Dropout 동작을 끈다</h3>
-      <pre><code>eval_output == contracted_output
+-0.4502 × 2 = -0.9004
+</code></pre>
+<h3><code>eval()</code>에서는 Dropout 동작을 끈다</h3>
+<pre><code>eval_output == contracted_output
 torch.allclose(eval_output, contracted_output)
-# True</code></pre>
-      <div class="caution"><strong>직접 설명한 결론</strong> — “똑같게 나오네. Dropout이 꺼져 있어서 그런가 보네.” 정확한 해석이다. <code>eval()</code>은 Dropout 모듈을 삭제하는 것이 아니라 무작위로 원소를 끄는 동작을 비활성화한다. 다시 <code>train()</code>을 호출하면 Dropout 동작이 재활성화된다.</div>
-      <div class="caution"><strong>당시 검증 범위</strong> — Dropout의 Shape 유지, 독립적인 확률적 제거, 살아남은 값의 보정, <code>train()/eval()</code> 차이를 먼저 확인했다. 이 시점에는 낱개 연산을 Dropout 위치까지 포함한 하나의 <code>TransformerBlock.forward()</code>로 묶는 작업이 남아 있었다.</div>
-    </section>
+# True
+</code></pre>
+<p><strong>직접 설명한 결론</strong> — “똑같게 나오네. Dropout이 꺼져 있어서 그런가 보네.” 정확한 해석이다. <code>eval()</code>은 Dropout 모듈을 삭제하는 것이 아니라 무작위로 원소를 끄는 동작을 비활성화한다. 다시 <code>train()</code>을 호출하면 Dropout 동작이 재활성화된다.</p>
+<p><strong>당시 검증 범위</strong> — Dropout의 Shape 유지, 독립적인 확률적 제거, 살아남은 값의 보정, <code>train()/eval()</code> 차이를 먼저 확인했다. 이 시점에는 낱개 연산을 Dropout 위치까지 포함한 하나의 <code>TransformerBlock.forward()</code>로 묶는 작업이 남아 있었다.</p>
 
-    <section class="detail-section" id="transformer-block-completion">
-      <h2>TransformerBlock 통합 검증 완료</h2>
-      <p>낱개로 확인한 Attention, 두 Dropout, 두 Residual, 두 LayerNorm과 FFN을 하나의 <code>forward()</code>로 연결했다.</p>
-      <pre><code>Attention
+</section>
+<section id="document-section-4" class="markdown-section">
+<h2>TransformerBlock 통합 검증 완료</h2>
+<p>낱개로 확인한 Attention, 두 Dropout, 두 Residual, 두 LayerNorm과 FFN을 하나의 <code>forward()</code>로 연결했다.</p>
+<pre><code>Attention
 → Attention Dropout
 → x + Attention 출력
 → LayerNorm 1
@@ -128,13 +151,21 @@ torch.allclose(eval_output, contracted_output)
 → Linear(d_ff, d_model)
 → FFN Dropout
 → normalized_output + FFN 수정값
-→ LayerNorm 2</code></pre>
-      <p>입력과 출력 Shape은 모두 <code>[batch, token, d_model]=[1,2,2]</code>였다. 최종 출력의 Token별 평균 <code>[2.98e-08, 2.98e-08]</code>은 사실상 0이고, <code>unbiased=False</code> 분산은 <code>[1,1]</code>이었다.</p>
-      <div class="caution"><strong>FFN 역할 설명 완료</strong> — 첫 Linear는 <code>d_model → d_ff</code>로 중간 특징 공간을 만들고, GELU는 그 중간 반응의 전달 정도를 부드럽게 조절하며, 두 번째 Linear는 <code>d_ff → d_model</code>의 수정값을 만든다. 양수는 관련 있고 음수는 무관하다고 고정해서 해석하지 않는다.</div>
-      <div class="caution"><strong>앞선 열린 질문의 후속 결과</strong> — Dropout 위치까지 포함한 통합 구현, 입력·출력 Shape 검증과 두 Residual의 역할 설명을 마쳐 Transformer Block 완료 관문을 닫았다.</div>
-    </section>
+→ LayerNorm 2
+</code></pre>
+<p>입력과 출력 Shape은 모두 <code>[batch, token, d_model]=[1,2,2]</code>였다. 최종 출력의 Token별 평균 <code>[2.98e-08, 2.98e-08]</code>은 사실상 0이고, <code>unbiased=False</code> 분산은 <code>[1,1]</code>이었다.</p>
+<p><strong>FFN 역할 설명 완료</strong> — 첫 Linear는 <code>d_model → d_ff</code>로 중간 특징 공간을 만들고, GELU는 그 중간 반응의 전달 정도를 부드럽게 조절하며, 두 번째 Linear는 <code>d_ff → d_model</code>의 수정값을 만든다. 양수는 관련 있고 음수는 무관하다고 고정해서 해석하지 않는다.</p>
+<p><strong>앞선 열린 질문의 후속 결과</strong> — Dropout 위치까지 포함한 통합 구현, 입력·출력 Shape 검증과 두 Residual의 역할 설명을 마쳐 Transformer Block 완료 관문을 닫았다.</p>
+
+</section>
+        
+      </article>
+    </div>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

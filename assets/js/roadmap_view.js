@@ -2,19 +2,17 @@
   const referenceIds = new Set(["adaptive", "method", "roadmap", "practice-pool", "chapters", "routine", "job-ready", "expansion"]);
   const sections = [...document.querySelectorAll("main > section[id]")];
   const contents = document.querySelector('nav[aria-label="목차"]');
-  if (!sections.length || !contents) return;
+  if (!sections.length) return;
 
   for (const section of sections) {
     if (referenceIds.has(section.id)) section.classList.add("roadmap-reference-section");
   }
-  for (const link of contents.querySelectorAll("a[href^='#']")) {
+  for (const link of contents?.querySelectorAll("a[href^='#']") || []) {
     if (referenceIds.has(link.hash.slice(1))) link.classList.add("roadmap-reference-link");
   }
 
-  const switcher = document.createElement("div");
-  switcher.className = "roadmap-view-switcher";
-  switcher.innerHTML = '<p><strong>요약 보기</strong>는 현재 상태와 완료 관문만 보여줍니다. 기존 역량·실습·확장 내용은 전체 참고서에 그대로 보존됩니다.</p><div class="roadmap-view-buttons"><button type="button" data-mode="overview">요약 보기</button><button type="button" data-mode="full">전체 참고서</button></div>';
-  contents.before(switcher);
+  const switcher = document.querySelector(".roadmap-view-switcher");
+  if (!switcher) return;
   const buttons = [...switcher.querySelectorAll("button")];
 
   function setMode(mode) {

@@ -1,5 +1,15 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Hugging Face Tokenizer·동적 Padding·Greedy·Temperature·Top-k·Top-p 수동 생성과 고정 Text 평가·로컬 Artifact 복원을 연결한 관문 기록"><title>사전학습 Causal LM 적용 · Road to LLM inference</title><link rel="stylesheet" href="../../../assets/css/portal.css?v=20260825-working-style-flat"><link rel="stylesheet" href="../../../assets/css/site-theme.css"><link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+<!-- Generated from content/wiki/projects/road-to-llm-inference/pretrained-causal-lm.md. Do not edit directly. source-sha256:86aa0fbcb52613ea35de0b390c0712efb4dda365113655ba2bb3176488d6bc0e -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tokenizer의 문자열↔Token ID 경계, 동적 Padding과 attention_mask, GPT-2 Logit [B,S,V], Batch별 마지막 실제 위치 선택, Greedy·Temperature·Top-k·Top-p 수동 생성, 고정 Text 평가와 로컬 Artifact 복원까지 직접 연결했습니다.">
+  <meta name="source-sha256" content="86aa0fbcb52613ea35de0b390c0712efb4dda365113655ba2bb3176488d6bc0e">
+  <title>사전학습 모델의 생성을 generate() 없이 풀어보기</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">
   <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
@@ -8,54 +18,132 @@
   <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="사전학습 Causal LM 적용 · Road to LLM inference">
-  <meta property="og:description" content="Hugging Face Tokenizer·동적 Padding·Greedy·Temperature·Top-k·Top-p 수동 생성과 고정 Text 평가·로컬 Artifact 복원을 연결한 관문 기록">
+  <meta property="og:title" content="사전학습 모델의 생성을 generate() 없이 풀어보기">
+  <meta property="og:description" content="Tokenizer의 문자열↔Token ID 경계, 동적 Padding과 attention_mask, GPT-2 Logit [B,S,V], Batch별 마지막 실제 위치 선택, Greedy·Temperature·Top-k·Top-p 수동 생성, 고정 Text 평가와 로컬 Artifact 복원까지 직접 연결했습니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html","name":"사전학습 Causal LM 적용 · Road to LLM inference","description":"Hugging Face Tokenizer·동적 Padding·Greedy·Temperature·Top-k·Top-p 수동 생성과 고정 Text 평가·로컬 Artifact 복원을 연결한 관문 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html"},"headline":"사전학습 Causal LM 적용 · Road to LLM inference","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#pretrained-causal-lm","name":"사전학습 Causal LM 적용","identifier":"pretrained-causal-lm"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"Road to LLM inference","item":"https://muscleleg.github.io/jaejun-wiki/#now-learning"},{"@type":"ListItem","position":3,"name":"사전학습 Causal LM 적용"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html","name":"사전학습 모델의 생성을 generate() 없이 풀어보기","description":"Tokenizer의 문자열↔Token ID 경계, 동적 Padding과 attention_mask, GPT-2 Logit [B,S,V], Batch별 마지막 실제 위치 선택, Greedy·Temperature·Top-k·Top-p 수동 생성, 고정 Text 평가와 로컬 Artifact 복원까지 직접 연결했습니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html"},"headline":"사전학습 모델의 생성을 generate() 없이 풀어보기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#pretrained-causal-lm","name":"사전학습 Causal LM 적용","identifier":"pretrained-causal-lm"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/pretrained-causal-lm.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-projects"},{"@type":"ListItem","position":4,"name":"사전학습 모델의 생성을 generate() 없이 풀어보기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference journey-artifact"><main class="wrap" data-learning-milestone="pretrained-causal-lm" data-milestone-status="complete">
-  <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../index.html#now-learning">Road to LLM inference</a><span class="separator">›</span><span aria-current="page">사전학습 Causal LM 적용</span></nav>
-  <header class="hero"><span class="eyebrow">Milestone 05 · complete</span><h1>사전학습 모델의 생성을<br><code>generate()</code> 없이 풀어보기</h1><p class="summary">Tokenizer의 문자열↔Token ID 경계, 동적 Padding과 attention_mask, GPT-2 Logit [B,S,V], Batch별 마지막 실제 위치 선택, Greedy·Temperature·Top-k·Top-p 수동 생성, 고정 Text 평가와 로컬 Artifact 복원까지 직접 연결했습니다.</p><div class="stats"><div class="stat">상태<strong>완료</strong></div><div class="stat">Batch Shape<strong>[2,7]</strong></div><div class="stat">Logit Shape<strong>[2,7,50257]</strong></div><div class="stat">검증 범위<strong>생성·평가·복원</strong></div></div></header>
-  <nav aria-label="문서 목차"><a href="#learning-purpose">학습 목적</a><a href="#artifacts">모델 이름</a><a href="#tokenizer">Tokenizer</a><a href="#padding">동적 Padding</a><a href="#vocabulary">ID·Embedding</a><a href="#source-navigation">소스 추적</a><a href="#forward">Forward</a><a href="#selection">마지막 실제 위치</a><a href="#greedy">Greedy</a><a href="#decode">ID 연결</a><a href="#temperature">Temperature</a><a href="#top-k">Top-k</a><a href="#top-p">Top-p</a><a href="#causal-lm-loss">평균 Loss</a><a href="#corrections">디버깅·한계</a><a href="#remaining">완료 조건</a></nav>
-  <section id="learning-purpose"><h2>이 관문에서 알고자 한 것</h2><p class="learning-purpose-intro"><strong>목적</strong><br>Tiny Decoder LM에서 직접 만든 구조가 Hugging Face 사전학습 모델 안에서는 어떤 API와 Tensor로 나타나는지 연결하려고 했습니다. <code>generate()</code>가 해 주는 일을 바로 호출하지 않고, 문자열을 Token ID로 만들고 Batch를 맞추고 <code>[B,S,V]</code> Logit에서 다음 ID를 선택해 다시 문자열로 붙이는 흐름을 직접 구현하는 것이 현재 관문의 목적입니다.</p><div class="learning-sequence">
-    <article class="learning-step"><span>질문 01</span><h3>모델 이름 하나로 Tokenizer와 Model을 불러오면 무엇이 함께 준비되는가?</h3><p><strong>사용한 코드</strong> <code>Tokenizer.from_pretrained()</code>·<code>AutoModelForCausalLM.from_pretrained()</code>·Config·Cache</p><p><strong>확인할 이해</strong> 같은 식별자의 Vocabulary·Tokenizer 규칙·모델 구조·사전학습 Weight가 연결되며, Tokenizer와 Model은 다른 객체지만 동일한 Token ID 계약을 공유합니다.</p><a href="#artifacts">Artifact 경계 보기 →</a></article>
-    <article class="learning-step"><span>질문 02</span><h3>길이가 다른 문장들을 왜 그대로 하나의 Tensor로 만들 수 없는가?</h3><p><strong>사용한 코드</strong> <code>tokenizer(texts,padding=True,return_tensors="pt")</code>·<code>input_ids</code>·<code>attention_mask</code></p><p><strong>확인할 이해</strong> 현재 Batch 최장 길이까지 PAD ID를 채워 직사각형 <code>[B,S]</code>를 만들고, Mask 0으로 실제 문맥이 아닌 위치를 모델에 알립니다.</p><a href="#padding">동적 Padding 보기 →</a></article>
-    <article class="learning-step"><span>질문 03</span><h3>Token ID는 모델 내부에서 실제로 어디서 벡터가 되는가?</h3><p><strong>사용한 코드</strong> <code>type(model)</code>·<code>inspect.getfile()</code>·GPT-2의 <code>self.wte(input_ids)</code></p><p><strong>확인할 이해</strong> Tokenizer는 정수 ID까지만 만들고, 모델의 <code>nn.Embedding</code>이 그 ID의 학습된 벡터 행을 조회합니다. LM Head는 같은 ID 축의 후보 점수를 다시 출력합니다.</p><a href="#source-navigation">실제 소스 추적 보기 →</a></article>
-    <article class="learning-step"><span>질문 04</span><h3>왜 입력 <code>[2,7]</code>에서 Logit <code>[2,7,50257]</code>이 나오는가?</h3><p><strong>사용한 코드</strong> <code>model(input_ids,attention_mask).logits</code>·Shape 출력</p><p><strong>확인할 이해</strong> Transformer는 Token 위치를 유지하고 위치마다 Vocabulary 전체 점수를 내며, 이는 Tiny Decoder의 <code>[1,3,10]</code>과 같은 구조입니다. 정답을 넣지 않았으므로 아직 Loss는 없습니다.</p><a href="#forward">사전학습 Forward 보기 →</a></article>
-    <article class="learning-step"><span>질문 05</span><h3>Padding된 Batch에서 문장마다 다음 Token 후보 행을 어떻게 고르는가?</h3><p><strong>사용한 코드</strong> <code>attention_mask.sum(dim=1)-1</code>·<code>arange(B)</code>·<code>logits[batch_indices,last_positions,:]</code></p><p><strong>확인할 이해</strong> 0번 문장의 2번 위치와 1번 문장의 6번 위치를 짝지어 선택해 <code>[2,50257]</code>을 만들며, 실수 Logit Tensor가 아니라 정수 위치 Tensor가 index가 됩니다.</p><a href="#selection">마지막 실제 위치 보기 →</a></article>
-    <article class="learning-step"><span>질문 06</span><h3>후보 하나를 골라 문장을 늘리는 방법은 선택 전략에 따라 어떻게 달라지는가?</h3><p><strong>사용한 코드</strong> Greedy <code>argmax</code>·Temperature 나눗셈·<code>softmax</code>·<code>multinomial</code>·<code>cat</code>·<code>decode</code></p><p><strong>확인할 이해</strong> Greedy는 가장 큰 ID를 고정 선택하고, Temperature Sampling은 모든 후보의 격차를 바꾼 뒤 비중대로 추첨합니다. 다양해진 출력이 곧 더 좋은 문장을 뜻하지는 않습니다.</p><a href="#greedy">수동 생성 보기 →</a></article>
-    <article class="learning-step"><span>질문 07</span><h3><code>labels=input_ids</code>인데 왜 현재 Token이 아니라 다음 Token Loss가 되는가?</h3><p><strong>연결한 원리</strong> Tiny Decoder에서 직접 만든 <code>input=tokens[:,:-1]</code>·<code>target=tokens[:,1:]</code> Shift</p><p><strong>확인한 이해</strong> Hugging Face Causal LM은 같은 Shift를 내부에서 수행하며, 문장마다 정답 하나가 아니라 Batch 안 모든 유효 위치의 다음 Token Loss를 평균해 scalar 하나를 반환합니다.</p><a href="#causal-lm-loss">평균 Loss 구조 보기 →</a></article>
-  </div></section>
-  <section id="artifacts"><h2>1. 모델 이름은 같은 저장소의 Artifact 묶음을 찾는 주소입니다</h2><p><code>from_pretrained(model_name)</code>은 Python이 이름만 보고 임의의 구조를 만드는 호출이 아닙니다. 모델 허브의 같은 식별자 아래에서 Tokenizer 설정·Vocabulary·Model Config·사전학습 Weight를 찾아 캐시에 내려받고, Auto 클래스가 Config에 맞는 실제 구현 클래스를 선택합니다.</p><pre><code>model_name = "sshleifer/tiny-gpt2"
+<body class="wiki-reference markdown-document">
+  <main class="wrap" data-learning-milestone="pretrained-causal-lm" data-milestone-status="complete">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="separator">›</span><span aria-current="page">사전학습 모델의 생성을 generate() 없이 풀어보기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">개인 프로젝트</span>
+      <h1>사전학습 모델의 생성을 generate() 없이 풀어보기</h1>
+      <p class="lead">Tokenizer의 문자열↔Token ID 경계, 동적 Padding과 attention_mask, GPT-2 Logit [B,S,V], Batch별 마지막 실제 위치 선택, Greedy·Temperature·Top-k·Top-p 수동 생성, 고정 Text 평가와 로컬 Artifact 복원까지 직접 연결했습니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#learning-purpose">이 관문에서 알고자 한 것</a>
+        <a href="#artifacts">1. 모델 이름은 같은 저장소의 Artifact 묶음을 찾는 주소입니다</a>
+        <a href="#tokenizer">2. Tokenizer는 문자열을 Token ID와 조각으로 바꿉니다</a>
+        <a href="#padding">3. Padding은 현재 Batch의 최장 문장에 맞춥니다</a>
+        <a href="#vocabulary">4. Tokenizer·Embedding·LM Head가 같은 ID 축을 공유합니다</a>
+        <a href="#source-navigation">5. 실제 모델 소스에서 ID 조회 지점을 찾았습니다</a>
+        <a href="#forward">6. 사전학습 Weight가 들어 있는 모델 Forward</a>
+        <a href="#selection">7. Padding 뒤가 아니라 문장별 마지막 실제 Token을 골랐습니다</a>
+        <a href="#greedy">8. Greedy 수동 생성</a>
+        <a href="#decode">9. 선택한 ID를 기존 문장 뒤에 붙이고 다시 문자열로 읽었습니다</a>
+        <a href="#temperature">10. Temperature로 격차를 조절한 뒤 비중대로 추첨했습니다</a>
+        <a href="#top-k">11. Top-k 10개 후보 안에서 추첨했습니다</a>
+        <a href="#top-p">12. Top-p 0.8로 누적 경계 안에서 반복 생성했습니다</a>
+        <a href="#causal-lm-loss">13. 같은 Token 열이 위치별 다음 Token 정답이 되는 이유</a>
+        <a href="#corrections">14. 막혔던 지점과 수정</a>
+        <a href="#remaining">15. 완료 조건 확인</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="learning-purpose" class="markdown-section">
+<h2>이 관문에서 알고자 한 것</h2>
+<p><strong>목적</strong><br>Tiny Decoder LM에서 직접 만든 구조가 Hugging Face 사전학습 모델 안에서는 어떤 API와 Tensor로 나타나는지 연결하려고 했습니다. <code>generate()</code>가 해 주는 일을 바로 호출하지 않고, 문자열을 Token ID로 만들고 Batch를 맞추고 <code>[B,S,V]</code> Logit에서 다음 ID를 선택해 다시 문자열로 붙이는 흐름을 직접 구현하는 것이 현재 관문의 목적입니다.</p>
+<p>질문 01</p>
+<h3>모델 이름 하나로 Tokenizer와 Model을 불러오면 무엇이 함께 준비되는가?</h3>
+<p><strong>사용한 코드</strong> <code>Tokenizer.from_pretrained()</code>·<code>AutoModelForCausalLM.from_pretrained()</code>·Config·Cache</p>
+<p><strong>확인할 이해</strong> 같은 식별자의 Vocabulary·Tokenizer 규칙·모델 구조·사전학습 Weight가 연결되며, Tokenizer와 Model은 다른 객체지만 동일한 Token ID 계약을 공유합니다.</p>
+<p><a href="#artifacts">Artifact 경계 보기 →</a></p>
+<p>질문 02</p>
+<h3>길이가 다른 문장들을 왜 그대로 하나의 Tensor로 만들 수 없는가?</h3>
+<p><strong>사용한 코드</strong> <code>tokenizer(texts,padding=True,return_tensors=&quot;pt&quot;)</code>·<code>input_ids</code>·<code>attention_mask</code></p>
+<p><strong>확인할 이해</strong> 현재 Batch 최장 길이까지 PAD ID를 채워 직사각형 <code>[B,S]</code>를 만들고, Mask 0으로 실제 문맥이 아닌 위치를 모델에 알립니다.</p>
+<p><a href="#padding">동적 Padding 보기 →</a></p>
+<p>질문 03</p>
+<h3>Token ID는 모델 내부에서 실제로 어디서 벡터가 되는가?</h3>
+<p><strong>사용한 코드</strong> <code>type(model)</code>·<code>inspect.getfile()</code>·GPT-2의 <code>self.wte(input_ids)</code></p>
+<p><strong>확인할 이해</strong> Tokenizer는 정수 ID까지만 만들고, 모델의 <code>nn.Embedding</code>이 그 ID의 학습된 벡터 행을 조회합니다. LM Head는 같은 ID 축의 후보 점수를 다시 출력합니다.</p>
+<p><a href="#source-navigation">실제 소스 추적 보기 →</a></p>
+<p>질문 04</p>
+<h3>왜 입력 <code>[2,7]</code>에서 Logit <code>[2,7,50257]</code>이 나오는가?</h3>
+<p><strong>사용한 코드</strong> <code>model(input_ids,attention_mask).logits</code>·Shape 출력</p>
+<p><strong>확인할 이해</strong> Transformer는 Token 위치를 유지하고 위치마다 Vocabulary 전체 점수를 내며, 이는 Tiny Decoder의 <code>[1,3,10]</code>과 같은 구조입니다. 정답을 넣지 않았으므로 아직 Loss는 없습니다.</p>
+<p><a href="#forward">사전학습 Forward 보기 →</a></p>
+<p>질문 05</p>
+<h3>Padding된 Batch에서 문장마다 다음 Token 후보 행을 어떻게 고르는가?</h3>
+<p><strong>사용한 코드</strong> <code>attention_mask.sum(dim=1)-1</code>·<code>arange(B)</code>·<code>logits[batch_indices,last_positions,:]</code></p>
+<p><strong>확인할 이해</strong> 0번 문장의 2번 위치와 1번 문장의 6번 위치를 짝지어 선택해 <code>[2,50257]</code>을 만들며, 실수 Logit Tensor가 아니라 정수 위치 Tensor가 index가 됩니다.</p>
+<p><a href="#selection">마지막 실제 위치 보기 →</a></p>
+<p>질문 06</p>
+<h3>후보 하나를 골라 문장을 늘리는 방법은 선택 전략에 따라 어떻게 달라지는가?</h3>
+<p><strong>사용한 코드</strong> Greedy <code>argmax</code>·Temperature 나눗셈·<code>softmax</code>·<code>multinomial</code>·<code>cat</code>·<code>decode</code></p>
+<p><strong>확인할 이해</strong> Greedy는 가장 큰 ID를 고정 선택하고, Temperature Sampling은 모든 후보의 격차를 바꾼 뒤 비중대로 추첨합니다. 다양해진 출력이 곧 더 좋은 문장을 뜻하지는 않습니다.</p>
+<p><a href="#greedy">수동 생성 보기 →</a></p>
+<p>질문 07</p>
+<h3><code>labels=input_ids</code>인데 왜 현재 Token이 아니라 다음 Token Loss가 되는가?</h3>
+<p><strong>연결한 원리</strong> Tiny Decoder에서 직접 만든 <code>input=tokens[:,:-1]</code>·<code>target=tokens[:,1:]</code> Shift</p>
+<p><strong>확인한 이해</strong> Hugging Face Causal LM은 같은 Shift를 내부에서 수행하며, 문장마다 정답 하나가 아니라 Batch 안 모든 유효 위치의 다음 Token Loss를 평균해 scalar 하나를 반환합니다.</p>
+<p><a href="#causal-lm-loss">평균 Loss 구조 보기 →</a></p>
+
+</section>
+<section id="artifacts" class="markdown-section">
+<h2>1. 모델 이름은 같은 저장소의 Artifact 묶음을 찾는 주소입니다</h2>
+<p><code>from_pretrained(model_name)</code>은 Python이 이름만 보고 임의의 구조를 만드는 호출이 아닙니다. 모델 허브의 같은 식별자 아래에서 Tokenizer 설정·Vocabulary·Model Config·사전학습 Weight를 찾아 캐시에 내려받고, Auto 클래스가 Config에 맞는 실제 구현 클래스를 선택합니다.</p>
+<pre><code>model_name = &quot;sshleifer/tiny-gpt2&quot;
 
 Tokenizer.from_pretrained(model_name)
 → 문자열 규칙·Vocabulary·특수 Token 설정
 
 AutoModelForCausalLM.from_pretrained(model_name)
 → Config로 GPT2LMHeadModel 선택
-→ 사전학습 Weight 복원</code></pre><p>Tokenizer와 Model은 서로 다른 객체지만 같은 Token ID 체계를 공유해야 합니다. 원격 이름으로 받은 Tokenizer·Config·Weight를 로컬 폴더에 저장하고, 별도 Python 프로세스에서 <code>local_files_only=True</code>로 다시 불러와 같은 Token ID·Logit Shape·Loss가 나오는지 검증했습니다.</p><p>이번 모델은 이 실습에서 새로 학습한 모델이 아니라 이미 학습된 원본을 그대로 불러온 것이므로, 저장 전후 값이 같은 것이 정상입니다. 이번 저장의 목적은 새로운 학습 결과를 보존하는 데 있지 않고, 모델을 로컬·오프라인 환경이나 RunPod로 옮기거나 이후 Fine-tuning 결과를 다룰 때 필요한 <strong>Artifact 저장·복원 흐름 자체</strong>를 검증하는 데 있습니다.</p><div class="status-list"><div class="status-row"><strong>두 논리 묶음과 실제 파일</strong><span>Model 묶음은 Embedding·Transformer Block·LM Head를 포함한 <code>model.safetensors</code>와 <code>config.json</code>·<code>generation_config.json</code> 등으로 저장됩니다. Tokenizer 묶음은 <code>vocab.json</code>·<code>merges.txt</code>·<code>tokenizer.json</code>·Tokenizer 설정·Special token 설정 등 여러 파일로 저장됩니다. 논리적으로는 Model과 Tokenizer 두 묶음이지만 디스크 파일이 두 개뿐이라는 뜻은 아닙니다.</span></div><div class="status-row"><strong>새 프로세스 복원 결과</strong><span><code>GPT2LMHeadModel</code>·<code>GPT2TokenizerFast</code>를 로컬 파일만으로 복원해 Token ID <code>[[40,2050,13]]</code>, Logit Shape <code>[1,3,50257]</code>, Loss <code>10.831886291503906</code>을 재현했습니다.</span></div></div></section>
-  <section id="tokenizer"><h2>2. Tokenizer는 문자열을 Token ID와 조각으로 바꿉니다</h2><pre><code>from transformers import GPT2TokenizerFast
+→ 사전학습 Weight 복원
+</code></pre>
+<p>Tokenizer와 Model은 서로 다른 객체지만 같은 Token ID 체계를 공유해야 합니다. 원격 이름으로 받은 Tokenizer·Config·Weight를 로컬 폴더에 저장하고, 별도 Python 프로세스에서 <code>local_files_only=True</code>로 다시 불러와 같은 Token ID·Logit Shape·Loss가 나오는지 검증했습니다.</p>
+<p>이번 모델은 이 실습에서 새로 학습한 모델이 아니라 이미 학습된 원본을 그대로 불러온 것이므로, 저장 전후 값이 같은 것이 정상입니다. 이번 저장의 목적은 새로운 학습 결과를 보존하는 데 있지 않고, 모델을 로컬·오프라인 환경이나 RunPod로 옮기거나 이후 Fine-tuning 결과를 다룰 때 필요한 Artifact 저장·복원 흐름 자체를 검증하는 데 있습니다.</p>
+<p><strong>두 논리 묶음과 실제 파일</strong>Model 묶음은 Embedding·Transformer Block·LM Head를 포함한 <code>model.safetensors</code>와 <code>config.json</code>·<code>generation_config.json</code> 등으로 저장됩니다. Tokenizer 묶음은 <code>vocab.json</code>·<code>merges.txt</code>·<code>tokenizer.json</code>·Tokenizer 설정·Special token 설정 등 여러 파일로 저장됩니다. 논리적으로는 Model과 Tokenizer 두 묶음이지만 디스크 파일이 두 개뿐이라는 뜻은 아닙니다.</p>
+<p><strong>새 프로세스 복원 결과</strong><code>GPT2LMHeadModel</code>·<code>GPT2TokenizerFast</code>를 로컬 파일만으로 복원해 Token ID <code>[[40,2050,13]]</code>, Logit Shape <code>[1,3,50257]</code>, Loss <code>10.831886291503906</code>을 재현했습니다.</p>
 
-model_name: str = "sshleifer/tiny-gpt2"
+</section>
+<section id="tokenizer" class="markdown-section">
+<h2>2. Tokenizer는 문자열을 Token ID와 조각으로 바꿉니다</h2>
+<pre><code>from transformers import GPT2TokenizerFast
+
+model_name: str = &quot;sshleifer/tiny-gpt2&quot;
 tokenizer: GPT2TokenizerFast = GPT2TokenizerFast.from_pretrained(model_name)
 tokenizer.pad_token = tokenizer.eos_token
 
 texts: list[str] = [
-    "I study.",
-    "I study transformers every day.",
+    &quot;I study.&quot;,
+    &quot;I study transformers every day.&quot;,
 ]
 batch: dict[str, torch.Tensor] = tokenizer(
     texts,
-    return_tensors="pt",
+    return_tensors=&quot;pt&quot;,
     padding=True,
 )
 
-input_ids: torch.Tensor = batch["input_ids"]
-attention_mask: torch.Tensor = batch["attention_mask"]</code></pre><p>Tokenizer가 반환한 <code>input_ids</code>는 Embedding 벡터가 아니라 정수 주소입니다. <code>tokenizer.convert_ids_to_tokens(...)</code>로 Token 조각을 볼 수 있고 <code>tokenizer.decode(...)</code>로 ID 목록을 문자열로 조립할 수 있지만, 문맥 벡터와 다음 Token 점수는 모델을 호출해야 생깁니다.</p></section>
-  <section id="padding"><h2>3. Padding은 현재 Batch의 최장 문장에 맞춥니다</h2><pre><code>input_ids:
+input_ids: torch.Tensor = batch[&quot;input_ids&quot;]
+attention_mask: torch.Tensor = batch[&quot;attention_mask&quot;]
+</code></pre>
+<p>Tokenizer가 반환한 <code>input_ids</code>는 Embedding 벡터가 아니라 정수 주소입니다. <code>tokenizer.convert_ids_to_tokens(...)</code>로 Token 조각을 볼 수 있고 <code>tokenizer.decode(...)</code>로 ID 목록을 문자열로 조립할 수 있지만, 문맥 벡터와 다음 Token 점수는 모델을 호출해야 생깁니다.</p>
+
+</section>
+<section id="padding" class="markdown-section">
+<h2>3. Padding은 현재 Batch의 최장 문장에 맞춥니다</h2>
+<pre><code>input_ids:
 [[   40, 2050,   13, 50256, 50256, 50256, 50256],
  [   40, 2050, 6121,   364,  790,  1110,    13]]
 
@@ -63,8 +151,15 @@ attention_mask:
 [[1, 1, 1, 0, 0, 0, 0],
  [1, 1, 1, 1, 1, 1, 1]]
 
-Shape: [2, 7]</code></pre><p>길이 3·7 문장을 한 Tensor로 만들려면 직사각형 Shape이 필요합니다. <code>padding=True</code>를 빼면 길이가 다른 ID 리스트를 하나의 <code>return_tensors="pt"</code> Tensor로 쌓을 수 없어 오류가 납니다. 한 문장만 넣으면 그 문장 길이 3이 현재 Batch의 최대이므로 <code>[1,3]</code>이 되고 뒤에 0 Mask가 붙지 않습니다.</p><p>GPT-2 Tokenizer는 기본 PAD Token이 없어서 이 실습에서는 EOS Token을 PAD 역할로 지정했습니다. <code>attention_mask</code>가 1인 위치만 실제 입력 문맥으로 사용하고 0인 Padding 위치를 Attention에서 제외하도록 모델에 함께 전달했습니다. Padding Mask는 길이를 맞추기 위한 가짜 위치를 막고, Causal Mask는 실제 Token 중 미래 위치를 막는 서로 다른 Mask입니다.</p></section>
-  <section id="vocabulary"><h2>4. Tokenizer·Embedding·LM Head가 같은 ID 축을 공유합니다</h2><pre><code>Tokenizer
+Shape: [2, 7]
+</code></pre>
+<p>길이 3·7 문장을 한 Tensor로 만들려면 직사각형 Shape이 필요합니다. <code>padding=True</code>를 빼면 길이가 다른 ID 리스트를 하나의 <code>return_tensors=&quot;pt&quot;</code> Tensor로 쌓을 수 없어 오류가 납니다. 한 문장만 넣으면 그 문장 길이 3이 현재 Batch의 최대이므로 <code>[1,3]</code>이 되고 뒤에 0 Mask가 붙지 않습니다.</p>
+<p>GPT-2 Tokenizer는 기본 PAD Token이 없어서 이 실습에서는 EOS Token을 PAD 역할로 지정했습니다. <code>attention_mask</code>가 1인 위치만 실제 입력 문맥으로 사용하고 0인 Padding 위치를 Attention에서 제외하도록 모델에 함께 전달했습니다. Padding Mask는 길이를 맞추기 위한 가짜 위치를 막고, Causal Mask는 실제 Token 중 미래 위치를 막는 서로 다른 Mask입니다.</p>
+
+</section>
+<section id="vocabulary" class="markdown-section">
+<h2>4. Tokenizer·Embedding·LM Head가 같은 ID 축을 공유합니다</h2>
+<pre><code>Tokenizer
 문자열 → Token ID
 
 Model Token Embedding
@@ -73,16 +168,30 @@ Token ID → Weight의 해당 행 벡터
 
 LM Head
 문맥 벡터 → 같은 Vocabulary ID별 Logit
-[d_model, vocab_size] 계산</code></pre><p>Tokenizer의 Vocabulary는 문자열 조각과 정수 ID의 대응표이고, 모델의 Embedding은 그 ID마다 학습된 숫자 벡터를 저장한 표입니다. 두 객체는 다르지만 Tokenizer가 낼 수 있는 ID가 Embedding의 행 범위를 벗어나면 조회할 수 없습니다. 연속 ID가 <code>0~50256</code>이라면 행 수는 최대 ID보다 1 큰 50,257개여야 합니다. LM Head의 출력 열도 같은 50,257개라야 예측한 index를 다시 Tokenizer로 decode할 수 있습니다.</p><p>Tiny Decoder LM에서는 숫자 0~9를 직접 ID로 넣어 이 구조를 작게 만들었습니다. 여기서는 실제 Tokenizer가 문자열을 50,257개 ID 체계로 바꾸고, 사전학습 Embedding이 그 ID의 의미 벡터를 조회한다는 차이가 있습니다.</p></section>
-  <section id="source-navigation"><h2>5. 실제 모델 소스에서 ID 조회 지점을 찾았습니다</h2><p>Java IDE처럼 모델 내부를 보고 싶을 때는 전체 라이브러리를 처음부터 읽지 않고 런타임 객체의 실제 클래스와 파일부터 좁혔습니다. VS Code의 정의로 이동이 되지 않더라도 Python의 <code>type</code>과 <code>inspect</code>로 설치된 구현 파일을 찾을 수 있습니다.</p><pre><code>import inspect
+[d_model, vocab_size] 계산
+</code></pre>
+<p>Tokenizer의 Vocabulary는 문자열 조각과 정수 ID의 대응표이고, 모델의 Embedding은 그 ID마다 학습된 숫자 벡터를 저장한 표입니다. 두 객체는 다르지만 Tokenizer가 낼 수 있는 ID가 Embedding의 행 범위를 벗어나면 조회할 수 없습니다. 연속 ID가 <code>0~50256</code>이라면 행 수는 최대 ID보다 1 큰 50,257개여야 합니다. LM Head의 출력 열도 같은 50,257개라야 예측한 index를 다시 Tokenizer로 decode할 수 있습니다.</p>
+<p>Tiny Decoder LM에서는 숫자 0~9를 직접 ID로 넣어 이 구조를 작게 만들었습니다. 여기서는 실제 Tokenizer가 문자열을 50,257개 ID 체계로 바꾸고, 사전학습 Embedding이 그 ID의 의미 벡터를 조회한다는 차이가 있습니다.</p>
+
+</section>
+<section id="source-navigation" class="markdown-section">
+<h2>5. 실제 모델 소스에서 ID 조회 지점을 찾았습니다</h2>
+<p>Java IDE처럼 모델 내부를 보고 싶을 때는 전체 라이브러리를 처음부터 읽지 않고 런타임 객체의 실제 클래스와 파일부터 좁혔습니다. VS Code의 정의로 이동이 되지 않더라도 Python의 <code>type</code>과 <code>inspect</code>로 설치된 구현 파일을 찾을 수 있습니다.</p>
+<pre><code>import inspect
 
 print(type(model))
 print(inspect.getfile(type(model)))
 
 # GPT-2 구현에서 먼저 찾은 두 줄
 self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
-inputs_embeds = self.wte(input_ids)</code></pre><p>첫 줄은 Token Embedding 표를 어디서 만드는지, 둘째 줄은 Forward에서 <code>input_ids</code>를 실제로 그 표에 넣는 지점입니다. 이 두 줄을 연결해 “ID를 넣으면 Vocabulary에 대응하는 벡터를 가져온다”는 추측을 라이브러리 소스로 확인했습니다. 분석할 때는 선언 → 실제 입력 사용 → 반환 Shape의 세 지점을 먼저 찾고, 전체 Attention 구현은 현재 질문에 필요할 때만 내려가는 방식을 남겼습니다.</p></section>
-  <section id="forward"><h2>6. 사전학습 Weight가 들어 있는 모델 Forward</h2><pre><code>from transformers import AutoModelForCausalLM
+inputs_embeds = self.wte(input_ids)
+</code></pre>
+<p>첫 줄은 Token Embedding 표를 어디서 만드는지, 둘째 줄은 Forward에서 <code>input_ids</code>를 실제로 그 표에 넣는 지점입니다. 이 두 줄을 연결해 “ID를 넣으면 Vocabulary에 대응하는 벡터를 가져온다”는 추측을 라이브러리 소스로 확인했습니다. 분석할 때는 선언 → 실제 입력 사용 → 반환 Shape의 세 지점을 먼저 찾고, 전체 Attention 구현은 현재 질문에 필요할 때만 내려가는 방식을 남겼습니다.</p>
+
+</section>
+<section id="forward" class="markdown-section">
+<h2>6. 사전학습 Weight가 들어 있는 모델 Forward</h2>
+<pre><code>from transformers import AutoModelForCausalLM
 
 model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(model_name)
 model.eval()
@@ -94,12 +203,21 @@ with torch.no_grad():
     )
 
 logits: torch.Tensor = outputs.logits
-print(logits.shape)  # [2, 7, 50257]</code></pre><p><code>logits</code>는 정답과 비교한 Loss가 아니라 모델의 예측 후보 점수입니다. Batch의 각 문장, 각 Token 위치마다 Vocabulary 50,257개의 원시 점수가 나옵니다. Tiny Decoder LM의 <code>[1,3,10]</code>과 구조는 같고 실제 Vocabulary 축만 커졌습니다.</p><pre><code>input_ids [B,S] = [2,7]
+print(logits.shape)  # [2, 7, 50257]
+</code></pre>
+<p><code>logits</code>는 정답과 비교한 Loss가 아니라 모델의 예측 후보 점수입니다. Batch의 각 문장, 각 Token 위치마다 Vocabulary 50,257개의 원시 점수가 나옵니다. Tiny Decoder LM의 <code>[1,3,10]</code>과 구조는 같고 실제 Vocabulary 축만 커졌습니다.</p>
+<pre><code>input_ids [B,S] = [2,7]
   ↓ Token·Position Embedding + 여러 Causal Block
 hidden_states [B,S,D]
   ↓ LM Head가 마지막 D축만 V로 변환
-logits [B,S,V] = [2,7,50257]</code></pre><p>정답 Tensor를 함께 주지 않았으므로 Loss는 아직 없습니다. Logit은 Forward 출력이고, Loss는 나중에 Logit과 Target을 함께 Loss 함수에 넣을 때 계산된다는 경계도 다시 확인했습니다.</p></section>
-  <section id="selection"><h2>7. Padding 뒤가 아니라 문장별 마지막 실제 Token을 골랐습니다</h2><pre><code>real_token_counts: torch.Tensor = attention_mask.sum(dim=1)
+logits [B,S,V] = [2,7,50257]
+</code></pre>
+<p>정답 Tensor를 함께 주지 않았으므로 Loss는 아직 없습니다. Logit은 Forward 출력이고, Loss는 나중에 Logit과 Target을 함께 Loss 함수에 넣을 때 계산된다는 경계도 다시 확인했습니다.</p>
+
+</section>
+<section id="selection" class="markdown-section">
+<h2>7. Padding 뒤가 아니라 문장별 마지막 실제 Token을 골랐습니다</h2>
+<pre><code>real_token_counts: torch.Tensor = attention_mask.sum(dim=1)
 last_real_positions: torch.Tensor = real_token_counts - 1
 batch_indices: torch.Tensor = torch.arange(logits.shape[0])
 
@@ -111,17 +229,26 @@ last_real_logits: torch.Tensor = logits[
 
 # 0번 Batch → 2번 Token 위치 → 전체 Vocabulary 열
 # 1번 Batch → 6번 Token 위치 → 전체 Vocabulary 열
-# 결과 Shape: [2, 50257]</code></pre><p><code>attention_mask.sum(dim=1)</code>은 각 문장의 실제 Token 수 <code>[3,7]</code>을 구하고, index는 0부터 시작하므로 1을 빼 마지막 위치 <code>[2,6]</code>을 얻습니다. <code>batch_indices=[0,1]</code>과 이 위치 Tensor는 따로 범위를 만드는 것이 아니라 <code>(0,2)</code>, <code>(1,6)</code> 두 좌표로 짝지어집니다.</p><pre><code>logits [2,7,50257]
+# 결과 Shape: [2, 50257]
+</code></pre>
+<p><code>attention_mask.sum(dim=1)</code>은 각 문장의 실제 Token 수 <code>[3,7]</code>을 구하고, index는 0부터 시작하므로 1을 빼 마지막 위치 <code>[2,6]</code>을 얻습니다. <code>batch_indices=[0,1]</code>과 이 위치 Tensor는 따로 범위를 만드는 것이 아니라 <code>(0,2)</code>, <code>(1,6)</code> 두 좌표로 짝지어집니다.</p>
+<pre><code>logits [2,7,50257]
 
 0번 문장 → 2번 Token 위치 → Vocabulary 열 전체
 1번 문장 → 6번 Token 위치 → Vocabulary 열 전체
 
-last_real_logits [2,50257]</code></pre><p>잘못해서 <code>last_real_positions</code> 대신 실수 Logit Tensor인 <code>last_real_logits</code>를 index로 넣자 “indices must be long, int, byte or bool” 오류가 났습니다. Token 위치를 나타내는 정수 Tensor만 index가 될 수 있다는 점을 Traceback으로 확인했습니다.</p></section>
-  <section id="greedy"><h2>8. Greedy 수동 생성</h2><pre><code>prompt: str = "I study."
+last_real_logits [2,50257]
+</code></pre>
+<p>잘못해서 <code>last_real_positions</code> 대신 실수 Logit Tensor인 <code>last_real_logits</code>를 index로 넣자 “indices must be long, int, byte or bool” 오류가 났습니다. Token 위치를 나타내는 정수 Tensor만 index가 될 수 있다는 점을 Traceback으로 확인했습니다.</p>
+
+</section>
+<section id="greedy" class="markdown-section">
+<h2>8. Greedy 수동 생성</h2>
+<pre><code>prompt: str = &quot;I study.&quot;
 encoded: dict[str, torch.Tensor] = tokenizer(
-    prompt, return_tensors="pt"
+    prompt, return_tensors=&quot;pt&quot;
 )
-generated_ids: torch.Tensor = encoded["input_ids"]
+generated_ids: torch.Tensor = encoded[&quot;input_ids&quot;]
 
 for step in range(5):
     attention_mask: torch.Tensor = torch.ones_like(generated_ids)
@@ -136,20 +263,38 @@ for step in range(5):
         keepdim=True,
     )
     generated_ids = torch.cat([generated_ids, next_token_ids], dim=1)
-    print(tokenizer.decode(generated_ids[0]))</code></pre><pre><code>1: I study. factors
+    print(tokenizer.decode(generated_ids[0]))
+</code></pre>
+<pre><code>1: I study. factors
 2: I study. factors factors
 3: I study. factors factors factors
 4: I study. factors factors factors factors
 5: I study. factors factors factors factors factors
-최종 Shape: [1, 8]</code></pre><p><code>torch.ones_like(generated_ids)</code>는 Token ID 원소를 1로 바꾸지 않습니다. <code>generated_ids</code>와 같은 <code>[B,S]</code> Shape의 별도 Mask Tensor를 새로 만들고 모든 위치에 1을 채웁니다. 현재 반복 생성 Tensor에는 PAD가 없이 실제 Token만 들어 있으므로, 늘어난 모든 위치를 실제 Token이라고 모델에 알리는 Mask입니다.</p><p>Greedy는 마지막 위치 Vocabulary 점수에서 가장 큰 인덱스 하나만 고르므로 같은 문맥 패턴에서 반복에 빠질 수 있음을 직접 확인했습니다. 모델 품질의 결론이 아니라 선택 전략의 동작을 보기 위한 짧은 Prompt 실험입니다.</p></section>
-  <section id="decode"><h2>9. 선택한 ID를 기존 문장 뒤에 붙이고 다시 문자열로 읽었습니다</h2><p><code>argmax(dim=-1, keepdim=True)</code>는 각 문장의 마지막 위치에서 가장 큰 Vocabulary 점수의 <strong>값</strong>이 아니라 그 값이 있던 <strong>열 index</strong>, 즉 다음 Token ID를 <code>[B,1]</code>로 반환합니다.</p><pre><code>last_position_logits [B,V]
+최종 Shape: [1, 8]
+</code></pre>
+<p><code>torch.ones_like(generated_ids)</code>는 Token ID 원소를 1로 바꾸지 않습니다. <code>generated_ids</code>와 같은 <code>[B,S]</code> Shape의 별도 Mask Tensor를 새로 만들고 모든 위치에 1을 채웁니다. 현재 반복 생성 Tensor에는 PAD가 없이 실제 Token만 들어 있으므로, 늘어난 모든 위치를 실제 Token이라고 모델에 알리는 Mask입니다.</p>
+<p>Greedy는 마지막 위치 Vocabulary 점수에서 가장 큰 인덱스 하나만 고르므로 같은 문맥 패턴에서 반복에 빠질 수 있음을 직접 확인했습니다. 모델 품질의 결론이 아니라 선택 전략의 동작을 보기 위한 짧은 Prompt 실험입니다.</p>
+
+</section>
+<section id="decode" class="markdown-section">
+<h2>9. 선택한 ID를 기존 문장 뒤에 붙이고 다시 문자열로 읽었습니다</h2>
+<p><code>argmax(dim=-1, keepdim=True)</code>는 각 문장의 마지막 위치에서 가장 큰 Vocabulary 점수의 값이 아니라 그 값이 있던 <strong>열 index</strong>, 즉 다음 Token ID를 <code>[B,1]</code>로 반환합니다.</p>
+<pre><code>last_position_logits [B,V]
   ↓ argmax(dim=-1, keepdim=True)
 next_token_ids [B,1]
   ↓ cat(..., dim=1)
 extended_input_ids [B,S+1]
   ↓ tokenizer.decode(extended_input_ids[0])
-기존 Token ID와 새 ID가 이어진 문자열</code></pre><p><code>input_ids[0]</code>은 “문장의 첫 Token”이 아니라 Batch 축의 0번 항목, 즉 첫 번째 문장의 Token ID 전체입니다. 그래서 <code>decode(input_ids[0])</code>는 첫 문장 전체를 반환합니다. Tokenizer에 ID를 넣으면 문자열 조각을 찾고, 모델 Embedding에 같은 ID를 넣으면 숫자 벡터를 찾는다는 두 조회 방향도 이 코드에서 구분했습니다.</p><p>반복문은 현재 문장의 마지막 위치 후보를 고르고 → ID를 기존 입력 뒤에 붙이고 → 늘어난 전체 입력을 다시 모델에 넣는 과정을 5번 반복합니다. 현재 관문에서는 Cache를 쓰지 않으므로 매 단계마다 이전 Token 전체를 다시 Forward합니다.</p></section>
-  <section id="temperature"><h2>10. Temperature로 격차를 조절한 뒤 비중대로 추첨했습니다</h2><p>Greedy는 가장 큰 Logit index를 항상 고르지만 Temperature Sampling은 후보 사이의 격차를 먼저 바꾸고 Softmax 비중에 따라 하나를 무작위 추첨합니다.</p><pre><code>예시 Logit = [2, 1, 0]
+기존 Token ID와 새 ID가 이어진 문자열
+</code></pre>
+<p><code>input_ids[0]</code>은 “문장의 첫 Token”이 아니라 Batch 축의 0번 항목, 즉 첫 번째 문장의 Token ID 전체입니다. 그래서 <code>decode(input_ids[0])</code>는 첫 문장 전체를 반환합니다. Tokenizer에 ID를 넣으면 문자열 조각을 찾고, 모델 Embedding에 같은 ID를 넣으면 숫자 벡터를 찾는다는 두 조회 방향도 이 코드에서 구분했습니다.</p>
+<p>반복문은 현재 문장의 마지막 위치 후보를 고르고 → ID를 기존 입력 뒤에 붙이고 → 늘어난 전체 입력을 다시 모델에 넣는 과정을 5번 반복합니다. 현재 관문에서는 Cache를 쓰지 않으므로 매 단계마다 이전 Token 전체를 다시 Forward합니다.</p>
+
+</section>
+<section id="temperature" class="markdown-section">
+<h2>10. Temperature로 격차를 조절한 뒤 비중대로 추첨했습니다</h2>
+<p>Greedy는 가장 큰 Logit index를 항상 고르지만 Temperature Sampling은 후보 사이의 격차를 먼저 바꾸고 Softmax 비중에 따라 하나를 무작위 추첨합니다.</p>
+<pre><code>예시 Logit = [2, 1, 0]
 
 T = 0.5 → [4, 2, 0]
 → 큰 점수와 작은 점수의 격차가 더 커짐
@@ -161,36 +306,66 @@ T = 2.0 → [1, 0.5, 0]
 
 scaled = logits / T
 probabilities = softmax(scaled)
-next_id = multinomial(probabilities, 1)</code></pre><p>Softmax는 Logit에 <code>log</code>를 적용하는 것이 아니라 <code>exp</code>를 적용한 양수 비중을 계산합니다. <code>torch.multinomial</code>은 그 비중을 추첨 확률로 사용합니다. Temperature는 Vocabulary 후보 수를 줄이지 않으며 모든 후보를 남겨 둔 채 격차만 조절합니다.</p><pre><code>temperature: float = 1.5
+next_id = multinomial(probabilities, 1)
+</code></pre>
+<p>Softmax는 Logit에 <code>log</code>를 적용하는 것이 아니라 <code>exp</code>를 적용한 양수 비중을 계산합니다. <code>torch.multinomial</code>은 그 비중을 추첨 확률로 사용합니다. Temperature는 Vocabulary 후보 수를 줄이지 않으며 모든 후보를 남겨 둔 채 격차만 조절합니다.</p>
+<pre><code>temperature: float = 1.5
 scaled_logits: torch.Tensor = last_position_logits / temperature
 probabilities: torch.Tensor = torch.softmax(scaled_logits, dim=-1)
 next_token_ids: torch.Tensor = torch.multinomial(
     probabilities,
     num_samples=1,
 )
-generated_ids = torch.cat([generated_ids, next_token_ids], dim=1)</code></pre><p>Temperature는 후보 개수를 제한하지 않습니다. Logit을 나눠 후보 사이의 격차를 조절하고, Softmax로 선택 비중을 만든 뒤 그 비중에 따라 추첨합니다. 1보다 큰 1.5를 사용해 분포를 평평하게 만들자 Greedy와 달리 여러 Token이 선택됐습니다.</p><pre><code>I study. Juno fairy nuances poison furnace</code></pre><p>결과가 다양해졌지만 문장 일관성이 보장된 것은 아닙니다. “다양성 증가”와 “좋은 문장”을 같은 뜻으로 취급하지 않는 것이 이 실험의 핵심입니다.</p></section>
-  <section id="top-k"><h2>11. Top-k 10개 후보 안에서 추첨했습니다</h2><p><code>torch.topk(last_position_logits,k=10)</code>은 Vocabulary 전체에서 점수가 큰 후보 10개의 <strong>점수</strong>과 그 점수가 있던 <strong>실제 Vocabulary Token ID</strong>를 함께 반환합니다. <code>softmax(top_values)</code>는 이 10개 안에서만 합이 1인 선택 비중을 만들고, <code>multinomial</code>은 Top-k 목록 내부 위치 하나를 추첨합니다. 마지막으로 <code>gather(top_token_ids,...)</code>가 그 내부 위치를 실제 Token ID로 바꿉니다.</p><pre><code>첫 단계 상위 Token ID:
+generated_ids = torch.cat([generated_ids, next_token_ids], dim=1)
+</code></pre>
+<p>Temperature는 후보 개수를 제한하지 않습니다. Logit을 나눠 후보 사이의 격차를 조절하고, Softmax로 선택 비중을 만든 뒤 그 비중에 따라 추첨합니다. 1보다 큰 1.5를 사용해 분포를 평평하게 만들자 Greedy와 달리 여러 Token이 선택됐습니다.</p>
+<pre><code>I study. Juno fairy nuances poison furnace
+</code></pre>
+<p>결과가 다양해졌지만 문장 일관성이 보장된 것은 아닙니다. “다양성 증가”와 “좋은 문장”을 같은 뜻으로 취급하지 않는 것이 이 실험의 핵심입니다.</p>
+
+</section>
+<section id="top-k" class="markdown-section">
+<h2>11. Top-k 10개 후보 안에서 추첨했습니다</h2>
+<p><code>torch.topk(last_position_logits,k=10)</code>은 Vocabulary 전체에서 점수가 큰 후보 10개의 점수과 그 점수가 있던 실제 Vocabulary Token ID를 함께 반환합니다. <code>softmax(top_values)</code>는 이 10개 안에서만 합이 1인 선택 비중을 만들고, <code>multinomial</code>은 Top-k 목록 내부 위치 하나를 추첨합니다. 마지막으로 <code>gather(top_token_ids,...)</code>가 그 내부 위치를 실제 Token ID로 바꿉니다.</p>
+<pre><code>첫 단계 상위 Token ID:
 [5087, 13584, 31685, 21516, 40169,
  44317, 37808, 37416, 22363, 16566]
 
 표시용 Token 조각:
-["Ġfactors", "Ġmutual", "Ġdeflect", "ĠTelevision", "Ġboils",
- "ĠBoone", "Ġbravery", "ĠWheels", "Ġclearer", "Ġlined"]
+[&quot;Ġfactors&quot;, &quot;Ġmutual&quot;, &quot;Ġdeflect&quot;, &quot;ĠTelevision&quot;, &quot;Ġboils&quot;,
+ &quot;ĠBoone&quot;, &quot;Ġbravery&quot;, &quot;ĠWheels&quot;, &quot;Ġclearer&quot;, &quot;Ġlined&quot;]
 
 5회 선택:
 Television → bravery → boils → Wheels → Wheels
 
 최종 Token IDs:
 [40, 2050, 13, 21516, 37808, 40169, 37416, 37416]
-최종 Shape: [1, 8]</code></pre><p><code>top_token_pieces</code>는 후보 ID를 사람이 읽을 수 있는 Token 조각으로 확인하기 위한 표시용 값입니다. 추첨과 생성에는 <code>top_values</code>·<code>top_token_ids</code>·내부 위치와 실제 ID 변환만 필요하므로, 이 문자열 목록은 제거해도 생성 계산에는 영향을 주지 않습니다.</p><p>Temperature Sampling은 모든 Vocabulary 후보를 남긴 채 Logit 격차를 조절합니다. Top-k Sampling은 점수가 높은 후보 <code>k</code>개로 후보 수를 고정 제한한 뒤 그 안에서 추첨합니다. 이번 실행의 <code>torch.manual_seed(42)</code>는 Sampling의 무작위 추첨 순서를 다시 관찰하기 위한 Seed입니다. 모델을 학습하거나 품질을 바꾸지 않으며 Greedy 결과에도 영향을 주지 않습니다. 같은 환경의 실행 비교에는 도움이 되지만 실행 환경과 연산 방식까지 달라졌을 때 모든 결과가 절대적으로 같음을 보장하는 설정은 아닙니다.</p></section>
-  <section id="top-p"><h2>12. Top-p 0.8로 누적 경계 안에서 반복 생성했습니다</h2><p>같은 Prompt <code>"I study."</code>에서 매 단계의 마지막 위치 Logit을 Softmax 선택 비중으로 바꾸고, 큰 비중부터 정렬한 뒤 누적합이 <code>top_p=0.8</code>을 처음 넘게 만든 후보까지 남겼습니다. 경계 밖 비중을 0으로 만들고 합을 다시 1로 조정한 뒤, 정렬 목록의 위치를 추첨해 실제 Token ID로 변환하고 기존 ID 뒤에 붙이는 과정을 5회 반복했습니다.</p><pre><code>Prompt: "I study."
+최종 Shape: [1, 8]
+</code></pre>
+<p><code>top_token_pieces</code>는 후보 ID를 사람이 읽을 수 있는 Token 조각으로 확인하기 위한 표시용 값입니다. 추첨과 생성에는 <code>top_values</code>·<code>top_token_ids</code>·내부 위치와 실제 ID 변환만 필요하므로, 이 문자열 목록은 제거해도 생성 계산에는 영향을 주지 않습니다.</p>
+<p>Temperature Sampling은 모든 Vocabulary 후보를 남긴 채 Logit 격차를 조절합니다. Top-k Sampling은 점수가 높은 후보 <code>k</code>개로 후보 수를 고정 제한한 뒤 그 안에서 추첨합니다. 이번 실행의 <code>torch.manual_seed(42)</code>는 Sampling의 무작위 추첨 순서를 다시 관찰하기 위한 Seed입니다. 모델을 학습하거나 품질을 바꾸지 않으며 Greedy 결과에도 영향을 주지 않습니다. 같은 환경의 실행 비교에는 도움이 되지만 실행 환경과 연산 방식까지 달라졌을 때 모든 결과가 절대적으로 같음을 보장하는 설정은 아닙니다.</p>
+
+</section>
+<section id="top-p" class="markdown-section">
+<h2>12. Top-p 0.8로 누적 경계 안에서 반복 생성했습니다</h2>
+<p>같은 Prompt <code>&quot;I study.&quot;</code>에서 매 단계의 마지막 위치 Logit을 Softmax 선택 비중으로 바꾸고, 큰 비중부터 정렬한 뒤 누적합이 <code>top_p=0.8</code>을 처음 넘게 만든 후보까지 남겼습니다. 경계 밖 비중을 0으로 만들고 합을 다시 1로 조정한 뒤, 정렬 목록의 위치를 추첨해 실제 Token ID로 변환하고 기존 ID 뒤에 붙이는 과정을 5회 반복했습니다.</p>
+<pre><code>Prompt: &quot;I study.&quot;
 Top-p: 0.8
 반복 횟수: 5
 단계별 남은 후보 수: 39810 → 39807 → 39843 → 39806 → 39839
 최종 Token IDs: [40, 2050, 13, 27324, 29998, 49626, 29830, 48586]
 최종 Shape: [1, 8]
-생성 문자열: I study. strengthenedNASA overdoses Azerbai redress</code></pre><p>남은 후보 수가 단계마다 달라진 것은 Top-p가 고정 개수의 후보를 자르는 방식이 아니라, <strong>현재 문맥의 분포에서 누적 비중 0.8을 채우는 데 필요한 후보 수</strong>를 매번 다시 결정하기 때문입니다. <code>(~remove_mask).sum(dim=-1)</code>은 제거 표시를 반전해 유지 후보를 <code>True</code>로 만든 뒤 마지막 후보 축을 합산하여 Batch별 남은 후보 수를 셉니다. 이 계산으로 실제 <code>39810 → 39807 → 39843 → 39806 → 39839</code>를 확인했습니다. <code>multinomial</code>은 필터링된 비중에서 정렬 목록의 위치를 뽑고, <code>gather(sorted_token_ids,...)</code>가 그 위치를 실제 Token ID로 바꿨습니다.</p><div class="warning"><strong>검증 범위</strong><br>이 출력은 Top-p 필터링·재조정·추첨·ID 연결·반복 생성이 실제 모델의 전체 Vocabulary에서 이어졌다는 알고리즘 증거입니다. 생성 문자열의 자연스러움이나 모델 품질을 검증한 결과는 아닙니다. 관문 완료는 Top-p 단독 실행이 아니라 앞선 입력·Forward·Greedy·Temperature·Top-k와 뒤의 고정 Text 평가·Artifact 복원까지 함께 검증한 결과입니다.</div></section>
-  <section id="causal-lm-loss"><h2>13. 같은 Token 열이 위치별 다음 Token 정답이 되는 이유</h2><p>Tiny Decoder LM에서는 <code>tokens[:, :-1]</code>과 <code>tokens[:, 1:]</code>을 직접 만들어 입력과 Target을 한 칸 어긋나게 했습니다. Hugging Face의 Causal LM은 <code>labels=input_ids</code>를 전달하면 같은 대응을 모델 내부에서 만듭니다.</p><pre><code>입력 labels: [B, S]
+생성 문자열: I study. strengthenedNASA overdoses Azerbai redress
+</code></pre>
+<p>남은 후보 수가 단계마다 달라진 것은 Top-p가 고정 개수의 후보를 자르는 방식이 아니라, 현재 문맥의 분포에서 누적 비중 0.8을 채우는 데 필요한 후보 수를 매번 다시 결정하기 때문입니다. <code>(~remove_mask).sum(dim=-1)</code>은 제거 표시를 반전해 유지 후보를 <code>True</code>로 만든 뒤 마지막 후보 축을 합산하여 Batch별 남은 후보 수를 셉니다. 이 계산으로 실제 <code>39810 → 39807 → 39843 → 39806 → 39839</code>를 확인했습니다. <code>multinomial</code>은 필터링된 비중에서 정렬 목록의 위치를 뽑고, <code>gather(sorted_token_ids,...)</code>가 그 위치를 실제 Token ID로 바꿨습니다.</p>
+<aside class="md-component md-caution" data-component="caution"><div class="md-component-body"><p><strong>검증 범위</strong><br>이 출력은 Top-p 필터링·재조정·추첨·ID 연결·반복 생성이 실제 모델의 전체 Vocabulary에서 이어졌다는 알고리즘 증거입니다. 생성 문자열의 자연스러움이나 모델 품질을 검증한 결과는 아닙니다. 관문 완료는 Top-p 단독 실행이 아니라 앞선 입력·Forward·Greedy·Temperature·Top-k와 뒤의 고정 Text 평가·Artifact 복원까지 함께 검증한 결과입니다.</p>
+</div></aside>
+
+</section>
+<section id="causal-lm-loss" class="markdown-section">
+<h2>13. 같은 Token 열이 위치별 다음 Token 정답이 되는 이유</h2>
+<p>Tiny Decoder LM에서는 <code>tokens[:, :-1]</code>과 <code>tokens[:, 1:]</code>을 직접 만들어 입력과 Target을 한 칸 어긋나게 했습니다. Hugging Face의 Causal LM은 <code>labels=input_ids</code>를 전달하면 같은 대응을 모델 내부에서 만듭니다.</p>
+<pre><code>입력 labels: [B, S]
 
 채점에 쓰는 Logit: logits[..., :-1, :]  # [B, S-1, V]
 채점에 쓰는 Target: labels[..., 1:]     # [B, S-1]
@@ -199,8 +374,48 @@ Top-p: 0.8
 raw Logit V개 → log-softmax → Target ID 열 선택 → 음수 부호
 
 outputs.loss
-= Batch 안 모든 유효한 다음 Token 위치 Loss의 평균 scalar</code></pre><p>따라서 <code>"I study."</code>가 세 Token이라면 <code>"I" → " study"</code>와 <code>"I study" → "."</code> 두 문제를 채점합니다. 문장 전체의 정답 하나를 맞히는 Loss가 아니라, 각 Sequence에서 얻은 위치별 다음 Token 예측들을 한꺼번에 평균한 값입니다. 이 구조는 이전에 <code>[3,7,2,9]</code> 하나로 <code>3→7</code>, <code>[3,7]→2</code>, <code>[3,7,2]→9</code> 세 문제를 병렬 학습했다고 설명한 원리와 같습니다.</p><div class="status-list"><div class="status-row"><strong>고정 Text 평가</strong><span><code>"I study."</code>를 Token ID <code>[[40,2050,13]]</code>으로 바꾸고 두 다음 Token 문제를 채점해 평균 Token Loss <code>10.831886291503906</code>, Perplexity <code>50609.078125</code>를 확인했습니다.</span></div><div class="status-row"><strong>해석 경계</strong><span>큰 값은 이 고정 Text에서 정답 Token에 배정한 선택 비중이 작았다는 뜻입니다. 이 한 문장만으로 모델 전체 품질을 평가하거나 각 위치의 Argmax가 틀렸다고 단정하지 않습니다.</span></div></div><div class="warning"><strong>Padding이 있는 후속 평가</strong><br><code>attention_mask</code>는 PAD가 Attention 문맥에 섞이는 것을 막습니다. 그러나 labels의 PAD 위치를 Loss에서도 제외하려면 해당 위치를 <code>-100</code>으로 바꿔야 합니다.</div></section>
-  <section id="corrections"><h2>14. 막혔던 지점과 수정</h2><div class="status-list"><div class="status-row"><strong>Padding 없이 Batch</strong><span>길이가 다른 리스트를 바로 Tensor로 묶을 수 없어 <code>padding=True</code>와 <code>attention_mask</code>가 필요했습니다.</span></div><div class="status-row"><strong>Padding과 Causal Mask</strong><span>Padding Mask는 가짜 PAD 위치, Causal Mask는 실제 Token의 미래 위치를 가리는 서로 다른 역할로 분리했습니다.</span></div><div class="status-row"><strong>잘못된 인덱스 변수</strong><span><code>logits[batch_indices, last_real_logits, :]</code>처럼 실수 Tensor를 인덱스로 사용해 오류가 났고, 정수 위치인 <code>last_real_positions</code>로 고쳤습니다.</span></div><div class="status-row"><strong>Token ID와 Embedding</strong><span>Tokenizer는 ID를 반환하고 모델의 <code>nn.Embedding</code>이 그 ID 행의 벡터를 조회한다는 객체 경계를 확인했습니다.</span></div><div class="status-row"><strong>Batch와 문장</strong><span><code>[2,7,50257]</code>에서 2는 문장 두 개, 7은 문장마다 맞춘 Token 위치, 50,257은 위치별 Vocabulary 후보로 교정했습니다.</span></div><div class="status-row"><strong><code>dim=1</code>과 <code>-1</code></strong><span><code>[B,S]</code> ID Tensor에서는 둘 다 Token 축이지만, <code>dim=1</code>은 업계 코드에서 축의 역할을 명확히 표현합니다. <code>[B,S,D]</code>에서는 <code>-1</code>이 D축이므로 둘은 달라집니다.</span></div><div class="status-row"><strong>명시적 Type</strong><span>낯선 Python 모델 코드에서는 <code>input_ids: torch.Tensor</code>처럼 변수와 반환 Type을 적어 Tensor 의미를 추적하기로 했습니다.</span></div></div></section>
-  <section id="remaining"><h2>15. 완료 조건 확인</h2><ul><li class="done">● Tokenizer·동적 Padding·attention_mask를 설명하고 Shape [2,7]을 확인했습니다.</li><li class="done">● Tokenizer ID와 모델 Embedding 행 조회를 구분하고 실제 GPT-2 소스의 <code>self.wte(input_ids)</code>까지 추적했습니다.</li><li class="done">● 모델 Forward와 Logit [2,7,50257], Batch별 마지막 실제 Logit [2,50257]을 확인했습니다.</li><li class="done">● generate() 없는 Greedy 5회와 Temperature 1.5 추첨을 실행했습니다.</li><li class="done">● 같은 Prompt·반복 횟수에서 Top-k와 Top-p를 실행하고 Temperature와 후보 제한 방식의 차이를 설명했습니다.</li><li class="done">● 고정 Text Loss·Perplexity 평가와 Tokenizer·Model 로컬 저장·별도 프로세스 복원을 검증했습니다.</li></ul><div class="callout"><strong>관문 완료</strong><br>사전학습 Causal LM의 입력·Forward·수동 생성·평가·Artifact 복원을 하나의 재현 가능한 흐름으로 연결했습니다. 다음 관문은 같은 모델과 조건에서 No-cache와 KV Cache를 비교하는 PyTorch 추론 Baseline입니다.</div></section>
-  <footer class="footer">Road to LLM inference · Milestone 05 · 사전학습 Causal LM 적용</footer>
-</main><script src="../../../assets/js/global_nav.js?v=20260901-record-pages-1"></script></body></html>
+= Batch 안 모든 유효한 다음 Token 위치 Loss의 평균 scalar
+</code></pre>
+<p>따라서 <code>&quot;I study.&quot;</code>가 세 Token이라면 <code>&quot;I&quot; → &quot; study&quot;</code>와 <code>&quot;I study&quot; → &quot;.&quot;</code> 두 문제를 채점합니다. 문장 전체의 정답 하나를 맞히는 Loss가 아니라, 각 Sequence에서 얻은 위치별 다음 Token 예측들을 한꺼번에 평균한 값입니다. 이 구조는 이전에 <code>[3,7,2,9]</code> 하나로 <code>3→7</code>, <code>[3,7]→2</code>, <code>[3,7,2]→9</code> 세 문제를 병렬 학습했다고 설명한 원리와 같습니다.</p>
+<p><strong>고정 Text 평가</strong><code>&quot;I study.&quot;</code>를 Token ID <code>[[40,2050,13]]</code>으로 바꾸고 두 다음 Token 문제를 채점해 평균 Token Loss <code>10.831886291503906</code>, Perplexity <code>50609.078125</code>를 확인했습니다.</p>
+<p>해석 경계큰 값은 이 고정 Text에서 정답 Token에 배정한 선택 비중이 작았다는 뜻입니다. 이 한 문장만으로 모델 전체 품질을 평가하거나 각 위치의 Argmax가 틀렸다고 단정하지 않습니다.</p>
+<aside class="md-component md-caution" data-component="caution"><div class="md-component-body"><p><strong>Padding이 있는 후속 평가</strong><br><code>attention_mask</code>는 PAD가 Attention 문맥에 섞이는 것을 막습니다. 그러나 labels의 PAD 위치를 Loss에서도 제외하려면 해당 위치를 <code>-100</code>으로 바꿔야 합니다.</p>
+</div></aside>
+
+</section>
+<section id="corrections" class="markdown-section">
+<h2>14. 막혔던 지점과 수정</h2>
+<p>Padding 없이 Batch길이가 다른 리스트를 바로 Tensor로 묶을 수 없어 <code>padding=True</code>와 <code>attention_mask</code>가 필요했습니다.</p>
+<p><strong>Padding과 Causal Mask</strong>Padding Mask는 가짜 PAD 위치, Causal Mask는 실제 Token의 미래 위치를 가리는 서로 다른 역할로 분리했습니다.</p>
+<p><strong>잘못된 인덱스 변수</strong><code>logits[batch_indices, last_real_logits, :]</code>처럼 실수 Tensor를 인덱스로 사용해 오류가 났고, 정수 위치인 <code>last_real_positions</code>로 고쳤습니다.</p>
+<p><strong>Token ID와 Embedding</strong>Tokenizer는 ID를 반환하고 모델의 <code>nn.Embedding</code>이 그 ID 행의 벡터를 조회한다는 객체 경계를 확인했습니다.</p>
+<p><strong>Batch와 문장</strong><code>[2,7,50257]</code>에서 2는 문장 두 개, 7은 문장마다 맞춘 Token 위치, 50,257은 위치별 Vocabulary 후보로 교정했습니다.</p>
+<p><strong><code>dim=1</code>과 <code>-1</code></strong><code>[B,S]</code> ID Tensor에서는 둘 다 Token 축이지만, <code>dim=1</code>은 업계 코드에서 축의 역할을 명확히 표현합니다. <code>[B,S,D]</code>에서는 <code>-1</code>이 D축이므로 둘은 달라집니다.</p>
+<p>명시적 Type낯선 Python 모델 코드에서는 <code>input_ids: torch.Tensor</code>처럼 변수와 반환 Type을 적어 Tensor 의미를 추적하기로 했습니다.</p>
+
+</section>
+<section id="remaining" class="markdown-section">
+<h2>15. 완료 조건 확인</h2>
+<ul>
+<li>● Tokenizer·동적 Padding·attention_mask를 설명하고 Shape [2,7]을 확인했습니다.</li>
+<li>● Tokenizer ID와 모델 Embedding 행 조회를 구분하고 실제 GPT-2 소스의 <code>self.wte(input_ids)</code>까지 추적했습니다.</li>
+<li>● 모델 Forward와 Logit [2,7,50257], Batch별 마지막 실제 Logit [2,50257]을 확인했습니다.</li>
+<li>● generate() 없는 Greedy 5회와 Temperature 1.5 추첨을 실행했습니다.</li>
+<li>● 같은 Prompt·반복 횟수에서 Top-k와 Top-p를 실행하고 Temperature와 후보 제한 방식의 차이를 설명했습니다.</li>
+<li>● 고정 Text Loss·Perplexity 평가와 Tokenizer·Model 로컬 저장·별도 프로세스 복원을 검증했습니다.</li>
+</ul>
+<aside class="md-component md-callout" data-component="callout"><div class="md-component-body"><p><strong>관문 완료</strong><br>사전학습 Causal LM의 입력·Forward·수동 생성·평가·Artifact 복원을 하나의 재현 가능한 흐름으로 연결했습니다. 다음 관문은 같은 모델과 조건에서 No-cache와 KV Cache를 비교하는 PyTorch 추론 Baseline입니다.</p>
+</div></aside>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

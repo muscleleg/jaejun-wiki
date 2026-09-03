@@ -1,275 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/math/transformer_math_learning.md. Do not edit directly. source-sha256:55ddb4d8d4d0257a05c030f526f105b038e066cdd2ba32e0ed50d8257a83f457 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Transformer에 반복해서 쓰는 통계·벡터·삼각함수를 Attention Scaling, 초기화, LayerNorm과 연결해 복습하는 상위 수학 문서">
-  <title>트랜스포머 수학 학습 문서</title>
-  <style>
-    :root {
-      --ink: #1d2228;
-      --muted: #687078;
-      --paper: #f4f1ea;
-      --panel: #fffdf8;
-      --line: #d8d3c8;
-      --blue: #225f78;
-      --blue-soft: #dcebf0;
-      --yellow: #e6aa36;
-      --red: #b84f42;
-      --code: #182126;
-      --code-ink: #edf4f6;
-      --shadow: 0 18px 48px rgba(28, 37, 42, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        linear-gradient(rgba(34, 95, 120, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(34, 95, 120, 0.035) 1px, transparent 1px),
-        var(--paper);
-      background-size: 28px 28px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.72;
-    }
-
-    a { color: inherit; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .page { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
-
-    header {
-      padding: 28px 0 62px;
-      color: white;
-      background: var(--blue);
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 76px;
-      font-size: 0.85rem;
-    }
-
-    .topbar a {
-      padding: 8px 12px;
-      border: 1px solid rgba(255,255,255,.35);
-      border-radius: 999px;
-      text-decoration: none;
-    }
-
-    .topbar a:hover, .topbar a:focus-visible { background: rgba(255,255,255,.12); outline: none; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 24px; color: #d8e9ee; font-size: .86rem; }
-    .breadcrumb a { padding: 0; color: white; border: 0; border-radius: 0; font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { background: transparent; text-decoration: underline; }
-    .breadcrumb .separator { opacity: .5; }
-    .breadcrumb [aria-current="page"] { color: white; font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(25,65,82,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { outline: 3px solid #b9dbe6; }
-    .eyebrow { margin: 0 0 14px; color: #b9dbe6; font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-
-    h1 {
-      max-width: 850px;
-      margin: 0;
-      font-size: clamp(2.7rem, 7vw, 5.8rem);
-      font-weight: 820;
-      letter-spacing: -.065em;
-      line-height: 1.02;
-    }
-
-    .lead { max-width: 700px; margin: 28px 0 0; color: #d8e9ee; font-size: 1.08rem; }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 210px minmax(0, 1fr);
-      gap: 58px;
-      padding: 54px 0 100px;
-    }
-
-    nav { position: sticky; top: 28px; align-self: start; }
-    nav p { margin: 0 0 12px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-    nav a { display: block; padding: 8px 11px; color: var(--muted); border-left: 2px solid transparent; font-size: .9rem; text-decoration: none; }
-    nav a:hover, nav a:focus-visible { color: var(--blue); border-left-color: var(--blue); outline: none; }
-
-    main { min-width: 0; }
-    section { scroll-margin-top: 24px; }
-    section + section { margin-top: 76px; padding-top: 64px; border-top: 1px solid var(--line); }
-
-    .concept {
-      display: inline-block;
-      margin-bottom: 12px;
-      color: var(--red);
-      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    h2 { margin: 0 0 16px; font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -.045em; line-height: 1.15; }
-    h3 { margin: 38px 0 12px; font-size: 1.2rem; }
-    h4 { margin: 30px 0 10px; color: var(--blue); font-size: 1.04rem; }
-    p { margin: 0 0 17px; }
-    .intro { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
-
-    .plain {
-      margin: 25px 0;
-      padding: 23px 25px;
-      background: var(--blue-soft);
-      border-left: 4px solid var(--blue);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .plain strong { display: block; margin-bottom: 5px; color: var(--blue); }
-    .plain p { margin: 0; }
-
-    .formula {
-      margin: 22px 0;
-      padding: 22px;
-      overflow-x: auto;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 12px;
-      box-shadow: var(--shadow);
-      font: 600 clamp(.9rem, 2.5vw, 1.15rem)/1.8 ui-monospace, SFMono-Regular, Menlo, monospace;
-      white-space: pre-wrap;
-    }
-
-    .steps { display: grid; gap: 10px; margin: 24px 0; counter-reset: step; }
-    .step {
-      display: grid;
-      grid-template-columns: 34px 1fr;
-      gap: 12px;
-      padding: 16px 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-    }
-
-    .step::before {
-      display: grid;
-      width: 28px;
-      height: 28px;
-      counter-increment: step;
-      content: counter(step);
-      place-items: center;
-      color: white;
-      background: var(--blue);
-      border-radius: 50%;
-      font: 800 .75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .step p { margin: 0; color: var(--muted); }
-    .step strong { color: var(--ink); }
-
-    .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0; }
-    .card { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-    .card strong { display: block; margin-bottom: 8px; }
-    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
-    .dots { margin-top: 16px; color: var(--blue); font: 800 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-spacing: 7px; }
-
-    table { width: 100%; margin: 22px 0; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
-    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: .78rem; letter-spacing: .04em; }
-    tr:last-child td { border-bottom: 0; }
-
-    .answer {
-      margin-top: 30px;
-      padding: 26px;
-      color: white;
-      background: var(--blue);
-      border-radius: 14px;
-    }
-
-    .answer strong { display: block; margin-bottom: 8px; font-size: 1.1rem; }
-    .answer p { margin: 0; color: #d8e9ee; }
-
-    .proof-figure {
-      margin: 26px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .proof-figure svg { display: block; width: min(100%, 640px); height: auto; margin: 0 auto; }
-    .proof-figure figcaption { max-width: 650px; margin: 16px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .proof-triangle { fill: #f5ddb0; stroke: #1d2228; stroke-width: 2; }
-    .proof-center { fill: #dcebf0; stroke: #225f78; stroke-width: 3; }
-    .proof-outline { fill: none; stroke: #1d2228; stroke-width: 3; }
-    .proof-label { fill: #1d2228; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .proof-center-label { fill: #225f78; font: 800 25px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .proof-right-angle { fill: none; stroke: #b84f42; stroke-width: 2; }
-
-    .concept-figure {
-      margin: 26px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .triangle-fill { fill: rgba(34, 95, 120, 0.08); }
-    .triangle-edge { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linejoin: round; }
-    .triangle-right { fill: none; stroke: var(--muted); stroke-width: 1.5; }
-    .triangle-angle { fill: none; stroke: var(--yellow); stroke-width: 2.5; }
-    .triangle-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
-    .triangle-title { fill: var(--blue); font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .triangle-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .triangle-note { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-axis { stroke: var(--muted); stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: var(--blue); stroke-width: 3; }
-    .trig-radius { stroke: var(--yellow); stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: var(--yellow); stroke-width: 2; }
-    .trig-point { fill: var(--yellow); }
-    .trig-label { fill: var(--ink); font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .diagram-axis { stroke: var(--muted); stroke-width: 1.5; }
-    .diagram-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
-    .diagram-vector { fill: none; stroke: var(--blue); stroke-width: 4; }
-    .diagram-vector-alt { fill: none; stroke: var(--yellow); stroke-width: 4; }
-    .diagram-component { fill: none; stroke: var(--red); stroke-width: 2.5; stroke-dasharray: 7 5; }
-    .diagram-arc { fill: none; stroke: var(--yellow); stroke-width: 3; }
-    .diagram-wave { fill: none; stroke: var(--blue); stroke-width: 3.5; }
-    .diagram-wave-alt { fill: none; stroke: var(--red); stroke-width: 3; }
-    .diagram-wave-slow { fill: none; stroke: var(--yellow); stroke-width: 3; }
-    .diagram-point { fill: var(--red); }
-    .diagram-label { fill: var(--ink); font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .diagram-muted { fill: var(--muted); font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .formula span { display: block; }
-    .path-map { display: grid; gap: 9px; margin: 24px 0; }
-    .path-row { display: grid; grid-template-columns: minmax(110px, .6fr) 1.4fr; gap: 16px; padding: 13px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-    .path-row strong { color: var(--blue); }
-    .caution { margin: 25px 0; padding: 22px 24px; background: #f7e7c8; border-left: 4px solid var(--yellow); border-radius: 0 12px 12px 0; }
-    .caution strong { color: #805713; }
-
-    footer { padding: 26px 0 44px; color: var(--muted); border-top: 1px solid var(--line); font-size: .82rem; }
-
-    @media (max-width: 780px) {
-      .topbar { margin-bottom: 50px; }
-      .layout { grid-template-columns: 1fr; gap: 26px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      .compare { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 520px) {
-      .page { width: calc(100% - 24px); }
-      header { padding-bottom: 46px; }
-      .topbar span { display: none; }
-      th, td { padding: 10px 9px; font-size: .82rem; }
-    }
-  </style>
+  <meta name="description" content="이 상위 문서에서 Transformer에 반복해서 쓰는 통계·벡터·삼각함수의 연결을 한 번에 복습하고, 기존 설명과 그림은 주제별 하위 문서에서 생략 없이 이어 봅니다.">
+  <meta name="source-sha256" content="55ddb4d8d4d0257a05c030f526f105b038e066cdd2ba32e0ed50d8257a83f457">
+  <title>트랜스포머를 위한 수학 학습 문서</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -278,110 +18,103 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="트랜스포머 수학 학습 문서">
-  <meta property="og:description" content="Transformer에 반복해서 쓰는 통계·벡터·삼각함수를 Attention Scaling, 초기화, LayerNorm과 연결해 복습하는 상위 수학 문서">
+  <meta property="og:title" content="트랜스포머를 위한 수학 학습 문서">
+  <meta property="og:description" content="이 상위 문서에서 Transformer에 반복해서 쓰는 통계·벡터·삼각함수의 연결을 한 번에 복습하고, 기존 설명과 그림은 주제별 하위 문서에서 생략 없이 이어 봅니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html","name":"트랜스포머 수학 학습 문서","description":"Transformer에 반복해서 쓰는 통계·벡터·삼각함수를 Attention Scaling, 초기화, LayerNorm과 연결해 복습하는 상위 수학 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html"},"headline":"트랜스포머 수학 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#math","name":"수학","identifier":"math"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer 코드 학습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"수학 개념"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html","name":"트랜스포머를 위한 수학 학습 문서","description":"이 상위 문서에서 Transformer에 반복해서 쓰는 통계·벡터·삼각함수의 연결을 한 번에 복습하고, 기존 설명과 그림은 주제별 하위 문서에서 생략 없이 이어 봅니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html"},"headline":"트랜스포머를 위한 수학 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#math","name":"수학","identifier":"math"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/math/transformer_math_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"수학","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-math"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"트랜스포머를 위한 수학 학습 문서"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <header>
-    <div class="page">
-      <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 홈</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../../wiki.html">기술 위키</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../transformer/transformer_learning.html">Transformer 코드 학습</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <span aria-current="page">수학 개념</span>
-      </nav>
-      <div class="topbar">
-        <span>Transformer from scratch · Companion note</span>
-        <a href="../transformer/transformer_learning.html">Transformer 문서로 돌아가기 →</a>
-      </div>
-      <p class="eyebrow">Math without shortcuts</p>
-      <h1>트랜스포머를 위한<br>수학 학습 문서</h1>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-math">수학</a><span class="separator">›</span><a href="../transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><span aria-current="page">트랜스포머를 위한 수학 학습 문서</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">수학</span>
+      <h1>트랜스포머를 위한 수학 학습 문서</h1>
       <p class="lead">이 상위 문서에서 Transformer에 반복해서 쓰는 통계·벡터·삼각함수의 연결을 한 번에 복습하고, 기존 설명과 그림은 주제별 하위 문서에서 생략 없이 이어 봅니다.</p>
-    </div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-  <div class="page layout">
-        <nav aria-label="수학 개념 목차">
-      <p>Math topics</p>
-      <a href="#math-core-flow">00 · 핵심 연결 한 번에 보기</a>
-      <a href="#mean">01 · 통계 기초</a>
-      <a href="#norm">02 · 벡터와 차원</a>
-      <a href="#trigonometry">03 · 사인과 코사인</a>
-      <a href="../../roadmaps/roadmap_math.html">수학 지원 로드맵 ↗</a>
-      <a href="../transformer/transformer_learning.html">Transformer 상위 문서 ↗</a>
-    </nav>
-
-    <main>
-      <section id="math-core-flow">
-        <span class="concept">Core flow</span>
-        <h2>Transformer에서 다시 쓰는 수학의 한 줄 연결</h2>
-        <p>평균·분산·표준편차는 값의 중심과 퍼진 정도를 설명하고, 그 크기를 조절하는 원리가 Embedding 초기화, Attention Scaling, LayerNorm에 반복해서 등장합니다. sin·cos는 같은 위치를 여러 속도의 파동으로 표현해 순서 정보를 만듭니다.</p>
-
-        <h3>1. 평균에서 표준편차까지</h3>
-        <pre><code>평균 μ = (x₁ + x₂ + ... + xₙ) / n
+    <div class="markdown-lead"><p>Core flow</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#math-core-flow">Transformer에서 다시 쓰는 수학의 한 줄 연결</a>
+        <a href="#mean">통계 기초</a>
+        <a href="#norm">벡터와 차원</a>
+        <a href="#trigonometry">사인과 코사인</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="math-core-flow" class="markdown-section">
+<h2>Transformer에서 다시 쓰는 수학의 한 줄 연결</h2>
+<p>평균·분산·표준편차는 값의 중심과 퍼진 정도를 설명하고, 그 크기를 조절하는 원리가 Embedding 초기화, Attention Scaling, LayerNorm에 반복해서 등장합니다. sin·cos는 같은 위치를 여러 속도의 파동으로 표현해 순서 정보를 만듭니다.</p>
+<h3>1. 평균에서 표준편차까지</h3>
+<pre><code>평균 μ = (x₁ + x₂ + ... + xₙ) / n
 
 분산 = ((x₁-μ)² + (x₂-μ)² + ... + (xₙ-μ)²) / n
 
-표준편차 = √분산</code></pre>
-        <p>분산은 평균에서 떨어진 거리를 제곱해 평균낸 값이고, 표준편차는 그 분산에 제곱근을 씌워 원래 값과 같은 단위로 되돌린 값입니다. LayerNorm은 Token 하나의 마지막 특징 축에서 이 평균과 표준편차를 구해 중심과 규모를 조절합니다. 자세한 계산은 <a href="transformer_math_statistics_learning.html">통계 기초 문서</a>에서 이어집니다.</p>
-
-        <h3>2. 왜 Attention Score를 <code>√d_k</code>로 나누는가</h3>
-        <p>각 항이 서로 독립이고 평균 0, 분산 1이라는 단순화된 가정에서 두 항의 합 <code>Score=A+B</code>를 먼저 봅니다. <code>A,B∈{-1,1}</code>이면 가능한 Score는 <code>2,0,0,-2</code>이고 평균은 0입니다.</p>
-        <pre><code>분산 = (2² + 0² + 0² + (-2)²) / 4 = 2
-표준편차 = √2</code></pre>
-        <p>같은 조건의 독립적인 항을 <code>d_k</code>개 더하면 합의 분산은 약 <code>d_k</code>, 표준편차는 약 <code>√d_k</code>가 됩니다. 따라서 Dot Product Score를 <code>√d_k</code>로 나누면 표준편차 규모가 다시 약 1이 되어 Softmax 입력이 차원 수만큼 과도하게 커지는 일을 줄입니다. 이 설명은 독립성·평균 0·분산 1이라는 가정 아래의 직관이며, 실제 학습값이 항상 정확히 그 분포라는 뜻은 아닙니다.</p>
-
-        <h3>3. 벡터 전체 제곱합 예산과 원소 분산을 구분한다</h3>
-        <pre><code>E[||w||²] = E[w₁² + ... + w_d²]
+표준편차 = √분산
+</code></pre>
+<p>분산은 평균에서 떨어진 거리를 제곱해 평균낸 값이고, 표준편차는 그 분산에 제곱근을 씌워 원래 값과 같은 단위로 되돌린 값입니다. LayerNorm은 Token 하나의 마지막 특징 축에서 이 평균과 표준편차를 구해 중심과 규모를 조절합니다. 자세한 계산은 <a href="transformer_math_statistics_learning.html">통계 기초 문서</a>에서 이어집니다.</p>
+<h3>2. 왜 Attention Score를 <code>√d_k</code>로 나누는가</h3>
+<p>각 항이 서로 독립이고 평균 0, 분산 1이라는 단순화된 가정에서 두 항의 합 <code>Score=A+B</code>를 먼저 봅니다. <code>A,B∈{-1,1}</code>이면 가능한 Score는 <code>2,0,0,-2</code>이고 평균은 0입니다.</p>
+<pre><code>분산 = (2² + 0² + 0² + (-2)²) / 4 = 2
+표준편차 = √2
+</code></pre>
+<p>같은 조건의 독립적인 항을 <code>d_k</code>개 더하면 합의 분산은 약 <code>d_k</code>, 표준편차는 약 <code>√d_k</code>가 됩니다. 따라서 Dot Product Score를 <code>√d_k</code>로 나누면 표준편차 규모가 다시 약 1이 되어 Softmax 입력이 차원 수만큼 과도하게 커지는 일을 줄입니다. 이 설명은 독립성·평균 0·분산 1이라는 가정 아래의 직관이며, 실제 학습값이 항상 정확히 그 분포라는 뜻은 아닙니다.</p>
+<h3>3. 벡터 전체 제곱합 예산과 원소 분산을 구분한다</h3>
+<pre><code>E[||w||²] = E[w₁² + ... + w_d²]
           ≈ d × 원소당 분산
 
 벡터의 기대 제곱합을 약 1로 두려면:
 원소당 분산 ≈ 1 / d
-원소당 표준편차 ≈ 1 / √d</code></pre>
-        <p>“벡터 전체 제곱합의 기댓값이 1”은 “벡터 원소 집단의 분산이 1”과 같은 말이 아닙니다. 평균이 0에 가까울 때 제곱합 1을 원소 수 <code>d</code>로 나누면 원소당 분산은 약 <code>1/d</code>가 됩니다. 이 구분이 Embedding이나 Linear 초기화의 크기 감각으로 이어집니다. 벡터 길이와 차원은 <a href="transformer_math_vector_learning.html">벡터·차원 문서</a>에서 자세히 봅니다.</p>
+원소당 표준편차 ≈ 1 / √d
+</code></pre>
+<p>“벡터 전체 제곱합의 기댓값이 1”은 “벡터 원소 집단의 분산이 1”과 같은 말이 아닙니다. 평균이 0에 가까울 때 제곱합 1을 원소 수 <code>d</code>로 나누면 원소당 분산은 약 <code>1/d</code>가 됩니다. 이 구분이 Embedding이나 Linear 초기화의 크기 감각으로 이어집니다. 벡터 길이와 차원은 <a href="transformer_math_vector_learning.html">벡터·차원 문서</a>에서 자세히 봅니다.</p>
+<h3>4. 위치와 정규화에 다시 연결한다</h3>
+<p>sin·cos Positional Encoding은 짝수·홀수 차원에 sin과 cos를 나누어 적용하고, 차원마다 다른 주파수를 사용해 같은 위치에 고유한 파동 조합을 만듭니다. 학습형 Position Embedding은 정해진 sin·cos 대신 위치별 벡터를 파라미터로 학습하는 대안입니다. 삼각함수의 파동 감각은 <a href="transformer_math_trigonometry_learning.html">삼각함수 문서</a>에서 이어집니다.</p>
+<p>LayerNorm은 값을 <code>0~1</code> 사이로 자르는 정규화가 아닙니다. Token마다 마지막 특징 축의 평균을 빼고 표준편차로 나눈 뒤, 학습 가능한 <code>γ</code>와 <code>β</code>로 다시 조정합니다. 따라서 정규화 직후 값은 평균 0·표준편차 1에 가깝지만, affine 변환 뒤의 최종 통계는 달라질 수 있습니다.</p>
+<p><strong>핵심 결론</strong> — 원소당 표준편차 <code>1/√d</code>는 벡터 초기화의 전체 크기를, Attention의 <code>1/√d_k</code>는 내적 합의 크기를, LayerNorm은 각 Token 특징의 중심과 규모를 조절합니다. 같은 제곱근이 보여도 무엇을 나누는지와 가정은 서로 다릅니다.</p>
+<p>Group 01</p>
 
-        <h3>4. 위치와 정규화에 다시 연결한다</h3>
-        <p>sin·cos Positional Encoding은 짝수·홀수 차원에 sin과 cos를 나누어 적용하고, 차원마다 다른 주파수를 사용해 같은 위치에 고유한 파동 조합을 만듭니다. 학습형 Position Embedding은 정해진 sin·cos 대신 위치별 벡터를 파라미터로 학습하는 대안입니다. 삼각함수의 파동 감각은 <a href="transformer_math_trigonometry_learning.html">삼각함수 문서</a>에서 이어집니다.</p>
-        <p>LayerNorm은 값을 <code>0~1</code> 사이로 자르는 정규화가 아닙니다. Token마다 마지막 특징 축의 평균을 빼고 표준편차로 나눈 뒤, 학습 가능한 <code>γ</code>와 <code>β</code>로 다시 조정합니다. 따라서 정규화 직후 값은 평균 0·표준편차 1에 가깝지만, affine 변환 뒤의 최종 통계는 달라질 수 있습니다.</p>
-        <div class="caution"><strong>핵심 결론</strong> — 원소당 표준편차 <code>1/√d</code>는 벡터 초기화의 전체 크기를, Attention의 <code>1/√d_k</code>는 내적 합의 크기를, LayerNorm은 각 Token 특징의 중심과 규모를 조절합니다. 같은 제곱근이 보여도 무엇을 나누는지와 가정은 서로 다릅니다.</div>
-      </section>
-      <section id="mean">
-        <span id="variance"></span><span id="std"></span><span id="normal"></span><span id="expectation"></span>
-        <span class="concept">Group 01</span>
-        <h2>통계 기초</h2>
-        <p>평균, 분산, 표준편차, 정규분포와 기댓값을 연결합니다.</p>
-        <a href="transformer_math_statistics_learning.html">통계 기초 문서 열기 →</a>
-      </section>
-      <section id="norm">
-        <span id="dimension"></span>
-        <span class="concept">Group 02</span>
-        <h2>벡터와 차원</h2>
-        <p>피타고라스 정리에서 벡터 길이로 확장하고, <code>1/√d</code> 스케일을 연결합니다.</p>
-        <a href="transformer_math_vector_learning.html">벡터·차원 문서 열기 →</a>
-      </section>
-      <section id="trigonometry">
-        <span id="trig-uses"></span>
-        <span class="concept">Group 03</span>
-        <h2>사인과 코사인</h2>
-        <p>직각삼각형의 길이 비율, 단위원, 파동과 Transformer 위치 인코딩을 연결합니다.</p>
-        <a href="transformer_math_trigonometry_learning.html">삼각함수 문서 열기 →</a>
-      </section>
-      <section>
-        <div class="caution"><strong>내용 보존 원칙</strong> — 기존 수학 문서의 8개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 Transformer에 반복해서 쓰는 핵심 계산을 한 흐름으로 복습할 수 있게 유지하고, 긴 증명·반복 계산과 원문 예제는 하위 문서에서 이어 보도록 연결합니다.</div>
-      </section>
-    </main>
-  </div>
+</section>
+<section id="mean" class="markdown-section">
+<h2>통계 기초</h2>
+<p>평균, 분산, 표준편차, 정규분포와 기댓값을 연결합니다.</p>
+<p><a href="transformer_math_statistics_learning.html">통계 기초 문서 열기 →</a></p>
+<p>Group 02</p>
 
-  <footer><div class="page">트랜스포머를 위한 수학 개념 · Transformer from scratch</div></footer>
+</section>
+<section id="norm" class="markdown-section">
+<h2>벡터와 차원</h2>
+<p>피타고라스 정리에서 벡터 길이로 확장하고, <code>1/√d</code> 스케일을 연결합니다.</p>
+<p><a href="transformer_math_vector_learning.html">벡터·차원 문서 열기 →</a></p>
+<p>Group 03</p>
+
+</section>
+<section id="trigonometry" class="markdown-section">
+<h2>사인과 코사인</h2>
+<p>직각삼각형의 길이 비율, 단위원, 파동과 Transformer 위치 인코딩을 연결합니다.</p>
+<p><a href="transformer_math_trigonometry_learning.html">삼각함수 문서 열기 →</a></p>
+<p><strong>내용 보존 원칙</strong> — 기존 수학 문서의 8개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 Transformer에 반복해서 쓰는 핵심 계산을 한 흐름으로 복습할 수 있게 유지하고, 긴 증명·반복 계산과 원문 예제는 하위 문서에서 이어 보도록 연결합니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_math_statistics_learning.html">통계 기초</a></li>
+<li><a href="transformer_math_trigonometry_learning.html">사인과 코사인</a></li>
+<li><a href="transformer_math_vector_learning.html">벡터와 차원</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>
