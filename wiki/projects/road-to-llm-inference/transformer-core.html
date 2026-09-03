@@ -1,5 +1,15 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Embedding부터 Causal Multi-Head Attention, FFN, Residual, LayerNorm까지 직접 연결한 Transformer 핵심 손코딩 관문 기록"><title>Transformer 핵심 손코딩 · Road to LLM inference</title><link rel="stylesheet" href="../../../assets/css/portal.css?v=20260825-working-style-flat"><link rel="stylesheet" href="../../../assets/css/site-theme.css"><link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260830-journey-artifacts-1">
+<!-- Generated from content/wiki/projects/road-to-llm-inference/transformer-core.md. Do not edit directly. source-sha256:a45dc4c33709af50f28ab3e2618e672a4e723ad9be9630494f428782228e8bb1 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Token·Position Embedding부터 Q·K·V, Score Scaling, Causal Mask, Softmax, Value 가중합, Head 병합, Output Projection, FFN, Residual과 LayerNorm까지 Shape을 유지하며 직접 연결했습니다.">
+  <meta name="source-sha256" content="a45dc4c33709af50f28ab3e2618e672a4e723ad9be9630494f428782228e8bb1">
+  <title>Token이 문맥을 얻는 Transformer Block 손코딩</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html">
   <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
@@ -8,26 +18,79 @@
   <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer 핵심 손코딩 · Road to LLM inference">
-  <meta property="og:description" content="Embedding부터 Causal Multi-Head Attention, FFN, Residual, LayerNorm까지 직접 연결한 Transformer 핵심 손코딩 관문 기록">
+  <meta property="og:title" content="Token이 문맥을 얻는 Transformer Block 손코딩">
+  <meta property="og:description" content="Token·Position Embedding부터 Q·K·V, Score Scaling, Causal Mask, Softmax, Value 가중합, Head 병합, Output Projection, FFN, Residual과 LayerNorm까지 Shape을 유지하며 직접 연결했습니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html","name":"Transformer 핵심 손코딩 · Road to LLM inference","description":"Embedding부터 Causal Multi-Head Attention, FFN, Residual, LayerNorm까지 직접 연결한 Transformer 핵심 손코딩 관문 기록","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html"},"headline":"Transformer 핵심 손코딩 · Road to LLM inference","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-block","name":"Transformer Block","identifier":"transformer-block"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"Road to LLM inference","item":"https://muscleleg.github.io/jaejun-wiki/#now-learning"},{"@type":"ListItem","position":3,"name":"Transformer 핵심 손코딩"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html","name":"Token이 문맥을 얻는 Transformer Block 손코딩","description":"Token·Position Embedding부터 Q·K·V, Score Scaling, Causal Mask, Softmax, Value 가중합, Head 병합, Output Projection, FFN, Residual과 LayerNorm까지 Shape을 유지하며 직접 연결했습니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html"},"headline":"Token이 문맥을 얻는 Transformer Block 손코딩","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-block","name":"Transformer Block","identifier":"transformer-block"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-projects"},{"@type":"ListItem","position":4,"name":"Token이 문맥을 얻는 Transformer Block 손코딩"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference journey-artifact"><main class="wrap" data-learning-milestone="transformer-core" data-milestone-status="complete">
-  <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../index.html#now-learning">Road to LLM inference</a><span class="separator">›</span><span aria-current="page">Transformer 핵심 손코딩</span></nav>
-  <header class="hero"><span class="eyebrow">Milestone 03 · complete</span><h1>Token이 문맥을 얻는<br>Transformer Block 손코딩</h1><p class="summary">Token·Position Embedding부터 Q·K·V, Score Scaling, Causal Mask, Softmax, Value 가중합, Head 병합, Output Projection, FFN, Residual과 LayerNorm까지 Shape을 유지하며 직접 연결했습니다.</p><div class="stats"><div class="stat">상태<strong>완료</strong></div><div class="stat">입력·출력<strong>[1,3,2]</strong></div><div class="stat">Attention Weight<strong>[1,2,3,3]</strong></div><div class="stat">미래 Attention<strong>0</strong></div></div></header>
-  <nav aria-label="문서 목차"><a href="#learning-purpose">학습 목적</a><a href="#axes">축 해석</a><a href="#flow">전체 흐름</a><a href="#embedding">Embedding</a><a href="#projection">Q·K·V</a><a href="#scaling">Score Scaling</a><a href="#mask-softmax">Mask·Softmax</a><a href="#value-mixing">Value 가중합</a><a href="#heads">Head 병합</a><a href="#attention">Attention 코드</a><a href="#block">Block 코드</a><a href="#shape">Shape 검증</a><a href="#corrections">디버깅·한계</a><a href="#evidence">완료 증거</a></nav>
-  <section id="learning-purpose"><h2>이 관문에서 알고자 한 것</h2><p class="learning-purpose-intro"><strong>목적</strong><br>Transformer를 “Token끼리 정보를 섞는다”는 한 문장으로 외우지 않고, <code>[B,S,D]</code> Tensor가 어떤 코드와 Shape을 거쳐 위치별 문맥 벡터가 되는지 직접 확인하려고 했습니다. 각 연산은 왜 필요한지, 무엇을 보존하고 무엇을 바꾸는지, 작은 숫자로 검산할 수 있는지를 기준으로 한 Block을 조립했습니다.</p><div class="learning-sequence">
-    <article class="learning-step"><span>질문 01</span><h3>Token ID는 어떻게 의미 벡터와 위치 정보를 얻는가?</h3><p><strong>사용한 코드</strong> <code>nn.Embedding</code>·<code>torch.arange</code>·학습형 Position Embedding·sin/cos <code>div_term</code></p><p><strong>확인할 이해</strong> Token과 위치는 같은 <code>[B,S,D]</code> Shape에서 원소별로 더해지며, <code>embedding_dim</code>은 벡터 열 수이고 초기화 표준편차와는 다른 설정입니다.</p><a href="#embedding">Embedding 실습 보기 →</a></article>
-    <article class="learning-step"><span>질문 02</span><h3>Q·K·V는 같은 입력에서 어떻게 서로 다른 역할을 얻는가?</h3><p><strong>사용한 코드</strong> 세 개의 <code>nn.Linear(D,D)</code>·<code>x @ weight.T</code>·<code>torch.allclose()</code></p><p><strong>확인할 이해</strong> Shape은 유지되지만 별도 Weight가 Query·Key·Value 값을 만들고, <code>QKᵀ</code>의 각 칸은 Query 하나와 Key 하나의 특징 곱을 더한 관계 점수입니다.</p><a href="#projection">Q·K·V 실습 보기 →</a></article>
-    <article class="learning-step"><span>질문 03</span><h3>왜 Score를 <code>√head_dim</code>으로 나누고 미래 위치를 <code>-inf</code>로 바꾸는가?</h3><p><strong>사용한 코드</strong> <code>scores / sqrt(head_dim)</code>·<code>torch.tril</code>·<code>~mask</code>·<code>masked_fill</code>·<code>softmax(dim=-1)</code></p><p><strong>확인할 이해</strong> 독립 항의 합은 표준편차가 약 √항 수로 커지므로 Softmax 전 규모를 완화하고, <code>exp(-inf)=0</code>을 이용해 미래 Attention 비중을 정확히 0으로 만듭니다.</p><a href="#scaling">Score·Mask 계산 보기 →</a></article>
-    <article class="learning-step"><span>질문 04</span><h3>Attention Weight는 실제 Token 정보를 어떻게 섞는가?</h3><p><strong>사용한 코드</strong> <code>attention_weights @ value</code>·Value 수동 가중합·<code>view/transpose/reshape</code>·Output Projection</p><p><strong>확인할 이해</strong> 관계 비중만으로는 새 내용이 생기지 않고 Value 벡터를 비중대로 더해야 합니다. Head 결과는 Token별로 재정렬한 뒤 <code>[B,S,D]</code>로 합치고 <code>W_O</code>로 다시 섞습니다.</p><a href="#value-mixing">Value·Head 실습 보기 →</a></article>
-    <article class="learning-step"><span>질문 05</span><h3>Attention 결과를 왜 Residual·LayerNorm·FFN에 다시 통과시키는가?</h3><p><strong>사용한 코드</strong> <code>x + attention_output</code>·<code>LayerNorm(D)</code>·<code>Linear(D,d_ff)</code>·GELU·<code>Linear(d_ff,D)</code></p><p><strong>확인할 이해</strong> Residual은 기존 정보를 보존한 채 새 문맥을 더하고, LayerNorm은 Token별 중심·규모를 정돈합니다. FFN은 Token을 서로 섞지 않고 각 위치의 특징 표현을 넓혔다 줄입니다.</p><a href="#block">Block 조립 보기 →</a></article>
-  </div></section>
-  <section id="axes"><h2>1. 모든 계산은 [Batch, Token 위치, Feature]에서 시작했습니다</h2><p><code>[B,S,D]=[1,3,2]</code>를 “Batch 1개, 문장 3개, Token 2개”로 읽으면 뒤의 모든 Shape이 어긋납니다. 여기서는 문장 1개가 Batch에 들어 있고, 그 문장 안에 Token 위치가 3개 있으며, 각 Token을 길이 2인 벡터로 표현합니다.</p><pre><code>B = Batch 안의 문장 수
+<body class="wiki-reference markdown-document">
+  <main class="wrap" data-learning-milestone="transformer-core" data-milestone-status="complete">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="separator">›</span><span aria-current="page">Token이 문맥을 얻는 Transformer Block 손코딩</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">개인 프로젝트</span>
+      <h1>Token이 문맥을 얻는 Transformer Block 손코딩</h1>
+      <p class="lead">Token·Position Embedding부터 Q·K·V, Score Scaling, Causal Mask, Softmax, Value 가중합, Head 병합, Output Projection, FFN, Residual과 LayerNorm까지 Shape을 유지하며 직접 연결했습니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#learning-purpose">이 관문에서 알고자 한 것</a>
+        <a href="#axes">1. 모든 계산은 [Batch, Token 위치, Feature]에서 시작했습니다</a>
+        <a href="#flow">2. 한 Block의 실행 순서</a>
+        <a href="#embedding">3. Token 의미와 위치 정보를 같은 Shape으로 더했습니다</a>
+        <a href="#projection">4. 같은 입력을 서로 다른 Linear로 보아 Q·K·V를 만들었습니다</a>
+        <a href="#scaling">5. QKᵀ의 합이 커지는 이유를 분산으로 따라갔습니다</a>
+        <a href="#mask-softmax">6. Causal Mask는 Shape을 바꾸지 않고 선택 비중을 0으로 만듭니다</a>
+        <a href="#value-mixing">7. Attention Weight는 Value 벡터를 실제로 섞는 비율입니다</a>
+        <a href="#heads">8. Head를 나눴다가 Token별로 다시 모았습니다</a>
+        <a href="#attention">9. Causal Multi-Head Attention 핵심 코드</a>
+        <a href="#block">10. Residual·LayerNorm·FFN 조립</a>
+        <a href="#shape">11. 저장된 실행 결과</a>
+        <a href="#corrections">12. 오래 걸렸던 의문과 수정</a>
+        <a href="#evidence">13. 확인된 완료 증거</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="learning-purpose" class="markdown-section">
+<h2>이 관문에서 알고자 한 것</h2>
+<p><strong>목적</strong><br>Transformer를 “Token끼리 정보를 섞는다”는 한 문장으로 외우지 않고, <code>[B,S,D]</code> Tensor가 어떤 코드와 Shape을 거쳐 위치별 문맥 벡터가 되는지 직접 확인하려고 했습니다. 각 연산은 왜 필요한지, 무엇을 보존하고 무엇을 바꾸는지, 작은 숫자로 검산할 수 있는지를 기준으로 한 Block을 조립했습니다.</p>
+<p>질문 01</p>
+<h3>Token ID는 어떻게 의미 벡터와 위치 정보를 얻는가?</h3>
+<p><strong>사용한 코드</strong> <code>nn.Embedding</code>·<code>torch.arange</code>·학습형 Position Embedding·sin/cos <code>div_term</code></p>
+<p><strong>확인할 이해</strong> Token과 위치는 같은 <code>[B,S,D]</code> Shape에서 원소별로 더해지며, <code>embedding_dim</code>은 벡터 열 수이고 초기화 표준편차와는 다른 설정입니다.</p>
+<p><a href="#embedding">Embedding 실습 보기 →</a></p>
+<p>질문 02</p>
+<h3>Q·K·V는 같은 입력에서 어떻게 서로 다른 역할을 얻는가?</h3>
+<p><strong>사용한 코드</strong> 세 개의 <code>nn.Linear(D,D)</code>·<code>x @ weight.T</code>·<code>torch.allclose()</code></p>
+<p><strong>확인할 이해</strong> Shape은 유지되지만 별도 Weight가 Query·Key·Value 값을 만들고, <code>QKᵀ</code>의 각 칸은 Query 하나와 Key 하나의 특징 곱을 더한 관계 점수입니다.</p>
+<p><a href="#projection">Q·K·V 실습 보기 →</a></p>
+<p>질문 03</p>
+<h3>왜 Score를 <code>√head_dim</code>으로 나누고 미래 위치를 <code>-inf</code>로 바꾸는가?</h3>
+<p><strong>사용한 코드</strong> <code>scores / sqrt(head_dim)</code>·<code>torch.tril</code>·<code>~mask</code>·<code>masked_fill</code>·<code>softmax(dim=-1)</code></p>
+<p><strong>확인할 이해</strong> 독립 항의 합은 표준편차가 약 √항 수로 커지므로 Softmax 전 규모를 완화하고, <code>exp(-inf)=0</code>을 이용해 미래 Attention 비중을 정확히 0으로 만듭니다.</p>
+<p><a href="#scaling">Score·Mask 계산 보기 →</a></p>
+<p>질문 04</p>
+<h3>Attention Weight는 실제 Token 정보를 어떻게 섞는가?</h3>
+<p><strong>사용한 코드</strong> <code>attention_weights @ value</code>·Value 수동 가중합·<code>view/transpose/reshape</code>·Output Projection</p>
+<p><strong>확인할 이해</strong> 관계 비중만으로는 새 내용이 생기지 않고 Value 벡터를 비중대로 더해야 합니다. Head 결과는 Token별로 재정렬한 뒤 <code>[B,S,D]</code>로 합치고 <code>W_O</code>로 다시 섞습니다.</p>
+<p><a href="#value-mixing">Value·Head 실습 보기 →</a></p>
+<p>질문 05</p>
+<h3>Attention 결과를 왜 Residual·LayerNorm·FFN에 다시 통과시키는가?</h3>
+<p><strong>사용한 코드</strong> <code>x + attention_output</code>·<code>LayerNorm(D)</code>·<code>Linear(D,d_ff)</code>·GELU·<code>Linear(d_ff,D)</code></p>
+<p><strong>확인할 이해</strong> Residual은 기존 정보를 보존한 채 새 문맥을 더하고, LayerNorm은 Token별 중심·규모를 정돈합니다. FFN은 Token을 서로 섞지 않고 각 위치의 특징 표현을 넓혔다 줄입니다.</p>
+<p><a href="#block">Block 조립 보기 →</a></p>
+
+</section>
+<section id="axes" class="markdown-section">
+<h2>1. 모든 계산은 [Batch, Token 위치, Feature]에서 시작했습니다</h2>
+<p><code>[B,S,D]=[1,3,2]</code>를 “Batch 1개, 문장 3개, Token 2개”로 읽으면 뒤의 모든 Shape이 어긋납니다. 여기서는 문장 1개가 Batch에 들어 있고, 그 문장 안에 Token 위치가 3개 있으며, 각 Token을 길이 2인 벡터로 표현합니다.</p>
+<pre><code>B = Batch 안의 문장 수
 S = 문장마다 정렬된 Token 위치 수
 D = Token 하나를 표현하는 Feature 수
 
@@ -35,8 +98,14 @@ D = Token 하나를 표현하는 Feature 수
 └ 문장 1개
   ├ 위치 0 → [특징 2개]
   ├ 위치 1 → [특징 2개]
-  └ 위치 2 → [특징 2개]</code></pre><p>Attention은 Token 위치끼리 정보를 주고받게 하지만 위치 축을 하나로 합치지 않습니다. 그래서 입력과 Block 출력은 모두 <code>[B,S,D]</code>이고, 각 위치는 자신이 참고할 수 있었던 Token들의 문맥이 반영된 벡터를 하나씩 유지합니다.</p></section>
-  <section id="flow"><h2>2. 한 Block의 실행 순서</h2><pre><code>Token IDs [B,S]
+  └ 위치 2 → [특징 2개]
+</code></pre>
+<p>Attention은 Token 위치끼리 정보를 주고받게 하지만 위치 축을 하나로 합치지 않습니다. 그래서 입력과 Block 출력은 모두 <code>[B,S,D]</code>이고, 각 위치는 자신이 참고할 수 있었던 Token들의 문맥이 반영된 벡터를 하나씩 유지합니다.</p>
+
+</section>
+<section id="flow" class="markdown-section">
+<h2>2. 한 Block의 실행 순서</h2>
+<pre><code>Token IDs [B,S]
   ↓ Token Embedding + Position Embedding
 Hidden [B,S,D]
   ↓ Q·K·V Linear, Head 분리
@@ -49,59 +118,112 @@ Head Output [B,H,S,head_dim]
 Attention Output [B,S,D]
   ↓ Residual + LayerNorm
   ↓ FFN(D→d_ff→D) + Residual + LayerNorm
-Block Output [B,S,D]</code></pre><p>Attention은 Token 위치 사이의 정보를 섞지만 FFN은 이미 문맥이 들어간 각 Token의 마지막 Feature 축을 독립적으로 확장·GELU·축소합니다. 어느 단계도 Token 세 개를 하나의 Token으로 합치지 않습니다.</p></section>
-  <section id="embedding"><h2>3. Token 의미와 위치 정보를 같은 Shape으로 더했습니다</h2><p><code>nn.Embedding</code>은 정수 ID를 행 번호로 받아 학습 가능한 벡터를 돌려주는 조회표입니다. <code>Embedding(10,2)</code>의 Weight는 <code>[10,2]</code>이고, Token ID <code>3,7,2</code>를 넣으면 해당 세 행을 꺼내 <code>[1,3,2]</code>를 만듭니다. 같은 ID는 문맥 계산 전에는 항상 같은 Token Embedding 행을 조회합니다.</p><pre><code>Token Embedding Weight [vocab_size=10, d_model=2]
+Block Output [B,S,D]
+</code></pre>
+<p>Attention은 Token 위치 사이의 정보를 섞지만 FFN은 이미 문맥이 들어간 각 Token의 마지막 Feature 축을 독립적으로 확장·GELU·축소합니다. 어느 단계도 Token 세 개를 하나의 Token으로 합치지 않습니다.</p>
+
+</section>
+<section id="embedding" class="markdown-section">
+<h2>3. Token 의미와 위치 정보를 같은 Shape으로 더했습니다</h2>
+<p><code>nn.Embedding</code>은 정수 ID를 행 번호로 받아 학습 가능한 벡터를 돌려주는 조회표입니다. <code>Embedding(10,2)</code>의 Weight는 <code>[10,2]</code>이고, Token ID <code>3,7,2</code>를 넣으면 해당 세 행을 꺼내 <code>[1,3,2]</code>를 만듭니다. 같은 ID는 문맥 계산 전에는 항상 같은 Token Embedding 행을 조회합니다.</p>
+<pre><code>Token Embedding Weight [vocab_size=10, d_model=2]
 Token IDs [1,3] → Token vectors [1,3,2]
 
 Position Embedding Weight [max_seq_len=8, d_model=2]
 Position IDs [1,3] → Position vectors [1,3,2]
 
 Hidden = Token vectors + Position vectors
-       = [1,3,2]</code></pre><p>위치 정보는 고정 sin·cos 수식으로 만들 수도 있고 <code>nn.Embedding(max_seq_len,d_model)</code> 같은 학습형 표로 만들 수도 있습니다. 두 방식을 나중에 합치는 것이 아니라 위치 벡터를 만드는 서로 다른 선택지입니다. <code>nn.Embedding</code> 자체는 Token과 위치를 구분하지 않으며 어떤 ID를 넣고 어디에 더하는지가 역할을 정합니다.</p><pre><code># 고정 sin·cos 위치 벡터의 핵심 Shape
+       = [1,3,2]
+</code></pre>
+<p>위치 정보는 고정 sin·cos 수식으로 만들 수도 있고 <code>nn.Embedding(max_seq_len,d_model)</code> 같은 학습형 표로 만들 수도 있습니다. 두 방식을 나중에 합치는 것이 아니라 위치 벡터를 만드는 서로 다른 선택지입니다. <code>nn.Embedding</code> 자체는 Token과 위치를 구분하지 않으며 어떤 ID를 넣고 어디에 더하는지가 역할을 정합니다.</p>
+<pre><code># 고정 sin·cos 위치 벡터의 핵심 Shape
 position = torch.arange(S).unsqueeze(1)       # [S,1]
 div_term = torch.exp(
     torch.arange(0, D, 2) * (-math.log(10000.0) / D)
 )                                             # [D/2]
 
 pe[:, 0::2] = torch.sin(position * div_term) # 짝수 차원
-pe[:, 1::2] = torch.cos(position * div_term) # 홀수 차원</code></pre><p><code>torch.exp(x)</code>는 자연상수 <code>e</code>의 <code>x</code>제곱을 원소별로 계산합니다. 차원 index가 커질수록 <code>div_term</code>이 작아져 위치에 따라 느리게 변하는 파형이 되고, 작은 index에서는 더 빠르게 변합니다. 짝수·홀수 차원에 sin·cos를 반씩 배치해 위치마다 여러 주기의 패턴을 갖게 합니다.</p><p>초기 Token 벡터의 전체 제곱합 기댓값을 약 1로 두려면 원소 분산은 약 <code>1/D</code>, 표준편차는 <code>1/√D</code>가 됩니다. 고전적인 Transformer에서는 이처럼 작은 Embedding에 <code>√D</code>를 곱해 위치 벡터와 더하기 전 크기를 끌어올립니다. 이것은 뒤에서 Attention Score를 <code>√head_dim</code>으로 나누는 연산과 목적이 다른 별도 Scaling입니다.</p></section>
-  <section id="projection"><h2>4. 같은 입력을 서로 다른 Linear로 보아 Q·K·V를 만들었습니다</h2><p>Query·Key·Value는 입력 Tensor를 복사해 이름만 바꾼 것이 아닙니다. 각각 별도의 <code>Linear(D,D)</code> Weight를 통과하므로 Shape은 <code>[B,S,D]</code>로 같아도 값과 학습 역할이 다릅니다.</p><pre><code>Q = x @ W_Qᵀ + b_Q  # 무엇을 찾는가
+pe[:, 1::2] = torch.cos(position * div_term) # 홀수 차원
+</code></pre>
+<p><code>torch.exp(x)</code>는 자연상수 <code>e</code>의 <code>x</code>제곱을 원소별로 계산합니다. 차원 index가 커질수록 <code>div_term</code>이 작아져 위치에 따라 느리게 변하는 파형이 되고, 작은 index에서는 더 빠르게 변합니다. 짝수·홀수 차원에 sin·cos를 반씩 배치해 위치마다 여러 주기의 패턴을 갖게 합니다.</p>
+<p>초기 Token 벡터의 전체 제곱합 기댓값을 약 1로 두려면 원소 분산은 약 <code>1/D</code>, 표준편차는 <code>1/√D</code>가 됩니다. 고전적인 Transformer에서는 이처럼 작은 Embedding에 <code>√D</code>를 곱해 위치 벡터와 더하기 전 크기를 끌어올립니다. 이것은 뒤에서 Attention Score를 <code>√head_dim</code>으로 나누는 연산과 목적이 다른 별도 Scaling입니다.</p>
+
+</section>
+<section id="projection" class="markdown-section">
+<h2>4. 같은 입력을 서로 다른 Linear로 보아 Q·K·V를 만들었습니다</h2>
+<p>Query·Key·Value는 입력 Tensor를 복사해 이름만 바꾼 것이 아닙니다. 각각 별도의 <code>Linear(D,D)</code> Weight를 통과하므로 Shape은 <code>[B,S,D]</code>로 같아도 값과 학습 역할이 다릅니다.</p>
+<pre><code>Q = x @ W_Qᵀ + b_Q  # 무엇을 찾는가
 K = x @ W_Kᵀ + b_K  # 어떤 조건으로 발견되는가
 V = x @ W_Vᵀ + b_V  # 발견됐을 때 가져올 내용
 
 x [1,3,2]
 Q [1,3,2]
 K [1,3,2]
-V [1,3,2]</code></pre><p><code>nn.Linear</code>는 입력의 마지막 축에만 같은 행렬을 적용하므로 Batch와 Token 위치 수는 보존됩니다. 실제로 한 Token 벡터에 대해 <code>x @ weight.T</code>를 직접 계산하고 Linear 결과와 <code>torch.allclose()</code>로 비교했습니다. Key 계산에서 Query Projection을 잘못 재사용한 오타도 이 별도 Weight 경계를 확인하며 발견했습니다.</p></section>
-  <section id="scaling"><h2>5. QKᵀ의 합이 커지는 이유를 분산으로 따라갔습니다</h2><p>한 Query와 한 Key의 Score는 같은 위치의 Feature끼리 곱한 뒤 모두 더한 숫자 하나입니다. <code>head_dim=2</code>이면 <code>Score=A+B</code>, <code>head_dim=k</code>이면 독립적인 항 <code>k</code>개의 합으로 봅니다.</p><pre><code>Score = q₁k₁ + q₂k₂ + ... + qₖkₖ
+V [1,3,2]
+</code></pre>
+<p><code>nn.Linear</code>는 입력의 마지막 축에만 같은 행렬을 적용하므로 Batch와 Token 위치 수는 보존됩니다. 실제로 한 Token 벡터에 대해 <code>x @ weight.T</code>를 직접 계산하고 Linear 결과와 <code>torch.allclose()</code>로 비교했습니다. Key 계산에서 Query Projection을 잘못 재사용한 오타도 이 별도 Weight 경계를 확인하며 발견했습니다.</p>
+
+</section>
+<section id="scaling" class="markdown-section">
+<h2>5. QKᵀ의 합이 커지는 이유를 분산으로 따라갔습니다</h2>
+<p>한 Query와 한 Key의 Score는 같은 위치의 Feature끼리 곱한 뒤 모두 더한 숫자 하나입니다. <code>head_dim=2</code>이면 <code>Score=A+B</code>, <code>head_dim=k</code>이면 독립적인 항 <code>k</code>개의 합으로 봅니다.</p>
+<pre><code>Score = q₁k₁ + q₂k₂ + ... + qₖkₖ
 
 각 항의 평균 ≈ 0, 분산 ≈ 1, 서로 독립이라고 단순화하면
 Var(Score) ≈ 1 + 1 + ... + 1 = k
 Std(Score) ≈ √k
 
 Scaled Score = Score / √head_dim
-→ 표준편차 규모를 다시 약 1로 완화</code></pre><p><code>A,B∈{-1,1}</code>인 작은 예에서 가능한 Score는 <code>[2,0,0,-2]</code>입니다. 평균은 0이고, 분산은 <code>(2²+0²+0²+(-2)²)/4=2</code>, 표준편차는 <code>√2</code>입니다. 중요한 것은 A와 B 두 숫자의 분산을 구하는 것이 아니라, 여러 입력에서 매번 <code>A+B</code>로 만든 Score 집단의 퍼짐을 보는 것입니다.</p><p><code>√head_dim</code>은 현재 Q·K의 실제 표준편차를 측정한 정확한 정규화가 아닙니다. 중심 0·비슷한 분산·약한 상관이라는 초기화 근사 아래에서 차원이 커질수록 Softmax 입력이 과도하게 벌어지는 현상을 줄이는 고정 Scaling입니다.</p></section>
-  <section id="mask-softmax"><h2>6. Causal Mask는 Shape을 바꾸지 않고 선택 비중을 0으로 만듭니다</h2><p><code>torch.tril()</code>로 현재 위치와 과거 위치만 True인 하삼각 Boolean Mask를 만들었습니다. <code>~causal_mask</code>는 이를 뒤집어 미래 위치가 True인 “금지 위치” Mask로 만들고, <code>masked_fill(...,-inf)</code>로 해당 Score를 음의 무한대로 바꿉니다.</p><pre><code>허용 Mask
+→ 표준편차 규모를 다시 약 1로 완화
+</code></pre>
+<p><code>A,B∈{-1,1}</code>인 작은 예에서 가능한 Score는 <code>[2,0,0,-2]</code>입니다. 평균은 0이고, 분산은 <code>(2²+0²+0²+(-2)²)/4=2</code>, 표준편차는 <code>√2</code>입니다. 중요한 것은 A와 B 두 숫자의 분산을 구하는 것이 아니라, 여러 입력에서 매번 <code>A+B</code>로 만든 Score 집단의 퍼짐을 보는 것입니다.</p>
+<p><code>√head_dim</code>은 현재 Q·K의 실제 표준편차를 측정한 정확한 정규화가 아닙니다. 중심 0·비슷한 분산·약한 상관이라는 초기화 근사 아래에서 차원이 커질수록 Softmax 입력이 과도하게 벌어지는 현상을 줄이는 고정 Scaling입니다.</p>
+
+</section>
+<section id="mask-softmax" class="markdown-section">
+<h2>6. Causal Mask는 Shape을 바꾸지 않고 선택 비중을 0으로 만듭니다</h2>
+<p><code>torch.tril()</code>로 현재 위치와 과거 위치만 True인 하삼각 Boolean Mask를 만들었습니다. <code>~causal_mask</code>는 이를 뒤집어 미래 위치가 True인 “금지 위치” Mask로 만들고, <code>masked_fill(...,-inf)</code>로 해당 Score를 음의 무한대로 바꿉니다.</p>
+<pre><code>허용 Mask
 [[ True, False, False],
  [ True,  True, False],
  [ True,  True,  True]]
 
 Softmax(zᵢ) = exp(zᵢ) / Σ exp(zⱼ)
 exp(-inf) = 0
-→ 미래 위치의 Attention Weight = 0</code></pre><p>Softmax는 원래 점수의 단순 합 비율이 아니라 각 점수에 지수함수 <code>exp</code>를 적용한 양수들의 비율입니다. 첫 행에서 자기 자신만 허용된다면 나머지는 0이므로 허용 칸의 비율은 1이 됩니다. <code>dim=-1</code>은 각 Query 행에서 마지막 Key 축의 합이 1이 되도록 계산한다는 뜻입니다.</p></section>
-  <section id="value-mixing"><h2>7. Attention Weight는 Value 벡터를 실제로 섞는 비율입니다</h2><p>Q·K로 만든 Weight는 관계 점수이고, 그 자체가 Token의 새 내용은 아닙니다. 각 Query 행의 Weight를 대응하는 Value 벡터에 곱해 더해야 문맥이 반영된 출력이 됩니다.</p><pre><code>Query 2의 Weight = [a₃, a₄]
+→ 미래 위치의 Attention Weight = 0
+</code></pre>
+<p>Softmax는 원래 점수의 단순 합 비율이 아니라 각 점수에 지수함수 <code>exp</code>를 적용한 양수들의 비율입니다. 첫 행에서 자기 자신만 허용된다면 나머지는 0이므로 허용 칸의 비율은 1이 됩니다. <code>dim=-1</code>은 각 Query 행에서 마지막 Key 축의 합이 1이 되도록 계산한다는 뜻입니다.</p>
+
+</section>
+<section id="value-mixing" class="markdown-section">
+<h2>7. Attention Weight는 Value 벡터를 실제로 섞는 비율입니다</h2>
+<p>Q·K로 만든 Weight는 관계 점수이고, 그 자체가 Token의 새 내용은 아닙니다. 각 Query 행의 Weight를 대응하는 Value 벡터에 곱해 더해야 문맥이 반영된 출력이 됩니다.</p>
+<pre><code>Query 2의 Weight = [a₃, a₄]
 Value 1 = V₁
 Value 2 = V₂
 
-Output 2 = a₃ × V₁ + a₄ × V₂</code></pre><p>첫 번째 Query의 실제 Weight <code>[0.5084,0.4916]</code>에 두 Value를 곱해 더한 결과 <code>[-0.0971,0.0557]</code>이 코드의 <code>output[0,0]</code>과 일치함을 확인했습니다. 이 계산을 통해 “Token끼리 정보를 주고받는다”는 말은 다른 Token 자체를 복사하는 것이 아니라, 현재 Query가 정한 비율로 여러 Value의 특징을 가중합한다는 의미로 구체화됐습니다.</p></section>
-  <section id="heads"><h2>8. Head를 나눴다가 Token별로 다시 모았습니다</h2><p><code>D</code>를 여러 Head가 나눠 서로 다른 Projection 관점으로 관계를 계산합니다. <code>D=2</code>, Head 2개라면 <code>head_dim=1</code>입니다. Token을 둘로 늘리는 것이 아니라 Token마다 가진 Feature 축을 Head별로 분리합니다.</p><pre><code>[B,S,D]
+Output 2 = a₃ × V₁ + a₄ × V₂
+</code></pre>
+<p>첫 번째 Query의 실제 Weight <code>[0.5084,0.4916]</code>에 두 Value를 곱해 더한 결과 <code>[-0.0971,0.0557]</code>이 코드의 <code>output[0,0]</code>과 일치함을 확인했습니다. 이 계산을 통해 “Token끼리 정보를 주고받는다”는 말은 다른 Token 자체를 복사하는 것이 아니라, 현재 Query가 정한 비율로 여러 Value의 특징을 가중합한다는 의미로 구체화됐습니다.</p>
+
+</section>
+<section id="heads" class="markdown-section">
+<h2>8. Head를 나눴다가 Token별로 다시 모았습니다</h2>
+<p><code>D</code>를 여러 Head가 나눠 서로 다른 Projection 관점으로 관계를 계산합니다. <code>D=2</code>, Head 2개라면 <code>head_dim=1</code>입니다. Token을 둘로 늘리는 것이 아니라 Token마다 가진 Feature 축을 Head별로 분리합니다.</p>
+<pre><code>[B,S,D]
 → reshape [B,S,H,head_dim]
 → transpose [B,H,S,head_dim]
 → Head별 Attention
 → transpose [B,S,H,head_dim]
 → reshape [B,S,D]
-→ Output Projection W_O [B,S,D]</code></pre><p><code>transpose(1,2)</code>로 Head A·B의 결과를 Token별로 다시 모은 뒤에야 <code>reshape(B,S,D)</code>로 합칠 수 있습니다. 이어 붙이기만 한 결과는 Head 특징이 나열된 상태이므로 <code>W_O</code>가 학습 가능한 비율로 다시 섞습니다. 한 Token의 <code>multi_head_output @ W_O.T</code>를 직접 계산해 <code>nn.Linear</code>의 Output Projection과 일치하는 것도 확인했습니다.</p></section>
-  <section id="attention"><h2>9. Causal Multi-Head Attention 핵심 코드</h2><pre><code>class CausalMultiHeadAttention(nn.Module):
+→ Output Projection W_O [B,S,D]
+</code></pre>
+<p><code>transpose(1,2)</code>로 Head A·B의 결과를 Token별로 다시 모은 뒤에야 <code>reshape(B,S,D)</code>로 합칠 수 있습니다. 이어 붙이기만 한 결과는 Head 특징이 나열된 상태이므로 <code>W_O</code>가 학습 가능한 비율로 다시 섞습니다. 한 Token의 <code>multi_head_output @ W_O.T</code>를 직접 계산해 <code>nn.Linear</code>의 Output Projection과 일치하는 것도 확인했습니다.</p>
+
+</section>
+<section id="attention" class="markdown-section">
+<h2>9. Causal Multi-Head Attention 핵심 코드</h2>
+<pre><code>class CausalMultiHeadAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int) -&gt; None:
         super().__init__()
         assert d_model % num_heads == 0
@@ -133,7 +255,7 @@ Output 2 = a₃ × V₁ + a₄ × V₂</code></pre><p>첫 번째 Query의 실제
         causal_mask = torch.tril(torch.ones(
             token_count, token_count, dtype=torch.bool, device=x.device
         ))
-        scores = scores.masked_fill(~causal_mask, float("-inf"))
+        scores = scores.masked_fill(~causal_mask, float(&quot;-inf&quot;))
         attention_weights = torch.softmax(scores, dim=-1)
         head_outputs = attention_weights @ value_heads
 
@@ -141,8 +263,13 @@ Output 2 = a₃ × V₁ + a₄ × V₂</code></pre><p>첫 번째 Query의 실제
         multi_head_output = outputs_by_token.reshape(
             batch_size, token_count, self.d_model
         )
-        return self.out_proj(multi_head_output), attention_weights</code></pre></section>
-  <section id="block"><h2>10. Residual·LayerNorm·FFN 조립</h2><pre><code>class CausalTransformerBlock(nn.Module):
+        return self.out_proj(multi_head_output), attention_weights
+</code></pre>
+
+</section>
+<section id="block" class="markdown-section">
+<h2>10. Residual·LayerNorm·FFN 조립</h2>
+<pre><code>class CausalTransformerBlock(nn.Module):
     def __init__(self, d_model: int, num_heads: int, d_ff: int) -&gt; None:
         super().__init__()
         self.attention = CausalMultiHeadAttention(d_model, num_heads)
@@ -159,8 +286,15 @@ Output 2 = a₃ × V₁ + a₄ × V₂</code></pre><p>첫 번째 Query의 실제
         after_attention = self.norm1(x + attention_output)
         ffn_output = self.ffn(after_attention)
         block_output = self.norm2(after_attention + ffn_output)
-        return block_output, attention_weights</code></pre><p>첫 Residual은 <code>x + attention_output</code>이고, FFN에는 이 합을 정리한 <code>after_attention</code>이 들어갑니다. 두 번째 Residual의 기준도 원래 최초 <code>x</code>가 아니라 <code>after_attention + ffn_output</code>입니다. FFN은 각 Token마다 <code>D→d_ff→D</code>로 특징을 넓혀 GELU로 반응을 조절하고 다시 줄입니다.</p><p><code>LayerNorm</code>은 값을 0~1로 제한하거나 튀는 원소만 제거하는 연산이 아닙니다. 각 Token의 마지막 Feature 축 평균을 빼고 표준편차 규모로 나눈 뒤 학습 가능한 scale과 bias를 적용합니다. Residual과 Linear를 반복하며 값의 중심·크기가 흔들려도 다음 층이 다루기 쉬운 범위로 정돈합니다.</p></section>
-  <section id="shape"><h2>11. 저장된 실행 결과</h2><pre><code>입력 Shape:              [1, 3, 2]
+        return block_output, attention_weights
+</code></pre>
+<p>첫 Residual은 <code>x + attention_output</code>이고, FFN에는 이 합을 정리한 <code>after_attention</code>이 들어갑니다. 두 번째 Residual의 기준도 원래 최초 <code>x</code>가 아니라 <code>after_attention + ffn_output</code>입니다. FFN은 각 Token마다 <code>D→d_ff→D</code>로 특징을 넓혀 GELU로 반응을 조절하고 다시 줄입니다.</p>
+<p><code>LayerNorm</code>은 값을 0~1로 제한하거나 튀는 원소만 제거하는 연산이 아닙니다. 각 Token의 마지막 Feature 축 평균을 빼고 표준편차 규모로 나눈 뒤 학습 가능한 scale과 bias를 적용합니다. Residual과 Linear를 반복하며 값의 중심·크기가 흔들려도 다음 층이 다루기 쉬운 범위로 정돈합니다.</p>
+
+</section>
+<section id="shape" class="markdown-section">
+<h2>11. 저장된 실행 결과</h2>
+<pre><code>입력 Shape:              [1, 3, 2]
 Attention 출력 Shape:   [1, 3, 2]
 Attention Weight Shape: [1, 2, 3, 3]
 Block 출력 Shape:       [1, 3, 2]
@@ -168,8 +302,44 @@ Block 출력 Shape:       [1, 3, 2]
 Head 0 Attention 예:
 [[1.0000, 0.0000, 0.0000],
  [0.5841, 0.4159, 0.0000],
- [0.3531, 0.3186, 0.3283]]</code></pre><p>첫 Token은 자기 자신만, 둘째 Token은 0·1번 위치만, 셋째 Token은 0·1·2번 위치를 봅니다. 이 병렬 계산 구조가 뒤의 LM Head에서 위치마다 “그 Prefix 다음 Token” 후보 점수를 만들 수 있는 기반입니다.</p></section>
-  <section id="corrections"><h2>12. 오래 걸렸던 의문과 수정</h2><div class="status-list"><div class="status-row"><strong>왜 √head_dim으로 나누나</strong><span>독립적인 항의 합은 항 수만큼 분산이 커지고 표준편차는 √항 수만큼 커지므로, 나눠 Softmax 입력 규모가 차원과 함께 폭증하는 것을 줄였습니다.</span></div><div class="status-row"><strong><code>~causal_mask</code></strong><span>허용 위치 True를 뒤집어 금지 위치 True로 만든 뒤 그 위치를 <code>-inf</code>로 채웠습니다. Softmax에서 <code>exp(-inf)=0</code>이 됩니다.</span></div><div class="status-row"><strong>Value 수동 검산 실패</strong><span>둘째 출력에서 Weight만 더해 <code>False</code>가 남았고, 올바른 식은 <code>a₃×V₁ + a₄×V₂</code>처럼 각 Attention Weight에 대응 Value 벡터를 곱해 더하는 것입니다.</span></div><div class="status-row"><strong>Projection 오타</strong><span>Key 계산에 Query Projection을 재사용한 코드를 <code>key_projection(x)</code>로 수정하고 두 Weight가 별도 학습 파라미터임을 확인했습니다.</span></div><div class="status-row"><strong>Head 병합</strong><span><code>[B,H,S,head_dim]</code>을 바로 reshape하지 않고 <code>transpose(1,2)</code>로 Token별 Head를 다시 모은 뒤 <code>[B,S,D]</code>로 합쳤습니다.</span></div><div class="status-row"><strong>Embedding 차원 오해</strong><span><code>embedding_dim</code>은 초기화 표준편차가 아니라 벡터 하나의 열 수입니다. 초기화 std는 별도 함수에서 정하고, <code>num_embeddings</code>는 조회 가능한 행 수입니다.</span></div><div class="status-row"><strong>차원과 차수</strong><span>45개 입력 같은 “Feature 차원”과 수학식의 1차·2차를 구분했습니다. Linear는 여러 입력을 받더라도 제곱항이 없는 1차식의 묶음입니다.</span></div></div></section>
-  <section id="evidence"><h2>13. 확인된 완료 증거</h2><ul><li>Token·Position Embedding에서 Block Output까지 핵심 Shape을 순서대로 예측했습니다.</li><li>Q·K·V와 Score가 Token별 문맥을 어떻게 만드는지 Shape과 미래 Mask 값으로 설명했습니다.</li><li>Score 항 두 개의 분산 2·표준편차 √2를 작은 경우로 계산하고 일반 <code>√head_dim</code> Scaling과 연결했습니다.</li><li>Attention Weight와 Value의 가중합을 실제 숫자로 계산해 출력과 비교했습니다.</li><li>Attention 뒤와 FFN 뒤에 각각 현재 입력을 Residual로 더하고 LayerNorm하는 순서를 재구성했습니다.</li><li><code>outputs_by_token.reshape(B,S,D)</code>가 여러 Head를 원래 모델 차원으로 합치는 코드라고 설명했습니다.</li></ul><div class="warning"><strong>한계</strong><br>이 관문은 작은 Tensor와 한 Block의 원리 검증입니다. RoPE·GQA·RMSNorm·SwiGLU·KV Cache는 이후 PyTorch 추론 관문에서 실제 필요와 함께 다룹니다.</div></section>
-  <footer class="footer">Road to LLM inference · Milestone 03 · Transformer 핵심 손코딩</footer>
-</main><script src="../../../assets/js/global_nav.js?v=20260901-record-pages-1"></script></body></html>
+ [0.3531, 0.3186, 0.3283]]
+</code></pre>
+<p>첫 Token은 자기 자신만, 둘째 Token은 0·1번 위치만, 셋째 Token은 0·1·2번 위치를 봅니다. 이 병렬 계산 구조가 뒤의 LM Head에서 위치마다 “그 Prefix 다음 Token” 후보 점수를 만들 수 있는 기반입니다.</p>
+
+</section>
+<section id="corrections" class="markdown-section">
+<h2>12. 오래 걸렸던 의문과 수정</h2>
+<p>왜 √head_dim으로 나누나독립적인 항의 합은 항 수만큼 분산이 커지고 표준편차는 √항 수만큼 커지므로, 나눠 Softmax 입력 규모가 차원과 함께 폭증하는 것을 줄였습니다.</p>
+<p><code>~causal_mask</code>허용 위치 True를 뒤집어 금지 위치 True로 만든 뒤 그 위치를 <code>-inf</code>로 채웠습니다. Softmax에서 <code>exp(-inf)=0</code>이 됩니다.</p>
+<p>Value 수동 검산 실패둘째 출력에서 Weight만 더해 <code>False</code>가 남았고, 올바른 식은 <code>a₃×V₁ + a₄×V₂</code>처럼 각 Attention Weight에 대응 Value 벡터를 곱해 더하는 것입니다.</p>
+<p><strong>Projection 오타</strong>Key 계산에 Query Projection을 재사용한 코드를 <code>key_projection(x)</code>로 수정하고 두 Weight가 별도 학습 파라미터임을 확인했습니다.</p>
+<p><strong>Head 병합</strong><code>[B,H,S,head_dim]</code>을 바로 reshape하지 않고 <code>transpose(1,2)</code>로 Token별 Head를 다시 모은 뒤 <code>[B,S,D]</code>로 합쳤습니다.</p>
+<p><strong>Embedding 차원 오해</strong><code>embedding_dim</code>은 초기화 표준편차가 아니라 벡터 하나의 열 수입니다. 초기화 std는 별도 함수에서 정하고, <code>num_embeddings</code>는 조회 가능한 행 수입니다.</p>
+<p><strong>차원과 차수</strong>45개 입력 같은 “Feature 차원”과 수학식의 1차·2차를 구분했습니다. Linear는 여러 입력을 받더라도 제곱항이 없는 1차식의 묶음입니다.</p>
+
+</section>
+<section id="evidence" class="markdown-section">
+<h2>13. 확인된 완료 증거</h2>
+<ul>
+<li>Token·Position Embedding에서 Block Output까지 핵심 Shape을 순서대로 예측했습니다.</li>
+<li>Q·K·V와 Score가 Token별 문맥을 어떻게 만드는지 Shape과 미래 Mask 값으로 설명했습니다.</li>
+<li>Score 항 두 개의 분산 2·표준편차 √2를 작은 경우로 계산하고 일반 <code>√head_dim</code> Scaling과 연결했습니다.</li>
+<li>Attention Weight와 Value의 가중합을 실제 숫자로 계산해 출력과 비교했습니다.</li>
+<li>Attention 뒤와 FFN 뒤에 각각 현재 입력을 Residual로 더하고 LayerNorm하는 순서를 재구성했습니다.</li>
+<li><code>outputs_by_token.reshape(B,S,D)</code>가 여러 Head를 원래 모델 차원으로 합치는 코드라고 설명했습니다.</li>
+</ul>
+<aside class="md-component md-caution" data-component="caution"><div class="md-component-body"><p><strong>한계</strong><br>이 관문은 작은 Tensor와 한 Block의 원리 검증입니다. RoPE·GQA·RMSNorm·SwiGLU·KV Cache는 이후 PyTorch 추론 관문에서 실제 필요와 함께 다룹니다.</p>
+</div></aside>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

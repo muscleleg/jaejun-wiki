@@ -1,460 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_positional_div_term_learning.md. Do not edit directly. source-sha256:1ea92e50178a75b7aed0c6554efc1a01c4d5274b22b1fd2f16f084a59d5cf6ca -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Positional Encoding의 div_term 식이 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.">
-  <title>Transformer · Positional Encoding div_term</title>
-  <style>
-    :root {
-      --ink: #18211d;
-      --muted: #667069;
-      --paper: #f6f3eb;
-      --panel: #fffdf7;
-      --line: #d9d5c8;
-      --green: #176b4d;
-      --green-soft: #dcecdf;
-      --orange: #d56a3a;
-      --code: #17211d;
-      --code-ink: #eaf3ec;
-      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
-        var(--paper);
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.7;
-    }
-
-    .page {
-      width: min(1120px, calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    header {
-      padding: 76px 0 52px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .eyebrow {
-      margin: 0 0 16px;
-      color: var(--green);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2.6rem, 7vw, 5.7rem);
-      font-weight: 800;
-      letter-spacing: -0.065em;
-      line-height: 1.02;
-    }
-
-    .lead {
-      max-width: 680px;
-      margin: 28px 0 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .doc-link {
-      display: inline-block;
-      margin-top: 22px;
-      padding: 9px 13px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 750;
-      text-decoration: none;
-    }
-
-    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
-    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      gap: 56px;
-      padding: 52px 0 100px;
-    }
-
-    nav {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-    }
-
-    nav p {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    nav a {
-      display: block;
-      margin: 2px 0;
-      padding: 9px 12px;
-      color: var(--muted);
-      border-left: 2px solid transparent;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    nav a:hover, nav a:focus-visible {
-      color: var(--green);
-      border-left-color: var(--green);
-      outline: none;
-    }
-
-    nav .current {
-      color: var(--ink);
-      font-weight: 750;
-      border-left-color: var(--orange);
-    }
-
-    main { min-width: 0; }
-
-    .cell-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      color: var(--orange);
-      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .cell-label::before {
-      width: 9px;
-      height: 9px;
-      content: "";
-      background: var(--orange);
-      border-radius: 50%;
-    }
-
-    h2 {
-      margin: 0 0 18px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      font-weight: 760;
-      letter-spacing: -0.045em;
-      line-height: 1.13;
-    }
-
-    h3 {
-      margin: 52px 0 14px;
-      font-size: 1.28rem;
-      letter-spacing: -0.02em;
-    }
-
-    p { margin: 0 0 18px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .summary {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.03rem;
-    }
-
-    .code-card {
-      position: relative;
-      overflow: hidden;
-      margin: 30px 0;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 13px 18px;
-      color: #9db0a4;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    pre {
-      margin: 0;
-      padding: 24px;
-      overflow-x: auto;
-      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-      tab-size: 4;
-    }
-
-    .kw { color: #f1a567; }
-    .type { color: #80d6a6; }
-    .fn { color: #e7d17d; }
-    .num { color: #a9bff7; }
-    .comment { color: #819389; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 28px 0 8px;
-    }
-
-    .flow-item {
-      position: relative;
-      min-height: 134px;
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .flow-item:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -16px;
-      width: 21px;
-      height: 21px;
-      content: "→";
-      color: var(--green);
-      background: var(--paper);
-      text-align: center;
-      line-height: 19px;
-    }
-
-    .flow-item strong { display: block; margin-bottom: 9px; }
-    .flow-item span { color: var(--muted); font-size: 0.86rem; }
-
-    .shape {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 7px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 5px;
-      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .explain-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .note {
-      padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .note .number {
-      display: block;
-      margin-bottom: 12px;
-      color: var(--orange);
-      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .note strong { display: block; margin-bottom: 7px; }
-    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-
-    .formula {
-      margin: 30px 0;
-      padding: 28px;
-      background: var(--green-soft);
-      border-left: 4px solid var(--green);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .formula .math {
-      display: block;
-      margin-bottom: 10px;
-      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
-        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    }
-
-    .reasoning {
-      margin: 52px 0 0;
-      padding: 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .reasoning h3 { margin-top: 0; }
-
-    .equivalence {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 14px;
-      margin: 24px 0 30px;
-    }
-
-    .equivalence article {
-      padding: 20px;
-      background: var(--paper);
-      border-radius: 10px;
-    }
-
-    .equivalence strong { display: block; margin-bottom: 10px; }
-    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
-
-    .path-map {
-      display: grid;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .path-row {
-      display: grid;
-      grid-template-columns: 86px 1fr;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 17px;
-      background: var(--green-soft);
-      border-radius: 9px;
-    }
-
-    .path-row strong { color: var(--green); }
-    .path-row code { font-size: 0.83rem; }
-
-    .caution {
-      margin: 24px 0 0;
-      padding: 17px 19px;
-      color: var(--muted);
-      background: #f4eadf;
-      border-left: 3px solid var(--orange);
-      border-radius: 0 9px 9px 0;
-      font-size: 0.9rem;
-    }
-
-    table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-
-    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
-    td { font-size: 0.92rem; }
-    tr:last-child td { border-bottom: 0; }
-
-    .checkpoint {
-      margin-top: 52px;
-      padding: 28px;
-      color: white;
-      background: var(--green);
-      border-radius: 16px;
-    }
-
-    .checkpoint h3 { margin: 0 0 18px; }
-    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-    summary { cursor: pointer; font-weight: 700; }
-    details p { margin: 12px 0 0; color: #dcecdf; }
-
-    .cell-start {
-      margin-top: 92px;
-      padding-top: 72px;
-      border-top: 2px solid var(--line);
-    }
-
-    .concept-figure {
-      margin: 28px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure img { display: block; width: min(100%, 1000px); height: auto; margin: 0 auto; border: 1px solid var(--line); border-radius: 14px; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .trig-axis { stroke: #667069; stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
-    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
-    .trig-point { fill: #d56a3a; }
-    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
-    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
-    .position-radius { stroke: #d56a3a; stroke-width: 3; }
-    .position-point { fill: #d56a3a; }
-    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .wave-axis { stroke: #667069; stroke-width: 1.5; }
-    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
-    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
-    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
-    .wave-sin-dot { fill: #176b4d; }
-    .wave-cos-dot { fill: #d56a3a; }
-    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    footer {
-      padding: 24px 0 42px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 800px) {
-      header { padding-top: 48px; }
-      .layout { grid-template-columns: 1fr; gap: 30px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      nav .current { border-bottom-color: var(--orange); }
-      .flow { grid-template-columns: 1fr 1fr; }
-      .flow-item:not(:last-child)::after { display: none; }
-      .equivalence { grid-template-columns: 1fr; }
-      .equals { justify-self: center; }
-    }
-
-    @media (max-width: 540px) {
-      .page { width: min(100% - 24px, 1120px); }
-      .flow, .explain-grid { grid-template-columns: 1fr; }
-      .reasoning { padding: 22px; }
-      .path-row { grid-template-columns: 1fr; gap: 4px; }
-      pre { padding: 18px; font-size: 0.78rem; }
-      th, td { padding: 11px 10px; }
-    }
-  </style>
+  <meta name="description" content="논문의 위치 인코딩 식이 코드의 지수식으로 바뀌고 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.">
+  <meta name="source-sha256" content="1ea92e50178a75b7aed0c6554efc1a01c4d5274b22b1fd2f16f084a59d5cf6ca">
+  <title>div_term은 무엇을 만드는가?</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -463,120 +18,87 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · Positional Encoding div_term">
-  <meta property="og:description" content="Positional Encoding의 div_term 식이 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.">
+  <meta property="og:title" content="div_term은 무엇을 만드는가?">
+  <meta property="og:description" content="논문의 위치 인코딩 식이 코드의 지수식으로 바뀌고 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html","name":"Transformer · Positional Encoding div_term","description":"Positional Encoding의 div_term 식이 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html"},"headline":"Transformer · Positional Encoding div_term"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Positional Encoding","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html"},{"@type":"ListItem","position":4,"name":"div_term"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html","name":"div_term은 무엇을 만드는가?","description":"논문의 위치 인코딩 식이 코드의 지수식으로 바뀌고 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html"},"headline":"div_term은 무엇을 만드는가?"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_div_term_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Positional Encoding, 코드에서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html"},{"@type":"ListItem","position":6,"name":"div_term은 무엇을 만드는가?"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <header>
-    <div class="page">
-            <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 홈</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../../wiki.html">기술 위키</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="transformer_positional_encoding_learning.html">Positional Encoding</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <span aria-current="page">div_term</span>
-      </nav>
-      <p class="eyebrow">Positional Encoding · 심화 설명</p>
-      <h1>div_term은 무엇을<br>만드는가?</h1>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><a href="transformer_positional_encoding_learning.html">Positional Encoding, 코드에서 이해하기</a><span class="separator">›</span><span aria-current="page">div_term은 무엇을 만드는가?</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>div_term은 무엇을 만드는가?</h1>
       <p class="lead">논문의 위치 인코딩 식이 코드의 지수식으로 바뀌고 차원별 회전 속도를 만드는 과정을 자세히 설명합니다.</p>
-      <a class="doc-link" href="transformer_positional_encoding_learning.html#div-term">← Positional Encoding 학습 경로</a>
-    </div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#content">본문</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="content" class="markdown-section">
+<h2>본문</h2>
+<p><a href="transformer_positional_encoding_learning.html#div-term">← Positional Encoding 학습 경로</a></p>
+<span class="md-anchor" id="div-term" aria-hidden="true"></span>
+<h3><code>div_term</code>은 무엇을 만드는가?</h3>
+<p><code>div_term</code>은 임베딩 차원마다 서로 다른 사인·코사인 변화 속도를 만드는 값입니다. 앞쪽 차원은 빠르게 변하고, 뒤쪽 차원은 천천히 변하도록 지수적으로 감소합니다.</p>
+<h3>1. 짝수 차원 번호만 만든다</h3>
+<p>d_model=8torch.arange</p>
+<pre><code>torch.arange(0, 8, 2)
+# tensor([0, 2, 4, 6])
+</code></pre>
+<p>짝수 차원에는 <code>sin</code>, 바로 다음 홀수 차원에는 같은 비율의 <code>cos</code>를 사용하므로 차원을 두 개씩 한 쌍으로 처리합니다.</p>
+<p><strong>차원 0, 1</strong><code>div_term[0]</code></p>
+<p><strong>차원 2, 3</strong><code>div_term[1]</code></p>
+<p><strong>차원 4, 5</strong><code>div_term[2]</code></p>
+<p><strong>차원 6, 7</strong><code>div_term[3]</code></p>
+<h3>2. 자연로그로 지수의 감소 폭을 만든다</h3>
+<p>Python의 <code>math.log()</code>는 자연로그입니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>log(10000) ≈ 9.21034 <code>d_model=8</code>이면 <code>-log(10000)/8 ≈ -1.15129</code>입니다.</p>
+</div></aside>
+<h3>3. 차원 번호와 곱하고 <code>exp()</code>를 적용한다</h3>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>[0, 2, 4, 6] × -1.15129 <code>[0, -2.30258, -4.60517, -6.90775]</code></p>
+</div></aside>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>exp([0, -2.30258, -4.60517, -6.90775]) <code>div_term ≈ [1, 0.1, 0.01, 0.001]</code></p>
+</div></aside>
+<h3>4. 원래 논문의 식으로 변환한다</h3>
+<p>짝수 차원 번호를 <code>k=2i</code>라고 하면 로그와 지수의 관계로 다음처럼 바꿀 수 있습니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>exp(-log(10000) × k/d_model) <code>= 10000^(-k/d_model)</code><br><code>= 1 / 10000^(2i/d_model)</code></p>
+</div></aside>
+<p>즉 코드의 <code>position * div_term</code>은 논문의 <code>position / 10000^(2i/d_model)</code>과 같은 계산입니다.</p>
+<p><strong>연산자 주의</strong> — 차원 번호와 음수 비율 사이에는 빼기 <code>-</code>가 아니라 곱하기 <code>*</code>가 들어가야 합니다. 음수를 빼면 지수가 빠르게 커져 <code>exp()</code> 결과가 폭발하고 올바른 위치 인코딩이 만들어지지 않습니다.</p>
+<h3>5. 위치와 곱하면 차원별 각도가 된다</h3>
+<p><code>d_model=8</code>, <code>position=5</code>라면 다음과 같습니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>position × div_term <code>5 × [1, 0.1, 0.01, 0.001]</code><br><code>= [5, 0.5, 0.05, 0.005]</code></p>
+</div></aside>
+<p><strong>차원 0, 1</strong><code>sin(5), cos(5)</code></p>
+<p><strong>차원 2, 3</strong><code>sin(0.5), cos(0.5)</code></p>
+<p><strong>차원 4, 5</strong><code>sin(0.05), cos(0.05)</code></p>
+<p><strong>차원 6, 7</strong><code>sin(0.005), cos(0.005)</code></p>
+<p><strong>앞쪽 차원</strong></p>
+<p><code>div_term</code>이 커서 위치에 따라 각도가 빠르게 변합니다. 짧은 주기의 위치 패턴을 표현합니다.</p>
+<p>↔</p>
+<p><strong>뒤쪽 차원</strong></p>
+<p><code>div_term</code>이 작아서 각도가 천천히 변합니다. 긴 주기의 위치 패턴을 표현합니다.</p>
+<p><strong>한 문장 결론</strong> — <code>div_term</code>은 차원마다 <code>1/10000^(2i/d_model)</code> 값을 만들어 사인·코사인 파동이 서로 다른 속도로 변하게 하는 주파수 조절값입니다.</p>
 
-  <div class="page layout">
-    <nav aria-label="문서 목차">
-      <p>Topics</p>
-      <a href="transformer_positional_encoding_learning.html#div-term">← Positional Encoding 학습 경로</a>
-      <a href="#div-term">div_term은 무엇을 만드는가?</a>
-    </nav>
-
-    <main><p class="doc-link"><a href="transformer_positional_encoding_learning.html#div-term">← Positional Encoding 학습 경로</a></p><section class="reasoning" id="div-term">
-        <h3><code>div_term</code>은 무엇을 만드는가?</h3>
-        <p><code>div_term</code>은 임베딩 차원마다 서로 다른 사인·코사인 변화 속도를 만드는 값입니다. 앞쪽 차원은 빠르게 변하고, 뒤쪽 차원은 천천히 변하도록 지수적으로 감소합니다.</p>
-
-        <h3>1. 짝수 차원 번호만 만든다</h3>
-        <div class="code-card" aria-label="짝수 차원 번호 생성">
-          <div class="code-head"><span>d_model=8</span><span>torch.arange</span></div>
-          <pre><code>torch.arange(<span class="num">0</span>, <span class="num">8</span>, <span class="num">2</span>)
-<span class="comment"># tensor([0, 2, 4, 6])</span></code></pre>
-        </div>
-        <p>짝수 차원에는 <code>sin</code>, 바로 다음 홀수 차원에는 같은 비율의 <code>cos</code>를 사용하므로 차원을 두 개씩 한 쌍으로 처리합니다.</p>
-        <div class="path-map" aria-label="차원 쌍과 div_term의 대응">
-          <div class="path-row"><strong>차원 0, 1</strong><code>div_term[0]</code></div>
-          <div class="path-row"><strong>차원 2, 3</strong><code>div_term[1]</code></div>
-          <div class="path-row"><strong>차원 4, 5</strong><code>div_term[2]</code></div>
-          <div class="path-row"><strong>차원 6, 7</strong><code>div_term[3]</code></div>
-        </div>
-
-        <h3>2. 자연로그로 지수의 감소 폭을 만든다</h3>
-        <p>Python의 <code>math.log()</code>는 자연로그입니다.</p>
-        <div class="formula">
-          <span class="math">log(10000) ≈ 9.21034</span>
-          <span><code>d_model=8</code>이면 <code>-log(10000)/8 ≈ -1.15129</code>입니다.</span>
-        </div>
-
-        <h3>3. 차원 번호와 곱하고 <code>exp()</code>를 적용한다</h3>
-        <div class="formula">
-          <span class="math">[0, 2, 4, 6] × -1.15129</span>
-          <span><code>[0, -2.30258, -4.60517, -6.90775]</code></span>
-        </div>
-        <div class="formula">
-          <span class="math">exp([0, -2.30258, -4.60517, -6.90775])</span>
-          <span><code>div_term ≈ [1, 0.1, 0.01, 0.001]</code></span>
-        </div>
-
-        <h3>4. 원래 논문의 식으로 변환한다</h3>
-        <p>짝수 차원 번호를 <code>k=2i</code>라고 하면 로그와 지수의 관계로 다음처럼 바꿀 수 있습니다.</p>
-        <div class="formula">
-          <span class="math">exp(-log(10000) × k/d_model)</span>
-          <span><code>= 10000^(-k/d_model)</code><br><code>= 1 / 10000^(2i/d_model)</code></span>
-        </div>
-        <p>즉 코드의 <code>position * div_term</code>은 논문의 <code>position / 10000^(2i/d_model)</code>과 같은 계산입니다.</p>
-
-        <div class="caution"><strong>연산자 주의</strong> — 차원 번호와 음수 비율 사이에는 빼기 <code>-</code>가 아니라 곱하기 <code>*</code>가 들어가야 합니다. 음수를 빼면 지수가 빠르게 커져 <code>exp()</code> 결과가 폭발하고 올바른 위치 인코딩이 만들어지지 않습니다.</div>
-
-        <h3>5. 위치와 곱하면 차원별 각도가 된다</h3>
-        <p><code>d_model=8</code>, <code>position=5</code>라면 다음과 같습니다.</p>
-        <div class="formula">
-          <span class="math">position × div_term</span>
-          <span><code>5 × [1, 0.1, 0.01, 0.001]</code><br><code>= [5, 0.5, 0.05, 0.005]</code></span>
-        </div>
-        <div class="path-map" aria-label="위치 5에서 차원별 사인 코사인 각도">
-          <div class="path-row"><strong>차원 0, 1</strong><code>sin(5), cos(5)</code></div>
-          <div class="path-row"><strong>차원 2, 3</strong><code>sin(0.5), cos(0.5)</code></div>
-          <div class="path-row"><strong>차원 4, 5</strong><code>sin(0.05), cos(0.05)</code></div>
-          <div class="path-row"><strong>차원 6, 7</strong><code>sin(0.005), cos(0.005)</code></div>
-        </div>
-
-        <div class="equivalence">
-          <article>
-            <strong>앞쪽 차원</strong>
-            <p><code>div_term</code>이 커서 위치에 따라 각도가 빠르게 변합니다. 짧은 주기의 위치 패턴을 표현합니다.</p>
-          </article>
-          <div class="equals" aria-hidden="true">↔</div>
-          <article>
-            <strong>뒤쪽 차원</strong>
-            <p><code>div_term</code>이 작아서 각도가 천천히 변합니다. 긴 주기의 위치 패턴을 표현합니다.</p>
-          </article>
-        </div>
-
-        <div class="caution"><strong>한 문장 결론</strong> — <code>div_term</code>은 차원마다 <code>1/10000^(2i/d_model)</code> 값을 만들어 사인·코사인 파동이 서로 다른 속도로 변하게 하는 주파수 조절값입니다.</div>
-      </section>
-
-      </main>
-  </div>
-
-  <footer>
-    <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
-  </footer>
+</section>
+        
+      </article>
+    </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

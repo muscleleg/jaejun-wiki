@@ -1,905 +1,1081 @@
 {
-  "version": 1,
+  "version": 4,
   "records": [
     {
       "date": "2026-09-02",
       "topics": [
         {
-          "titleHtml": "Tensor Broadcasting의 오른쪽 축 정렬과 <code>keepdim</code>",
-          "bodyHtml": "Hidden State <code>[1,2,4]</code>에서 Token별 Feature 평균을 <code>dim=-1, keepdim=True</code>로 구하면 평균을 낸 마지막 축이 길이 <code>1</code>로 남아 <code>[1,2,1]</code>이 되고, 이 평균을 원래 Tensor에서 뺄 때 크기 <code>1</code>인 축이 Feature 길이 <code>4</code>에 맞춰 Broadcasting된다고 자기 말로 설명했다. Broadcasting은 오른쪽 축부터 크기를 비교하며, 크기가 같거나 한쪽이 <code>1</code>이면 계산할 수 있고, 차원이 짧은 <code>[4]</code>는 부족한 Batch·Token 축이 왼쪽에 생략된 것으로 보아 <code>[1,2,4]</code>의 Feature 축에 대응한다고 이해했다. 반면 같은 위치의 축이 <code>4</code>와 <code>2</code>처럼 다르고 어느 쪽도 <code>1</code>이 아니면 연산할 수 없다는 경계도 구분했다."
+          "id": "2026-09-02-topic-01",
+          "wikiReferences": [
+            {
+              "documentId": "pytorch-tensor-broadcasting",
+              "relation": "documented-as"
+            }
+          ],
+          "title": "Tensor Broadcasting의 오른쪽 축 정렬과 `keepdim`",
+          "bodyMarkdown": "Hidden State `[1,2,4]`에서 Token별 Feature 평균을 `dim=-1, keepdim=True`로 구하면 평균을 낸 마지막 축이 길이 `1`로 남아 `[1,2,1]`이 되고, 이 평균을 원래 Tensor에서 뺄 때 크기 `1`인 축이 Feature 길이 `4`에 맞춰 Broadcasting된다고 자기 말로 설명했다. Broadcasting은 오른쪽 축부터 크기를 비교하며, 크기가 같거나 한쪽이 `1`이면 계산할 수 있고, 차원이 짧은 `[4]`는 부족한 Batch·Token 축이 왼쪽에 생략된 것으로 보아 `[1,2,4]`의 Feature 축에 대응한다고 이해했다. 반면 같은 위치의 축이 `4`와 `2`처럼 다르고 어느 쪽도 `1`이 아니면 연산할 수 없다는 경계도 구분했다."
         },
         {
-          "titleHtml": "Transformer Batch 행의 독립적인 Attention·KV Cache 문맥",
-          "bodyHtml": "KV Cache Benchmark의 <code>[1000,128]</code>을 다시 해석해, Batch 1000은 문맥을 공유하는 문장 1000개가 아니라 서로 독립적인 Sequence 1000개이고 각 행 안에서만 128 Token이 Attention한다는 점을 정리했다. Attention Score는 개념적으로 <code>[Batch,Head,Query Token,Key Token]</code>이므로 행별 행렬이 분리되고, KV Cache <code>[Batch,KV Head,과거 Token,Head Dimension]</code>도 같은 Tensor에 묶여 있을 뿐 행끼리 과거 문맥을 공유하지 않는다. 서로 이어지는 문장이라면 한 행의 긴 Sequence로 연결해야 뒤 문장이 앞 문장을 참조할 수 있으며, 독립 요청이라면 하나의 Batch 안의 서로 다른 행으로 둔다. Batch의 각 행을 서로 다른 클라이언트 요청처럼 이해할 수 있지만 정확한 단위는 독립적인 요청 또는 Sequence라고 구분했다."
+          "id": "2026-09-02-topic-02",
+          "title": "Transformer Batch 행의 독립적인 Attention·KV Cache 문맥",
+          "bodyMarkdown": "KV Cache Benchmark의 `[1000,128]`을 다시 해석해, Batch 1000은 문맥을 공유하는 문장 1000개가 아니라 서로 독립적인 Sequence 1000개이고 각 행 안에서만 128 Token이 Attention한다는 점을 정리했다. Attention Score는 개념적으로 `[Batch,Head,Query Token,Key Token]`이므로 행별 행렬이 분리되고, KV Cache `[Batch,KV Head,과거 Token,Head Dimension]`도 같은 Tensor에 묶여 있을 뿐 행끼리 과거 문맥을 공유하지 않는다. 서로 이어지는 문장이라면 한 행의 긴 Sequence로 연결해야 뒤 문장이 앞 문장을 참조할 수 있으며, 독립 요청이라면 하나의 Batch 안의 서로 다른 행으로 둔다. Batch의 각 행을 서로 다른 클라이언트 요청처럼 이해할 수 있지만 정확한 단위는 독립적인 요청 또는 Sequence라고 구분했다."
         },
         {
-          "titleHtml": "CPU·GPU <code>float32</code> 추론의 수치 일치와 Token 선택 비교",
-          "bodyHtml": "같은 tiny GPT-2와 <code>I study.</code> 입력을 CPU와 RunPod CUDA GPU에서 각각 실행하고, 양쪽 Logit dtype이 <code>float32</code>임을 확인했다. GPU Logit을 CPU로 옮겨 비교한 결과 <code>torch.equal(...)=False</code>, <code>torch.allclose(rtol=1e-5, atol=1e-5)=True</code>였고, 전체 <code>[1,3,50257]</code> Logit의 최대 절댓값 차이는 <code>1.4901161193847656e-08</code>이었다. <code>(cpu_logits-gpu_logits).abs().max().item()</code>을 부호 제거, 전체 원소 중 최대 차이 Scalar Tensor 선택, Python <code>float</code> 변환의 순서로 설명했으며 Shape이 <code>[1,3,50257] → [] → float</code>로 바뀐다고 정리했다. CPU와 GPU의 다음 Token ID는 모두 <code>5087</code>이어서, 미세한 부동소수점 차이가 이번 입력의 <code>argmax</code> 선택에는 영향을 주지 않았음을 검증했다. 진행률 표시 비활성화는 계산에 영향 없는 UI 제어이고, 여러 줄 괄호는 Tuple이 아니며 쉼표가 Tuple을 만든다는 Python 문법도 함께 확인했다. 또한 <code>gpu_model(...)</code>의 Python 반환과 GPU 물리 계산 완료는 같은 시점이 아닐 수 있지만, 이번 기본 <code>.to(\"cpu\")</code> D2H 복사는 선행 CUDA 작업을 기다린 뒤 완성된 CPU 값을 반환하므로 직후 정확성 비교는 안전하다고 구분했다. 반면 <code>perf_counter()</code>로 호출만 감싸면 GPU 완료 전에 종료 시각이 기록될 수 있어, GPU Timing에는 <code>torch.cuda.synchronize()</code> 또는 CUDA Event 같은 명시적 측정 경계가 필요하다고 정리했다. 이어서 입력 <code>[1,3]</code>인 tiny GPT-2를 Warm-up 10회 뒤 200회 실행해, 모든 Python <code>model()</code> 호출 반환까지 <code>1335.146ms</code>, 동기화로 GPU 작업이 모두 끝날 때까지 <code>1335.274ms</code>, 반환 뒤 남은 대기는 <code>0.128ms</code>임을 측정했다. <code>model_calls_returned_ms</code>는 순수 CPU 시간이 아니고 <code>gpu_work_completed_ms</code>도 순수 Kernel 시간이 아니라, CPU의 준비·등록과 GPU 계산이 겹친 전체 벽시계 구간이라고 교정해 해석했다. Benchmark 함수는 전역 <code>model</code>·<code>device</code> 대신 <code>model: GPT2LMHeadModel</code>을 직접 받고, <code>next(model.parameters()).device</code>와 <code>prompt_ids.device</code>가 다르면 Forward 전에 <code>ValueError</code>를 내도록 리팩터링했다. 처음에는 <code>next()</code>가 두 번째 Parameter를 꺼낸다고 생각했지만, 새 Iterator의 커서가 첫 원소 앞에 있어 최초 호출이 첫 Parameter로 이동하며 값을 반환한다고 JDBC ResultSet 경험과 연결해 교정했다. 같은 Iterator에 두 번 호출해야 두 번째 Parameter가 나오며, 호출마다 새 Iterator를 만드는 <code>next(model.parameters())</code>는 항상 첫 Parameter라는 점과 이 검사가 단일 장치 모델에만 대표성을 가진다는 범위까지 확인했다. 최종적으로 PAD Token <code>&lt;|endoftext|&gt;</code>·ID <code>50256</code>를 설정하고 RTX 2000 Ada에서 tiny GPT-2, Prompt 2 Token, 새 Token 20개, Warm-up 3회, 동기화된 20회 측정으로 No-cache·KV Cache × Batch 1·4를 비교했다. 두 Batch 모두 출력이 <code>torch.equal=True</code>였고, Batch 1은 <code>48.395ms/413.26 tokens/sec → 42.857ms/466.66 tokens/sec</code>, Batch 4는 <code>49.180ms/1626.66 tokens/sec → 43.671ms/1831.89 tokens/sec</code>로 Cache 사용 시 Latency가 각각 약 <code>11.44%</code>·<code>11.20%</code> 줄었다. No-cache의 개념적 Token-position <code>230</code>과 Cache의 <code>21</code> 차이보다 시간 차이가 작았던 이유를 tiny 모델·짧은 Sequence에서 Python 생성 반복·Kernel Launch·argmax·Tensor 연결 같은 고정 비용의 비중이 크기 때문이라고 한정했으며, 다른 로컬 CPU 수치와 직접 우열을 비교하지 않았다. 이 단계 뒤에 Peak VRAM과 Profiler 분석을 이어서 수행했다."
+          "id": "2026-09-02-topic-03",
+          "title": "CPU·GPU `float32` 추론의 수치 일치와 Token 선택 비교",
+          "bodyMarkdown": "같은 tiny GPT-2와 `I study.` 입력을 CPU와 RunPod CUDA GPU에서 각각 실행하고, 양쪽 Logit dtype이 `float32`임을 확인했다. GPU Logit을 CPU로 옮겨 비교한 결과 `torch.equal(...)=False`, `torch.allclose(rtol=1e-5, atol=1e-5)=True`였고, 전체 `[1,3,50257]` Logit의 최대 절댓값 차이는 `1.4901161193847656e-08`이었다. `(cpu_logits-gpu_logits).abs().max().item()`을 부호 제거, 전체 원소 중 최대 차이 Scalar Tensor 선택, Python `float` 변환의 순서로 설명했으며 Shape이 `[1,3,50257] → [] → float`로 바뀐다고 정리했다. CPU와 GPU의 다음 Token ID는 모두 `5087`이어서, 미세한 부동소수점 차이가 이번 입력의 `argmax` 선택에는 영향을 주지 않았음을 검증했다. 진행률 표시 비활성화는 계산에 영향 없는 UI 제어이고, 여러 줄 괄호는 Tuple이 아니며 쉼표가 Tuple을 만든다는 Python 문법도 함께 확인했다. 또한 `gpu_model(...)`의 Python 반환과 GPU 물리 계산 완료는 같은 시점이 아닐 수 있지만, 이번 기본 `.to(\"cpu\")` D2H 복사는 선행 CUDA 작업을 기다린 뒤 완성된 CPU 값을 반환하므로 직후 정확성 비교는 안전하다고 구분했다. 반면 `perf_counter()`로 호출만 감싸면 GPU 완료 전에 종료 시각이 기록될 수 있어, GPU Timing에는 `torch.cuda.synchronize()` 또는 CUDA Event 같은 명시적 측정 경계가 필요하다고 정리했다. 이어서 입력 `[1,3]`인 tiny GPT-2를 Warm-up 10회 뒤 200회 실행해, 모든 Python `model()` 호출 반환까지 `1335.146ms`, 동기화로 GPU 작업이 모두 끝날 때까지 `1335.274ms`, 반환 뒤 남은 대기는 `0.128ms`임을 측정했다. `model_calls_returned_ms`는 순수 CPU 시간이 아니고 `gpu_work_completed_ms`도 순수 Kernel 시간이 아니라, CPU의 준비·등록과 GPU 계산이 겹친 전체 벽시계 구간이라고 교정해 해석했다. Benchmark 함수는 전역 `model`·`device` 대신 `model: GPT2LMHeadModel`을 직접 받고, `next(model.parameters()).device`와 `prompt_ids.device`가 다르면 Forward 전에 `ValueError`를 내도록 리팩터링했다. 처음에는 `next()`가 두 번째 Parameter를 꺼낸다고 생각했지만, 새 Iterator의 커서가 첫 원소 앞에 있어 최초 호출이 첫 Parameter로 이동하며 값을 반환한다고 JDBC ResultSet 경험과 연결해 교정했다. 같은 Iterator에 두 번 호출해야 두 번째 Parameter가 나오며, 호출마다 새 Iterator를 만드는 `next(model.parameters())`는 항상 첫 Parameter라는 점과 이 검사가 단일 장치 모델에만 대표성을 가진다는 범위까지 확인했다. 최종적으로 PAD Token `<|endoftext|>`·ID `50256`를 설정하고 RTX 2000 Ada에서 tiny GPT-2, Prompt 2 Token, 새 Token 20개, Warm-up 3회, 동기화된 20회 측정으로 No-cache·KV Cache × Batch 1·4를 비교했다. 두 Batch 모두 출력이 `torch.equal=True`였고, Batch 1은 `48.395ms/413.26 tokens/sec → 42.857ms/466.66 tokens/sec`, Batch 4는 `49.180ms/1626.66 tokens/sec → 43.671ms/1831.89 tokens/sec`로 Cache 사용 시 Latency가 각각 약 `11.44%`·`11.20%` 줄었다. No-cache의 개념적 Token-position `230`과 Cache의 `21` 차이보다 시간 차이가 작았던 이유를 tiny 모델·짧은 Sequence에서 Python 생성 반복·Kernel Launch·argmax·Tensor 연결 같은 고정 비용의 비중이 크기 때문이라고 한정했으며, 다른 로컬 CPU 수치와 직접 우열을 비교하지 않았다. 이 단계 뒤에 Peak VRAM과 Profiler 분석을 이어서 수행했다."
         },
         {
-          "titleHtml": "KV Cache <code>[1000,128]</code> 합성 Stress Test",
-          "bodyHtml": "Batch와 Sequence를 의도적으로 키워 Cache 효과를 다시 확인했다. <code>tokenizer([\"I study\"]*1000)</code>으로 만든 <code>[1000,2]</code> 입력을 Sequence 축으로 64번 반복해 실제 CUDA Tensor <code>[1000,128]</code>을 사용했다. 새 Token 20개·Warm-up 3회·동기화된 20회 조건에서 No-cache와 KV Cache의 출력은 <code>torch.equal=True</code>였고, <code>838.082ms/23864.01 tokens/sec</code> 대비 <code>151.391ms/132108.06 tokens/sec</code>로 KV Cache가 약 <code>5.536배</code> 빠르고 Latency는 <code>81.94%</code> 줄었다. 문장당 Token-position은 <code>2750→147</code>, Batch 전체는 <code>2,750,000→147,000</code>으로 약 <code>18.71배</code> 줄었지만, 최초 Prefill과 Python 반복·Kernel Launch·argmax·Tensor 연결·Cache 관리 비용 때문에 시간 향상은 약 5.54배에 그쳤다고 해석했다. 반복 Token ID는 의미 있는 자연어가 아니라 Shape·성능 조건 변경용 합성 입력이다. 최초 저장 셀에 남아 있던 Batch 4 기준의 변수명·축 표기·출력 Label은 실제 <code>Batch 1000 · Prompt 128</code> 조건과 일치하도록 교정했다."
+          "id": "2026-09-02-topic-04",
+          "title": "KV Cache `[1000,128]` 합성 Stress Test",
+          "bodyMarkdown": "Batch와 Sequence를 의도적으로 키워 Cache 효과를 다시 확인했다. `tokenizer([\"I study\"]*1000)`으로 만든 `[1000,2]` 입력을 Sequence 축으로 64번 반복해 실제 CUDA Tensor `[1000,128]`을 사용했다. 새 Token 20개·Warm-up 3회·동기화된 20회 조건에서 No-cache와 KV Cache의 출력은 `torch.equal=True`였고, `838.082ms/23864.01 tokens/sec` 대비 `151.391ms/132108.06 tokens/sec`로 KV Cache가 약 `5.536배` 빠르고 Latency는 `81.94%` 줄었다. 문장당 Token-position은 `2750→147`, Batch 전체는 `2,750,000→147,000`으로 약 `18.71배` 줄었지만, 최초 Prefill과 Python 반복·Kernel Launch·argmax·Tensor 연결·Cache 관리 비용 때문에 시간 향상은 약 5.54배에 그쳤다고 해석했다. 반복 Token ID는 의미 있는 자연어가 아니라 Shape·성능 조건 변경용 합성 입력이다. 최초 저장 셀에 남아 있던 Batch 4 기준의 변수명·축 표기·출력 Label은 실제 `Batch 1000 · Prompt 128` 조건과 일치하도록 교정했다."
         },
         {
-          "titleHtml": "KV Cache 효과와 Batch·Sequence 통제 조건 정리",
-          "bodyHtml": "짧은 <code>I study</code> 입력의 Batch 1·4에서는 Cache의 Latency 감소가 약 11%였지만, 문장 수만 3000으로 늘린 <code>[3000,2]</code>에서는 <code>372.289ms/161164.97 tokens/sec → 275.249ms/217984.06 tokens/sec</code>로 차이가 커졌음을 비교했다. 이어 <code>[1000,128]</code> 합성 입력에서 각 Step은 1000개 문장을 함께 처리하지만 Autoregressive Step 20회는 순차로 진행되고, 수동 Loop의 <code>max_new_tokens=20</code>은 문장당 정확히 20회의 생성 Step이므로 Batch 전체 생성 Token은 <code>1000×20=20,000</code>개라고 정리했다. 일반 <code>model.generate()</code>에서 이 값은 EOS 조기 종료가 가능한 상한이며 모델의 최대 Context 길이와는 다르다고 구분했다. 이번 Stress Test는 Batch와 Prompt 길이를 동시에 바꿔 원인을 분리할 수 없으므로, 다음에는 Batch 1000을 고정하고 Sequence 2와 128만 비교하는 통제 실험이 필요하다고 결론 내렸다."
+          "id": "2026-09-02-topic-05",
+          "title": "KV Cache 효과와 Batch·Sequence 통제 조건 정리",
+          "bodyMarkdown": "짧은 `I study` 입력의 Batch 1·4에서는 Cache의 Latency 감소가 약 11%였지만, 문장 수만 3000으로 늘린 `[3000,2]`에서는 `372.289ms/161164.97 tokens/sec → 275.249ms/217984.06 tokens/sec`로 차이가 커졌음을 비교했다. 이어 `[1000,128]` 합성 입력에서 각 Step은 1000개 문장을 함께 처리하지만 Autoregressive Step 20회는 순차로 진행되고, 수동 Loop의 `max_new_tokens=20`은 문장당 정확히 20회의 생성 Step이므로 Batch 전체 생성 Token은 `1000×20=20,000`개라고 정리했다. 일반 `model.generate()`에서 이 값은 EOS 조기 종료가 가능한 상한이며 모델의 최대 Context 길이와는 다르다고 구분했다. 이번 Stress Test는 Batch와 Prompt 길이를 동시에 바꿔 원인을 분리할 수 없으므로, 다음에는 Batch 1000을 고정하고 Sequence 2와 128만 비교하는 통제 실험이 필요하다고 결론 내렸다."
         },
         {
-          "titleHtml": "No-cache·KV Cache의 Peak VRAM 측정 기준",
-          "bodyHtml": "<code>torch.cuda.memory_allocated()</code>는 측정 시작 시점의 메모리 크기 Baseline을 저장하고, <code>reset_peak_memory_stats()</code>는 현재 메모리를 0으로 만들거나 자동 차감하는 함수가 아니라 호출 시점부터 Peak의 High-water mark를 다시 추적하는 시간 경계라고 구분했다. 따라서 <code>max_memory_allocated()</code>가 반환한 측정 구간의 전체 Peak에서 Baseline을 직접 빼 생성으로 추가된 최대 메모리를 계산한다. 첫 번째 측정의 GPU 생성 결과가 다음 Baseline에 남지 않도록 비교용 결과는 CPU 복사본으로 보존하고 <code>del generated_ids_on_gpu</code>로 GPU Tensor 변수의 참조를 제거하며, <code>del</code> 자체는 메모리를 직접 지우는 명령이 아니라는 점도 정리했다. RTX 2000 Ada·tiny GPT-2·Batch 1·Prompt 2 Token·새 Token 20개 조건에서 출력 Token ID는 일치했고, 추가 Peak VRAM은 No-cache <code>1.202 MiB</code>, KV Cache <code>1.204 MiB</code>로 차이가 <code>0.002 MiB</code>에 그쳤다. 같은 측정 구조를 <code>[1000,128]</code> 합성 입력에 적용하자 출력은 다시 일치했고, No-cache <code>583.125 MiB</code>와 KV Cache <code>587.061 MiB</code>로 Cache 경로의 Peak가 <code>3.936 MiB</code> 증가했다. Prompt Cache의 이론 규모 약 <code>3.906 MiB</code>와 비슷했지만, 측정값은 개별 Cache Tensor가 아니라 전체 생성 경로의 Peak 차이라는 한계를 유지했다."
+          "id": "2026-09-02-topic-06",
+          "title": "No-cache·KV Cache의 Peak VRAM 측정 기준",
+          "bodyMarkdown": "`torch.cuda.memory_allocated()`는 측정 시작 시점의 메모리 크기 Baseline을 저장하고, `reset_peak_memory_stats()`는 현재 메모리를 0으로 만들거나 자동 차감하는 함수가 아니라 호출 시점부터 Peak의 High-water mark를 다시 추적하는 시간 경계라고 구분했다. 따라서 `max_memory_allocated()`가 반환한 측정 구간의 전체 Peak에서 Baseline을 직접 빼 생성으로 추가된 최대 메모리를 계산한다. 첫 번째 측정의 GPU 생성 결과가 다음 Baseline에 남지 않도록 비교용 결과는 CPU 복사본으로 보존하고 `del generated_ids_on_gpu`로 GPU Tensor 변수의 참조를 제거하며, `del` 자체는 메모리를 직접 지우는 명령이 아니라는 점도 정리했다. RTX 2000 Ada·tiny GPT-2·Batch 1·Prompt 2 Token·새 Token 20개 조건에서 출력 Token ID는 일치했고, 추가 Peak VRAM은 No-cache `1.202 MiB`, KV Cache `1.204 MiB`로 차이가 `0.002 MiB`에 그쳤다. 같은 측정 구조를 `[1000,128]` 합성 입력에 적용하자 출력은 다시 일치했고, No-cache `583.125 MiB`와 KV Cache `587.061 MiB`로 Cache 경로의 Peak가 `3.936 MiB` 증가했다. Prompt Cache의 이론 규모 약 `3.906 MiB`와 비슷했지만, 측정값은 개별 Cache Tensor가 아니라 전체 생성 경로의 Peak 차이라는 한계를 유지했다."
         },
         {
-          "titleHtml": "실제 PyTorch Profiler 표의 ATen 연산과 CUDA Kernel",
-          "bodyHtml": "RunPod에서 tiny GPT-2에 <code>I study</code>를 넣은 한 번의 GPU Forward를 PyTorch Profiler로 기록했다. <code>key_averages()</code> 표의 <code>Self</code>는 해당 연산 자체, <code>Total</code>은 하위 연산을 포함한 비용이고, <code># of Calls</code>와 평균 시간·CPU/CUDA 비율·연산별 메모리의 계산 기준을 실제 수치로 읽었다. <code>aten::mm</code>의 <code>Self CUDA 18.655us</code>와 <code>ampere_sgemm_128x32_tn</code>의 <code>18.655us</code>는 두 번의 계산이 아니라 같은 행렬 곱셈을 PyTorch ATen 연산과 실제 CUDA Kernel이라는 서로 다른 계층에서 본 결과라고 설명했다. ATen은 Attention이 아니라 Tensor 연산의 공통 표현이며, CPU Tensor면 CPU 구현이 계산하고 CUDA Tensor면 CPU가 CUDA Kernel 실행을 등록해 GPU가 계산한다고 자기 말로 정리했다. <code>aten::mm</code>의 CUDA 메모리 <code>393KB</code>가 Logit Shape <code>[1,2,50257]</code>와 float32 4Byte 계산값 약 <code>393KiB</code>에 대응함을 확인했고, 전체 <code>Self CPU 6.267ms</code>와 <code>Self CUDA 137.439us</code> 차이는 작은 모델·Batch 1·Prompt 2의 Kernel 계산이 짧고 CPU 준비·등록 비용 비중이 컸던 결과이지 CPU가 모델 계산 대부분을 대신했다는 뜻은 아니라고 구분했다."
+          "id": "2026-09-02-topic-07",
+          "title": "실제 PyTorch Profiler 표의 ATen 연산과 CUDA Kernel",
+          "bodyMarkdown": "RunPod에서 tiny GPT-2에 `I study`를 넣은 한 번의 GPU Forward를 PyTorch Profiler로 기록했다. `key_averages()` 표의 `Self`는 해당 연산 자체, `Total`은 하위 연산을 포함한 비용이고, `# of Calls`와 평균 시간·CPU/CUDA 비율·연산별 메모리의 계산 기준을 실제 수치로 읽었다. `aten::mm`의 `Self CUDA 18.655us`와 `ampere_sgemm_128x32_tn`의 `18.655us`는 두 번의 계산이 아니라 같은 행렬 곱셈을 PyTorch ATen 연산과 실제 CUDA Kernel이라는 서로 다른 계층에서 본 결과라고 설명했다. ATen은 Attention이 아니라 Tensor 연산의 공통 표현이며, CPU Tensor면 CPU 구현이 계산하고 CUDA Tensor면 CPU가 CUDA Kernel 실행을 등록해 GPU가 계산한다고 자기 말로 정리했다. `aten::mm`의 CUDA 메모리 `393KB`가 Logit Shape `[1,2,50257]`와 float32 4Byte 계산값 약 `393KiB`에 대응함을 확인했고, 전체 `Self CPU 6.267ms`와 `Self CUDA 137.439us` 차이는 작은 모델·Batch 1·Prompt 2의 Kernel 계산이 짧고 CPU 준비·등록 비용 비중이 컸던 결과이지 CPU가 모델 계산 대부분을 대신했다는 뜻은 아니라고 구분했다."
         },
         {
-          "titleHtml": "Profiler로 H2D 복사·GPU 계산·D2H 복사 추적",
-          "bodyHtml": "Tokenizer가 만든 CPU 입력 <code>[1,2]</code>를 <code>.to(\"cuda\")</code>로 옮기고, tiny GPT-2 Forward로 GPU Logit <code>[1,2,50257]</code>을 만든 뒤 <code>.to(\"cpu\")</code>로 되가져오는 전체 구간을 PyTorch Profiler로 기록했다. H2D는 Host인 CPU 메모리에서 Device인 GPU 메모리로, D2H는 그 반대 방향으로 복사한다는 뜻이며, <code>.to()</code>가 원본 Tensor를 변신시키는 것이 아니라 대상 장치에 복사본을 만든다는 점을 연결했다. 장치 이동은 <code>aten::to → aten::_to_copy → aten::copy_</code>와 <code>cudaMemcpyAsync</code>로, GPU 계산은 <code>aten::embedding</code>·<code>aten::native_layer_norm</code>·<code>aten::addmm</code>·<code>aten::bmm</code>·<code>aten::mm</code>과 실제 CUDA Kernel로 나타났다. <code>non_blocking=False</code>여도 내부에서 비동기 복사 API로 등록한 뒤 <code>cudaStreamSynchronize</code>로 완료를 기다릴 수 있다고 구분했다. 최신 실행에서 <code>Memcpy DtoH (Device -&gt; Pageable) 31.424us</code>, <code>ampere_sgemm_128x32_tn 18.432us</code>, 전체 <code>Self CUDA time total 187.968us</code>를 확인했다. H2D 입력은 <code>int64</code> 2개인 16Byte라 CUDA 시간 상위 40행에서 <code>Memcpy HtoD</code> 장치 이벤트가 보이지 않았고, Kernel 재시작 직후의 Lazy Loading 가능성과 작은 단일 Forward 조건 때문에 이 수치를 일반 성능 Benchmark로 해석하지 않는 한계를 남겼다."
+          "id": "2026-09-02-topic-08",
+          "title": "Profiler로 H2D 복사·GPU 계산·D2H 복사 추적",
+          "bodyMarkdown": "Tokenizer가 만든 CPU 입력 `[1,2]`를 `.to(\"cuda\")`로 옮기고, tiny GPT-2 Forward로 GPU Logit `[1,2,50257]`을 만든 뒤 `.to(\"cpu\")`로 되가져오는 전체 구간을 PyTorch Profiler로 기록했다. H2D는 Host인 CPU 메모리에서 Device인 GPU 메모리로, D2H는 그 반대 방향으로 복사한다는 뜻이며, `.to()`가 원본 Tensor를 변신시키는 것이 아니라 대상 장치에 복사본을 만든다는 점을 연결했다. 장치 이동은 `aten::to → aten::_to_copy → aten::copy_`와 `cudaMemcpyAsync`로, GPU 계산은 `aten::embedding`·`aten::native_layer_norm`·`aten::addmm`·`aten::bmm`·`aten::mm`과 실제 CUDA Kernel로 나타났다. `non_blocking=False`여도 내부에서 비동기 복사 API로 등록한 뒤 `cudaStreamSynchronize`로 완료를 기다릴 수 있다고 구분했다. 최신 실행에서 `Memcpy DtoH (Device -> Pageable) 31.424us`, `ampere_sgemm_128x32_tn 18.432us`, 전체 `Self CUDA time total 187.968us`를 확인했다. H2D 입력은 `int64` 2개인 16Byte라 CUDA 시간 상위 40행에서 `Memcpy HtoD` 장치 이벤트가 보이지 않았고, Kernel 재시작 직후의 Lazy Loading 가능성과 작은 단일 Forward 조건 때문에 이 수치를 일반 성능 Benchmark로 해석하지 않는 한계를 남겼다."
         }
       ],
-      "studyTime": null
+      "studyTime": {
+        "minutes": 470,
+        "approximate": true
+      }
     },
     {
       "date": "2026-09-01",
       "topics": [
         {
-          "titleHtml": "배달 다익스트라 힌트 재구현 완료",
-          "bodyHtml": "이전 풀이를 보지 않고 양방향 인접 리스트, <code>distance</code> 무한대 초기화와 <code>distance[1]=0</code>, Heap 반복, 낡은 후보 확인, 거리 완화와 <code>K</code> 이하 개수 계산까지 다시 구성했다. 처음에는 Heap Tuple 순서와 다음 후보에 전달할 도로 하나의 비용·누적 비용을 혼동했지만, <code>heapq</code>가 Tuple의 첫 값부터 비교하므로 표준 다익스트라는 <code>(new_cost, next_village)</code>를 저장해야 한다고 교정했다. 누적 비용을 보존한 채 마을 번호를 첫 값으로 두면 반복 완화로 수렴할 수 있어도 비용 우선 탐색과 효율성 보장을 잃는다는 차이도 설명했다. <code>heapq.heappop(heap)</code> 호출과 변수명 오타를 함께 수정했다. 사용자가 제시한 제출 화면에서 같은 표준 코드의 프로그래머스 정확성 <code>100점</code>과 전체 <code>32개</code> 테스트 통과를 확인했다. 화면의 성공 제출 시각은 이전 날짜로 표시되므로 이번 학습일의 새 제출 시각으로 기록하지 않는다. 일반 BFS는 이동 단계만 최소화하므로 서로 다른 도로 비용의 최소 누적 비용을 보장하지 못한다는 점, 더 비싼 후보는 이후 양수 비용을 더해도 유리해질 수 없어 다시 넣지 않는다는 점을 설명했다. 시간 복잡도에서는 마을 수 <code>V</code>와 도로 수 <code>E</code>가 서로 다른 기준이며, Heap 삽입과 삭제는 각각 <code>O(E log V)</code>로 더한다는 점을 확인했다. 일반식 <code>O((V+E) log V)</code>에서 모든 마을이 거의 연결된 경우에만 <code>E≈V²</code>를 대입해 <code>O(V² log V)</code>가 된다고 자기 말로 정리했다. 핵심 Tuple 상태는 힌트로 교정했으므로 힌트 재구현 성공으로 기록하고, 9월 3일 무자료 복습은 유지한다."
+          "id": "2026-09-01-topic-01",
+          "title": "배달 다익스트라 힌트 재구현 완료",
+          "bodyMarkdown": "이전 풀이를 보지 않고 양방향 인접 리스트, `distance` 무한대 초기화와 `distance[1]=0`, Heap 반복, 낡은 후보 확인, 거리 완화와 `K` 이하 개수 계산까지 다시 구성했다. 처음에는 Heap Tuple 순서와 다음 후보에 전달할 도로 하나의 비용·누적 비용을 혼동했지만, `heapq`가 Tuple의 첫 값부터 비교하므로 표준 다익스트라는 `(new_cost, next_village)`를 저장해야 한다고 교정했다. 누적 비용을 보존한 채 마을 번호를 첫 값으로 두면 반복 완화로 수렴할 수 있어도 비용 우선 탐색과 효율성 보장을 잃는다는 차이도 설명했다. `heapq.heappop(heap)` 호출과 변수명 오타를 함께 수정했다. 사용자가 제시한 제출 화면에서 같은 표준 코드의 프로그래머스 정확성 `100점`과 전체 `32개` 테스트 통과를 확인했다. 화면의 성공 제출 시각은 이전 날짜로 표시되므로 이번 학습일의 새 제출 시각으로 기록하지 않는다. 일반 BFS는 이동 단계만 최소화하므로 서로 다른 도로 비용의 최소 누적 비용을 보장하지 못한다는 점, 더 비싼 후보는 이후 양수 비용을 더해도 유리해질 수 없어 다시 넣지 않는다는 점을 설명했다. 시간 복잡도에서는 마을 수 `V`와 도로 수 `E`가 서로 다른 기준이며, Heap 삽입과 삭제는 각각 `O(E log V)`로 더한다는 점을 확인했다. 일반식 `O((V+E) log V)`에서 모든 마을이 거의 연결된 경우에만 `E≈V²`를 대입해 `O(V² log V)`가 된다고 자기 말로 정리했다. 핵심 Tuple 상태는 힌트로 교정했으므로 힌트 재구현 성공으로 기록하고, 9월 3일 무자료 복습은 유지한다."
         },
         {
-          "titleHtml": "땅따먹기 열별 누적점수 DP 첫 학습 완료",
-          "bodyHtml": "처음에는 각 행의 최댓값 하나를 고르는 그리디와 모든 경로를 Queue에 넣는 BFS를 생각했지만, 같은 열을 연속 선택할 수 없어 현재의 최댓값 하나만 남기면 이후 선택을 보장할 수 없다고 교정했다. 같은 도착 열의 여러 경로는 이후 선택 조건이 같으므로 최고 누적점수 하나로 압축하고, 네 열의 상태는 모두 유지하는 DP로 전환했다. <code>ac_value</code>를 이전 행 열별 최고 누적점수, <code>next_value</code>를 현재 행 열별 최고 누적점수로 구분했다. 각 열 <code>i</code>에서 <code>ac_value[:i] + ac_value[i+1:]</code>로 이전 행의 같은 열을 제외하고 <code>row[i] + max(...)</code>를 새 배열에 넣은 뒤, 행 계산이 끝난 시점에만 <code>ac_value = next_value</code>로 교체하는 코드를 직접 완성했다. 처음처럼 현재 <code>row</code>를 필터링하거나 누적 배열을 계산 도중 갱신하면 이전 행과 현재 행의 상태가 섞인다는 점을 자기 말로 설명했다. 프로그래머스에서 정확성 <code>59.8</code>, 효율성 <code>40.2</code>, 합계 <code>100/100</code>으로 정확성 18개와 효율성 4개 테스트를 모두 통과했다. 처음에는 중첩 반복문을 보고 <code>O(N²)</code>로 판단했지만 열이 항상 4개라 본문 실행 횟수가 약 <code>4N</code>이고 시간 복잡도는 <code>O(N)</code>이라고 교정했다. <code>land[1:]</code>가 새 바깥 List를 만들어 추가 공간 <code>O(N)</code>을 쓸 수 있다는 점을 확인하고, <code>range(1, len(land))</code> 인덱스 순회로 바꿔 길이 4의 두 DP 배열과 길이 3 후보만 남기면 추가 공간 <code>O(1)</code>이 된다고 설명·적용했다. 상태 설계·제출·복잡도 증거를 확인해 첫 학습은 완료했지만 자료 없는 재구현과 후속 DP 문제는 남아 통합 관문을 진행 중으로 유지한다."
+          "id": "2026-09-01-topic-02",
+          "title": "땅따먹기 열별 누적점수 DP 첫 학습 완료",
+          "bodyMarkdown": "처음에는 각 행의 최댓값 하나를 고르는 그리디와 모든 경로를 Queue에 넣는 BFS를 생각했지만, 같은 열을 연속 선택할 수 없어 현재의 최댓값 하나만 남기면 이후 선택을 보장할 수 없다고 교정했다. 같은 도착 열의 여러 경로는 이후 선택 조건이 같으므로 최고 누적점수 하나로 압축하고, 네 열의 상태는 모두 유지하는 DP로 전환했다. `ac_value`를 이전 행 열별 최고 누적점수, `next_value`를 현재 행 열별 최고 누적점수로 구분했다. 각 열 `i`에서 `ac_value[:i] + ac_value[i+1:]`로 이전 행의 같은 열을 제외하고 `row[i] + max(...)`를 새 배열에 넣은 뒤, 행 계산이 끝난 시점에만 `ac_value = next_value`로 교체하는 코드를 직접 완성했다. 처음처럼 현재 `row`를 필터링하거나 누적 배열을 계산 도중 갱신하면 이전 행과 현재 행의 상태가 섞인다는 점을 자기 말로 설명했다. 프로그래머스에서 정확성 `59.8`, 효율성 `40.2`, 합계 `100/100`으로 정확성 18개와 효율성 4개 테스트를 모두 통과했다. 처음에는 중첩 반복문을 보고 `O(N²)`로 판단했지만 열이 항상 4개라 본문 실행 횟수가 약 `4N`이고 시간 복잡도는 `O(N)`이라고 교정했다. `land[1:]`가 새 바깥 List를 만들어 추가 공간 `O(N)`을 쓸 수 있다는 점을 확인하고, `range(1, len(land))` 인덱스 순회로 바꿔 길이 4의 두 DP 배열과 길이 3 후보만 남기면 추가 공간 `O(1)`이 된다고 설명·적용했다. 상태 설계·제출·복잡도 증거를 확인해 첫 학습은 완료했지만 자료 없는 재구현과 후속 DP 문제는 남아 통합 관문을 진행 중으로 유지한다."
         },
         {
-          "titleHtml": "정수 삼각형 위치별 누적 최댓값 DP 첫 학습 완료",
-          "bodyHtml": "문제를 읽고 첫 행을 누적값으로 시작하며, 다음 행의 왼쪽 끝은 이전 행 <code>0</code>번, 가운데는 이전 <code>i-1</code>번과 <code>i</code>번 중 큰 값, 오른쪽 끝은 이전 <code>i-1</code>번을 더하고 마지막 행의 최댓값을 반환한다고 바로 설명했다. 이 상태 전이를 직접 구현했고, 최초 코드의 <code>i == len(row)</code>가 유효한 마지막 Index에서 절대 참이 되지 않는 문제를 <code>i == len(row)-1</code>로 교정했다. 가운데 위치의 두 부모 최댓값 계산, 행 완료 뒤 <code>ac_value = new_value</code> 교체, 한 행 입력에서도 정의되지 않은 <code>new_value</code>를 참조하지 않는 <code>return max(ac_value)</code>를 반영했다. 프로그래머스 정확성 10개와 효율성 10개, 총 20개 테스트를 모두 통과했다. 각 칸 계산은 <code>O(1)</code>이지만 땅따먹기의 고정 4열과 달리 행별 칸 수가 <code>1..N</code>으로 증가하므로 전체 칸 합과 중첩 반복 상한에서 시간복잡도는 <code>O(N²)</code>이라고 설명했다. <code>ac_value</code>와 <code>new_value</code>가 각각 최대 <code>N</code>개를 저장하고 약 <code>2N</code>개를 함께 보유해도 추가 공간은 <code>O(N)</code>이라고 답했다. 제출·상태 전이·복잡도 증거를 확인해 첫 학습은 완료했지만 자료 없는 재구현과 등굣길은 남아 통합 관문을 진행 중으로 유지한다."
+          "id": "2026-09-01-topic-03",
+          "title": "정수 삼각형 위치별 누적 최댓값 DP 첫 학습 완료",
+          "bodyMarkdown": "문제를 읽고 첫 행을 누적값으로 시작하며, 다음 행의 왼쪽 끝은 이전 행 `0`번, 가운데는 이전 `i-1`번과 `i`번 중 큰 값, 오른쪽 끝은 이전 `i-1`번을 더하고 마지막 행의 최댓값을 반환한다고 바로 설명했다. 이 상태 전이를 직접 구현했고, 최초 코드의 `i == len(row)`가 유효한 마지막 Index에서 절대 참이 되지 않는 문제를 `i == len(row)-1`로 교정했다. 가운데 위치의 두 부모 최댓값 계산, 행 완료 뒤 `ac_value = new_value` 교체, 한 행 입력에서도 정의되지 않은 `new_value`를 참조하지 않는 `return max(ac_value)`를 반영했다. 프로그래머스 정확성 10개와 효율성 10개, 총 20개 테스트를 모두 통과했다. 각 칸 계산은 `O(1)`이지만 땅따먹기의 고정 4열과 달리 행별 칸 수가 `1..N`으로 증가하므로 전체 칸 합과 중첩 반복 상한에서 시간복잡도는 `O(N²)`이라고 설명했다. `ac_value`와 `new_value`가 각각 최대 `N`개를 저장하고 약 `2N`개를 함께 보유해도 추가 공간은 `O(N)`이라고 답했다. 제출·상태 전이·복잡도 증거를 확인해 첫 학습은 완료했지만 자료 없는 재구현과 등굣길은 남아 통합 관문을 진행 중으로 유지한다."
         },
         {
-          "titleHtml": "KV Cache의 Batch·Layer·Head Shape와 <code>jaxtyping</code>",
-          "bodyHtml": "Batch 1과 Batch 4의 Prompt를 같은 모델에 넣어 첫 Layer Key Cache가 각각 <code>[1,2,2,1]</code>과 <code>[4,2,2,1]</code>이 되는 것을 실행했다. 이 Shape을 <code>[Batch,Head,Token,Head dimension]</code>으로 읽고, KV Cache는 Attention Head별로 이미 분리된 K·V를 Layer마다 보관하므로 마지막 Token의 Multi-Head Attention에서 바로 재사용할 수 있다고 설명했다. 일반 Python 타입만으로는 Tensor의 dtype·축 의미가 보이지 않는 문제를 줄이기 위해 <code>Int64[Tensor, \"batch prompt_token\"]</code>처럼 변수 옆에 <code>jaxtyping</code>을 제한적으로 적용했고, 실제 <code>.shape</code> 출력으로 표기와 실행 결과를 대조했다. 런타임 타입 검사는 아직 적용하지 않았다."
+          "id": "2026-09-01-topic-04",
+          "title": "KV Cache의 Batch·Layer·Head Shape와 `jaxtyping`",
+          "bodyMarkdown": "Batch 1과 Batch 4의 Prompt를 같은 모델에 넣어 첫 Layer Key Cache가 각각 `[1,2,2,1]`과 `[4,2,2,1]`이 되는 것을 실행했다. 이 Shape을 `[Batch,Head,Token,Head dimension]`으로 읽고, KV Cache는 Attention Head별로 이미 분리된 K·V를 Layer마다 보관하므로 마지막 Token의 Multi-Head Attention에서 바로 재사용할 수 있다고 설명했다. 일반 Python 타입만으로는 Tensor의 dtype·축 의미가 보이지 않는 문제를 줄이기 위해 `Int64[Tensor, \"batch prompt_token\"]`처럼 변수 옆에 `jaxtyping`을 제한적으로 적용했고, 실제 `.shape` 출력으로 표기와 실행 결과를 대조했다. 런타임 타입 검사는 아직 적용하지 않았다."
         },
         {
-          "titleHtml": "Batch Tensor와 Latency·Throughput의 기준",
-          "bodyHtml": "모델 호출 한 번에는 여러 문장을 행으로 가진 하나의 Batch Tensor가 들어가며, Token ID 단계는 <code>[문장 수, 문장별 Token 수]</code>, Embedding 뒤는 <code>[문장 수, 문장별 Token 수, Token 정보 차원]</code>이라고 정리했다. Batch 4는 Batch가 네 개라는 뜻이 아니라 한 Batch Tensor의 행이 네 개라는 점을 교정했다. Latency는 문장 하나의 시간이 아니라 그 호출에서 모든 행의 생성을 처리한 평균 전체 시간이고, Throughput은 <code>Batch 크기 × 생성 Token 수 ÷ 평균 전체 시간</code>으로 계산하는 초당 전체 Token 수라고 구분했다."
+          "id": "2026-09-01-topic-05",
+          "title": "Batch Tensor와 Latency·Throughput의 기준",
+          "bodyMarkdown": "모델 호출 한 번에는 여러 문장을 행으로 가진 하나의 Batch Tensor가 들어가며, Token ID 단계는 `[문장 수, 문장별 Token 수]`, Embedding 뒤는 `[문장 수, 문장별 Token 수, Token 정보 차원]`이라고 정리했다. Batch 4는 Batch가 네 개라는 뜻이 아니라 한 Batch Tensor의 행이 네 개라는 점을 교정했다. Latency는 문장 하나의 시간이 아니라 그 호출에서 모든 행의 생성을 처리한 평균 전체 시간이고, Throughput은 `Batch 크기 × 생성 Token 수 ÷ 평균 전체 시간`으로 계산하는 초당 전체 Token 수라고 구분했다."
         },
         {
-          "titleHtml": "<code>.to(device)</code>와 CUDA 병렬 실행의 경계",
-          "bodyHtml": "<code>input_ids.to(device)</code>와 <code>attention_mask.to(device)</code>는 Tensor를 선택한 장치 메모리로 옮기는 코드이며, 이 호출 자체가 병렬 연산을 직접 작성하는 명령은 아니라고 구분했다. 모델과 입력이 CUDA 장치에 있으면 PyTorch가 연산 종류와 장치를 보고 CUDA Kernel로 디스패치하고, Kernel 내부에서 Batch·Token·행렬 원소의 작업을 GPU Thread에 나누어 실행한다는 흐름을 연결했다. 이번 실행 장치는 CPU였으므로 GPU 병렬 성능을 확인한 것은 아니며, H2D·D2H 복사·CUDA 비동기 실행·<code>synchronize</code> Timing은 이후 검증 항목으로 남겼다."
+          "id": "2026-09-01-topic-06",
+          "title": "`.to(device)`와 CUDA 병렬 실행의 경계",
+          "bodyMarkdown": "`input_ids.to(device)`와 `attention_mask.to(device)`는 Tensor를 선택한 장치 메모리로 옮기는 코드이며, 이 호출 자체가 병렬 연산을 직접 작성하는 명령은 아니라고 구분했다. 모델과 입력이 CUDA 장치에 있으면 PyTorch가 연산 종류와 장치를 보고 CUDA Kernel로 디스패치하고, Kernel 내부에서 Batch·Token·행렬 원소의 작업을 GPU Thread에 나누어 실행한다는 흐름을 연결했다. 이번 실행 장치는 CPU였으므로 GPU 병렬 성능을 확인한 것은 아니며, H2D·D2H 복사·CUDA 비동기 실행·`synchronize` Timing은 이후 검증 항목으로 남겼다."
         },
         {
-          "titleHtml": "왼쪽 Padding과 새 Token의 Mask·Position ID 갱신",
-          "bodyHtml": "길이 2와 6인 문장을 하나의 Tensor로 만들기 위해 <code>padding_side=\"left\"</code>와 EOS Padding을 사용하고, 짧은 문장 앞의 Padding 위치가 Attention Mask <code>0</code>이 되는 것을 확인했다. <code>attention_mask.cumsum(dim=-1)-1</code>은 실제 Token을 만날 때만 위치를 증가시키고, Padding에서 생기는 <code>-1</code>은 <code>masked_fill(attention_mask==0,0)</code>으로 보정한다고 설명했다. 새 Token 하나가 생성될 때는 문장마다 실제 Token을 뜻하는 <code>1</code>을 가진 <code>[B,1]</code> Mask를 만들어 기존 Mask 오른쪽에 붙이고, 누적합의 마지막 열 <code>[:, -1:]</code>로 다음 Position ID <code>[[2],[6]]</code>만 구했다."
+          "id": "2026-09-01-topic-07",
+          "title": "왼쪽 Padding과 새 Token의 Mask·Position ID 갱신",
+          "bodyMarkdown": "길이 2와 6인 문장을 하나의 Tensor로 만들기 위해 `padding_side=\"left\"`와 EOS Padding을 사용하고, 짧은 문장 앞의 Padding 위치가 Attention Mask `0`이 되는 것을 확인했다. `attention_mask.cumsum(dim=-1)-1`은 실제 Token을 만날 때만 위치를 증가시키고, Padding에서 생기는 `-1`은 `masked_fill(attention_mask==0,0)`으로 보정한다고 설명했다. 새 Token 하나가 생성될 때는 문장마다 실제 Token을 뜻하는 `1`을 가진 `[B,1]` Mask를 만들어 기존 Mask 오른쪽에 붙이고, 누적합의 마지막 열 `[:, -1:]`로 다음 Position ID `[[2],[6]]`만 구했다."
         },
         {
-          "titleHtml": "KV Cache 후속 Forward 입력 계약과 <code>DynamicCache</code>",
-          "bodyHtml": "첫 Forward에는 Prompt 전체를 넣어 Cache를 만들고, 후속 Forward에는 새 Token <code>input_ids [B,1]</code>과 그 Token의 <code>position_ids [B,1]</code>만 전달하되, 새 Query가 과거 K·V까지 조회할 수 있도록 <code>attention_mask [B,past+new]</code>는 전체 길이를 유지한다고 설명했다. <code>use_cache=False</code>이면 재사용할 <code>past_key_values</code>가 반환되지 않으며, Cache와 함께 새 Token을 두 개 이상 전달하는 것도 가능하고 그 구간의 K·V는 현재 Forward에서 순서대로 계산된다고 구분했다. 저장된 실습에서는 Forward 전후 Cache가 같은 <code>DynamicCache</code> 객체였고 새 Token의 K·V Tensor가 Token 축에 이어 붙은 결과 Sequence 길이가 <code>7→8</code>로 증가했다. 이는 길이 숫자만 바꾸는 동작이 아니라 K·V 내용의 확장임을 현재 설치 버전의 구현과 함께 확인했다."
+          "id": "2026-09-01-topic-08",
+          "title": "KV Cache 후속 Forward 입력 계약과 `DynamicCache`",
+          "bodyMarkdown": "첫 Forward에는 Prompt 전체를 넣어 Cache를 만들고, 후속 Forward에는 새 Token `input_ids [B,1]`과 그 Token의 `position_ids [B,1]`만 전달하되, 새 Query가 과거 K·V까지 조회할 수 있도록 `attention_mask [B,past+new]`는 전체 길이를 유지한다고 설명했다. `use_cache=False`이면 재사용할 `past_key_values`가 반환되지 않으며, Cache와 함께 새 Token을 두 개 이상 전달하는 것도 가능하고 그 구간의 K·V는 현재 Forward에서 순서대로 계산된다고 구분했다. 저장된 실습에서는 Forward 전후 Cache가 같은 `DynamicCache` 객체였고 새 Token의 K·V Tensor가 Token 축에 이어 붙은 결과 Sequence 길이가 `7→8`로 증가했다. 이는 길이 숫자만 바꾸는 동작이 아니라 K·V 내용의 확장임을 현재 설치 버전의 구현과 함께 확인했다."
         },
         {
-          "titleHtml": "수동 KV Cache 생성과 Token 생성 메서드 교차검증",
-          "bodyHtml": "길이가 다른 두 문장을 대상으로 첫 Forward에는 <code>[2,6]</code> Prompt 전체를 넣고, 이후에는 직전에 선택한 새 Token <code>[2,1]</code>과 Cache만 넣는 5-Step Greedy 생성 루프를 완성했다. <code>generated_ids</code>는 최종 Decode용 전체 ID를 누적하고 <code>step_input_ids</code>는 이번 Forward의 새 Token만 보관하도록 역할을 분리했으며, Cache 길이가 <code>6→10</code>으로 늘어나는 것을 확인했다. 수동 결과와 라이브러리의 <code>generate()</code> Token 생성 메서드가 Padding부터 새 Token 5개까지 전체 ID Tensor에서 <code>torch.equal(...)=True</code>임을 검증했다. 마지막으로 CPU tiny GPT-2에서 No-cache·KV Cache와 Batch 1·4를 조합해 출력 일치를 확인했고, Batch 1은 <code>23.082 ms/866.48 tokens/sec</code> 대 <code>15.488 ms/1291.32 tokens/sec</code>, Batch 4는 <code>26.701 ms/2996.09 tokens/sec</code> 대 <code>25.023 ms/3197.07 tokens/sec</code>로 측정했다. 이 수치는 작은 CPU 실험의 기준선이며 일반적인 GPU 향상률로 확장하지 않는다."
+          "id": "2026-09-01-topic-09",
+          "title": "수동 KV Cache 생성과 Token 생성 메서드 교차검증",
+          "bodyMarkdown": "길이가 다른 두 문장을 대상으로 첫 Forward에는 `[2,6]` Prompt 전체를 넣고, 이후에는 직전에 선택한 새 Token `[2,1]`과 Cache만 넣는 5-Step Greedy 생성 루프를 완성했다. `generated_ids`는 최종 Decode용 전체 ID를 누적하고 `step_input_ids`는 이번 Forward의 새 Token만 보관하도록 역할을 분리했으며, Cache 길이가 `6→10`으로 늘어나는 것을 확인했다. 수동 결과와 라이브러리의 `generate()` Token 생성 메서드가 Padding부터 새 Token 5개까지 전체 ID Tensor에서 `torch.equal(...)=True`임을 검증했다. 마지막으로 CPU tiny GPT-2에서 No-cache·KV Cache와 Batch 1·4를 조합해 출력 일치를 확인했고, Batch 1은 `23.082 ms/866.48 tokens/sec` 대 `15.488 ms/1291.32 tokens/sec`, Batch 4는 `26.701 ms/2996.09 tokens/sec` 대 `25.023 ms/3197.07 tokens/sec`로 측정했다. 이 수치는 작은 CPU 실험의 기준선이며 일반적인 GPU 향상률로 확장하지 않는다."
         }
       ],
       "studyTime": {
         "minutes": 560,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>배달 다익스트라 힌트 재구현과 전체 테스트 통과, Heap Tuple·거리 완화·복잡도 교정</li><li>Batch 1·4의 KV Cache <code>[Batch,Head,Token,Head dimension]</code> Shape 비교</li><li>Tensor 축 의미를 변수 옆에 남기는 <code>jaxtyping</code> 제한 적용과 실제 Shape 대조</li><li>하나의 Batch Tensor 안의 문장 수·Token 수·Token 차원 구분과 Latency·Throughput 정의 교정</li><li><code>.to(device)</code>의 메모리 이동과 PyTorch 장치 디스패치·CUDA Kernel 병렬 실행 경계 정리</li><li>왼쪽 Padding·Attention Mask 누적합·Position ID 보정과 새 Token Mask 확장 실행</li><li>KV Cache 후속 Forward의 <code>input_ids [B,1]</code>·<code>position_ids [B,1]</code>·<code>attention_mask [B,past+new]</code> 계약 설명</li><li><code>use_cache</code> 반환 조건, 여러 새 Token 입력, DynamicCache 동일 객체와 K·V Token 축 확장 확인</li><li>길이가 다른 두 문장의 수동 5-Step KV Cache 생성과 Cache 길이 <code>6→10</code> 검증</li><li>수동 생성과 <code>generate()</code> Token 생성 메서드의 전체 ID 일치 확인</li><li>No-cache·KV Cache × Batch 1·4의 CPU Latency·Throughput 기준선 측정과 결과 경계 정리</li></ul><p>코덱스 세션의 첫 실제 학습 메시지부터 이번 기록 요청까지를 기준으로 추정했다. 공개 기록에는 하루 총 학습시간만 남기며, GPU 메모리·H2D/D2H·CUDA 동기화 Timing과 <code>jaxtyping</code> 런타임 검사는 다음 검증 범위로 구분했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-31",
       "topics": [
         {
-          "titleHtml": "입국심사 자료 없는 재구현과 이분 탐색 관문 완료",
-          "bodyHtml": "하루 전 풀이와 학습 기록을 보지 않고 <code>left=1</code>, <code>right=min(times)×n</code>의 시간 후보 범위, <code>sum(mid//time)</code> 가능 판정과 폐구간 경계 이동을 다시 구현해 프로그래머스 전체 테스트에 통과했다. 종료 시 <code>right=27</code>은 불가능하고 <code>left=28</code>은 최초 가능인 경계로 교차한다는 점을 자기 말로 설명했다. 범위를 절반씩 줄이는 <code>O(log R)</code>회마다 심사관 <code>m</code>명을 확인하므로 전체 시간 복잡도가 <code>O(m log R)</code>임을 교정했으며, 이 증거로 이분 탐색 경계 설계 관문을 완료했다."
+          "id": "2026-08-31-topic-01",
+          "title": "입국심사 자료 없는 재구현과 이분 탐색 관문 완료",
+          "bodyMarkdown": "하루 전 풀이와 학습 기록을 보지 않고 `left=1`, `right=min(times)×n`의 시간 후보 범위, `sum(mid//time)` 가능 판정과 폐구간 경계 이동을 다시 구현해 프로그래머스 전체 테스트에 통과했다. 종료 시 `right=27`은 불가능하고 `left=28`은 최초 가능인 경계로 교차한다는 점을 자기 말로 설명했다. 범위를 절반씩 줄이는 `O(log R)`회마다 심사관 `m`명을 확인하므로 전체 시간 복잡도가 `O(m log R)`임을 교정했으며, 이 증거로 이분 탐색 경계 설계 관문을 완료했다."
         },
         {
-          "titleHtml": "네트워크 일반 그래프 DFS 제출 통과",
-          "bodyHtml": "인접 행렬 <code>computers[current]</code>의 각 열을 이웃 연결 여부로 읽고, 방문하지 않은 컴퓨터를 시작점으로 잡아 DFS를 수행했다. DFS가 하나의 연결 요소를 모두 <code>visited</code> 처리하므로 바깥 반복에서 아직 방문하지 않은 시작점을 만날 때만 <code>answer += 1</code>이 실행되어 네트워크 수가 된다는 점을 설명했다. 각 컴퓨터는 DFS에 한 번만 들어가지만, 그때 길이 <code>n</code>인 연결 행을 확인하므로 전체 시간 복잡도는 <code>O(n²)</code>임을 연결해 프로그래머스 제출에 통과했다."
+          "id": "2026-08-31-topic-02",
+          "title": "네트워크 일반 그래프 DFS 제출 통과",
+          "bodyMarkdown": "인접 행렬 `computers[current]`의 각 열을 이웃 연결 여부로 읽고, 방문하지 않은 컴퓨터를 시작점으로 잡아 DFS를 수행했다. DFS가 하나의 연결 요소를 모두 `visited` 처리하므로 바깥 반복에서 아직 방문하지 않은 시작점을 만날 때만 `answer += 1`이 실행되어 네트워크 수가 된다는 점을 설명했다. 각 컴퓨터는 DFS에 한 번만 들어가지만, 그때 길이 `n`인 연결 행을 확인하므로 전체 시간 복잡도는 `O(n²)`임을 연결해 프로그래머스 제출에 통과했다."
         },
         {
-          "titleHtml": "단어 변환 BFS 상태와 방문 집합 제출 통과",
-          "bodyHtml": "<code>deque</code>에 <code>(현재 단어, 변환 횟수)</code>를 넣고, 꺼낸 직후 목표 단어이면 현재 <code>count</code>를 반환하는 BFS 흐름을 구현했다. 후보 단어는 글자 차이가 정확히 하나일 때만 다음 상태가 되며, <code>visited = {begin}</code>은 값만 저장하는 <code>set</code>으로 이미 큐에 넣은 단어의 재방문과 순환을 막는다. 방문한 단어는 글자 비교 전 건너뛰고, 새 단어는 큐에 넣는 순간 방문 처리하도록 정리했으며 프로그래머스 제출에 통과했다."
+          "id": "2026-08-31-topic-03",
+          "title": "단어 변환 BFS 상태와 방문 집합 제출 통과",
+          "bodyMarkdown": "`deque`에 `(현재 단어, 변환 횟수)`를 넣고, 꺼낸 직후 목표 단어이면 현재 `count`를 반환하는 BFS 흐름을 구현했다. 후보 단어는 글자 차이가 정확히 하나일 때만 다음 상태가 되며, `visited = {begin}`은 값만 저장하는 `set`으로 이미 큐에 넣은 단어의 재방문과 순환을 막는다. 방문한 단어는 글자 비교 전 건너뛰고, 새 단어는 큐에 넣는 순간 방문 처리하도록 정리했으며 프로그래머스 제출에 통과했다."
         },
         {
-          "titleHtml": "배달 문제로 익힌 다익스트라 첫 구조",
-          "bodyHtml": "프로그래머스 배달 문제에서 출발 마을 1부터 모든 마을까지의 최소 누적 비용을 <code>distance</code>에 저장하고, 비용이 <code>K</code> 이하인 마을 수를 세는 문제로 해석했다. <code>distance[1]=0</code>, 나머지는 무한대로 시작하며 양방향 도로를 인접 리스트에 넣고, 최소 Heap에서 가장 작은 누적 비용을 꺼내 <code>new_cost &lt; distance[next_village]</code>일 때만 거리 갱신과 다음 탐색을 수행하는 흐름을 따라 구현했다. 일반 Queue와 달리 비용이 작은 후보부터 꺼내야 하는 이유, 더 비싼 경로는 최단거리 후보가 아니므로 확장하지 않는 이유, 오래된 Heap 후보를 건너뛰는 조건이 정답보다 중복 탐색을 줄이는 최적화라는 점까지 설명했다. 전체 정답은 안내를 받아 완성했으므로 가중치 최단경로 관문은 아직 완료하지 않고, 다음 코딩 테스트 세션에서 자료 없이 다시 구현해 제출하는 과제로 남겼다."
+          "id": "2026-08-31-topic-04",
+          "title": "배달 문제로 익힌 다익스트라 첫 구조",
+          "bodyMarkdown": "프로그래머스 배달 문제에서 출발 마을 1부터 모든 마을까지의 최소 누적 비용을 `distance`에 저장하고, 비용이 `K` 이하인 마을 수를 세는 문제로 해석했다. `distance[1]=0`, 나머지는 무한대로 시작하며 양방향 도로를 인접 리스트에 넣고, 최소 Heap에서 가장 작은 누적 비용을 꺼내 `new_cost < distance[next_village]`일 때만 거리 갱신과 다음 탐색을 수행하는 흐름을 따라 구현했다. 일반 Queue와 달리 비용이 작은 후보부터 꺼내야 하는 이유, 더 비싼 경로는 최단거리 후보가 아니므로 확장하지 않는 이유, 오래된 Heap 후보를 건너뛰는 조건이 정답보다 중복 탐색을 줄이는 최적화라는 점까지 설명했다. 전체 정답은 안내를 받아 완성했으므로 가중치 최단경로 관문은 아직 완료하지 않고, 다음 코딩 테스트 세션에서 자료 없이 다시 구현해 제출하는 과제로 남겼다."
         },
         {
-          "titleHtml": "GPT-2 Layer별 QKV Projection과 KV Cache 구조",
-          "bodyHtml": "Token 수·Transformer Layer 수·Attention Head 수를 서로 다른 축으로 구분하고, 같은 Token도 이전 Layer의 출력과 Layer별 Projection Weight가 다르므로 각 Layer에서 서로 다른 Q·K·V가 만들어진다고 설명했다. GPT-2의 합쳐진 QKV Projection Weight를 역할별 열 구간으로 나누어 이해하고, <code>past_key_values[layer][0/1]</code>이 Layer별 Key·Value Tensor를 가리킨다는 점을 <code>[Batch,Head,Token,Head dim]</code> Shape과 연결했다. 과거 Query는 이미 출력을 만드는 역할을 마쳤고, 다음 Step에 다시 필요한 과거 K·V만 Cache한다는 이유도 정리했다."
+          "id": "2026-08-31-topic-05",
+          "title": "GPT-2 Layer별 QKV Projection과 KV Cache 구조",
+          "bodyMarkdown": "Token 수·Transformer Layer 수·Attention Head 수를 서로 다른 축으로 구분하고, 같은 Token도 이전 Layer의 출력과 Layer별 Projection Weight가 다르므로 각 Layer에서 서로 다른 Q·K·V가 만들어진다고 설명했다. GPT-2의 합쳐진 QKV Projection Weight를 역할별 열 구간으로 나누어 이해하고, `past_key_values[layer][0/1]`이 Layer별 Key·Value Tensor를 가리킨다는 점을 `[Batch,Head,Token,Head dim]` Shape과 연결했다. 과거 Query는 이미 출력을 만드는 역할을 마쳤고, 다음 Step에 다시 필요한 과거 K·V만 Cache한다는 이유도 정리했다."
         },
         {
-          "titleHtml": "No-cache와 KV Cache 생성 흐름·출력 일치 검증",
-          "bodyHtml": "No-cache에서는 생성할 때마다 전체 Prefix가 다시 입력되어 과거 Token의 Q·K·V까지 반복 계산되는 반면, Cache 경로는 첫 Prompt 전체 이후 새 Token <code>[1,1]</code>과 과거 <code>past_key_values</code>만 전달한다는 차이를 실행했다. Layer 0 Key Cache의 Token 축이 <code>2 → 3 → 4 → 5 → 6</code>으로 증가하는 것을 확인했고, 같은 Prompt·Greedy·생성 길이에서 두 방식의 Token ID와 Decode 문장이 같아 <code>torch.equal(...)=True</code>가 되는 기능적 기준선을 확보했다."
+          "id": "2026-08-31-topic-06",
+          "title": "No-cache와 KV Cache 생성 흐름·출력 일치 검증",
+          "bodyMarkdown": "No-cache에서는 생성할 때마다 전체 Prefix가 다시 입력되어 과거 Token의 Q·K·V까지 반복 계산되는 반면, Cache 경로는 첫 Prompt 전체 이후 새 Token `[1,1]`과 과거 `past_key_values`만 전달한다는 차이를 실행했다. Layer 0 Key Cache의 Token 축이 `2 → 3 → 4 → 5 → 6`으로 증가하는 것을 확인했고, 같은 Prompt·Greedy·생성 길이에서 두 방식의 Token ID와 Decode 문장이 같아 `torch.equal(...)=True`가 되는 기능적 기준선을 확보했다."
         },
         {
-          "titleHtml": "Warm-up·반복 Latency와 <code>perf_counter()</code>",
-          "bodyHtml": "각 생성 함수를 3회 Warm-up한 뒤 10회 반복 측정해 No-cache 평균 <code>74.1009 ms</code>, KV Cache 평균 <code>11.6883 ms</code>를 얻었고, 같은 로컬 조건에서 Cache 경로가 약 <code>6.34배</code> 빠르다고 계산했다. <code>time.perf_counter()</code>는 Python Singleton이 계속 증가시키는 값이 아니라 운영체제·하드웨어 시계를 호출 순간 읽은 Snapshot이며, 저장된 두 Counter의 차이만 경과시간으로 사용한다고 이해했다. 기준점이 Unix Epoch가 아니므로 UTC로 직접 변환할 수 없고, 실제 시각이 필요하면 별도 시계를 기록하거나 두 시계를 함께 찍어 근사 대응해야 한다고 구분했다."
+          "id": "2026-08-31-topic-07",
+          "title": "Warm-up·반복 Latency와 `perf_counter()`",
+          "bodyMarkdown": "각 생성 함수를 3회 Warm-up한 뒤 10회 반복 측정해 No-cache 평균 `74.1009 ms`, KV Cache 평균 `11.6883 ms`를 얻었고, 같은 로컬 조건에서 Cache 경로가 약 `6.34배` 빠르다고 계산했다. `time.perf_counter()`는 Python Singleton이 계속 증가시키는 값이 아니라 운영체제·하드웨어 시계를 호출 순간 읽은 Snapshot이며, 저장된 두 Counter의 차이만 경과시간으로 사용한다고 이해했다. 기준점이 Unix Epoch가 아니므로 UTC로 직접 변환할 수 없고, 실제 시각이 필요하면 별도 시계를 기록하거나 두 시계를 함께 찍어 근사 대응해야 한다고 구분했다."
         }
       ],
       "studyTime": {
         "minutes": 528,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>입국심사 이분 탐색 자료 없는 재구현과 경계·복잡도 설명</li><li>네트워크 DFS와 단어 변환 BFS 구현·제출 통과</li><li>배달 문제의 다익스트라 거리 배열·양방향 인접 리스트·최소 Heap·거리 갱신 구조 첫 학습</li><li>낡은 Heap 후보 건너뛰기와 <code>[[]] * n</code> 공유 참조 오류, 리스트 컴프리헨션·제너레이터 차이 정리</li><li>GPT-2 Layer별 QKV Projection과 KV Cache Tensor 구조 설명</li><li>No-cache·KV Cache 반복 생성의 입력·Cache Shape 확인과 출력 일치 검증</li><li>Warm-up 뒤 반복 Latency 측정과 Cache 약 <code>6.34배</code> 결과 해석</li><li><code>perf_counter()</code>의 순간 Snapshot·경과시간·UTC 직접 변환 불가 구분</li></ul><p>코딩 테스트 세션의 기존 집계와 이어진 Road to LLM inference 실습·설명·문서 검증 구간에, 배달 문제로 다익스트라를 처음 학습한 약 1시간 24분을 합산했다. 정확한 시각은 공개하지 않고, 파일과 대화에서 확인되는 연속 학습 구간을 기준으로 복원했으므로 <code>약</code>으로 표시했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-30",
       "topics": [
         {
-          "titleHtml": "퍼즐 게임 챌린지 이분 탐색 전이 제출 통과",
-          "bodyHtml": "<code>diffs</code>·<code>times</code>가 같은 인덱스의 순서 있는 퍼즐 목록이고, 숙련도는 입력이 아니라 제한 시간 안에 끝내기 위해 찾아야 할 최소 후보임을 다시 해석했다. 현재 퍼즐 실패 뒤 이전 퍼즐을 다시 푸는 벌칙과 마지막 성공에는 이전 시간이 붙지 않는 순서를 풀어 쓰고, <code>diff-level</code>이 문제에서 직접 정의한 실패 횟수임을 확인했다. 후보 숙련도마다 전체 시간을 Simulation하고 <code>total&lt;=limit</code>이면 더 낮은 숙련도를 찾는 경계를 구현했으며, <code>total==limit</code>을 실패로 처리한 조건을 수정해 프로그래머스 제출에 통과했다. 두 문제의 자료 없는 재구현과 복잡도 설명은 지연 복습으로 등록했다."
+          "id": "2026-08-30-topic-01",
+          "title": "퍼즐 게임 챌린지 이분 탐색 전이 제출 통과",
+          "bodyMarkdown": "`diffs`·`times`가 같은 인덱스의 순서 있는 퍼즐 목록이고, 숙련도는 입력이 아니라 제한 시간 안에 끝내기 위해 찾아야 할 최소 후보임을 다시 해석했다. 현재 퍼즐 실패 뒤 이전 퍼즐을 다시 푸는 벌칙과 마지막 성공에는 이전 시간이 붙지 않는 순서를 풀어 쓰고, `diff-level`이 문제에서 직접 정의한 실패 횟수임을 확인했다. 후보 숙련도마다 전체 시간을 Simulation하고 `total<=limit`이면 더 낮은 숙련도를 찾는 경계를 구현했으며, `total==limit`을 실패로 처리한 조건을 수정해 프로그래머스 제출에 통과했다. 두 문제의 자료 없는 재구현과 복잡도 설명은 지연 복습으로 등록했다."
         },
         {
-          "titleHtml": "입국심사 이분 탐색 제출 통과",
-          "bodyHtml": "<code>n=6</code>, <code>times=[7,10]</code>에서 후보 시간마다 <code>sum(T // time)</code>으로 처리 인원을 계산하고, 판정이 <code>불가능 → 가능</code>으로 단조롭게 변하는 경계를 추적했다. 중간값은 심사관 수가 아니라 남은 시간 후보 범위를 나누는 값이며, 폐구간에서 <code>mid - 1</code>·<code>mid + 1</code>은 이미 검사한 정수 후보를 제외하는 이동이라고 정리했다. 반복 중 <code>left</code>보다 작은 값은 불가능하고 <code>right</code>보다 큰 값은 가능하다는 의미를 연결해, 교차 뒤 <code>left</code>가 최초 가능 시간으로 남는 코드를 다시 구현하고 프로그래머스 제출에 통과했다. 같은 패턴의 독립 전이와 복잡도 재설명은 다음 확인으로 남겼다."
+          "id": "2026-08-30-topic-02",
+          "title": "입국심사 이분 탐색 제출 통과",
+          "bodyMarkdown": "`n=6`, `times=[7,10]`에서 후보 시간마다 `sum(T // time)`으로 처리 인원을 계산하고, 판정이 `불가능 → 가능`으로 단조롭게 변하는 경계를 추적했다. 중간값은 심사관 수가 아니라 남은 시간 후보 범위를 나누는 값이며, 폐구간에서 `mid - 1`·`mid + 1`은 이미 검사한 정수 후보를 제외하는 이동이라고 정리했다. 반복 중 `left`보다 작은 값은 불가능하고 `right`보다 큰 값은 가능하다는 의미를 연결해, 교차 뒤 `left`가 최초 가능 시간으로 남는 코드를 다시 구현하고 프로그래머스 제출에 통과했다. 같은 패턴의 독립 전이와 복잡도 재설명은 다음 확인으로 남겼다."
         },
         {
-          "titleHtml": "Top-k 후보 제한과 실제 Token ID 복원",
-          "bodyHtml": "마지막 위치 Logit의 전체 Vocabulary에서 <code>torch.topk()</code>로 점수가 큰 후보 10개와 그 후보의 실제 Token ID를 함께 가져왔다. <code>softmax(top_values)</code>는 이 10개 안에서만 선택 비중을 다시 만들고, <code>torch.multinomial()</code>은 실제 Token ID가 아니라 Top-k 목록 안의 임시 위치를 반환한다. 따라서 <code>torch.gather(top_token_ids, ..., selected_top_positions)</code>로 그 임시 위치에 대응하는 실제 Vocabulary Token ID를 꺼낸다는 흐름을 설명했다. <code>top_token_pieces</code>는 사람이 후보를 읽기 위한 표시용이며 생성 계산에는 필요하지 않다고 구분했다."
+          "id": "2026-08-30-topic-03",
+          "title": "Top-k 후보 제한과 실제 Token ID 복원",
+          "bodyMarkdown": "마지막 위치 Logit의 전체 Vocabulary에서 `torch.topk()`로 점수가 큰 후보 10개와 그 후보의 실제 Token ID를 함께 가져왔다. `softmax(top_values)`는 이 10개 안에서만 선택 비중을 다시 만들고, `torch.multinomial()`은 실제 Token ID가 아니라 Top-k 목록 안의 임시 위치를 반환한다. 따라서 `torch.gather(top_token_ids, ..., selected_top_positions)`로 그 임시 위치에 대응하는 실제 Vocabulary Token ID를 꺼낸다는 흐름을 설명했다. `top_token_pieces`는 사람이 후보를 읽기 위한 표시용이며 생성 계산에는 필요하지 않다고 구분했다."
         },
         {
-          "titleHtml": "Top-k 생성 루프와 Temperature Sampling 비교",
-          "bodyHtml": "Token 선택 부분만 Top-k로 바꾸고, 선택한 ID를 <code>torch.cat()</code>으로 기존 입력 뒤에 붙여 다시 Forward하는 자기회귀 반복 구조는 Temperature Sampling과 같다고 확인했다. Temperature는 전체 후보의 격차를 조절하지만, Top-k는 그 전에 후보 수를 상위 <code>k</code>개로 제한한다는 차이를 실제 생성 루프에 연결했다."
+          "id": "2026-08-30-topic-04",
+          "title": "Top-k 생성 루프와 Temperature Sampling 비교",
+          "bodyMarkdown": "Token 선택 부분만 Top-k로 바꾸고, 선택한 ID를 `torch.cat()`으로 기존 입력 뒤에 붙여 다시 Forward하는 자기회귀 반복 구조는 Temperature Sampling과 같다고 확인했다. Temperature는 전체 후보의 격차를 조절하지만, Top-k는 그 전에 후보 수를 상위 `k`개로 제한한다는 차이를 실제 생성 루프에 연결했다."
         },
         {
-          "titleHtml": "Top-p 누적 비중과 경계 후보 보존",
-          "bodyHtml": "Vocabulary 선택 비중을 큰 순서로 정렬하고 누적합이 <code>top_p</code>를 넘는 위치를 제거 Mask로 만들었다. <code>remove_mask[:, 1:] = remove_mask[:, :-1].clone()</code>은 기존 Mask를 오른쪽으로 한 칸 밀어 임계값을 처음 넘게 만든 경계 후보까지 남기기 위한 처리라고 이해했다. 이 이동이 없으면 누적합을 임계값 위로 처음 올려 준 후보까지 제거될 수 있으므로 단순히 한 칸만 뒤집는 방식보다 Batch마다 다른 경계를 동일한 Tensor 연산으로 처리하는 이유를 설명했다."
+          "id": "2026-08-30-topic-05",
+          "title": "Top-p 누적 비중과 경계 후보 보존",
+          "bodyMarkdown": "Vocabulary 선택 비중을 큰 순서로 정렬하고 누적합이 `top_p`를 넘는 위치를 제거 Mask로 만들었다. `remove_mask[:, 1:] = remove_mask[:, :-1].clone()`은 기존 Mask를 오른쪽으로 한 칸 밀어 임계값을 처음 넘게 만든 경계 후보까지 남기기 위한 처리라고 이해했다. 이 이동이 없으면 누적합을 임계값 위로 처음 올려 준 후보까지 제거될 수 있으므로 단순히 한 칸만 뒤집는 방식보다 Batch마다 다른 경계를 동일한 Tensor 연산으로 처리하는 이유를 설명했다."
         },
         {
-          "titleHtml": "Top-p Mask·재정규화·추첨·<code>gather</code>",
-          "bodyHtml": "<code>masked_fill(remove_mask, 0.0)</code>으로 제외 후보의 선택 비중을 0으로 만들고, 남은 값들을 합으로 나눠 전체 합이 다시 1이 되도록 조정했다. <code>multinomial()</code>이 정렬된 후보 목록 안의 위치를 뽑고 <code>gather(sorted_token_ids, ...)</code>가 실제 Token ID로 바꾸는 순서를 설명했다. <code>(~remove_mask).sum(dim=-1)</code>은 제거 여부를 반전한 뒤 각 Batch에서 남은 후보 수를 세는 진단값이라고 확인했다."
+          "id": "2026-08-30-topic-06",
+          "title": "Top-p Mask·재정규화·추첨·`gather`",
+          "bodyMarkdown": "`masked_fill(remove_mask, 0.0)`으로 제외 후보의 선택 비중을 0으로 만들고, 남은 값들을 합으로 나눠 전체 합이 다시 1이 되도록 조정했다. `multinomial()`이 정렬된 후보 목록 안의 위치를 뽑고 `gather(sorted_token_ids, ...)`가 실제 Token ID로 바꾸는 순서를 설명했다. `(~remove_mask).sum(dim=-1)`은 제거 여부를 반전한 뒤 각 Batch에서 남은 후보 수를 세는 진단값이라고 확인했다."
         },
         {
-          "titleHtml": "Batch·Token Cross Entropy의 평균 Loss",
-          "bodyHtml": "Causal LM의 Logit <code>[B,S,V]</code>와 Shift된 Target은 각 Batch의 각 다음 Token 위치를 하나의 분류 문제로 만든다. 각 위치에서 정답 Token에 배정된 선택 비중 <code>p</code>의 Loss는 <code>-ln(p)</code>이고, 전체 <code>B×(S-1)</code>개 Token Loss를 평균한 scalar 하나가 기본 <code>CrossEntropyLoss</code>와 <code>outputs.loss</code>라는 점을 다시 연결했다. Accuracy처럼 최댓값 ID의 일치만 보는 것이 아니라 정답 칸에 얼마나 강한 비중을 주었는지를 연속적인 값으로 채점한다고 구분했다."
+          "id": "2026-08-30-topic-07",
+          "title": "Batch·Token Cross Entropy의 평균 Loss",
+          "bodyMarkdown": "Causal LM의 Logit `[B,S,V]`와 Shift된 Target은 각 Batch의 각 다음 Token 위치를 하나의 분류 문제로 만든다. 각 위치에서 정답 Token에 배정된 선택 비중 `p`의 Loss는 `-ln(p)`이고, 전체 `B×(S-1)`개 Token Loss를 평균한 scalar 하나가 기본 `CrossEntropyLoss`와 `outputs.loss`라는 점을 다시 연결했다. Accuracy처럼 최댓값 ID의 일치만 보는 것이 아니라 정답 칸에 얼마나 강한 비중을 주었는지를 연속적인 값으로 채점한다고 구분했다."
         },
         {
-          "titleHtml": "One-hot Cross Entropy와 MSE 구분",
-          "bodyHtml": "MSE의 <code>(출력-정답)²</code>과 Cross Entropy의 <code>-Σ(yᵢ×ln(pᵢ))</code>를 분리했다. 정답 Token ID가 7이면 One-hot Target에서 7번만 1이고 나머지는 0이므로 모든 0 항이 사라져 <code>-ln(p₇)</code>만 남는다. <code>p₇=0.4509</code>이면 Loss가 약 <code>0.7966</code>이며, PyTorch는 이 계산을 위해 One-hot 전체 대신 정답 열을 가리키는 Token ID를 받는다고 이해했다."
+          "id": "2026-08-30-topic-08",
+          "title": "One-hot Cross Entropy와 MSE 구분",
+          "bodyMarkdown": "MSE의 `(출력-정답)²`과 Cross Entropy의 `-Σ(yᵢ×ln(pᵢ))`를 분리했다. 정답 Token ID가 7이면 One-hot Target에서 7번만 1이고 나머지는 0이므로 모든 0 항이 사라져 `-ln(p₇)`만 남는다. `p₇=0.4509`이면 Loss가 약 `0.7966`이며, PyTorch는 이 계산을 위해 One-hot 전체 대신 정답 열을 가리키는 Token ID를 받는다고 이해했다."
         },
         {
-          "titleHtml": "Perplexity와 문장 내 채점 위치",
-          "bodyHtml": "<code>Perplexity = exp(평균 Token Cross Entropy)</code>이므로 Loss가 0이면 1이고 Loss가 커질수록 Perplexity도 커진다고 확인했다. <code>\"I study.\"</code>에서는 첫 Token 자체를 채점하는 것이 아니라 <code>I→study</code>, <code>I study→.</code>처럼 다음 Token 두 위치를 채점한다. 실행한 평균 Token Loss <code>10.831886</code>을 지수 변환해 Perplexity <code>50609.078</code>을 얻었으며, 이 한 문장 결과만으로 모델 전체 품질을 단정하지 않는 해석 경계도 남겼다."
+          "id": "2026-08-30-topic-09",
+          "title": "Perplexity와 문장 내 채점 위치",
+          "bodyMarkdown": "`Perplexity = exp(평균 Token Cross Entropy)`이므로 Loss가 0이면 1이고 Loss가 커질수록 Perplexity도 커진다고 확인했다. `\"I study.\"`에서는 첫 Token 자체를 채점하는 것이 아니라 `I→study`, `I study→.`처럼 다음 Token 두 위치를 채점한다. 실행한 평균 Token Loss `10.831886`을 지수 변환해 Perplexity `50609.078`을 얻었으며, 이 한 문장 결과만으로 모델 전체 품질을 단정하지 않는 해석 경계도 남겼다."
         },
         {
-          "titleHtml": "사전학습 Model·Tokenizer 저장과 로컬 복원",
-          "bodyHtml": "<code>save_pretrained()</code>로 Tokenizer의 문자열↔Token ID 규칙과 Model의 설정·Embedding·Transformer·LM Head Weight를 각각 저장하고, 별도 객체에서 <code>local_files_only=True</code>로 복원했다. 이번에는 파인튜닝하지 않은 원본을 그대로 저장했다가 불러온 비교이므로 Token ID <code>[[40,2050,13]]</code>, Logit Shape <code>[1,3,50257]</code>, Loss와 Perplexity가 동일한 것이 정상이라고 설명했다. 저장은 현재 학습 성과를 과장하기 위한 것이 아니라 이후 로컬·오프라인·RunPod 환경에서 같은 Artifact를 재사용하고 비교하기 위한 기반이라고 구분했다."
+          "id": "2026-08-30-topic-10",
+          "title": "사전학습 Model·Tokenizer 저장과 로컬 복원",
+          "bodyMarkdown": "`save_pretrained()`로 Tokenizer의 문자열↔Token ID 규칙과 Model의 설정·Embedding·Transformer·LM Head Weight를 각각 저장하고, 별도 객체에서 `local_files_only=True`로 복원했다. 이번에는 파인튜닝하지 않은 원본을 그대로 저장했다가 불러온 비교이므로 Token ID `[[40,2050,13]]`, Logit Shape `[1,3,50257]`, Loss와 Perplexity가 동일한 것이 정상이라고 설명했다. 저장은 현재 학습 성과를 과장하기 위한 것이 아니라 이후 로컬·오프라인·RunPod 환경에서 같은 Artifact를 재사용하고 비교하기 위한 기반이라고 구분했다."
         },
         {
-          "titleHtml": "사전학습 Causal LM 적용 관문 완료",
-          "bodyHtml": "Tokenizer·동적 Padding·Attention Mask, 사전학습 Model Forward, Batch별 마지막 실제 Token Logit, Greedy·Temperature·Top-k·Top-p 수동 생성, Cross Entropy·Perplexity 평가, Model·Tokenizer 저장·복원까지 직접 실행하고 핵심 Shape과 선택 과정을 설명했다. 이 증거로 사전학습 Causal LM 적용 관문을 완료했고, 다음 관문은 같은 모델·Prompt 조건에서 No-cache와 KV Cache, Batch 1과 Batch N을 비교하는 PyTorch 추론 Baseline이다."
+          "id": "2026-08-30-topic-11",
+          "title": "사전학습 Causal LM 적용 관문 완료",
+          "bodyMarkdown": "Tokenizer·동적 Padding·Attention Mask, 사전학습 Model Forward, Batch별 마지막 실제 Token Logit, Greedy·Temperature·Top-k·Top-p 수동 생성, Cross Entropy·Perplexity 평가, Model·Tokenizer 저장·복원까지 직접 실행하고 핵심 Shape과 선택 과정을 설명했다. 이 증거로 사전학습 Causal LM 적용 관문을 완료했고, 다음 관문은 같은 모델·Prompt 조건에서 No-cache와 KV Cache, Batch 1과 Batch N을 비교하는 PyTorch 추론 Baseline이다."
         }
       ],
       "studyTime": {
         "minutes": 615,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Top-k의 상위 점수·실제 Token ID, 후보 내부 선택 비중, <code>multinomial</code>의 임시 위치와 <code>gather</code>의 실제 ID 복원 구분</li><li>Temperature Sampling과 Top-k 생성 루프의 공통 구조 및 후보 제한 차이 확인</li><li>Top-p의 정렬·누적합·오른쪽 Mask 이동으로 임계값을 처음 넘긴 경계 후보까지 보존하는 이유 설명</li><li>Top-p Mask 0 처리·합 1 재정규화·후보 내부 위치 추첨·실제 Token ID 복원 실행</li><li><code>(~remove_mask).sum(dim=-1)</code>으로 Batch별 유지 후보 수를 세는 과정 확인</li><li>Batch 전체의 <code>B×(S-1)</code>개 다음 Token 문제별 Cross Entropy를 평균해 scalar Loss 하나가 되는 구조 복습</li><li>One-hot Cross Entropy와 <code>-ln(정답 Token 선택 비중)</code>의 동치 및 MSE와의 차이 설명</li><li><code>p=0.4509 → Loss≈0.7966</code> 계산과 <code>Perplexity=exp(평균 Token Loss)</code> 해석</li><li><code>\"I study.\"</code>의 다음 Token 두 위치에서 평균 Loss <code>10.831886</code>·Perplexity <code>50609.078</code> 실행</li><li>사전학습 Model·Tokenizer를 저장하고 로컬 전용으로 복원해 Token ID·Logit Shape·Loss 일치 검증</li><li>사전학습 Causal LM 적용 관문 완료와 PyTorch KV Cache·Batch 추론 Baseline 전환</li></ul><p>원본 <strong>Road To LLM inference</strong> 대화와 이어진 학습 세션을 함께 대조하고, 사용자가 확인한 이날의 전체 학습 구간을 기준으로 복원했다. 메시지 사이에는 코드 실행과 문서 반영 시간이 이어졌으며 별도로 제외할 장시간 비학습 공백은 확인되지 않았다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-29",
       "topics": [
         {
-          "titleHtml": "2-Batch Target shift 슬라이싱 재구성",
-          "bodyHtml": "<code>[[3,7,2,9],[4,1,6,8]]</code>에서 <code>tokens[:, :-1]</code>을 모든 행의 마지막 열 전까지, <code>tokens[:, 1:]</code>을 모든 행의 두 번째 열부터 끝까지로 해석했다. 입력 <code>[[3,7,2],[4,1,6]]</code>과 Target <code>[[7,2,9],[1,6,8]]</code>의 Shape이 모두 <code>[2,3]</code>임을 실행 결과로 확인하고, 각 행에서 입력의 마지막 Token <code>9·8</code>과 Target의 첫 Token <code>3·4</code>가 빠진다고 자기 말로 설명해 이전 보강 항목을 완료했다."
+          "id": "2026-08-29-topic-01",
+          "title": "2-Batch Target shift 슬라이싱 재구성",
+          "bodyMarkdown": "`[[3,7,2,9],[4,1,6,8]]`에서 `tokens[:, :-1]`을 모든 행의 마지막 열 전까지, `tokens[:, 1:]`을 모든 행의 두 번째 열부터 끝까지로 해석했다. 입력 `[[3,7,2],[4,1,6]]`과 Target `[[7,2,9],[1,6,8]]`의 Shape이 모두 `[2,3]`임을 실행 결과로 확인하고, 각 행에서 입력의 마지막 Token `9·8`과 Target의 첫 Token `3·4`가 빠진다고 자기 말로 설명해 이전 보강 항목을 완료했다."
         },
         {
-          "titleHtml": "<code>CrossEntropyLoss</code>의 좌우 입력과 Accuracy 구분",
-          "bodyHtml": "모델 Logit <code>[B,T,V]=[1,3,10]</code>을 <code>reshape(-1,10)</code>으로 <code>[3,10]</code>에 펼친 왼쪽 입력은 위치별 후보 점수이고, Target <code>[1,3]</code>을 <code>reshape(-1)</code>으로 <code>[3]</code>에 펼친 오른쪽 입력은 각 행에서 채점할 Token ID <code>[7,2,9]</code>라고 구분했다. Accuracy는 최댓값 인덱스가 Target과 같은지만 보지만, Cross Entropy는 Target 칸의 Log-Softmax 값을 사용하므로 최댓값이 정답이어도 정답 칸이 충분히 강하지 않으면 Loss가 남는다는 차이를 확인했다."
+          "id": "2026-08-29-topic-02",
+          "title": "`CrossEntropyLoss`의 좌우 입력과 Accuracy 구분",
+          "bodyMarkdown": "모델 Logit `[B,T,V]=[1,3,10]`을 `reshape(-1,10)`으로 `[3,10]`에 펼친 왼쪽 입력은 위치별 후보 점수이고, Target `[1,3]`을 `reshape(-1)`으로 `[3]`에 펼친 오른쪽 입력은 각 행에서 채점할 Token ID `[7,2,9]`라고 구분했다. Accuracy는 최댓값 인덱스가 Target과 같은지만 보지만, Cross Entropy는 Target 칸의 Log-Softmax 값을 사용하므로 최댓값이 정답이어도 정답 칸이 충분히 강하지 않으면 Loss가 남는다는 차이를 확인했다."
         },
         {
-          "titleHtml": "Causal Prefix 세 문제의 병렬 학습",
-          "bodyHtml": "입력 <code>[3,7,2]</code>과 Target <code>[7,2,9]</code>은 단순 배열 변환 하나가 아니라 Causal Mask로 <code>[3]→7</code>, <code>[3,7]→2</code>, <code>[3,7,2]→9</code> 세 Prefix 문제를 만든다고 이해했다. 세 위치를 따로 세 번 학습한 것이 아니라 한 Forward에서 세 위치 Logit을 병렬 계산하고, 세 Token Loss의 평균으로 한 번에 <code>backward()</code>해 전체 모델을 조정한다는 구조를 설명했다."
+          "id": "2026-08-29-topic-03",
+          "title": "Causal Prefix 세 문제의 병렬 학습",
+          "bodyMarkdown": "입력 `[3,7,2]`과 Target `[7,2,9]`은 단순 배열 변환 하나가 아니라 Causal Mask로 `[3]→7`, `[3,7]→2`, `[3,7,2]→9` 세 Prefix 문제를 만든다고 이해했다. 세 위치를 따로 세 번 학습한 것이 아니라 한 Forward에서 세 위치 Logit을 병렬 계산하고, 세 Token Loss의 평균으로 한 번에 `backward()`해 전체 모델을 조정한다는 구조를 설명했다."
         },
         {
-          "titleHtml": "<code>d_model</code> 표현 병목 해석과 작은 데이터 과적합",
-          "bodyHtml": "저장된 실행에서 <code>d_model=2</code>·Head 2개 모델을 300번 수정했을 때 Loss가 <code>0.462389</code>에서 정체되고 예측이 <code>[9,2,9]</code>로 남았다. 학습된 모델의 첫 위치와 마지막 위치 Softmax 행이 같고 Token 7·9가 약 <code>0.4999</code>씩 나뉜 것이 직접 관찰한 사실이다. <code>d_model=4</code>·<code>d_ff=16</code>으로 넓혀 새로 초기화한 모델은 같은 저장 실행에서 50번에 Loss <code>3.3378e-06</code>, 300번에 <code>2.5829e-06</code>까지 감소해 작은 수열을 사실상 완전히 암기했다. Seed를 고정하지 않아 세부 숫자는 재실행마다 달라질 수 있지만, 새 커널에서도 <code>d_model=2</code>의 약 <code>0.462</code> 정체와 <code>d_model=4</code>의 Loss <code>0.001</code> 미만·동일 생성 결과를 재현했다. 이를 표현 병목으로 해석하되, 차원 변경과 재초기화가 함께 일어났으므로 LayerNorm 하나만의 영향으로 단정하지 않았다."
+          "id": "2026-08-29-topic-04",
+          "title": "`d_model` 표현 병목 해석과 작은 데이터 과적합",
+          "bodyMarkdown": "저장된 실행에서 `d_model=2`·Head 2개 모델을 300번 수정했을 때 Loss가 `0.462389`에서 정체되고 예측이 `[9,2,9]`로 남았다. 학습된 모델의 첫 위치와 마지막 위치 Softmax 행이 같고 Token 7·9가 약 `0.4999`씩 나뉜 것이 직접 관찰한 사실이다. `d_model=4`·`d_ff=16`으로 넓혀 새로 초기화한 모델은 같은 저장 실행에서 50번에 Loss `3.3378e-06`, 300번에 `2.5829e-06`까지 감소해 작은 수열을 사실상 완전히 암기했다. Seed를 고정하지 않아 세부 숫자는 재실행마다 달라질 수 있지만, 새 커널에서도 `d_model=2`의 약 `0.462` 정체와 `d_model=4`의 Loss `0.001` 미만·동일 생성 결과를 재현했다. 이를 표현 병목으로 해석하되, 차원 변경과 재초기화가 함께 일어났으므로 LayerNorm 하나만의 영향으로 단정하지 않았다."
         },
         {
-          "titleHtml": "잘못된 학습 쌍과 <code>3722</code> 실패 수정",
-          "bodyHtml": "입력을 실수로 <code>[7,2,9]</code>로 두고 같은 Target <code>[7,2,9]</code>을 재사용하면 Loss가 0에 가까워져도 다음 Token 관계가 아니라 입력과 같은 ID를 내는 잘못된 목표를 학습한다. 그 상태에서 <code>[3,7,2]</code>를 생성해 <code>[3,7,2,2]</code>가 나온 원인을 추적했고, 입력 <code>[3,7,2]</code>과 Target <code>[7,2,9]</code>을 같은 셀에 다시 선언해 학습한 뒤 <code>[3,7,2,9]</code>로 수정했다. 화면의 수정 Source·디스크 저장 Source·cached output을 서로 다른 시점의 근거로 읽으면 전제가 엇갈릴 수 있으므로, 최종 저장본의 Source와 Output을 함께 확인하고 다시 실행해야 한다는 디버깅 기준도 남겼다."
+          "id": "2026-08-29-topic-05",
+          "title": "잘못된 학습 쌍과 `3722` 실패 수정",
+          "bodyMarkdown": "입력을 실수로 `[7,2,9]`로 두고 같은 Target `[7,2,9]`을 재사용하면 Loss가 0에 가까워져도 다음 Token 관계가 아니라 입력과 같은 ID를 내는 잘못된 목표를 학습한다. 그 상태에서 `[3,7,2]`를 생성해 `[3,7,2,2]`가 나온 원인을 추적했고, 입력 `[3,7,2]`과 Target `[7,2,9]`을 같은 셀에 다시 선언해 학습한 뒤 `[3,7,2,9]`로 수정했다. 화면의 수정 Source·디스크 저장 Source·cached output을 서로 다른 시점의 근거로 읽으면 전제가 엇갈릴 수 있으므로, 최종 저장본의 Source와 Output을 함께 확인하고 다시 실행해야 한다는 디버깅 기준도 남겼다."
         },
         {
-          "titleHtml": "마지막 위치 Logit과 Token ID 선택",
-          "bodyHtml": "<code>logits[:, -1, :]</code>이 모든 Batch의 마지막 Token 위치에서 Vocabulary 후보 전체를 가져와 <code>[B,T,V] → [B,V]</code>로 만드는 슬라이싱임을 확인했다. <code>argmax(dim=-1)</code>는 최댓값 자체가 아니라 그 값이 있던 Vocabulary 인덱스, 즉 Token ID를 반환하고, <code>keepdim=True</code>는 결과를 <code>[B,1]</code>로 유지해 기존 Token ID Tensor 뒤에 붙일 수 있게 한다고 설명했다."
+          "id": "2026-08-29-topic-06",
+          "title": "마지막 위치 Logit과 Token ID 선택",
+          "bodyMarkdown": "`logits[:, -1, :]`이 모든 Batch의 마지막 Token 위치에서 Vocabulary 후보 전체를 가져와 `[B,T,V] → [B,V]`로 만드는 슬라이싱임을 확인했다. `argmax(dim=-1)`는 최댓값 자체가 아니라 그 값이 있던 Vocabulary 인덱스, 즉 Token ID를 반환하고, `keepdim=True`는 결과를 `[B,1]`로 유지해 기존 Token ID Tensor 뒤에 붙일 수 있게 한다고 설명했다."
         },
         {
-          "titleHtml": "<code>torch.cat</code> 축과 목록 순서",
-          "bodyHtml": "Token ID Tensor가 <code>[Batch,Token]</code>인 2차원이므로 현재 코드에서는 <code>dim=1</code>과 <code>dim=-1</code>이 같은 마지막 Token 축이라는 점을 확인했다. <code>dim=1</code>은 Token 축이라는 역할을, <code>dim=-1</code>은 마지막 축이라는 위치를 강조하며, 새 Token이 뒤에 붙는 것은 <code>[prompt_tokens,next_token]</code> 목록 순서 때문이라고 정리했다. <code>[B,T,D]</code> 3차원에서는 <code>dim=1</code>과 <code>dim=-1</code>이 서로 다른 축이라는 경계도 함께 남겼다."
+          "id": "2026-08-29-topic-07",
+          "title": "`torch.cat` 축과 목록 순서",
+          "bodyMarkdown": "Token ID Tensor가 `[Batch,Token]`인 2차원이므로 현재 코드에서는 `dim=1`과 `dim=-1`이 같은 마지막 Token 축이라는 점을 확인했다. `dim=1`은 Token 축이라는 역할을, `dim=-1`은 마지막 축이라는 위치를 강조하며, 새 Token이 뒤에 붙는 것은 `[prompt_tokens,next_token]` 목록 순서 때문이라고 정리했다. `[B,T,D]` 3차원에서는 `dim=1`과 `dim=-1`이 서로 다른 축이라는 경계도 함께 남겼다."
         },
         {
-          "titleHtml": "Tiny Decoder LM 자기회귀 생성 완료",
-          "bodyHtml": "학습된 모델에 <code>[3]</code>을 넣고 마지막 위치의 Token ID를 선택해 다시 입력 뒤에 붙이는 과정을 세 번 반복했다. 실제 출력은 <code>[3] → [3,7] → [3,7,2] → [3,7,2,9]</code>였고, 학습에서 병렬로 만든 세 Prefix 관계를 생성에서 순차적으로 사용한다는 연결을 설명했다. 이 결과로 Target shift·Causal Mask·Cross Entropy·Optimizer 학습·실패 수정·Autoregressive Generation까지 Tiny Decoder LM 필수 관문을 완료했다."
+          "id": "2026-08-29-topic-08",
+          "title": "Tiny Decoder LM 자기회귀 생성 완료",
+          "bodyMarkdown": "학습된 모델에 `[3]`을 넣고 마지막 위치의 Token ID를 선택해 다시 입력 뒤에 붙이는 과정을 세 번 반복했다. 실제 출력은 `[3] → [3,7] → [3,7,2] → [3,7,2,9]`였고, 학습에서 병렬로 만든 세 Prefix 관계를 생성에서 순차적으로 사용한다는 연결을 설명했다. 이 결과로 Target shift·Causal Mask·Cross Entropy·Optimizer 학습·실패 수정·Autoregressive Generation까지 Tiny Decoder LM 필수 관문을 완료했다."
         },
         {
-          "titleHtml": "Hugging Face Tokenizer와 동적 Padding Batch",
-          "bodyHtml": "<code>sshleifer/tiny-gpt2</code>의 Tokenizer를 모델 이름으로 불러와 문자열을 Token ID와 Token 조각으로 변환했다. 길이가 3·7인 두 문장을 <code>padding=True</code>로 묶어 <code>input_ids</code>와 <code>attention_mask</code> Shape <code>[2,7]</code>을 확인했고, 짧은 문장 뒤의 PAD 위치가 Mask 0이 되는 것을 실행했다. 한 문장만 넣으면 그 Batch의 최장 길이 3까지만 만들어지고, 길이가 다른 여러 문장을 Padding 없이 하나의 Tensor로 묶으려 하면 오류가 나는 이유도 확인했다."
+          "id": "2026-08-29-topic-09",
+          "title": "Hugging Face Tokenizer와 동적 Padding Batch",
+          "bodyMarkdown": "`sshleifer/tiny-gpt2`의 Tokenizer를 모델 이름으로 불러와 문자열을 Token ID와 Token 조각으로 변환했다. 길이가 3·7인 두 문장을 `padding=True`로 묶어 `input_ids`와 `attention_mask` Shape `[2,7]`을 확인했고, 짧은 문장 뒤의 PAD 위치가 Mask 0이 되는 것을 실행했다. 한 문장만 넣으면 그 Batch의 최장 길이 3까지만 만들어지고, 길이가 다른 여러 문장을 Padding 없이 하나의 Tensor로 묶으려 하면 오류가 나는 이유도 확인했다."
         },
         {
-          "titleHtml": "사전학습 Causal LM의 <code>[B,S,V]</code> Forward",
-          "bodyHtml": "<code>AutoModelForCausalLM</code>으로 실제 <code>GPT2LMHeadModel</code>을 불러와 <code>input_ids</code>와 <code>attention_mask</code>를 전달했다. 입력 <code>[2,7]</code>이 Logit <code>[2,7,50257]</code>이 되는 것을 확인하고, Logit은 정답과 비교해 얻는 Loss가 아니라 각 Batch·Token 위치에서 Vocabulary 전체에 준 원시 점수라고 구분했다."
+          "id": "2026-08-29-topic-10",
+          "title": "사전학습 Causal LM의 `[B,S,V]` Forward",
+          "bodyMarkdown": "`AutoModelForCausalLM`으로 실제 `GPT2LMHeadModel`을 불러와 `input_ids`와 `attention_mask`를 전달했다. 입력 `[2,7]`이 Logit `[2,7,50257]`이 되는 것을 확인하고, Logit은 정답과 비교해 얻는 Loss가 아니라 각 Batch·Token 위치에서 Vocabulary 전체에 준 원시 점수라고 구분했다."
         },
         {
-          "titleHtml": "Batch별 마지막 실제 Token 위치 선택",
-          "bodyHtml": "<code>attention_mask.sum(dim=1)</code>으로 실제 Token 수 <code>[3,7]</code>을 구하고 1을 빼 마지막 실제 위치 <code>[2,6]</code>을 얻었다. <code>logits[batch_indices,last_real_positions,:]</code>는 <code>(0,2)</code>와 <code>(1,6)</code>을 짝지어 각 문장의 마지막 실제 Token 위치에서 Vocabulary 열 전체를 가져오는 고급 인덱싱이며, <code>[2,7,50257] → [2,50257]</code>이 된다고 설명했다. 전체 고급 인덱싱 실습은 현재 흐름을 끊지 않고 Batch inference 직전 보강 항목으로 남겼다."
+          "id": "2026-08-29-topic-11",
+          "title": "Batch별 마지막 실제 Token 위치 선택",
+          "bodyMarkdown": "`attention_mask.sum(dim=1)`으로 실제 Token 수 `[3,7]`을 구하고 1을 빼 마지막 실제 위치 `[2,6]`을 얻었다. `logits[batch_indices,last_real_positions,:]`는 `(0,2)`와 `(1,6)`을 짝지어 각 문장의 마지막 실제 Token 위치에서 Vocabulary 열 전체를 가져오는 고급 인덱싱이며, `[2,7,50257] → [2,50257]`이 된다고 설명했다. 전체 고급 인덱싱 실습은 현재 흐름을 끊지 않고 Batch inference 직전 보강 항목으로 남겼다."
         },
         {
-          "titleHtml": "Tokenizer·Embedding의 공통 Token ID와 실제 소스 추적",
-          "bodyHtml": "Tokenizer는 문자열을 Token ID로 바꾸고, 모델의 <code>nn.Embedding</code>은 그 ID를 행 주소로 사용해 학습된 벡터를 조회하는 서로 다른 객체라고 구분했다. Tokenizer가 만들 수 있는 ID 수, Embedding의 <code>num_embeddings</code>, LM Head의 Vocabulary 출력 수가 같은 ID 체계에 맞아야 하며 연속 ID의 경우 행 수는 최대 ID보다 1 커야 한다고 설명했다. <code>type(model)</code>과 <code>inspect.getfile(type(model))</code>로 실제 GPT-2 구현 파일에 들어가 <code>self.wte = nn.Embedding(...)</code> 선언과 Forward의 <code>inputs_embeds = self.wte(input_ids)</code>를 직접 찾아, 전체 소스 대신 생성 줄과 입력 사용 줄을 연결해 보는 분석법을 익혔다."
+          "id": "2026-08-29-topic-12",
+          "title": "Tokenizer·Embedding의 공통 Token ID와 실제 소스 추적",
+          "bodyMarkdown": "Tokenizer는 문자열을 Token ID로 바꾸고, 모델의 `nn.Embedding`은 그 ID를 행 주소로 사용해 학습된 벡터를 조회하는 서로 다른 객체라고 구분했다. Tokenizer가 만들 수 있는 ID 수, Embedding의 `num_embeddings`, LM Head의 Vocabulary 출력 수가 같은 ID 체계에 맞아야 하며 연속 ID의 경우 행 수는 최대 ID보다 1 커야 한다고 설명했다. `type(model)`과 `inspect.getfile(type(model))`로 실제 GPT-2 구현 파일에 들어가 `self.wte = nn.Embedding(...)` 선언과 Forward의 `inputs_embeds = self.wte(input_ids)`를 직접 찾아, 전체 소스 대신 생성 줄과 입력 사용 줄을 연결해 보는 분석법을 익혔다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "현재 <code>last_real_logits</code> Shape <code>[2,50257]</code>까지 만들었다. 다음에는 각 문장의 Vocabulary 축에서 다음 Token ID를 선택하고 문자열로 복원한 뒤, 선택한 Token을 입력 뒤에 반복해서 붙이는 <code>generate()</code> 없는 수동 Greedy 생성 루프를 완성한다."
+          "id": "2026-08-29-topic-13",
+          "title": "다음 시작점",
+          "bodyMarkdown": "현재 `last_real_logits` Shape `[2,50257]`까지 만들었다. 다음에는 각 문장의 Vocabulary 축에서 다음 Token ID를 선택하고 문자열로 복원한 뒤, 선택한 Token을 입력 뒤에 반복해서 붙이는 `generate()` 없는 수동 Greedy 생성 루프를 완성한다."
+        },
+        {
+          "id": "2026-08-29-topic-14",
+          "wikiReferences": [
+            {
+              "documentId": "wiki-coding-test-25-process",
+              "relation": "learned-from"
+            }
+          ],
+          "title": "Queue 회전에서 원래 인덱스와 실제 실행 횟수 보존",
+          "bodyMarkdown": "원래 인덱스를 보존하며 Queue 회전과 실제 실행 횟수를 구분하고 O(n²) 구현을 완성했습니다."
+        },
+        {
+          "id": "2026-08-29-topic-15",
+          "wikiReferences": [
+            {
+              "documentId": "wiki-coding-test-24-more-spicy",
+              "relation": "learned-from"
+            }
+          ],
+          "title": "최소 Heap이 보장하는 범위와 원소 부족 종료 조건",
+          "bodyMarkdown": "heap[0]만 최솟값을 보장하는 성질과 heappop·heappush·원소 부족 종료 조건을 적용해 풀이했습니다."
+        },
+        {
+          "id": "2026-08-29-topic-16",
+          "wikiReferences": [
+            {
+              "documentId": "wiki-coding-test-22-target-number",
+              "relation": "learned-from"
+            }
+          ],
+          "title": "DFS의 선택 상태와 재귀 복귀",
+          "bodyMarkdown": "타겟 넘버의 +·- 이진 선택을 DFS 재귀로 구현해 모든 경로의 정답 개수를 계산했습니다."
+        },
+        {
+          "id": "2026-08-29-topic-17",
+          "wikiReferences": [
+            {
+              "documentId": "wiki-coding-test-04-valid-parentheses",
+              "relation": "learned-from"
+            }
+          ],
+          "title": "괄호 Counter 불변식과 조기 종료",
+          "bodyMarkdown": "이전 풀이를 보지 않고 Counter 방식으로 다시 풀고, 순회 중 음수 조기 종료와 마지막 0 검사를 설명했습니다."
         }
       ],
       "studyTime": {
         "minutes": 270,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>2-Batch Tensor에서 <code>[:, :-1]</code>·<code>[:, 1:]</code> Target shift를 자료 없이 다시 구성하고 Shape <code>[2,3]</code> 검증</li><li><code>[B,T,V] → [B×T,V]</code> Logit 점수와 <code>[B,T] → [B×T]</code> Target ID가 <code>CrossEntropyLoss</code>의 좌우 입력에서 짝지어지는 방식 설명</li><li>Accuracy의 최댓값 index 일치와 Cross Entropy의 Target Log-Softmax 채점 차이 확인</li><li>Causal Mask가 <code>[3]→7</code>·<code>[3,7]→2</code>·<code>[3,7,2]→9</code>를 한 Forward에서 병렬 학습하게 하는 구조 설명</li><li>저장 실행에서 <code>d_model=2</code>의 Loss <code>0.462389</code> 정체·<code>[9,2,9]</code> 중복 출력과 <code>d_model=4</code>의 Loss <code>2.5829e-06</code> 과적합 비교</li><li>잘못된 입력·Target 재사용으로 나온 <code>3722</code> 실패를 수정해 <code>3729</code> 생성 복원</li><li><code>logits[:, -1, :]</code>·<code>argmax</code> Token ID·<code>keepdim=True</code>·<code>torch.cat</code>의 Token 축과 목록 순서 설명</li><li><code>[3] → [3,7] → [3,7,2] → [3,7,2,9]</code> 반복 자기회귀 생성 실행으로 Tiny Decoder LM 관문 완료</li><li>Hugging Face Tokenizer의 Token ID·Token 조각과 길이가 다른 2-Batch의 동적 Padding·<code>attention_mask</code> 확인</li><li>사전학습 GPT-2에 <code>[2,7]</code> 입력을 넣어 Logit <code>[2,7,50257]</code> Forward 실행</li><li>Mask 합으로 마지막 실제 위치 <code>[2,6]</code>을 구하고 Batch별 짝 인덱싱으로 마지막 실제 Logit <code>[2,50257]</code> 선택</li><li>Tokenizer와 Embedding이 공통 Token ID 체계를 공유하고 Vocabulary·Embedding·LM Head 크기를 맞추는 이유 설명</li><li>Python 런타임 객체의 실제 클래스와 파일을 찾아 GPT-2의 <code>self.wte(input_ids)</code> 조회 코드를 직접 추적</li></ul><p>앞선 Tiny Decoder 세션 기록에, 노트북 생성 시각부터 이번 종료 요청까지 이어진 사전학습 Causal LM 학습 약 1시간 38분을 합산했다. 학습 내용은 저장된 노트북 셀과 출력으로 확인했으며, 이전 세션에서 제외한 장시간 비학습 공백은 누적 시간에 포함하지 않았다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-28",
       "topics": [
         {
-          "titleHtml": "<code>TinyDecoderLM</code> 전체 클래스 조립",
-          "bodyHtml": "Token Embedding, 학습형 Position Embedding, <code>CausalTransformerBlock</code>, LM Head를 하나의 <code>TinyDecoderLM</code>에 넣고 <code>forward()</code>에서 위치 ID 생성부터 Logit 반환까지 연결했다. 클래스 선언만으로 내부 실행이 검증되는 것은 아니므로 실제 모델 객체와 Token 입력을 호출해 확인했다. <code>super().__init__()</code>의 뒤쪽 밑줄 누락, <code>shape</code>·<code>arange</code> 철자 오류를 Traceback과 저장 셀 검사로 찾아 수정했다."
+          "id": "2026-08-28-topic-01",
+          "title": "`TinyDecoderLM` 전체 클래스 조립",
+          "bodyMarkdown": "Token Embedding, 학습형 Position Embedding, `CausalTransformerBlock`, LM Head를 하나의 `TinyDecoderLM`에 넣고 `forward()`에서 위치 ID 생성부터 Logit 반환까지 연결했다. 클래스 선언만으로 내부 실행이 검증되는 것은 아니므로 실제 모델 객체와 Token 입력을 호출해 확인했다. `super().__init__()`의 뒤쪽 밑줄 누락, `shape`·`arange` 철자 오류를 Traceback과 저장 셀 검사로 찾아 수정했다."
         },
         {
-          "titleHtml": "전체 Forward Shape 실행",
-          "bodyHtml": "입력 <code>[[3,7,2]]</code>을 전체 모델에 넣어 입력 <code>[1,3]</code>, Logit <code>[1,3,10]</code>, Attention 비율 <code>[1,2,3,3]</code>, 마지막 위치 Logit <code>[1,10]</code>을 확인했다. Token 위치 3개가 하나로 합쳐지는 것이 아니라 각 위치의 <code>d_model=2</code> 문맥 벡터가 같은 LM Head를 거쳐 Vocabulary 후보 10개씩으로 바뀐다고 설명했다."
+          "id": "2026-08-28-topic-02",
+          "title": "전체 Forward Shape 실행",
+          "bodyMarkdown": "입력 `[[3,7,2]]`을 전체 모델에 넣어 입력 `[1,3]`, Logit `[1,3,10]`, Attention 비율 `[1,2,3,3]`, 마지막 위치 Logit `[1,10]`을 확인했다. Token 위치 3개가 하나로 합쳐지는 것이 아니라 각 위치의 `d_model=2` 문맥 벡터가 같은 LM Head를 거쳐 Vocabulary 후보 10개씩으로 바뀐다고 설명했다."
         },
         {
-          "titleHtml": "Token ID·차원·실제 단어장 구분",
-          "bodyHtml": "<code>3,7,2</code>는 차원이 아니라 직접 넣은 Token ID이고, <code>nn.Embedding(10,2)</code>은 ID마다 길이 2인 벡터를 가진 <code>[10,2]</code> 학습 표라는 점을 연결했다. 현재 실습에는 문자열과 ID를 연결하는 Tokenizer 단어장 원본이 없으며 숫자 ID를 직접 넣었기 때문에 실행 가능하다. <code>vocab_size=10</code>이면 유효 ID는 <code>0~9</code>이고 <code>10</code>·<code>11</code>은 없는 행을 조회하므로 오류가 난다고 예측했다."
+          "id": "2026-08-28-topic-03",
+          "title": "Token ID·차원·실제 단어장 구분",
+          "bodyMarkdown": "`3,7,2`는 차원이 아니라 직접 넣은 Token ID이고, `nn.Embedding(10,2)`은 ID마다 길이 2인 벡터를 가진 `[10,2]` 학습 표라는 점을 연결했다. 현재 실습에는 문자열과 ID를 연결하는 Tokenizer 단어장 원본이 없으며 숫자 ID를 직접 넣었기 때문에 실행 가능하다. `vocab_size=10`이면 유효 ID는 `0~9`이고 `10`·`11`은 없는 행을 조회하므로 오류가 난다고 예측했다."
         },
         {
-          "titleHtml": "Target shift 슬라이싱과 Causal 마지막 행",
-          "bodyHtml": "<code>tokens[:, :-1]</code>을 모든 Batch 행의 처음부터 마지막 전까지, <code>tokens[:, 1:]</code>을 모든 Batch 행의 index 1부터 끝까지로 해석해 입력 <code>[[3,7,2]]</code>과 Target <code>[[7,2,9]]</code>을 다시 확인했다. Causal Mask 때문에 위치 0은 <code>[3]</code>, 위치 1은 <code>[3,7]</code>, 위치 2는 <code>[3,7,2]</code> 문맥만 가지므로 네 번째 Token 생성에는 마지막 위치 후보만 필요하다고 자기 말로 설명했다. 슬라이싱은 작은 2-Batch Tensor로 다시 연습할 보강 항목으로 남겼다."
+          "id": "2026-08-28-topic-04",
+          "title": "Target shift 슬라이싱과 Causal 마지막 행",
+          "bodyMarkdown": "`tokens[:, :-1]`을 모든 Batch 행의 처음부터 마지막 전까지, `tokens[:, 1:]`을 모든 Batch 행의 index 1부터 끝까지로 해석해 입력 `[[3,7,2]]`과 Target `[[7,2,9]]`을 다시 확인했다. Causal Mask 때문에 위치 0은 `[3]`, 위치 1은 `[3,7]`, 위치 2는 `[3,7,2]` 문맥만 가지므로 네 번째 Token 생성에는 마지막 위치 후보만 필요하다고 자기 말로 설명했다. 슬라이싱은 작은 2-Batch Tensor로 다시 연습할 보강 항목으로 남겼다."
         },
         {
-          "titleHtml": "전체 모델의 초기 Cross Entropy Loss",
-          "bodyHtml": "전체 모델 Logit <code>[1,3,10]</code>을 <code>[3,10]</code>, Target <code>[1,3]</code>을 <code>[3]</code>으로 펼쳐 실제 <code>CrossEntropyLoss</code>를 연결했고 초기 Loss <code>2.540301561355591</code>를 출력했다. 반복 학습 코드는 제시됐지만 실행하지 않았으므로 Loss 감소·<code>backward()</code>·Weight 수정은 완료 증거로 기록하지 않는다. 다음 시작점은 같은 작은 Sequence의 반복 학습과 마지막 위치 Logit 기반 Token 생성이다."
+          "id": "2026-08-28-topic-05",
+          "title": "전체 모델의 초기 Cross Entropy Loss",
+          "bodyMarkdown": "전체 모델 Logit `[1,3,10]`을 `[3,10]`, Target `[1,3]`을 `[3]`으로 펼쳐 실제 `CrossEntropyLoss`를 연결했고 초기 Loss `2.540301561355591`를 출력했다. 반복 학습 코드는 제시됐지만 실행하지 않았으므로 Loss 감소·`backward()`·Weight 수정은 완료 증거로 기록하지 않는다. 다음 시작점은 같은 작은 Sequence의 반복 학습과 마지막 위치 Logit 기반 Token 생성이다."
         }
       ],
       "studyTime": {
         "minutes": 73,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li><code>TinyDecoderLM</code> 클래스에 Token·Position Embedding, Causal Transformer Block, LM Head를 연결</li><li><code>super().__init__()</code>·<code>shape</code>·<code>arange</code> 오타를 실제 호출과 Traceback으로 수정</li><li><code>[1,3] → [1,3,10]</code> Logit과 Attention 비율 <code>[1,2,3,3]</code>, 마지막 위치 <code>[1,10]</code> 실행 확인</li><li>Token ID <code>3,7,2</code>와 Token 개수·<code>d_model=2</code> 차원을 구분</li><li>Tokenizer의 문자열↔ID 단어장과 모델의 <code>[vocab_size,d_model]</code> Embedding 표를 구분</li><li><code>vocab_size=10</code>에서 유효 ID가 <code>0~9</code>이고 범위 밖 ID가 오류가 되는 이유 예측</li><li><code>[:, :-1]</code>·<code>[:, 1:]</code> Target shift 슬라이싱 재확인과 후속 보강 등록</li><li>Causal Mask의 위치별 Prefix와 생성 시 마지막 Logit 행만 사용하는 이유 설명</li><li>전체 모델의 초기 Cross Entropy Loss <code>2.540301561355591</code> 실행</li><li>다음 시작점을 반복 학습의 Loss 감소 확인 → Autoregressive Generation으로 확정</li></ul><p>코덱스 세션 기록의 첫 실제 학습 선언부터 종료 메시지까지를 합산했으며, 학습을 중단한 장시간 공백은 없었다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-27",
       "topics": [
         {
-          "titleHtml": "Tiny Decoder LM 모듈 준비와 실제 입력의 경계",
-          "bodyHtml": "<code>Embedding(10,2)</code>, Position <code>Embedding(8,2)</code>, <code>CausalTransformerBlock(2,2,8)</code>, <code>Linear(2,10)</code>을 생성한 셀은 학습 가능한 Weight·Bias를 초기화한 것이지만 아직 Token 입력을 통과시킨 것은 아니라고 구분했다. 이어 실제 입력 <code>[[3,7,2]]</code>와 위치 <code>[[0,1,2]]</code>를 넣어 Forward 흐름을 실행했다."
+          "id": "2026-08-27-topic-01",
+          "title": "Tiny Decoder LM 모듈 준비와 실제 입력의 경계",
+          "bodyMarkdown": "`Embedding(10,2)`, Position `Embedding(8,2)`, `CausalTransformerBlock(2,2,8)`, `Linear(2,10)`을 생성한 셀은 학습 가능한 Weight·Bias를 초기화한 것이지만 아직 Token 입력을 통과시킨 것은 아니라고 구분했다. 이어 실제 입력 `[[3,7,2]]`와 위치 `[[0,1,2]]`를 넣어 Forward 흐름을 실행했다."
         },
         {
-          "titleHtml": "Embedding부터 LM Head까지 수동 Forward 연결",
-          "bodyHtml": "Token Embedding과 Position Embedding을 더한 <code>[1,3,2]</code>를 Causal TransformerBlock에 넣어 같은 <code>[1,3,2]</code>를 얻고, LM Head <code>Linear(2,10)</code>으로 최종 Logit <code>[1,3,10]</code>을 만들었다. 저장된 출력에서 입력 Token <code>[1,3]</code>, Embedding 합 <code>[1,3,2]</code>, Block 출력 <code>[1,3,2]</code>, Attention 비율 <code>[1,2,3,3]</code>, Logit <code>[1,3,10]</code>을 확인했다."
+          "id": "2026-08-27-topic-02",
+          "title": "Embedding부터 LM Head까지 수동 Forward 연결",
+          "bodyMarkdown": "Token Embedding과 Position Embedding을 더한 `[1,3,2]`를 Causal TransformerBlock에 넣어 같은 `[1,3,2]`를 얻고, LM Head `Linear(2,10)`으로 최종 Logit `[1,3,10]`을 만들었다. 저장된 출력에서 입력 Token `[1,3]`, Embedding 합 `[1,3,2]`, Block 출력 `[1,3,2]`, Attention 비율 `[1,2,3,3]`, Logit `[1,3,10]`을 확인했다."
         },
         {
-          "titleHtml": "<code>[B,S,D]</code> 축과 위치 보존",
-          "bodyHtml": "<code>[B,S,D]</code>를 <code>[Batch의 문장 수, 문장당 Token 위치 수, Token당 벡터 차원]</code>으로 다시 구분했다. 따라서 <code>[1,3,2]</code>는 문장 1개 안의 Token 위치 3개와 각 위치의 2차원 문맥 벡터이며, 문장 3개나 Token 2개라는 뜻이 아니다. Attention은 위치 사이의 정보를 섞지만 Sequence 축을 하나로 합치지 않으므로 Block 출력에도 위치별 행 3개가 남는다."
+          "id": "2026-08-27-topic-03",
+          "title": "`[B,S,D]` 축과 위치 보존",
+          "bodyMarkdown": "`[B,S,D]`를 `[Batch의 문장 수, 문장당 Token 위치 수, Token당 벡터 차원]`으로 다시 구분했다. 따라서 `[1,3,2]`는 문장 1개 안의 Token 위치 3개와 각 위치의 2차원 문맥 벡터이며, 문장 3개나 Token 2개라는 뜻이 아니다. Attention은 위치 사이의 정보를 섞지만 Sequence 축을 하나로 합치지 않으므로 Block 출력에도 위치별 행 3개가 남는다."
         },
         {
-          "titleHtml": "LM Head의 행렬곱과 <code>[1,3,10]</code>",
-          "bodyHtml": "Batch 하나를 행렬로 보면 Block 출력 <code>[3,2]</code>에 LM Head의 계산 방향 <code>[2,10]</code>을 곱해 <code>[3,10]</code>을 만든다. PyTorch의 Weight 저장 Shape은 <code>[10,2]</code>지만 계산에는 전치된 방향이 사용된다. LM Head는 Token 위치를 합쳐 단어 하나를 만드는 층이 아니라, 각 위치의 마지막 <code>D=2</code> 축을 Vocabulary 후보 점수 <code>V=10</code>으로 각각 바꾼다."
+          "id": "2026-08-27-topic-04",
+          "title": "LM Head의 행렬곱과 `[1,3,10]`",
+          "bodyMarkdown": "Batch 하나를 행렬로 보면 Block 출력 `[3,2]`에 LM Head의 계산 방향 `[2,10]`을 곱해 `[3,10]`을 만든다. PyTorch의 Weight 저장 Shape은 `[10,2]`지만 계산에는 전치된 방향이 사용된다. LM Head는 Token 위치를 합쳐 단어 하나를 만드는 층이 아니라, 각 위치의 마지막 `D=2` 축을 Vocabulary 후보 점수 `V=10`으로 각각 바꾼다."
         },
         {
-          "titleHtml": "위치별 Logit이 다음 Token 후보가 되는 이유",
-          "bodyHtml": "Causal Mask 때문에 위치 0의 Hidden State는 <code>[3]</code>, 위치 1은 <code>[3,7]</code>, 위치 2는 <code>[3,7,2]</code>의 Prefix 문맥만 담는다. 그러나 이 구조만으로 Logit에 ‘다음 Token’이라는 의미가 생기는 것은 아니다. 입력 <code>[[3,7,2]]</code>과 한 칸 이동한 Target <code>[[7,2,9]]</code>을 위치별 Cross Entropy로 비교하며 학습하기 때문에 각 행이 해당 Prefix 다음 Token의 후보 점수가 된다. 학습 전 후보 점수는 무작위에 가깝다."
+          "id": "2026-08-27-topic-05",
+          "title": "위치별 Logit이 다음 Token 후보가 되는 이유",
+          "bodyMarkdown": "Causal Mask 때문에 위치 0의 Hidden State는 `[3]`, 위치 1은 `[3,7]`, 위치 2는 `[3,7,2]`의 Prefix 문맥만 담는다. 그러나 이 구조만으로 Logit에 ‘다음 Token’이라는 의미가 생기는 것은 아니다. 입력 `[[3,7,2]]`과 한 칸 이동한 Target `[[7,2,9]]`을 위치별 Cross Entropy로 비교하며 학습하기 때문에 각 행이 해당 Prefix 다음 Token의 후보 점수가 된다. 학습 전 후보 점수는 무작위에 가깝다."
         },
         {
-          "titleHtml": "학습의 모든 위치와 생성의 마지막 위치",
-          "bodyHtml": "학습에서는 세 위치를 한꺼번에 채점해 <code>[3]→7</code>, <code>[3,7]→2</code>, <code>[3,7,2]→9</code> 관계를 병렬로 학습한다. 생성 시에는 현재 Prefix 전체 뒤에 붙일 Token 하나만 필요하므로 마지막 위치의 후보 점수 <code>logits[:, -1, :]</code>, 즉 <code>[B,V]</code>만 선택한다. 마지막 위치 벡터는 네 번째 Token 자체가 아니라 현재까지의 전체 Prefix 문맥이며, 그 문맥에서 네 번째 Token 후보를 채점한 결과다."
+          "id": "2026-08-27-topic-06",
+          "title": "학습의 모든 위치와 생성의 마지막 위치",
+          "bodyMarkdown": "학습에서는 세 위치를 한꺼번에 채점해 `[3]→7`, `[3,7]→2`, `[3,7,2]→9` 관계를 병렬로 학습한다. 생성 시에는 현재 Prefix 전체 뒤에 붙일 Token 하나만 필요하므로 마지막 위치의 후보 점수 `logits[:, -1, :]`, 즉 `[B,V]`만 선택한다. 마지막 위치 벡터는 네 번째 Token 자체가 아니라 현재까지의 전체 Prefix 문맥이며, 그 문맥에서 네 번째 Token 후보를 채점한 결과다."
         },
         {
-          "titleHtml": "학습되는 파라미터 범위와 다음 시작점",
-          "bodyHtml": "Loss의 Gradient는 LM Head의 Linear만 조정하는 것이 아니라 별도로 고정하지 않은 Token·Position Embedding과 Causal TransformerBlock을 포함한 전체 모델로 전달된다. 이날은 이 경로를 개념으로 연결하고 수동 Forward의 Shape과 다음 Token 학습 의미까지 확인했다. 조립한 전체 모델에서 실제 Loss와 <code>backward()</code>를 실행해 각 모듈의 Gradient를 출력한 단계는 아니므로, 실행 검증이 끝난 것으로 기록하지 않는다. 다음에는 같은 흐름을 <code>TinyDecoderLM</code> 클래스로 묶고 shifted Target의 Cross Entropy Loss를 실행한 뒤, 작은 데이터에서 Loss 감소와 Autoregressive Generation을 검증한다."
+          "id": "2026-08-27-topic-07",
+          "title": "학습되는 파라미터 범위와 다음 시작점",
+          "bodyMarkdown": "Loss의 Gradient는 LM Head의 Linear만 조정하는 것이 아니라 별도로 고정하지 않은 Token·Position Embedding과 Causal TransformerBlock을 포함한 전체 모델로 전달된다. 이날은 이 경로를 개념으로 연결하고 수동 Forward의 Shape과 다음 Token 학습 의미까지 확인했다. 조립한 전체 모델에서 실제 Loss와 `backward()`를 실행해 각 모듈의 Gradient를 출력한 단계는 아니므로, 실행 검증이 끝난 것으로 기록하지 않는다. 다음에는 같은 흐름을 `TinyDecoderLM` 클래스로 묶고 shifted Target의 Cross Entropy Loss를 실행한 뒤, 작은 데이터에서 Loss 감소와 Autoregressive Generation을 검증한다."
         }
       ],
       "studyTime": {
         "minutes": 64,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Tiny Decoder LM의 Token·Position Embedding, Causal TransformerBlock, LM Head 모듈 생성과 실제 입력 Forward의 경계 구분</li><li><code>[[3,7,2]]</code> 입력을 <code>[1,3] → [1,3,2] → [1,3,10]</code>으로 연결하고 저장된 Shape 출력 확인</li><li><code>[B,S,D]</code>를 Batch의 문장 수·문장당 Token 위치 수·Token당 벡터 차원으로 교정</li><li>Attention이 Token 위치를 하나로 합치지 않고 위치별 Prefix 문맥 벡터를 유지한다는 점 설명</li><li>LM Head의 <code>[S,D] @ [D,V] = [S,V]</code> 행렬 관점과 PyTorch Weight 저장 Shape <code>[V,D]</code> 구분</li><li>Causal Mask가 위치별 참고 범위를 정하고 shifted Target·Cross Entropy가 Logit에 다음 Token 후보의 의미를 부여함을 연결</li><li>학습에서는 모든 위치를 동시에 채점하고 생성에서는 <code>logits[:, -1, :]</code>만 쓰는 이유 확인</li><li>마지막 Hidden State가 새 Token 자체가 아니라 전체 Prefix 문맥이고, 해당 문맥에서 다음 Token 후보를 채점한다는 점 설명</li><li>Gradient가 LM Head뿐 아니라 고정하지 않은 Embedding·Transformer Block 전체로 전달되는 개념을 연결하고, 실제 전체 모델 <code>backward()</code> 검증은 다음 단계로 구분</li><li>다음 시작점을 <code>TinyDecoderLM</code> 클래스 → Cross Entropy Loss → 작은 데이터 Loss 감소 → Autoregressive Generation으로 확정</li></ul><p>코덱스 세션 기록에서 실제 학습 시작 선언부터 종료 메시지까지를 합산했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-26",
       "topics": [
         {
-          "titleHtml": "학습형 Position Embedding 실행",
-          "bodyHtml": "Token ID <code>[[3,7,2]]</code>와 위치 ID <code>[[0,1,2]]</code>를 각각 <code>nn.Embedding</code>으로 조회했다. Token vector와 Position vector가 모두 <code>[1,3,2]</code>이고, 같은 위치·차원의 원소끼리 더한 Hidden State도 <code>[1,3,2]</code>임을 실행했다. 이 Shape을 Batch 1개 안의 Sequence 길이 3, Token 하나당 2차원으로 설명했다."
+          "id": "2026-08-26-topic-01",
+          "title": "학습형 Position Embedding 실행",
+          "bodyMarkdown": "Token ID `[[3,7,2]]`와 위치 ID `[[0,1,2]]`를 각각 `nn.Embedding`으로 조회했다. Token vector와 Position vector가 모두 `[1,3,2]`이고, 같은 위치·차원의 원소끼리 더한 Hidden State도 `[1,3,2]`임을 실행했다. 이 Shape을 Batch 1개 안의 Sequence 길이 3, Token 하나당 2차원으로 설명했다."
         },
         {
-          "titleHtml": "sin·cos 방식과 학습형 위치 표의 차이",
-          "bodyHtml": "예전에 구현한 sin·cos Positional Encoding은 수식으로 고정 위치 벡터를 만들지만, 이번 <code>nn.Embedding(max_seq_len,d_model)</code> 방식은 위치별 벡터를 조회표에 저장하고 Loss의 Gradient로 함께 조정한다. 두 방식을 나중에 결합하는 것이 아니라 둘 중 한 방식을 선택할 수 있으며, 공통적으로 Token vector에 위치 vector를 더해 순서 정보를 제공한다는 경계를 확인했다."
+          "id": "2026-08-26-topic-02",
+          "title": "sin·cos 방식과 학습형 위치 표의 차이",
+          "bodyMarkdown": "예전에 구현한 sin·cos Positional Encoding은 수식으로 고정 위치 벡터를 만들지만, 이번 `nn.Embedding(max_seq_len,d_model)` 방식은 위치별 벡터를 조회표에 저장하고 Loss의 Gradient로 함께 조정한다. 두 방식을 나중에 결합하는 것이 아니라 둘 중 한 방식을 선택할 수 있으며, 공통적으로 Token vector에 위치 vector를 더해 순서 정보를 제공한다는 경계를 확인했다."
         },
         {
-          "titleHtml": "<code>nn.Embedding</code>의 설정과 역할 구분",
-          "bodyHtml": "<code>nn.Embedding</code> 자체는 입력 index가 Token인지 위치인지 알지 못하고, 어떤 정수 ID를 넣어 어디에 사용하는지가 역할을 결정한다. <code>nn.Embedding(8,2)</code>에서 <code>num_embeddings=8</code>은 저장할 벡터 수이자 Weight 행 수, <code>embedding_dim=2</code>는 벡터 하나의 원소 수이자 열 수다. 초기 원소 값의 퍼짐인 <code>std</code>는 <code>embedding_dim</code>의 역할이 아니라 <code>nn.init.normal_</code> 같은 초기화에서 별도로 지정한다는 오해를 교정했다."
+          "id": "2026-08-26-topic-03",
+          "title": "`nn.Embedding`의 설정과 역할 구분",
+          "bodyMarkdown": "`nn.Embedding` 자체는 입력 index가 Token인지 위치인지 알지 못하고, 어떤 정수 ID를 넣어 어디에 사용하는지가 역할을 결정한다. `nn.Embedding(8,2)`에서 `num_embeddings=8`은 저장할 벡터 수이자 Weight 행 수, `embedding_dim=2`는 벡터 하나의 원소 수이자 열 수다. 초기 원소 값의 퍼짐인 `std`는 `embedding_dim`의 역할이 아니라 `nn.init.normal_` 같은 초기화에서 별도로 지정한다는 오해를 교정했다."
         },
         {
-          "titleHtml": "Causal Multi-Head Attention 구현·검증",
-          "bodyHtml": "기존 Multi-Head Attention에 길이 3의 하삼각 Boolean Mask를 넣고 미래 Score를 <code>-inf</code>로 바꾼 뒤 Softmax했다. 입력과 Attention 출력은 <code>[1,3,2]</code>, Attention weight는 <code>[batch,head,query,key]=[1,2,3,3]</code>이었으며 첫 Head에서 미래 칸이 모두 0인 결과를 확인했다. Causal Mask는 참고 가능한 값을 제한할 뿐 Tensor 차원을 바꾸지 않는다고 예측했다."
+          "id": "2026-08-26-topic-04",
+          "title": "Causal Multi-Head Attention 구현·검증",
+          "bodyMarkdown": "기존 Multi-Head Attention에 길이 3의 하삼각 Boolean Mask를 넣고 미래 Score를 `-inf`로 바꾼 뒤 Softmax했다. 입력과 Attention 출력은 `[1,3,2]`, Attention weight는 `[batch,head,query,key]=[1,2,3,3]`이었으며 첫 Head에서 미래 칸이 모두 0인 결과를 확인했다. Causal Mask는 참고 가능한 값을 제한할 뿐 Tensor 차원을 바꾸지 않는다고 예측했다."
         },
         {
-          "titleHtml": "Head 병합과 Projection 오타 수정",
-          "bodyHtml": "Head 출력 <code>[1,3,2,1]</code>을 <code>reshape(batch_size,token_count,d_model)</code>로 <code>[1,3,2]</code>에 합치며, 이는 <code>num_heads × head_dim = d_model</code>이기 때문에 가능하다고 설명했다. 이어 <code>output_projection</code>이 이어 붙인 Head 정보를 학습 가능한 Weight로 다시 섞는다. 최초 셀에서 Key를 Query Projection으로 잘못 계산한 <code>key=self.query_projections(x)</code>를 찾아 <code>key=self.key_projection(x)</code>로 고치고 재실행해 서로 다른 Q·K Projection을 사용하도록 수정했다."
+          "id": "2026-08-26-topic-05",
+          "title": "Head 병합과 Projection 오타 수정",
+          "bodyMarkdown": "Head 출력 `[1,3,2,1]`을 `reshape(batch_size,token_count,d_model)`로 `[1,3,2]`에 합치며, 이는 `num_heads × head_dim = d_model`이기 때문에 가능하다고 설명했다. 이어 `output_projection`이 이어 붙인 Head 정보를 학습 가능한 Weight로 다시 섞는다. 최초 셀에서 Key를 Query Projection으로 잘못 계산한 `key=self.query_projections(x)`를 찾아 `key=self.key_projection(x)`로 고치고 재실행해 서로 다른 Q·K Projection을 사용하도록 수정했다."
         },
         {
-          "titleHtml": "Causal TransformerBlock 최소 연결",
-          "bodyHtml": "<code>Causal Multi-Head Attention → x+Attention Residual → LayerNorm → FFN(Linear 2→8 → GELU → Linear 8→2) → 첫 LayerNorm 결과+FFN Residual → LayerNorm</code> 순서로 최소 Block을 연결했다. 입력과 출력 Shape이 모두 <code>[1,3,2]</code>, Attention weight가 <code>[1,2,3,3]</code>임을 확인했으며 Block 출력은 <code>[[[1,-1],[-1,1],[1,-1]]]</code>이었다. 두 번째 Residual에는 처음의 <code>x</code>가 아니라 첫 Residual과 LayerNorm까지 마친 표현을 더한다는 점을 자기 말로 설명했다. 이번 최소 연결에서는 Dropout을 생략했다."
+          "id": "2026-08-26-topic-06",
+          "title": "Causal TransformerBlock 최소 연결",
+          "bodyMarkdown": "`Causal Multi-Head Attention → x+Attention Residual → LayerNorm → FFN(Linear 2→8 → GELU → Linear 8→2) → 첫 LayerNorm 결과+FFN Residual → LayerNorm` 순서로 최소 Block을 연결했다. 입력과 출력 Shape이 모두 `[1,3,2]`, Attention weight가 `[1,2,3,3]`임을 확인했으며 Block 출력은 `[[[1,-1],[-1,1],[1,-1]]]`이었다. 두 번째 Residual에는 처음의 `x`가 아니라 첫 Residual과 LayerNorm까지 마친 표현을 더한다는 점을 자기 말로 설명했다. 이번 최소 연결에서는 Dropout을 생략했다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "<code>TinyDecoderLM</code> 전체 클래스의 구조와 코드는 제시됐지만 아직 저장된 실행 결과는 없다. 다음에는 <code>Token Embedding + Position Embedding → Causal TransformerBlock → LM Head</code>를 실제로 실행해 입력 <code>[1,3]</code>이 Logit <code>[1,3,10]</code>으로 바뀌는지 확인하고, Target <code>[1,3]</code>과 Cross Entropy Loss를 연결한다. 이후 작은 학습에서 Loss 감소를 확인하고 다음 Token 하나를 생성해야 Tiny Decoder LM 완료 조건을 충족한다."
+          "id": "2026-08-26-topic-07",
+          "title": "다음 시작점",
+          "bodyMarkdown": "`TinyDecoderLM` 전체 클래스의 구조와 코드는 제시됐지만 아직 저장된 실행 결과는 없다. 다음에는 `Token Embedding + Position Embedding → Causal TransformerBlock → LM Head`를 실제로 실행해 입력 `[1,3]`이 Logit `[1,3,10]`으로 바뀌는지 확인하고, Target `[1,3]`과 Cross Entropy Loss를 연결한다. 이후 작은 학습에서 Loss 감소를 확인하고 다음 Token 하나를 생성해야 Tiny Decoder LM 완료 조건을 충족한다."
         }
       ],
       "studyTime": {
         "minutes": 102,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>학습형 Position Embedding의 위치 ID 조회와 Token vector의 원소별 합, <code>[1,3,2]</code> Shape 실행</li><li>sin·cos 고정 위치 벡터와 Gradient로 조정되는 학습형 위치 조회표 구분</li><li><code>num_embeddings</code>·<code>embedding_dim</code>·초기화 <code>std</code>의 역할과 <code>[8,2]</code> Weight Shape 정리</li><li><code>nn.Embedding</code>의 Token·Position 의미는 모듈명이 아니라 입력 index와 사용처가 결정함을 확인</li><li>Causal Multi-Head Attention의 입력·출력 <code>[1,3,2]</code>, weight <code>[1,2,3,3]</code>, 미래 위치 0 검증</li><li>Head별 출력 <code>[1,3,2,1]</code>을 <code>[1,3,2]</code>로 합치고 Output Projection으로 다시 섞는 흐름 확인</li><li>Key가 Query Projection을 잘못 재사용한 오타를 발견해 별도 Key Projection으로 수정·재실행</li><li>Causal Attention → Residual·LayerNorm → FFN <code>2→8→2</code> → Residual·LayerNorm의 Block 실행</li><li>두 번째 Residual의 기준이 첫 Residual·LayerNorm 결과라는 점과 Block Shape 유지 설명</li><li>다음 시작점을 전체 <code>TinyDecoderLM</code> 조립·Logit/Loss 실행 → 작은 학습·생성으로 확정</li></ul><p>종료 선언이 없어서 다음 접속 시점에 코덱스 세션 기록의 첫 실제 학습 메시지부터 마지막 실제 학습 설명까지 복원해 집계했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-25",
       "topics": [
         {
-          "titleHtml": "위치별 Vocabulary Logit의 Shape과 수동 점수 확인",
-          "bodyHtml": "<code>torch.zeros(1,3,10)</code>을 Batch 1개·예측 위치 3개·Vocabulary Token 10개의 Logit Tensor로 해석했다. <code>logits[0,0,7]=2.0</code>, <code>logits[0,1,2]=1.0</code>, <code>logits[0,2,9]=3.0</code>은 모델이 계산한 값이 아니라 각 위치의 특정 Token 칸에 직접 넣은 연습용 점수임을 구분했다. 따라서 이 단계는 학습된 예측의 성능 확인이 아니라 Logit 축과 이후 Loss 계산을 이해하기 위한 수동 예제다."
+          "id": "2026-08-25-topic-01",
+          "title": "위치별 Vocabulary Logit의 Shape과 수동 점수 확인",
+          "bodyMarkdown": "`torch.zeros(1,3,10)`을 Batch 1개·예측 위치 3개·Vocabulary Token 10개의 Logit Tensor로 해석했다. `logits[0,0,7]=2.0`, `logits[0,1,2]=1.0`, `logits[0,2,9]=3.0`은 모델이 계산한 값이 아니라 각 위치의 특정 Token 칸에 직접 넣은 연습용 점수임을 구분했다. 따라서 이 단계는 학습된 예측의 성능 확인이 아니라 Logit 축과 이후 Loss 계산을 이해하기 위한 수동 예제다."
         },
         {
-          "titleHtml": "<code>dim=-1</code> Softmax와 선택된 Token 값",
-          "bodyHtml": "<code>logits[0,0]</code>은 첫 Batch의 첫 위치에서 Token 10개에 준 점수 벡터이고, <code>softmax(...,dim=-1)</code>의 <code>-1</code>은 현재 Tensor의 마지막 축인 Vocabulary 축을 뜻한다. 따라서 <code>[1,3,10]</code>에서는 세 위치마다 Token 10개를 각각 Softmax하며, 점수 2를 넣은 7번 칸은 약 <code>0.4509</code>, 나머지 칸은 약 <code>0.0610</code>이 되었다. 선택된 값 하나에도 분모를 만드는 나머지 아홉 Token 점수가 모두 반영된다는 점을 확인했다."
+          "id": "2026-08-25-topic-02",
+          "title": "`dim=-1` Softmax와 선택된 Token 값",
+          "bodyMarkdown": "`logits[0,0]`은 첫 Batch의 첫 위치에서 Token 10개에 준 점수 벡터이고, `softmax(...,dim=-1)`의 `-1`은 현재 Tensor의 마지막 축인 Vocabulary 축을 뜻한다. 따라서 `[1,3,10]`에서는 세 위치마다 Token 10개를 각각 Softmax하며, 점수 2를 넣은 7번 칸은 약 `0.4509`, 나머지 칸은 약 `0.0610`이 되었다. 선택된 값 하나에도 분모를 만드는 나머지 아홉 Token 점수가 모두 반영된다는 점을 확인했다."
         },
         {
-          "titleHtml": "Target 인덱스와 한 Token의 <code>-log</code> Loss",
-          "bodyHtml": "<code>first_target=7</code>은 값을 더하거나 정답에 보너스를 주는 수가 아니라, 첫 위치의 Softmax 벡터에서 채점할 7번 열을 고르는 인덱스다. 선택값 <code>first_position_values[7]≈0.4509</code>에 <code>-log</code>를 적용해 Loss 약 <code>0.7966</code>을 얻었다. 선택값이 1에 가까우면 Loss가 0에 가까워지고, 0에 가까우면 Loss가 크게 증가한다는 방향도 설명했다."
+          "id": "2026-08-25-topic-03",
+          "title": "Target 인덱스와 한 Token의 `-log` Loss",
+          "bodyMarkdown": "`first_target=7`은 값을 더하거나 정답에 보너스를 주는 수가 아니라, 첫 위치의 Softmax 벡터에서 채점할 7번 열을 고르는 인덱스다. 선택값 `first_position_values[7]≈0.4509`에 `-log`를 적용해 Loss 약 `0.7966`을 얻었다. 선택값이 1에 가까우면 Loss가 0에 가까워지고, 0에 가까우면 Loss가 크게 증가한다는 방향도 설명했다."
         },
         {
-          "titleHtml": "세 위치 Cross Entropy와 평균 Loss",
-          "bodyHtml": "<code>[3,10]</code> Logit의 각 행에서 Target <code>[7,2,9]</code>가 지정한 열을 하나씩 채점했다. <code>CrossEntropyLoss(reduction=\"none\")</code>으로 위치별 Loss <code>[0.7966,1.4612,0.3702]</code>를 확인하고, 그 평균이 <code>0.8760</code>임을 계산했다. 기본 <code>CrossEntropyLoss()</code>가 위치별 결과를 평균내 Scalar 하나를 돌려준다는 점과, 이 계산이 분산의 <code>(값-평균)²</code>이나 MSE의 <code>(예측-정답)²</code>와 다른 방식임을 구분했다."
+          "id": "2026-08-25-topic-04",
+          "title": "세 위치 Cross Entropy와 평균 Loss",
+          "bodyMarkdown": "`[3,10]` Logit의 각 행에서 Target `[7,2,9]`가 지정한 열을 하나씩 채점했다. `CrossEntropyLoss(reduction=\"none\")`으로 위치별 Loss `[0.7966,1.4612,0.3702]`를 확인하고, 그 평균이 `0.8760`임을 계산했다. 기본 `CrossEntropyLoss()`가 위치별 결과를 평균내 Scalar 하나를 돌려준다는 점과, 이 계산이 분산의 `(값-평균)²`이나 MSE의 `(예측-정답)²`와 다른 방식임을 구분했다."
         },
         {
-          "titleHtml": "LM Head의 마지막 Feature 축 변환",
-          "bodyHtml": "수동 Hidden State <code>[1,3,2]</code>에 <code>Linear(in_features=2,out_features=10)</code>을 적용해 Logit <code>[1,3,10]</code>이 되는 결과를 실행했다. LM Head가 Token 위치를 알아서 찾는 것이 아니라 <code>nn.Linear</code>가 입력의 마지막 Feature 축에 같은 선형식을 적용하고 앞의 Batch·Sequence 축을 보존한다는 원리다. 여기서 <code>in_features</code>는 <code>d_model</code>, <code>out_features</code>는 <code>vocab_size</code>이므로 각 위치마다 Vocabulary의 모든 Token 점수 하나씩이 나온다."
+          "id": "2026-08-25-topic-05",
+          "title": "LM Head의 마지막 Feature 축 변환",
+          "bodyMarkdown": "수동 Hidden State `[1,3,2]`에 `Linear(in_features=2,out_features=10)`을 적용해 Logit `[1,3,10]`이 되는 결과를 실행했다. LM Head가 Token 위치를 알아서 찾는 것이 아니라 `nn.Linear`가 입력의 마지막 Feature 축에 같은 선형식을 적용하고 앞의 Batch·Sequence 축을 보존한다는 원리다. 여기서 `in_features`는 `d_model`, `out_features`는 `vocab_size`이므로 각 위치마다 Vocabulary의 모든 Token 점수 하나씩이 나온다."
         },
         {
-          "titleHtml": "Logit·Target 펼치기와 실제 평균 Token Loss",
-          "bodyHtml": "원본 <code>[[3,7,2,9]]</code>에서 입력 <code>[[3,7,2]]</code>과 Target <code>[[7,2,9]]</code>을 사용했다. LM Head가 이미 만든 Logit <code>[1,3,10]</code>을 <code>reshape(-1,10)</code>으로 <code>[3,10]</code>에 펼치고, Target <code>[1,3]</code>은 <code>reshape(-1)</code>로 <code>[3]</code>에 펼쳤다. <code>10</code>은 reshape가 새로 만드는 값이 아니라 LM Head 출력의 기존 Vocabulary 축이며, <code>-1</code>은 Batch와 위치를 합친 행 수 3을 자동 계산한다. 기본 Cross Entropy로 세 위치의 평균 Token Loss <code>2.4862</code>가 Scalar 하나로 나오는 실행 결과를 확인했다."
+          "id": "2026-08-25-topic-06",
+          "title": "Logit·Target 펼치기와 실제 평균 Token Loss",
+          "bodyMarkdown": "원본 `[[3,7,2,9]]`에서 입력 `[[3,7,2]]`과 Target `[[7,2,9]]`을 사용했다. LM Head가 이미 만든 Logit `[1,3,10]`을 `reshape(-1,10)`으로 `[3,10]`에 펼치고, Target `[1,3]`은 `reshape(-1)`로 `[3]`에 펼쳤다. `10`은 reshape가 새로 만드는 값이 아니라 LM Head 출력의 기존 Vocabulary 축이며, `-1`은 Batch와 위치를 합친 행 수 3을 자동 계산한다. 기본 Cross Entropy로 세 위치의 평균 Token Loss `2.4862`가 Scalar 하나로 나오는 실행 결과를 확인했다."
         },
         {
-          "titleHtml": "Token Embedding의 Vocabulary 표와 조회",
-          "bodyHtml": "<code>Embedding(num_embeddings=10,embedding_dim=2)</code>에 Token ID <code>[[3,7,2]]</code>을 넣어 <code>[1,3,2]</code> Hidden State를 얻었다. <code>vocab_size=10</code>은 반환 Shape에 10을 붙이는 값이 아니라 ID 0~9에 대응하는 <code>[10,2]</code> Embedding 표의 행 수이며, 입력 ID 3·7·2가 그 표의 해당 행을 조회한다. 학습 전 같은 Embedding 표에서는 어느 Sequence에 있든 같은 Token ID가 같은 벡터를 가져오고, 이후 위치 정보와 Attention 문맥이 더해지면 표현이 달라진다는 점까지 연결했다."
+          "id": "2026-08-25-topic-07",
+          "title": "Token Embedding의 Vocabulary 표와 조회",
+          "bodyMarkdown": "`Embedding(num_embeddings=10,embedding_dim=2)`에 Token ID `[[3,7,2]]`을 넣어 `[1,3,2]` Hidden State를 얻었다. `vocab_size=10`은 반환 Shape에 10을 붙이는 값이 아니라 ID 0~9에 대응하는 `[10,2]` Embedding 표의 행 수이며, 입력 ID 3·7·2가 그 표의 해당 행을 조회한다. 학습 전 같은 Embedding 표에서는 어느 Sequence에 있든 같은 Token ID가 같은 벡터를 가져오고, 이후 위치 정보와 Attention 문맥이 더해지면 표현이 달라진다는 점까지 연결했다."
         },
         {
-          "titleHtml": "설명 방식에서 확인한 학습 규칙",
-          "bodyHtml": "오래전 셀의 <code>target_tokens</code>처럼 현재 화면에 없는 변수를 기억한다고 가정하면 Shape과 값의 출처를 추적하기 어렵다는 문제를 확인했다. 앞으로 새 개념을 확인하는 연습 셀은 필요한 작은 입력·Target Tensor를 셀 안이나 바로 위 셀에서 다시 선언하고, Target을 먼저 추상적인 “정답 목록”으로 부르기보다 각 Logit 행에서 채점할 열 인덱스로 실제 선택 과정을 먼저 보여 주기로 했다."
+          "id": "2026-08-25-topic-08",
+          "title": "설명 방식에서 확인한 학습 규칙",
+          "bodyMarkdown": "오래전 셀의 `target_tokens`처럼 현재 화면에 없는 변수를 기억한다고 가정하면 Shape과 값의 출처를 추적하기 어렵다는 문제를 확인했다. 앞으로 새 개념을 확인하는 연습 셀은 필요한 작은 입력·Target Tensor를 셀 안이나 바로 위 셀에서 다시 선언하고, Target을 먼저 추상적인 “정답 목록”으로 부르기보다 각 Logit 행에서 채점할 열 인덱스로 실제 선택 과정을 먼저 보여 주기로 했다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "오늘은 Token Embedding 실행까지 확인했다. 다음에는 학습 가능한 Position Embedding 예제를 새 독립 셀에서 실행해 Token 벡터와 위치 벡터의 합을 확인하고, 이를 기존 Causal TransformerBlock·LM Head에 연결한다. 그 뒤 전체 Target shift·Token Cross Entropy로 작은 학습을 수행하고 한 Token씩 생성해야 Tiny Decoder LM 완료 조건을 충족한다."
+          "id": "2026-08-25-topic-09",
+          "title": "다음 시작점",
+          "bodyMarkdown": "오늘은 Token Embedding 실행까지 확인했다. 다음에는 학습 가능한 Position Embedding 예제를 새 독립 셀에서 실행해 Token 벡터와 위치 벡터의 합을 확인하고, 이를 기존 Causal TransformerBlock·LM Head에 연결한다. 그 뒤 전체 Target shift·Token Cross Entropy로 작은 학습을 수행하고 한 Token씩 생성해야 Tiny Decoder LM 완료 조건을 충족한다."
         }
       ],
       "studyTime": {
         "minutes": 164,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Logit <code>[1,3,10]</code>의 Batch·예측 위치·Vocabulary 축과 수동 점수 대입의 의미 확인</li><li><code>dim=-1</code>이 마지막 Vocabulary 축이며 위치마다 Token 10개를 Softmax한다는 점 검증</li><li>Target이 각 Logit 행에서 채점할 열 인덱스이고, 선택값에 <code>-log</code>를 적용해 개별 Token Loss를 얻는 흐름 확인</li><li><code>reduction=\"none\"</code>의 위치별 Loss <code>[0.7966,1.4612,0.3702]</code>와 평균 <code>0.8760</code>, 기본 평균 Reduction 구분</li><li>Cross Entropy와 MSE·분산 공식을 구분하고 Softmax 분모에 다른 Token 점수도 모두 참여함을 확인</li><li>LM Head의 <code>Linear(d_model=2,vocab_size=10)</code>이 마지막 축만 바꿔 <code>[1,3,2] → [1,3,10]</code>을 만드는 원리 실행</li><li><code>reshape(-1,10)</code>과 <code>reshape(-1)</code>으로 위치별 Logit·Target을 <code>[3,10]</code>·<code>[3]</code>에 맞추고 평균 Token Loss <code>2.4862</code> 확인</li><li><code>Embedding(10,2)</code>의 Vocabulary 표에서 Token ID 3·7·2를 조회해 <code>[1,3,2]</code> Hidden State를 만드는 과정 확인</li><li>같은 Token ID는 같은 Embedding 표의 같은 벡터를 조회하며 위치·문맥 반영 전후를 구분</li><li>오래된 변수에 의존하지 않는 독립 셀과, Target을 행별 선택 인덱스로 먼저 설명하는 학습 규칙 확정</li><li>다음 시작점을 Position Embedding의 Token별 합 → Causal TransformerBlock·LM Head 연결 → 작은 학습·생성으로 확정</li></ul><p>코덱스 세션 기록에서 실제 학습 시작부터 종료 메시지까지를 합산했으며, 학습을 중단한 것으로 볼 긴 공백은 포함되지 않았다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-24",
       "topics": [
         {
-          "titleHtml": "TransformerBlock 전체 흐름 복습",
-          "bodyHtml": "Token Embedding의 <code>[batch, token, d_model]</code> Shape부터 Positional Encoding, Q·K·V, Score Scaling, Softmax, Value 가중합, Multi-Head 병합, Output Projection, 두 번의 Residual·LayerNorm과 FFN까지 코드 실행 순서대로 다시 설명했다. Attention은 Sequence 위치 사이의 정보를 섞고 FFN은 이미 문맥이 섞인 각 Token을 독립적으로 가공하며, 두 번째 Residual은 첫 번째 Residual·LayerNorm 결과에 FFN 수정값을 더한다는 흐름을 복원했다."
+          "id": "2026-08-24-topic-01",
+          "title": "TransformerBlock 전체 흐름 복습",
+          "bodyMarkdown": "Token Embedding의 `[batch, token, d_model]` Shape부터 Positional Encoding, Q·K·V, Score Scaling, Softmax, Value 가중합, Multi-Head 병합, Output Projection, 두 번의 Residual·LayerNorm과 FFN까지 코드 실행 순서대로 다시 설명했다. Attention은 Sequence 위치 사이의 정보를 섞고 FFN은 이미 문맥이 섞인 각 Token을 독립적으로 가공하며, 두 번째 Residual은 첫 번째 Residual·LayerNorm 결과에 FFN 수정값을 더한다는 흐름을 복원했다."
         },
         {
-          "titleHtml": "분산·Scaling·LayerNorm 오해 교정",
-          "bodyHtml": "512차원 Embedding에서 벡터 제곱합의 기댓값을 1로 두면 원소별 분산은 <code>1/512</code>, 표준편차는 <code>1/√512</code>가 된다는 계산을 분산 정의와 연결했다. Attention Score는 평균 0·분산 1·독립이라는 가정에서 <code>d_k</code>개 항의 합이므로 분산 <code>d_k</code>, 표준편차 <code>√d_k</code>가 되고, 코드가 실제 분산을 측정하는 것이 아니라 <code>√d_k</code>로 고정 Scaling한다는 점을 확인했다. LayerNorm은 값을 0~1로 제한하거나 튀는 값을 제거하는 연산이 아니라, Token별 평균을 빼고 표준편차로 나누어 전체 이동과 배율을 정돈하면서 상대적 모양을 남기는 연산으로 바로잡았다."
+          "id": "2026-08-24-topic-02",
+          "title": "분산·Scaling·LayerNorm 오해 교정",
+          "bodyMarkdown": "512차원 Embedding에서 벡터 제곱합의 기댓값을 1로 두면 원소별 분산은 `1/512`, 표준편차는 `1/√512`가 된다는 계산을 분산 정의와 연결했다. Attention Score는 평균 0·분산 1·독립이라는 가정에서 `d_k`개 항의 합이므로 분산 `d_k`, 표준편차 `√d_k`가 되고, 코드가 실제 분산을 측정하는 것이 아니라 `√d_k`로 고정 Scaling한다는 점을 확인했다. LayerNorm은 값을 0~1로 제한하거나 튀는 값을 제거하는 연산이 아니라, Token별 평균을 빼고 표준편차로 나누어 전체 이동과 배율을 정돈하면서 상대적 모양을 남기는 연산으로 바로잡았다."
         },
         {
-          "titleHtml": "Tiny Decoder LM의 Target shift 구현",
-          "bodyHtml": "원본 Token <code>[[3,7,2,9]]</code>에서 입력을 <code>tokens[:,:-1] = [[3,7,2]]</code>, 다음 Token 정답을 <code>tokens[:,1:] = [[7,2,9]]</code>로 한 칸 이동해 만들었다. 입력과 정답 Shape이 모두 <code>[1,3]</code>임을 실행 결과로 확인했고, 각 위치가 현재까지의 Token으로 바로 다음 Token을 맞히는 학습 쌍이라는 의미를 연결했다."
+          "id": "2026-08-24-topic-03",
+          "title": "Tiny Decoder LM의 Target shift 구현",
+          "bodyMarkdown": "원본 Token `[[3,7,2,9]]`에서 입력을 `tokens[:,:-1] = [[3,7,2]]`, 다음 Token 정답을 `tokens[:,1:] = [[7,2,9]]`로 한 칸 이동해 만들었다. 입력과 정답 Shape이 모두 `[1,3]`임을 실행 결과로 확인했고, 각 위치가 현재까지의 Token으로 바로 다음 Token을 맞히는 학습 쌍이라는 의미를 연결했다."
         },
         {
-          "titleHtml": "Causal Mask 생성·적용 검증",
-          "bodyHtml": "<code>seq_len=3</code>에서 Boolean 1 행렬에 <code>torch.tril()</code>을 적용해 대각선과 아래는 <code>True</code>, 미래 위치는 <code>False</code>인 <code>[3,3]</code> 허용 표를 만들었다. <code>masked_fill(~causal_mask, -inf)</code>에서 <code>~</code>가 각 Boolean을 뒤집어 미래 칸만 채우기 조건의 <code>True</code>로 만들고, Score의 미래 칸이 <code>-inf</code>로 바뀌는 결과를 확인했다."
+          "id": "2026-08-24-topic-04",
+          "title": "Causal Mask 생성·적용 검증",
+          "bodyMarkdown": "`seq_len=3`에서 Boolean 1 행렬에 `torch.tril()`을 적용해 대각선과 아래는 `True`, 미래 위치는 `False`인 `[3,3]` 허용 표를 만들었다. `masked_fill(~causal_mask, -inf)`에서 `~`가 각 Boolean을 뒤집어 미래 칸만 채우기 조건의 `True`로 만들고, Score의 미래 칸이 `-inf`로 바뀌는 결과를 확인했다."
         },
         {
-          "titleHtml": "Masked Softmax를 실제 숫자로 확인",
-          "bodyHtml": "Softmax는 원래 Score의 단순 합 비율이 아니라 각 Score에 <code>exp</code>를 적용한 뒤 그 합으로 나눈 비율임을 바로잡았다. <code>exp(-inf)=0</code>이므로 <code>[1,-inf,-inf] → [1,0,0]</code>, <code>[4,5,-inf] → [0.2689,0.7311,0]</code>이 되고, 각 Query 행의 합이 1인 실행 결과를 확인했다."
+          "id": "2026-08-24-topic-05",
+          "title": "Masked Softmax를 실제 숫자로 확인",
+          "bodyMarkdown": "Softmax는 원래 Score의 단순 합 비율이 아니라 각 Score에 `exp`를 적용한 뒤 그 합으로 나눈 비율임을 바로잡았다. `exp(-inf)=0`이므로 `[1,-inf,-inf] → [1,0,0]`, `[4,5,-inf] → [0.2689,0.7311,0]`이 되고, 각 Query 행의 합이 1인 실행 결과를 확인했다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "Vocabulary가 10개일 때 위치별 Logit Shape <code>[batch, token, vocab] = [1,3,10]</code>과 Target Shape <code>[1,3]</code>을 연결하고, 각 위치의 정답 Token Loss를 계산해 평균 Cross Entropy Loss 하나가 되는 과정을 확인한다. Token Loss 뒤에 실제 Tiny Decoder 모델 학습과 한 Token씩 생성하는 단계가 남아 있다."
+          "id": "2026-08-24-topic-06",
+          "title": "다음 시작점",
+          "bodyMarkdown": "Vocabulary가 10개일 때 위치별 Logit Shape `[batch, token, vocab] = [1,3,10]`과 Target Shape `[1,3]`을 연결하고, 각 위치의 정답 Token Loss를 계산해 평균 Cross Entropy Loss 하나가 되는 과정을 확인한다. Token Loss 뒤에 실제 Tiny Decoder 모델 학습과 한 Token씩 생성하는 단계가 남아 있다."
         }
       ],
       "studyTime": {
         "minutes": 84,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>TransformerBlock을 Token Embedding부터 Attention·Multi-Head·Residual·LayerNorm·FFN 순서로 복습</li><li>Embedding의 <code>1/√d_model</code> 초기화와 <code>√d_model</code> Scaling, Attention Score의 <code>√d_k</code> Scaling을 분산·표준편차 계산과 연결</li><li>LayerNorm이 0~1 제한이나 이상치 제거가 아니라 Token별 중심과 전체 배율을 정돈하는 연산임을 확인</li><li><code>[[3,7,2,9]]</code>에서 입력 <code>[[3,7,2]]</code>·정답 <code>[[7,2,9]]</code>의 Target shift와 Shape <code>[1,3]</code> 구현</li><li><code>torch.tril()</code> Boolean Causal Mask, <code>~mask</code>, <code>masked_fill(...,-inf)</code>로 미래 Score 차단</li><li>Softmax가 <code>exp(score)</code> 값들의 비율이며 <code>exp(-inf)=0</code>이라 미래 Attention 비율이 0이 되는 결과 검증</li><li>다음 시작점을 Vocabulary Logit <code>[1,3,10]</code>과 위치별 Cross Entropy Token Loss 연결로 확정</li></ul><p>코덱스 세션 로그에서 위키 정비·푸시 대기처럼 실제 학습이 아닌 구간을 제외해 집계했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-23",
       "topics": [
         {
-          "titleHtml": "외부 커리큘럼 역량 감사와 확장 로드맵 설계",
-          "bodyHtml": "AI·ML·딥러닝, LLM 응용, 데이터 엔지니어링·MLOps, Knowledge Graph·GraphRAG·Ontology·Agent Harness 커리큘럼을 현재 1차 학습 순환과 대조했다. 기본 ML·PyTorch·Transformer, CV·시계열·이상탐지·추천 후보는 기존 로드맵에 이미 포함되어 있어 중복 추가하지 않았다. 독립적인 결과물과 완료 조건이 필요한 <a href=\"roadmaps/roadmap_mlops.html\">MLOps·모델 운영</a>과 <a href=\"roadmaps/roadmap_knowledge_agents.html\">Knowledge Graph·GraphRAG·Agent Harness</a>만 1차 순환 이후 선택할 확장 로드맵으로 분리했다. 이번 기록은 학습 방향 설계이며 해당 확장 역량을 완료했다는 뜻은 아니다."
+          "id": "2026-08-23-topic-01",
+          "title": "외부 커리큘럼 역량 감사와 확장 로드맵 설계",
+          "bodyMarkdown": "AI·ML·딥러닝, LLM 응용, 데이터 엔지니어링·MLOps, Knowledge Graph·GraphRAG·Ontology·Agent Harness 커리큘럼을 현재 1차 학습 순환과 대조했다. 기본 ML·PyTorch·Transformer, CV·시계열·이상탐지·추천 후보는 기존 로드맵에 이미 포함되어 있어 중복 추가하지 않았다. 독립적인 결과물과 완료 조건이 필요한 [MLOps·모델 운영](roadmaps/roadmap_mlops.html)과 [Knowledge Graph·GraphRAG·Agent Harness](roadmaps/roadmap_knowledge_agents.html)만 1차 순환 이후 선택할 확장 로드맵으로 분리했다. 이번 기록은 학습 방향 설계이며 해당 확장 역량을 완료했다는 뜻은 아니다."
         },
         {
-          "titleHtml": "회원 이탈 MLP 학습 흐름 정리",
-          "bodyHtml": "표 데이터 파이프라인에서 <code>Churn</code> 라벨 정렬(<code>No=0, Yes=1</code>) 후 <code>ColumnTransformer</code>로 수치형/범주형을 통합 전처리해 NumPy <code>(5634,45)</code>·<code>(1409,45)</code>를 Tensor화했고, <code>TensorDataset</code> + <code>DataLoader</code>로 Batch 학습을 구성했다. <code>Linear(45,16) → ReLU → Linear(16,1)</code> 모델에서 Batch는 64명 단위이며 Batch Loss는 각 샘플 BCE의 평균으로 계산한다는 점, 에포크마다 모든 배치 누적 후 평균을 기준으로 진척을 봄을 확인했다."
+          "id": "2026-08-23-topic-02",
+          "title": "회원 이탈 MLP 학습 흐름 정리",
+          "bodyMarkdown": "표 데이터 파이프라인에서 `Churn` 라벨 정렬(`No=0, Yes=1`) 후 `ColumnTransformer`로 수치형/범주형을 통합 전처리해 NumPy `(5634,45)`·`(1409,45)`를 Tensor화했고, `TensorDataset` + `DataLoader`로 Batch 학습을 구성했다. `Linear(45,16) → ReLU → Linear(16,1)` 모델에서 Batch는 64명 단위이며 Batch Loss는 각 샘플 BCE의 평균으로 계산한다는 점, 에포크마다 모든 배치 누적 후 평균을 기준으로 진척을 봄을 확인했다."
         },
         {
-          "titleHtml": "BCE/시그모이드/로스 계산 오해 정리",
-          "bodyHtml": "모델 출력 <code>logits</code>는 제한이 없고, 학습/해석 단계에서 <code>sigmoid</code>를 통과해 <code>0~1</code> 구간 score로 본다는 흐름을 정리했다. 사용자와 함께 BCE 식을 샘플 단위로 추적해 보며, MSE와 BCE의 차이를 구분했고(둘 다 평균이지만 계산 항이 다름), 현재는 이진 분류의 기본 관점(임계값 0.5 기준)으로 <code>Yes/No</code> 판정을 다루었다."
+          "id": "2026-08-23-topic-03",
+          "title": "BCE/시그모이드/로스 계산 오해 정리",
+          "bodyMarkdown": "모델 출력 `logits`는 제한이 없고, 학습/해석 단계에서 `sigmoid`를 통과해 `0~1` 구간 score로 본다는 흐름을 정리했다. 사용자와 함께 BCE 식을 샘플 단위로 추적해 보며, MSE와 BCE의 차이를 구분했고(둘 다 평균이지만 계산 항이 다름), 현재는 이진 분류의 기본 관점(임계값 0.5 기준)으로 `Yes/No` 판정을 다루었다."
         },
         {
-          "titleHtml": "Optimizer/학습률/Gradient 실제 동작 확인",
-          "bodyHtml": "<code>SGD(model.parameters(), lr=0.1)</code> 루프에서 <code>zero_grad → forward → BCE → backward → step</code> 순서를 직접 확인했고, 한 번의 step 후 loss가 내려가는 모습을 봤다. <code>loss.backward()</code>는 현재 배치 기준 기울기(.grad)를 쌓고, <code>step()</code>에서만 weight·bias가 실제 이동한다는 연결을 유지했다. 또한 <code>valid</code>에서 손실/accuracy를 함께 보고 과적합 가능성 판단을 준비했다."
+          "id": "2026-08-23-topic-04",
+          "title": "Optimizer/학습률/Gradient 실제 동작 확인",
+          "bodyMarkdown": "`SGD(model.parameters(), lr=0.1)` 루프에서 `zero_grad → forward → BCE → backward → step` 순서를 직접 확인했고, 한 번의 step 후 loss가 내려가는 모습을 봤다. `loss.backward()`는 현재 배치 기준 기울기(.grad)를 쌓고, `step()`에서만 weight·bias가 실제 이동한다는 연결을 유지했다. 또한 `valid`에서 손실/accuracy를 함께 보고 과적합 가능성 판단을 준비했다."
         },
         {
-          "titleHtml": "모델 저장·복원·추론 검증 보강",
-          "bodyHtml": "학습된 모델 파라미터는 <code>state_dict</code>로 저장·복원 가능하고, 로드 후 동일 입력에 대해 <code>torch.allclose</code>로 출력 일치 체크를 해서 복원 신뢰성을 점검했다. 단일 고객 추론 시에도 동일 전처리 기준을 <code>transform</code> 후 텐서화해 <code>sigmoid</code>까지 확인하면서 배치 학습/단일 예측 경로의 일관성을 맞췄다."
+          "id": "2026-08-23-topic-05",
+          "title": "모델 저장·복원·추론 검증 보강",
+          "bodyMarkdown": "학습된 모델 파라미터는 `state_dict`로 저장·복원 가능하고, 로드 후 동일 입력에 대해 `torch.allclose`로 출력 일치 체크를 해서 복원 신뢰성을 점검했다. 단일 고객 추론 시에도 동일 전처리 기준을 `transform` 후 텐서화해 `sigmoid`까지 확인하면서 배치 학습/단일 예측 경로의 일관성을 맞췄다."
         }
       ],
       "studyTime": {
         "minutes": 212,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>회원 이탈 데이터 파이프라인을 실제 실행 흐름으로 점검하고, <code>StandardScaler</code>+<code>OneHotEncoder</code> 처리 + TensorDataset/DataLoader 연결을 마무리했다.</li><li><code>ChurnMLP</code>(<code>Linear(45,16) → ReLU → Linear(16,1)</code>)로 20 epoch 학습과 Validation 평가를 수행해 Accuracy 78.99%, Yes Recall 35.56%, TP 133, FN 241을 확인했다.</li><li><code>BCEWithLogitsLoss</code>의 출력 스케일, Logit/시그모이드/손실 계산 관계를 정리하고, MSE와 BCE의 차이를 재정리했다.</li><li>손실/정확도 루프를 한 번 더 정리해 모델 저장/복원까지 실행했으며, <code>state_dict</code> 로드 후 동일 입력 비교로 <code>torch.allclose</code>를 통해 복원 신뢰성을 확인했다.</li><li>단일 고객 추론 실습으로 <code>DataFrame</code> 전처리 후 <code>transform</code>을 거쳐 <code>sigmoid</code> 출력까지 직접 확인했다.</li><li>다음 단계로 <code>TransformerBlock</code>을 <code>causal</code> 디코더 경로로 연결해 Tiny Decoder LM 루틴으로 복귀할 방향을 정리했다.</li></ul><p>코덱스 세션 로그에서 장시간 비학습 구간을 제외해 집계했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-22",
       "topics": [
         {
-          "titleHtml": "LLM 파인튜닝 12가지 기법 원문 저장",
-          "bodyHtml": "사용자가 제공한 아티클을 한국어로 옮겨 <a href=\"wiki/external-articles/llm_finetuning_12_techniques_source.html\">외부 아티클 05</a>에 저장하고, LoRA부터 Federated Fine-Tuning까지 12가지 기법을 이후 사용자가 하나씩 설명하고 참조할 항목으로 식별했다. 이번 기록은 원문 보존 단계이며 아직 내용 검증이나 이해도 완료 증거는 없다."
+          "id": "2026-08-22-topic-01",
+          "title": "LLM 파인튜닝 12가지 기법 원문 저장",
+          "bodyMarkdown": "사용자가 제공한 아티클을 한국어로 옮겨 [외부 아티클 05](wiki/external-articles/llm_finetuning_12_techniques_source.html)에 저장하고, LoRA부터 Federated Fine-Tuning까지 12가지 기법을 이후 사용자가 하나씩 설명하고 참조할 항목으로 식별했다. 이번 기록은 원문 보존 단계이며 아직 내용 검증이나 이해도 완료 증거는 없다."
         },
         {
-          "titleHtml": "LoRA와 Low-Rank 변화량 이해",
-          "bodyHtml": "기존 Weight <code>W</code>와 파인튜닝으로 새로 배울 <code>ΔW</code>를 구분하고, <code>4096 × 4096</code>의 16,777,216개 값 대신 <code>4096 × 8 + 8 × 4096</code>의 65,536개 값을 학습하는 계산을 설명했다. Rank 1·2의 독립 방향 예제와 <code>A → 8개 계수 → B</code>, <code>rank(BA) ≤ 8</code>을 연결해 <a href=\"wiki/llm-systems/lora_low_rank_adaptation_learning.html\">LoRA와 Low-Rank 변화량</a>에 기록했다. 표준 <code>α/r</code>, 초기화, 작은 구현 확인은 다음 검증 항목으로 남겼다."
+          "id": "2026-08-22-topic-02",
+          "title": "LoRA와 Low-Rank 변화량 이해",
+          "bodyMarkdown": "기존 Weight `W`와 파인튜닝으로 새로 배울 `ΔW`를 구분하고, `4096 × 4096`의 16,777,216개 값 대신 `4096 × 8 + 8 × 4096`의 65,536개 값을 학습하는 계산을 설명했다. Rank 1·2의 독립 방향 예제와 `A → 8개 계수 → B`, `rank(BA) ≤ 8`을 연결해 [LoRA와 Low-Rank 변화량](wiki/llm-systems/lora_low_rank_adaptation_learning.html)에 기록했다. 표준 `α/r`, 초기화, 작은 구현 확인은 다음 검증 항목으로 남겼다."
         },
         {
-          "titleHtml": "작은 회귀 데이터의 Dataset·DataLoader Batch 학습",
-          "bodyHtml": "<code>x=[0,1,2]</code>, <code>y=[2,5,8]</code> Tensor를 <code>TensorDataset</code>으로 입력·정답 한 쌍씩 묶고 <code>DataLoader(batch_size=2)</code>에서 2개와 남은 1개 Batch가 나오는 것을 확인했다. Batch는 GPU 사용 여부가 아니라 데이터를 묶어 전달하는 단위이고, 실제 계산은 선택한 device에서 수행된다고 구분했다. 각 Batch의 <code>zero_grad → prediction → loss → backward → step</code>을 100 Epoch 반복해 학습 전 전체 Loss <code>38.047859</code>가 <code>1.64 × 10⁻¹⁰</code>까지 줄고 예측이 <code>[2,5,8]</code>에 가까워짐을 확인했다. 한 Epoch를 마친 뒤 출력하면서 <code>epoch: 0</code>이라고 쓰던 로그는 실제 1회 학습 뒤 값이므로 <code>epoch + 1</code>로 고쳤다."
+          "id": "2026-08-22-topic-03",
+          "title": "작은 회귀 데이터의 Dataset·DataLoader Batch 학습",
+          "bodyMarkdown": "`x=[0,1,2]`, `y=[2,5,8]` Tensor를 `TensorDataset`으로 입력·정답 한 쌍씩 묶고 `DataLoader(batch_size=2)`에서 2개와 남은 1개 Batch가 나오는 것을 확인했다. Batch는 GPU 사용 여부가 아니라 데이터를 묶어 전달하는 단위이고, 실제 계산은 선택한 device에서 수행된다고 구분했다. 각 Batch의 `zero_grad → prediction → loss → backward → step`을 100 Epoch 반복해 학습 전 전체 Loss `38.047859`가 `1.64 × 10⁻¹⁰`까지 줄고 예측이 `[2,5,8]`에 가까워짐을 확인했다. 한 Epoch를 마친 뒤 출력하면서 `epoch: 0`이라고 쓰던 로그는 실제 1회 학습 뒤 값이므로 `epoch + 1`로 고쳤다."
         },
         {
-          "titleHtml": "회원 이탈 Pandas 전처리를 PyTorch Tensor로 연결",
-          "bodyHtml": "공개 회원 이탈 표 <code>(7043,21)</code>에서 <code>customerID</code>와 <code>Churn</code>을 분리하고 <code>No=0</code>, <code>Yes=1</code>로 정했다. <code>TotalCharges</code>를 숫자로 바꾸고 공백 결측을 0으로 처리한 뒤, <code>stratify=y</code>로 Train <code>(5634,19)</code>·Validation <code>(1409,19)</code>를 나눴다. 숫자형 4개·범주형 15개를 같은 <code>ColumnTransformer</code>로 처리해 Train에서만 <code>fit_transform</code>하고 Validation에는 <code>transform</code>만 적용했으며, NumPy <code>(5634,45)</code>·<code>(1409,45)</code>를 <code>float32</code> Tensor로 옮겼다. 정답은 <code>reshape(-1,1)</code>에서 행 수를 자동 계산해 <code>[5634,1]</code>·<code>[1409,1]</code>로 맞췄다."
+          "id": "2026-08-22-topic-04",
+          "title": "회원 이탈 Pandas 전처리를 PyTorch Tensor로 연결",
+          "bodyMarkdown": "공개 회원 이탈 표 `(7043,21)`에서 `customerID`와 `Churn`을 분리하고 `No=0`, `Yes=1`로 정했다. `TotalCharges`를 숫자로 바꾸고 공백 결측을 0으로 처리한 뒤, `stratify=y`로 Train `(5634,19)`·Validation `(1409,19)`를 나눴다. 숫자형 4개·범주형 15개를 같은 `ColumnTransformer`로 처리해 Train에서만 `fit_transform`하고 Validation에는 `transform`만 적용했으며, NumPy `(5634,45)`·`(1409,45)`를 `float32` Tensor로 옮겼다. 정답은 `reshape(-1,1)`에서 행 수를 자동 계산해 `[5634,1]`·`[1409,1]`로 맞췄다."
         },
         {
-          "titleHtml": "실제 Train·Validation DataLoader와 타입 오류 수정",
-          "bodyHtml": "TensorDataset으로 고객별 Feature 45개와 정답 1개를 짝짓고, Train은 <code>batch_size=64, shuffle=True</code>, Validation은 <code>shuffle=False</code>로 만들었다. 첫 Batch <code>[64,45]</code>·<code>[64,1]</code>, Train 89개·Validation 23개 Batch를 확인했다. Validation Dataset에 NumPy 배열을 잘못 넣었을 때 <code>TypeError: 'int' object is not callable</code>가 발생했으며, NumPy의 정수 속성 <code>.size</code>와 Tensor의 <code>.size(0)</code> 메서드 차이를 확인하고 <code>X_valid_tensor</code>로 수정했다."
+          "id": "2026-08-22-topic-05",
+          "title": "실제 Train·Validation DataLoader와 타입 오류 수정",
+          "bodyMarkdown": "TensorDataset으로 고객별 Feature 45개와 정답 1개를 짝짓고, Train은 `batch_size=64, shuffle=True`, Validation은 `shuffle=False`로 만들었다. 첫 Batch `[64,45]`·`[64,1]`, Train 89개·Validation 23개 Batch를 확인했다. Validation Dataset에 NumPy 배열을 잘못 넣었을 때 `TypeError: 'int' object is not callable`가 발생했으며, NumPy의 정수 속성 `.size`와 Tensor의 `.size(0)` 메서드 차이를 확인하고 `X_valid_tensor`로 수정했다."
         },
         {
-          "titleHtml": "MLP의 Batch·Feature 차원과 ReLU·Logit 구분",
-          "bodyHtml": "<code>ChurnMLP</code>를 <code>[batch,45] → Linear(45,16) → ReLU → Linear(16,1) → [batch,1]</code>로 만들었다. <code>64</code>는 바뀔 수 있는 Batch 고객 수이고 45는 고정 입력 Feature 수이며, 16은 고객 한 명의 45개 값을 학습 가능한 중간 조합 16개로 바꾼 개수라고 설명했다. ReLU는 음수를 정확히 0으로 만들지만 양수를 1 이하로 제한하지 않고, 마지막 Linear의 Logit은 음수·1보다 큰 수를 포함한 임의의 실수가 될 수 있음을 구분했다."
+          "id": "2026-08-22-topic-06",
+          "title": "MLP의 Batch·Feature 차원과 ReLU·Logit 구분",
+          "bodyMarkdown": "`ChurnMLP`를 `[batch,45] → Linear(45,16) → ReLU → Linear(16,1) → [batch,1]`로 만들었다. `64`는 바뀔 수 있는 Batch 고객 수이고 45는 고정 입력 Feature 수이며, 16은 고객 한 명의 45개 값을 학습 가능한 중간 조합 16개로 바꾼 개수라고 설명했다. ReLU는 음수를 정확히 0으로 만들지만 양수를 1 이하로 제한하지 않고, 마지막 Linear의 Logit은 음수·1보다 큰 수를 포함한 임의의 실수가 될 수 있음을 구분했다."
         },
         {
-          "titleHtml": "Sigmoid 출력과 BCE Loss 이해 진행",
-          "bodyHtml": "Sigmoid가 제한 없는 Logit을 <code>0~1</code> 사이로 압축하며, 현재 학습 전 값은 과하게 해석하지 않고 <strong>학습 전 sigmoid 출력값</strong>이라고 부르기로 했다. 첫 고객의 <code>z=-0.2608</code>에서 <code>p=0.4352</code>, 정답 <code>y=0</code>이므로 개별 BCE가 <code>-log(1-p)=-log(0.5648)≈0.571</code>임을 따라 계산했다. 고객별 Loss 64개를 기본 <code>reduction=\"mean\"</code>으로 평균내 초기 Batch Loss <code>0.6564000844955444</code>가 되는 흐름을 확인했다. 출력값 <code>0.8</code>에서는 정답 0의 <code>-log(0.2)</code>가 정답 1의 <code>-log(0.8)</code>보다 크며, <code>e<sup>-x</sup></code>가 더 작은 값이 되려면 <code>x</code>가 더 커야 한다는 관계로 설명했다. 분산은 값에서 평균을, MSE는 예측에서 정답을 빼는 방식이며 BCE는 정답 쪽 sigmoid 출력값에 <code>-log</code>를 적용하는 별도 Loss임을 구분했다. 전체 BCE 계산을 자료 없이 다시 구성하는 확인은 남아 있다. 자세한 내용은 <a href=\"wiki/pytorch/pytorch_churn_mlp_learning.html\">회원 이탈 MLP와 BCE 문서</a>에 정리했다."
+          "id": "2026-08-22-topic-07",
+          "title": "Sigmoid 출력과 BCE Loss 이해 진행",
+          "bodyMarkdown": "Sigmoid가 제한 없는 Logit을 `0~1` 사이로 압축하며, 현재 학습 전 값은 과하게 해석하지 않고 **학습 전 sigmoid 출력값**이라고 부르기로 했다. 첫 고객의 `z=-0.2608`에서 `p=0.4352`, 정답 `y=0`이므로 개별 BCE가 `-log(1-p)=-log(0.5648)≈0.571`임을 따라 계산했다. 고객별 Loss 64개를 기본 `reduction=\"mean\"`으로 평균내 초기 Batch Loss `0.6564000844955444`가 되는 흐름을 확인했다. 출력값 `0.8`에서는 정답 0의 `-log(0.2)`가 정답 1의 `-log(0.8)`보다 크며, `e^(-x)`가 더 작은 값이 되려면 `x`가 더 커야 한다는 관계로 설명했다. 분산은 값에서 평균을, MSE는 예측에서 정답을 빼는 방식이며 BCE는 정답 쪽 sigmoid 출력값에 `-log`를 적용하는 별도 Loss임을 구분했다. 전체 BCE 계산을 자료 없이 다시 구성하는 확인은 남아 있다. 자세한 내용은 [회원 이탈 MLP와 BCE 문서](wiki/pytorch/pytorch_churn_mlp_learning.html)에 정리했다."
         },
         {
-          "titleHtml": "회원 이탈 MLP의 SGD 한 Step 실행",
-          "bodyHtml": "<code>SGD(model.parameters(),lr=0.1)</code>를 연결하고 한 Batch에서 <code>zero_grad → forward → BCE → backward → step</code>을 한 번 실행했다. 같은 Batch를 <code>no_grad()</code>에서 다시 계산했을 때 Loss가 <code>0.6564000844955444 → 0.6511512994766235</code>로 내려갔다. 사용자는 <code>optimizer.step()</code> 한 번마다 Gradient와 learning rate를 기준으로 weight·bias가 조금 조정되고, 이번 한 번의 수정에서는 Loss가 소폭 감소한 것이라고 자기 말로 설명했다. SGD 한 Step의 원리는 확인했지만 한 Batch 과적합이나 전체 Train·Validation 루프 완료로 표시하지 않는다."
+          "id": "2026-08-22-topic-08",
+          "title": "회원 이탈 MLP의 SGD 한 Step 실행",
+          "bodyMarkdown": "`SGD(model.parameters(),lr=0.1)`를 연결하고 한 Batch에서 `zero_grad → forward → BCE → backward → step`을 한 번 실행했다. 같은 Batch를 `no_grad()`에서 다시 계산했을 때 Loss가 `0.6564000844955444 → 0.6511512994766235`로 내려갔다. 사용자는 `optimizer.step()` 한 번마다 Gradient와 learning rate를 기준으로 weight·bias가 조금 조정되고, 이번 한 번의 수정에서는 Loss가 소폭 감소한 것이라고 자기 말로 설명했다. SGD 한 Step의 원리는 확인했지만 한 Batch 과적합이나 전체 Train·Validation 루프 완료로 표시하지 않는다."
         },
         {
-          "titleHtml": "<code>nn.Linear</code> 파라미터와 다차원 입력 질문 진행",
-          "bodyHtml": "<code>Linear(45,16)</code>의 weight <code>[16,45]</code> 720개와 bias 16개, <code>Linear(16,1)</code>의 weight 16개와 bias 1개로 전체 학습 파라미터가 753개라는 계산을 설명 중이다. Linear weight는 <code>[out,in]</code>인 2차원 행렬이지만 입력 Tensor는 3차원 이상일 수 있고 마지막 Feature 축만 바뀐다는 점도 현재 질문으로 남아 있다. <code>nn.Linear(45,33,16)</code>의 세 번째 값은 새 출력 차원이 아니라 <code>bias</code> 위치 인자이며, <code>45 → 33 → 16</code>에는 Linear 두 계층이 필요하다. 이 내용은 아직 자료 없이 Shape·파라미터 수를 다시 설명한 증거가 없어 완료로 기록하지 않는다."
+          "id": "2026-08-22-topic-09",
+          "title": "`nn.Linear` 파라미터와 다차원 입력 질문 진행",
+          "bodyMarkdown": "`Linear(45,16)`의 weight `[16,45]` 720개와 bias 16개, `Linear(16,1)`의 weight 16개와 bias 1개로 전체 학습 파라미터가 753개라는 계산을 설명 중이다. Linear weight는 `[out,in]`인 2차원 행렬이지만 입력 Tensor는 3차원 이상일 수 있고 마지막 Feature 축만 바뀐다는 점도 현재 질문으로 남아 있다. `nn.Linear(45,33,16)`의 세 번째 값은 새 출력 차원이 아니라 `bias` 위치 인자이며, `45 → 33 → 16`에는 Linear 두 계층이 필요하다. 이 내용은 아직 자료 없이 Shape·파라미터 수를 다시 설명한 증거가 없어 완료로 기록하지 않는다."
         }
       ],
       "studyTime": {
         "minutes": 280,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>작은 회귀 Tensor를 <code>TensorDataset</code>·<code>DataLoader</code>로 묶고 Batch 2개·1개를 직접 확인</li><li>Batch 학습 100 Epoch와 <code>epoch + 1</code> 로그 의미, 학습 전·후 Loss 비교</li><li>회원 이탈 데이터를 Pandas → 전처리된 NumPy → <code>float32</code> Tensor → Train·Validation DataLoader로 연결</li><li><code>[batch,45] → [batch,16] → [batch,1]</code> MLP의 Batch·Feature·Hidden 차원 구분</li><li>Logit·sigmoid 출력값·BCE 고객별 채점과 Batch 평균, MSE·분산의 차이 확인</li><li><code>zero_grad → forward → BCE → backward → SGD step</code> 한 번 실행과 Loss의 소폭 감소 설명</li><li>LoRA의 기존 Weight·Low-Rank 변화량과 파라미터 수 감소 계산</li></ul><p>채팅 세션 전체 간격에서 명확한 장시간 공백과 확인된 수면 시간을 제외해 계산했다.</p>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-21",
       "topics": [
         {
-          "titleHtml": "<code>nn.Linear</code>의 구조·파라미터·예측 출력 구분",
-          "bodyHtml": "<code>print(model)</code>은 <code>Linear(in_features=1,out_features=1,bias=True)</code>라는 구조를, <code>model.parameters()</code>는 실제 학습 대상인 weight·bias Tensor를, <code>model(x)</code>는 입력으로 만든 실제 예측값을 보여 준다는 차이를 확인했다. weight는 기울기, bias는 절편이며 무작위 초기값에서 학습을 시작한다."
+          "id": "2026-08-21-topic-01",
+          "title": "`nn.Linear`의 구조·파라미터·예측 출력 구분",
+          "bodyMarkdown": "`print(model)`은 `Linear(in_features=1,out_features=1,bias=True)`라는 구조를, `model.parameters()`는 실제 학습 대상인 weight·bias Tensor를, `model(x)`는 입력으로 만든 실제 예측값을 보여 준다는 차이를 확인했다. weight는 기울기, bias는 절편이며 무작위 초기값에서 학습을 시작한다."
         },
         {
-          "titleHtml": "MSE Loss와 순간변화율의 연결",
-          "bodyHtml": "MSE는 분산의 <code>value−mean</code>이 아니라 <code>prediction−target</code>을 제곱해 평균내며 음수가 될 수 없다는 점을 구분했다. <code>loss.backward()</code>는 weight를 조금 움직였을 때의 Loss 순간변화율과 bias를 조금 움직였을 때의 순간변화율을 각각 계산한다는 흐름을 작은 숫자로 다시 연결했다."
+          "id": "2026-08-21-topic-02",
+          "title": "MSE Loss와 순간변화율의 연결",
+          "bodyMarkdown": "MSE는 분산의 `value−mean`이 아니라 `prediction−target`을 제곱해 평균내며 음수가 될 수 없다는 점을 구분했다. `loss.backward()`는 weight를 조금 움직였을 때의 Loss 순간변화율과 bias를 조금 움직였을 때의 순간변화율을 각각 계산한다는 흐름을 작은 숫자로 다시 연결했다."
         },
         {
-          "titleHtml": "동일한 수정 전 상태에서 두 Gradient 계산",
-          "bodyHtml": "한 Step에서 <code>∂L/∂weight</code>는 현재 bias를 고정한 관점으로, <code>∂L/∂bias</code>는 현재 weight를 고정한 관점으로 계산하지만 한쪽을 먼저 수정한 값으로 다른 쪽을 계산하지 않는다는 점을 확인했다. 두 Gradient는 같은 수정 전 <code>(weight,bias)</code> 상태에서 만들어지고 <code>optimizer.step()</code>이 함께 적용하며, 새 값의 상호 영향은 다음 Epoch부터 반영된다."
+          "id": "2026-08-21-topic-03",
+          "title": "동일한 수정 전 상태에서 두 Gradient 계산",
+          "bodyMarkdown": "한 Step에서 `∂L/∂weight`는 현재 bias를 고정한 관점으로, `∂L/∂bias`는 현재 weight를 고정한 관점으로 계산하지만 한쪽을 먼저 수정한 값으로 다른 쪽을 계산하지 않는다는 점을 확인했다. 두 Gradient는 같은 수정 전 `(weight,bias)` 상태에서 만들어지고 `optimizer.step()`이 함께 적용하며, 새 값의 상호 영향은 다음 Epoch부터 반영된다."
         },
         {
-          "titleHtml": "SGD·학습률·Gradient 누적",
-          "bodyHtml": "<code>SGD(model.parameters(),lr=0.1)</code>은 수정 대상과 규칙을 등록할 뿐 즉시 값을 바꾸지 않으며, 학습률 0.1은 고정 0.1이 아니라 각 Gradient 크기의 10%를 적용한다는 뜻이다. Loss를 계산하는 Forward에서는 Gradient가 쌓이지 않고 <code>backward()</code>에서 기존 <code>.grad</code>에 누적되므로, 매 Step의 현재 Gradient만 쓰려면 <code>zero_grad()</code>가 필요하다는 점을 구분했다."
+          "id": "2026-08-21-topic-04",
+          "title": "SGD·학습률·Gradient 누적",
+          "bodyMarkdown": "`SGD(model.parameters(),lr=0.1)`은 수정 대상과 규칙을 등록할 뿐 즉시 값을 바꾸지 않으며, 학습률 0.1은 고정 0.1이 아니라 각 Gradient 크기의 10%를 적용한다는 뜻이다. Loss를 계산하는 Forward에서는 Gradient가 쌓이지 않고 `backward()`에서 기존 `.grad`에 누적되므로, 매 Step의 현재 Gradient만 쓰려면 `zero_grad()`가 필요하다는 점을 구분했다."
         },
         {
-          "titleHtml": "데이터 식별 조건과 <code>no_grad()</code>",
-          "bodyHtml": "<code>x=3,y=11</code> 하나만으로는 <code>3×weight+bias=11</code>을 만족하는 조합이 여러 개라 두 파라미터를 유일하게 정할 수 없고, 서로 다른 입력 데이터가 추가 조건을 제공해야 한다는 점을 확인했다. <code>no_grad()</code>는 기존 Gradient를 지우는 기능이 아니라 추론 시 backward에 필요할 연산 경로와 중간값을 저장하지 않아 큰 모델의 메모리 부담을 줄이는 기능으로 정리했다."
+          "id": "2026-08-21-topic-05",
+          "title": "데이터 식별 조건과 `no_grad()`",
+          "bodyMarkdown": "`x=3,y=11` 하나만으로는 `3×weight+bias=11`을 만족하는 조합이 여러 개라 두 파라미터를 유일하게 정할 수 없고, 서로 다른 입력 데이터가 추가 조건을 제공해야 한다는 점을 확인했다. `no_grad()`는 기존 Gradient를 지우는 기능이 아니라 추론 시 backward에 필요할 연산 경로와 중간값을 저장하지 않아 큰 모델의 메모리 부담을 줄이는 기능으로 정리했다."
         },
         {
-          "titleHtml": "<code>nn.Module·Optimizer</code> 챕터 완료",
-          "bodyHtml": "<code>y=3x+2</code>를 101 Epoch 학습해 Loss를 <code>9.36×10⁻⁸</code>까지 줄였다. 최종 weight <code>2.9996803</code>, bias <code>2.0004435</code>, 새 입력 <code>x=3</code>의 예측 <code>10.999484</code>와 정답 11을 검증했다. Epoch 20부터 절대 오차가 이미 작았고, 실제 학습에서는 Validation 개선이 멈추는 시점을 Early Stopping 기준으로 삼는다는 점도 연결했다. 다음 챕터는 <code>Dataset·DataLoader</code>와 Batch 학습이다."
+          "id": "2026-08-21-topic-06",
+          "title": "`nn.Module·Optimizer` 챕터 완료",
+          "bodyMarkdown": "`y=3x+2`를 101 Epoch 학습해 Loss를 `9.36×10⁻⁸`까지 줄였다. 최종 weight `2.9996803`, bias `2.0004435`, 새 입력 `x=3`의 예측 `10.999484`와 정답 11을 검증했다. Epoch 20부터 절대 오차가 이미 작았고, 실제 학습에서는 Validation 개선이 멈추는 시점을 Early Stopping 기준으로 삼는다는 점도 연결했다. 다음 챕터는 `Dataset·DataLoader`와 Batch 학습이다."
         }
       ],
       "studyTime": {
         "minutes": 80,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li><code>nn.Linear(1,1)</code>의 모델 구조·weight·bias·실제 예측 출력 구분</li><li><code>nn.MSELoss()</code>의 prediction−target 제곱 평균과 분산 공식 구분</li><li>weight·bias 각각의 순간변화율과 같은 수정 전 상태에서 두 Gradient를 계산하는 흐름 확인</li><li><code>SGD</code>의 수정 대상·학습률, <code>zero_grad()</code>·<code>backward()</code>·<code>step()</code> 역할 구분</li><li>Loss 계산이 아니라 <code>backward()</code>에서 Gradient가 누적된다는 점 확인</li><li>데이터 하나·미지수 둘의 식별 불가와 서로 다른 입력 데이터의 필요성 이해</li><li><code>no_grad()</code>의 추론용 자동미분 기록·중간값 미저장과 메모리 절약 목적 정리</li><li>최종 weight·bias·새 입력 예측과 Loss 수렴 검증으로 Module·Optimizer 챕터 완료</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-20",
       "topics": [
         {
-          "titleHtml": "Logistic Regression의 점수·확률·Label 연결",
-          "bodyHtml": "<code>decision_function()</code>의 제한 없는 원시 점수에 sigmoid를 적용하면 <code>predict_proba()</code>의 Yes 확률과 같아지는 것을 확인했다. 기본 Threshold <code>0.5</code>에서는 Yes 318명, <code>0.3</code>에서는 Yes 543명을 예측했으며, 기준을 낮추면 Yes Recall은 <code>55.88% → 75.40%</code>로 오르고 Precision은 <code>65.72% → 51.93%</code>로 내려가는 trade-off를 읽었다."
+          "id": "2026-08-20-topic-01",
+          "title": "Logistic Regression의 점수·확률·Label 연결",
+          "bodyMarkdown": "`decision_function()`의 제한 없는 원시 점수에 sigmoid를 적용하면 `predict_proba()`의 Yes 확률과 같아지는 것을 확인했다. 기본 Threshold `0.5`에서는 Yes 318명, `0.3`에서는 Yes 543명을 예측했으며, 기준을 낮추면 Yes Recall은 `55.88% → 75.40%`로 오르고 Precision은 `65.72% → 51.93%`로 내려가는 trade-off를 읽었다."
         },
         {
-          "titleHtml": "Pipeline의 모델과 <code>y_train</code> 역할",
-          "bodyHtml": "<code>y=df[\"Churn\"]</code>은 No·Yes 정답을 가진 Pandas Series이고, <code>fit(X_train,y_train)</code>이 이 정답 클래스를 모델에 전달한다는 점을 확인했다. Pipeline은 Tree가 전처리까지 스스로 하는 모델이 아니라 <code>원본 X → 전처리기 → 모델</code> 호출 순서를 묶는 관리자이며, <code>named_steps[\"model\"]</code>은 그 안에서 학습된 모델 객체를 꺼내는 문법이다."
+          "id": "2026-08-20-topic-02",
+          "title": "Pipeline의 모델과 `y_train` 역할",
+          "bodyMarkdown": "`y=df[\"Churn\"]`은 No·Yes 정답을 가진 Pandas Series이고, `fit(X_train,y_train)`이 이 정답 클래스를 모델에 전달한다는 점을 확인했다. Pipeline은 Tree가 전처리까지 스스로 하는 모델이 아니라 `원본 X → 전처리기 → 모델` 호출 순서를 묶는 관리자이며, `named_steps[\"model\"]`은 그 안에서 학습된 모델 객체를 꺼내는 문법이다."
         },
         {
-          "titleHtml": "DecisionTree의 노드·질문·잎 구조",
-          "bodyHtml": "각 노드는 현재까지 같은 답을 따라온 고객 묶음이고, 45개 Feature는 45개의 트리가 아니라 각 노드에서 시험할 질문 후보임을 정리했다. 숫자 경계 질문마다 No·Yes가 얼마나 덜 섞이는지 Gini로 비교해 하나를 고르고, 더 나누지 않는 잎에서는 다수 Label을 최종 No·Yes로 낸다. <code>get_depth()</code>는 가장 긴 질문 경로, <code>get_n_leaves()</code>는 깊이가 달라도 모든 최종 잎의 개수다."
+          "id": "2026-08-20-topic-03",
+          "title": "DecisionTree의 노드·질문·잎 구조",
+          "bodyMarkdown": "각 노드는 현재까지 같은 답을 따라온 고객 묶음이고, 45개 Feature는 45개의 트리가 아니라 각 노드에서 시험할 질문 후보임을 정리했다. 숫자 경계 질문마다 No·Yes가 얼마나 덜 섞이는지 Gini로 비교해 하나를 고르고, 더 나누지 않는 잎에서는 다수 Label을 최종 No·Yes로 낸다. `get_depth()`는 가장 긴 질문 경로, `get_n_leaves()`는 깊이가 달라도 모든 최종 잎의 개수다."
         },
         {
-          "titleHtml": "Tree 과적합과 복잡도 제한 비교",
-          "bodyHtml": "제한 없는 Tree는 깊이 22·잎 1,106개, Train <code>99.8048%</code>·Validation <code>72.8886%</code>로 Train을 거의 외운 과적합 상태였다. <code>max_depth=3</code>은 Validation <code>78.2115%</code>, 깊이 5는 <code>79.8439%</code>, 깊이 7은 <code>78.6373%</code>, <code>min_samples_leaf=10</code>은 <code>76.7211%</code>였다. Train 점수가 내려가더라도 Validation이 오르면 처음 보는 데이터에는 더 나아진 모델일 수 있음을 확인했다."
+          "id": "2026-08-20-topic-04",
+          "title": "Tree 과적합과 복잡도 제한 비교",
+          "bodyMarkdown": "제한 없는 Tree는 깊이 22·잎 1,106개, Train `99.8048%`·Validation `72.8886%`로 Train을 거의 외운 과적합 상태였다. `max_depth=3`은 Validation `78.2115%`, 깊이 5는 `79.8439%`, 깊이 7은 `78.6373%`, `min_samples_leaf=10`은 `76.7211%`였다. Train 점수가 내려가더라도 Validation이 오르면 처음 보는 데이터에는 더 나아진 모델일 수 있음을 확인했다."
         },
         {
-          "titleHtml": "모델 선택과 Yes 오류 비용",
-          "bodyHtml": "Logistic Regression은 Feature의 가중합으로 경계를 만들고 Tree는 조건 질문을 이어 비선형 구간을 만든다는 차이를 정리했다. 같은 Split과 Metric에서 시험한 Tree 중 깊이 5가 가장 좋았지만 Logistic Validation <code>80.5536%</code>보다 낮았다. 또한 깊이 5 Tree의 Yes Recall은 약 <code>0.57</code>이므로 Accuracy만 보면 실제 이탈자를 많이 놓치는 문제를 숨길 수 있다는 점을 확인했다."
+          "id": "2026-08-20-topic-05",
+          "title": "모델 선택과 Yes 오류 비용",
+          "bodyMarkdown": "Logistic Regression은 Feature의 가중합으로 경계를 만들고 Tree는 조건 질문을 이어 비선형 구간을 만든다는 차이를 정리했다. 같은 Split과 Metric에서 시험한 Tree 중 깊이 5가 가장 좋았지만 Logistic Validation `80.5536%`보다 낮았다. 또한 깊이 5 Tree의 Yes Recall은 약 `0.57`이므로 Accuracy만 보면 실제 이탈자를 많이 놓치는 문제를 숨길 수 있다는 점을 확인했다."
         },
         {
-          "titleHtml": "scikit-learn Baseline 챕터 완료",
-          "bodyHtml": "데이터 품질·분할·Dummy·One-Hot과 StandardScaler·Logistic 평가·Threshold·DecisionTree 과적합과 제한 비교까지 완료했다. 다음 활성 학습은 PyTorch <code>nn.Module</code>과 Optimizer로 <code>y=3x+2</code> 학습 루프를 구현하는 것이며, 그 뒤 Tiny Decoder LM으로 복귀한다."
+          "id": "2026-08-20-topic-06",
+          "title": "scikit-learn Baseline 챕터 완료",
+          "bodyMarkdown": "데이터 품질·분할·Dummy·One-Hot과 StandardScaler·Logistic 평가·Threshold·DecisionTree 과적합과 제한 비교까지 완료했다. 다음 활성 학습은 PyTorch `nn.Module`과 Optimizer로 `y=3x+2` 학습 루프를 구현하는 것이며, 그 뒤 Tiny Decoder LM으로 복귀한다."
         }
       ],
       "studyTime": {
         "minutes": 155,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Logistic 원시 점수·sigmoid·확률·최종 No/Yes Label 연결 확인</li><li>Threshold <code>0.5 → 0.3</code>에서 Yes 예측 수와 Precision·Recall·F1 변화 비교</li><li>Pipeline과 <code>named_steps[\"model\"]</code>, <code>y_train</code> 정답 Series의 역할 구분</li><li>DecisionTree의 현재 고객 묶음·후보 질문·Gini·잎 예측 구조 이해</li><li>기본 Tree 깊이 22·잎 1,106개와 Train·Validation 과적합 확인</li><li><code>max_depth=3·5·7</code>과 <code>min_samples_leaf=10</code> 비교</li><li>Accuracy와 Yes Recall을 함께 읽어 모델을 고르는 비용 기준 확인</li><li>scikit-learn 회원 이탈 Baseline 챕터 완료와 PyTorch Module·Optimizer 전환 확정</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-19",
       "topics": [
         {
-          "titleHtml": "StandardScaler를 작은 숫자로 검증",
-          "bodyHtml": "<code>tiny_x=[2,4,6]</code>에서 평균 <code>μ=4</code>, 원래 표준편차 <code>σ</code>, 변환 뒤 표준편차 <code>σ_z</code>를 분리해 보았다. <code>z=(x-μ)/σ</code>의 평균이 0, 표준편차가 1이 되는 이유는 원래 퍼짐 <code>σ</code>를 다시 <code>σ</code>로 나누기 때문이며, 분산 계산에서는 <code>σ²/σ²=1</code>이 된다는 흐름을 작은 배열로 확인했다."
+          "id": "2026-08-19-topic-01",
+          "title": "StandardScaler를 작은 숫자로 검증",
+          "bodyMarkdown": "`tiny_x=[2,4,6]`에서 평균 `μ=4`, 원래 표준편차 `σ`, 변환 뒤 표준편차 `σ_z`를 분리해 보았다. `z=(x-μ)/σ`의 평균이 0, 표준편차가 1이 되는 이유는 원래 퍼짐 `σ`를 다시 `σ`로 나누기 때문이며, 분산 계산에서는 `σ²/σ²=1`이 된다는 흐름을 작은 배열로 확인했다."
         },
         {
-          "titleHtml": "전처리와 Logistic Regression Baseline 연결",
-          "bodyHtml": "범주형 Feature는 One-Hot, 숫자형 Feature는 StandardScaler로 전처리해 Train <code>(5634,45)</code>·Validation <code>(1409,45)</code>를 만들었다. 전처리기의 <code>fit_transform()</code>은 입력 표현을 바꾸고, <code>LogisticRegression.fit(X_train_processed,y_train)</code>은 Feature와 Label의 관계에 맞게 모델 가중치를 학습한다는 차이를 확인했다. Logistic Accuracy는 <code>80.55%</code>로, 최빈 No만 예측한 Dummy Baseline <code>73.46%</code>보다 <code>7.10%p</code> 높았다."
+          "id": "2026-08-19-topic-02",
+          "title": "전처리와 Logistic Regression Baseline 연결",
+          "bodyMarkdown": "범주형 Feature는 One-Hot, 숫자형 Feature는 StandardScaler로 전처리해 Train `(5634,45)`·Validation `(1409,45)`를 만들었다. 전처리기의 `fit_transform()`은 입력 표현을 바꾸고, `LogisticRegression.fit(X_train_processed,y_train)`은 Feature와 Label의 관계에 맞게 모델 가중치를 학습한다는 차이를 확인했다. Logistic Accuracy는 `80.55%`로, 최빈 No만 예측한 Dummy Baseline `73.46%`보다 `7.10%p` 높았다."
         },
         {
-          "titleHtml": "Confusion Matrix를 Pandas 표로 읽기",
-          "bodyHtml": "<code>confusion_matrix(y_valid, logistic_predictions, labels=[\"No\",\"Yes\"])</code>의 행은 실제 정답, 열은 모델 예측임을 확인했다. <code>pd.DataFrame(..., index=..., columns=...)</code>으로 실제·예측 제목을 붙여 읽었고, 실제 No·예측 No 926명과 실제 Yes·예측 Yes 209명이 정답이므로 Accuracy가 <code>(926+209)/1409=80.55%</code>임을 연결했다."
+          "id": "2026-08-19-topic-03",
+          "title": "Confusion Matrix를 Pandas 표로 읽기",
+          "bodyMarkdown": "`confusion_matrix(y_valid, logistic_predictions, labels=[\"No\",\"Yes\"])`의 행은 실제 정답, 열은 모델 예측임을 확인했다. `pd.DataFrame(..., index=..., columns=...)`으로 실제·예측 제목을 붙여 읽었고, 실제 No·예측 No 926명과 실제 Yes·예측 Yes 209명이 정답이므로 Accuracy가 `(926+209)/1409=80.55%`임을 연결했다."
         },
         {
-          "titleHtml": "Yes 기준 Recall·Precision·F1과 비용 기준",
-          "bodyHtml": "실제 Yes 374명 중 209명을 찾은 Recall은 <code>55.88%</code>, 모델이 Yes로 예측한 318명 중 실제 Yes 209명의 비율인 Precision은 <code>65.72%</code>, 두 값을 함께 보는 F1은 <code>60.40%</code>임을 직접 계산했다. 이탈 고객을 놓치는 비용이 크면 Recall, 불필요한 이탈 방지 조치 비용이 크면 Precision, 두 비용이 비슷하면 F1을 중점으로 본다는 판단 기준도 정리했다."
+          "id": "2026-08-19-topic-04",
+          "title": "Yes 기준 Recall·Precision·F1과 비용 기준",
+          "bodyMarkdown": "실제 Yes 374명 중 209명을 찾은 Recall은 `55.88%`, 모델이 Yes로 예측한 318명 중 실제 Yes 209명의 비율인 Precision은 `65.72%`, 두 값을 함께 보는 F1은 `60.40%`임을 직접 계산했다. 이탈 고객을 놓치는 비용이 크면 Recall, 불필요한 이탈 방지 조치 비용이 크면 Precision, 두 비용이 비슷하면 F1을 중점으로 본다는 판단 기준도 정리했다."
         },
         {
-          "titleHtml": "Classification Report의 평균 방식",
-          "bodyHtml": "<code>classification_report()</code>에서 각 No·Yes 행은 해당 클래스를 기준으로 한 Precision·Recall·F1이고, <code>support</code>는 실제 인원수임을 읽었다. <code>macro avg</code>는 No·Yes 점수를 같은 비중으로 평균내며, <code>weighted avg</code>는 No 1,035명·Yes 374명의 실제 비율을 가중치로 사용한다. 예를 들어 weighted Precision은 <code>(0.849×1035 + 0.657×374)/1409 ≈ 0.798</code>이다. 이는 Softmax나 모델이 학습한 비중이 아니라 인원 비율을 반영한 평균이다."
+          "id": "2026-08-19-topic-05",
+          "title": "Classification Report의 평균 방식",
+          "bodyMarkdown": "`classification_report()`에서 각 No·Yes 행은 해당 클래스를 기준으로 한 Precision·Recall·F1이고, `support`는 실제 인원수임을 읽었다. `macro avg`는 No·Yes 점수를 같은 비중으로 평균내며, `weighted avg`는 No 1,035명·Yes 374명의 실제 비율을 가중치로 사용한다. 예를 들어 weighted Precision은 `(0.849×1035 + 0.657×374)/1409 ≈ 0.798`이다. 이는 Softmax나 모델이 학습한 비중이 아니라 인원 비율을 반영한 평균이다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "Logistic Regression의 <code>predict_proba()</code>로 No·Yes 확률을 먼저 확인하고, 기준선(Threshold)을 바꿨을 때 Precision과 Recall의 trade-off가 어떻게 달라지는지 한 번 비교한다. 이후 Pipeline과 Tree Baseline 비교로 첫 데이터 관문을 마감한다."
+          "id": "2026-08-19-topic-06",
+          "title": "다음 시작점",
+          "bodyMarkdown": "Logistic Regression의 `predict_proba()`로 No·Yes 확률을 먼저 확인하고, 기준선(Threshold)을 바꿨을 때 Precision과 Recall의 trade-off가 어떻게 달라지는지 한 번 비교한다. 이후 Pipeline과 Tree Baseline 비교로 첫 데이터 관문을 마감한다."
         }
       ],
       "studyTime": {
         "minutes": 120,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>StandardScaler의 평균 0·표준편차 1을 작은 배열과 <code>σ</code>·<code>σ_z</code> 구분으로 검증</li><li>전처리기와 Logistic Regression 모델의 <code>fit</code> 역할 구분</li><li>Dummy 73.46%와 Logistic 80.55% Accuracy 비교</li><li>Confusion Matrix 행·열, Accuracy, Yes Recall 55.88%·Precision 65.72%·F1 60.40% 직접 계산</li><li><code>classification_report</code>의 support·macro average·weighted average와 인원수 가중치 해석</li><li>이탈 놓침 비용과 불필요한 조치 비용에 따라 Recall·Precision·F1의 우선순위를 정하는 기준 이해</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-18",
       "topics": [
         {
-          "titleHtml": "범주형 Feature 전체를 One-Hot Encoding",
-          "bodyHtml": "문자열 범주형 Feature들을 <code>OneHotEncoder</code>로 숫자 열로 바꾸고, 각 범주를 별도의 자리로 표현하는 흐름을 확인했다. <code>ColumnTransformer</code>의 한 작업이 <code>(작업 이름, 실행할 변환기, 적용할 컬럼 목록)</code>으로 구성된다는 점도 코드와 연결했다."
+          "id": "2026-08-18-topic-01",
+          "title": "범주형 Feature 전체를 One-Hot Encoding",
+          "bodyMarkdown": "문자열 범주형 Feature들을 `OneHotEncoder`로 숫자 열로 바꾸고, 각 범주를 별도의 자리로 표현하는 흐름을 확인했다. `ColumnTransformer`의 한 작업이 `(작업 이름, 실행할 변환기, 적용할 컬럼 목록)`으로 구성된다는 점도 코드와 연결했다."
         },
         {
-          "titleHtml": "Train에 맞추고 Validation에는 같은 기준 적용",
-          "bodyHtml": "전처리기는 Train 데이터로 <code>fit</code>해 범주별 자리를 정하고, Validation에는 새로 자리를 만들지 않고 Train에서 정한 자리를 그대로 사용해 <code>transform</code>해야 한다고 이해했다. 전체 변환 결과 Shape은 Train <code>[5634,45]</code>, Validation <code>[1409,45]</code>였고 두 데이터의 Feature 수가 45개로 일치했다."
+          "id": "2026-08-18-topic-02",
+          "title": "Train에 맞추고 Validation에는 같은 기준 적용",
+          "bodyMarkdown": "전처리기는 Train 데이터로 `fit`해 범주별 자리를 정하고, Validation에는 새로 자리를 만들지 않고 Train에서 정한 자리를 그대로 사용해 `transform`해야 한다고 이해했다. 전체 변환 결과 Shape은 Train `[5634,45]`, Validation `[1409,45]`였고 두 데이터의 Feature 수가 45개로 일치했다."
         },
         {
-          "titleHtml": "숫자형 Feature와 <code>StandardScaler</code>",
-          "bodyHtml": "숫자형 컬럼에는 <code>StandardScaler</code>를 적용하며, 각 값을 대략 <code>(x - 평균) / 표준편차</code>로 바꿔 서로 다른 단위와 크기를 비슷한 범위에서 비교할 수 있게 한다는 목적을 정리했다."
+          "id": "2026-08-18-topic-03",
+          "title": "숫자형 Feature와 `StandardScaler`",
+          "bodyMarkdown": "숫자형 컬럼에는 `StandardScaler`를 적용하며, 각 값을 대략 `(x - 평균) / 표준편차`로 바꿔 서로 다른 단위와 크기를 비슷한 범위에서 비교할 수 있게 한다는 목적을 정리했다."
         },
         {
-          "titleHtml": "내일 복습할 미완료 검증",
-          "bodyHtml": "<code>StandardScaler</code>가 Train 숫자형 출력의 평균을 0, 표준편차를 1에 가깝게 만드는지는 아직 실제 출력으로 증명하지 않았다. 다음 학습에서는 변환된 숫자형 열의 평균과 표준편차를 직접 계산해 확인한 뒤 Logistic Regression으로 진행한다."
+          "id": "2026-08-18-topic-04",
+          "title": "내일 복습할 미완료 검증",
+          "bodyMarkdown": "`StandardScaler`가 Train 숫자형 출력의 평균을 0, 표준편차를 1에 가깝게 만드는지는 아직 실제 출력으로 증명하지 않았다. 다음 학습에서는 변환된 숫자형 열의 평균과 표준편차를 직접 계산해 확인한 뒤 Logistic Regression으로 진행한다."
         }
       ],
       "studyTime": {
         "minutes": 120,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>범주형 Feature 전체에 <code>OneHotEncoder</code> 적용</li><li><code>ColumnTransformer</code>의 <code>(작업명, 작업, 컬럼 목록)</code> 구조 이해</li><li>Train에서 범주 자리를 학습하고 Validation에는 같은 자리로 변환하는 원칙 확인</li><li>변환 Shape Train <code>[5634,45]</code>·Validation <code>[1409,45]</code> 검증</li><li>숫자형 Feature에 <code>StandardScaler</code>를 적용하는 목적과 <code>(x - 평균) / 표준편차</code> 흐름 정리</li><li>출력 표준편차가 1인지 직접 확인하는 검증은 다음 학습의 복습 항목으로 보류</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-17",
       "topics": [
         {
-          "titleHtml": "LayerNorm을 실제 숫자와 연결",
-          "bodyHtml": "첫 Residual 결과의 Token별 평균을 빼고 표준편차로 나누면 각 Token의 마지막 특징 차원이 평균 0, 분산 1에 가까워진다는 흐름을 확인했다. <code>2.9802e-08</code>은 정확한 0을 Float로 계산하면서 생긴 매우 작은 오차이므로 사실상 0으로 해석했다. 두 번째 Residual 뒤에도 같은 이유로 별도의 <code>nn.LayerNorm(d_model)</code>이 필요하다고 먼저 예측하고 실행 결과로 검증했다."
+          "id": "2026-08-17-topic-01",
+          "title": "LayerNorm을 실제 숫자와 연결",
+          "bodyMarkdown": "첫 Residual 결과의 Token별 평균을 빼고 표준편차로 나누면 각 Token의 마지막 특징 차원이 평균 0, 분산 1에 가까워진다는 흐름을 확인했다. `2.9802e-08`은 정확한 0을 Float로 계산하면서 생긴 매우 작은 오차이므로 사실상 0으로 해석했다. 두 번째 Residual 뒤에도 같은 이유로 별도의 `nn.LayerNorm(d_model)`이 필요하다고 먼저 예측하고 실행 결과로 검증했다."
         },
         {
-          "titleHtml": "FFN의 확장·GELU·축소 의미",
-          "bodyHtml": "<code>nn.Linear(2,4)</code>는 층을 만드는 것이고, <code>expanded_output = ffn_expand(normalized_output)</code>은 그 층에 실제 Tensor를 넣어 실행하는 것임을 구분했다. 첫 Linear는 Token마다 더 넓은 중간 특징 공간을 만들고, GELU는 음수를 곧바로 노이즈로 판정하는 것이 아니라 학습된 중간 반응의 전달 정도를 부드럽게 조절하며, 두 번째 Linear는 <code>4 → 2</code>로 돌아오면서 현재 표현에 더할 수정값을 만든다고 이해했다."
+          "id": "2026-08-17-topic-02",
+          "title": "FFN의 확장·GELU·축소 의미",
+          "bodyMarkdown": "`nn.Linear(2,4)`는 층을 만드는 것이고, `expanded_output = ffn_expand(normalized_output)`은 그 층에 실제 Tensor를 넣어 실행하는 것임을 구분했다. 첫 Linear는 Token마다 더 넓은 중간 특징 공간을 만들고, GELU는 음수를 곧바로 노이즈로 판정하는 것이 아니라 학습된 중간 반응의 전달 정도를 부드럽게 조절하며, 두 번째 Linear는 `4 → 2`로 돌아오면서 현재 표현에 더할 수정값을 만든다고 이해했다."
         },
         {
-          "titleHtml": "두 번째 Residual과 Dropout",
-          "bodyHtml": "<code>x + Attention</code>을 정돈한 <code>normalized_output</code>에 FFN이 만든 <code>contracted_output</code>을 다시 더해 현재 표현이 사라지지 않게 한다고 설명했다. Dropout은 훈련 중 일부 원소를 확률적으로 0으로 만들고 살아남은 값을 보정하지만 Shape은 유지하며, <code>eval()</code>에서는 무작위 제거가 꺼져 같은 입력에 같은 결과가 나오는 것을 확인했다."
+          "id": "2026-08-17-topic-03",
+          "title": "두 번째 Residual과 Dropout",
+          "bodyMarkdown": "`x + Attention`을 정돈한 `normalized_output`에 FFN이 만든 `contracted_output`을 다시 더해 현재 표현이 사라지지 않게 한다고 설명했다. Dropout은 훈련 중 일부 원소를 확률적으로 0으로 만들고 살아남은 값을 보정하지만 Shape은 유지하며, `eval()`에서는 무작위 제거가 꺼져 같은 입력에 같은 결과가 나오는 것을 확인했다."
         },
         {
-          "titleHtml": "<code>TransformerBlock.forward()</code> 완성",
-          "bodyHtml": "Attention → Attention Dropout → 첫 Residual → LayerNorm → FFN 확장 → GELU → 축소 → FFN Dropout → 두 번째 Residual → LayerNorm을 하나의 클래스에 연결했다. 입력과 최종 출력 Shape이 모두 <code>[1,2,2]</code>로 유지되고, 최종 Token별 평균은 사실상 0, <code>unbiased=False</code> 분산은 1임을 확인했다."
+          "id": "2026-08-17-topic-04",
+          "title": "`TransformerBlock.forward()` 완성",
+          "bodyMarkdown": "Attention → Attention Dropout → 첫 Residual → LayerNorm → FFN 확장 → GELU → 축소 → FFN Dropout → 두 번째 Residual → LayerNorm을 하나의 클래스에 연결했다. 입력과 최종 출력 Shape이 모두 `[1,2,2]`로 유지되고, 최종 Token별 평균은 사실상 0, `unbiased=False` 분산은 1임을 확인했다."
         },
         {
-          "titleHtml": "Attention이 입력에 추가하는 정보 설명",
-          "bodyHtml": "각 Token의 Q가 질의 역할을 하고 K와 비교해 다른 Token을 얼마나 참고할지 비율을 만든 뒤, 그 비율로 V를 섞어 현재 Token의 문맥 정보를 만든다고 설명했다. 첫 Residual은 이 문맥 정보를 원래 <code>x</code>와 합쳐 기존 의미를 보존하고, 두 번째 Residual은 정규화된 현재 표현과 FFN 수정값을 합쳐 기존 표현을 보존한다."
+          "id": "2026-08-17-topic-05",
+          "title": "Attention이 입력에 추가하는 정보 설명",
+          "bodyMarkdown": "각 Token의 Q가 질의 역할을 하고 K와 비교해 다른 Token을 얼마나 참고할지 비율을 만든 뒤, 그 비율로 V를 섞어 현재 Token의 문맥 정보를 만든다고 설명했다. 첫 Residual은 이 문맥 정보를 원래 `x`와 합쳐 기존 의미를 보존하고, 두 번째 Residual은 정규화된 현재 표현과 FFN 수정값을 합쳐 기존 표현을 보존한다."
         },
         {
-          "titleHtml": "다음 학습 트랙을 Machine Learning으로 전환",
-          "bodyHtml": "TransformerBlock의 구현·Shape·설명 완료 조건을 모두 충족해 Transformer 로드맵 6개 중 5개를 닫았다. 최근 Transformer 집중은 이 마일스톤을 완성하기 위한 생산적인 집중이었지만, 다음 Tiny Decoder LM에 바로 들어가기 전에 실제 데이터 분할·Baseline·Metric·일반화 경험과 PyTorch 학습 구조를 보강하기로 했다. 현재 순서는 회원 이탈 데이터 Baseline → <code>nn.Module</code>·Optimizer → Tiny Decoder LM 복귀다."
+          "id": "2026-08-17-topic-06",
+          "title": "다음 학습 트랙을 Machine Learning으로 전환",
+          "bodyMarkdown": "TransformerBlock의 구현·Shape·설명 완료 조건을 모두 충족해 Transformer 로드맵 6개 중 5개를 닫았다. 최근 Transformer 집중은 이 마일스톤을 완성하기 위한 생산적인 집중이었지만, 다음 Tiny Decoder LM에 바로 들어가기 전에 실제 데이터 분할·Baseline·Metric·일반화 경험과 PyTorch 학습 구조를 보강하기로 했다. 현재 순서는 회원 이탈 데이터 Baseline → `nn.Module`·Optimizer → Tiny Decoder LM 복귀다."
         },
         {
-          "titleHtml": "회원 이탈 데이터 구조와 품질 점검",
-          "bodyHtml": "IBM 공개 회원 이탈 CSV의 <code>7,043행 × 21열</code> 구조에서 한 행이 고객 한 명임을 확인했다. 숫자여야 할 <code>TotalCharges</code>가 <code>object</code>였고, <code>isna()</code>는 정식 NA만 찾기 때문에 공백 문자열 11개를 놓친다는 점을 구분했다. <code>str.strip().eq(\"\").sum()</code>으로 숨은 공백을 찾고, Boolean 조건을 <code>df.loc[행 조건, 열]</code>에 넣는 불리언 인덱싱으로 해당 행을 확인했다."
+          "id": "2026-08-17-topic-07",
+          "title": "회원 이탈 데이터 구조와 품질 점검",
+          "bodyMarkdown": "IBM 공개 회원 이탈 CSV의 `7,043행 × 21열` 구조에서 한 행이 고객 한 명임을 확인했다. 숫자여야 할 `TotalCharges`가 `object`였고, `isna()`는 정식 NA만 찾기 때문에 공백 문자열 11개를 놓친다는 점을 구분했다. `str.strip().eq(\"\").sum()`으로 숨은 공백을 찾고, Boolean 조건을 `df.loc[행 조건, 열]`에 넣는 불리언 인덱싱으로 해당 행을 확인했다."
         },
         {
-          "titleHtml": "근거를 확인한 결측값·중복 처리",
-          "bodyHtml": "공백 11행의 <code>tenure</code>가 모두 0임을 먼저 확인한 뒤 <code>pd.to_numeric(errors=\"coerce\")</code>로 숫자가 아닌 공백을 <code>NaN</code>으로 바꾸고 <code>fillna(0)</code>으로 처리했다. 처리 뒤 결측값은 0개였고, 완전히 같은 중복 행도 0개였다. <code>isna()</code>는 “is NA?”로, <code>fillna()</code>는 “NA를 채운다”로 연결해 기억했다."
+          "id": "2026-08-17-topic-08",
+          "title": "근거를 확인한 결측값·중복 처리",
+          "bodyMarkdown": "공백 11행의 `tenure`가 모두 0임을 먼저 확인한 뒤 `pd.to_numeric(errors=\"coerce\")`로 숫자가 아닌 공백을 `NaN`으로 바꾸고 `fillna(0)`으로 처리했다. 처리 뒤 결측값은 0개였고, 완전히 같은 중복 행도 0개였다. `isna()`는 “is NA?”로, `fillna()`는 “NA를 채운다”로 연결해 기억했다."
         },
         {
-          "titleHtml": "Label 분포와 Train·Validation 분할",
-          "bodyHtml": "<code>Churn</code>은 No 5,174명(73.46%), Yes 1,869명(26.54%)이었으며, <code>value_counts(normalize=True)</code>의 <code>normalize</code>는 평균이 아니라 각 개수를 전체 개수로 나눈 비율이라는 점을 확인했다. <code>customerID</code>와 정답 <code>Churn</code>을 제외해 <code>X=[7043,19]</code>, <code>y=[7043]</code>로 나누고, 80:20 분할로 Train 5,634명과 Validation 1,409명을 만들었다. <code>stratify=y</code>가 두 집합의 No·Yes 비율을 원본과 거의 같게 유지한다는 것도 직접 검증했다."
+          "id": "2026-08-17-topic-09",
+          "title": "Label 분포와 Train·Validation 분할",
+          "bodyMarkdown": "`Churn`은 No 5,174명(73.46%), Yes 1,869명(26.54%)이었으며, `value_counts(normalize=True)`의 `normalize`는 평균이 아니라 각 개수를 전체 개수로 나눈 비율이라는 점을 확인했다. `customerID`와 정답 `Churn`을 제외해 `X=[7043,19]`, `y=[7043]`로 나누고, 80:20 분할로 Train 5,634명과 Validation 1,409명을 만들었다. `stratify=y`가 두 집합의 No·Yes 비율을 원본과 거의 같게 유지한다는 것도 직접 검증했다."
         },
         {
-          "titleHtml": "학습·검증과 모델의 역할 구분",
-          "bodyHtml": "Train에서는 <code>X_train</code>으로 만든 예측을 <code>y_train</code>과 비교해 가중치를 수정하고, Validation에서는 <code>X_valid</code>의 예측을 <code>y_valid</code>와 비교하되 가중치를 수정하지 않는다고 설명했다. 모델은 입력을 예측으로 바꾸는 계산 구조이고, 학습은 그 구조 안의 가중치를 정답에 가까워지도록 조정하는 과정이라고 이해했다."
+          "id": "2026-08-17-topic-10",
+          "title": "학습·검증과 모델의 역할 구분",
+          "bodyMarkdown": "Train에서는 `X_train`으로 만든 예측을 `y_train`과 비교해 가중치를 수정하고, Validation에서는 `X_valid`의 예측을 `y_valid`와 비교하되 가중치를 수정하지 않는다고 설명했다. 모델은 입력을 예측으로 바꾸는 계산 구조이고, 학습은 그 구조 안의 가중치를 정답에 가까워지도록 조정하는 과정이라고 이해했다."
         },
         {
-          "titleHtml": "Dummy Baseline과 자료형 연결",
-          "bodyHtml": "<code>DummyClassifier(strategy=\"most_frequent\")</code>는 Feature 패턴을 사용하지 않고 <code>y_train</code>에서 가장 많은 No만 모든 Validation 고객에게 예측했다. 1,409개 예측이 모두 No임을 확인하고, 예측과 실제 정답을 비교한 Boolean 배열의 평균으로 Accuracy 73.456%를 수동 계산했다. NumPy <code>ndarray</code>는 값과 Shape 중심의 다차원 배열이고 Pandas <code>Series</code>는 index와 이름을 가진 1차원 자료구조이며, <code>pd.Series(dummy_predictions).value_counts()</code>로 예측별 개수를 세었다. 예측 출력 Shape은 입력 Feature 수가 아니라 예측 Target 수와 API의 반환 규칙에 따라 결정된다는 점도 구분했다."
+          "id": "2026-08-17-topic-11",
+          "title": "Dummy Baseline과 자료형 연결",
+          "bodyMarkdown": "`DummyClassifier(strategy=\"most_frequent\")`는 Feature 패턴을 사용하지 않고 `y_train`에서 가장 많은 No만 모든 Validation 고객에게 예측했다. 1,409개 예측이 모두 No임을 확인하고, 예측과 실제 정답을 비교한 Boolean 배열의 평균으로 Accuracy 73.456%를 수동 계산했다. NumPy `ndarray`는 값과 Shape 중심의 다차원 배열이고 Pandas `Series`는 index와 이름을 가진 1차원 자료구조이며, `pd.Series(dummy_predictions).value_counts()`로 예측별 개수를 세었다. 예측 출력 Shape은 입력 Feature 수가 아니라 예측 Target 수와 API의 반환 규칙에 따라 결정된다는 점도 구분했다."
         },
         {
-          "titleHtml": "다음 시작점",
-          "bodyHtml": "숫자형 Feature와 범주형 Feature를 구분해 전처리한 뒤 Logistic Regression을 학습하고, 동일한 Train·Validation 분할과 Metric에서 Dummy Accuracy 73.456%를 넘어서는지 비교한다."
+          "id": "2026-08-17-topic-12",
+          "title": "다음 시작점",
+          "bodyMarkdown": "숫자형 Feature와 범주형 Feature를 구분해 전처리한 뒤 Logistic Regression을 학습하고, 동일한 Train·Validation 분할과 Metric에서 Dummy Accuracy 73.456%를 넘어서는지 비교한다."
         }
       ],
       "studyTime": {
         "minutes": 305,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Residual 결과에 LayerNorm을 적용하고 Token별 평균 0·분산 1 확인</li><li>부동소수점 오차 <code>2.9802e-08</code>을 사실상 0으로 해석</li><li>FFN의 <code>d_model → d_ff → d_model</code> 흐름과 Linear 생성·실행 구분</li><li>GELU가 음수를 노이즈로 판정하는 것이 아니라 중간 반응의 전달 정도를 조절한다는 점 정리</li><li>두 번째 Residual·LayerNorm과 Dropout의 <code>train()/eval()</code> 차이 검증</li><li><code>TransformerBlock.forward()</code> 전체 연결과 Shape·Token별 통계 검증</li><li>Q·K의 참고 비율로 V를 섞어 현재 Token의 문맥을 만든다는 Attention 역할 설명</li><li>다음 순서를 ML Baseline → PyTorch Module·Optimizer → Tiny Decoder LM으로 확정</li><li>회원 이탈 CSV <code>7,043행 × 21열</code> 구조·dtype·공백 결측·중복 점검</li><li><code>strip()</code>·<code>eq(\"\")</code>·<code>isna()</code>·<code>fillna()</code>와 <code>df.loc</code> 불리언 인덱싱 실습</li><li><code>Churn</code> No 73.46%·Yes 26.54% 분포와 <code>normalize=True</code>의 비율 의미 확인</li><li><code>X=[7043,19]</code>·<code>y=[7043]</code> 분리와 Train 5,634명·Validation 1,409명 분할</li><li><code>stratify=y</code>로 Label 비율 유지 검증, Train의 가중치 수정과 Validation 평가 역할 구분</li><li>모델 구조와 학습의 역할, NumPy 배열과 Pandas Series의 차이 정리</li><li>최빈 No만 예측하는 Dummy Baseline과 Accuracy 73.456% 수동 검산</li><li>다음 시작점을 숫자·범주형 전처리와 Logistic Regression 비교로 확정</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-16",
       "topics": [
         {
-          "titleHtml": "Score 분산과 <code>√head_dim</code> Scaling의 연결 완성",
-          "bodyHtml": "<code>head_dim=2</code>인 한 Score를 <code>Score=A+B</code>로 두고, <code>(A+B)²=A²+2AB+B²</code>를 여러 Score에 걸쳐 평균내는 과정을 따라갔다. 평균 0·분산 1·독립이라는 전제에서는 <code>A²</code>와 <code>B²</code>의 평균이 각각 1이고 <code>AB</code>의 평균이 0에 가까워져 Score 분산이 2, 표준편차가 <code>√2</code>가 된다는 점을 확인했다."
+          "id": "2026-08-16-topic-01",
+          "title": "Score 분산과 `√head_dim` Scaling의 연결 완성",
+          "bodyMarkdown": "`head_dim=2`인 한 Score를 `Score=A+B`로 두고, `(A+B)²=A²+2AB+B²`를 여러 Score에 걸쳐 평균내는 과정을 따라갔다. 평균 0·분산 1·독립이라는 전제에서는 `A²`와 `B²`의 평균이 각각 1이고 `AB`의 평균이 0에 가까워져 Score 분산이 2, 표준편차가 `√2`가 된다는 점을 확인했다."
         },
         {
-          "titleHtml": "Score 평균의 제곱과 Score 제곱의 평균 구분",
-          "bodyHtml": "<code>Score=[2,0,0,-2]</code>에서 Score 평균의 제곱은 0이지만, 각 Score를 먼저 제곱한 값은 <code>[4,0,0,4]</code>이고 그 평균은 2다. Score 평균이 0일 때 분산 공식의 <code>(Score-평균)²</code>가 <code>Score²</code>가 되므로 Score 제곱의 평균 2가 곧 분산이고, 표준편차는 <code>√2</code>가 된다는 중간 단계를 명확히 연결했다."
+          "id": "2026-08-16-topic-02",
+          "title": "Score 평균의 제곱과 Score 제곱의 평균 구분",
+          "bodyMarkdown": "`Score=[2,0,0,-2]`에서 Score 평균의 제곱은 0이지만, 각 Score를 먼저 제곱한 값은 `[4,0,0,4]`이고 그 평균은 2다. Score 평균이 0일 때 분산 공식의 `(Score-평균)²`가 `Score²`가 되므로 Score 제곱의 평균 2가 곧 분산이고, 표준편차는 `√2`가 된다는 중간 단계를 명확히 연결했다."
         },
         {
-          "titleHtml": "통계적 전제와 개별 Score의 구분",
-          "bodyHtml": "모든 원소가 같은 방향이거나 서로 강하게 연관된 경우에도 항상 <code>√head_dim</code>이 나오는 것은 아니다. 각 Score 하나의 값이 반드시 커진다는 뜻도 아니며, 평균 0에 가까운 독립적인 곱을 여러 개 합산한 Score 집단의 전체적인 퍼짐이 커진다는 통계적 분석임을 구분했다."
+          "id": "2026-08-16-topic-03",
+          "title": "통계적 전제와 개별 Score의 구분",
+          "bodyMarkdown": "모든 원소가 같은 방향이거나 서로 강하게 연관된 경우에도 항상 `√head_dim`이 나오는 것은 아니다. 각 Score 하나의 값이 반드시 커진다는 뜻도 아니며, 평균 0에 가까운 독립적인 곱을 여러 개 합산한 Score 집단의 전체적인 퍼짐이 커진다는 통계적 분석임을 구분했다."
         },
         {
-          "titleHtml": "Multi-Head Attention 전체 <code>forward()</code> 완성",
-          "bodyHtml": "Q·K·V Projection부터 Head 분리, Score·Scaling·Softmax, Value 가중합, Token 기준 재정렬, <code>d_model</code> 병합과 Output Projection <code>W_O</code>까지 하나의 <code>nn.Module.forward()</code>로 연결했다. 최종 <code>projected_output</code>의 Shape이 <code>[batch,token,d_model]=[1,2,2]</code>로 유지되는 것을 실행 결과로 확인했다."
+          "id": "2026-08-16-topic-04",
+          "title": "Multi-Head Attention 전체 `forward()` 완성",
+          "bodyMarkdown": "Q·K·V Projection부터 Head 분리, Score·Scaling·Softmax, Value 가중합, Token 기준 재정렬, `d_model` 병합과 Output Projection `W_O`까지 하나의 `nn.Module.forward()`로 연결했다. 최종 `projected_output`의 Shape이 `[batch,token,d_model]=[1,2,2]`로 유지되는 것을 실행 결과로 확인했다."
         },
         {
-          "titleHtml": "<code>transpose(1,2)</code> 값 재배치 검증",
-          "bodyHtml": "<code>[1,2,3,1]</code> Tensor에서 Head A의 <code>[0,1,2]</code>와 Head B의 <code>[3,4,5]</code>가 <code>transpose(1,2)</code> 뒤 Token별 <code>[[0,3],[1,4],[2,5]]</code> 묶음으로 바뀔 것을 먼저 주석으로 예측했다. 실제 Shape <code>[1,3,2,1]</code>과 값이 예상과 일치했다."
+          "id": "2026-08-16-topic-05",
+          "title": "`transpose(1,2)` 값 재배치 검증",
+          "bodyMarkdown": "`[1,2,3,1]` Tensor에서 Head A의 `[0,1,2]`와 Head B의 `[3,4,5]`가 `transpose(1,2)` 뒤 Token별 `[[0,3],[1,4],[2,5]]` 묶음으로 바뀔 것을 먼저 주석으로 예측했다. 실제 Shape `[1,3,2,1]`과 값이 예상과 일치했다."
         },
         {
-          "titleHtml": "Residual 연결의 의미와 계산",
-          "bodyHtml": "Residual은 Attention 결과로 원래 입력을 교체하는 것이 아니라, <code>x + projected_output</code>으로 원본 Token 정보에 Attention이 알아낸 정보를 더하는 연결이라고 이해했다. 실제 결과 <code>[[[0.9800,0.0252],[-0.0737,1.0376]]]</code>와 Shape <code>[1,2,2]</code> 유지를 확인했다. Multi-Head Attention 클래스의 입력 <code>[batch,token,d_model]</code>에서 Batch가 여러 시퀀스를 담되 서로 섞이지 않고 독립적으로 Attention 계산된다는 점도 복습했다."
+          "id": "2026-08-16-topic-06",
+          "title": "Residual 연결의 의미와 계산",
+          "bodyMarkdown": "Residual은 Attention 결과로 원래 입력을 교체하는 것이 아니라, `x + projected_output`으로 원본 Token 정보에 Attention이 알아낸 정보를 더하는 연결이라고 이해했다. 실제 결과 `[[[0.9800,0.0252],[-0.0737,1.0376]]]`와 Shape `[1,2,2]` 유지를 확인했다. Multi-Head Attention 클래스의 입력 `[batch,token,d_model]`에서 Batch가 여러 시퀀스를 담되 서로 섞이지 않고 독립적으로 Attention 계산된다는 점도 복습했다."
         }
       ],
       "studyTime": {
         "minutes": 160,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Score 평균의 제곱과 Score 제곱의 평균 구분</li><li><code>[2,0,0,-2]</code> 예제로 분산 2와 표준편차 <code>√2</code> 계산</li><li><code>head_dim</code> 증가와 Score 집단의 퍼짐, 통계적 전제 정리</li><li>Multi-Head Attention 전체 <code>forward()</code>와 Output Projection 완성</li><li><code>transpose(1,2)</code>의 Head별 묶음 → Token별 묶음 변환 검증</li><li><code>x + projected_output</code> Residual 연결과 Batch 입력 의미 확인</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-15",
       "topics": [
         {
-          "titleHtml": "Head 병합과 Output Projection <code>W_O</code>",
-          "bodyHtml": "Head별 Attention 결과를 <code>transpose()</code>와 <code>reshape()</code>로 이어 붙인 <code>multi_head_output</code>은 여러 관점의 결과를 나열한 상태라고 이해했다. 이어 붙이는 연산만으로는 Head 정보가 섞이지 않으므로, <code>W_O</code> Linear가 각 특징을 학습된 비율로 다시 조합해 다음 블록에서 사용할 <code>d_model</code> 벡터로 만든다는 역할을 정리했다. 포지셔널 인코딩은 입력 <code>x</code>에 이미 더해져 Q·K·V Projection을 통과하므로 Head 계산 중 사라지는 값이 아니라는 점도 확인했다."
+          "id": "2026-08-15-topic-01",
+          "title": "Head 병합과 Output Projection `W_O`",
+          "bodyMarkdown": "Head별 Attention 결과를 `transpose()`와 `reshape()`로 이어 붙인 `multi_head_output`은 여러 관점의 결과를 나열한 상태라고 이해했다. 이어 붙이는 연산만으로는 Head 정보가 섞이지 않으므로, `W_O` Linear가 각 특징을 학습된 비율로 다시 조합해 다음 블록에서 사용할 `d_model` 벡터로 만든다는 역할을 정리했다. 포지셔널 인코딩은 입력 `x`에 이미 더해져 Q·K·V Projection을 통과하므로 Head 계산 중 사라지는 값이 아니라는 점도 확인했다."
         },
         {
-          "titleHtml": "Output Projection을 수동 행렬곱으로 검증",
-          "bodyHtml": "<code>multi_head_output[0,0]</code>이 <code>[0,0,:]</code>와 같은 0번째 Batch·0번째 Token의 전체 벡터임을 확인했다. 이 벡터를 <code>W_O.T</code>에 직접 곱한 결과와 <code>nn.Linear</code>의 <code>projected_output[0,0]</code>을 <code>torch.allclose()</code>로 비교해 동일함을 검증했다."
+          "id": "2026-08-15-topic-02",
+          "title": "Output Projection을 수동 행렬곱으로 검증",
+          "bodyMarkdown": "`multi_head_output[0,0]`이 `[0,0,:]`와 같은 0번째 Batch·0번째 Token의 전체 벡터임을 확인했다. 이 벡터를 `W_O.T`에 직접 곱한 결과와 `nn.Linear`의 `projected_output[0,0]`을 `torch.allclose()`로 비교해 동일함을 검증했다."
         },
         {
-          "titleHtml": "<code>MultiHeadAttention(nn.Module)</code> 구현",
-          "bodyHtml": "<code>assert d_model % num_heads == 0</code>으로 특징 차원이 Head 수로 나누어지는지 검사하고, <code>head_dim=d_model//num_heads</code>에서 <code>//</code>가 몫 나눗셈임을 확인했다. Q·K·V Projection은 모두 <code>nn.Linear(d_model,d_model,bias=False)</code>로 등록했다. 클래스 밖에서 <code>self.num_heads</code>를 사용해 생긴 <code>NameError</code>를 통해 <code>self</code>는 인스턴스 메서드 안에서만 사용할 수 있다는 점도 바로잡았다."
+          "id": "2026-08-15-topic-03",
+          "title": "`MultiHeadAttention(nn.Module)` 구현",
+          "bodyMarkdown": "`assert d_model % num_heads == 0`으로 특징 차원이 Head 수로 나누어지는지 검사하고, `head_dim=d_model//num_heads`에서 `//`가 몫 나눗셈임을 확인했다. Q·K·V Projection은 모두 `nn.Linear(d_model,d_model,bias=False)`로 등록했다. 클래스 밖에서 `self.num_heads`를 사용해 생긴 `NameError`를 통해 `self`는 인스턴스 메서드 안에서만 사용할 수 있다는 점도 바로잡았다."
         },
         {
-          "titleHtml": "Projection과 Head별 Shape 검증",
-          "bodyHtml": "Q·K·V Projection 직후 Shape은 모두 <code>[1,2,2]</code>였고, <code>view()</code>와 <code>transpose(1,2)</code>를 거쳐 <code>[batch,head,token,head_dim]=[1,2,2,1]</code>이 됐다. Head를 나누는 것은 Token을 늘리는 것이 아니라 Token마다 가진 특징 차원을 Head별로 나누는 것임을 다시 확인했다. 현재 <code>head_dim=1</code>에서는 <code>√1=1</code>이므로 Score Scaling 전후 숫자가 같은 것도 정상이다."
+          "id": "2026-08-15-topic-04",
+          "title": "Projection과 Head별 Shape 검증",
+          "bodyMarkdown": "Q·K·V Projection 직후 Shape은 모두 `[1,2,2]`였고, `view()`와 `transpose(1,2)`를 거쳐 `[batch,head,token,head_dim]=[1,2,2,1]`이 됐다. Head를 나누는 것은 Token을 늘리는 것이 아니라 Token마다 가진 특징 차원을 Head별로 나누는 것임을 다시 확인했다. 현재 `head_dim=1`에서는 `√1=1`이므로 Score Scaling 전후 숫자가 같은 것도 정상이다."
         },
         {
-          "titleHtml": "임베딩 초기화와 Score Scaling을 분리해 다시 보기",
-          "bodyHtml": "평균 0인 512차원 벡터에서 원소 제곱합의 기댓값을 1로 두면 각 원소의 제곱 기댓값이 <code>1/512</code>, 분산이 <code>1/512</code>, 표준편차가 <code>1/√512</code>로 이어지는 흐름을 자신의 분산 정의와 연결했다. 임베딩에 <code>√d_model</code>을 곱하는 작업과 Score를 <code>√head_dim</code>으로 나누는 작업은 서로를 취소하는 한 쌍이 아니라 목적이 다른 별도 Scaling임을 구분했다."
+          "id": "2026-08-15-topic-05",
+          "title": "임베딩 초기화와 Score Scaling을 분리해 다시 보기",
+          "bodyMarkdown": "평균 0인 512차원 벡터에서 원소 제곱합의 기댓값을 1로 두면 각 원소의 제곱 기댓값이 `1/512`, 분산이 `1/512`, 표준편차가 `1/√512`로 이어지는 흐름을 자신의 분산 정의와 연결했다. 임베딩에 `√d_model`을 곱하는 작업과 Score를 `√head_dim`으로 나누는 작업은 서로를 취소하는 한 쌍이 아니라 목적이 다른 별도 Scaling임을 구분했다."
         },
         {
-          "titleHtml": "AGI 기술 지도와 Agent Loop 아티클",
-          "bodyHtml": "AGI를 향한 연구를 하나의 알고리즘 이름으로 보지 않고 모델 구조·학습·메모리·계획·도구 사용·검증·서빙이 연결된 기술 지도로 살펴봤다. Agent Loop에서는 계획 → 실행 → 검증 이후 문제가 발견되면 결과를 다음 계획에 다시 반영하는 반복 구조와 코드 단위 검증의 역할을 읽었다."
+          "id": "2026-08-15-topic-06",
+          "title": "AGI 기술 지도와 Agent Loop 아티클",
+          "bodyMarkdown": "AGI를 향한 연구를 하나의 알고리즘 이름으로 보지 않고 모델 구조·학습·메모리·계획·도구 사용·검증·서빙이 연결된 기술 지도로 살펴봤다. Agent Loop에서는 계획 → 실행 → 검증 이후 문제가 발견되면 결과를 다음 계획에 다시 반영하는 반복 구조와 코드 단위 검증의 역할을 읽었다."
         }
       ],
       "studyTime": {
         "minutes": 270,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Head 병합, Output Projection <code>W_O</code>와 Linear의 의미</li><li>수동 행렬곱과 <code>nn.Linear</code> 결과 비교</li><li><code>MultiHeadAttention(nn.Module)</code>, <code>head_dim</code>, Q·K·V Head Shape 구현</li><li>임베딩 초기화의 평균·분산·표준편차와 Score Scaling 분리</li><li>AGI 기술 지도와 검증 결과가 계획에 반영되는 Agent Loop 읽기</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-14",
       "topics": [
         {
-          "titleHtml": "Pandas Series, Index와 <code>reset_index()</code>",
-          "bodyHtml": "Series는 Index와 1차원 값으로 이루어지고 DataFrame의 한 열이 Series로 표현될 수 있다는 구조를 복습했다. <code>value_counts()</code> 결과의 값과 Index를 구분하고, <code>reset_index()</code>는 특정 열의 값이 내려오는 것이 아니라 기존 Index가 일반 열로 이동하고 새로운 기본 Index가 생기는 동작임을 확인했다."
+          "id": "2026-08-14-topic-01",
+          "title": "Pandas Series, Index와 `reset_index()`",
+          "bodyMarkdown": "Series는 Index와 1차원 값으로 이루어지고 DataFrame의 한 열이 Series로 표현될 수 있다는 구조를 복습했다. `value_counts()` 결과의 값과 Index를 구분하고, `reset_index()`는 특정 열의 값이 내려오는 것이 아니라 기존 Index가 일반 열로 이동하고 새로운 기본 Index가 생기는 동작임을 확인했다."
         },
         {
-          "titleHtml": "게임 맵 최단거리와 BFS",
-          "bodyHtml": "2차원 격자 최단거리 문제에서 FIFO Queue를 사용하는 BFS를 적용했다. 가까운 칸부터 순서대로 방문하고, 방문한 칸에 부모 거리 <code>+1</code>을 기록하면 도착 칸에 최단거리가 남는다는 풀이 흐름을 정리했다."
+          "id": "2026-08-14-topic-02",
+          "title": "게임 맵 최단거리와 BFS",
+          "bodyMarkdown": "2차원 격자 최단거리 문제에서 FIFO Queue를 사용하는 BFS를 적용했다. 가까운 칸부터 순서대로 방문하고, 방문한 칸에 부모 거리 `+1`을 기록하면 도착 칸에 최단거리가 남는다는 풀이 흐름을 정리했다."
         },
         {
-          "titleHtml": "LLM 정밀도 형식과 Tensor 원소의 bytes",
-          "bodyHtml": "FP32·BF16·FP16·FP8·INT8·INT4·NF4가 숫자 하나를 저장하는 정밀도 형식이며, FP32의 4 bytes는 Token 전체나 Q·K·V 전체가 아니라 Tensor 안의 원소 하나당 저장량임을 확인했다. 1024차원 Token 벡터라면 FP32 숫자 1024개로 이루어지고, QK Score·Softmax 결과·Value 가중합 결과도 저장 dtype이 FP32라면 각 칸의 숫자 하나가 4 bytes를 사용한다."
+          "id": "2026-08-14-topic-03",
+          "title": "LLM 정밀도 형식과 Tensor 원소의 bytes",
+          "bodyMarkdown": "FP32·BF16·FP16·FP8·INT8·INT4·NF4가 숫자 하나를 저장하는 정밀도 형식이며, FP32의 4 bytes는 Token 전체나 Q·K·V 전체가 아니라 Tensor 안의 원소 하나당 저장량임을 확인했다. 1024차원 Token 벡터라면 FP32 숫자 1024개로 이루어지고, QK Score·Softmax 결과·Value 가중합 결과도 저장 dtype이 FP32라면 각 칸의 숫자 하나가 4 bytes를 사용한다."
         },
         {
-          "titleHtml": "7B 파라미터와 모델의 가중치 표",
-          "bodyHtml": "7B는 입력 Token 수나 만들 수 있는 벡터 종류가 아니라 Embedding·QKV Projection·Output Projection·FFN 등 모델 전체에 학습되어 저장된 숫자가 약 70억 개라는 뜻임을 구분했다. 각 Linear는 입력을 변환하는 가중치 행렬이라는 숫자 표를 가지고 있으며, 70억 개는 이러한 모든 가중치 원소를 합친 수다."
+          "id": "2026-08-14-topic-04",
+          "title": "7B 파라미터와 모델의 가중치 표",
+          "bodyMarkdown": "7B는 입력 Token 수나 만들 수 있는 벡터 종류가 아니라 Embedding·QKV Projection·Output Projection·FFN 등 모델 전체에 학습되어 저장된 숫자가 약 70억 개라는 뜻임을 구분했다. 각 Linear는 입력을 변환하는 가중치 행렬이라는 숫자 표를 가지고 있으며, 70억 개는 이러한 모든 가중치 원소를 합친 수다."
         },
         {
-          "titleHtml": "Multi-Head Attention의 Head 분리부터 병합까지",
-          "bodyHtml": "<code>view()</code>를 같은 원소를 유지한 채 Shape을 다시 해석하는 <code>reshape</code> 계열 연산으로 이해했다. <code>[batch,token,d_model]</code>을 <code>[batch,head,token,head_dim]</code>으로 바꾸어 Q·K·V를 Head별로 계산하고, Head마다 <code>[query_token,key_token]</code> Score와 Softmax 비율을 만든 뒤 Value의 가중합을 구했다. <code>dim=-1</code> 합은 각 Query에서 Key 방향 확률을 더해 1이 되는지 검사하는 연산임을 실제 Shape과 연결했다."
+          "id": "2026-08-14-topic-05",
+          "title": "Multi-Head Attention의 Head 분리부터 병합까지",
+          "bodyMarkdown": "`view()`를 같은 원소를 유지한 채 Shape을 다시 해석하는 `reshape` 계열 연산으로 이해했다. `[batch,token,d_model]`을 `[batch,head,token,head_dim]`으로 바꾸어 Q·K·V를 Head별로 계산하고, Head마다 `[query_token,key_token]` Score와 Softmax 비율을 만든 뒤 Value의 가중합을 구했다. `dim=-1` 합은 각 Query에서 Key 방향 확률을 더해 1이 되는지 검사하는 연산임을 실제 Shape과 연결했다."
         },
         {
-          "titleHtml": "위치마다 다른 sin·cos 파형",
-          "bodyHtml": "각 위치의 Token에는 차원 전체에 걸쳐 서로 다른 sin·cos 파형 모양의 위치 벡터가 더해진다. 따라서 같은 Token이라도 위치마다 다른 벡터가 되고, 모델은 이 서로 다른 파형 패턴을 통해 위치 관계를 학습할 수 있다는 직관을 그림과 함께 정리했다."
+          "id": "2026-08-14-topic-06",
+          "title": "위치마다 다른 sin·cos 파형",
+          "bodyMarkdown": "각 위치의 Token에는 차원 전체에 걸쳐 서로 다른 sin·cos 파형 모양의 위치 벡터가 더해진다. 따라서 같은 Token이라도 위치마다 다른 벡터가 되고, 모델은 이 서로 다른 파형 패턴을 통해 위치 관계를 학습할 수 있다는 직관을 그림과 함께 정리했다."
         }
       ],
       "studyTime": {
         "minutes": 150,
-        "approximate": true,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul><li>Pandas Series·Index·<code>value_counts()</code>·<code>reset_index()</code></li><li>게임 맵 최단거리 BFS</li><li>LLM 정밀도, Tensor 원소당 bytes와 7B 파라미터</li><li>Multi-Head Attention의 Head 분리·Score·Softmax·Value 가중합·병합</li><li>위치마다 다른 sin·cos 파형을 더하는 포지셔널 인코딩</li></ul>"
+        "approximate": true
       }
     },
     {
       "date": "2026-08-13",
       "topics": [
         {
-          "titleHtml": "Pandas <code>DataFrame.drop()</code>",
-          "bodyHtml": "<code>axis=0</code>은 행, <code>axis=1</code>은 열에서 삭제 대상을 찾는다는 뜻을 확인했다. <code>inplace=False</code>는 원본을 유지하고 새 DataFrame을 반환하며, <code>inplace=True</code>는 원본을 수정하고 반환값이 <code>None</code>이므로 결과를 다시 <code>df</code>에 대입하면 안 된다는 점을 정리했다."
+          "id": "2026-08-13-topic-01",
+          "title": "Pandas `DataFrame.drop()`",
+          "bodyMarkdown": "`axis=0`은 행, `axis=1`은 열에서 삭제 대상을 찾는다는 뜻을 확인했다. `inplace=False`는 원본을 유지하고 새 DataFrame을 반환하며, `inplace=True`는 원본을 수정하고 반환값이 `None`이므로 결과를 다시 `df`에 대입하면 안 된다는 점을 정리했다."
         },
         {
-          "titleHtml": "DB Index, Heap Page와 Row 위치",
-          "bodyHtml": "테이블의 Row는 Page에 저장되고, Heap은 우선순위 자료구조가 아니라 여기서는 Row가 특정 정렬 순서를 보장받지 않는 테이블 저장 구조를 뜻한다는 점을 구분했다. Index는 검색 값에서 실제 Row 위치로 이동하기 위한 별도 탐색 구조이고, B-tree의 Leaf와 연결된 위치 정보를 통해 모든 Page를 순차 검색하는 비용을 줄인다는 흐름을 정리했다."
+          "id": "2026-08-13-topic-02",
+          "title": "DB Index, Heap Page와 Row 위치",
+          "bodyMarkdown": "테이블의 Row는 Page에 저장되고, Heap은 우선순위 자료구조가 아니라 여기서는 Row가 특정 정렬 순서를 보장받지 않는 테이블 저장 구조를 뜻한다는 점을 구분했다. Index는 검색 값에서 실제 Row 위치로 이동하기 위한 별도 탐색 구조이고, B-tree의 Leaf와 연결된 위치 정보를 통해 모든 Page를 순차 검색하는 비용을 줄인다는 흐름을 정리했다."
         },
         {
-          "titleHtml": "Q·K·V Projection과 <code>nn.Linear</code> 내부 계산 확인",
-          "bodyHtml": "입력 <code>x=[1, 2, 2]</code>를 서로 다른 <code>nn.Linear(2, 2, bias=False)</code>에 통과시켜 Q·K·V를 만들었다. Linear가 마지막 벡터 차원만 변환하므로 Shape은 유지되지만, 각 Projection이 별도의 가중치를 사용해 값과 역할은 달라진다는 점을 확인했다. 또한 <code>x @ weight.T</code>를 직접 계산하고 <code>torch.allclose()</code>가 <code>True</code>임을 확인해 Linear의 결과와 직접 행렬곱이 같다는 것을 검증했다."
+          "id": "2026-08-13-topic-03",
+          "title": "Q·K·V Projection과 `nn.Linear` 내부 계산 확인",
+          "bodyMarkdown": "입력 `x=[1, 2, 2]`를 서로 다른 `nn.Linear(2, 2, bias=False)`에 통과시켜 Q·K·V를 만들었다. Linear가 마지막 벡터 차원만 변환하므로 Shape은 유지되지만, 각 Projection이 별도의 가중치를 사용해 값과 역할은 달라진다는 점을 확인했다. 또한 `x @ weight.T`를 직접 계산하고 `torch.allclose()`가 `True`임을 확인해 Linear의 결과와 직접 행렬곱이 같다는 것을 검증했다."
         },
         {
-          "titleHtml": "Score Scaling에서 평균 0과 분산의 연결 복습",
-          "bodyHtml": "<code>QKᵀ</code>로 <code>[1,2,2]</code> Score를 만들고 현재 <code>d_k=2</code>임을 확인했다. 분산은 <code>Var(X)=E[(X-E[X])²]</code>이며, 초기화 분포의 기댓값을 0으로 두었기 때문에 <code>Var(X)=E[X²]</code>로 단순화된다는 빠졌던 연결고리를 바로잡았다. 각 곱의 평균 0·분산 1과 독립성을 근사하면 Score의 실제 값이 <code>d_k</code>가 아니라 분산이 <code>d_k</code>, 표준편차가 <code>√d_k</code>가 되므로 이를 나누어 약 1 규모로 맞춘다는 점을 정리했다."
+          "id": "2026-08-13-topic-04",
+          "title": "Score Scaling에서 평균 0과 분산의 연결 복습",
+          "bodyMarkdown": "`QKᵀ`로 `[1,2,2]` Score를 만들고 현재 `d_k=2`임을 확인했다. 분산은 `Var(X)=E[(X-E[X])²]`이며, 초기화 분포의 기댓값을 0으로 두었기 때문에 `Var(X)=E[X²]`로 단순화된다는 빠졌던 연결고리를 바로잡았다. 각 곱의 평균 0·분산 1과 독립성을 근사하면 Score의 실제 값이 `d_k`가 아니라 분산이 `d_k`, 표준편차가 `√d_k`가 되므로 이를 나누어 약 1 규모로 맞춘다는 점을 정리했다."
         },
         {
-          "titleHtml": "Softmax와 <code>dim=-1</code>의 의미 확인",
-          "bodyHtml": "<code>scaled_scores</code>에 마지막 차원 Softmax를 적용해 <code>attention_weights</code>를 만들었다. Shape <code>[1,2,2]</code>에서 각 행은 하나의 Query가 두 Key를 참고하는 비율이고, <code>dim=-1</code>은 Key 방향으로 행별 정규화하므로 각 행의 합이 1이 된다. 실제 결과 <code>[0.5084,0.4916]</code>, <code>[0.4306,0.5694]</code>를 통해 Query1은 Key1을, Query2는 Key2를 조금 더 참고한다는 것을 확인했다."
+          "id": "2026-08-13-topic-05",
+          "title": "Softmax와 `dim=-1`의 의미 확인",
+          "bodyMarkdown": "`scaled_scores`에 마지막 차원 Softmax를 적용해 `attention_weights`를 만들었다. Shape `[1,2,2]`에서 각 행은 하나의 Query가 두 Key를 참고하는 비율이고, `dim=-1`은 Key 방향으로 행별 정규화하므로 각 행의 합이 1이 된다. 실제 결과 `[0.5084,0.4916]`, `[0.4306,0.5694]`를 통해 Query1은 Key1을, Query2는 Key2를 조금 더 참고한다는 것을 확인했다."
         },
         {
-          "titleHtml": "<code>attention_weights @ value</code>를 실제 숫자로 검산",
-          "bodyHtml": "Attention weight의 Shape이 3차원인 이유는 맨 앞의 Batch 차원 때문이며, <code>value[0,0]</code>은 Token1의 한 좌표가 아니라 Value 벡터 전체라는 점을 구분했다. 첫 번째 Query에 대해 <code>0.5084×Value1 + 0.4916×Value2</code>를 직접 계산해 <code>[-0.0971,0.0557]</code>을 얻고 <code>output[0,0]</code>과 일치함을 확인했다. Attention은 Value들의 가중합이므로 두 항 사이에는 뺄셈이 아니라 덧셈을 사용한다. 또한 Attention weight 행렬을 <code>[[a1,a2],[a3,a4]]</code>로 놓았을 때 두 번째 행은 <code>Q2→K1</code>과 <code>Q2→K2</code>의 비율이며, <code>Output2=a3×V1+a4×V2</code>로 두 번째 Token이 첫 번째 Token의 정보도 가져온다는 점을 연결했다."
+          "id": "2026-08-13-topic-06",
+          "title": "`attention_weights @ value`를 실제 숫자로 검산",
+          "bodyMarkdown": "Attention weight의 Shape이 3차원인 이유는 맨 앞의 Batch 차원 때문이며, `value[0,0]`은 Token1의 한 좌표가 아니라 Value 벡터 전체라는 점을 구분했다. 첫 번째 Query에 대해 `0.5084×Value1 + 0.4916×Value2`를 직접 계산해 `[-0.0971,0.0557]`을 얻고 `output[0,0]`과 일치함을 확인했다. Attention은 Value들의 가중합이므로 두 항 사이에는 뺄셈이 아니라 덧셈을 사용한다. 또한 Attention weight 행렬을 `[[a1,a2],[a3,a4]]`로 놓았을 때 두 번째 행은 `Q2→K1`과 `Q2→K2`의 비율이며, `Output2=a3×V1+a4×V2`로 두 번째 Token이 첫 번째 Token의 정보도 가져온다는 점을 연결했다."
         }
       ],
       "studyTime": {
         "minutes": 150,
-        "approximate": false,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul>\n            <li>Pandas <code>drop()</code>의 <code>axis</code>와 <code>inplace</code>, 반환값 차이 정리</li>\n            <li>DB Index와 Heap Page, Row 위치 탐색 구조 복습</li>\n            <li>초반 약 40분 동안 위키 문서와 학습 자료 구조 정리</li>\n            <li><code>nn.Linear</code>로 Q·K·V Projection을 만들고 직접 행렬곱과 비교</li>\n            <li><code>QKᵀ</code>의 Shape, 평균 0과 분산, <code>√d_k</code> Scaling 복습</li>\n            <li><code>dim=-1</code> Softmax로 Query별 Key 참고 비율 계산</li>\n            <li><code>attention_weights @ value</code>의 첫 번째 Query 출력을 실제 숫자로 검산하고, 두 번째 Query가 <code>V1</code>과 <code>V2</code>를 함께 사용하는 인덱스 구조 정리</li>\n            <li>다음 시작점을 Multi-Head Attention의 Head 분리로 확정</li>\n          </ul>"
+        "approximate": false
       }
     },
     {
       "date": "2026-08-12",
       "topics": [
         {
-          "titleHtml": "Scaled Dot-Product Attention 핵심 구현 완성",
-          "bodyHtml": "<code>attention_weights @ value</code>의 Shape을 예상하고, 가운데 Token 축이 곱의 합으로 처리되며 각 Query 출력이 Value의 가중합이라는 사실을 숫자로 확인했다. 현재 코드의 출력·Attention weight 반환과 Mask 동작도 검사했다."
+          "id": "2026-08-12-topic-01",
+          "title": "Scaled Dot-Product Attention 핵심 구현 완성",
+          "bodyMarkdown": "`attention_weights @ value`의 Shape을 예상하고, 가운데 Token 축이 곱의 합으로 처리되며 각 Query 출력이 Value의 가중합이라는 사실을 숫자로 확인했다. 현재 코드의 출력·Attention weight 반환과 Mask 동작도 검사했다."
         },
         {
-          "titleHtml": "회원 이탈 예측으로 머신러닝 실무 흐름 정리",
-          "bodyHtml": "동료와의 대화에서 발견한 질문을 Feature·Label·Loss·Threshold·Confusion Matrix·Precision·Recall·F1·데이터 분할·반복 실험의 흐름으로 정리했다. ROC/PR-AUC, Calibration과 불균형 처리는 이후 실습에서 검증할 항목으로 분리했다."
+          "id": "2026-08-12-topic-02",
+          "title": "회원 이탈 예측으로 머신러닝 실무 흐름 정리",
+          "bodyMarkdown": "동료와의 대화에서 발견한 질문을 Feature·Label·Loss·Threshold·Confusion Matrix·Precision·Recall·F1·데이터 분할·반복 실험의 흐름으로 정리했다. ROC/PR-AUC, Calibration과 불균형 처리는 이후 실습에서 검증할 항목으로 분리했다."
         },
         {
-          "titleHtml": "Precision·Recall과 F1 Score의 조화평균",
-          "bodyHtml": "Precision과 Recall 중 하나만 높고 다른 하나가 낮은 모델을 좋은 모델로 평가하지 않기 위해 F1 Score가 조화평균을 사용한다는 점을 확인했다. Threshold를 반복해서 조절하는 일은 예측 기준을 바꾸는 것이지 모델이 새로운 패턴을 학습하는 것은 아니므로, 데이터·Feature·학습 방식과 평가 기준을 함께 살펴야 한다는 흐름으로 연결했다."
+          "id": "2026-08-12-topic-03",
+          "title": "Precision·Recall과 F1 Score의 조화평균",
+          "bodyMarkdown": "Precision과 Recall 중 하나만 높고 다른 하나가 낮은 모델을 좋은 모델로 평가하지 않기 위해 F1 Score가 조화평균을 사용한다는 점을 확인했다. Threshold를 반복해서 조절하는 일은 예측 기준을 바꾸는 것이지 모델이 새로운 패턴을 학습하는 것은 아니므로, 데이터·Feature·학습 방식과 평가 기준을 함께 살펴야 한다는 흐름으로 연결했다."
         },
         {
-          "titleHtml": "Cross-Model KV Cache Transfer 기록 복원 필요",
-          "bodyHtml": "별도 대화에서 Cross-Model KV Cache Transfer를 살펴본 흔적은 확인했지만 대화 본문을 다시 불러오지 못했다. 학습했다는 사실만 보존하고, 어떤 구조와 장단점을 이해했는지는 원문이나 대화를 찾은 뒤 보강할 미확인 항목으로 남긴다."
+          "id": "2026-08-12-topic-04",
+          "title": "Cross-Model KV Cache Transfer 기록 복원 필요",
+          "bodyMarkdown": "별도 대화에서 Cross-Model KV Cache Transfer를 살펴본 흔적은 확인했지만 대화 본문을 다시 불러오지 못했다. 학습했다는 사실만 보존하고, 어떤 구조와 장단점을 이해했는지는 원문이나 대화를 찾은 뒤 보강할 미확인 항목으로 남긴다."
         },
         {
-          "titleHtml": "현업 최적화 글을 학습 자료로 전환",
-          "bodyHtml": "GLM-5.2 GPU 최적화 글에서 Forward, Hidden State, Logits와 MTP를 읽었다. Draft 모델이 만든 미래 Token ID 후보를 큰 모델이 한 번의 Forward로 병렬 검증하는 흐름과 후보 일부만 승인될 수 있다는 점을 정리했다."
+          "id": "2026-08-12-topic-05",
+          "title": "현업 최적화 글을 학습 자료로 전환",
+          "bodyMarkdown": "GLM-5.2 GPU 최적화 글에서 Forward, Hidden State, Logits와 MTP를 읽었다. Draft 모델이 만든 미래 Token ID 후보를 큰 모델이 한 번의 Forward로 병렬 검증하는 흐름과 후보 일부만 승인될 수 있다는 점을 정리했다."
         },
         {
-          "titleHtml": "학습 문서 구조 정리",
-          "bodyHtml": "홈에서 모든 문서로 이동할 수 있게 연결하고, 긴 Transformer·수학 문서를 상위 인덱스와 주제별 하위 문서로 분리했다. 기존 내용은 생략하지 않고 문서 계층과 홈 이동 경로를 추가했다."
+          "id": "2026-08-12-topic-06",
+          "title": "학습 문서 구조 정리",
+          "bodyMarkdown": "홈에서 모든 문서로 이동할 수 있게 연결하고, 긴 Transformer·수학 문서를 상위 인덱스와 주제별 하위 문서로 분리했다. 기존 내용은 생략하지 않고 문서 계층과 홈 이동 경로를 추가했다."
         }
       ],
       "studyTime": {
         "minutes": 140,
-        "approximate": false,
-        "label": "이날 한 공부",
-        "bodyHtml": "<ul>\n            <li>Precision·Recall과 F1 Score의 조화평균, Threshold 조절의 한계 정리</li>\n            <li>Scaled Dot-Product Attention의 <code>attention_weights @ value</code>와 출력 Shape 확인</li>\n            <li>Padding Mask와 Causal Mask가 각각 차단하는 위치를 작은 Tensor로 비교</li>\n            <li>Masked Score, Softmax, <code>e^{-∞}=0</code>의 관계를 실행 결과로 검증</li>\n            <li>Query가 입력 Token 수만큼 존재한다는 구조 복습</li>\n            <li>GLM-5.2 최적화 글의 Forward·Hidden State·Logits·MTP 개념 정리</li>\n            <li>Cross-Model KV Cache Transfer 학습 흔적 보존 — 상세 내용은 추후 복원</li>\n            <li>학습 문서의 상위·하위 계층과 홈 탐색 구조 정리</li>\n          </ul>"
+        "approximate": false
       }
     },
     {
       "date": "2026-08-11",
       "topics": [
         {
-          "titleHtml": "DL과 학습 방향 복습",
-          "bodyHtml": "DL이 Deep Learning의 약자이며 Machine Learning 안에서 여러 층의 신경망으로 표현을 학습하는 접근이라는 기본 관계를 다시 확인했다. 단편적으로 공부해 온 내용을 남은 것이 없다고 보지 않고, 실행 결과·자기 설명·재구현을 기준으로 기록하는 방향도 점검했다."
+          "id": "2026-08-11-topic-01",
+          "title": "DL과 학습 방향 복습",
+          "bodyMarkdown": "DL이 Deep Learning의 약자이며 Machine Learning 안에서 여러 층의 신경망으로 표현을 학습하는 접근이라는 기본 관계를 다시 확인했다. 단편적으로 공부해 온 내용을 남은 것이 없다고 보지 않고, 실행 결과·자기 설명·재구현을 기준으로 기록하는 방향도 점검했다."
         },
         {
-          "titleHtml": "<code>√d_k</code>는 정확한 정규화 값이 아니다",
-          "bodyHtml": "현재 Attention 코드는 Q와 K의 실제 평균이나 분산을 측정하지 않고 마지막 차원 크기만 사용한다. 따라서 모든 입력에서 Score 표준편차를 정확히 1로 만드는 연산이 아니라, Q·K 원소가 중심 0 근처이고 비슷한 분산을 가지며 독립적이라는 일반적인 통계적 전제에서 차원이 커질 때 생기는 Score 규모 증가를 완화하는 고정 Scaling임을 바로잡았다."
+          "id": "2026-08-11-topic-02",
+          "title": "`√d_k`는 정확한 정규화 값이 아니다",
+          "bodyMarkdown": "현재 Attention 코드는 Q와 K의 실제 평균이나 분산을 측정하지 않고 마지막 차원 크기만 사용한다. 따라서 모든 입력에서 Score 표준편차를 정확히 1로 만드는 연산이 아니라, Q·K 원소가 중심 0 근처이고 비슷한 분산을 가지며 독립적이라는 일반적인 통계적 전제에서 차원이 커질 때 생기는 Score 규모 증가를 완화하는 고정 Scaling임을 바로잡았다."
         },
         {
-          "titleHtml": "Loss와 자동미분의 개발자 관점 연결",
-          "bodyHtml": "여러 Tensor 연산 자체가 하나의 Loss 함수를 만들고, Tensor가 계산 그래프를 보존해 <code>backward()</code>가 변화율을 구한다는 관점을 정리했다."
+          "id": "2026-08-11-topic-03",
+          "title": "Loss와 자동미분의 개발자 관점 연결",
+          "bodyMarkdown": "여러 Tensor 연산 자체가 하나의 Loss 함수를 만들고, Tensor가 계산 그래프를 보존해 `backward()`가 변화율을 구한다는 관점을 정리했다."
         },
         {
-          "titleHtml": "한 파라미터 Autograd 핵심 검증",
-          "bodyHtml": "<code>Loss=(wx-y)²</code>에서 <code>2(wx-y)x</code>를 극한식으로 유도하고 PyTorch Gradient와 일치함을 확인했다. Gradient 누적·초기화, <code>no_grad</code> 안의 in-place 업데이트와 반복 학습에서 수정 전 Loss·수정 후 w의 시점 차이도 실행 결과로 확인했다."
+          "id": "2026-08-11-topic-04",
+          "title": "한 파라미터 Autograd 핵심 검증",
+          "bodyMarkdown": "`Loss=(wx-y)²`에서 `2(wx-y)x`를 극한식으로 유도하고 PyTorch Gradient와 일치함을 확인했다. Gradient 누적·초기화, `no_grad` 안의 in-place 업데이트와 반복 학습에서 수정 전 Loss·수정 후 w의 시점 차이도 실행 결과로 확인했다."
         },
         {
-          "titleHtml": "End-to-end 로드맵 누락 감사",
-          "bodyHtml": "Python·NumPy·Pandas·SQL·시각화·scikit-learn·실험 엔지니어링의 최소 범위를 명시하고, 데이터·학습·Transformer·전달의 네 산출물 관문과 두 포트폴리오로 완료 기준을 재구성했다."
+          "id": "2026-08-11-topic-05",
+          "title": "End-to-end 로드맵 누락 감사",
+          "bodyMarkdown": "Python·NumPy·Pandas·SQL·시각화·scikit-learn·실험 엔지니어링의 최소 범위를 명시하고, 데이터·학습·Transformer·전달의 네 산출물 관문과 두 포트폴리오로 완료 기준을 재구성했다."
         }
       ],
       "studyTime": null
@@ -908,16 +1084,695 @@
       "date": "2026-08-10",
       "topics": [
         {
-          "titleHtml": "Transformer Attention 스케일링",
-          "bodyHtml": "<code>QKᵀ</code>의 한 칸, 분산과 표준편차, <code>√d_k</code>로 나누는 이유를 임베딩 스케일과 연결해 정리했다."
+          "id": "2026-08-10-topic-01",
+          "title": "Transformer Attention 스케일링",
+          "bodyMarkdown": "`QKᵀ`의 한 칸, 분산과 표준편차, `√d_k`로 나누는 이유를 임베딩 스케일과 연결해 정리했다."
         },
         {
-          "titleHtml": "PyTorch 수동 선형회귀 시작",
-          "bodyHtml": "<code>y=wx+b</code>, MSE, <code>requires_grad</code>, <code>backward</code>, 수동 파라미터 업데이트와 Gradient 초기화를 구현했다."
+          "id": "2026-08-10-topic-02",
+          "title": "PyTorch 수동 선형회귀 시작",
+          "bodyMarkdown": "`y=wx+b`, MSE, `requires_grad`, `backward`, 수동 파라미터 업데이트와 Gradient 초기화를 구현했다."
         }
       ],
       "studyTime": null
     }
   ],
-  "studyTimeNoteHtml": "<strong>시간이 없는 기록</strong><br>2026년 8월 10일과 11일은 학습 내용만 보존하고 공부시간은 추정하지 않았다. 2026년 8월 18일은 해당 날짜의 채팅 학습 세션을 근거로 총시간을 약 2시간으로 기록했다."
+  "review": {
+    "schemaVersion": 1,
+    "updatedAt": "2026-09-03",
+    "title": "기억 강화 세션",
+    "summary": "위키에 축적한 내용을 시간이 지난 뒤 자료 없이 다시 꺼내고, 최근 결과·중요도·밀린 기간에 따라 다음 복습 대상을 고릅니다.",
+    "directions": [
+      {
+        "id": "ai-engineer-growth",
+        "label": "AI 엔지니어로서 성장",
+        "description": "AI 시스템을 구현·검증·추론·서빙하는 데 반복해서 쓰이는 개념과 코드를 잊지 않도록 유지합니다."
+      },
+      {
+        "id": "coding-test-pass",
+        "label": "기업 코딩 테스트 합격",
+        "description": "문제 해석, 알고리즘 선택, 경계 조건, 복잡도 설명과 자료 없는 재구현 능력을 유지합니다."
+      }
+    ],
+    "policy": {
+      "maxPerSession": 3,
+      "timeBudgetMinutes": 8,
+      "intervalsDays": [
+        1,
+        3,
+        7,
+        14,
+        30,
+        60,
+        90
+      ],
+      "selectionRule": "기한이 된 항목에서 최근 회상 실패, 중요도가 높은 항목(priority 숫자가 낮은 항목), 오래 밀린 날짜 순으로 최대 3개를 선택합니다. 아직 기한이 되지 않은 항목은 현재 학습을 막는 경우에만 예외적으로 꺼냅니다.",
+      "directionRule": "우선순위는 AI 엔지니어로서 성장과 기업 코딩 테스트 합격에 얼마나 반복해서 필요한지를 기준으로 판단합니다. 분야별 고정 할당은 두지 않지만 결과 이력을 확인해 한 방향이 장기간 복습에서 사라지지 않게 합니다.",
+      "resultRecordRule": "복습할 때마다 reviewedAt, 이전 확인과의 delayDays, outcome, 공개 가능한 한 줄 evidence를 results 배열 끝에 추가하고 lastReviewed·nextDue·stageIndex를 함께 갱신합니다.",
+      "attemptRule": "원문과 채점 기준을 열기 전에 자신의 말·Shape 예측·작은 코드로 먼저 답합니다.",
+      "overflowRule": "세션 한도를 넘은 항목은 실패로 처리하지 않고 다음 학습 세션으로 넘깁니다.",
+      "evidenceRule": "처음 배운 날의 성공은 이해 증거이며, 하루 이상 지난 뒤 자료 없이 성공한 결과부터 유지 증거로 셉니다.",
+      "resultTypes": [
+        {
+          "id": "failed",
+          "label": "회상 실패",
+          "description": "피드백 뒤 같은 세션에서 한 번 다시 시도하고 다음 날 다시 확인합니다."
+        },
+        {
+          "id": "hinted",
+          "label": "힌트 후 성공",
+          "description": "현재 단계는 유지하고 2일 뒤 다시 확인합니다."
+        },
+        {
+          "id": "recalled",
+          "label": "무힌트 성공",
+          "description": "다음 간격 단계로 이동합니다."
+        },
+        {
+          "id": "transferred",
+          "label": "변형 적용 성공",
+          "description": "다른 값·Shape·상황에도 적용했으므로 간격을 두 단계 확장합니다."
+        }
+      ],
+      "promptTypes": [
+        {
+          "id": "flow",
+          "label": "흐름 회상"
+        },
+        {
+          "id": "shape",
+          "label": "Shape 예측"
+        },
+        {
+          "id": "rebuild",
+          "label": "코드 재구현"
+        },
+        {
+          "id": "diagnose",
+          "label": "오류 진단"
+        },
+        {
+          "id": "transfer",
+          "label": "변형 적용"
+        }
+      ],
+      "enrollmentRule": "위키에 새로 추가하거나 보강한 내용 중 설명·예측·구현으로 이해가 확인된 단위를 회상 후보로 추가합니다. 중요도가 낮아도 보존할 수 있으며 priority 숫자를 높여 후순위에 둡니다.",
+      "priorityLevels": [
+        {
+          "id": 1,
+          "label": "높음",
+          "description": "다른 학습의 기반이 되거나 반복해서 사용하는 핵심 지식"
+        },
+        {
+          "id": 2,
+          "label": "보통",
+          "description": "다시 적용할 가능성이 높지만 즉시 blocker는 아닌 지식"
+        },
+        {
+          "id": 3,
+          "label": "낮음",
+          "description": "특정 문제·상황에 유용한 세부 지식"
+        },
+        {
+          "id": 4,
+          "label": "참고",
+          "description": "잊어도 원문을 찾아 회복하기 쉬운 보조 지식"
+        }
+      ]
+    },
+    "items": [
+      {
+        "id": "coding-integer-triangle-boundary-state",
+        "enabled": true,
+        "conceptKey": "coding-dp-triangle-boundary-state",
+        "title": "정수 삼각형 위치별 누적 최댓값 DP",
+        "topicLabel": "코딩 테스트",
+        "promptType": "rebuild",
+        "priority": 1,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-coding-test-32-integer-triangle",
+        "learningTopicRefs": [
+          {
+            "date": "2026-09-01",
+            "topicId": "2026-09-01-topic-03"
+          }
+        ],
+        "prompt": "자료를 보지 않고 정수 삼각형 풀이를 다시 구현합니다. 이전 행 상태의 뜻과 왼쪽 끝·가운데·오른쪽 끝의 서로 다른 부모 후보를 설명하고, 한 행 입력까지 확인합니다.",
+        "evidenceCriteria": [
+          "왼쪽 끝은 이전[0], 가운데는 이전[i-1]·이전[i], 오른쪽 끝은 이전[i-1]만 후보가 되는 이유를 설명합니다.",
+          "현재 행을 새 배열에 모두 계산한 뒤 이전 행 상태를 교체하고 마지막 상태의 최댓값을 반환합니다.",
+          "전체 코드를 자료 없이 구현하고, 전체 칸 합에 따른 시간 O(N²)과 두 행 상태에 따른 추가 공간 O(N)을 설명합니다."
+        ],
+        "acquisitionEvidence": "첫 행에서 시작해 왼쪽 끝·가운데·오른쪽 끝의 서로 다른 이전 후보를 누적 최댓값으로 전이하는 구조를 직접 설명·구현했습니다. 경계 Index, 가운데 max, 행 상태 교체와 한 행 입력 반환을 교정한 뒤 프로그래머스 정확성 10개·효율성 10개, 총 20개 테스트를 모두 통과했습니다. 행 길이가 1부터 N까지 증가해 시간 O(N²), 이전·현재 두 행 상태가 각각 최대 N개라 추가 공간 O(N)임을 설명했습니다. 자료 없는 재구현은 아직 남았습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-land-taking-row-state",
+        "enabled": true,
+        "conceptKey": "coding-dp-row-state-compression",
+        "title": "땅따먹기 열별 누적점수 DP",
+        "topicLabel": "코딩 테스트",
+        "promptType": "rebuild",
+        "priority": 1,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-coding-test-31-land-taking",
+        "learningTopicRefs": [
+          {
+            "date": "2026-09-01",
+            "topicId": "2026-09-01-topic-02"
+          }
+        ],
+        "prompt": "자료를 보지 않고 땅따먹기 풀이를 다시 구현합니다. 이전 행과 현재 행의 열별 상태가 각각 무엇인지, 같은 열을 어떻게 제외하는지, 왜 새 배열을 모두 만든 뒤 교체하는지 설명합니다.",
+        "evidenceCriteria": [
+          "행별 최댓값 하나를 고르는 그리디가 실패할 수 있는 이유와 네 열 상태를 모두 남기는 이유를 설명합니다.",
+          "ac_value와 next_value의 의미를 구분하고, 이전 누적 배열에서 현재 열과 같은 열만 제외해 점화식을 구성합니다.",
+          "전체 코드를 자료 없이 구현하고, 열이 4개로 고정된 시간 O(N)과 인덱스 순회 시 추가 공간 O(1)을 설명합니다."
+        ],
+        "acquisitionEvidence": "같은 도착 열의 경로를 최고 누적점수 하나로 압축하고 네 열 상태를 모두 유지하는 DP로 교정했습니다. 이전 행 배열에서 같은 열을 제외해 새 배열을 만든 뒤 교체하는 코드를 직접 완성했고, 프로그래머스 정확성 59.8·효율성 40.2로 합계 100점과 22개 테스트 전체 통과를 확인했습니다. 열이 4개로 고정되어 시간 O(N)이며 land[1:] 대신 인덱스로 순회하면 추가 공간 O(1)이라는 점을 설명·적용했습니다. 자료 없는 재구현은 아직 남았습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-dijkstra-distance-relaxation",
+        "enabled": true,
+        "conceptKey": "coding-dijkstra-distance-relaxation",
+        "title": "다익스트라 거리 갱신과 최소 Heap",
+        "topicLabel": "코딩 테스트",
+        "promptType": "rebuild",
+        "priority": 1,
+        "firstDue": "2026-09-01",
+        "sourceDocumentId": "wiki-coding-test-delivery-dijkstra-note",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-31",
+            "topicId": "2026-08-31-topic-04"
+          }
+        ],
+        "prompt": "자료를 보지 않고 프로그래머스 배달 풀이를 다시 구현합니다. distance의 뜻과 초깃값, 양방향 인접 리스트, Heap 상태, 거리 갱신 조건, 오래된 Heap 후보를 건너뛰는 이유, 마지막 K 이하 개수 계산까지 설명합니다.",
+        "evidenceCriteria": [
+          "일반 BFS가 서로 다른 도로 비용에서 최소 누적 비용을 보장하지 못하는 이유를 작은 반례로 설명합니다.",
+          "new_cost가 기존 distance보다 작을 때만 갱신하고 Heap에 넣는 이유를 설명합니다.",
+          "전체 코드를 자료 없이 구현해 프로그래머스 제출에 통과하고 시간 복잡도를 설명합니다."
+        ],
+        "acquisitionEvidence": "배달 문제를 안내에 따라 처음 구현한 뒤 이전 코드를 보지 않고 인접 리스트·distance·Heap 반복·거리 완화·결과 계산을 다시 구성했습니다. Tuple 순서와 누적 new_cost 전달은 힌트로 교정했고, 표준 코드의 프로그래머스 정확성 100점·전체 32개 테스트 통과 증거와 BFS 비교·갱신 조건·복잡도 설명을 확인했습니다.",
+        "attempts": [
+          {
+            "reviewedAt": "2026-09-01",
+            "outcome": "hinted",
+            "evidence": "이전 코드를 보지 않고 인접 리스트·distance·Heap 반복·거리 완화·결과 계산을 다시 구성했습니다. Heap의 Tuple 순서와 누적 new_cost 전달은 힌트로 교정했으며, 표준 코드로 정확성 100점·32개 테스트 통과 증거를 확인했습니다. 일반 BFS와 가중치 최단경로의 차이, 개선되지 않은 경로를 다시 넣지 않는 이유, V·E 기준과 Heap 삽입·삭제를 합친 O((V+E) log V), 빽빽한 그래프에서 E≈V²를 대입한 O(V² log V)를 설명했습니다."
+          }
+        ]
+      },
+      {
+        "id": "binary-search-answer-space-boundary",
+        "enabled": true,
+        "conceptKey": "binary-search-answer-space-boundary",
+        "title": "입국심사·퍼즐 게임의 최초 가능 경계",
+        "topicLabel": "코딩 테스트",
+        "promptType": "rebuild",
+        "priority": 1,
+        "firstDue": "2026-08-30",
+        "sourceDocumentId": "wiki-coding-test-27-puzzle-game-challenge",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-01"
+          }
+        ],
+        "prompt": "자료를 보지 않고 입국심사 또는 퍼즐 게임 챌린지 하나를 골라 탐색 후보, 안전한 left·right 범위, mid의 가능 판정, +1·-1 경계 이동과 반복 종료 뒤 left가 답인 이유를 설명하고 전체 코드를 다시 구현합니다.",
+        "evidenceCriteria": [
+          "입국심사는 시간, 퍼즐 게임은 숙련도가 탐색 후보이고 limit·처리 인원은 후보의 가능 여부를 판정하는 기준임을 구분합니다.",
+          "가능한 후보에서는 더 작은 쪽, 불가능한 후보에서는 더 큰 쪽을 남기며 이미 검사한 정수 mid를 제외하는 이유를 설명합니다.",
+          "total == limit을 성공으로 처리하고, 전체 판정 비용을 포함한 시간 복잡도를 자기 말로 설명합니다."
+        ],
+        "acquisitionEvidence": "입국심사와 퍼즐 게임 챌린지에서 후보별 가능 판정과 최초 가능 경계를 구현해 프로그래머스 제출에 통과했으며, 문제 독해와 등호 경계는 설명을 받아 교정했습니다.",
+        "attempts": [
+          {
+            "reviewedAt": "2026-08-31",
+            "outcome": "recalled",
+            "evidence": "입국심사를 기존 코드 없이 다시 구현해 전체 테스트에 통과하고, left·right 교차가 최초 가능 경계를 남기는 이유와 O(m log R) 판정 비용을 설명했습니다."
+          }
+        ]
+      },
+      {
+        "id": "multi-head-shape-reconstruction",
+        "enabled": true,
+        "conceptKey": "multi-head-attention",
+        "title": "Multi-Head Attention Head 분리와 병합",
+        "topicLabel": "Transformer",
+        "promptType": "shape",
+        "priority": 1,
+        "firstDue": "2026-08-31",
+        "sourceDocumentId": "wiki-transformer-transformer_multi_head_attention_learning",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-16",
+            "topicId": "2026-08-16-topic-04"
+          }
+        ],
+        "prompt": "자료를 보지 않고 입력 [B,S,D]에서 Q·K·V Projection, Head 분리, Score, Value 가중합, Token 기준 재정렬, Head 병합과 W_O를 거쳐 다시 [B,S,D]가 되는 순서와 각 Shape을 설명합니다.",
+        "evidenceCriteria": [
+          "[B,S,D]에서 [B,H,S,Dh]로 Head를 분리하는 축 이동을 설명합니다.",
+          "Score [B,H,S,S]와 Value 가중합 [B,H,S,Dh]를 구분합니다.",
+          "Token 기준으로 재정렬한 뒤 H×Dh를 D로 합치고 W_O를 적용해 [B,S,D]로 돌아옴을 설명합니다."
+        ],
+        "acquisitionEvidence": "Head별 출력 [1,3,2,1]을 Token 기준으로 재정렬해 [1,3,2]로 합치고 Output Projection을 적용했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "padded-batch-last-logit",
+        "enabled": true,
+        "conceptKey": "padded-batch-last-token-logit",
+        "title": "Padding Batch의 마지막 실제 Token Logit 선택",
+        "topicLabel": "LLM 추론",
+        "promptType": "rebuild",
+        "priority": 1,
+        "firstDue": "2026-08-31",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-pretrained-causal-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-11"
+          }
+        ],
+        "prompt": "오른쪽 Padding된 input_ids [B,S], attention_mask [B,S], logits [B,S,V]가 있습니다. Batch마다 마지막 실제 Token 위치를 구하고 해당 Logit만 [B,V]로 선택하는 코드를 자료 없이 재구성하고, 두 인덱스 Tensor가 어떻게 짝지어지는지 설명합니다.",
+        "evidenceCriteria": [
+          "attention_mask 합에서 1을 빼 Batch별 마지막 실제 위치 [B]를 구합니다.",
+          "Batch index [B]와 Token position [B]를 짝지어 logits에서 [B,V]를 선택합니다.",
+          "슬라이싱과 달리 Batch마다 다른 위치를 고르는 고급 인덱싱임을 설명합니다."
+        ],
+        "acquisitionEvidence": "길이 3·7의 동적 Padding에서 실제 마지막 위치 [2,6]을 구하고 GPT-2 Logit [2,7,50257]에서 [2,50257]을 선택했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "training-generation-position-boundary",
+        "enabled": true,
+        "conceptKey": "causal-lm-training-generation-boundary",
+        "title": "Causal LM 학습 위치와 생성 위치의 경계",
+        "topicLabel": "LLM 추론",
+        "promptType": "flow",
+        "priority": 1,
+        "firstDue": "2026-08-31",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-tiny-decoder-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-03"
+          },
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-08"
+          }
+        ],
+        "prompt": "Causal LM 학습에서는 왜 모든 위치의 Logit을 한 번에 채점하고, 자기회귀 생성에서는 왜 logits[:, -1, :]만 사용하는지 [3,7,2,9] 예제로 설명합니다.",
+        "evidenceCriteria": [
+          "학습 입력 [3,7,2]와 Target [7,2,9]의 세 위치가 한 Forward에서 병렬 채점됨을 설명합니다.",
+          "Causal Mask 때문에 각 위치가 미래 정답을 미리 보지 못함을 연결합니다.",
+          "생성 시에는 현재 Prefix 다음의 새 Token 하나만 필요하므로 마지막 위치 Logit을 사용한다고 설명합니다."
+        ],
+        "acquisitionEvidence": "세 개의 다음 Token 문제를 한 Forward에서 학습하는 구조와 마지막 Logit을 이어 붙이는 반복 생성을 실행했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "causal-mask-future-block",
+        "enabled": true,
+        "conceptKey": "causal-mask",
+        "title": "Causal Mask와 미래 Attention 차단",
+        "topicLabel": "Transformer",
+        "promptType": "diagnose",
+        "priority": 1,
+        "firstDue": "2026-09-01",
+        "sourceDocumentId": "wiki-transformer-transformer_attention_score_mask_learning",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-24",
+            "topicId": "2026-08-24-topic-04"
+          }
+        ],
+        "prompt": "길이 3의 Attention Score에 하삼각 Boolean Mask를 적용한다고 가정합니다. masked_fill(..., -inf) 뒤 Softmax에서 미래 위치 비중이 0이 되는 이유와 각 Query가 볼 수 있는 Key 위치를 설명합니다.",
+        "evidenceCriteria": [
+          "Query 위치 0·1·2가 각각 Key 0, Key 0~1, Key 0~2를 볼 수 있음을 설명합니다.",
+          "차단 위치의 Score를 -inf로 바꾸고 exp(-inf)=0이 되어 Softmax 비중이 0이 됨을 연결합니다.",
+          "Padding Mask와 Causal Mask의 차단 목적을 혼동하지 않습니다."
+        ],
+        "acquisitionEvidence": "torch.tril Boolean Mask와 masked_fill을 실행하고 미래 Attention Weight가 0임을 확인했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "target-shift-token-loss",
+        "enabled": true,
+        "conceptKey": "causal-lm-target-shift",
+        "title": "Target shift와 위치별 Token Loss",
+        "topicLabel": "LLM 추론",
+        "promptType": "shape",
+        "priority": 1,
+        "firstDue": "2026-09-01",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-tiny-decoder-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-01"
+          }
+        ],
+        "prompt": "Token Tensor [B,T+1]에서 입력과 정답을 한 칸 이동해 만들고, Logit [B,T,V]와 Target [B,T]를 CrossEntropyLoss 입력 [B×T,V], [B×T]로 바꾸는 Shape 흐름을 설명합니다.",
+        "evidenceCriteria": [
+          "tokens[:, :-1]과 tokens[:, 1:]의 의미와 Shape을 설명합니다.",
+          "각 [B×T,V] 행이 같은 위치의 Target ID 하나와 짝지어짐을 설명합니다.",
+          "평균 Loss 하나가 B×T개의 다음 Token 문제를 평균한 값임을 설명합니다."
+        ],
+        "acquisitionEvidence": "2-Batch에서 Target shift를 자료 없이 구성하고 [B,T,V]·[B,T]를 평탄화해 Cross Entropy로 채점했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "tokenizer-vocabulary-axis-contract",
+        "enabled": true,
+        "conceptKey": "tokenizer-vocabulary-model-contract",
+        "title": "Tokenizer·Embedding·LM Head의 Vocabulary 계약",
+        "topicLabel": "Transformer",
+        "promptType": "transfer",
+        "priority": 1,
+        "firstDue": "2026-09-01",
+        "sourceDocumentId": "wiki-transformer-transformer_token_embedding_learning",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-12"
+          }
+        ],
+        "prompt": "Tokenizer의 Vocabulary 크기와 모델의 Token Embedding 행 수·LM Head 출력 축이 서로 다르면 어떤 문제가 생기는지, Token ID가 입력과 출력에서 공유되는 의미를 설명합니다.",
+        "evidenceCriteria": [
+          "Tokenizer가 문자열을 모델이 사용하는 Token ID로 바꾼다는 역할을 설명합니다.",
+          "Embedding은 Token ID를 행으로 조회하므로 모든 입력 ID를 포함해야 함을 설명합니다.",
+          "LM Head의 마지막 Vocabulary 축이 같은 ID 체계의 다음 Token 후보 점수임을 설명합니다."
+        ],
+        "acquisitionEvidence": "GPT-2 Tokenizer와 wte Embedding이 같은 Token ID 체계를 공유하고 Vocabulary·Embedding·LM Head 크기를 맞추는 이유를 설명했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "top-k-top-p-sampling",
+        "enabled": true,
+        "conceptKey": "top-k-top-p-sampling",
+        "title": "Top-k·Top-p 후보 제한과 Token ID 복원",
+        "topicLabel": "LLM 추론",
+        "promptType": "flow",
+        "priority": 2,
+        "firstDue": "2026-09-02",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-pretrained-causal-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-03"
+          },
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-05"
+          },
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-06"
+          }
+        ],
+        "prompt": "Top-k와 Top-p가 후보를 제한하는 기준의 차이, 제한된 후보 안에서 재정규화하는 이유, multinomial이 뽑은 임시 위치를 실제 Vocabulary Token ID로 복원하는 흐름을 설명합니다.",
+        "evidenceCriteria": [
+          "Top-k는 후보 수, Top-p는 누적 선택 비중으로 경계를 정한다고 구분합니다.",
+          "제거된 후보를 제외한 비중의 합을 다시 1로 만드는 이유를 설명합니다.",
+          "후보 목록 내부 위치와 실제 Vocabulary Token ID를 구분하고 gather 복원을 설명합니다."
+        ],
+        "acquisitionEvidence": "Top-k·Top-p 생성 루프를 실행하고 후보 내부 위치를 gather로 실제 Token ID로 복원했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "loss-perplexity-meaning",
+        "enabled": true,
+        "conceptKey": "token-loss-perplexity",
+        "title": "Token Cross Entropy와 Perplexity 해석",
+        "topicLabel": "LLM 추론",
+        "promptType": "transfer",
+        "priority": 2,
+        "firstDue": "2026-09-02",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-pretrained-causal-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-07"
+          },
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-09"
+          }
+        ],
+        "prompt": "정답 Token 선택 비중 p=0.4509일 때 Loss=-ln(p)가 무엇을 채점하는지 계산하고, 여러 Token의 평균 Loss에 exp를 적용한 Perplexity를 어떻게 해석해야 하는지 설명합니다.",
+        "evidenceCriteria": [
+          "한 위치의 Cross Entropy가 정답 Token의 Log-Softmax 또는 -ln(p)임을 설명합니다.",
+          "여러 위치의 평균 Token Loss와 개별 Token Loss를 구분합니다.",
+          "Perplexity는 평균 Loss의 exp이며 모델·Tokenizer·평가 텍스트가 같은 조건에서 비교해야 함을 설명합니다."
+        ],
+        "acquisitionEvidence": "p=0.4509의 Loss 약 0.7966을 계산하고 고정 텍스트의 평균 Loss 10.831886·Perplexity 50609.078을 실행했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "checkpoint-offline-restore",
+        "enabled": true,
+        "conceptKey": "local-model-artifact-restore",
+        "title": "Tokenizer·Model Artifact의 로컬 복원",
+        "topicLabel": "LLM 추론",
+        "promptType": "flow",
+        "priority": 2,
+        "firstDue": "2026-09-02",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-pretrained-causal-lm",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-30",
+            "topicId": "2026-08-30-topic-10"
+          }
+        ],
+        "prompt": "모델 이름으로 다시 내려받는 것과 로컬 Artifact에서 복원하는 것을 구분하고, 새 프로세스에서 같은 입력의 Token ID·Logit Shape·Loss가 일치해야 복원이 검증되는 이유를 설명합니다.",
+        "evidenceCriteria": [
+          "Tokenizer·Config·Weight를 함께 저장해야 하는 이유를 설명합니다.",
+          "새 프로세스와 local_files_only가 기존 메모리 객체·원격 다운로드 의존을 차단함을 설명합니다.",
+          "동일 입력의 Token ID·Logit Shape·Loss 비교가 복원 동등성의 근거임을 설명합니다."
+        ],
+        "acquisitionEvidence": "Tokenizer와 Model을 저장한 뒤 별도 프로세스에서 로컬 전용으로 복원해 Token ID·Logit Shape·Loss 일치를 확인했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "threshold-precision-recall-tradeoff",
+        "enabled": true,
+        "conceptKey": "classification-threshold-tradeoff",
+        "title": "Threshold와 Precision·Recall의 비용 판단",
+        "topicLabel": "Machine Learning",
+        "promptType": "transfer",
+        "priority": 3,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-machine-learning-machine_learning_churn_evaluation_learning",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-20",
+            "topicId": "2026-08-20-topic-05"
+          }
+        ],
+        "prompt": "이탈 예측 Threshold를 0.5에서 0.3으로 낮추면 Yes 예측 수·Recall·Precision이 일반적으로 어떻게 변하는지 설명하고, 이탈자를 놓치는 비용과 불필요한 조치 비용에 따라 어떤 지표를 우선할지 판단합니다.",
+        "evidenceCriteria": [
+          "Threshold를 낮추면 Yes 예측이 늘고 Recall은 오르기 쉬우며 Precision은 내려갈 수 있음을 설명합니다.",
+          "실제 이탈자를 놓치는 비용이 크면 Recall을 우선한다고 판단합니다.",
+          "Threshold 변경은 예측 기준 변경이며 모델이 새 패턴을 학습한 것은 아니라고 구분합니다."
+        ],
+        "acquisitionEvidence": "Threshold 0.5→0.3에서 Yes Recall 55.88%→75.40%, Precision 65.72%→51.93% 변화를 읽고 비용 기준을 설명했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "module-loss-optimizer-loop",
+        "enabled": true,
+        "conceptKey": "pytorch-training-loop",
+        "title": "Module·Loss·Optimizer 학습 루프 역할",
+        "topicLabel": "PyTorch",
+        "promptType": "flow",
+        "priority": 3,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-pytorch-pytorch_linear_regression_module_optimizer_dataset_learning",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-21",
+            "topicId": "2026-08-21-topic-06"
+          }
+        ],
+        "prompt": "한 Batch의 PyTorch 학습에서 model(x), loss 계산, zero_grad(), backward(), step()의 실행 순서와 각 단계가 예측·Gradient·Parameter에 미치는 영향을 설명합니다.",
+        "evidenceCriteria": [
+          "Forward와 Loss 계산만으로 Parameter가 바뀌지 않음을 설명합니다.",
+          "backward()가 Gradient를 계산·누적하고 zero_grad()가 이전 Gradient를 비운다고 설명합니다.",
+          "step()이 현재 Gradient와 학습률로 Parameter를 실제 수정한다고 설명합니다."
+        ],
+        "acquisitionEvidence": "nn.Module·MSELoss·SGD의 역할을 구분하고 weight·bias Gradient와 Parameter 수정을 실행했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "transformer-block-execution-flow",
+        "enabled": true,
+        "conceptKey": "transformer-block-flow",
+        "title": "TransformerBlock 전체 실행 흐름",
+        "topicLabel": "Transformer",
+        "promptType": "flow",
+        "priority": 3,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-projects-road-to-llm-inference-transformer-core",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-26",
+            "topicId": "2026-08-26-topic-06"
+          }
+        ],
+        "prompt": "Token·Position Embedding 이후 Causal Multi-Head Attention, 첫 Residual·LayerNorm, FFN, 두 번째 Residual·LayerNorm까지 실행 순서를 설명하고, Attention과 FFN이 각각 어느 축의 정보를 섞는지 구분합니다.",
+        "evidenceCriteria": [
+          "두 Residual의 기준 Tensor가 서로 다름을 포함해 Block 순서를 설명합니다.",
+          "Attention은 Token 위치 사이의 정보를 섞고 FFN은 각 Token의 Feature를 독립적으로 가공한다고 구분합니다.",
+          "Block 전체에서 외부 Shape [B,S,D]가 유지됨을 설명합니다."
+        ],
+        "acquisitionEvidence": "Causal Attention부터 두 번째 Residual·LayerNorm까지 연결하고 입력·출력 [1,3,2]와 Token별 통계를 검증했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-queue-original-index",
+        "enabled": true,
+        "conceptKey": "queue-priority-simulation",
+        "title": "Queue 회전에서 원래 인덱스와 실제 실행 횟수 보존",
+        "topicLabel": "코딩 테스트",
+        "promptType": "diagnose",
+        "priority": 1,
+        "firstDue": "2026-09-01",
+        "sourceDocumentId": "wiki-coding-test-25-process",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-14"
+          }
+        ],
+        "prompt": "프로세스 Queue가 계속 회전해도 처음 location의 항목을 추적하는 자료구조를 재구성합니다. popleft 횟수와 실제 실행 횟수가 왜 다르고, 목표 프로세스를 꺼낸 순간이 아니라 실행이 확정된 뒤 종료해야 하는지 설명합니다.",
+        "evidenceCriteria": [
+          "priority와 original_index를 Tuple로 함께 저장해 순서 변화와 정체성을 분리합니다.",
+          "더 높은 우선순위가 있으면 뒤로 보내되 실행 횟수는 늘리지 않습니다.",
+          "실행이 확정된 분기에서만 횟수를 늘리고 original_index를 검사합니다."
+        ],
+        "acquisitionEvidence": "원래 인덱스를 보존하며 Queue 회전과 실제 실행 횟수를 구분하고 O(n²) 구현을 완성했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-min-heap-invariant",
+        "enabled": true,
+        "conceptKey": "heap-priority-queue",
+        "title": "최소 Heap이 보장하는 범위와 원소 부족 종료 조건",
+        "topicLabel": "코딩 테스트",
+        "promptType": "diagnose",
+        "priority": 2,
+        "firstDue": "2026-09-02",
+        "sourceDocumentId": "wiki-coding-test-24-more-spicy",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-15"
+          }
+        ],
+        "prompt": "최소 Heap에서 heap[0]과 heap[1]이 각각 무엇을 보장하는지 구분합니다. 가장 작은 두 값을 안전하게 꺼내 섞고 다시 넣는 반복, 원소가 하나만 남았을 때 성공과 실패를 나누는 종료 조건을 자료 없이 설명합니다.",
+        "evidenceCriteria": [
+          "heap[0]만 전체 최솟값이며 두 번째 최솟값은 heappop으로 꺼내야 함을 설명합니다.",
+          "초기 heapify와 반복 중 heappop·heappush의 역할과 복잡도를 구분합니다.",
+          "두 값을 꺼내기 전 원소 수를 확인하고 마지막 한 값이 K 이상인지에 따라 성공·실패를 판단합니다."
+        ],
+        "acquisitionEvidence": "heap[0]만 최솟값을 보장하는 성질과 heappop·heappush·원소 부족 종료 조건을 적용해 풀이했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-bfs-shortest-path",
+        "enabled": true,
+        "conceptKey": "coding-test-bfs-shortest-path",
+        "title": "BFS Queue 순서와 무가중치 최단거리 기록",
+        "topicLabel": "코딩 테스트",
+        "promptType": "flow",
+        "priority": 2,
+        "firstDue": "2026-09-03",
+        "sourceDocumentId": "wiki-coding-test-23-game-map-shortest-path",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-14",
+            "topicId": "2026-08-14-topic-02"
+          }
+        ],
+        "prompt": "2차원 0·1 격자에서 BFS로 최단거리를 구하는 전체 흐름을 자료 없이 설명합니다. Queue에 넣을 때 방문·거리를 기록해야 하는 이유와 DFS가 같은 무가중치 최단거리를 바로 보장하지 않는 이유를 구분합니다.",
+        "evidenceCriteria": [
+          "FIFO Queue가 같은 거리의 칸을 먼저 처리해 최초 도달 거리가 최단거리가 됨을 설명합니다.",
+          "상하좌우 좌표와 범위·통과 가능·미방문 조건을 확인합니다.",
+          "Queue에 넣는 시점에 방문과 부모 거리+1을 기록해 중복 삽입을 막습니다."
+        ],
+        "acquisitionEvidence": "게임 맵 2차원 격자에서 FIFO Queue로 가까운 칸부터 방문하고 부모 거리+1을 기록하는 BFS를 구현했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-dfs-choice-state",
+        "enabled": true,
+        "conceptKey": "coding-test-dfs-binary-choice",
+        "title": "DFS의 선택 상태와 재귀 복귀",
+        "topicLabel": "코딩 테스트",
+        "promptType": "rebuild",
+        "priority": 3,
+        "firstDue": "2026-09-04",
+        "sourceDocumentId": "wiki-coding-test-22-target-number",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-16"
+          }
+        ],
+        "prompt": "숫자마다 + 또는 -를 선택하는 타겟 넘버 문제에서 DFS 재귀 함수의 상태를 정의하고, 두 갈래 호출과 종료 조건을 자료 없이 재구성합니다. 한 경로를 끝낸 뒤 다른 선택으로 돌아오는 의미도 설명합니다.",
+        "evidenceCriteria": [
+          "재귀 상태를 현재 index와 지금까지의 합으로 정의합니다.",
+          "각 숫자에서 + 선택과 - 선택의 두 호출을 빠짐없이 만듭니다.",
+          "index가 끝에 도달했을 때 합이 target인지 확인하고 호출 결과를 합칩니다."
+        ],
+        "acquisitionEvidence": "타겟 넘버의 +·- 이진 선택을 DFS 재귀로 구현해 모든 경로의 정답 개수를 계산했습니다.",
+        "attempts": []
+      },
+      {
+        "id": "coding-parentheses-early-exit",
+        "enabled": true,
+        "conceptKey": "coding-test-parentheses-counter",
+        "title": "괄호 Counter 불변식과 조기 종료",
+        "topicLabel": "코딩 테스트",
+        "promptType": "diagnose",
+        "priority": 3,
+        "firstDue": "2026-09-05",
+        "sourceDocumentId": "wiki-coding-test-04-valid-parentheses",
+        "learningTopicRefs": [
+          {
+            "date": "2026-08-29",
+            "topicId": "2026-08-29-topic-17"
+          }
+        ],
+        "prompt": "올바른 괄호를 Stack 전체 대신 열린 괄호 수 Counter로 판정하는 흐름을 자료 없이 재구성합니다. 순회 중 Counter가 음수가 되는 순간과 마지막 Counter가 0이 아닌 경우가 각각 왜 실패인지 설명합니다.",
+        "evidenceCriteria": [
+          "여는 괄호에서 +1, 닫는 괄호에서 -1로 아직 닫히지 않은 괄호 수를 표현합니다.",
+          "순회 중 음수는 대응할 여는 괄호 없이 닫는 괄호가 먼저 나온 상태라 즉시 실패합니다.",
+          "순회가 끝나도 0이 아니면 닫히지 않은 여는 괄호가 남았다고 설명합니다."
+        ],
+        "acquisitionEvidence": "이전 풀이를 보지 않고 Counter 방식으로 다시 풀고, 순회 중 음수 조기 종료와 마지막 0 검사를 설명했습니다.",
+        "attempts": []
+      }
+    ]
+  },
+  "studyTimeNotes": [
+    {
+      "id": "unrecorded-study-time",
+      "kind": "unrecorded",
+      "dates": [
+        "2026-08-10",
+        "2026-08-11"
+      ],
+      "text": "학습 내용만 보존하고 공부시간은 추정하지 않았다."
+    },
+    {
+      "id": "estimated-study-time",
+      "kind": "estimated",
+      "dates": [
+        "2026-08-18"
+      ],
+      "text": "해당 날짜의 채팅 학습 세션을 근거로 하루 총 학습시간을 약 2시간으로 기록했다."
+    }
+  ]
 }

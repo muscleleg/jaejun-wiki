@@ -1,222 +1,16 @@
 <!doctype html>
+<!-- Generated from content/wiki/pytorch/pytorch_linear_regression_learning.md. Do not edit directly. source-sha256:d85c271f195331b4eb97ca0a3715aa6ae4029276749bcf18f87c8e5bba1d9213 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PyTorch 첫 학습 원리 — y = 3x + 2 찾기</title>
-  <style>
-    :root {
-      --bg: #f4f6f9;
-      --paper: #ffffff;
-      --ink: #172033;
-      --muted: #5e687d;
-      --line: #dce2eb;
-      --blue: #3157d5;
-      --blue-soft: #edf2ff;
-      --green: #14765a;
-      --green-soft: #eaf8f3;
-      --orange: #a45116;
-      --orange-soft: #fff4e8;
-      --red: #ad3445;
-      --code: #172033;
-      --shadow: 0 18px 55px rgba(31, 42, 68, 0.10);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, #e7edff 0, transparent 27rem),
-        radial-gradient(circle at 95% 20%, #e5f8f1 0, transparent 24rem),
-        var(--bg);
-      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", -apple-system,
-        BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.75;
-      word-break: keep-all;
-    }
-
-    a { color: var(--blue); }
-    code, pre {
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    }
-    code {
-      padding: 0.1em 0.38em;
-      border-radius: 0.35em;
-      background: #eef1f6;
-      font-size: 0.92em;
-    }
-
-    .wrap {
-      width: min(1040px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 42px 0 80px;
-    }
-    header {
-      padding: 42px;
-      color: white;
-      border-radius: 26px;
-      background: linear-gradient(135deg, #172033, #284ab7 62%, #16735c);
-      box-shadow: var(--shadow);
-    }
-    header .label {
-      display: inline-flex;
-      padding: 6px 11px;
-      border: 1px solid rgba(255,255,255,.28);
-      border-radius: 999px;
-      font-size: 13px;
-      letter-spacing: .04em;
-      background: rgba(255,255,255,.10);
-    }
-    h1 { margin: 14px 0 10px; font-size: clamp(31px, 5vw, 51px); line-height: 1.15; }
-    header p { max-width: 760px; margin: 0; color: #e8edff; font-size: 17px; }
-
-    nav {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin: 22px 0;
-    }
-    nav a {
-      padding: 8px 12px;
-      color: #344158;
-      text-decoration: none;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255,255,255,.8);
-      font-size: 14px;
-    }
-    .breadcrumb { margin: 0 0 15px; color: var(--muted); font-size: 13px; }
-    .breadcrumb a { padding: 0; color: var(--blue); border: 0; border-radius: 0; background: transparent; font-weight: 750; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--blue); box-shadow: 0 8px 24px rgba(40,74,183,.25); font-size: 13px; font-weight: 800; text-decoration: none; }
-
-    section {
-      margin-top: 22px;
-      padding: 32px;
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      background: var(--paper);
-      box-shadow: 0 8px 30px rgba(31, 42, 68, 0.06);
-    }
-    h2 { margin: 0 0 12px; font-size: 27px; line-height: 1.3; }
-    h3 { margin: 28px 0 8px; font-size: 19px; }
-    p { margin: 9px 0; }
-    .summary { color: var(--muted); font-size: 16px; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 9px;
-      margin: 22px 0 4px;
-    }
-    .flow div {
-      position: relative;
-      min-height: 92px;
-      padding: 14px;
-      border: 1px solid #cfd8ee;
-      border-radius: 14px;
-      background: var(--blue-soft);
-      font-size: 14px;
-    }
-    .flow strong { display: block; color: #2647b4; margin-bottom: 5px; }
-
-    .code-card {
-      overflow: hidden;
-      margin: 18px 0;
-      border-radius: 17px;
-      background: var(--code);
-      box-shadow: 0 12px 28px rgba(19, 27, 45, .16);
-    }
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 15px;
-      color: #cdd6ea;
-      border-bottom: 1px solid rgba(255,255,255,.12);
-      font-size: 13px;
-    }
-    pre {
-      margin: 0;
-      padding: 20px;
-      overflow-x: auto;
-      color: #eef3ff;
-      font-size: 14px;
-      line-height: 1.65;
-    }
-    pre code { padding: 0; color: inherit; background: transparent; font-size: inherit; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 13px;
-      margin-top: 16px;
-    }
-    .note {
-      padding: 17px;
-      border: 1px solid var(--line);
-      border-radius: 15px;
-      background: #fafbfc;
-    }
-    .note strong { display: block; margin-bottom: 6px; }
-    .note p { margin: 0; color: var(--muted); }
-
-    .formula {
-      margin: 15px 0;
-      padding: 18px;
-      text-align: center;
-      border: 1px solid #cfd8ee;
-      border-radius: 15px;
-      background: var(--blue-soft);
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 17px;
-    }
-    .fraction {
-      display: inline-grid;
-      grid-template-rows: auto auto;
-      align-items: center;
-      min-width: 3.2em;
-      margin: 0 .3em;
-      vertical-align: middle;
-      text-align: center;
-      line-height: 1.25;
-    }
-    .fraction .numerator {
-      padding: 0 .35em .18em;
-      border-bottom: 1.5px solid currentColor;
-    }
-    .fraction .denominator { padding: .18em .35em 0; }
-    .callout {
-      margin: 17px 0;
-      padding: 16px 18px;
-      border-left: 5px solid var(--green);
-      border-radius: 12px;
-      background: var(--green-soft);
-    }
-    .warning {
-      margin: 17px 0;
-      padding: 16px 18px;
-      border-left: 5px solid var(--orange);
-      border-radius: 12px;
-      background: var(--orange-soft);
-    }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--line); }
-    th { color: #3c4a64; background: #f6f8fb; }
-    footer { padding: 28px 4px 0; color: var(--muted); text-align: center; }
-
-    @media (max-width: 760px) {
-      .wrap { width: min(100% - 18px, 1040px); padding-top: 10px; }
-      header, section { padding: 23px; border-radius: 18px; }
-      .flow, .grid { grid-template-columns: 1fr; }
-    }
-  </style>
-  <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <!-- machine-readable-metadata:start -->
   <meta name="description" content="1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름">
+  <meta name="source-sha256" content="d85c271f195331b4eb97ca0a3715aa6ae4029276749bcf18f87c8e5bba1d9213">
+  <title>데이터에서 y = 3x + 2 를 찾아내기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
+  <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
   <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
@@ -224,48 +18,59 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="PyTorch 첫 학습 원리 — y = 3x + 2 찾기">
+  <meta property="og:title" content="데이터에서 y = 3x + 2 를 찾아내기">
   <meta property="og:description" content="1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html","name":"PyTorch 첫 학습 원리 — y = 3x + 2 찾기","description":"1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},"headline":"PyTorch 첫 학습 원리 — y = 3x + 2 찾기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#tensor","name":"Tensor","identifier":"tensor"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#tensor-contract","name":"Shape·dtype·device","identifier":"tensor-contract"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#training-loop","name":"학습 원리","identifier":"training-loop"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#loss","name":"Loss","identifier":"loss"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#autograd","name":"Gradient·Autograd","identifier":"autograd"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#nn-module","name":"nn.Module","identifier":"nn-module"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#optimizer","name":"Optimizer","identifier":"optimizer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#no-grad-inference","name":"no_grad 추론","identifier":"no-grad-inference"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/roadmaps/roadmap_pytorch.html"},{"@type":"ListItem","position":4,"name":"수동 선형회귀"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html","name":"데이터에서 y = 3x + 2 를 찾아내기","description":"1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},"headline":"데이터에서 y = 3x + 2 를 찾아내기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#tensor","name":"Tensor","identifier":"tensor"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#tensor-contract","name":"Shape·dtype·device","identifier":"tensor-contract"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#training-loop","name":"학습 원리","identifier":"training-loop"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#loss","name":"Loss","identifier":"loss"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#autograd","name":"Gradient·Autograd","identifier":"autograd"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#nn-module","name":"nn.Module","identifier":"nn-module"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#optimizer","name":"Optimizer","identifier":"optimizer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#no-grad-inference","name":"no_grad 추론","identifier":"no-grad-inference"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-pytorch"},{"@type":"ListItem","position":4,"name":"데이터에서 y = 3x + 2 를 찾아내기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <div class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로">
-      <a href="../../index.html">⌂ 홈</a>
-      <span class="separator" aria-hidden="true">›</span>
-      <a href="../../wiki.html">기술 위키</a>
-      <span class="separator" aria-hidden="true">›</span>
-      <a href="../../roadmaps/roadmap_pytorch.html">PyTorch</a>
-      <span class="separator" aria-hidden="true">›</span>
-      <span aria-current="page">수동 선형회귀</span>
-    </nav>
-    <header>
-      <span class="label">PyTorch Tutorial · 2026-08-10</span>
-      <h1>데이터에서 <code>y = 3x + 2</code>를 찾아내기</h1>
-      <p>랜덤한 기울기와 절편에서 출발해, 예측 오차를 측정하고 Gradient를 이용해 두 값을 한 번 수정하는 과정을 코드 한 줄씩 이해합니다.</p>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-pytorch">PyTorch</a><span class="separator">›</span><span aria-current="page">데이터에서 y = 3x + 2 를 찾아내기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">PyTorch</span>
+      <h1>데이터에서 y = 3x + 2 를 찾아내기</h1>
+      <p class="lead">1. 데이터에서 y = 3x + 2 를 찾는다 · 2. 한 번의 학습 흐름</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
+    <div class="markdown-lead"><p>PyTorch Tutorial · 2026-08-10</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#데이터에서-y-3x-2를-찾아내기">데이터에서 <code>y = 3x + 2</code>를 찾아내기</a>
+        <a href="#goal">1. 데이터에서 <code>y = 3x + 2</code>를 찾는다</a>
+        <a href="#code">2. 한 번의 학습 흐름</a>
+        <a href="#parameters">3. 랜덤한 파라미터에서 시작한다</a>
+        <a href="#loss">4. MSE Loss로 예측 오차를 측정한다</a>
+        <a href="#change-rate">5. 평균변화율에서 순간변화율로 간다</a>
+        <a href="#gradient">6. <code>backward()</code>가 Gradient를 계산한다</a>
+        <a href="#update">7. Gradient의 반대 방향으로 파라미터를 수정한다</a>
+        <a href="#module-optimizer">8. <code>nn.Linear</code>와 Optimizer가 같은 역할을 나눠 맡는다</a>
+        <a href="#dataset-sample-pair">9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다</a>
+        <a href="#churn-mlp">10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다</a>
+        <a href="#jaxtyping-policy">11. Tensor의 Shape과 축 의미를 타입에 보존한다</a>
+        <a href="#tensor-broadcasting">12. Shape이 다른 Tensor도 호환되는 축끼리 계산한다</a>
+        <a href="#device-cuda-parallel">13. 장치 이동에서 GPU 병렬 연산까지 연결한다</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="데이터에서-y-3x-2를-찾아내기" class="markdown-section">
+<h2>데이터에서 <code>y = 3x + 2</code>를 찾아내기</h2>
+<p>랜덤한 기울기와 절편에서 출발해, 예측 오차를 측정하고 Gradient를 이용해 두 값을 한 번 수정하는 과정을 코드 한 줄씩 이해합니다.</p>
 
-    <nav aria-label="문서 목차">
-      <a href="#goal">전체 목표</a>
-      <a href="#code">전체 코드</a>
-      <a href="#parameters">w와 b</a>
-      <a href="#loss">오차와 MSE</a>
-      <a href="#change-rate">평균변화율과 미분</a>
-      <a href="#gradient">Gradient</a>
-      <a href="#update">값 수정</a>
-      <a href="#churn-mlp">실제 데이터 MLP</a>
-      <a href="#jaxtyping-policy">Tensor Shape 타입</a>
-      <a href="#tensor-broadcasting">Tensor Broadcasting</a>
-      <a href="#device-cuda-parallel">Device·CUDA 병렬 연산</a>
-    </nav>
+</section>
+<section id="goal" class="markdown-section">
+<h2>1. 데이터에서 <code>y = 3x + 2</code>를 찾는다</h2>
+<p>입력 <code>x</code>로 정답 <code>y</code>를 예측하고, 여러 데이터에 공통으로 맞는 <code>weight</code>와 <code>bias</code>를 학습한다. 이 작은 문제는 예측·Loss·Gradient·업데이트라는 신경망 학습의 기본 흐름을 그대로 가진다.</p>
 
-
-    <section id="goal"><h2>1. 데이터에서 <code>y = 3x + 2</code>를 찾는다</h2><p>입력 <code>x</code>로 정답 <code>y</code>를 예측하고, 여러 데이터에 공통으로 맞는 <code>weight</code>와 <code>bias</code>를 학습한다. 이 작은 문제는 예측·Loss·Gradient·업데이트라는 신경망 학습의 기본 흐름을 그대로 가진다.</p></section>
-    <section id="code"><h2>2. 한 번의 학습 흐름</h2><pre><code>prediction = x * weight + bias
+</section>
+<section id="code" class="markdown-section">
+<h2>2. 한 번의 학습 흐름</h2>
+<pre><code>prediction = x * weight + bias
 loss = ((prediction - y) ** 2).mean()
 loss.backward()
 
@@ -274,13 +79,43 @@ with torch.no_grad():
     bias -= learning_rate * bias.grad
 
 weight.grad.zero_()
-bias.grad.zero_()</code></pre><p>Forward가 예측을 만들고, Loss가 틀린 정도를 한 숫자로 만들며, <code>backward()</code>가 각 파라미터에 대한 변화율을 계산한다.</p></section>
-    <section id="parameters"><h2>3. 랜덤한 파라미터에서 시작한다</h2><p><code>weight</code>와 <code>bias</code>는 정답을 미리 아는 값이 아니라 학습할 Tensor다. <code>requires_grad=True</code>는 이 값으로 이어지는 연산을 기록해 나중에 Gradient를 구하겠다는 뜻이다.</p></section>
-    <section id="loss"><h2>4. MSE Loss로 예측 오차를 측정한다</h2><p>오차를 제곱하면 양수와 음수가 상쇄되지 않고, 큰 오차에 더 큰 비용을 준다. 여러 샘플의 제곱 오차를 평균내면 현재 파라미터 조합의 성능을 한 숫자로 비교할 수 있다.</p><p><a href="pytorch_linear_regression_setup_loss_learning.html#goal">첫 예측·Tensor·MSE 계산을 실제 숫자로 보기 →</a></p></section>
-    <section id="change-rate"><h2>5. 평균변화율에서 순간변화율로 간다</h2><p>두 점 사이의 평균변화율에서 두 번째 점을 기준점에 가까이 보내면 현재 위치의 순간변화율에 접근한다. 학습에서는 이 순간변화율이 파라미터를 어느 방향으로 얼마나 움직일지 알려준다.</p></section>
-    <section id="gradient"><h2>6. <code>backward()</code>가 Gradient를 계산한다</h2><p><code>weight.grad</code>는 weight 자체의 변화량이 아니라, weight를 조금 바꿨을 때 Loss가 변하는 비율이다. 부호는 Loss를 줄이려면 어느 방향으로 움직여야 하는지 알려준다.</p><p><a href="pytorch_linear_regression_derivative_backward_learning.html#change-rate">평균변화율·극한·문자 미분과 <code>backward()</code> 연결 보기 →</a></p><p><a href="pytorch_linear_regression_derivative_backward_learning.html#single-weight-to-linear-matrix">하나의 Weight에서 <code>Linear(4,4)</code> 행렬 전체 학습까지 이어서 보기 →</a></p></section>
-    <section id="update"><h2>7. Gradient의 반대 방향으로 파라미터를 수정한다</h2><p><code>parameter -= learning_rate * gradient</code>에서 학습률은 Gradient를 얼마만큼 반영할지 정한다. Gradient가 음수면 빼기와 음수가 만나 파라미터가 증가한다. <code>backward()</code>는 Gradient를 누적하므로 다음 Step 전에 0으로 지운다.</p><p><a href="pytorch_linear_regression_gradient_descent_learning.html#update">학습률·<code>no_grad()</code>·누적 Gradient·업데이트 검산 보기 →</a></p></section>
-    <section id="module-optimizer"><h2>8. <code>nn.Linear</code>와 Optimizer가 같은 역할을 나눠 맡는다</h2><pre><code>model = nn.Linear(1, 1)
+bias.grad.zero_()
+</code></pre>
+<p>Forward가 예측을 만들고, Loss가 틀린 정도를 한 숫자로 만들며, <code>backward()</code>가 각 파라미터에 대한 변화율을 계산한다.</p>
+
+</section>
+<section id="parameters" class="markdown-section">
+<h2>3. 랜덤한 파라미터에서 시작한다</h2>
+<p><code>weight</code>와 <code>bias</code>는 정답을 미리 아는 값이 아니라 학습할 Tensor다. <code>requires_grad=True</code>는 이 값으로 이어지는 연산을 기록해 나중에 Gradient를 구하겠다는 뜻이다.</p>
+
+</section>
+<section id="loss" class="markdown-section">
+<h2>4. MSE Loss로 예측 오차를 측정한다</h2>
+<p>오차를 제곱하면 양수와 음수가 상쇄되지 않고, 큰 오차에 더 큰 비용을 준다. 여러 샘플의 제곱 오차를 평균내면 현재 파라미터 조합의 성능을 한 숫자로 비교할 수 있다.</p>
+<p><a href="pytorch_linear_regression_setup_loss_learning.html#goal">첫 예측·Tensor·MSE 계산을 실제 숫자로 보기 →</a></p>
+
+</section>
+<section id="change-rate" class="markdown-section">
+<h2>5. 평균변화율에서 순간변화율로 간다</h2>
+<p>두 점 사이의 평균변화율에서 두 번째 점을 기준점에 가까이 보내면 현재 위치의 순간변화율에 접근한다. 학습에서는 이 순간변화율이 파라미터를 어느 방향으로 얼마나 움직일지 알려준다.</p>
+
+</section>
+<section id="gradient" class="markdown-section">
+<h2>6. <code>backward()</code>가 Gradient를 계산한다</h2>
+<p><code>weight.grad</code>는 weight 자체의 변화량이 아니라, weight를 조금 바꿨을 때 Loss가 변하는 비율이다. 부호는 Loss를 줄이려면 어느 방향으로 움직여야 하는지 알려준다.</p>
+<p><a href="pytorch_linear_regression_derivative_backward_learning.html#change-rate">평균변화율·극한·문자 미분과 <code>backward()</code> 연결 보기 →</a></p>
+<p><a href="pytorch_linear_regression_derivative_backward_learning.html#single-weight-to-linear-matrix">하나의 Weight에서 <code>Linear(4,4)</code> 행렬 전체 학습까지 이어서 보기 →</a></p>
+
+</section>
+<section id="update" class="markdown-section">
+<h2>7. Gradient의 반대 방향으로 파라미터를 수정한다</h2>
+<p><code>parameter -= learning_rate * gradient</code>에서 학습률은 Gradient를 얼마만큼 반영할지 정한다. Gradient가 음수면 빼기와 음수가 만나 파라미터가 증가한다. <code>backward()</code>는 Gradient를 누적하므로 다음 Step 전에 0으로 지운다.</p>
+<p><a href="pytorch_linear_regression_gradient_descent_learning.html#update">학습률·<code>no_grad()</code>·누적 Gradient·업데이트 검산 보기 →</a></p>
+
+</section>
+<section id="module-optimizer" class="markdown-section">
+<h2>8. <code>nn.Linear</code>와 Optimizer가 같은 역할을 나눠 맡는다</h2>
+<pre><code>model = nn.Linear(1, 1)
 loss_fn = nn.MSELoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
@@ -288,23 +123,65 @@ optimizer.zero_grad()
 prediction = model(x)
 loss = loss_fn(prediction, y)
 loss.backward()
-optimizer.step()</code></pre><p><code>nn.Linear</code>는 weight와 bias를 보관하며 Forward를 수행하고, Loss 함수는 오차를 계산한다. Optimizer는 등록된 파라미터의 Gradient를 읽어 업데이트한다. 모두 같은 수정 전 상태에서 계산된 Gradient를 한 Step에서 함께 적용한다.</p></section>
-    <section id="dataset-sample-pair"><h2>9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다</h2><p><code>TensorDataset(x, y)</code>는 같은 인덱스의 입력과 정답을 한 샘플로 묶고, DataLoader는 이를 <code>batch_size</code>만큼 꺼낸다. 마지막에 남은 샘플 수가 Batch 크기보다 작으면 더 작은 마지막 Batch가 만들어진다.</p><p><a href="pytorch_linear_regression_module_optimizer_dataset_learning.html#module-optimizer">Module·Optimizer FAQ와 Dataset/DataLoader 실험 자세히 보기 →</a></p></section>
-    <section id="churn-mlp"><h2>10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다</h2><p>작은 숫자 Tensor에서 시작한 흐름을 공개 회원 이탈 데이터로 확장했다. Pandas의 19개 원본 Feature를 One-Hot·StandardScaler로 45개 숫자 Feature로 바꾸고, NumPy → <code>float32</code> Tensor → TensorDataset → DataLoader → <code>[batch,45] → [batch,16] → [batch,1]</code> MLP와 초기 BCE Loss까지 연결했다. 이어 같은 Batch에서 SGD를 한 번 적용해 Loss가 <code>0.6564000844955444 → 0.6511512994766235</code>로 내려가는 실행도 확인했으며, 다차원 Linear의 파라미터·Shape 설명과 반복 학습은 아직 진행 중이다.</p><p><a href="pytorch_churn_mlp_learning.html#boundary">회원 이탈 MLP의 전처리·Shape·Logit·Sigmoid·BCE·SGD 한 Step 보기 →</a></p></section>
-    <section id="jaxtyping-policy"><h2>11. Tensor의 Shape과 축 의미를 타입에 보존한다</h2><p><code>torch.Tensor</code> 타입 힌트만으로는 <code>[Batch,Token]</code>과 <code>[Batch,Token,Vocabulary]</code>를 구분할 수 없습니다. 학습 코드에서 이 정보가 다시 블랙박스가 되지 않도록 jaxtyping을 함수 경계와 핵심 Tensor에 제한적으로 도입하기로 했습니다. 실제 적용 전, 도입 이유·적용 범위·적용하지 않을 범위와 Shape 학습 원칙을 하나의 완결된 문서에 보존했습니다.</p><p><a href="pytorch_jaxtyping_learning_policy.html#background">학습 코드의 jaxtyping 도입 이유와 제한적 적용 원칙 보기 →</a></p></section>
-    <section id="tensor-broadcasting"><h2>12. Shape이 다른 Tensor도 호환되는 축끼리 계산한다</h2><p>PyTorch는 두 Tensor의 축을 오른쪽부터 비교하고, 같은 크기이거나 한쪽이 <code>1</code>인 축을 Broadcasting하여 원소별 연산을 수행합니다. 차원이 더 짧은 Tensor는 부족한 왼쪽 축이 생략된 것으로 맞추며, <code>keepdim=True</code>는 평균을 구한 축을 길이 <code>1</code>로 남겨 원래 Tensor와 계산할 수 있게 합니다.</p><p><a href="pytorch_tensor_broadcasting_learning.html#rules">Tensor Broadcasting의 오른쪽 축 비교와 <code>[1,2,4] - [1,2,1]</code> 계산 보기 →</a></p></section>
-    <section id="device-cuda-parallel"><h2>13. 장치 이동에서 GPU 병렬 연산까지 연결한다</h2><p><code>.to(device)</code>는 병렬 계산 명령이 아니라 모델과 Tensor를 대상 장치의 메모리로 옮기는 작업입니다. 실제 모델 호출에서 PyTorch가 Tensor의 장치를 보고 CPU용 또는 CUDA용 연산을 선택하고, CUDA Kernel이 큰 Tensor 계산을 여러 GPU Thread에 나누는 흐름을 별도의 완결된 문서로 정리했습니다.</p><p><a href="pytorch_device_cuda_parallel_learning.html#question">Device 이동·PyTorch 디스패치·CUDA Kernel·GPU 병렬 실행의 전체 흐름 보기 →</a></p><p><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#purpose">Tokenizer가 만든 CPU Tensor의 H2D·D2H 이동과 GPU 추론 흐름 보기 →</a></p><p><a href="pytorch_profiler_aten_cuda_kernel_table_learning.html#actual-table">실제 Profiler 표에서 ATen 연산·CUDA Kernel·시간·메모리 열 읽기 →</a></p></section>
+optimizer.step()
+</code></pre>
+<p><code>nn.Linear</code>는 weight와 bias를 보관하며 Forward를 수행하고, Loss 함수는 오차를 계산한다. Optimizer는 등록된 파라미터의 Gradient를 읽어 업데이트한다. 모두 같은 수정 전 상태에서 계산된 Gradient를 한 Step에서 함께 적용한다.</p>
 
-    <div class="warning" id="checkpoint">
-      <strong>현재 검증한 범위와 다음에 이어서 할 일</strong>
-      <p><code>w</code> 하나를 사용하는 <code>y=wx</code>에서 Loss 감소, Gradient 재계산, 반복 학습과 손계산 <code>2(wx-y)x</code>의 일치를 확인했습니다. 이후 <code>b</code>, 여러 데이터의 평균 Loss, <code>nn.Linear</code>, Optimizer, Dataset과 DataLoader까지 확장했습니다. 다음에는 이 학습 흐름을 실제 Batch 학습·평가 루프로 연결합니다.</p>
+</section>
+<section id="dataset-sample-pair" class="markdown-section">
+<h2>9. Dataset과 DataLoader가 입력·정답을 Batch로 묶는다</h2>
+<p><code>TensorDataset(x, y)</code>는 같은 인덱스의 입력과 정답을 한 샘플로 묶고, DataLoader는 이를 <code>batch_size</code>만큼 꺼낸다. 마지막에 남은 샘플 수가 Batch 크기보다 작으면 더 작은 마지막 Batch가 만들어진다.</p>
+<p><a href="pytorch_linear_regression_module_optimizer_dataset_learning.html#module-optimizer">Module·Optimizer FAQ와 Dataset/DataLoader 실험 자세히 보기 →</a></p>
+
+</section>
+<section id="churn-mlp" class="markdown-section">
+<h2>10. 실제 표 데이터에서는 전처리부터 MLP까지 연결한다</h2>
+<p>작은 숫자 Tensor에서 시작한 흐름을 공개 회원 이탈 데이터로 확장했다. Pandas의 19개 원본 Feature를 One-Hot·StandardScaler로 45개 숫자 Feature로 바꾸고, NumPy → <code>float32</code> Tensor → TensorDataset → DataLoader → <code>[batch,45] → [batch,16] → [batch,1]</code> MLP와 초기 BCE Loss까지 연결했다. 이어 같은 Batch에서 SGD를 한 번 적용해 Loss가 <code>0.6564000844955444 → 0.6511512994766235</code>로 내려가는 실행도 확인했으며, 다차원 Linear의 파라미터·Shape 설명과 반복 학습은 아직 진행 중이다.</p>
+<p><a href="pytorch_churn_mlp_learning.html#boundary">회원 이탈 MLP의 전처리·Shape·Logit·Sigmoid·BCE·SGD 한 Step 보기 →</a></p>
+
+</section>
+<section id="jaxtyping-policy" class="markdown-section">
+<h2>11. Tensor의 Shape과 축 의미를 타입에 보존한다</h2>
+<p><code>torch.Tensor</code> 타입 힌트만으로는 <code>[Batch,Token]</code>과 <code>[Batch,Token,Vocabulary]</code>를 구분할 수 없습니다. 학습 코드에서 이 정보가 다시 블랙박스가 되지 않도록 jaxtyping을 함수 경계와 핵심 Tensor에 제한적으로 도입하기로 했습니다. 실제 적용 전, 도입 이유·적용 범위·적용하지 않을 범위와 Shape 학습 원칙을 하나의 완결된 문서에 보존했습니다.</p>
+<p><a href="pytorch_jaxtyping_learning_policy.html#background">학습 코드의 jaxtyping 도입 이유와 제한적 적용 원칙 보기 →</a></p>
+
+</section>
+<section id="tensor-broadcasting" class="markdown-section">
+<h2>12. Shape이 다른 Tensor도 호환되는 축끼리 계산한다</h2>
+<p>PyTorch는 두 Tensor의 축을 오른쪽부터 비교하고, 같은 크기이거나 한쪽이 <code>1</code>인 축을 Broadcasting하여 원소별 연산을 수행합니다. 차원이 더 짧은 Tensor는 부족한 왼쪽 축이 생략된 것으로 맞추며, <code>keepdim=True</code>는 평균을 구한 축을 길이 <code>1</code>로 남겨 원래 Tensor와 계산할 수 있게 합니다.</p>
+<p><a href="pytorch_tensor_broadcasting_learning.html#rules">Tensor Broadcasting의 오른쪽 축 비교와 <code>[1,2,4] - [1,2,1]</code> 계산 보기 →</a></p>
+
+</section>
+<section id="device-cuda-parallel" class="markdown-section">
+<h2>13. 장치 이동에서 GPU 병렬 연산까지 연결한다</h2>
+<p><code>.to(device)</code>는 병렬 계산 명령이 아니라 모델과 Tensor를 대상 장치의 메모리로 옮기는 작업입니다. 실제 모델 호출에서 PyTorch가 Tensor의 장치를 보고 CPU용 또는 CUDA용 연산을 선택하고, CUDA Kernel이 큰 Tensor 계산을 여러 GPU Thread에 나누는 흐름을 별도의 완결된 문서로 정리했습니다.</p>
+<p><a href="pytorch_device_cuda_parallel_learning.html#question">Device 이동·PyTorch 디스패치·CUDA Kernel·GPU 병렬 실행의 전체 흐름 보기 →</a></p>
+<p><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html#purpose">Tokenizer가 만든 CPU Tensor의 H2D·D2H 이동과 GPU 추론 흐름 보기 →</a></p>
+<p><a href="pytorch_profiler_aten_cuda_kernel_table_learning.html#actual-table">실제 Profiler 표에서 ATen 연산·CUDA Kernel·시간·메모리 열 읽기 →</a></p>
+<aside class="md-component md-caution" data-component="caution"><div class="md-component-body"><p><strong>현재 검증한 범위와 다음에 이어서 할 일</strong></p>
+<p><code>w</code> 하나를 사용하는 <code>y=wx</code>에서 Loss 감소, Gradient 재계산, 반복 학습과 손계산 <code>2(wx-y)x</code>의 일치를 확인했습니다. 이후 <code>b</code>, 여러 데이터의 평균 Loss, <code>nn.Linear</code>, Optimizer, Dataset과 DataLoader까지 확장했습니다. 다음에는 이 학습 흐름을 실제 Batch 학습·평가 루프로 연결합니다.</p>
+</div></aside>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="pytorch_churn_mlp_learning.html">회원 이탈 데이터에서 MLP(다층 퍼셉트론)와 BCE(이진 교차 엔트로피)까지</a></li>
+<li><a href="pytorch_device_cuda_parallel_learning.html">.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</a></li>
+<li><a href="pytorch_jaxtyping_learning_policy.html">학습 코드에 jaxtyping을 제한적으로 도입하는 이유</a></li>
+<li><a href="pytorch_linear_regression_derivative_backward_learning.html">평균변화율·순간변화율·backward()</a></li>
+<li><a href="pytorch_linear_regression_gradient_descent_learning.html">Gradient Descent와 Gradient 초기화</a></li>
+<li><a href="pytorch_linear_regression_module_optimizer_dataset_learning.html">nn.Linear·Optimizer·Dataset</a></li>
+<li><a href="pytorch_linear_regression_setup_loss_learning.html">문제 정의·예측·Loss</a></li>
+<li><a href="pytorch_tensor_broadcasting_learning.html">크기가 다른 Tensor끼리 계산할 수 있는 이유: Broadcasting</a></li>
+<li><a href="pytorch_tokenizer_tensor_cpu_cuda_transfer_learning.html">Tokenizer가 만든 Tensor는 언제 CPU에 있고, .to(&quot;cuda&quot;)는 무엇을 옮기는가</a></li></ul>
+  </section>
+      </article>
     </div>
-
-    <footer>
-      PyTorch 기초 실습 · 첫 번째 수동 Gradient Descent 기록
-    </footer>
-  </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

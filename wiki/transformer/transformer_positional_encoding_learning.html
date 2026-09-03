@@ -1,460 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_positional_encoding_learning.md. Do not edit directly. source-sha256:df66593b1a120ec6ab30013539c18223f3172f172ea1f905a72eb0a2f0ccdc45 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Token Embedding에 위치별 사인·코사인 벡터를 더해 순서를 표현하는 Positional Encoding 구현 문서">
-  <title>Transformer · Positional Encoding</title>
-  <style>
-    :root {
-      --ink: #18211d;
-      --muted: #667069;
-      --paper: #f6f3eb;
-      --panel: #fffdf7;
-      --line: #d9d5c8;
-      --green: #176b4d;
-      --green-soft: #dcecdf;
-      --orange: #d56a3a;
-      --code: #17211d;
-      --code-ink: #eaf3ec;
-      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
-        var(--paper);
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.7;
-    }
-
-    .page {
-      width: min(1120px, calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    header {
-      padding: 76px 0 52px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .eyebrow {
-      margin: 0 0 16px;
-      color: var(--green);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2.6rem, 7vw, 5.7rem);
-      font-weight: 800;
-      letter-spacing: -0.065em;
-      line-height: 1.02;
-    }
-
-    .lead {
-      max-width: 680px;
-      margin: 28px 0 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .doc-link {
-      display: inline-block;
-      margin-top: 22px;
-      padding: 9px 13px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 750;
-      text-decoration: none;
-    }
-
-    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
-    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      gap: 56px;
-      padding: 52px 0 100px;
-    }
-
-    nav {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-    }
-
-    nav p {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    nav a {
-      display: block;
-      margin: 2px 0;
-      padding: 9px 12px;
-      color: var(--muted);
-      border-left: 2px solid transparent;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    nav a:hover, nav a:focus-visible {
-      color: var(--green);
-      border-left-color: var(--green);
-      outline: none;
-    }
-
-    nav .current {
-      color: var(--ink);
-      font-weight: 750;
-      border-left-color: var(--orange);
-    }
-
-    main { min-width: 0; }
-
-    .cell-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      color: var(--orange);
-      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .cell-label::before {
-      width: 9px;
-      height: 9px;
-      content: "";
-      background: var(--orange);
-      border-radius: 50%;
-    }
-
-    h2 {
-      margin: 0 0 18px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      font-weight: 760;
-      letter-spacing: -0.045em;
-      line-height: 1.13;
-    }
-
-    h3 {
-      margin: 52px 0 14px;
-      font-size: 1.28rem;
-      letter-spacing: -0.02em;
-    }
-
-    p { margin: 0 0 18px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .summary {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.03rem;
-    }
-
-    .code-card {
-      position: relative;
-      overflow: hidden;
-      margin: 30px 0;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 13px 18px;
-      color: #9db0a4;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    pre {
-      margin: 0;
-      padding: 24px;
-      overflow-x: auto;
-      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-      tab-size: 4;
-    }
-
-    .kw { color: #f1a567; }
-    .type { color: #80d6a6; }
-    .fn { color: #e7d17d; }
-    .num { color: #a9bff7; }
-    .comment { color: #819389; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 28px 0 8px;
-    }
-
-    .flow-item {
-      position: relative;
-      min-height: 134px;
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .flow-item:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -16px;
-      width: 21px;
-      height: 21px;
-      content: "→";
-      color: var(--green);
-      background: var(--paper);
-      text-align: center;
-      line-height: 19px;
-    }
-
-    .flow-item strong { display: block; margin-bottom: 9px; }
-    .flow-item span { color: var(--muted); font-size: 0.86rem; }
-
-    .shape {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 7px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 5px;
-      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .explain-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .note {
-      padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .note .number {
-      display: block;
-      margin-bottom: 12px;
-      color: var(--orange);
-      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .note strong { display: block; margin-bottom: 7px; }
-    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-
-    .formula {
-      margin: 30px 0;
-      padding: 28px;
-      background: var(--green-soft);
-      border-left: 4px solid var(--green);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .formula .math {
-      display: block;
-      margin-bottom: 10px;
-      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
-        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    }
-
-    .reasoning {
-      margin: 52px 0 0;
-      padding: 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .reasoning h3 { margin-top: 0; }
-
-    .equivalence {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 14px;
-      margin: 24px 0 30px;
-    }
-
-    .equivalence article {
-      padding: 20px;
-      background: var(--paper);
-      border-radius: 10px;
-    }
-
-    .equivalence strong { display: block; margin-bottom: 10px; }
-    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
-
-    .path-map {
-      display: grid;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .path-row {
-      display: grid;
-      grid-template-columns: 86px 1fr;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 17px;
-      background: var(--green-soft);
-      border-radius: 9px;
-    }
-
-    .path-row strong { color: var(--green); }
-    .path-row code { font-size: 0.83rem; }
-
-    .caution {
-      margin: 24px 0 0;
-      padding: 17px 19px;
-      color: var(--muted);
-      background: #f4eadf;
-      border-left: 3px solid var(--orange);
-      border-radius: 0 9px 9px 0;
-      font-size: 0.9rem;
-    }
-
-    table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-
-    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
-    td { font-size: 0.92rem; }
-    tr:last-child td { border-bottom: 0; }
-
-    .checkpoint {
-      margin-top: 52px;
-      padding: 28px;
-      color: white;
-      background: var(--green);
-      border-radius: 16px;
-    }
-
-    .checkpoint h3 { margin: 0 0 18px; }
-    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-    summary { cursor: pointer; font-weight: 700; }
-    details p { margin: 12px 0 0; color: #dcecdf; }
-
-    .cell-start {
-      margin-top: 92px;
-      padding-top: 72px;
-      border-top: 2px solid var(--line);
-    }
-
-    .concept-figure {
-      margin: 28px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure img { display: block; width: min(100%, 1000px); height: auto; margin: 0 auto; border: 1px solid var(--line); border-radius: 14px; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .trig-axis { stroke: #667069; stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
-    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
-    .trig-point { fill: #d56a3a; }
-    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
-    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
-    .position-radius { stroke: #d56a3a; stroke-width: 3; }
-    .position-point { fill: #d56a3a; }
-    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .wave-axis { stroke: #667069; stroke-width: 1.5; }
-    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
-    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
-    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
-    .wave-sin-dot { fill: #176b4d; }
-    .wave-cos-dot { fill: #d56a3a; }
-    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    footer {
-      padding: 24px 0 42px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 800px) {
-      header { padding-top: 48px; }
-      .layout { grid-template-columns: 1fr; gap: 30px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      nav .current { border-bottom-color: var(--orange); }
-      .flow { grid-template-columns: 1fr 1fr; }
-      .flow-item:not(:last-child)::after { display: none; }
-      .equivalence { grid-template-columns: 1fr; }
-      .equals { justify-self: center; }
-    }
-
-    @media (max-width: 540px) {
-      .page { width: min(100% - 24px, 1120px); }
-      .flow, .explain-grid { grid-template-columns: 1fr; }
-      .reasoning { padding: 22px; }
-      .path-row { grid-template-columns: 1fr; gap: 4px; }
-      pre { padding: 18px; font-size: 0.78rem; }
-      th, td { padding: 11px 10px; }
-    }
-  </style>
+  <meta name="description" content="위치 번호가 여러 속도의 sin·cos 벡터로 바뀌는 과정과 Shape을 기존 학습 내용 그대로 정리합니다.">
+  <meta name="source-sha256" content="df66593b1a120ec6ab30013539c18223f3172f172ea1f905a72eb0a2f0ccdc45">
+  <title>Positional Encoding, 코드에서 이해하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -463,219 +18,137 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · Positional Encoding">
-  <meta property="og:description" content="Token Embedding에 위치별 사인·코사인 벡터를 더해 순서를 표현하는 Positional Encoding 구현 문서">
+  <meta property="og:title" content="Positional Encoding, 코드에서 이해하기">
+  <meta property="og:description" content="위치 번호가 여러 속도의 sin·cos 벡터로 바뀌는 과정과 Shape을 기존 학습 내용 그대로 정리합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html","name":"Transformer · Positional Encoding","description":"Token Embedding에 위치별 사인·코사인 벡터를 더해 순서를 표현하는 Positional Encoding 구현 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html"},"headline":"Transformer · Positional Encoding","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#positional-encoding","name":"Positional Encoding","identifier":"positional-encoding"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"Positional Encoding"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html","name":"Positional Encoding, 코드에서 이해하기","description":"위치 번호가 여러 속도의 sin·cos 벡터로 바뀌는 과정과 Shape을 기존 학습 내용 그대로 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html"},"headline":"Positional Encoding, 코드에서 이해하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#positional-encoding","name":"Positional Encoding","identifier":"positional-encoding"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_positional_encoding_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Positional Encoding, 코드에서 이해하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <header>
-    <div class="page">
-            <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 홈</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../../wiki.html">기술 위키</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="transformer_learning.html">Transformer</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <span aria-current="page">Positional Encoding</span>
-      </nav>
-      <p class="eyebrow">Transformer from scratch · 학습 노트</p>
-      <h1>Positional Encoding,<br>코드에서 이해하기</h1>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><span aria-current="page">Positional Encoding, 코드에서 이해하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Positional Encoding, 코드에서 이해하기</h1>
       <p class="lead">위치 번호가 여러 속도의 sin·cos 벡터로 바뀌는 과정과 Shape을 기존 학습 내용 그대로 정리합니다.</p>
-      <a class="doc-link" href="transformer_learning.html">← Transformer 상위 문서</a>
-    </div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-  <div class="page layout">
-    <nav aria-label="문서 목차">
-      <p>Topics</p>
-      <a href="transformer_learning.html">← Transformer 상위 문서</a>
-      <a href="#positional-encoding">순서가 없는 Transformer에 위치 알려주기</a>
-      <a href="#learned-position-embedding">학습형 Position Embedding 실행</a>
-      <a href="#position-wave-signature">위치별 사인·코사인 파형 패턴</a>
-      <a href="#div-term">div_term은 무엇을 만드는가?</a>
-      <a href="#trig-math-reference">사인·코사인 수학 개념은 별도 문서에서</a>
-      <a href="#sin-cos-pair">왜 짝수 차원에는 sin, 홀수 차원에는 cos를 넣을까?</a>
-      <a href="#positional-shapes">Positional Encoding 텐서 Shape</a>
-      <a href="#positional-checkpoint">Positional Encoding 확인 문제</a>
-    </nav>
-
-    <main>
-      <div hidden aria-hidden="true"><span id="overlap-wave-desc"></span><span id="overlap-wave-title"></span><span id="position-fingerprint-desc"></span><span id="position-fingerprint-title"></span><span id="position-rotation-desc"></span><span id="position-rotation-title"></span><span id="unit-circle-desc"></span><span id="unit-circle-title"></span></div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      <section class="cell-start" id="positional-encoding">
-        <div class="cell-label">Cell 02</div>
-        <h2>순서가 없는 Transformer에 위치 알려주기</h2>
-        <p class="summary"><code>PositionalEncoding</code>은 토큰 임베딩과 같은 <code>d_model</code>차원의 위치 벡터를 만든 뒤 더합니다. 각 차원에는 서로 다른 주기의 사인·코사인 파동을 사용하여 같은 토큰이라도 문장 속 위치가 다르면 다른 입력 표현을 갖게 합니다.</p>
-
-        <div class="reasoning" id="position-wave-signature">
-          <h3>핵심 직관: 위치마다 다른 파형 패턴을 더한다</h3>
-          <p>네가 말한 것처럼 포지셔널 인코딩은 각 토큰의 임베딩에 사인·코사인 패턴을 더해서 위치를 표현합니다. 다만 정확히는 <strong>토큰마다 다른 파형</strong>이 아니라 <strong>위치마다 다른 파형</strong>입니다.</p>
-
-          <div class="path-map" aria-label="토큰 임베딩과 위치 인코딩을 더하는 흐름">
-            <div class="path-row"><strong>position 0</strong><code>Embedding("나는") + PE[0]</code></div>
-            <div class="path-row"><strong>position 1</strong><code>Embedding("학교에") + PE[1]</code></div>
-            <div class="path-row"><strong>position 2</strong><code>Embedding("갔다") + PE[2]</code></div>
-          </div>
-
-          <p>각 위치 벡터 <code>PE[p]</code>는 차원마다 다른 속도의 <code>sin</code>·<code>cos</code> 값을 갖습니다. 따라서 최종 입력은 다음처럼 의미와 위치가 섞인 벡터가 됩니다.</p>
-          <div class="formula">
-            <span class="math">X'[p] = E[token_p] + PE[p]</span>
-            <span><code>토큰 의미 벡터 + 위치 패턴 벡터</code></span>
-          </div>
-
-          <figure class="concept-figure">
-            <img src="../../assets/images/positional_encoding_position10_wave.png" alt="position 10의 위치 인코딩 벡터를 차원별로 그린 사인·코사인 파형 그래프" loading="lazy">
-            <figcaption>position 10에 더해지는 위치 벡터를 차원 방향으로 그린 그림이다. 가로축은 토큰 위치가 아니라 벡터의 차원이고, 각 차원에 들어갈 위치 인코딩 값이 세로축에 나타난다.</figcaption>
-          </figure>
-
-          <div class="caution"><strong>위치를 알 수 있는 이유</strong> — 같은 토큰이라도 position 0과 position 1에서는 서로 다른 <code>PE</code>가 더해집니다. 모델은 이 위치별 패턴을 입력 벡터에서 읽어 토큰의 순서와 위치를 구분할 수 있습니다. 서로 다른 토큰이 같은 위치에 놓이면 같은 <code>PE</code>를 더받고, 토큰의 의미 벡터만 달라집니다.</div>
-        </div>
-
-        <div class="code-card" aria-label="PositionalEncoding 전체 코드">
-          <div class="code-head"><span>positional_encoding.py</span><span>PyTorch</span></div>
-          <pre><code><span class="kw">class</span> <span class="type">PositionalEncoding</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, max_seq_len=<span class="num">5000</span>, dropout=<span class="num">0.1</span>):
-        <span class="fn">super</span>().__init__()
+    <div class="markdown-lead"><p>Cell 02</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#positional-encoding">순서가 없는 Transformer에 위치 알려주기</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="positional-encoding" class="markdown-section">
+<h2>순서가 없는 Transformer에 위치 알려주기</h2>
+<p><code>PositionalEncoding</code>은 토큰 임베딩과 같은 <code>d_model</code>차원의 위치 벡터를 만든 뒤 더합니다. 각 차원에는 서로 다른 주기의 사인·코사인 파동을 사용하여 같은 토큰이라도 문장 속 위치가 다르면 다른 입력 표현을 갖게 합니다.</p>
+<h3>핵심 직관: 위치마다 다른 파형 패턴을 더한다</h3>
+<p>네가 말한 것처럼 포지셔널 인코딩은 각 토큰의 임베딩에 사인·코사인 패턴을 더해서 위치를 표현합니다. 다만 정확히는 토큰마다 다른 파형이 아니라 위치마다 다른 파형입니다.</p>
+<p><strong>position 0</strong><code>Embedding(&quot;나는&quot;) + PE[0]</code></p>
+<p><strong>position 1</strong><code>Embedding(&quot;학교에&quot;) + PE[1]</code></p>
+<p><strong>position 2</strong><code>Embedding(&quot;갔다&quot;) + PE[2]</code></p>
+<p>각 위치 벡터 <code>PE[p]</code>는 차원마다 다른 속도의 <code>sin</code>·<code>cos</code> 값을 갖습니다. 따라서 최종 입력은 다음처럼 의미와 위치가 섞인 벡터가 됩니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>X&#39;[p] = E[token_p] + PE[p] <code>토큰 의미 벡터 + 위치 패턴 벡터</code></p>
+</div></aside>
+<p><img src="../../assets/images/positional_encoding_position10_wave.png" alt="position 10의 위치 인코딩 벡터를 차원별로 그린 사인·코사인 파형 그래프" loading="lazy"></p>
+<p>position 10에 더해지는 위치 벡터를 차원 방향으로 그린 그림이다. 가로축은 토큰 위치가 아니라 벡터의 차원이고, 각 차원에 들어갈 위치 인코딩 값이 세로축에 나타난다.</p>
+<p><strong>위치를 알 수 있는 이유</strong> — 같은 토큰이라도 position 0과 position 1에서는 서로 다른 <code>PE</code>가 더해집니다. 모델은 이 위치별 패턴을 입력 벡터에서 읽어 토큰의 순서와 위치를 구분할 수 있습니다. 서로 다른 토큰이 같은 위치에 놓이면 같은 <code>PE</code>를 더받고, 토큰의 의미 벡터만 달라집니다.</p>
+<p>positional_encoding.pyPyTorch</p>
+<pre><code>class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_seq_len=5000, dropout=0.1):
+        super().__init__()
 
         self.dropout = nn.Dropout(p=dropout)
 
         position = torch.arange(
-            start=<span class="num">0</span>,
+            start=0,
             end=max_seq_len,
             dtype=torch.float,
-        ).unsqueeze(<span class="num">1</span>)
+        ).unsqueeze(1)
 
         div_term = torch.exp(
-            torch.arange(<span class="num">0</span>, d_model, <span class="num">2</span>, dtype=torch.float)
-            * (-math.log(<span class="num">10000.0</span>) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float)
+            * (-math.log(10000.0) / d_model)
         )
 
         pe = torch.zeros(max_seq_len, d_model)
-        pe[:, <span class="num">0</span>::<span class="num">2</span>] = torch.sin(position * div_term)
-        pe[:, <span class="num">1</span>::<span class="num">2</span>] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(<span class="num">0</span>)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
 
-        self.register_buffer(<span class="string">"pe"</span>, pe)
+        self.register_buffer(&quot;pe&quot;, pe)
 
-    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
-        x = x + self.pe[:, :x.size(<span class="num">1</span>), :]
-        <span class="kw">return</span> self.dropout(x)</code></pre>
-        </div>
-
-        <div class="flow" aria-label="PositionalEncoding 처리 흐름">
-          <div class="flow-item">
-            <strong>1. Position</strong>
-            <span>문장 안의 위치 번호 생성</span>
-            <div class="shape">[S, 1]</div>
-          </div>
-          <div class="flow-item">
-            <strong>2. Frequency</strong>
-            <span>차원별 변화 속도 생성</span>
-            <div class="shape">[D/2]</div>
-          </div>
-          <div class="flow-item">
-            <strong>3. Sin / Cos</strong>
-            <span>짝수·홀수 차원에 교차 배치</span>
-            <div class="shape">[S, D]</div>
-          </div>
-          <div class="flow-item">
-            <strong>4. Add</strong>
-            <span>토큰 임베딩에 위치 정보 추가</span>
-            <div class="shape">[B, S, D]</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="reasoning" id="learned-position-embedding">
-        <h3>Tiny Decoder LM에서 학습형 Position Embedding을 더해 보기</h3>
-        <p>기존 문서의 <code>PositionalEncoding</code>은 위치 벡터를 sin·cos 공식으로 미리 만드는 방식입니다. Tiny Decoder LM의 독립 실행 셀에서는 위치 번호도 Token ID처럼 <code>nn.Embedding</code> 표에서 조회하는 <strong>학습형 Position Embedding</strong> 방식을 확인했습니다.</p>
-        <div class="code-card" aria-label="Tiny Decoder LM 학습형 위치 임베딩 실행 코드">
-          <div class="code-head"><span>Position ID lookup</span><span>vocab 10 · max sequence 8 · d_model 2</span></div>
-          <pre><code>input_tokens = torch.tensor([[
-    <span class="num">3</span>, <span class="num">7</span>, <span class="num">2</span>,
+    def forward(self, x):
+        x = x + self.pe[:, :x.size(1), :]
+        return self.dropout(x)
+</code></pre>
+<aside class="md-component md-shape-flow" data-component="shape-flow"><div class="md-component-body"><p><strong>1. Position</strong> 문장 안의 위치 번호 생성</p>
+<p>[S, 1]</p>
+<p><strong>2. Frequency</strong> 차원별 변화 속도 생성</p>
+<p>[D/2]</p>
+<p><strong>3. Sin / Cos</strong> 짝수·홀수 차원에 교차 배치</p>
+<p>[S, D]</p>
+<p><strong>4. Add</strong> 토큰 임베딩에 위치 정보 추가</p>
+<p>[B, S, D]</p>
+</div></aside>
+<span class="md-anchor" id="learned-position-embedding" aria-hidden="true"></span>
+<h3>Tiny Decoder LM에서 학습형 Position Embedding을 더해 보기</h3>
+<p>기존 문서의 <code>PositionalEncoding</code>은 위치 벡터를 sin·cos 공식으로 미리 만드는 방식입니다. Tiny Decoder LM의 독립 실행 셀에서는 위치 번호도 Token ID처럼 <code>nn.Embedding</code> 표에서 조회하는 <strong>학습형 Position Embedding</strong> 방식을 확인했습니다.</p>
+<p>Position ID lookupvocab 10 · max sequence 8 · d_model 2</p>
+<pre><code>input_tokens = torch.tensor([[
+    3, 7, 2,
 ]])
 positions = torch.tensor([[
-    <span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>,
+    0, 1, 2,
 ]])
 
 token_embedding = nn.Embedding(
-    num_embeddings=<span class="num">10</span>,
-    embedding_dim=<span class="num">2</span>,
+    num_embeddings=10,
+    embedding_dim=2,
 )
 position_embedding = nn.Embedding(
-    num_embeddings=<span class="num">8</span>,
-    embedding_dim=<span class="num">2</span>,
+    num_embeddings=8,
+    embedding_dim=2,
 )
 
 token_vectors = token_embedding(input_tokens)
 position_vectors = position_embedding(positions)
-hidden_states = token_vectors + position_vectors</code></pre>
-        </div>
-
-        <div class="path-map" aria-label="학습형 위치 임베딩 실행 Shape">
-          <div class="path-row"><strong>Token ID</strong><code>input_tokens [[3,7,2]] · Shape [1,3]</code></div>
-          <div class="path-row"><strong>Position ID</strong><code>positions [[0,1,2]] · Shape [1,3]</code></div>
-          <div class="path-row"><strong>Token vector</strong><code>Shape [1,3,2]</code></div>
-          <div class="path-row"><strong>Position vector</strong><code>Shape [1,3,2]</code></div>
-          <div class="path-row"><strong>원소별 합</strong><code>hidden_states · Shape [1,3,2]</code></div>
-        </div>
-
-        <p>이 Shape을 사용자가 설명한 말로 읽으면 <strong>“1시퀀스, 3토큰, 각 토큰은 2차원”</strong>입니다. Token vector와 Position vector는 모두 같은 위치에 같은 길이 2의 벡터를 가지므로, 위치별·차원별로 대응하는 원소끼리 더할 수 있습니다.</p>
-        <pre><code>hidden_states[batch, position, dimension]
+hidden_states = token_vectors + position_vectors
+</code></pre>
+<p><strong>Token ID</strong><code>input_tokens [[3,7,2]] · Shape [1,3]</code></p>
+<p><strong>Position ID</strong><code>positions [[0,1,2]] · Shape [1,3]</code></p>
+<p><strong>Token vector</strong><code>Shape [1,3,2]</code></p>
+<p><strong>Position vector</strong><code>Shape [1,3,2]</code></p>
+<p><strong>원소별 합</strong><code>hidden_states · Shape [1,3,2]</code></p>
+<p>이 Shape을 사용자가 설명한 말로 읽으면 “1시퀀스, 3토큰, 각 토큰은 2차원”입니다. Token vector와 Position vector는 모두 같은 위치에 같은 길이 2의 벡터를 가지므로, 위치별·차원별로 대응하는 원소끼리 더할 수 있습니다.</p>
+<pre><code>hidden_states[batch, position, dimension]
 = token_vectors[batch, position, dimension]
   + position_vectors[batch, position, dimension]
 
 position 0의 실행 예:
 [2.2463, 1.8304] + [0.5573, -1.8208]
-≈ [2.8036, 0.0096]</code></pre>
-        <p>위치 0의 벡터는 위치 0끼리, 위치 1은 위치 1끼리, 위치 2는 위치 2끼리 더합니다. Token 3개를 서로 합치거나, Position vector를 새 축으로 이어 붙이는 연산이 아닙니다. 그래서 두 입력과 합의 Shape이 모두 <code>[1,3,2]</code>로 유지됩니다.</p>
-
-        <div class="explain-grid">
-          <article class="note">
-            <strong>sin·cos Positional Encoding</strong>
-            <p>위치 번호와 차원별 주기로 값을 계산합니다. 위치 벡터는 학습 파라미터가 아니며 기존 코드에서는 <code>register_buffer</code>로 보관합니다.</p>
-          </article>
-          <article class="note">
-            <strong>학습형 Position Embedding</strong>
-            <p><code>nn.Embedding(max_seq_len, d_model)</code>의 각 행을 위치 벡터로 사용합니다. 위치 0·1·2가 행 index이며, 이 표의 값은 Loss의 Gradient로 학습됩니다.</p>
-          </article>
-        </div>
-
-        <h3><code>num_embeddings</code>, <code>embedding_dim</code>, <code>std</code>는 서로 다른 값이다</h3>
-        <p><code>embedding_dim</code>은 초기 랜덤값의 표준편차가 아니라, 조회표에서 <strong>벡터 하나가 가진 원소 수</strong>입니다. 행·열·초기값의 퍼짐을 분리하면 다음과 같습니다.</p>
-        <div class="explain-grid">
-          <article class="note">
-            <strong><code>num_embeddings</code></strong>
-            <p>저장할 벡터 수이며 <code>weight</code>의 행 수입니다. 입력 index 하나가 이 행들 중 하나를 선택합니다.</p>
-          </article>
-          <article class="note">
-            <strong><code>embedding_dim</code></strong>
-            <p>벡터 하나의 원소 수이며 <code>weight</code>의 열 수입니다. 조회 결과의 마지막 차원 크기를 정합니다.</p>
-          </article>
-          <article class="note">
-            <strong><code>std</code></strong>
-            <p>각 원소를 초기화할 때 랜덤값이 평균 주변에 얼마나 퍼질지를 정합니다. 행·열 Shape과 별개이며 <code>nn.init.normal_</code> 같은 초기화에서 따로 설정합니다.</p>
-          </article>
-        </div>
-        <pre><code>position_embedding = nn.Embedding(
+≈ [2.8036, 0.0096]
+</code></pre>
+<p>위치 0의 벡터는 위치 0끼리, 위치 1은 위치 1끼리, 위치 2는 위치 2끼리 더합니다. Token 3개를 서로 합치거나, Position vector를 새 축으로 이어 붙이는 연산이 아닙니다. 그래서 두 입력과 합의 Shape이 모두 <code>[1,3,2]</code>로 유지됩니다.</p>
+<p><strong>sin·cos Positional Encoding</strong></p>
+<p>위치 번호와 차원별 주기로 값을 계산합니다. 위치 벡터는 학습 파라미터가 아니며 기존 코드에서는 <code>register_buffer</code>로 보관합니다.</p>
+<p><strong>학습형 Position Embedding</strong></p>
+<p><code>nn.Embedding(max_seq_len, d_model)</code>의 각 행을 위치 벡터로 사용합니다. 위치 0·1·2가 행 index이며, 이 표의 값은 Loss의 Gradient로 학습됩니다.</p>
+<h3><code>num_embeddings</code>, <code>embedding_dim</code>, <code>std</code>는 서로 다른 값이다</h3>
+<p><code>embedding_dim</code>은 초기 랜덤값의 표준편차가 아니라, 조회표에서 벡터 하나가 가진 원소 수입니다. 행·열·초기값의 퍼짐을 분리하면 다음과 같습니다.</p>
+<p><code>num_embeddings</code></p>
+<p>저장할 벡터 수이며 <code>weight</code>의 행 수입니다. 입력 index 하나가 이 행들 중 하나를 선택합니다.</p>
+<p><code>embedding_dim</code></p>
+<p>벡터 하나의 원소 수이며 <code>weight</code>의 열 수입니다. 조회 결과의 마지막 차원 크기를 정합니다.</p>
+<p><code>std</code></p>
+<p>각 원소를 초기화할 때 랜덤값이 평균 주변에 얼마나 퍼질지를 정합니다. 행·열 Shape과 별개이며 <code>nn.init.normal_</code> 같은 초기화에서 따로 설정합니다.</p>
+<pre><code>position_embedding = nn.Embedding(
     num_embeddings=8,
     embedding_dim=2,
 )
@@ -694,79 +167,83 @@ nn.init.normal_(
     position_embedding.weight,
     mean=0.0,
     std=원하는_퍼짐,
-)</code></pre>
-        <div class="caution"><strong><code>nn.Embedding</code>은 Token과 Position의 의미를 스스로 구분하지 않는다</strong> — 두 모듈은 모두 입력 index로 <code>weight</code>의 행을 조회합니다. Token ID를 넣고 단어 표현으로 사용하면 Token Embedding이고, 위치 index를 넣고 Token vector에 더하면 Position Embedding입니다. 역할은 클래스 이름이 아니라 어떤 index를 입력하고 결과를 어디에 사용하는지가 정합니다.</div>
-        <div class="caution"><strong>두 방식의 공통점과 경계</strong> — 위치 벡터를 만드는 방법은 다르지만, 둘 다 현재 Token vector와 같은 <code>[batch, seq_len, d_model]</code> Shape으로 맞춘 뒤 원소별로 더합니다. 오늘 확인한 것은 학습형 Position Embedding을 독립 셀에서 더해 Shape과 값을 검증한 단계이며, Tiny Decoder LM 전체 연결·학습·생성 완료를 뜻하지 않습니다.</div>
-      </section>
+)
+</code></pre>
+<p><strong><code>nn.Embedding</code>은 Token과 Position의 의미를 스스로 구분하지 않는다</strong> — 두 모듈은 모두 입력 index로 <code>weight</code>의 행을 조회합니다. Token ID를 넣고 단어 표현으로 사용하면 Token Embedding이고, 위치 index를 넣고 Token vector에 더하면 Position Embedding입니다. 역할은 클래스 이름이 아니라 어떤 index를 입력하고 결과를 어디에 사용하는지가 정합니다.</p>
+<p><strong>두 방식의 공통점과 경계</strong> — 위치 벡터를 만드는 방법은 다르지만, 둘 다 현재 Token vector와 같은 <code>[batch, seq_len, d_model]</code> Shape으로 맞춘 뒤 원소별로 더합니다. 오늘 확인한 것은 학습형 Position Embedding을 독립 셀에서 더해 Shape과 값을 검증한 단계이며, Tiny Decoder LM 전체 연결·학습·생성 완료를 뜻하지 않습니다.</p>
+<span class="md-anchor" id="div-term" aria-hidden="true"></span>
+<h3><code>div_term</code>이 차원별 속도를 만든다</h3>
+<p>같은 위치라도 모든 차원이 같은 각도로 움직이면 서로 다른 위치를 오래 구분하기 어렵다. <code>div_term</code>은 차원 쌍마다 다른 회전 속도를 만들어 빠른 변화와 느린 변화를 한 벡터에 함께 담는다.</p>
+<p><a href="transformer_positional_div_term_learning.html#div-term"><code>div_term</code> 식을 원래 논문 식까지 전개해서 보기 →</a></p>
+<span class="md-anchor" id="sin-cos-pair" aria-hidden="true"></span>
+<h3>sin·cos 쌍이 위치를 좌표로 바꾼다</h3>
+<p>짝수·홀수 차원 한 쌍은 같은 각도의 <code>sin</code>과 <code>cos</code>를 담아 원 위의 한 점처럼 움직인다. 여러 속도의 차원 쌍이 합쳐지면 위치마다 다른 벡터 지문이 생긴다.</p>
+<p><a href="transformer_positional_sin_cos_learning.html#sin-cos-pair">단위원·파동·상대 위치 회전까지 자세히 보기 →</a></p>
+<h3>Positional Encoding 텐서 Shape</h3>
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>Shape</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>position</td>
+<td>[max_seq_len, 1]</td>
+<td>각 행에 위치 번호 하나</td>
+</tr>
+<tr>
+<td>div_term</td>
+<td>[d_model/2]</td>
+<td>차원 쌍마다 하나의 변화 비율</td>
+</tr>
+<tr>
+<td>position * div_term</td>
+<td>[max_seq_len, d_model/2]</td>
+<td>브로드캐스팅으로 만든 위치별·차원별 각도</td>
+</tr>
+<tr>
+<td>pe</td>
+<td>[1, max_seq_len, d_model]</td>
+<td>배치 전체가 공유할 위치 인코딩</td>
+</tr>
+<tr>
+<td>x</td>
+<td>[batch_size, seq_len, d_model]</td>
+<td>토큰 임베딩과 위치 인코딩을 더한 결과</td>
+</tr>
+</tbody></table>
+<p>01 <code>unsqueeze(1)</code></p>
+<p>위치 벡터를 <code>[S]</code>에서 <code>[S,1]</code>로 바꿔 <code>[D/2]</code>인 <code>div_term</code>과 브로드캐스팅되게 합니다.</p>
+<p>02 <strong><code>pe[:, 0::2]</code> / <code>pe[:, 1::2]</code></strong></p>
+<p>짝수 차원에는 <code>sin</code>, 홀수 차원에는 <code>cos</code> 값을 교차해서 넣습니다.</p>
+<p>03 <code>register_buffer(&quot;pe&quot;, pe)</code></p>
+<p><code>pe</code>는 학습 파라미터는 아니지만 모델과 함께 장치를 이동하고 저장되도록 buffer로 등록합니다.</p>
+<p>04 <code>self.pe[:, :x.size(1), :]</code></p>
+<p>미리 만든 최대 길이 중 현재 입력의 <code>seq_len</code>만큼만 잘라 토큰 임베딩에 더합니다.</p>
+<p><strong>구현 조건</strong> — 현재 <code>sin/cos</code> 슬라이스 구현은 <code>d_model</code>이 짝수라고 가정합니다. 일반적인 Transformer 설정은 짝수 차원을 사용합니다.</p>
+<h3>Positional Encoding 확인 문제</h3>
+<details class="md-component md-details"><summary>div_term 이 차원이 커질수록 작아지는 이유는?</summary><div class="md-component-body"><p>뒤쪽 차원의 사인·코사인이 위치에 따라 더 천천히 변하게 하여 긴 주기의 위치 패턴을 표현하기 위해서입니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>d_model=8 일 때  div_term 의 원소 개수는?</summary><div class="md-component-body"><p>차원을 두 개씩 한 쌍으로 처리하므로 4개입니다. 대략 <code>[1, 0.1, 0.01, 0.001]</code>입니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>position * div_term 이 가능한 이유는?</summary><div class="md-component-body"><p><code>[S,1]</code>과 <code>[D/2]</code>가 브로드캐스팅되어 <code>[S,D/2]</code>가 되기 때문입니다.</p>
+</div></details>
 
-      <section class="reasoning" id="div-term"><h3><code>div_term</code>이 차원별 속도를 만든다</h3><p>같은 위치라도 모든 차원이 같은 각도로 움직이면 서로 다른 위치를 오래 구분하기 어렵다. <code>div_term</code>은 차원 쌍마다 다른 회전 속도를 만들어 빠른 변화와 느린 변화를 한 벡터에 함께 담는다.</p><p><a class="doc-link" href="transformer_positional_div_term_learning.html#div-term"><code>div_term</code> 식을 원래 논문 식까지 전개해서 보기 →</a></p></section>
-
-      <span id="sin-cos-pair"></span><span id="sin-cos-overlap"></span><span id="why-position"></span>
-      <section class="reasoning" id="trig-math-reference"><h3>sin·cos 쌍이 위치를 좌표로 바꾼다</h3><p>짝수·홀수 차원 한 쌍은 같은 각도의 <code>sin</code>과 <code>cos</code>를 담아 원 위의 한 점처럼 움직인다. 여러 속도의 차원 쌍이 합쳐지면 위치마다 다른 벡터 지문이 생긴다.</p><p><a class="doc-link" href="transformer_positional_sin_cos_learning.html#sin-cos-pair">단위원·파동·상대 위치 회전까지 자세히 보기 →</a></p></section>
-
-      <section id="positional-shapes">
-        <h3>Positional Encoding 텐서 Shape</h3>
-        <div class="table-scroll"><table>
-          <thead><tr><th>대상</th><th>Shape</th><th>의미</th></tr></thead>
-          <tbody>
-            <tr><td><code>position</code></td><td><code>[max_seq_len, 1]</code></td><td>각 행에 위치 번호 하나</td></tr>
-            <tr><td><code>div_term</code></td><td><code>[d_model/2]</code></td><td>차원 쌍마다 하나의 변화 비율</td></tr>
-            <tr><td><code>position * div_term</code></td><td><code>[max_seq_len, d_model/2]</code></td><td>브로드캐스팅으로 만든 위치별·차원별 각도</td></tr>
-            <tr><td><code>pe</code></td><td><code>[1, max_seq_len, d_model]</code></td><td>배치 전체가 공유할 위치 인코딩</td></tr>
-            <tr><td><code>x</code></td><td><code>[batch_size, seq_len, d_model]</code></td><td>토큰 임베딩과 위치 인코딩을 더한 결과</td></tr>
-          </tbody>
-        </table></div>
-
-        <div class="explain-grid">
-          <article class="note">
-            <span class="number">01</span>
-            <strong><code>unsqueeze(1)</code></strong>
-            <p>위치 벡터를 <code>[S]</code>에서 <code>[S,1]</code>로 바꿔 <code>[D/2]</code>인 <code>div_term</code>과 브로드캐스팅되게 합니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">02</span>
-            <strong><code>pe[:, 0::2]</code> / <code>pe[:, 1::2]</code></strong>
-            <p>짝수 차원에는 <code>sin</code>, 홀수 차원에는 <code>cos</code> 값을 교차해서 넣습니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">03</span>
-            <strong><code>register_buffer("pe", pe)</code></strong>
-            <p><code>pe</code>는 학습 파라미터는 아니지만 모델과 함께 장치를 이동하고 저장되도록 buffer로 등록합니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">04</span>
-            <strong><code>self.pe[:, :x.size(1), :]</code></strong>
-            <p>미리 만든 최대 길이 중 현재 입력의 <code>seq_len</code>만큼만 잘라 토큰 임베딩에 더합니다.</p>
-          </article>
-        </div>
-
-        <div class="caution"><strong>구현 조건</strong> — 현재 <code>sin/cos</code> 슬라이스 구현은 <code>d_model</code>이 짝수라고 가정합니다. 일반적인 Transformer 설정은 짝수 차원을 사용합니다.</div>
-      </section>
-
-      <section class="checkpoint" id="positional-checkpoint">
-        <h3>Positional Encoding 확인 문제</h3>
-        <details>
-          <summary><code>div_term</code>이 차원이 커질수록 작아지는 이유는?</summary>
-          <p>뒤쪽 차원의 사인·코사인이 위치에 따라 더 천천히 변하게 하여 긴 주기의 위치 패턴을 표현하기 위해서입니다.</p>
-        </details>
-        <details>
-          <summary><code>d_model=8</code>일 때 <code>div_term</code>의 원소 개수는?</summary>
-          <p>차원을 두 개씩 한 쌍으로 처리하므로 4개입니다. 대략 <code>[1, 0.1, 0.01, 0.001]</code>입니다.</p>
-        </details>
-        <details>
-          <summary><code>position * div_term</code>이 가능한 이유는?</summary>
-          <p><code>[S,1]</code>과 <code>[D/2]</code>가 브로드캐스팅되어 <code>[S,D/2]</code>가 되기 때문입니다.</p>
-        </details>
-      </section>
-
-
-    </main>
-  </div>
-
-  <footer>
-    <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
-  </footer>
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_positional_div_term_learning.html">div_term은 무엇을 만드는가?</a></li>
+<li><a href="transformer_positional_sin_cos_learning.html">sin·cos와 위치 표현</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

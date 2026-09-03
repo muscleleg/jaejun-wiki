@@ -1,13 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_ffn_learning.md. Do not edit directly. source-sha256:18e3e8a4c034d3dc26081412803fe9629511c66fef49a0571e86a3c531ae0880 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Transformer FFN이 Attention으로 모은 정보를 Token별로 가공하는 흐름과 nn.Linear 생성·호출의 차이를 정리한 학습 문서">
-  <title>Transformer · FFN</title>
+  <meta name="description" content="Attention과 FFN의 역할을 구분하고, nn.Linear(2, 4) 로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.">
+  <meta name="source-sha256" content="18e3e8a4c034d3dc26081412803fe9629511c66fef49a0571e86a3c531ae0880">
+  <title>Token끼리 섞은 다음 각 Token을 따로 가공하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
-  <link rel="stylesheet" href="../../assets/css/transformer-detail.css?v=20260815-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -16,114 +18,146 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · FFN">
-  <meta property="og:description" content="Transformer FFN이 Attention으로 모은 정보를 Token별로 가공하는 흐름과 nn.Linear 생성·호출의 차이를 정리한 학습 문서">
+  <meta property="og:title" content="Token끼리 섞은 다음 각 Token을 따로 가공하기">
+  <meta property="og:description" content="Attention과 FFN의 역할을 구분하고, nn.Linear(2, 4) 로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html","name":"Transformer · FFN","description":"Transformer FFN이 Attention으로 모은 정보를 Token별로 가공하는 흐름과 nn.Linear 생성·호출의 차이를 정리한 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html"},"headline":"Transformer · FFN","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#ffn","name":"FFN","identifier":"ffn"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"FFN"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html","name":"Token끼리 섞은 다음 각 Token을 따로 가공하기","description":"Attention과 FFN의 역할을 구분하고, nn.Linear(2, 4) 로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html"},"headline":"Token끼리 섞은 다음 각 Token을 따로 가공하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#ffn","name":"FFN","identifier":"ffn"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Token끼리 섞은 다음 각 Token을 따로 가공하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference transformer-detail">
+<body class="wiki-reference markdown-document">
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="transformer_learning.html">Transformer</a><span class="separator">›</span><span aria-current="page">FFN</span></nav>
-    <header class="hero">
-      <span class="eyebrow">Transformer detail · Feed-Forward Network</span>
-      <h1>Token끼리 섞은 다음<br>각 Token을 따로 가공하기</h1>
-      <p class="lead">Attention과 FFN의 역할을 구분하고, <code>nn.Linear(2, 4)</code>로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.</p>
-      <div class="detail-actions"><a href="transformer_learning.html">← Transformer 상위 문서</a><a href="transformer_layer_norm_learning.html">LayerNorm 복습</a></div>
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><span aria-current="page">Token끼리 섞은 다음 각 Token을 따로 가공하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Token끼리 섞은 다음 각 Token을 따로 가공하기</h1>
+      <p class="lead">Attention과 FFN의 역할을 구분하고, nn.Linear(2, 4) 로 층을 만드는 단계와 실제 Tensor를 넣어 실행하는 단계를 나눠 이해한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-    <section class="detail-section" id="attention-vs-ffn">
-      <h2>Attention과 FFN은 무엇이 다른가?</h2>
-      <pre><code>Attention
+    
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#document-section-1">Attention과 FFN은 무엇이 다른가?</a>
+        <a href="#document-section-2"><code>d_model → d_ff → d_model</code></a>
+        <a href="#document-section-3">학습되는 것과 고정되는 것</a>
+        <a href="#document-section-4">ReLU와 GELU는 같은 방식으로 자르지 않는다</a>
+        <a href="#document-section-5">Linear를 만드는 것과 값을 넣는 것은 별개다</a>
+        <a href="#document-section-6">FFN 첫 Linear 실행 결과</a>
+        <a href="#document-section-7">LayerNorm의 출력이 FFN으로 들어간다</a>
+        <a href="#document-section-8"><code>2 → 4</code>는 의미를 네 개로 확정하는 일이 아니다</a>
+        <a href="#document-section-9">음수는 노이즈라서 지우는 것이 아니다</a>
+        <a href="#document-section-10"><code>4 → 2</code>로 줄인 뒤 왜 다시 더하는가?</a>
+        <a href="#document-section-11">검증 전 질문과 후속 결과</a>
+        <a href="#document-section-12">실행 검증에서 확인한 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="document-section-1" class="markdown-section">
+<h2>Attention과 FFN은 무엇이 다른가?</h2>
+<pre><code>Attention
 → Token과 Token 사이의 정보를 섞음
 
 FFN
-→ Attention으로 모은 정보를 각 Token 내부에서 따로 가공함</code></pre>
-      <p>입력이 다음처럼 두 Token으로 이루어졌다고 하자.</p>
-      <pre><code>Token 1 = [a, b]
-Token 2 = [c, d]</code></pre>
-      <p>FFN은 Token 1과 Token 2를 서로 섞지 않고 각각 처리한다.</p>
-      <pre><code>Token 1 [a, b] → 같은 FFN → 새로운 Token 1 벡터
-Token 2 [c, d] → 같은 FFN → 새로운 Token 2 벡터</code></pre>
-      <div class="caution"><strong>같은 네트워크를 공유한다</strong> — Token마다 서로 다른 FFN을 새로 만드는 것이 아니다. 모든 Token에 동일한 Linear 가중치와 bias를 적용하되, 각 Token 벡터의 계산은 독립적으로 진행한다.</div>
-    </section>
+→ Attention으로 모은 정보를 각 Token 내부에서 따로 가공함
+</code></pre>
+<p>입력이 다음처럼 두 Token으로 이루어졌다고 하자.</p>
+<pre><code>Token 1 = [a, b]
+Token 2 = [c, d]
+</code></pre>
+<p>FFN은 Token 1과 Token 2를 서로 섞지 않고 각각 처리한다.</p>
+<pre><code>Token 1 [a, b] → 같은 FFN → 새로운 Token 1 벡터
+Token 2 [c, d] → 같은 FFN → 새로운 Token 2 벡터
+</code></pre>
+<p><strong>같은 네트워크를 공유한다</strong> — Token마다 서로 다른 FFN을 새로 만드는 것이 아니다. 모든 Token에 동일한 Linear 가중치와 bias를 적용하되, 각 Token 벡터의 계산은 독립적으로 진행한다.</p>
 
-    <section class="detail-section" id="expand-activate-contract">
-      <h2><code>d_model → d_ff → d_model</code></h2>
-      <p>Transformer의 FFN은 보통 Token의 마지막 특징 차원을 잠시 확장하고, Activation을 거친 뒤 원래 크기로 줄인다.</p>
-      <pre><code>d_model
+</section>
+<section id="document-section-2" class="markdown-section">
+<h2><code>d_model → d_ff → d_model</code></h2>
+<p>Transformer의 FFN은 보통 Token의 마지막 특징 차원을 잠시 확장하고, Activation을 거친 뒤 원래 크기로 줄인다.</p>
+<pre><code>d_model
 → Linear로 d_ff까지 확장
 → ReLU 또는 GELU
-→ Linear로 d_model까지 축소</code></pre>
-      <p>현재 작은 실습에서는 다음 흐름이다.</p>
-      <pre><code>2차원 → Linear(2, 4) → 4차원
+→ Linear로 d_model까지 축소
+</code></pre>
+<p>현재 작은 실습에서는 다음 흐름이다.</p>
+<pre><code>2차원 → Linear(2, 4) → 4차원
       → Activation
-      → Linear(4, 2) → 다시 2차원</code></pre>
-      <p>중간 차원을 넓히면 Token의 정보를 더 많은 특징 조합으로 가공할 공간이 생긴다. 마지막에 다시 <code>d_model</code>로 줄이면 다음 Residual 연결에서 원래 입력과 Shape을 맞출 수 있다.</p>
-    </section>
+      → Linear(4, 2) → 다시 2차원
+</code></pre>
+<p>중간 차원을 넓히면 Token의 정보를 더 많은 특징 조합으로 가공할 공간이 생긴다. 마지막에 다시 <code>d_model</code>로 줄이면 다음 Residual 연결에서 원래 입력과 Shape을 맞출 수 있다.</p>
 
-    <section class="detail-section" id="what-learns">
-      <h2>학습되는 것과 고정되는 것</h2>
-      <p>두 Linear의 차원 구조는 모델을 만들 때 정하고, 학습에서는 그 안의 숫자가 조정된다.</p>
-      <pre><code>고정되는 것
+</section>
+<section id="document-section-3" class="markdown-section">
+<h2>학습되는 것과 고정되는 것</h2>
+<p>두 Linear의 차원 구조는 모델을 만들 때 정하고, 학습에서는 그 안의 숫자가 조정된다.</p>
+<pre><code>고정되는 것
 Linear(2, 4)의 입력·출력 차원
 Linear(4, 2)의 입력·출력 차원
 
 학습되는 것
 두 Linear의 weight
-두 Linear의 bias</code></pre>
-      <p>PyTorch에서 실제 Weight Shape은 입력과 출력 순서를 뒤집어 저장한다.</p>
-      <pre><code>Linear(2, 4).weight → [4, 2]
+두 Linear의 bias
+</code></pre>
+<p>PyTorch에서 실제 Weight Shape은 입력과 출력 순서를 뒤집어 저장한다.</p>
+<pre><code>Linear(2, 4).weight → [4, 2]
 Linear(2, 4).bias   → [4]
 
 Linear(4, 2).weight → [2, 4]
-Linear(4, 2).bias   → [2]</code></pre>
-      <p>최종 Loss에서 시작한 Gradient가 역전파되면 이 Weight와 bias가 함께 조정된다. <code>2 → 4 → 2</code>라는 구조 자체가 학습 도중 <code>2 → 8 → 2</code>처럼 바뀌는 것은 아니다.</p>
-    </section>
+Linear(4, 2).bias   → [2]
+</code></pre>
+<p>최종 Loss에서 시작한 Gradient가 역전파되면 이 Weight와 bias가 함께 조정된다. <code>2 → 4 → 2</code>라는 구조 자체가 학습 도중 <code>2 → 8 → 2</code>처럼 바뀌는 것은 아니다.</p>
 
-    <section class="detail-section" id="activation">
-      <h2>ReLU와 GELU는 같은 방식으로 자르지 않는다</h2>
-      <p>ReLU는 음수를 완전히 0으로 자르고 양수는 그대로 통과시킨다.</p>
-      <pre><code>ReLU(x) = max(0, x)
+</section>
+<section id="document-section-4" class="markdown-section">
+<h2>ReLU와 GELU는 같은 방식으로 자르지 않는다</h2>
+<p>ReLU는 음수를 완전히 0으로 자르고 양수는 그대로 통과시킨다.</p>
+<pre><code>ReLU(x) = max(0, x)
 
 ReLU(-2) = 0
 ReLU(-1) = 0
 ReLU( 1) = 1
-ReLU( 2) = 2</code></pre>
-      <p>GELU는 음수를 전부 0으로 만들지 않는다. 특히 음수 입력을 크기에 따라 부드럽게 줄이므로 일부 음수는 작은 음수로 남고, 큰 음수는 0에 가까워질 수 있다. 양수도 원래 값을 그대로 복사하지 않고 크기에 따라 부드럽게 조절한다.</p>
-      <pre><code>GELU(-1) ≈ -0.16
-GELU( 1) ≈  0.84</code></pre>
-      <p>중간 Activation이 없다면 <code>Linear(2,4) → Linear(4,2)</code>라는 두 선형변환은 결국 하나의 Linear로 합칠 수 있다. Activation이 두 Linear 사이에 비선형성을 넣어, 단순한 선형변환 하나보다 복잡한 특징 변환을 배우게 한다.</p>
-      <div class="caution"><strong>직접 비교해 확인한 표현</strong> — “ReLU는 음수를 0으로 만들고, GELU는 0에 가깝게 만든다.” 이 방향은 맞다. 정확히는 ReLU가 모든 음수를 정확히 0으로 만들고, GELU는 음수를 부드럽게 줄여 작은 음수값을 남길 수 있으며 양수도 크기에 따라 조절한다.</div>
-    </section>
+ReLU( 2) = 2
+</code></pre>
+<p>GELU는 음수를 전부 0으로 만들지 않는다. 특히 음수 입력을 크기에 따라 부드럽게 줄이므로 일부 음수는 작은 음수로 남고, 큰 음수는 0에 가까워질 수 있다. 양수도 원래 값을 그대로 복사하지 않고 크기에 따라 부드럽게 조절한다.</p>
+<pre><code>GELU(-1) ≈ -0.16
+GELU( 1) ≈  0.84
+</code></pre>
+<p>중간 Activation이 없다면 <code>Linear(2,4) → Linear(4,2)</code>라는 두 선형변환은 결국 하나의 Linear로 합칠 수 있다. Activation이 두 Linear 사이에 비선형성을 넣어, 단순한 선형변환 하나보다 복잡한 특징 변환을 배우게 한다.</p>
+<p><strong>직접 비교해 확인한 표현</strong> — “ReLU는 음수를 0으로 만들고, GELU는 0에 가깝게 만든다.” 이 방향은 맞다. 정확히는 ReLU가 모든 음수를 정확히 0으로 만들고, GELU는 음수를 부드럽게 줄여 작은 음수값을 남길 수 있으며 양수도 크기에 따라 조절한다.</p>
 
-    <section class="detail-section" id="create-vs-call">
-      <h2>Linear를 만드는 것과 값을 넣는 것은 별개다</h2>
-      <pre><code>ffn_expand = nn.Linear(
+</section>
+<section id="document-section-5" class="markdown-section">
+<h2>Linear를 만드는 것과 값을 넣는 것은 별개다</h2>
+<pre><code>ffn_expand = nn.Linear(
     in_features=2,
     out_features=4,
-)</code></pre>
-      <p>이 코드는 입력값을 이미 4차원으로 바꾼 것이 아니다. <strong>2차원을 받아 4차원을 만드는 Linear 모듈</strong>을 준비하고, 그 안에 학습 가능한 Weight와 bias를 생성한다.</p>
-      <pre><code>expanded_output = ffn_expand(
+)
+</code></pre>
+<p>이 코드는 입력값을 이미 4차원으로 바꾼 것이 아니다. 2차원을 받아 4차원을 만드는 Linear 모듈을 준비하고, 그 안에 학습 가능한 Weight와 bias를 생성한다.</p>
+<pre><code>expanded_output = ffn_expand(
     normalized_output
-)</code></pre>
-      <p>이때 실제 <code>normalized_output</code>을 앞에서 만든 모듈에 넣어 계산한다.</p>
-      <pre><code>normalized_output
+)
+</code></pre>
+<p>이때 실제 <code>normalized_output</code>을 앞에서 만든 모듈에 넣어 계산한다.</p>
+<pre><code>normalized_output
 → ffn_expand의 weight와 bias로 계산
-→ expanded_output</code></pre>
-      <p>내부 계산을 단순하게 적으면 다음과 같다.</p>
-      <pre><code>expanded_output
+→ expanded_output
+</code></pre>
+<p>내부 계산을 단순하게 적으면 다음과 같다.</p>
+<pre><code>expanded_output
 = normalized_output @ ffn_expand.weight.T
-  + ffn_expand.bias</code></pre>
-      <div class="caution"><strong>현재 이해한 표현</strong> — “<code>nn.Linear(2,4)</code>로 Linear를 만들고, <code>ffn_expand(normalized_output)</code>에서 그 기계에 실제 값을 단순히 넣어 실행한 것이다.” Q Projection에서 모듈을 만든 뒤 <code>query_projection(x)</code>를 호출했던 것과 같은 구조다.</div>
-    </section>
+  + ffn_expand.bias
+</code></pre>
+<p><strong>현재 이해한 표현</strong> — “<code>nn.Linear(2,4)</code>로 Linear를 만들고, <code>ffn_expand(normalized_output)</code>에서 그 기계에 실제 값을 단순히 넣어 실행한 것이다.” Q Projection에서 모듈을 만든 뒤 <code>query_projection(x)</code>를 호출했던 것과 같은 구조다.</p>
 
-    <section class="detail-section" id="first-linear-result">
-      <h2>FFN 첫 Linear 실행 결과</h2>
-      <p>현재 노트북에서 <code>normalized_output</code>을 <code>ffn_expand</code>에 실제로 넣어 다음 Shape 변화를 확인했다.</p>
-      <pre><code>LayerNorm 출력 shape:
+</section>
+<section id="document-section-6" class="markdown-section">
+<h2>FFN 첫 Linear 실행 결과</h2>
+<p>현재 노트북에서 <code>normalized_output</code>을 <code>ffn_expand</code>에 실제로 넣어 다음 Shape 변화를 확인했다.</p>
+<pre><code>LayerNorm 출력 shape:
 torch.Size([1, 2, 2])
 
 FFN 확장 출력:
@@ -131,104 +165,115 @@ tensor([[[-0.3127, -0.2737,  1.1960,  0.1387],
          [-0.1453, -0.1580,  0.0040, -0.6528]]])
 
 shape:
-torch.Size([1, 2, 4])</code></pre>
-      <pre><code>확인한 Shape 흐름
+torch.Size([1, 2, 4])
+</code></pre>
+<pre><code>확인한 Shape 흐름
 [batch, token, d_model]
 [1,     2,     2]
 
 → Linear(2, 4)
 
 [batch, token, d_ff]
-[1,     2,     4]</code></pre>
-      <p>Batch 1개와 Token 2개는 그대로 유지되고, 각 Token에 같은 <code>Linear(2,4)</code>가 적용되어 마지막 특징 차원만 2에서 4로 확장됐다.</p>
-      <div class="caution"><strong>당시 검증 범위</strong> — <code>nn.Linear(2,4)</code>는 모듈과 파라미터를 만드는 단계이고, <code>ffn_expand(normalized_output)</code>은 실제 Tensor를 넣어 계산하는 단계임을 설명했다. 실행 결과로 마지막 차원의 <code>2 → 4</code> 변화도 확인했다. ReLU와 GELU의 출력도 직접 비교했다. 이 시점에는 두 번째 <code>Linear(4,2)</code>와 Residual까지 연결한 전체 의미가 열린 질문이었다.</div>
-    </section>
+[1,     2,     4]
+</code></pre>
+<p>Batch 1개와 Token 2개는 그대로 유지되고, 각 Token에 같은 <code>Linear(2,4)</code>가 적용되어 마지막 특징 차원만 2에서 4로 확장됐다.</p>
+<p><strong>당시 검증 범위</strong> — <code>nn.Linear(2,4)</code>는 모듈과 파라미터를 만드는 단계이고, <code>ffn_expand(normalized_output)</code>은 실제 Tensor를 넣어 계산하는 단계임을 설명했다. 실행 결과로 마지막 차원의 <code>2 → 4</code> 변화도 확인했다. ReLU와 GELU의 출력도 직접 비교했다. 이 시점에는 두 번째 <code>Linear(4,2)</code>와 Residual까지 연결한 전체 의미가 열린 질문이었다.</p>
 
-    <section class="detail-section" id="from-layernorm-to-ffn">
-      <h2>LayerNorm의 출력이 FFN으로 들어간다</h2>
-      <div class="formula-box"><strong>현재 실습 흐름</strong><code>normalized_output = LayerNorm(x + Attention(x))</code><code>contracted_output = FFN(normalized_output)</code></div>
-      <p>LayerNorm은 Residual 덧셈으로 커진 값을 단순히 작게 줄이는 작업이 아니다. 각 Token의 마지막 차원에서 평균과 퍼짐을 정돈하는 작업이다.</p>
-      <pre><code>값이 크면 무조건 줄임  → 아님
+</section>
+<section id="document-section-7" class="markdown-section">
+<h2>LayerNorm의 출력이 FFN으로 들어간다</h2>
+<p><strong>현재 실습 흐름</strong><code>normalized_output = LayerNorm(x + Attention(x))``contracted_output = FFN(normalized_output)</code></p>
+<p>LayerNorm은 Residual 덧셈으로 커진 값을 단순히 작게 줄이는 작업이 아니다. 각 Token의 마지막 차원에서 평균과 퍼짐을 정돈하는 작업이다.</p>
+<pre><code>값이 크면 무조건 줄임  → 아님
 값이 작으면 그대로 둠  → 아님
 
 Token별 평균과 퍼짐을 정돈
-→ 작은 값이 오히려 커질 수도 있음</code></pre>
-      <p>따라서 FFN은 “작아진 값”을 받는 것이 아니라, Token마다 규모가 정돈된 현재 표현 <code>normalized_output</code>을 받는다고 이해하는 편이 정확하다.</p>
-    </section>
+→ 작은 값이 오히려 커질 수도 있음
+</code></pre>
+<p>따라서 FFN은 “작아진 값”을 받는 것이 아니라, Token마다 규모가 정돈된 현재 표현 <code>normalized_output</code>을 받는다고 이해하는 편이 정확하다.</p>
 
-    <section class="detail-section" id="workspace-meaning">
-      <h2><code>2 → 4</code>는 의미를 네 개로 확정하는 일이 아니다</h2>
-      <p><code>d_model=2</code>에서 <code>d_ff=4</code>로 확장한다고 해서 사람이 이름 붙일 수 있는 의미의 개수가 두 개에서 네 개로 늘어났다고 단정할 수는 없다.</p>
-      <p>첫 Linear는 Token의 두 입력값을 서로 다른 Weight 조합으로 섞어 네 개의 중간값을 만든다. 이 네 값은 FFN이 Token을 가공할 때 잠시 사용하는 더 넓은 작업공간이다.</p>
-      <pre><code>Token [a, b]
+</section>
+<section id="document-section-8" class="markdown-section">
+<h2><code>2 → 4</code>는 의미를 네 개로 확정하는 일이 아니다</h2>
+<p><code>d_model=2</code>에서 <code>d_ff=4</code>로 확장한다고 해서 사람이 이름 붙일 수 있는 의미의 개수가 두 개에서 네 개로 늘어났다고 단정할 수는 없다.</p>
+<p>첫 Linear는 Token의 두 입력값을 서로 다른 Weight 조합으로 섞어 네 개의 중간값을 만든다. 이 네 값은 FFN이 Token을 가공할 때 잠시 사용하는 더 넓은 작업공간이다.</p>
+<pre><code>Token [a, b]
 
 → 서로 다른 Weight 조합 네 개
 
-→ [중간 특징1, 중간 특징2, 중간 특징3, 중간 특징4]</code></pre>
-      <div class="caution"><strong>현재 잡을 표현</strong> — “의미 네 개를 새로 만든다”보다 “각 Token을 더 넓은 중간 공간에서 여러 가중치 조합으로 가공할 여유를 만든다”가 가깝다.</div>
-    </section>
+→ [중간 특징1, 중간 특징2, 중간 특징3, 중간 특징4]
+</code></pre>
+<p><strong>현재 잡을 표현</strong> — “의미 네 개를 새로 만든다”보다 “각 Token을 더 넓은 중간 공간에서 여러 가중치 조합으로 가공할 여유를 만든다”가 가깝다.</p>
 
-    <section class="detail-section" id="activation-purpose">
-      <h2>음수는 노이즈라서 지우는 것이 아니다</h2>
-      <p>Linear 출력의 음수라는 이유만으로 그 값이 노이즈이거나 쓸모없다는 뜻은 아니다. ReLU와 GELU의 핵심 목적은 두 Linear 사이에 비선형성을 넣는 것이다.</p>
-      <pre><code>Activation이 없음
+</section>
+<section id="document-section-9" class="markdown-section">
+<h2>음수는 노이즈라서 지우는 것이 아니다</h2>
+<p>Linear 출력의 음수라는 이유만으로 그 값이 노이즈이거나 쓸모없다는 뜻은 아니다. ReLU와 GELU의 핵심 목적은 두 Linear 사이에 비선형성을 넣는 것이다.</p>
+<pre><code>Activation이 없음
 Linear(2,4) → Linear(4,2)
 → 하나의 Linear와 같은 종류의 변환으로 합칠 수 있음
 
 Activation이 있음
 Linear → ReLU/GELU → Linear
-→ 하나의 Linear로 합칠 수 없는 변환</code></pre>
-      <p>앞쪽 Linear의 Weight도 학습되므로, 학습 과정에서는 다음 Activation을 거친 뒤 유용하게 쓰일 중간 특징이 나오도록 그 Weight가 조정된다. 즉 모델은 “어떤 특징을 통과시키고 어떤 특징을 약하게 만들지”에 맞춰 앞 Linear까지 함께 바꾼다.</p>
-    </section>
+→ 하나의 Linear로 합칠 수 없는 변환
+</code></pre>
+<p>앞쪽 Linear의 Weight도 학습되므로, 학습 과정에서는 다음 Activation을 거친 뒤 유용하게 쓰일 중간 특징이 나오도록 그 Weight가 조정된다. 즉 모델은 “어떤 특징을 통과시키고 어떤 특징을 약하게 만들지”에 맞춰 앞 Linear까지 함께 바꾼다.</p>
 
-    <section class="detail-section" id="contract-and-residual">
-      <h2><code>4 → 2</code>로 줄인 뒤 왜 다시 더하는가?</h2>
-      <p>두 번째 Linear는 네 개의 중간 특징을 다시 섞어 <code>d_model=2</code> 크기로 돌려보낸다.</p>
-      <pre><code>[중간 특징1, 중간 특징2, 중간 특징3, 중간 특징4]
+</section>
+<section id="document-section-10" class="markdown-section">
+<h2><code>4 → 2</code>로 줄인 뒤 왜 다시 더하는가?</h2>
+<p>두 번째 Linear는 네 개의 중간 특징을 다시 섞어 <code>d_model=2</code> 크기로 돌려보낸다.</p>
+<pre><code>[중간 특징1, 중간 특징2, 중간 특징3, 중간 특징4]
 → Linear(4, 2)
-→ [FFN 수정값1, FFN 수정값2]</code></pre>
-      <p>이 축소는 중간 특징을 버리고 원상 복구하는 일이 아니다. 네 중간 특징을 학습된 Weight로 조합해, 다음 Transformer 단계가 사용할 수 있는 <code>d_model</code> 크기의 결과로 만드는 과정이다.</p>
-      <pre><code>contracted_output = FFN(normalized_output)</code></pre>
-      <p><code>contracted_output</code>은 기존 Token 표현을 완전히 교체할 최종 완성본보다, FFN이 현재 표현에 제안한 <strong>수정값</strong>으로 이해할 수 있다.</p>
-      <pre><code>두 번째 Residual
-= normalized_output + contracted_output</code></pre>
-      <p>이 덧셈은 현재 표현 <code>normalized_output</code>을 보존하면서 FFN의 수정값을 반영한다. 또한 역전파 때 Gradient가 FFN을 통과하는 경로뿐 아니라 Residual 지름길을 통해서도 이전 표현으로 흐를 수 있게 한다.</p>
-      <p>두 값을 더하려면 Shape이 같아야 하므로 FFN의 마지막 Linear가 <code>4 → 2</code>로 줄여 <code>contracted_output</code>을 다시 <code>[batch, token, d_model]</code> Shape으로 맞춘다.</p>
-      <div class="formula-box"><strong>수식으로 연결한 전체 흐름</strong><code>y = LayerNorm(x + Attention(x))</code><code>delta = W2(GELU(W1(y)))</code><code>output = y + delta</code></div>
-      <div class="caution"><strong>현재 자기 말로 연결한 흐름</strong> — “<code>x + Attention</code>을 정돈한 <code>normalized</code> 값과, 그 값을 FFN에 넣어 양수 중간 반응은 많이 통과시키고 음수 중간 반응은 억제한 뒤 나온 값을 합친다.” 이 설명은 전체 방향을 정확히 잡았다.</div>
-      <p>다만 Residual에 더하는 <code>delta</code>, 즉 <code>contracted_output</code>은 GELU 직후의 4차원 값 자체가 아니다. GELU로 부드럽게 선별된 중간 특징을 두 번째 Linear <code>W2</code>가 다시 섞어 <code>d_model</code> 크기로 만든 수정값이다.</p>
-      <pre><code>GELU 직후
+→ [FFN 수정값1, FFN 수정값2]
+</code></pre>
+<p>이 축소는 중간 특징을 버리고 원상 복구하는 일이 아니다. 네 중간 특징을 학습된 Weight로 조합해, 다음 Transformer 단계가 사용할 수 있는 <code>d_model</code> 크기의 결과로 만드는 과정이다.</p>
+<pre><code>contracted_output = FFN(normalized_output)
+</code></pre>
+<p><code>contracted_output</code>은 기존 Token 표현을 완전히 교체할 최종 완성본보다, FFN이 현재 표현에 제안한 수정값으로 이해할 수 있다.</p>
+<pre><code>두 번째 Residual
+= normalized_output + contracted_output
+</code></pre>
+<p>이 덧셈은 현재 표현 <code>normalized_output</code>을 보존하면서 FFN의 수정값을 반영한다. 또한 역전파 때 Gradient가 FFN을 통과하는 경로뿐 아니라 Residual 지름길을 통해서도 이전 표현으로 흐를 수 있게 한다.</p>
+<p>두 값을 더하려면 Shape이 같아야 하므로 FFN의 마지막 Linear가 <code>4 → 2</code>로 줄여 <code>contracted_output</code>을 다시 <code>[batch, token, d_model]</code> Shape으로 맞춘다.</p>
+<p><strong>수식으로 연결한 전체 흐름</strong><code>y = LayerNorm(x + Attention(x))``delta = W2(GELU(W1(y)))``output = y + delta</code></p>
+<p><strong>현재 자기 말로 연결한 흐름</strong> — “<code>x + Attention</code>을 정돈한 <code>normalized</code> 값과, 그 값을 FFN에 넣어 양수 중간 반응은 많이 통과시키고 음수 중간 반응은 억제한 뒤 나온 값을 합친다.” 이 설명은 전체 방향을 정확히 잡았다.</p>
+<p>다만 Residual에 더하는 <code>delta</code>, 즉 <code>contracted_output</code>은 GELU 직후의 4차원 값 자체가 아니다. GELU로 부드럽게 선별된 중간 특징을 두 번째 Linear <code>W2</code>가 다시 섞어 <code>d_model</code> 크기로 만든 수정값이다.</p>
+<pre><code>GELU 직후
 [선별된 중간 특징 4개]
 
 → W2 = Linear(4, 2)
 
 contracted_output
-[현재 표현에 더할 수정값 2개]</code></pre>
-      <p><code>W2</code>는 중간 특징을 학습된 양수·음수 Weight로 다시 조합하므로, GELU가 음수 반응을 억제했더라도 최종 <code>contracted_output</code>에는 다시 음수가 나올 수 있다.</p>
-    </section>
+[현재 표현에 더할 수정값 2개]
+</code></pre>
+<p><code>W2</code>는 중간 특징을 학습된 양수·음수 Weight로 다시 조합하므로, GELU가 음수 반응을 억제했더라도 최종 <code>contracted_output</code>에는 다시 음수가 나올 수 있다.</p>
 
-    <section class="detail-section" id="open-question">
-      <h2>검증 전 질문과 후속 결과</h2>
-      <p>첫 Linear의 생성·호출, Shape 확장과 ReLU·GELU의 차이를 확인한 뒤, <code>y → W1 → GELU → W2 → delta → y+delta</code>의 개념 흐름을 자기 말로 연결했다. 당시에는 두 번째 Linear와 Residual이 현재 노트북의 실제 숫자에도 맞는지가 열린 질문이었다.</p>
-      <div class="caution"><strong>검증했던 질문</strong> — <code>Linear(4,2)</code>의 <code>contracted_output</code>을 실제로 출력하고, <code>normalized_output + contracted_output</code>을 계산한 뒤 “현재 표현을 보존하면서 FFN 수정값을 더한다”는 설명이 숫자와 Shape에도 맞는지 확인한다.</div>
-    </section>
+</section>
+<section id="document-section-11" class="markdown-section">
+<h2>검증 전 질문과 후속 결과</h2>
+<p>첫 Linear의 생성·호출, Shape 확장과 ReLU·GELU의 차이를 확인한 뒤, <code>y → W1 → GELU → W2 → delta → y+delta</code>의 개념 흐름을 자기 말로 연결했다. 당시에는 두 번째 Linear와 Residual이 현재 노트북의 실제 숫자에도 맞는지가 열린 질문이었다.</p>
+<p><strong>검증했던 질문</strong> — <code>Linear(4,2)</code>의 <code>contracted_output</code>을 실제로 출력하고, <code>normalized_output + contracted_output</code>을 계산한 뒤 “현재 표현을 보존하면서 FFN 수정값을 더한다”는 설명이 숫자와 Shape에도 맞는지 확인한다.</p>
+<span class="md-anchor" id="dropout" aria-hidden="true"></span>
+<span class="md-anchor" id="transformer-block-completion" aria-hidden="true"></span>
 
-    <section class="detail-section" id="execution-verification">
-      <span id="second-residual-result"></span><span id="second-layernorm-result"></span><span id="dropout"></span><span id="transformer-block-completion"></span>
-      <h2>실행 검증에서 확인한 결론</h2>
-      <p>두 번째 Residual에서도 <code>[1,2,2]</code> Shape이 유지됐고, 이어지는 LayerNorm은 Token별 평균을 사실상 0, 분산을 1로 정돈했다. Dropout은 <code>train()</code>에서 원소를 독립적으로 끄고 살아남은 값을 보정하지만, <code>eval()</code>에서는 입력을 그대로 통과시킨다.</p>
-      <pre><code>Attention
+</section>
+<section id="document-section-12" class="markdown-section">
+<h2>실행 검증에서 확인한 결론</h2>
+<p>두 번째 Residual에서도 <code>[1,2,2]</code> Shape이 유지됐고, 이어지는 LayerNorm은 Token별 평균을 사실상 0, 분산을 1로 정돈했다. Dropout은 <code>train()</code>에서 원소를 독립적으로 끄고 살아남은 값을 보정하지만, <code>eval()</code>에서는 입력을 그대로 통과시킨다.</p>
+<pre><code>Attention
 → Residual + LayerNorm
 → Linear(d_model, d_ff) + GELU + Linear(d_ff, d_model)
 → Dropout
 → Residual + LayerNorm
-→ [batch, token, d_model] 유지</code></pre>
-      <p>이 연산들을 하나의 <code>TransformerBlock.forward()</code>로 묶어 입력·출력 Shape과 두 Residual의 역할까지 검증했다.</p>
-      <p><a href="transformer_ffn_execution_verification_learning.html#second-residual-result">Residual·LayerNorm·Dropout·Block 통합의 실제 Tensor와 출력 자세히 보기 →</a></p>
-
-      <h3 id="tiny-decoder-causal-block">Tiny Decoder LM의 Causal Transformer Block 실행</h3>
-      <p>후속 Tiny Decoder LM 실습에서는 미래 Key를 보지 못하게 하는 Causal Multi-Head Attention을 같은 Post-LN Block 흐름에 연결했습니다. 사용자는 실행 전에 “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했고, Block의 순서도 다음과 같이 자기 말로 연결했습니다.</p>
-      <pre><code>입력 x [1, 3, 2]
+→ [batch, token, d_model] 유지
+</code></pre>
+<p>이 연산들을 하나의 <code>TransformerBlock.forward()</code>로 묶어 입력·출력 Shape과 두 Residual의 역할까지 검증했다.</p>
+<p><a href="transformer_ffn_execution_verification_learning.html#second-residual-result">Residual·LayerNorm·Dropout·Block 통합의 실제 Tensor와 출력 자세히 보기 →</a></p>
+<span class="md-anchor" id="tiny-decoder-causal-block" aria-hidden="true"></span>
+<h3>Tiny Decoder LM의 Causal Transformer Block 실행</h3>
+<p>후속 Tiny Decoder LM 실습에서는 미래 Key를 보지 못하게 하는 Causal Multi-Head Attention을 같은 Post-LN Block 흐름에 연결했습니다. 사용자는 실행 전에 “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했고, Block의 순서도 다음과 같이 자기 말로 연결했습니다.</p>
+<pre><code>입력 x [1, 3, 2]
 → Causal Multi-Head Attention
 → x + attention_output                 # 첫 Residual
 → LayerNorm                            # normalized_attention
@@ -237,20 +282,31 @@ contracted_output
 → Linear(8, 2)                         # FFN 수정값
 → normalized_attention + FFN 수정값   # 두 번째 Residual
 → LayerNorm
-→ Block 출력 [1, 3, 2]</code></pre>
-      <p>두 Linear는 마지막 특징 축만 <code>2 → 8 → 2</code>로 바꿉니다. 마지막에 다시 <code>d_model=2</code>로 돌아오기 때문에 두 번째 Residual을 더할 수 있고, batch 1개와 sequence 위치 3개는 전체 Block을 지나도 유지됩니다.</p>
-
-      <div class="formula-box"><strong>저장된 실행 Shape</strong><code>입력 hidden_states: [1, 3, 2]</code><code>Block 출력: [1, 3, 2]</code><code>Attention weights: [1, 2, 3, 3]</code></div>
-      <p>Attention weight Shape <code>[1,2,3,3]</code>은 배치 1개, Head 2개, Query 위치 3개, Key 위치 3개를 뜻합니다. Causal Mask는 이 Score 행렬에서 미래 Key 칸의 참고 비율을 0으로 만들지만 Query·Key 위치 축 자체를 없애지 않습니다. 따라서 Attention 결과와 Block 출력의 sequence 길이도 3으로 남습니다.</p>
-      <pre><code>Block 출력:
+→ Block 출력 [1, 3, 2]
+</code></pre>
+<p>두 Linear는 마지막 특징 축만 <code>2 → 8 → 2</code>로 바꿉니다. 마지막에 다시 <code>d_model=2</code>로 돌아오기 때문에 두 번째 Residual을 더할 수 있고, batch 1개와 sequence 위치 3개는 전체 Block을 지나도 유지됩니다.</p>
+<p><strong>저장된 실행 Shape</strong><code>입력 hidden_states: [1, 3, 2]``Block 출력: [1, 3, 2]``Attention weights: [1, 2, 3, 3]</code></p>
+<p>Attention weight Shape <code>[1,2,3,3]</code>은 배치 1개, Head 2개, Query 위치 3개, Key 위치 3개를 뜻합니다. Causal Mask는 이 Score 행렬에서 미래 Key 칸의 참고 비율을 0으로 만들지만 Query·Key 위치 축 자체를 없애지 않습니다. 따라서 Attention 결과와 Block 출력의 sequence 길이도 3으로 남습니다.</p>
+<pre><code>Block 출력:
 [[[ 1.0000, -1.0000],
   [-1.0000,  1.0000],
-  [ 1.0000, -1.0000]]]</code></pre>
-      <p>이 숫자는 두 번째 LayerNorm까지 지난 각 Token의 최종 Block 표현입니다. Attention weight나 Token 확률이 아니며, Shape은 예측대로 <code>[1,3,2]</code>입니다.</p>
-      <div class="caution"><strong>당시 최소 구현의 경계와 후속 완료</strong> — 기존 전체 Transformer Block 학습에서는 Attention·FFN 분기의 Dropout도 별도로 구현·검증했습니다. 이 Causal Block 셀은 연결 순서와 Shape을 작게 확인하기 위해 Dropout을 생략했습니다. 당시에는 Causal Block 한 번만 실행했지만, 이후 <a href="transformer_learning.html#tiny-decoder-training-generation">Tiny Decoder LM 최종 검증</a>에서 LM Head·Loss 감소·다음 Token 반복 생성을 연결해 완료했습니다.</div>
-    </section>
+  [ 1.0000, -1.0000]]]
+</code></pre>
+<p>이 숫자는 두 번째 LayerNorm까지 지난 각 Token의 최종 Block 표현입니다. Attention weight나 Token 확률이 아니며, Shape은 예측대로 <code>[1,3,2]</code>입니다.</p>
+<p><strong>당시 최소 구현의 경계와 후속 완료</strong> — 기존 전체 Transformer Block 학습에서는 Attention·FFN 분기의 Dropout도 별도로 구현·검증했습니다. 이 Causal Block 셀은 연결 순서와 Shape을 작게 확인하기 위해 Dropout을 생략했습니다. 당시에는 Causal Block 한 번만 실행했지만, 이후 <a href="transformer_learning.html#tiny-decoder-training-generation">Tiny Decoder LM 최종 검증</a>에서 LM Head·Loss 감소·다음 Token 반복 생성을 연결해 완료했습니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_ffn_execution_verification_learning.html">Residual·LayerNorm·Dropout을 실제 Tensor로 검증하기</a></li></ul>
+  </section>
+      </article>
+    </div>
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

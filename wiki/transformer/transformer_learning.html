@@ -1,459 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_learning.md. Do not edit directly. source-sha256:b2e5f4e9a98e144c3126cd714525d588de6098934cc078e1bc262d7b8a717d79 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Token·Position Embedding부터 Causal Attention, TransformerBlock과 LM Head까지 Shape 흐름을 연결하는 Transformer 상위 학습 문서">
-  <title>Transformer 학습 문서</title>
-  <style>
-    :root {
-      --ink: #18211d;
-      --muted: #667069;
-      --paper: #f6f3eb;
-      --panel: #fffdf7;
-      --line: #d9d5c8;
-      --green: #176b4d;
-      --green-soft: #dcecdf;
-      --orange: #d56a3a;
-      --code: #17211d;
-      --code-ink: #eaf3ec;
-      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
-        var(--paper);
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.7;
-    }
-
-    .page {
-      width: min(1120px, calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    header {
-      padding: 76px 0 52px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .eyebrow {
-      margin: 0 0 16px;
-      color: var(--green);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2.6rem, 7vw, 5.7rem);
-      font-weight: 800;
-      letter-spacing: -0.065em;
-      line-height: 1.02;
-    }
-
-    .lead {
-      max-width: 680px;
-      margin: 28px 0 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .doc-link {
-      display: inline-block;
-      margin-top: 22px;
-      padding: 9px 13px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 750;
-      text-decoration: none;
-    }
-
-    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
-    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      gap: 56px;
-      padding: 52px 0 100px;
-    }
-
-    nav {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-    }
-
-    nav p {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    nav a {
-      display: block;
-      margin: 2px 0;
-      padding: 9px 12px;
-      color: var(--muted);
-      border-left: 2px solid transparent;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    nav a:hover, nav a:focus-visible {
-      color: var(--green);
-      border-left-color: var(--green);
-      outline: none;
-    }
-
-    nav .current {
-      color: var(--ink);
-      font-weight: 750;
-      border-left-color: var(--orange);
-    }
-
-    main { min-width: 0; }
-
-    .cell-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      color: var(--orange);
-      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .cell-label::before {
-      width: 9px;
-      height: 9px;
-      content: "";
-      background: var(--orange);
-      border-radius: 50%;
-    }
-
-    h2 {
-      margin: 0 0 18px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      font-weight: 760;
-      letter-spacing: -0.045em;
-      line-height: 1.13;
-    }
-
-    h3 {
-      margin: 52px 0 14px;
-      font-size: 1.28rem;
-      letter-spacing: -0.02em;
-    }
-
-    p { margin: 0 0 18px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .summary {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.03rem;
-    }
-
-    .code-card {
-      position: relative;
-      overflow: hidden;
-      margin: 30px 0;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 13px 18px;
-      color: #9db0a4;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    pre {
-      margin: 0;
-      padding: 24px;
-      overflow-x: auto;
-      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-      tab-size: 4;
-    }
-
-    .kw { color: #f1a567; }
-    .type { color: #80d6a6; }
-    .fn { color: #e7d17d; }
-    .num { color: #a9bff7; }
-    .comment { color: #819389; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 28px 0 8px;
-    }
-
-    .flow-item {
-      position: relative;
-      min-height: 134px;
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .flow-item:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -16px;
-      width: 21px;
-      height: 21px;
-      content: "→";
-      color: var(--green);
-      background: var(--paper);
-      text-align: center;
-      line-height: 19px;
-    }
-
-    .flow-item strong { display: block; margin-bottom: 9px; }
-    .flow-item span { color: var(--muted); font-size: 0.86rem; }
-
-    .shape {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 7px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 5px;
-      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .explain-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .note {
-      padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .note .number {
-      display: block;
-      margin-bottom: 12px;
-      color: var(--orange);
-      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .note strong { display: block; margin-bottom: 7px; }
-    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-
-    .formula {
-      margin: 30px 0;
-      padding: 28px;
-      background: var(--green-soft);
-      border-left: 4px solid var(--green);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .formula .math {
-      display: block;
-      margin-bottom: 10px;
-      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
-        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    }
-
-    .reasoning {
-      margin: 52px 0 0;
-      padding: 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .reasoning h3 { margin-top: 0; }
-
-    .equivalence {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 14px;
-      margin: 24px 0 30px;
-    }
-
-    .equivalence article {
-      padding: 20px;
-      background: var(--paper);
-      border-radius: 10px;
-    }
-
-    .equivalence strong { display: block; margin-bottom: 10px; }
-    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
-
-    .path-map {
-      display: grid;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .path-row {
-      display: grid;
-      grid-template-columns: 86px 1fr;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 17px;
-      background: var(--green-soft);
-      border-radius: 9px;
-    }
-
-    .path-row strong { color: var(--green); }
-    .path-row code { font-size: 0.83rem; }
-
-    .caution {
-      margin: 24px 0 0;
-      padding: 17px 19px;
-      color: var(--muted);
-      background: #f4eadf;
-      border-left: 3px solid var(--orange);
-      border-radius: 0 9px 9px 0;
-      font-size: 0.9rem;
-    }
-
-    table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-
-    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
-    td { font-size: 0.92rem; }
-    tr:last-child td { border-bottom: 0; }
-
-    .checkpoint {
-      margin-top: 52px;
-      padding: 28px;
-      color: white;
-      background: var(--green);
-      border-radius: 16px;
-    }
-
-    .checkpoint h3 { margin: 0 0 18px; }
-    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-    summary { cursor: pointer; font-weight: 700; }
-    details p { margin: 12px 0 0; color: #dcecdf; }
-
-    .cell-start {
-      margin-top: 92px;
-      padding-top: 72px;
-      border-top: 2px solid var(--line);
-    }
-
-    .concept-figure {
-      margin: 28px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .trig-axis { stroke: #667069; stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
-    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
-    .trig-point { fill: #d56a3a; }
-    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
-    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
-    .position-radius { stroke: #d56a3a; stroke-width: 3; }
-    .position-point { fill: #d56a3a; }
-    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .wave-axis { stroke: #667069; stroke-width: 1.5; }
-    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
-    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
-    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
-    .wave-sin-dot { fill: #176b4d; }
-    .wave-cos-dot { fill: #d56a3a; }
-    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    footer {
-      padding: 24px 0 42px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 800px) {
-      header { padding-top: 48px; }
-      .layout { grid-template-columns: 1fr; gap: 30px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      nav .current { border-bottom-color: var(--orange); }
-      .flow { grid-template-columns: 1fr 1fr; }
-      .flow-item:not(:last-child)::after { display: none; }
-      .equivalence { grid-template-columns: 1fr; }
-      .equals { justify-self: center; }
-    }
-
-    @media (max-width: 540px) {
-      .page { width: min(100% - 24px, 1120px); }
-      .flow, .explain-grid { grid-template-columns: 1fr; }
-      .reasoning { padding: 22px; }
-      .path-row { grid-template-columns: 1fr; gap: 4px; }
-      pre { padding: 18px; font-size: 0.78rem; }
-      th, td { padding: 11px 10px; }
-    }
-  </style>
+  <meta name="description" content="이 상위 문서에서 Token 입력부터 다음 Token Logit까지의 핵심 흐름을 한 번에 복습하고, 긴 계산과 기존 예제는 주제별 하위 문서에서 생략 없이 이어 봅니다.">
+  <meta name="source-sha256" content="b2e5f4e9a98e144c3126cd714525d588de6098934cc078e1bc262d7b8a717d79">
+  <title>Transformer, 주제별 학습 문서</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -462,57 +18,47 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer 학습 문서">
-  <meta property="og:description" content="Token·Position Embedding부터 Causal Attention, TransformerBlock과 LM Head까지 Shape 흐름을 연결하는 Transformer 상위 학습 문서">
+  <meta property="og:title" content="Transformer, 주제별 학습 문서">
+  <meta property="og:description" content="이 상위 문서에서 Token 입력부터 다음 Token Logit까지의 핵심 흐름을 한 번에 복습하고, 긴 계산과 기존 예제는 주제별 하위 문서에서 생략 없이 이어 봅니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html","name":"Transformer 학습 문서","description":"Token·Position Embedding부터 Causal Attention, TransformerBlock과 LM Head까지 Shape 흐름을 연결하는 Transformer 상위 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},"headline":"Transformer 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer","name":"Transformer","identifier":"transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer 코드 학습"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html","name":"Transformer, 주제별 학습 문서","description":"이 상위 문서에서 Token 입력부터 다음 Token Logit까지의 핵심 흐름을 한 번에 복습하고, 긴 계산과 기존 예제는 주제별 하위 문서에서 생략 없이 이어 봅니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},"headline":"Transformer, 주제별 학습 문서","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer","name":"Transformer","identifier":"transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <header>
-    <div class="page">
-      <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 홈</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../../wiki.html">기술 위키</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <span aria-current="page">Transformer 코드 학습</span>
-      </nav>
-      <p class="eyebrow">Transformer from scratch · 학습 노트</p>
-      <h1>Transformer,<br>주제별 학습 문서</h1>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><span aria-current="page">Transformer, 주제별 학습 문서</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Transformer, 주제별 학습 문서</h1>
       <p class="lead">이 상위 문서에서 Token 입력부터 다음 Token Logit까지의 핵심 흐름을 한 번에 복습하고, 긴 계산과 기존 예제는 주제별 하위 문서에서 생략 없이 이어 봅니다.</p>
-      <a class="doc-link" href="../math/transformer_math_learning.html">트랜스포머 수학 상위 문서 →</a>
-    </div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
-
-  <div class="page layout">
-        <nav aria-label="문서 목차">
-      <p>Transformer topics</p>
-      <a href="#transformer-core-flow">00 · 전체 흐름 한 번에 보기</a>
-      <a href="#token-embedding">01 · Token Embedding</a>
-      <a href="#positional-encoding">02 · Positional Encoding</a>
-      <a href="#scaled-dot-product-attention">03 · Scaled Dot-Product Attention</a>
-      <a href="transformer_projection_learning.html">03-A · QKV Projection ↗</a>
-      <a href="transformer_attention_math_learning.html">03-B · Attention 수학 ↗</a>
-      <a href="transformer_multi_head_attention_learning.html">03-C · Multi-Head Attention ↗</a>
-      <a href="transformer_residual_learning.html">04 · Residual 연결 ↗</a>
-      <a href="transformer_layer_norm_learning.html">05 · LayerNorm ↗</a>
-      <a href="transformer_ffn_learning.html">06 · FFN ↗</a>
-      <a href="transformer_ffn_learning.html#dropout">07 · Dropout ↗</a>
-      <a href="#transformer-block-completion">08 · Transformer Block 완료</a>
-      <a href="#tiny-decoder-lm-start">09 · Tiny Decoder LM 완료</a>
-      <a href="../math/transformer_math_learning.html">수학 개념 상위 문서 ↗</a>
-    </nav>
-
-    <main>
-      <section id="transformer-core-flow">
-        <div class="cell-label">Core flow</div>
-        <h2>한 문서에서 이어 보는 Transformer 전체 흐름</h2>
-        <p class="summary">Token ID를 문맥 벡터로 바꾸고, 그 문맥 벡터를 다음 Token 후보 점수로 바꾸는 동안 어떤 축이 유지되고 어떤 축이 바뀌는지 한 번에 연결합니다.</p>
-        <a class="doc-link" href="transformer_input_tensor_flow_learning.html">문장 목록부터 Transformer 입력 Tensor까지 자세히 보기 →</a>
-        <pre><code>Token IDs [B, S]
+    <div class="markdown-lead"><p>Core flow</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#transformer-core-flow">한 문서에서 이어 보는 Transformer 전체 흐름</a>
+        <a href="#token-embedding">Token Embedding</a>
+        <a href="#positional-encoding">Positional Encoding</a>
+        <a href="#scaled-dot-product-attention">Scaled Dot-Product Attention</a>
+        <a href="#residual-connection">Residual 연결</a>
+        <a href="#layer-normalization">LayerNorm</a>
+        <a href="#feed-forward-network">FFN</a>
+        <a href="#dropout">Dropout</a>
+        <a href="#transformer-block-completion">Transformer Block 통합 완료</a>
+        <a href="#tiny-decoder-lm-start">Tiny Decoder LM: Target shift부터 자기회귀 생성까지</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="transformer-core-flow" class="markdown-section">
+<h2>한 문서에서 이어 보는 Transformer 전체 흐름</h2>
+<p>Token ID를 문맥 벡터로 바꾸고, 그 문맥 벡터를 다음 Token 후보 점수로 바꾸는 동안 어떤 축이 유지되고 어떤 축이 바뀌는지 한 번에 연결합니다.</p>
+<p><a href="transformer_input_tensor_flow_learning.html">문장 목록부터 Transformer 입력 Tensor까지 자세히 보기 →</a></p>
+<pre><code>Token IDs [B, S]
   ↓ Token Embedding + Position Embedding
 입력 표현 [B, S, D]
   ↓ Multi-Head Attention
@@ -520,16 +66,16 @@
   ↓ Residual + LayerNorm + FFN + Residual + LayerNorm
 Block 출력 [B, S, D]
   ↓ LM Head: Linear(D, V)
-위치별 Token 후보 점수 [B, S, V]</code></pre>
-
-        <h3>1. Token 의미와 위치 정보를 같은 Shape으로 더한다</h3>
-        <pre><code>token_vectors    = token_embedding(input_tokens)    # [B, S, D]
+위치별 Token 후보 점수 [B, S, V]
+</code></pre>
+<h3>1. Token 의미와 위치 정보를 같은 Shape으로 더한다</h3>
+<pre><code>token_vectors    = token_embedding(input_tokens)    # [B, S, D]
 position_vectors = position_embedding(positions)    # [S, D] 또는 [B, S, D]
-x = token_vectors + position_vectors                # [B, S, D]</code></pre>
-        <p>Token Embedding은 Token ID를 길이 <code>D</code>의 벡터로 조회하고, Position Embedding은 같은 위치 축에 위치 정보를 더합니다. 학습형 Position Embedding과 sin·cos Positional Encoding은 값을 만드는 방식은 다르지만, 둘 다 Token 순서를 표현에 넣는 역할을 합니다. 자세한 초기화·스케일은 <a href="transformer_token_embedding_learning.html">Token Embedding 문서</a>, 두 위치 방식의 경계는 <a href="transformer_positional_encoding_learning.html">Positional Encoding 문서</a>에서 이어집니다.</p>
-
-        <h3>2. Attention은 Token 정보를 섞지만 위치 축은 없애지 않는다</h3>
-        <pre><code>x [B, S, D]
+x = token_vectors + position_vectors                # [B, S, D]
+</code></pre>
+<p>Token Embedding은 Token ID를 길이 <code>D</code>의 벡터로 조회하고, Position Embedding은 같은 위치 축에 위치 정보를 더합니다. 학습형 Position Embedding과 sin·cos Positional Encoding은 값을 만드는 방식은 다르지만, 둘 다 Token 순서를 표현에 넣는 역할을 합니다. 자세한 초기화·스케일은 <a href="transformer_token_embedding_learning.html">Token Embedding 문서</a>, 두 위치 방식의 경계는 <a href="transformer_positional_encoding_learning.html">Positional Encoding 문서</a>에서 이어집니다.</p>
+<h3>2. Attention은 Token 정보를 섞지만 위치 축은 없애지 않는다</h3>
+<pre><code>x [B, S, D]
   ↓ Q, K, V Projection
 Q, K, V [B, S, D]
   ↓ Head split
@@ -541,109 +87,108 @@ scores.shape = [B, H, S, S]
 Causal Mask → 미래 Key의 점수를 -∞로 변경
 Softmax(dim=-1) → 참고 비율
 비율 @ V → Head별 문맥 [B, H, S, d_k]
-Head merge + Output Projection → [B, S, D]</code></pre>
-        <p><code>[S,S]</code>는 각 Query 위치가 각 Key 위치를 얼마나 참고할지 나타냅니다. Causal Mask는 미래 위치의 참고 비율을 0으로 만들지만 행이나 Token 위치를 삭제하지 않습니다. 따라서 각 위치에는 자신이 볼 수 있는 Prefix가 반영된 문맥 벡터 하나가 남습니다. 계산과 Mask는 <a href="transformer_attention_learning.html">Attention 문서</a>, Head 분리·병합은 <a href="transformer_multi_head_attention_learning.html">Multi-Head Attention 문서</a>에서 자세히 확인합니다.</p>
-
-        <h3>3. Residual·LayerNorm·FFN을 지나도 <code>[B,S,D]</code>는 유지된다</h3>
-        <pre><code>x1 = norm1(x + attention_output)  # [B, S, D]
+Head merge + Output Projection → [B, S, D]
+</code></pre>
+<p><code>[S,S]</code>는 각 Query 위치가 각 Key 위치를 얼마나 참고할지 나타냅니다. Causal Mask는 미래 위치의 참고 비율을 0으로 만들지만 행이나 Token 위치를 삭제하지 않습니다. 따라서 각 위치에는 자신이 볼 수 있는 Prefix가 반영된 문맥 벡터 하나가 남습니다. 계산과 Mask는 <a href="transformer_attention_learning.html">Attention 문서</a>, Head 분리·병합은 <a href="transformer_multi_head_attention_learning.html">Multi-Head Attention 문서</a>에서 자세히 확인합니다.</p>
+<h3>3. Residual·LayerNorm·FFN을 지나도 <code>[B,S,D]</code>는 유지된다</h3>
+<pre><code>x1 = norm1(x + attention_output)  # [B, S, D]
 ffn_output = Linear(D, d_ff) → GELU → Linear(d_ff, D)
-x2 = norm2(x1 + ffn_output)       # [B, S, D]</code></pre>
-        <p>첫 Residual은 원래 Token 표현과 Attention이 섞은 관계 정보를 함께 보존합니다. FFN(피드포워드 신경망)은 위치끼리 다시 섞지 않고 같은 두 Linear를 각 Token 벡터에 독립적으로 적용해 <code>D → d_ff → D</code>로 특징을 가공합니다. LayerNorm은 각 Token의 마지막 특징 축을 중심화·스케일링합니다. 연결 이유는 <a href="transformer_residual_learning.html">Residual 문서</a>, 실제 정규화 계산은 <a href="transformer_layer_norm_learning.html">LayerNorm 문서</a>, FFN과 Dropout은 <a href="transformer_ffn_learning.html">FFN 문서</a>에서 이어집니다.</p>
-
-        <h3>4. LM Head는 위치를 합치지 않고 각 문맥 벡터를 Vocabulary 점수로 바꾼다</h3>
-        <pre><code>hidden_states [B, S, D]
+x2 = norm2(x1 + ffn_output)       # [B, S, D]
+</code></pre>
+<p>첫 Residual은 원래 Token 표현과 Attention이 섞은 관계 정보를 함께 보존합니다. FFN(피드포워드 신경망)은 위치끼리 다시 섞지 않고 같은 두 Linear를 각 Token 벡터에 독립적으로 적용해 <code>D → d_ff → D</code>로 특징을 가공합니다. LayerNorm은 각 Token의 마지막 특징 축을 중심화·스케일링합니다. 연결 이유는 <a href="transformer_residual_learning.html">Residual 문서</a>, 실제 정규화 계산은 <a href="transformer_layer_norm_learning.html">LayerNorm 문서</a>, FFN과 Dropout은 <a href="transformer_ffn_learning.html">FFN 문서</a>에서 이어집니다.</p>
+<h3>4. LM Head는 위치를 합치지 않고 각 문맥 벡터를 Vocabulary 점수로 바꾼다</h3>
+<pre><code>hidden_states [B, S, D]
   ↓ nn.Linear(D, V)
-logits [B, S, V]</code></pre>
-        <p>LM Head는 sequence의 여러 위치를 하나의 Token으로 합치는 층이 아닙니다. 위치마다 길이 <code>D</code>인 문맥 벡터를 Token 종류 수 <code>V</code>개의 후보 점수로 바꿉니다. 학습에서는 한 칸 이동한 Target과 모든 위치를 비교하므로 각 행이 “해당 Prefix 다음 Token”을 맞히도록 조정됩니다. 생성에서는 현재 Prefix 뒤에 하나만 붙이면 되므로 <code>logits[:, -1, :]</code>의 마지막 위치 후보만 선택합니다.</p>
-        <div class="caution"><strong>핵심 결론</strong> — Attention이 Token 사이 정보를 섞어도 위치별 벡터는 유지됩니다. LM Head가 그 위치별 문맥 벡터를 Vocabulary 후보 점수로 바꾸고, shifted Target과 Cross Entropy 학습이 그 점수에 “다음 Token 예측”이라는 의미를 부여합니다.</div>
-      </section>
-      <section id="token-embedding">
-        <span id="flow"></span><span id="line-by-line"></span><span id="embedding-init"></span><span id="why-scale"></span><span id="shapes"></span><span id="checkpoint"></span>
-        <div class="cell-label">Topic 01</div>
-        <h2>Token Embedding</h2>
-        <p class="summary">토큰 번호를 벡터로 바꾸고, 임베딩 초기화·<code>√d_model</code> 스케일·Shape을 이해합니다.</p>
-        <a class="doc-link" href="transformer_token_embedding_learning.html">Token Embedding 문서 열기 →</a>
-      </section>
-      <section id="positional-encoding">
-        <span id="div-term"></span><span id="trig-math-reference"></span><span id="sin-cos-pair"></span><span id="positional-shapes"></span><span id="positional-checkpoint"></span><span id="sin-cos-overlap"></span><span id="why-position"></span>
-        <div class="cell-label">Topic 02</div>
-        <h2>Positional Encoding</h2>
-        <p class="summary">위치마다 달라지는 sin·cos 벡터와 여러 회전 속도가 위치 정보가 되는 과정을 이해합니다.</p>
-        <a class="doc-link" href="transformer_positional_encoding_learning.html">Positional Encoding 문서 열기 →</a>
-      </section>
-      <section id="scaled-dot-product-attention">
-        <div class="cell-label">Topic 03</div>
-        <h2>Scaled Dot-Product Attention</h2>
-        <p class="summary">Q·K 내적, <code>√d_k</code> Scaling, Padding/Causal Mask, Softmax와 Value 가중합을 이해합니다.</p>
-        <a class="doc-link" href="transformer_attention_learning.html">Attention 문서 열기 →</a>
-        <div class="caution"><strong>세부 문서로 바로 이동</strong><br>
-          <a href="transformer_projection_learning.html">Q·K·V Projection과 Linear 가중치</a> ·
-          <a href="transformer_kv_cache_qkv_projection_learning.html">GPT-2 QKV Projection과 KV Cache</a> ·
-          <a href="transformer_kv_cache_end_to_end_generation_learning.html">KV Cache 저장·생성·검증 전체 흐름</a> ·
-          <a href="transformer_kv_cache_input_ids_flow_learning.html">KV Cache와 input_ids 전달 흐름</a> ·
-          <a href="transformer_kv_cache_in_place_update_learning.html">KV Cache 객체의 제자리 갱신</a> ·
-          <a href="transformer_kv_cache_use_cache_multi_token_learning.html">KV Cache 반환과 여러 새 Token 처리</a> ·
-          <a href="transformer_generated_token_mask_position_learning.html">생성 Token의 Mask·Position 갱신</a> ·
-          <a href="transformer_kv_cache_layer_head_shape_learning.html">KV Cache의 Layer·Head별 저장 구조</a> ·
-          <a href="transformer_attention_math_learning.html">Attention 수학과 Mask·Softmax</a> ·
-          <a href="transformer_multi_head_attention_learning.html">Multi-Head 분리·병합·Output Projection</a>
-        </div>
-      </section>
-      <section id="residual-connection">
-        <div class="cell-label">Topic 04</div>
-        <h2>Residual 연결</h2>
-        <p class="summary">Attention 결과로 원래 입력을 교체하지 않고, 원본에 Attention이 알아낸 정보를 더해 다음 단계로 전달하는 이유와 Shape을 이해합니다.</p>
-        <a class="doc-link" href="transformer_residual_learning.html">Residual 연결 문서 열기 →</a>
-      </section>
-      <section id="layer-normalization">
-        <div class="cell-label">Topic 05</div>
-        <h2>LayerNorm</h2>
-        <p class="summary">Residual 결과에서 각 Token의 마지막 특징 차원을 따로 정규화해 평균을 0, 분산과 표준편차를 1에 가깝게 맞추는 계산을 이해합니다.</p>
-        <a class="doc-link" href="transformer_layer_norm_learning.html">LayerNorm 문서 열기 →</a>
-      </section>
-      <section id="feed-forward-network">
-        <div class="cell-label">Topic 06</div>
-        <h2>FFN</h2>
-        <p class="summary">Attention으로 Token 사이의 정보를 섞은 다음, 같은 두 Linear와 Activation을 모든 Token에 독립적으로 적용해 각 Token 내부의 특징을 가공합니다.</p>
-        <a class="doc-link" href="transformer_ffn_learning.html">FFN 문서 열기 →</a>
-      </section>
-      <section id="dropout">
-        <div class="cell-label">Topic 07</div>
-        <h2>Dropout</h2>
-        <p class="summary">훈련에서는 각 원소를 확률적으로 끄고 살아남은 값을 보정하지만, 평가에서는 무작위 제거를 비활성화해 입력을 그대로 통과시키는 차이를 확인합니다.</p>
-        <a class="doc-link" href="transformer_ffn_learning.html#dropout">Dropout 실험 열기 →</a>
-      </section>
-      <section id="transformer-block-completion">
-        <div class="cell-label">Topic 08</div>
-        <h2>Transformer Block 통합 완료</h2>
-        <p class="summary">손코딩한 Multi-Head Attention과 Post-LN Block을 하나의 <code>forward()</code>로 연결하고 입력·출력 Shape <code>[1,2,2]</code>, Token별 평균은 사실상 0, 분산은 1임을 확인했습니다.</p>
-        <p>Attention은 각 Query와 Key의 관계로 참고 비율을 만들고 그 비율로 Value들을 섞어 현재 Token의 문맥을 만든다. 첫 Residual은 기존 의미와 이 관계 정보를 함께 보존하고, 두 번째 Residual은 정규화된 현재 표현과 FFN 수정값을 함께 보존한다는 흐름을 자기 말로 설명했습니다.</p>
-        <a class="doc-link" href="transformer_ffn_learning.html#transformer-block-completion">통합 구현과 FFN 검증 보기 →</a>
-      </section>
-      <section id="tiny-decoder-lm-start">
-        <div class="cell-label">Topic 09 · 완료</div>
-        <h2>Tiny Decoder LM: Target shift부터 자기회귀 생성까지</h2>
-        <p class="summary">Decoder 언어 모델이 현재까지의 Token으로 바로 다음 Token을 맞히도록, 하나의 Token 열에서 입력과 정답을 한 칸씩 어긋나게 만드는 Target shift를 확인했습니다.</p>
-        <pre><code>tokens = [[3, 7, 2, 9]]        # Shape [1, 4]
+logits [B, S, V]
+</code></pre>
+<p>LM Head는 sequence의 여러 위치를 하나의 Token으로 합치는 층이 아닙니다. 위치마다 길이 <code>D</code>인 문맥 벡터를 Token 종류 수 <code>V</code>개의 후보 점수로 바꿉니다. 학습에서는 한 칸 이동한 Target과 모든 위치를 비교하므로 각 행이 “해당 Prefix 다음 Token”을 맞히도록 조정됩니다. 생성에서는 현재 Prefix 뒤에 하나만 붙이면 되므로 <code>logits[:, -1, :]</code>의 마지막 위치 후보만 선택합니다.</p>
+<p><strong>핵심 결론</strong> — Attention이 Token 사이 정보를 섞어도 위치별 벡터는 유지됩니다. LM Head가 그 위치별 문맥 벡터를 Vocabulary 후보 점수로 바꾸고, shifted Target과 Cross Entropy 학습이 그 점수에 “다음 Token 예측”이라는 의미를 부여합니다.</p>
+<p>Topic 01</p>
+
+</section>
+<section id="token-embedding" class="markdown-section">
+<h2>Token Embedding</h2>
+<p>토큰 번호를 벡터로 바꾸고, 임베딩 초기화·<code>√d_model</code> 스케일·Shape을 이해합니다.</p>
+<p><a href="transformer_token_embedding_learning.html">Token Embedding 문서 열기 →</a></p>
+<p>Topic 02</p>
+
+</section>
+<section id="positional-encoding" class="markdown-section">
+<h2>Positional Encoding</h2>
+<p>위치마다 달라지는 sin·cos 벡터와 여러 회전 속도가 위치 정보가 되는 과정을 이해합니다.</p>
+<p><a href="transformer_positional_encoding_learning.html">Positional Encoding 문서 열기 →</a></p>
+<p>Topic 03</p>
+
+</section>
+<section id="scaled-dot-product-attention" class="markdown-section">
+<h2>Scaled Dot-Product Attention</h2>
+<p>Q·K 내적, <code>√d_k</code> Scaling, Padding/Causal Mask, Softmax와 Value 가중합을 이해합니다.</p>
+<p><a href="transformer_attention_learning.html">Attention 문서 열기 →</a></p>
+<p><strong>세부 문서로 바로 이동</strong><br><a href="transformer_projection_learning.html">Q·K·V Projection과 Linear 가중치</a> · <a href="transformer_kv_cache_qkv_projection_learning.html">GPT-2 QKV Projection과 KV Cache</a> · <a href="transformer_kv_cache_end_to_end_generation_learning.html">KV Cache 저장·생성·검증 전체 흐름</a> · <a href="transformer_kv_cache_input_ids_flow_learning.html">KV Cache와 input_ids 전달 흐름</a> · <a href="transformer_kv_cache_in_place_update_learning.html">KV Cache 객체의 제자리 갱신</a> · <a href="transformer_kv_cache_use_cache_multi_token_learning.html">KV Cache 반환과 여러 새 Token 처리</a> · <a href="transformer_generated_token_mask_position_learning.html">생성 Token의 Mask·Position 갱신</a> · <a href="transformer_kv_cache_layer_head_shape_learning.html">KV Cache의 Layer·Head별 저장 구조</a> · <a href="transformer_attention_math_learning.html">Attention 수학과 Mask·Softmax</a> · <a href="transformer_multi_head_attention_learning.html">Multi-Head 분리·병합·Output Projection</a></p>
+<p>Topic 04</p>
+
+</section>
+<section id="residual-connection" class="markdown-section">
+<h2>Residual 연결</h2>
+<p>Attention 결과로 원래 입력을 교체하지 않고, 원본에 Attention이 알아낸 정보를 더해 다음 단계로 전달하는 이유와 Shape을 이해합니다.</p>
+<p><a href="transformer_residual_learning.html">Residual 연결 문서 열기 →</a></p>
+<p>Topic 05</p>
+
+</section>
+<section id="layer-normalization" class="markdown-section">
+<h2>LayerNorm</h2>
+<p>Residual 결과에서 각 Token의 마지막 특징 차원을 따로 정규화해 평균을 0, 분산과 표준편차를 1에 가깝게 맞추는 계산을 이해합니다.</p>
+<p><a href="transformer_layer_norm_learning.html">LayerNorm 문서 열기 →</a></p>
+<p>Topic 06</p>
+
+</section>
+<section id="feed-forward-network" class="markdown-section">
+<h2>FFN</h2>
+<p>Attention으로 Token 사이의 정보를 섞은 다음, 같은 두 Linear와 Activation을 모든 Token에 독립적으로 적용해 각 Token 내부의 특징을 가공합니다.</p>
+<p><a href="transformer_ffn_learning.html">FFN 문서 열기 →</a></p>
+<p>Topic 07</p>
+
+</section>
+<section id="dropout" class="markdown-section">
+<h2>Dropout</h2>
+<p>훈련에서는 각 원소를 확률적으로 끄고 살아남은 값을 보정하지만, 평가에서는 무작위 제거를 비활성화해 입력을 그대로 통과시키는 차이를 확인합니다.</p>
+<p><a href="transformer_ffn_learning.html#dropout">Dropout 실험 열기 →</a></p>
+<p>Topic 08</p>
+
+</section>
+<section id="transformer-block-completion" class="markdown-section">
+<h2>Transformer Block 통합 완료</h2>
+<p>손코딩한 Multi-Head Attention과 Post-LN Block을 하나의 <code>forward()</code>로 연결하고 입력·출력 Shape <code>[1,2,2]</code>, Token별 평균은 사실상 0, 분산은 1임을 확인했습니다.</p>
+<p>Attention은 각 Query와 Key의 관계로 참고 비율을 만들고 그 비율로 Value들을 섞어 현재 Token의 문맥을 만든다. 첫 Residual은 기존 의미와 이 관계 정보를 함께 보존하고, 두 번째 Residual은 정규화된 현재 표현과 FFN 수정값을 함께 보존한다는 흐름을 자기 말로 설명했습니다.</p>
+<p><a href="transformer_ffn_learning.html#transformer-block-completion">통합 구현과 FFN 검증 보기 →</a></p>
+<p>Topic 09 · 완료</p>
+
+</section>
+<section id="tiny-decoder-lm-start" class="markdown-section">
+<h2>Tiny Decoder LM: Target shift부터 자기회귀 생성까지</h2>
+<p>Decoder 언어 모델이 현재까지의 Token으로 바로 다음 Token을 맞히도록, 하나의 Token 열에서 입력과 정답을 한 칸씩 어긋나게 만드는 Target shift를 확인했습니다.</p>
+<pre><code>tokens = [[3, 7, 2, 9]]        # Shape [1, 4]
 
 input_tokens  = tokens[:, :-1]
 target_tokens = tokens[:, 1:]
 
 input_tokens  = [[3, 7, 2]]    # Shape [1, 3]
-target_tokens = [[7, 2, 9]]    # Shape [1, 3]</code></pre>
-        <p>같은 위치끼리 보면 입력 <code>3</code>으로 정답 <code>7</code>, 입력 <code>3, 7</code>까지의 문맥으로 정답 <code>2</code>, 입력 <code>3, 7, 2</code>까지의 문맥으로 정답 <code>9</code>를 맞히는 구조입니다. 원래 길이 4인 열에서 마지막 입력 후보와 첫 정답 후보를 각각 한 칸 제외하므로 두 Tensor의 Shape은 모두 <code>[batch=1, seq_len=3]</code>이 됩니다.</p>
-        <a class="doc-link" href="transformer_attention_score_mask_learning.html#tiny-decoder-causal-mask">같은 길이 3에서 Causal Mask를 만드는 계산 보기 →</a>
-        <div class="caution"><strong>이 단계 당시의 경계</strong> — Target shift와 Causal Mask를 먼저 확인한 뒤 아래 후속 단계에서 위치별 Token Logit과 <code>CrossEntropyLoss</code>까지 검증했습니다. 이 기록 시점에는 모델 전체 학습과 다음 Token 생성이 남아 있어 완료로 표시하지 않았고, 이후 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 두 항목을 모두 완료했습니다.</div>
-
-        <h3 id="tiny-decoder-logits-loss">후속 확인: 위치별 Logit과 Cross Entropy Loss</h3>
-        <p>위 경계 이후, 학습 전 임시 Logit을 직접 만들고 각 위치의 정답 열을 선택해 Loss를 계산하는 단계까지 확인했습니다. <code>[1, 3, 10]</code>은 배치 1개 안의 위치 3개마다 vocabulary의 Token ID <code>0~9</code>에 대한 점수 10개가 있다는 뜻입니다.</p>
-        <pre><code>logits.shape = [batch=1, seq_len=3, vocab_size=10]
+target_tokens = [[7, 2, 9]]    # Shape [1, 3]
+</code></pre>
+<p>같은 위치끼리 보면 입력 <code>3</code>으로 정답 <code>7</code>, 입력 <code>3, 7</code>까지의 문맥으로 정답 <code>2</code>, 입력 <code>3, 7, 2</code>까지의 문맥으로 정답 <code>9</code>를 맞히는 구조입니다. 원래 길이 4인 열에서 마지막 입력 후보와 첫 정답 후보를 각각 한 칸 제외하므로 두 Tensor의 Shape은 모두 <code>[batch=1, seq_len=3]</code>이 됩니다.</p>
+<p><a href="transformer_attention_score_mask_learning.html#tiny-decoder-causal-mask">같은 길이 3에서 Causal Mask를 만드는 계산 보기 →</a></p>
+<p><strong>이 단계 당시의 경계</strong> — Target shift와 Causal Mask를 먼저 확인한 뒤 아래 후속 단계에서 위치별 Token Logit과 <code>CrossEntropyLoss</code>까지 검증했습니다. 이 기록 시점에는 모델 전체 학습과 다음 Token 생성이 남아 있어 완료로 표시하지 않았고, 이후 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 두 항목을 모두 완료했습니다.</p>
+<span class="md-anchor" id="tiny-decoder-logits-loss" aria-hidden="true"></span>
+<h3>후속 확인: 위치별 Logit과 Cross Entropy Loss</h3>
+<p>위 경계 이후, 학습 전 임시 Logit을 직접 만들고 각 위치의 정답 열을 선택해 Loss를 계산하는 단계까지 확인했습니다. <code>[1, 3, 10]</code>은 배치 1개 안의 위치 3개마다 vocabulary의 Token ID <code>0~9</code>에 대한 점수 10개가 있다는 뜻입니다.</p>
+<pre><code>logits.shape = [batch=1, seq_len=3, vocab_size=10]
 
 logits[0, 0]  # 첫 번째 위치가 Token 0~9에 준 점수 10개
 softmax(logits, dim=-1)
-                  ↑ 마지막 vocab 축의 10개 점수를 위치별로 비율화</code></pre>
-        <p><code>target=[7, 2, 9]</code>을 먼저 “정답 목록”이라고만 외우면 실제 연산이 흐려질 수 있습니다. 코드에서 이 값들은 각 Logit 행의 어느 열을 정답으로 채점할지 지정하는 <strong>열 index</strong>입니다. Target 값을 Logit에 더하거나 빼는 연산이 아닙니다.</p>
-        <pre><code>three_position_logits.shape = [3, 10]
+                  ↑ 마지막 vocab 축의 10개 점수를 위치별로 비율화
+</code></pre>
+<p><code>target=[7, 2, 9]</code>을 먼저 “정답 목록”이라고만 외우면 실제 연산이 흐려질 수 있습니다. 코드에서 이 값들은 각 Logit 행의 어느 열을 정답으로 채점할지 지정하는 열 index입니다. Target 값을 Logit에 더하거나 빼는 연산이 아닙니다.</p>
+<pre><code>three_position_logits.shape = [3, 10]
 three_targets = [7, 2, 9]  # 각 행에서 선택할 열 index
 
 log_probs = torch.log_softmax(
@@ -657,36 +202,38 @@ log_probs[1, 2]  # 위치 1의 정답 Token 2
 log_probs[2, 9]  # 위치 2의 정답 Token 9
 
 token_losses = -선택한 log-softmax 값
-mean_loss = token_losses.mean()</code></pre>
-        <p>직접 만든 고정 Logit에서는 <code>reduction="none"</code>으로 위치별 Loss <code>[0.7966, 1.4612, 0.3702]</code>, Shape <code>[3]</code>을 얻었고, 이를 평균내 <code>0.8760</code>을 확인했습니다. <code>nn.CrossEntropyLoss()</code>의 기본 <code>reduction="mean"</code>은 같은 원리로 모든 위치 Loss를 평균한 scalar 하나를 반환합니다.</p>
-
-        <h4 id="cross-entropy-one-hot-mse">MSE와 Cross Entropy를 섞어 기억했을 때 다시 구분하는 법</h4>
-        <p>이 계산을 복습할 때 “정답을 <code>1</code>로 두고 출력과 뺀 뒤 제곱하는가?”라는 혼동이 생겼습니다. 그 식은 <strong>MSE(평균 제곱 오차)</strong>의 위치별 계산 <code>(출력-정답)²</code>입니다. 여러 후보 중 정답 Token 하나를 채점하는 현재 코드는 별도 공식인 <strong>Cross Entropy(교차 엔트로피)</strong>를 사용합니다.</p>
-        <pre><code>MSE의 위치별 오차
+mean_loss = token_losses.mean()
+</code></pre>
+<p>직접 만든 고정 Logit에서는 <code>reduction=&quot;none&quot;</code>으로 위치별 Loss <code>[0.7966, 1.4612, 0.3702]</code>, Shape <code>[3]</code>을 얻었고, 이를 평균내 <code>0.8760</code>을 확인했습니다. <code>nn.CrossEntropyLoss()</code>의 기본 <code>reduction=&quot;mean&quot;</code>은 같은 원리로 모든 위치 Loss를 평균한 scalar 하나를 반환합니다.</p>
+<h4>MSE와 Cross Entropy를 섞어 기억했을 때 다시 구분하는 법</h4>
+<p>이 계산을 복습할 때 “정답을 <code>1</code>로 두고 출력과 뺀 뒤 제곱하는가?”라는 혼동이 생겼습니다. 그 식은 MSE(평균 제곱 오차)의 위치별 계산 <code>(출력-정답)²</code>입니다. 여러 후보 중 정답 Token 하나를 채점하는 현재 코드는 별도 공식인 Cross Entropy(교차 엔트로피)를 사용합니다.</p>
+<pre><code>MSE의 위치별 오차
 (출력 - 정답)²
 
 Cross Entropy의 Token 하나 Loss
 -Σ(yᵢ × ln(pᵢ))
 
 yᵢ = 정답 One-hot 값
-pᵢ = Softmax로 만든 i번 Token의 선택 비중</code></pre>
-        <p><strong>One-hot(원-핫)</strong>은 정답 칸만 <code>1</code>, 나머지 칸은 <code>0</code>으로 표시한 벡터입니다. Vocabulary가 10개이고 Target Token ID가 <code>7</code>이라면 정답은 다음처럼 생각할 수 있습니다.</p>
-        <pre><code>Token ID:  0  1  2  3  4  5  6  7  8  9
+pᵢ = Softmax로 만든 i번 Token의 선택 비중
+</code></pre>
+<p>One-hot(원-핫)은 정답 칸만 <code>1</code>, 나머지 칸은 <code>0</code>으로 표시한 벡터입니다. Vocabulary가 10개이고 Target Token ID가 <code>7</code>이라면 정답은 다음처럼 생각할 수 있습니다.</p>
+<pre><code>Token ID:  0  1  2  3  4  5  6  7  8  9
 y:        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0]
-                                      ↑ 정답 ID 7</code></pre>
-        <p>원래 공식에는 Vocabulary의 모든 칸이 들어가지만, 정답이 아닌 칸은 <code>yᵢ=0</code>이라 각 항이 사라집니다. 정답 칸만 <code>y₇=1</code>이므로 결과는 <code>-ln(p₇)</code> 하나로 줄어듭니다.</p>
-        <pre><code>Loss
+                                      ↑ 정답 ID 7
+</code></pre>
+<p>원래 공식에는 Vocabulary의 모든 칸이 들어가지만, 정답이 아닌 칸은 <code>yᵢ=0</code>이라 각 항이 사라집니다. 정답 칸만 <code>y₇=1</code>이므로 결과는 <code>-ln(p₇)</code> 하나로 줄어듭니다.</p>
+<pre><code>Loss
 = -(0×ln(p₀) + ... + 1×ln(p₇) + ... + 0×ln(p₉))
 = -ln(p₇)
 
 p₇ = 0.4509라면
 ln(0.4509) ≈ -0.7966
-Loss = -(-0.7966) ≈ 0.7966</code></pre>
-        <p>PyTorch의 <code>CrossEntropyLoss</code>에는 이 One-hot 벡터를 직접 만들지 않고 보통 class 또는 Token ID <code>7</code>만 전달합니다. 내부에서 raw Logit에 Log-Softmax를 적용하고 7번 열을 선택해 음수 부호를 붙이므로, 위 One-hot 공식과 수학적으로 같은 결과입니다.</p>
-        <div class="caution"><strong>Accuracy·MSE·Cross Entropy 구분</strong> — Accuracy는 최댓값의 Token ID가 Target ID와 같은지만 <code>0/1</code>로 셉니다. MSE는 출력과 정답의 차이를 제곱합니다. Cross Entropy는 정답 Token 칸에 배정된 선택 비중에 <code>-ln()</code>을 적용합니다. 따라서 정답 ID를 맞혔더라도 그 칸의 선택 비중이 <code>1</code>보다 작으면 Cross Entropy Loss는 남습니다.</div>
-
-        <p><strong>Batch 전체로 넓혀도 같은 계산입니다.</strong> Causal LM의 raw Logit이 <code>[B,S,V]</code>라면 한 칸 뒤로 민 Target과 맞출 수 있는 위치는 문장마다 <code>S-1</code>개입니다. Padding이 없는 단순한 Batch에서는 총 <code>B×(S-1)</code>개의 다음 Token 문제가 생깁니다. 각 문제마다 Target ID가 가리키는 Vocabulary 열의 <code>-log-softmax</code> 값을 하나씩 구하고, 기본 <code>reduction="mean"</code>이 그 값을 모두 평균해 scalar Loss 하나를 만듭니다. 따라서 이 Loss는 문장 전체에 붙은 정답 하나를 채점한 값이 아니라, Batch 안 각 Sequence의 유효한 위치마다 수행한 다음 Token 예측을 합친 평균입니다.</p>
-        <pre><code>raw logits:      [B, S, V]
+Loss = -(-0.7966) ≈ 0.7966
+</code></pre>
+<p>PyTorch의 <code>CrossEntropyLoss</code>에는 이 One-hot 벡터를 직접 만들지 않고 보통 class 또는 Token ID <code>7</code>만 전달합니다. 내부에서 raw Logit에 Log-Softmax를 적용하고 7번 열을 선택해 음수 부호를 붙이므로, 위 One-hot 공식과 수학적으로 같은 결과입니다.</p>
+<p><strong>Accuracy·MSE·Cross Entropy 구분</strong> — Accuracy는 최댓값의 Token ID가 Target ID와 같은지만 <code>0/1</code>로 셉니다. MSE는 출력과 정답의 차이를 제곱합니다. Cross Entropy는 정답 Token 칸에 배정된 선택 비중에 <code>-ln()</code>을 적용합니다. 따라서 정답 ID를 맞혔더라도 그 칸의 선택 비중이 <code>1</code>보다 작으면 Cross Entropy Loss는 남습니다.</p>
+<p><strong>Batch 전체로 넓혀도 같은 계산입니다.</strong> Causal LM의 raw Logit이 <code>[B,S,V]</code>라면 한 칸 뒤로 민 Target과 맞출 수 있는 위치는 문장마다 <code>S-1</code>개입니다. Padding이 없는 단순한 Batch에서는 총 <code>B×(S-1)</code>개의 다음 Token 문제가 생깁니다. 각 문제마다 Target ID가 가리키는 Vocabulary 열의 <code>-log-softmax</code> 값을 하나씩 구하고, 기본 <code>reduction=&quot;mean&quot;</code>이 그 값을 모두 평균해 scalar Loss 하나를 만듭니다. 따라서 이 Loss는 문장 전체에 붙은 정답 하나를 채점한 값이 아니라, Batch 안 각 Sequence의 유효한 위치마다 수행한 다음 Token 예측을 합친 평균입니다.</p>
+<pre><code>raw logits:      [B, S, V]
 채점용 logits:  [B, S-1, V]
 shifted target: [B, S-1]
 
@@ -694,12 +241,12 @@ Padding이 없는 단순화:
 총 채점 문제 수 = B × (S-1)
 
 각 위치 Loss = -log_softmax(logit)[Target Token ID]
-최종 Loss = 모든 위치 Loss의 평균 scalar</code></pre>
-        <p>예를 들어 <code>"I study."</code>가 <code>["I", " study", "."]</code> 세 Token이라면 한 문장 안에서 <code>"I" → " study"</code>, <code>"I study" → "."</code> 두 문제를 채점합니다. Token이 3개라고 정답이 하나 생기는 것이 아니라, 마지막 Token을 제외한 위치마다 다음 Token 정답이 하나씩 생기는 구조입니다.</p>
-
-        <h4 id="perplexity-from-mean-token-loss">평균 Token Cross Entropy Loss를 Perplexity로 바꾸는 이유</h4>
-        <p>Perplexity(퍼플렉서티)는 평균 Token Cross Entropy Loss에 지수함수 <code>exp</code>를 적용한 값입니다. 위치별 정답 Token 선택 비중을 <code>p₁ ... pₙ</code>이라고 하면, 평균 Loss의 음의 로그를 다시 지수 변환하므로 <strong>정답 Token 선택 비중 기하평균의 역수</strong>가 됩니다.</p>
-        <pre><code>mean_token_loss
+최종 Loss = 모든 위치 Loss의 평균 scalar
+</code></pre>
+<p>예를 들어 <code>&quot;I study.&quot;</code>가 <code>[&quot;I&quot;, &quot; study&quot;, &quot;.&quot;]</code> 세 Token이라면 한 문장 안에서 <code>&quot;I&quot; → &quot; study&quot;</code>, <code>&quot;I study&quot; → &quot;.&quot;</code> 두 문제를 채점합니다. Token이 3개라고 정답이 하나 생기는 것이 아니라, 마지막 Token을 제외한 위치마다 다음 Token 정답이 하나씩 생기는 구조입니다.</p>
+<h4>평균 Token Cross Entropy Loss를 Perplexity로 바꾸는 이유</h4>
+<p>Perplexity(퍼플렉서티)는 평균 Token Cross Entropy Loss에 지수함수 <code>exp</code>를 적용한 값입니다. 위치별 정답 Token 선택 비중을 <code>p₁ ... pₙ</code>이라고 하면, 평균 Loss의 음의 로그를 다시 지수 변환하므로 정답 Token 선택 비중 기하평균의 역수가 됩니다.</p>
+<pre><code>mean_token_loss
 = -(ln(p₁) + ln(p₂) + ... + ln(pₙ)) / n
 
 perplexity
@@ -707,14 +254,14 @@ perplexity
 = 1 / (p₁ × p₂ × ... × pₙ)^(1/n)
 
 Loss = 0
-→ Perplexity = exp(0) = 1</code></pre>
-        <p>Loss가 0이면 모든 채점 위치에서 정답 Token 선택 비중이 1인 이상적인 경우이므로 Perplexity의 최솟값은 1입니다. 사전학습 Causal LM에 한 고정 문장 <code>"I study."</code>를 넣은 실행에서는 평균 Token Loss <code>10.831886291503906</code>을 얻었고, <code>torch.exp(loss)</code> 결과는 <code>50609.078125</code>였습니다.</p>
-        <div class="caution"><strong>Perplexity 해석의 경계</strong> — 이 값은 해당 한 문장의 두 다음 Token 위치에서 정답 Token에 배정된 선택 비중이 작았다는 실행 결과입니다. 한 문장만으로 모델 전체 품질을 단정할 수 없고, Cross Entropy는 정답 열의 선택 비중을 연속적으로 채점하므로 값이 크다고 각 위치의 <code>argmax</code>가 반드시 모두 틀렸다고 결론낼 수도 없습니다.</div>
-        <div class="caution"><strong>Padding이 있는 Batch의 Loss Mask</strong> — <code>attention_mask</code>는 모델이 PAD 위치를 문맥으로 참고하지 않게 하는 Mask이지만, 이것만으로 모든 구현의 Loss에서 PAD Target이 자동 제외된다고 가정하면 안 됩니다. 직접 labels를 구성하는 후속 적용에서는 PAD 위치를 <code>-100</code>으로 바꿔 <code>CrossEntropyLoss</code>의 <code>ignore_index</code> 대상이 되게 해야 합니다.</div>
-        <div class="caution"><strong>Softmax와 Cross Entropy의 코드 경계</strong> — 이해를 위해 위처럼 <code>log_softmax → 정답 열 선택 → 음수 부호</code>로 풀어 쓸 수 있습니다. 실제 <code>nn.CrossEntropyLoss</code>에는 Softmax를 적용하지 않은 raw Logit을 넣으며, 모듈 내부에서 이 계산을 결합해 수행합니다.</div>
-
-        <h3>LM Head는 마지막 특징 축만 vocabulary 축으로 바꾼다</h3>
-        <pre><code>hidden_states.shape = [1, 3, 2]
+→ Perplexity = exp(0) = 1
+</code></pre>
+<p>Loss가 0이면 모든 채점 위치에서 정답 Token 선택 비중이 1인 이상적인 경우이므로 Perplexity의 최솟값은 1입니다. 사전학습 Causal LM에 한 고정 문장 <code>&quot;I study.&quot;</code>를 넣은 실행에서는 평균 Token Loss <code>10.831886291503906</code>을 얻었고, <code>torch.exp(loss)</code> 결과는 <code>50609.078125</code>였습니다.</p>
+<p><strong>Perplexity 해석의 경계</strong> — 이 값은 해당 한 문장의 두 다음 Token 위치에서 정답 Token에 배정된 선택 비중이 작았다는 실행 결과입니다. 한 문장만으로 모델 전체 품질을 단정할 수 없고, Cross Entropy는 정답 열의 선택 비중을 연속적으로 채점하므로 값이 크다고 각 위치의 <code>argmax</code>가 반드시 모두 틀렸다고 결론낼 수도 없습니다.</p>
+<p><strong>Padding이 있는 Batch의 Loss Mask</strong> — <code>attention_mask</code>는 모델이 PAD 위치를 문맥으로 참고하지 않게 하는 Mask이지만, 이것만으로 모든 구현의 Loss에서 PAD Target이 자동 제외된다고 가정하면 안 됩니다. 직접 labels를 구성하는 후속 적용에서는 PAD 위치를 <code>-100</code>으로 바꿔 <code>CrossEntropyLoss</code>의 <code>ignore_index</code> 대상이 되게 해야 합니다.</p>
+<p><strong>Softmax와 Cross Entropy의 코드 경계</strong> — 이해를 위해 위처럼 <code>log_softmax → 정답 열 선택 → 음수 부호</code>로 풀어 쓸 수 있습니다. 실제 <code>nn.CrossEntropyLoss</code>에는 Softmax를 적용하지 않은 raw Logit을 넣으며, 모듈 내부에서 이 계산을 결합해 수행합니다.</p>
+<h3>LM Head는 마지막 특징 축만 vocabulary 축으로 바꾼다</h3>
+<pre><code>hidden_states.shape = [1, 3, 2]
 
 lm_head = nn.Linear(
     in_features=2,
@@ -722,35 +269,35 @@ lm_head = nn.Linear(
 )
 
 model_logits = lm_head(hidden_states)
-model_logits.shape = [1, 3, 10]</code></pre>
-        <p>LM Head의 Linear는 각 위치의 마지막 <code>d_model=2</code> 벡터를 vocabulary 점수 10개로 바꿉니다. 앞의 batch 1개와 sequence 위치 3개 축은 그대로 보존됩니다. Loss에 넣을 때는 이를 <code>[3,10]</code>으로 펼치고 Target도 <code>[3]</code>으로 펼쳐, 세 행을 각각 해당 정답 열과 연결했습니다.</p>
-        <div class="caution"><strong>임시값과 실제 모델 출력을 구분한다</strong> — 처음의 <code>logits</code>는 정답 열 선택과 Loss를 손으로 확인하려고 0에서 시작해 특정 칸만 채운 임시값입니다. 이어서 사용한 <code>hidden_states=[1,3,2]</code>도 LM Head의 Shape 변환을 확인하려고 손으로 만든 Transformer 출력 역할의 예제입니다. 아직 Token Embedding부터 Transformer Block까지 연결된 실제 Decoder 모델 출력은 아닙니다.</div>
-        <p><a class="doc-link" href="transformer_token_embedding_learning.html#tiny-decoder-token-lookup">Tiny Decoder 입력의 Token Embedding 실행 보기 →</a></p>
-        <div class="caution"><strong>당시 완료 범위</strong> — 이 문장을 기록한 시점에는 Target shift, Causal Mask, 임시 Logit의 위치별 Cross Entropy Loss, LM Head의 마지막 축 변환, Token Embedding 실행까지 확인했고 Position Embedding 셀은 아직 실행·이해 확인 전이었습니다. 다음 독립 셀에서 Position Embedding을 실행했고, 모델 전체 학습과 생성은 더 뒤의 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 완료했습니다.</div>
-        <div class="caution"><strong>후속 확인 · 학습형 Position Embedding</strong> — 위 경계 이후 독립 셀에서 Token vector와 학습형 Position vector가 모두 <code>[1,3,2]</code>이고, 위치별 원소 합인 hidden state도 <code>[1,3,2]</code>로 유지됨을 실행 확인했습니다. 이는 “1시퀀스, 3토큰, 2차원”이며, 당시에는 전체 Decoder 연결·학습·생성이 남아 있었습니다. <a href="transformer_positional_encoding_learning.html#learned-position-embedding">실행 예제와 sin·cos 방식의 경계 보기 →</a></div>
-        <div class="caution"><strong>Causal Transformer Block의 Shape 예측</strong> — 사용자는 입력 hidden state가 <code>[1,3,2]</code>이면 Block 출력도 <code>[1,3,2]</code>라고 예측하고, “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했습니다. 기술적으로는 Causal Mask가 Attention Score에서 미래 Key 위치를 <code>-∞</code>로 바꿔 참고 비율을 0으로 만들 뿐, batch·sequence·<code>d_model</code> 축을 삭제하거나 추가하지 않습니다. Attention, Residual, LayerNorm, FFN을 지난 Block 출력 Shape은 따라서 <code>[1,3,2]</code>로 유지됩니다. 이는 Shape 흐름에 대한 이해 증거였지만, 이 기록 하나만으로는 당시 Tiny Decoder LM 전체 학습·생성 완료 증거가 아니었습니다.</div>
-        <div class="caution"><strong>후속 실행 · Causal Transformer Block</strong> — 예측 뒤 최소 Block을 실행해 입력 <code>[1,3,2]</code>가 출력 <code>[1,3,2]</code>로 유지되고, Head 2개의 Attention weight가 <code>[1,2,3,3]</code>임을 확인했습니다. Causal Attention → 첫 Residual·LayerNorm → FFN <code>2→8→2</code> → 두 번째 Residual·LayerNorm 순서를 설명했으며, 이번 작은 연결 셀에서는 Dropout을 생략했습니다. <a href="transformer_ffn_learning.html#tiny-decoder-causal-block">실행 Shape과 출력값 보기 →</a></div>
-
-        <h3 id="tiny-decoder-context-to-next-token">후속 이해 · 위치별 문맥 벡터가 다음 Token 후보 점수가 되는 과정</h3>
-        <p>이 절에서 사용하는 세 축은 다음 뜻으로 고정합니다. <code>[B,S,D]</code>는 <strong>[Batch에 들어 있는 문장 수, 문장마다 가진 Token 위치 수, 각 Token 위치의 벡터 차원]</strong>입니다. 따라서 <code>[1,3,2]</code>는 문장 1개 안에 Token 위치가 3개 있고, 각 위치를 길이 2의 벡터로 표현한다는 뜻입니다. 문장 3개나 Token 2개라는 뜻이 아닙니다.</p>
-        <pre><code>[B, S, D] = [1, 3, 2]
+model_logits.shape = [1, 3, 10]
+</code></pre>
+<p>LM Head의 Linear는 각 위치의 마지막 <code>d_model=2</code> 벡터를 vocabulary 점수 10개로 바꿉니다. 앞의 batch 1개와 sequence 위치 3개 축은 그대로 보존됩니다. Loss에 넣을 때는 이를 <code>[3,10]</code>으로 펼치고 Target도 <code>[3]</code>으로 펼쳐, 세 행을 각각 해당 정답 열과 연결했습니다.</p>
+<p><strong>임시값과 실제 모델 출력을 구분한다</strong> — 처음의 <code>logits</code>는 정답 열 선택과 Loss를 손으로 확인하려고 0에서 시작해 특정 칸만 채운 임시값입니다. 이어서 사용한 <code>hidden_states=[1,3,2]</code>도 LM Head의 Shape 변환을 확인하려고 손으로 만든 Transformer 출력 역할의 예제입니다. 아직 Token Embedding부터 Transformer Block까지 연결된 실제 Decoder 모델 출력은 아닙니다.</p>
+<p><a href="transformer_token_embedding_learning.html#tiny-decoder-token-lookup">Tiny Decoder 입력의 Token Embedding 실행 보기 →</a></p>
+<p><strong>당시 완료 범위</strong> — 이 문장을 기록한 시점에는 Target shift, Causal Mask, 임시 Logit의 위치별 Cross Entropy Loss, LM Head의 마지막 축 변환, Token Embedding 실행까지 확인했고 Position Embedding 셀은 아직 실행·이해 확인 전이었습니다. 다음 독립 셀에서 Position Embedding을 실행했고, 모델 전체 학습과 생성은 더 뒤의 <a href="#tiny-decoder-training-generation">최종 검증</a>에서 완료했습니다.</p>
+<p><strong>후속 확인 · 학습형 Position Embedding</strong> — 위 경계 이후 독립 셀에서 Token vector와 학습형 Position vector가 모두 <code>[1,3,2]</code>이고, 위치별 원소 합인 hidden state도 <code>[1,3,2]</code>로 유지됨을 실행 확인했습니다. 이는 “1시퀀스, 3토큰, 2차원”이며, 당시에는 전체 Decoder 연결·학습·생성이 남아 있었습니다. <a href="transformer_positional_encoding_learning.html#learned-position-embedding">실행 예제와 sin·cos 방식의 경계 보기 →</a></p>
+<p><strong>Causal Transformer Block의 Shape 예측</strong> — 사용자는 입력 hidden state가 <code>[1,3,2]</code>이면 Block 출력도 <code>[1,3,2]</code>라고 예측하고, “Causal Mask는 값을 마스킹 처리하는 것이지 차원이 바뀌지 않는다”고 설명했습니다. 기술적으로는 Causal Mask가 Attention Score에서 미래 Key 위치를 <code>-∞</code>로 바꿔 참고 비율을 0으로 만들 뿐, batch·sequence·<code>d_model</code> 축을 삭제하거나 추가하지 않습니다. Attention, Residual, LayerNorm, FFN을 지난 Block 출력 Shape은 따라서 <code>[1,3,2]</code>로 유지됩니다. 이는 Shape 흐름에 대한 이해 증거였지만, 이 기록 하나만으로는 당시 Tiny Decoder LM 전체 학습·생성 완료 증거가 아니었습니다.</p>
+<p><strong>후속 실행 · Causal Transformer Block</strong> — 예측 뒤 최소 Block을 실행해 입력 <code>[1,3,2]</code>가 출력 <code>[1,3,2]</code>로 유지되고, Head 2개의 Attention weight가 <code>[1,2,3,3]</code>임을 확인했습니다. Causal Attention → 첫 Residual·LayerNorm → FFN <code>2→8→2</code> → 두 번째 Residual·LayerNorm 순서를 설명했으며, 이번 작은 연결 셀에서는 Dropout을 생략했습니다. <a href="transformer_ffn_learning.html#tiny-decoder-causal-block">실행 Shape과 출력값 보기 →</a></p>
+<h3>후속 이해 · 위치별 문맥 벡터가 다음 Token 후보 점수가 되는 과정</h3>
+<p>이 절에서 사용하는 세 축은 다음 뜻으로 고정합니다. <code>[B,S,D]</code>는 [Batch에 들어 있는 문장 수, 문장마다 가진 Token 위치 수, 각 Token 위치의 벡터 차원]입니다. 따라서 <code>[1,3,2]</code>는 문장 1개 안에 Token 위치가 3개 있고, 각 위치를 길이 2의 벡터로 표현한다는 뜻입니다. 문장 3개나 Token 2개라는 뜻이 아닙니다.</p>
+<pre><code>[B, S, D] = [1, 3, 2]
  B = Batch에 들어 있는 문장 1개
  S = 그 문장 안의 Token 위치 3개
- D = 각 Token 위치의 벡터 차원 2개</code></pre>
-
-        <p>Transformer Block은 세 Token 위치를 하나의 행으로 합치지 않습니다. Causal Mask 때문에 위치 <code>i</code>는 <code>0..i</code> 위치만 참고하지만, 계산이 끝난 뒤에도 위치마다 문맥 벡터 하나가 남습니다.</p>
-        <pre><code>입력 Token: [3, 7, 2]
+ D = 각 Token 위치의 벡터 차원 2개
+</code></pre>
+<p>Transformer Block은 세 Token 위치를 하나의 행으로 합치지 않습니다. Causal Mask 때문에 위치 <code>i</code>는 <code>0..i</code> 위치만 참고하지만, 계산이 끝난 뒤에도 위치마다 문맥 벡터 하나가 남습니다.</p>
+<pre><code>입력 Token: [3, 7, 2]
 
 block_output[0, 0] = [3] 문맥이 반영된 길이 2 벡터
 block_output[0, 1] = [3, 7] 문맥이 반영된 길이 2 벡터
 block_output[0, 2] = [3, 7, 2] 문맥이 반영된 길이 2 벡터
 
-block_output.shape = [1, 3, 2]</code></pre>
-        <p>즉 마지막 위치는 단순히 Token <code>2</code>만 나타내는 값이 아니라, 현재 Prefix <code>[3,7,2]</code> 전체가 반영된 문맥 벡터입니다. Causal Mask는 미래 위치를 보지 못하게 할 뿐 sequence 축을 줄이거나 위치들을 하나로 합치지 않습니다.</p>
-
-        <h3>LM Head는 위치를 합치지 않고 각 행의 마지막 축에 같은 Linear를 적용한다</h3>
-        <p><code>LM Head = Linear(D,V)</code>는 각 위치의 길이 <code>D</code> 문맥 벡터를 vocabulary 크기 <code>V</code>의 후보 점수로 바꿉니다. Batch가 1개일 때의 행렬 관점으로 보면 다음 계산입니다.</p>
-        <pre><code>한 문장의 block_output: [S, D] = [3, 2]
+block_output.shape = [1, 3, 2]
+</code></pre>
+<p>즉 마지막 위치는 단순히 Token <code>2</code>만 나타내는 값이 아니라, 현재 Prefix <code>[3,7,2]</code> 전체가 반영된 문맥 벡터입니다. Causal Mask는 미래 위치를 보지 못하게 할 뿐 sequence 축을 줄이거나 위치들을 하나로 합치지 않습니다.</p>
+<h3>LM Head는 위치를 합치지 않고 각 행의 마지막 축에 같은 Linear를 적용한다</h3>
+<p><code>LM Head = Linear(D,V)</code>는 각 위치의 길이 <code>D</code> 문맥 벡터를 vocabulary 크기 <code>V</code>의 후보 점수로 바꿉니다. Batch가 1개일 때의 행렬 관점으로 보면 다음 계산입니다.</p>
+<pre><code>한 문장의 block_output: [S, D] = [3, 2]
 LM Head 계산용 행렬:     [D, V] = [2, 10]
 
 [3, 2] @ [2, 10] = [3, 10]
@@ -758,22 +305,22 @@ LM Head 계산용 행렬:     [D, V] = [2, 10]
 Batch 축까지 포함:
 [B, S, D] = [1, 3, 2]
         ↓ Linear(2, 10)
-[B, S, V] = [1, 3, 10]</code></pre>
-        <p>PyTorch의 <code>nn.Linear(D,V)</code>는 Weight를 <code>[V,D]</code>, 이 예제에서는 <code>[10,2]</code> Shape으로 저장합니다. Forward 계산에서는 이 Weight의 전치를 사용하므로 위 행렬 관점에서는 <code>[D,V]=[2,10]</code>으로 곱한다고 이해할 수 있습니다. 세 위치 모두에 같은 LM Head가 독립적으로 적용되며, LM Head가 세 행을 하나로 합치지는 않습니다.</p>
-
-        <h3>후보 점수가 ‘다음 Token 예측’이라는 의미를 얻는 시점</h3>
-        <p>학습 전 LM Head가 만든 <code>[1,3,10]</code>은 아직 무작위에 가까운 위치별 후보 점수입니다. Causal Mask만 적용했다고 자동으로 다음 Token을 아는 것은 아닙니다. 한 칸 뒤로 민 Target과 <code>CrossEntropyLoss</code>로 각 행을 반복해서 채점할 때 비로소 다음 Token 예측이라는 역할을 학습합니다.</p>
-        <pre><code>입력:   [3, 7, 2]
+[B, S, V] = [1, 3, 10]
+</code></pre>
+<p>PyTorch의 <code>nn.Linear(D,V)</code>는 Weight를 <code>[V,D]</code>, 이 예제에서는 <code>[10,2]</code> Shape으로 저장합니다. Forward 계산에서는 이 Weight의 전치를 사용하므로 위 행렬 관점에서는 <code>[D,V]=[2,10]</code>으로 곱한다고 이해할 수 있습니다. 세 위치 모두에 같은 LM Head가 독립적으로 적용되며, LM Head가 세 행을 하나로 합치지는 않습니다.</p>
+<h3>후보 점수가 ‘다음 Token 예측’이라는 의미를 얻는 시점</h3>
+<p>학습 전 LM Head가 만든 <code>[1,3,10]</code>은 아직 무작위에 가까운 위치별 후보 점수입니다. Causal Mask만 적용했다고 자동으로 다음 Token을 아는 것은 아닙니다. 한 칸 뒤로 민 Target과 <code>CrossEntropyLoss</code>로 각 행을 반복해서 채점할 때 비로소 다음 Token 예측이라는 역할을 학습합니다.</p>
+<pre><code>입력:   [3, 7, 2]
 Target: [7, 2, 9]
 
 위치 0의 후보 점수 10개 ↔ Target 7
 위치 1의 후보 점수 10개 ↔ Target 2
-위치 2의 후보 점수 10개 ↔ Target 9</code></pre>
-        <p>따라서 위치 0은 <code>[3]</code> 다음 Token, 위치 1은 <code>[3,7]</code> 다음 Token, 위치 2는 <code>[3,7,2]</code> 다음 Token을 맞히도록 조정됩니다. 마지막 위치에서 네 번째 Token이 이미 만들어진 것이 아니라, 세 번째 위치까지의 문맥으로 네 번째 자리에 올 Token ID 후보 <code>0~9</code>를 채점한 것입니다.</p>
-
-        <h3>학습은 모든 위치, 생성은 마지막 위치</h3>
-        <p>학습에서는 한 문장에서 얻을 수 있는 세 개의 다음 Token 문제를 한꺼번에 채점합니다. 반면 생성 시점에는 입력 Prefix 뒤에 새로 붙일 Token 하나만 필요하므로 마지막 위치의 후보 점수만 가져옵니다.</p>
-        <pre><code>logits.shape = [1, 3, 10]
+위치 2의 후보 점수 10개 ↔ Target 9
+</code></pre>
+<p>따라서 위치 0은 <code>[3]</code> 다음 Token, 위치 1은 <code>[3,7]</code> 다음 Token, 위치 2는 <code>[3,7,2]</code> 다음 Token을 맞히도록 조정됩니다. 마지막 위치에서 네 번째 Token이 이미 만들어진 것이 아니라, 세 번째 위치까지의 문맥으로 네 번째 자리에 올 Token ID 후보 <code>0~9</code>를 채점한 것입니다.</p>
+<h3>학습은 모든 위치, 생성은 마지막 위치</h3>
+<p>학습에서는 한 문장에서 얻을 수 있는 세 개의 다음 Token 문제를 한꺼번에 채점합니다. 반면 생성 시점에는 입력 Prefix 뒤에 새로 붙일 Token 하나만 필요하므로 마지막 위치의 후보 점수만 가져옵니다.</p>
+<pre><code>logits.shape = [1, 3, 10]
 
 학습:
 세 위치의 Logit을 Target [7, 2, 9]와 모두 비교
@@ -784,29 +331,30 @@ next_token_logits.shape = [1, 10]
                            ↑
                  마지막 Prefix 뒤의 후보 10개
 
-후보 10개 중 하나의 Token ID를 선택해 입력 뒤에 붙임</code></pre>
-        <p><code>logits[:, -1, :]</code>에서 첫 번째 <code>:</code>는 Batch의 모든 문장, <code>-1</code>은 각 문장의 마지막 Token 위치, 마지막 <code>:</code>는 vocabulary의 모든 후보 점수를 뜻합니다. 선택된 Token을 입력 뒤에 붙이고 같은 과정을 반복하면 Autoregressive Generation(자기회귀 생성)이 됩니다.</p>
-
-        <div class="caution"><strong>무엇이 함께 학습되는가</strong> — Loss의 Gradient는 LM Head에서 멈추지 않습니다. 별도로 고정하지 않았다면 LM Head, Causal Transformer Block, Token Embedding, Position Embedding까지 연결된 학습 가능 파라미터 전체로 역전파됩니다. 그래서 LM Head만 다음 Token을 맞히도록 바뀌는 것이 아니라, 앞단도 다음 Token 예측에 유용한 문맥 벡터를 만들도록 함께 조정됩니다.</div>
-        <div class="caution"><strong>당시 확인한 핵심</strong> — “마지막 위치는 모든 입력 Token이 반영된 문맥이고, 이 문맥을 LM Head에 넣었을 때 실제 다음 Token의 점수가 높아지도록 Linear를 포함한 모델 전체를 조정한다”는 흐름을 자기 말로 설명했습니다. 이 기록 시점에는 전체 모델의 실제 Loss·<code>backward()</code>와 모듈별 Gradient 출력까지 실행한 것은 아니었습니다. 이후 아래 최종 검증에서 Loss 감소와 실제 Autoregressive Generation을 완료했습니다.</div>
-
-        <h3 id="tiny-decoder-class-loss">후속 실행 · <code>TinyDecoderLM</code> 클래스와 실제 초기 Loss</h3>
-        <p>Token Embedding, 학습형 Position Embedding, Causal Transformer Block, LM Head를 하나의 <code>TinyDecoderLM</code> 클래스에 넣었습니다. <code>forward()</code>는 입력의 <code>[B,S]</code>에서 위치 ID를 만들고, 두 Embedding을 더한 뒤 Block과 LM Head를 차례로 호출합니다. 클래스 선언 중 <code>super().__init</code>, <code>shape</code>, <code>arange</code> 철자 오류를 실제 Traceback과 호출 검증으로 수정했습니다.</p>
-        <pre><code>input_tokens.shape       = [1, 3]
+후보 10개 중 하나의 Token ID를 선택해 입력 뒤에 붙임
+</code></pre>
+<p><code>logits[:, -1, :]</code>에서 첫 번째 <code>:</code>는 Batch의 모든 문장, <code>-1</code>은 각 문장의 마지막 Token 위치, 마지막 <code>:</code>는 vocabulary의 모든 후보 점수를 뜻합니다. 선택된 Token을 입력 뒤에 붙이고 같은 과정을 반복하면 Autoregressive Generation(자기회귀 생성)이 됩니다.</p>
+<p><strong>무엇이 함께 학습되는가</strong> — Loss의 Gradient는 LM Head에서 멈추지 않습니다. 별도로 고정하지 않았다면 LM Head, Causal Transformer Block, Token Embedding, Position Embedding까지 연결된 학습 가능 파라미터 전체로 역전파됩니다. 그래서 LM Head만 다음 Token을 맞히도록 바뀌는 것이 아니라, 앞단도 다음 Token 예측에 유용한 문맥 벡터를 만들도록 함께 조정됩니다.</p>
+<p><strong>당시 확인한 핵심</strong> — “마지막 위치는 모든 입력 Token이 반영된 문맥이고, 이 문맥을 LM Head에 넣었을 때 실제 다음 Token의 점수가 높아지도록 Linear를 포함한 모델 전체를 조정한다”는 흐름을 자기 말로 설명했습니다. 이 기록 시점에는 전체 모델의 실제 Loss·<code>backward()</code>와 모듈별 Gradient 출력까지 실행한 것은 아니었습니다. 이후 아래 최종 검증에서 Loss 감소와 실제 Autoregressive Generation을 완료했습니다.</p>
+<h3>후속 실행 · <code>TinyDecoderLM</code> 클래스와 실제 초기 Loss</h3>
+<p>Token Embedding, 학습형 Position Embedding, Causal Transformer Block, LM Head를 하나의 <code>TinyDecoderLM</code> 클래스에 넣었습니다. <code>forward()</code>는 입력의 <code>[B,S]</code>에서 위치 ID를 만들고, 두 Embedding을 더한 뒤 Block과 LM Head를 차례로 호출합니다. 클래스 선언 중 <code>super().__init</code>, <code>shape</code>, <code>arange</code> 철자 오류를 실제 Traceback과 호출 검증으로 수정했습니다.</p>
+<pre><code>input_tokens.shape       = [1, 3]
 logits.shape             = [1, 3, 10]
 attention_weights.shape  = [1, 2, 3, 3]
-logits[:, -1, :].shape   = [1, 10]</code></pre>
-        <p>원본 <code>[[3,7,2,9]]</code>에서 <code>[:, :-1]</code>로 모든 Batch 행의 마지막 Token을 제외한 입력 <code>[[3,7,2]]</code>을 만들고, <code>[:, 1:]</code>로 모든 Batch 행의 첫 Token을 제외한 Target <code>[[7,2,9]]</code>을 만들었습니다. 이 슬라이싱은 이해했지만 반복해서 낯설었던 지점이므로 작은 2-Batch Tensor로 자료 없이 다시 구성하는 후속 보강으로 남겼습니다.</p>
-        <pre><code>logits.reshape(-1, 10).shape = [3, 10]
+logits[:, -1, :].shape   = [1, 10]
+</code></pre>
+<p>원본 <code>[[3,7,2,9]]</code>에서 <code>[:, :-1]</code>로 모든 Batch 행의 마지막 Token을 제외한 입력 <code>[[3,7,2]]</code>을 만들고, <code>[:, 1:]</code>로 모든 Batch 행의 첫 Token을 제외한 Target <code>[[7,2,9]]</code>을 만들었습니다. 이 슬라이싱은 이해했지만 반복해서 낯설었던 지점이므로 작은 2-Batch Tensor로 자료 없이 다시 구성하는 후속 보강으로 남겼습니다.</p>
+<pre><code>logits.reshape(-1, 10).shape = [3, 10]
 targets.reshape(-1).shape    = [3]
 
-초기 Cross Entropy Loss = 2.540301561355591</code></pre>
-        <p>이 값은 조립한 전체 모델의 학습 전 Logit과 shifted Target을 실제로 연결해 얻은 첫 Loss입니다. 아직 <code>backward()</code>와 <code>optimizer.step()</code>을 반복하지 않았으므로 Loss 감소를 확인한 것은 아닙니다.</p>
-        <div class="caution"><strong>당시 완료 경계</strong> — 클래스 조립, Forward Shape, Target shift, 초기 Cross Entropy Loss까지 실행한 시점의 기록입니다. 아래 최종 검증에서 작은 Sequence의 반복 학습과 Autoregressive Generation까지 이어 Tiny Decoder LM 관문을 완료했습니다.</div>
-
-        <h3 id="tiny-decoder-training-generation">최종 검증 · 한 수열에서 Prefix 세 문제를 병렬 학습하고 순차 생성하기</h3>
-        <p>먼저 2-Batch Tensor로 Target shift 슬라이싱을 다시 구성했습니다. 첫 번째 <code>:</code>은 모든 Batch 행을 선택하고, 두 번째 축의 <code>:-1</code>은 마지막 Token 전까지, <code>1:</code>은 두 번째 Token부터 끝까지를 선택합니다. 따라서 각 행에서 마지막 입력 Token과 첫 Target Token이 하나씩 빠지고, 입력과 Target은 같은 Shape을 유지합니다.</p>
-        <pre><code>tokens = [
+초기 Cross Entropy Loss = 2.540301561355591
+</code></pre>
+<p>이 값은 조립한 전체 모델의 학습 전 Logit과 shifted Target을 실제로 연결해 얻은 첫 Loss입니다. 아직 <code>backward()</code>와 <code>optimizer.step()</code>을 반복하지 않았으므로 Loss 감소를 확인한 것은 아닙니다.</p>
+<p><strong>당시 완료 경계</strong> — 클래스 조립, Forward Shape, Target shift, 초기 Cross Entropy Loss까지 실행한 시점의 기록입니다. 아래 최종 검증에서 작은 Sequence의 반복 학습과 Autoregressive Generation까지 이어 Tiny Decoder LM 관문을 완료했습니다.</p>
+<span class="md-anchor" id="tiny-decoder-training-generation" aria-hidden="true"></span>
+<h3>최종 검증 · 한 수열에서 Prefix 세 문제를 병렬 학습하고 순차 생성하기</h3>
+<p>먼저 2-Batch Tensor로 Target shift 슬라이싱을 다시 구성했습니다. 첫 번째 <code>:</code>은 모든 Batch 행을 선택하고, 두 번째 축의 <code>:-1</code>은 마지막 Token 전까지, <code>1:</code>은 두 번째 Token부터 끝까지를 선택합니다. 따라서 각 행에서 마지막 입력 Token과 첫 Target Token이 하나씩 빠지고, 입력과 Target은 같은 Shape을 유지합니다.</p>
+<pre><code>tokens = [
   [3, 7, 2, 9],
   [4, 1, 6, 8],
 ]
@@ -817,34 +365,34 @@ input_tokens = tokens[:, :-1]
 
 targets = tokens[:, 1:]
 # [[7, 2, 9],
-#  [1, 6, 8]]       Shape [2, 3]</code></pre>
-
-        <h3>Cross Entropy의 두 입력은 같은 Shape끼리 직접 비교하지 않는다</h3>
-        <p><code>CrossEntropyLoss</code>의 왼쪽은 각 행이 모든 후보 Token에 준 raw 점수이고, 오른쪽은 각 행에서 채점할 Target Token ID입니다. <code>[B,T,V]=[1,3,10]</code>을 <code>[B×T,V]=[3,10]</code>으로 펼치고, Target <code>[1,3]</code>은 <code>[3]</code>으로 펼칩니다. 두 Shape이 서로 다른 것은 의도된 API 계약입니다.</p>
-        <pre><code>loss = loss_fn(
+#  [1, 6, 8]]       Shape [2, 3]
+</code></pre>
+<h3>Cross Entropy의 두 입력은 같은 Shape끼리 직접 비교하지 않는다</h3>
+<p><code>CrossEntropyLoss</code>의 왼쪽은 각 행이 모든 후보 Token에 준 raw 점수이고, 오른쪽은 각 행에서 채점할 Target Token ID입니다. <code>[B,T,V]=[1,3,10]</code>을 <code>[B×T,V]=[3,10]</code>으로 펼치고, Target <code>[1,3]</code>은 <code>[3]</code>으로 펼칩니다. 두 Shape이 서로 다른 것은 의도된 API 계약입니다.</p>
+<pre><code>loss = loss_fn(
     logits.reshape(-1, 10),  # [3, 10]: 위치 3개의 후보 점수 10개
     targets.reshape(-1),     # [3]: 각 행에서 선택할 ID [7, 2, 9]
 )
 
 1행 점수 10개 ↔ Target ID 7
 2행 점수 10개 ↔ Target ID 2
-3행 점수 10개 ↔ Target ID 9</code></pre>
-        <p>Accuracy(정확도)는 각 행의 최댓값 인덱스가 Target ID와 같은지 <code>0/1</code>로 판단합니다. 반면 Cross Entropy(교차 엔트로피)는 raw Logit에 Log-Softmax를 적용한 뒤 Target ID가 가리키는 칸의 음의 로그값을 구합니다. 따라서 최댓값 인덱스가 이미 정답이어도 정답 칸의 비율이 충분히 크지 않으면 Loss는 0이 아닙니다. 학습은 정답 인덱스가 가장 높아지는 것뿐 아니라 다른 후보에 비해 더 강하게 커지도록 조정합니다. <code>CrossEntropyLoss</code>는 언어 모델 전용 모듈이 아니라 여러 후보 중 정답 class index 하나를 채점하는 일반 다중 분류 Loss이며, Causal LM은 각 Token 위치를 Vocabulary <code>V</code>개 중 다음 Token 하나를 고르는 분류 문제로 보기 때문에 이를 사용합니다.</p>
-
-        <h3>Causal Mask가 한 Forward를 세 개의 Prefix 학습 문제로 만든다</h3>
-        <p>겉으로는 <code>[3,7,2] → [7,2,9]</code> 한 쌍을 넣지만, Causal Mask 때문에 세 출력 위치가 볼 수 있는 Prefix가 서로 다릅니다. 그래서 세 위치의 Logit과 세 Target을 한 번에 계산하는 것은 다음 세 문제를 한 Forward에서 병렬로 학습하는 것과 같습니다.</p>
-        <pre><code>위치 0: [3]       → 7
+3행 점수 10개 ↔ Target ID 9
+</code></pre>
+<p>Accuracy(정확도)는 각 행의 최댓값 인덱스가 Target ID와 같은지 <code>0/1</code>로 판단합니다. 반면 Cross Entropy(교차 엔트로피)는 raw Logit에 Log-Softmax를 적용한 뒤 Target ID가 가리키는 칸의 음의 로그값을 구합니다. 따라서 최댓값 인덱스가 이미 정답이어도 정답 칸의 비율이 충분히 크지 않으면 Loss는 0이 아닙니다. 학습은 정답 인덱스가 가장 높아지는 것뿐 아니라 다른 후보에 비해 더 강하게 커지도록 조정합니다. <code>CrossEntropyLoss</code>는 언어 모델 전용 모듈이 아니라 여러 후보 중 정답 class index 하나를 채점하는 일반 다중 분류 Loss이며, Causal LM은 각 Token 위치를 Vocabulary <code>V</code>개 중 다음 Token 하나를 고르는 분류 문제로 보기 때문에 이를 사용합니다.</p>
+<h3>Causal Mask가 한 Forward를 세 개의 Prefix 학습 문제로 만든다</h3>
+<p>겉으로는 <code>[3,7,2] → [7,2,9]</code> 한 쌍을 넣지만, Causal Mask 때문에 세 출력 위치가 볼 수 있는 Prefix가 서로 다릅니다. 그래서 세 위치의 Logit과 세 Target을 한 번에 계산하는 것은 다음 세 문제를 한 Forward에서 병렬로 학습하는 것과 같습니다.</p>
+<pre><code>위치 0: [3]       → 7
 위치 1: [3, 7]    → 2
 위치 2: [3, 7, 2] → 9
 
 세 위치의 Loss를 평균
 → 한 번의 backward()
-→ 연결된 전체 모델 파라미터를 한 번에 수정</code></pre>
-        <p>세 번 따로 Forward한 것이 아니라, 위치 축을 유지한 행렬 연산으로 세 Prefix 문제를 병렬 계산했습니다. 생성에서는 이미 학습한 이 관계를 <code>[3] → 7</code>, <code>[3,7] → 2</code>, <code>[3,7,2] → 9</code> 순서로 하나씩 사용합니다.</p>
-
-        <h3><code>d_model=2</code> 병목과 <code>d_model=4</code> 과적합 비교</h3>
-        <p>처음에는 <code>d_model=2</code>, Head 2개라 Head당 차원이 1인 모델을 300번 수정했습니다. 초기 Loss <code>2.5403</code>은 감소했지만 <code>0.462389</code> 부근에서 멈췄고, 예측은 <code>[9,2,9]</code>였습니다. 첫 위치와 마지막 위치의 Softmax 출력이 같고 Token 7·9에 약 <code>0.4999</code>씩 나뉘어, 두 Prefix 문맥을 구별하지 못하는 표현 병목을 실제 출력으로 확인했습니다.</p>
-        <pre><code>d_model=2, num_heads=2
+→ 연결된 전체 모델 파라미터를 한 번에 수정
+</code></pre>
+<p>세 번 따로 Forward한 것이 아니라, 위치 축을 유지한 행렬 연산으로 세 Prefix 문제를 병렬 계산했습니다. 생성에서는 이미 학습한 이 관계를 <code>[3] → 7</code>, <code>[3,7] → 2</code>, <code>[3,7,2] → 9</code> 순서로 하나씩 사용합니다.</p>
+<h3><code>d_model=2</code> 병목과 <code>d_model=4</code> 과적합 비교</h3>
+<p>처음에는 <code>d_model=2</code>, Head 2개라 Head당 차원이 1인 모델을 300번 수정했습니다. 초기 Loss <code>2.5403</code>은 감소했지만 <code>0.462389</code> 부근에서 멈췄고, 예측은 <code>[9,2,9]</code>였습니다. 첫 위치와 마지막 위치의 Softmax 출력이 같고 Token 7·9에 약 <code>0.4999</code>씩 나뉘어, 두 Prefix 문맥을 구별하지 못하는 표현 병목을 실제 출력으로 확인했습니다.</p>
+<pre><code>d_model=2, num_heads=2
 300번 수정 후 Loss: 0.4623892605304718
 정답: [7, 2, 9]
 예측: [9, 2, 9]
@@ -852,12 +400,12 @@ targets = tokens[:, 1:]
 d_model=4, num_heads=2, d_ff=16
 1번 수정 후 Loss:   6.68280553817749
 50번 수정 후 Loss:  0.0000033378
-300번 수정 후 Loss: 0.0000025829</code></pre>
-        <p><code>d_model=4</code>로 늘리면 Token마다 문맥 정보를 담는 표현 공간이 넓어지고 Head당 차원도 2가 됩니다. 같은 구조를 다시 학습했을 때 작은 수열을 사실상 완전히 암기했습니다. 위 숫자는 <strong>저장된 한 실행의 관찰값</strong>이며 Seed를 고정하지 않았으므로 새 모델의 초기 Loss와 마지막 소수점은 재실행마다 달라질 수 있습니다. 독립적인 새 커널 재실행에서도 <code>d_model=2</code>는 약 <code>0.462</code>에서 정체했고, <code>d_model=4</code>는 Loss가 <code>0.001</code>보다 작아진 뒤 <code>[3,7,2,9]</code> 생성을 재현했습니다. <strong>직접 관찰한 사실</strong>은 학습된 <code>d_model=2</code> 모델에서 첫 위치와 마지막 위치의 Softmax 행이 같고 Loss가 정체된 점, 그리고 <code>d_model=4</code> 재학습에서 Loss가 크게 감소한 점입니다. 앞선 별도 최소 Block에서도 첫 위치와 마지막 위치의 출력이 같았지만, 이는 다른 인스턴스와 입력에서 나온 보조 관찰입니다. 전체 결과를 표현 병목으로 해석할 수는 있어도, 차원을 바꾸며 모델도 새로 초기화했으므로 LayerNorm 하나만이 원인이라고 분리해 증명한 실험은 아닙니다. 따라서 이 결과를 큰 모델이 항상 더 잘 일반화한다는 결론으로 확장하지 않습니다.</p>
-
-        <h3>잘못된 입력으로 Loss 0과 <code>3722</code>가 나온 실패</h3>
-        <p>학습 셀에서 입력을 실수로 <code>[7,2,9]</code>로 바꾸고 Target은 같은 <code>[7,2,9]</code>을 재사용한 실행이 있었습니다. 이 상태는 다음 Token 관계가 아니라 각 위치에서 입력과 같은 ID를 내도록 학습하므로 Loss가 0에 가까워져도 원하는 모델이 아닙니다. 그 Weight로 <code>[3,7,2]</code>의 마지막 위치를 생성하자 <code>2</code>를 골라 <code>[3,7,2,2]</code>가 나왔습니다.</p>
-        <pre><code># 잘못된 학습 쌍
+300번 수정 후 Loss: 0.0000025829
+</code></pre>
+<p><code>d_model=4</code>로 늘리면 Token마다 문맥 정보를 담는 표현 공간이 넓어지고 Head당 차원도 2가 됩니다. 같은 구조를 다시 학습했을 때 작은 수열을 사실상 완전히 암기했습니다. 위 숫자는 저장된 한 실행의 관찰값이며 Seed를 고정하지 않았으므로 새 모델의 초기 Loss와 마지막 소수점은 재실행마다 달라질 수 있습니다. 독립적인 새 커널 재실행에서도 <code>d_model=2</code>는 약 <code>0.462</code>에서 정체했고, <code>d_model=4</code>는 Loss가 <code>0.001</code>보다 작아진 뒤 <code>[3,7,2,9]</code> 생성을 재현했습니다. 직접 관찰한 사실은 학습된 <code>d_model=2</code> 모델에서 첫 위치와 마지막 위치의 Softmax 행이 같고 Loss가 정체된 점, 그리고 <code>d_model=4</code> 재학습에서 Loss가 크게 감소한 점입니다. 앞선 별도 최소 Block에서도 첫 위치와 마지막 위치의 출력이 같았지만, 이는 다른 인스턴스와 입력에서 나온 보조 관찰입니다. 전체 결과를 표현 병목으로 해석할 수는 있어도, 차원을 바꾸며 모델도 새로 초기화했으므로 LayerNorm 하나만이 원인이라고 분리해 증명한 실험은 아닙니다. 따라서 이 결과를 큰 모델이 항상 더 잘 일반화한다는 결론으로 확장하지 않습니다.</p>
+<h3>잘못된 입력으로 Loss 0과 <code>3722</code>가 나온 실패</h3>
+<p>학습 셀에서 입력을 실수로 <code>[7,2,9]</code>로 바꾸고 Target은 같은 <code>[7,2,9]</code>을 재사용한 실행이 있었습니다. 이 상태는 다음 Token 관계가 아니라 각 위치에서 입력과 같은 ID를 내도록 학습하므로 Loss가 0에 가까워져도 원하는 모델이 아닙니다. 그 Weight로 <code>[3,7,2]</code>의 마지막 위치를 생성하자 <code>2</code>를 골라 <code>[3,7,2,2]</code>가 나왔습니다.</p>
+<pre><code># 잘못된 학습 쌍
 input_tokens = [[7, 2, 9]]
 targets      = [[7, 2, 9]]
 생성 결과    = [[3, 7, 2, 2]]
@@ -865,11 +413,11 @@ targets      = [[7, 2, 9]]
 # 수정한 학습 쌍
 input_tokens = [[3, 7, 2]]
 targets      = [[7, 2, 9]]
-생성 결과    = [[3, 7, 2, 9]]</code></pre>
-        <p>이 실패는 Loss 숫자가 작다는 사실만으로 학습 목표가 맞다고 판단할 수 없고, 입력·Target 쌍과 실제 생성 결과를 함께 검증해야 한다는 근거로 남깁니다. 디버깅 중에는 화면에서 수정한 Source, 디스크에 저장된 Source, 이전 실행의 cached output을 서로 다른 근거로 읽어 전제가 한 차례 엇갈렸습니다. 최종 저장본에는 올바른 입력 <code>[3,7,2]</code>과 Target <code>[7,2,9]</code>, Loss 감소, <code>[3,7,2,9]</code> 생성 출력만 남아 있습니다. 따라서 노트북 문제를 판단할 때는 Source와 Output을 함께 저장한 뒤 해당 셀부터 다시 실행해 같은 실행 상태인지 확인합니다.</p>
-
-        <h3>마지막 위치 선택, <code>argmax</code>, <code>keepdim</code>, <code>torch.cat</code></h3>
-        <pre><code>last_position_logits = logits[:, -1, :]  # [B,T,V] → [B,V]
+생성 결과    = [[3, 7, 2, 9]]
+</code></pre>
+<p>이 실패는 Loss 숫자가 작다는 사실만으로 학습 목표가 맞다고 판단할 수 없고, 입력·Target 쌍과 실제 생성 결과를 함께 검증해야 한다는 근거로 남깁니다. 디버깅 중에는 화면에서 수정한 Source, 디스크에 저장된 Source, 이전 실행의 cached output을 서로 다른 근거로 읽어 전제가 한 차례 엇갈렸습니다. 최종 저장본에는 올바른 입력 <code>[3,7,2]</code>과 Target <code>[7,2,9]</code>, Loss 감소, <code>[3,7,2,9]</code> 생성 출력만 남아 있습니다. 따라서 노트북 문제를 판단할 때는 Source와 Output을 함께 저장한 뒤 해당 셀부터 다시 실행해 같은 실행 상태인지 확인합니다.</p>
+<h3>마지막 위치 선택, <code>argmax</code>, <code>keepdim</code>, <code>torch.cat</code></h3>
+<pre><code>last_position_logits = logits[:, -1, :]  # [B,T,V] → [B,V]
 
 next_token = last_position_logits.argmax(
     dim=-1,       # 마지막 Vocabulary 축의 후보 중 최댓값 위치 탐색
@@ -879,30 +427,43 @@ next_token = last_position_logits.argmax(
 generated_tokens = torch.cat(
     [prompt_tokens, next_token],
     dim=1,
-)</code></pre>
-        <p><code>argmax</code>는 가장 큰 점수 자체가 아니라 그 점수가 있던 <strong>Vocabulary 인덱스, 즉 Token ID</strong>를 반환합니다. 후보 축의 크기가 10에서 1로 줄어도 결과 칸 안에 선택된 ID가 값으로 남기 때문에 어떤 후보였는지 잃지 않습니다. <code>keepdim=True</code>는 결과를 <code>[B,1]</code>로 유지해 <code>[B,T]</code> Token ID Tensor 뒤에 붙일 수 있게 합니다.</p>
-        <p>현재 Token ID Tensor는 2차원 <code>[Batch,Token]</code>이므로 <code>torch.cat(..., dim=1)</code>과 <code>dim=-1</code>은 같은 마지막 Token 축입니다. <code>dim=1</code>은 축의 역할을 명시하고, <code>dim=-1</code>은 마지막 축이라는 위치를 강조합니다. 새 Token이 뒤에 붙는 것은 축뿐 아니라 목록 순서가 <code>[prompt_tokens, next_token]</code>이기 때문이며, 순서를 바꾸면 앞에 붙습니다. 3차원 <code>[B,T,D]</code>에서는 <code>dim=1</code>이 Token 축, <code>dim=-1</code>이 특징 축이므로 둘은 더 이상 같지 않습니다.</p>
-
-        <h3>최종 결과 · 병렬 학습한 Prefix 관계를 순차 생성에 사용</h3>
-        <pre><code>시작:        [[3]]
+)
+</code></pre>
+<p><code>argmax</code>는 가장 큰 점수 자체가 아니라 그 점수가 있던 Vocabulary 인덱스, 즉 Token ID를 반환합니다. 후보 축의 크기가 10에서 1로 줄어도 결과 칸 안에 선택된 ID가 값으로 남기 때문에 어떤 후보였는지 잃지 않습니다. <code>keepdim=True</code>는 결과를 <code>[B,1]</code>로 유지해 <code>[B,T]</code> Token ID Tensor 뒤에 붙일 수 있게 합니다.</p>
+<p>현재 Token ID Tensor는 2차원 <code>[Batch,Token]</code>이므로 <code>torch.cat(..., dim=1)</code>과 <code>dim=-1</code>은 같은 마지막 Token 축입니다. <code>dim=1</code>은 축의 역할을 명시하고, <code>dim=-1</code>은 마지막 축이라는 위치를 강조합니다. 새 Token이 뒤에 붙는 것은 축뿐 아니라 목록 순서가 <code>[prompt_tokens, next_token]</code>이기 때문이며, 순서를 바꾸면 앞에 붙습니다. 3차원 <code>[B,T,D]</code>에서는 <code>dim=1</code>이 Token 축, <code>dim=-1</code>이 특징 축이므로 둘은 더 이상 같지 않습니다.</p>
+<h3>최종 결과 · 병렬 학습한 Prefix 관계를 순차 생성에 사용</h3>
+<pre><code>시작:        [[3]]
 1번째 생성: [[3, 7]]
 2번째 생성: [[3, 7, 2]]
-3번째 생성: [[3, 7, 2, 9]]</code></pre>
-        <p>학습에서는 세 Prefix 위치의 후보 점수를 병렬로 만들고 한 번에 Loss를 계산했습니다. 생성에서는 현재까지 만든 Token 전체를 매번 다시 모델에 넣고 마지막 위치 Logit의 Token ID 하나만 골라 뒤에 붙였습니다. 이로써 Token·Position Embedding → Causal Transformer Block → LM Head → shifted Target Cross Entropy → Optimizer 학습 → Autoregressive Generation의 전체 흐름을 직접 구현하고 설명했습니다.</p>
-        <div class="caution"><strong>Tiny Decoder LM 완료</strong> — Target shift와 Shape, 위치별 Cross Entropy, Causal Prefix 병렬 학습, 표현 병목과 실패 수정, 마지막 위치 Logit 기반 한 Token 선택, 반복 자기회귀 생성을 실행 결과로 검증했습니다. Temperature·Top-k·Top-p와 KV Cache는 이 관문의 미완료 항목이 아니라 이후 추론 심화 단계입니다.</div>
-        <p><a class="doc-link" href="transformer_token_embedding_learning.html#pretrained-causal-lm-one-step">같은 생성 흐름을 사전학습 GPT-2 계열 모델과 실제 Vocabulary에 연결한 실행 보기 →</a></p>
-        <div class="caution"><strong>장기 기억 보강 방식</strong> — 모든 PyTorch 문법을 즉시 외우는 것을 완료 조건으로 두지 않습니다. 이번처럼 코드를 직접 입력하며 Shape과 결과를 설명한 뒤, 다음 복습에서 <code>[:, :-1]</code>·<code>[:, 1:]</code>·<code>reshape</code>·<code>dim</code>을 작은 Tensor로 다시 예측하고, 챕터 복습 때 빈 셀에서 최소 학습·생성 흐름을 재구성합니다. 문법을 잠시 잊어도 실행 구조를 복원할 수 있는지를 장기 이해의 증거로 봅니다.</div>
-      </section>
-      <section>
-        <div class="caution"><strong>내용 보존 원칙</strong> — 기존 Transformer 문서의 14개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 위 핵심 흐름을 처음부터 끝까지 한 번에 복습할 수 있게 유지하고, 긴 증명·반복 계산과 원문 예제는 하위 문서에서 이어 보도록 연결합니다. Multi-Head 이후 새로 학습한 Transformer Block 개념도 별도의 상세 문서로 계속 보존합니다.</div>
-      </section>
-    </main>
-  </div>
+3번째 생성: [[3, 7, 2, 9]]
+</code></pre>
+<p>학습에서는 세 Prefix 위치의 후보 점수를 병렬로 만들고 한 번에 Loss를 계산했습니다. 생성에서는 현재까지 만든 Token 전체를 매번 다시 모델에 넣고 마지막 위치 Logit의 Token ID 하나만 골라 뒤에 붙였습니다. 이로써 Token·Position Embedding → Causal Transformer Block → LM Head → shifted Target Cross Entropy → Optimizer 학습 → Autoregressive Generation의 전체 흐름을 직접 구현하고 설명했습니다.</p>
+<p><strong>Tiny Decoder LM 완료</strong> — Target shift와 Shape, 위치별 Cross Entropy, Causal Prefix 병렬 학습, 표현 병목과 실패 수정, 마지막 위치 Logit 기반 한 Token 선택, 반복 자기회귀 생성을 실행 결과로 검증했습니다. Temperature·Top-k·Top-p와 KV Cache는 이 관문의 미완료 항목이 아니라 이후 추론 심화 단계입니다.</p>
+<p><a href="transformer_token_embedding_learning.html#pretrained-causal-lm-one-step">같은 생성 흐름을 사전학습 GPT-2 계열 모델과 실제 Vocabulary에 연결한 실행 보기 →</a></p>
+<p><strong>장기 기억 보강 방식</strong> — 모든 PyTorch 문법을 즉시 외우는 것을 완료 조건으로 두지 않습니다. 이번처럼 코드를 직접 입력하며 Shape과 결과를 설명한 뒤, 다음 복습에서 <code>[:, :-1]</code>·<code>[:, 1:]</code>·<code>reshape</code>·<code>dim</code>을 작은 Tensor로 다시 예측하고, 챕터 복습 때 빈 셀에서 최소 학습·생성 흐름을 재구성합니다. 문법을 잠시 잊어도 실행 구조를 복원할 수 있는지를 장기 이해의 증거로 봅니다.</p>
+<p><strong>내용 보존 원칙</strong> — 기존 Transformer 문서의 14개 본문 Section은 세 하위 문서로 원문 그대로 이동했습니다. 이 상위 문서는 위 핵심 흐름을 처음부터 끝까지 한 번에 복습할 수 있게 유지하고, 긴 증명·반복 계산과 원문 예제는 하위 문서에서 이어 보도록 연결합니다. Multi-Head 이후 새로 학습한 Transformer Block 개념도 별도의 상세 문서로 계속 보존합니다.</p>
 
-  <footer>
-    <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
-  </footer>
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="../math/transformer_math_learning.html">트랜스포머를 위한 수학 학습 문서</a></li>
+<li><a href="transformer_attention_learning.html">Scaled Dot-Product Attention</a></li>
+<li><a href="transformer_ffn_learning.html">Token끼리 섞은 다음 각 Token을 따로 가공하기</a></li>
+<li><a href="transformer_generated_token_mask_position_learning.html">새 Token이 생성될 때 Attention Mask와 Position ID를 갱신하는 방법</a></li>
+<li><a href="transformer_input_tensor_flow_learning.html">Transformer에는 최종적으로 어떤 데이터가 들어가는가</a></li>
+<li><a href="transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a></li>
+<li><a href="transformer_layer_norm_learning.html">Token마다 값의 규모를 다시 정리하기</a></li>
+<li><a href="transformer_positional_encoding_learning.html">Positional Encoding, 코드에서 이해하기</a></li>
+<li><a href="transformer_residual_learning.html">원본을 지우지 않고 새 정보를 더하기</a></li>
+<li><a href="transformer_token_embedding_learning.html">Token Embedding, 코드에서 이해하기</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>

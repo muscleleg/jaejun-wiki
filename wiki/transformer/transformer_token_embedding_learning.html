@@ -1,459 +1,15 @@
 <!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_token_embedding_learning.md. Do not edit directly. source-sha256:81b0148cd64906abfc944f06f0ac8f7d383df5b1b1dc7f5d3437c69bdffd8bcc -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Token ID를 Embedding Vector로 조회하고 [Batch, Sequence]를 [Batch, Sequence, d_model]로 바꾸는 학습 문서">
-  <title>Transformer · Token Embedding</title>
-  <style>
-    :root {
-      --ink: #18211d;
-      --muted: #667069;
-      --paper: #f6f3eb;
-      --panel: #fffdf7;
-      --line: #d9d5c8;
-      --green: #176b4d;
-      --green-soft: #dcecdf;
-      --orange: #d56a3a;
-      --code: #17211d;
-      --code-ink: #eaf3ec;
-      --shadow: 0 18px 50px rgba(29, 39, 33, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(23, 107, 77, 0.09), transparent 27rem),
-        var(--paper);
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      line-height: 1.7;
-    }
-
-    .page {
-      width: min(1120px, calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    header {
-      padding: 76px 0 52px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .eyebrow {
-      margin: 0 0 16px;
-      color: var(--green);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      max-width: 760px;
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2.6rem, 7vw, 5.7rem);
-      font-weight: 800;
-      letter-spacing: -0.065em;
-      line-height: 1.02;
-    }
-
-    .lead {
-      max-width: 680px;
-      margin: 28px 0 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-    }
-
-    .doc-link {
-      display: inline-block;
-      margin-top: 22px;
-      padding: 9px 13px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 750;
-      text-decoration: none;
-    }
-
-    .doc-link:hover, .doc-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-    .breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
-    .breadcrumb a { color: var(--green); font-weight: 750; text-decoration: none; }
-    .breadcrumb a:hover, .breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
-    .breadcrumb .separator { opacity: .45; }
-    .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 800; }
-    .home-fab { position: fixed; right: 18px; bottom: 18px; z-index: 50; padding: 10px 14px; color: white; border-radius: 999px; background: var(--green); box-shadow: 0 8px 24px rgba(16,94,70,.28); font-size: .84rem; font-weight: 800; text-decoration: none; }
-    .home-fab:hover, .home-fab:focus-visible { transform: translateY(-2px); outline: 3px solid var(--green-soft); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
-      gap: 56px;
-      padding: 52px 0 100px;
-    }
-
-    nav {
-      position: sticky;
-      top: 28px;
-      align-self: start;
-    }
-
-    nav p {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    nav a {
-      display: block;
-      margin: 2px 0;
-      padding: 9px 12px;
-      color: var(--muted);
-      border-left: 2px solid transparent;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    nav a:hover, nav a:focus-visible {
-      color: var(--green);
-      border-left-color: var(--green);
-      outline: none;
-    }
-
-    nav .current {
-      color: var(--ink);
-      font-weight: 750;
-      border-left-color: var(--orange);
-    }
-
-    main { min-width: 0; }
-
-    .cell-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      color: var(--orange);
-      font: 800 0.76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .cell-label::before {
-      width: 9px;
-      height: 9px;
-      content: "";
-      background: var(--orange);
-      border-radius: 50%;
-    }
-
-    h2 {
-      margin: 0 0 18px;
-      font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
-        "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      font-weight: 760;
-      letter-spacing: -0.045em;
-      line-height: 1.13;
-    }
-
-    h3 {
-      margin: 52px 0 14px;
-      font-size: 1.28rem;
-      letter-spacing: -0.02em;
-    }
-
-    p { margin: 0 0 18px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .summary {
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.03rem;
-    }
-
-    .code-card {
-      position: relative;
-      overflow: hidden;
-      margin: 30px 0;
-      color: var(--code-ink);
-      background: var(--code);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .code-head {
-      display: flex;
-      justify-content: space-between;
-      padding: 13px 18px;
-      color: #9db0a4;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-      font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    pre {
-      margin: 0;
-      padding: 24px;
-      overflow-x: auto;
-      font: 0.87rem/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-      tab-size: 4;
-    }
-
-    .kw { color: #f1a567; }
-    .type { color: #80d6a6; }
-    .fn { color: #e7d17d; }
-    .num { color: #a9bff7; }
-    .comment { color: #819389; }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 28px 0 8px;
-    }
-
-    .flow-item {
-      position: relative;
-      min-height: 134px;
-      padding: 18px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .flow-item:not(:last-child)::after {
-      position: absolute;
-      z-index: 2;
-      top: 50%;
-      right: -16px;
-      width: 21px;
-      height: 21px;
-      content: "→";
-      color: var(--green);
-      background: var(--paper);
-      text-align: center;
-      line-height: 19px;
-    }
-
-    .flow-item strong { display: block; margin-bottom: 9px; }
-    .flow-item span { color: var(--muted); font-size: 0.86rem; }
-
-    .shape {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 7px;
-      color: var(--green);
-      background: var(--green-soft);
-      border-radius: 5px;
-      font: 700 0.73rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .explain-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .note {
-      padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .note .number {
-      display: block;
-      margin-bottom: 12px;
-      color: var(--orange);
-      font: 800 0.75rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .note strong { display: block; margin-bottom: 7px; }
-    .note p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-
-    .formula {
-      margin: 30px 0;
-      padding: 28px;
-      background: var(--green-soft);
-      border-left: 4px solid var(--green);
-      border-radius: 0 12px 12px 0;
-    }
-
-    .formula .math {
-      display: block;
-      margin-bottom: 10px;
-      font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.3 -apple-system, BlinkMacSystemFont,
-        "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
-    }
-
-    .reasoning {
-      margin: 52px 0 0;
-      padding: 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .reasoning h3 { margin-top: 0; }
-
-    .equivalence {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 14px;
-      margin: 24px 0 30px;
-    }
-
-    .equivalence article {
-      padding: 20px;
-      background: var(--paper);
-      border-radius: 10px;
-    }
-
-    .equivalence strong { display: block; margin-bottom: 10px; }
-    .equivalence p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-    .equals { align-self: center; color: var(--orange); font-size: 1.5rem; font-weight: 800; }
-
-    .path-map {
-      display: grid;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    .path-row {
-      display: grid;
-      grid-template-columns: 86px 1fr;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 17px;
-      background: var(--green-soft);
-      border-radius: 9px;
-    }
-
-    .path-row strong { color: var(--green); }
-    .path-row code { font-size: 0.83rem; }
-
-    .caution {
-      margin: 24px 0 0;
-      padding: 17px 19px;
-      color: var(--muted);
-      background: #f4eadf;
-      border-left: 3px solid var(--orange);
-      border-radius: 0 9px 9px 0;
-      font-size: 0.9rem;
-    }
-
-    table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-    }
-
-    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
-    th { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.05em; }
-    td { font-size: 0.92rem; }
-    tr:last-child td { border-bottom: 0; }
-
-    .checkpoint {
-      margin-top: 52px;
-      padding: 28px;
-      color: white;
-      background: var(--green);
-      border-radius: 16px;
-    }
-
-    .checkpoint h3 { margin: 0 0 18px; }
-    details { padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-    summary { cursor: pointer; font-weight: 700; }
-    details p { margin: 12px 0 0; color: #dcecdf; }
-
-    .cell-start {
-      margin-top: 92px;
-      padding-top: 72px;
-      border-top: 2px solid var(--line);
-    }
-
-    .concept-figure {
-      margin: 28px 0;
-      padding: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow);
-    }
-
-    .concept-figure svg { display: block; width: min(100%, 680px); height: auto; margin: 0 auto; }
-    .concept-figure figcaption { max-width: 680px; margin: 15px auto 0; color: var(--muted); font-size: .9rem; text-align: center; }
-    .trig-axis { stroke: #667069; stroke-width: 1.5; }
-    .trig-circle { fill: none; stroke: #176b4d; stroke-width: 3; }
-    .trig-radius { stroke: #d56a3a; stroke-width: 3; }
-    .trig-guide { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 5 5; }
-    .trig-arc { fill: none; stroke: #d56a3a; stroke-width: 2; }
-    .trig-point { fill: #d56a3a; }
-    .trig-label { fill: #18211d; font: 700 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .trig-muted { fill: #667069; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-circle { fill: rgba(23, 107, 77, 0.035); stroke: #176b4d; stroke-width: 2.5; }
-    .position-axis { stroke: #c4c9c4; stroke-width: 1; }
-    .position-radius { stroke: #d56a3a; stroke-width: 3; }
-    .position-point { fill: #d56a3a; }
-    .position-title { fill: #176b4d; font: 800 15px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .position-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .fingerprint-line { stroke: #9aa39d; stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .wave-axis { stroke: #667069; stroke-width: 1.5; }
-    .wave-grid { stroke: #d9d5c8; stroke-width: 1; stroke-dasharray: 4 5; }
-    .wave-sin { fill: none; stroke: #176b4d; stroke-width: 4; }
-    .wave-cos { fill: none; stroke: #d56a3a; stroke-width: 4; }
-    .wave-sin-dot { fill: #176b4d; }
-    .wave-cos-dot { fill: #d56a3a; }
-    .wave-label { fill: #18211d; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
-    .wave-muted { fill: #667069; font: 500 12px -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    footer {
-      padding: 24px 0 42px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-      font-size: 0.82rem;
-    }
-
-    @media (max-width: 800px) {
-      header { padding-top: 48px; }
-      .layout { grid-template-columns: 1fr; gap: 30px; }
-      nav { position: static; display: flex; overflow-x: auto; }
-      nav p { display: none; }
-      nav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
-      nav .current { border-bottom-color: var(--orange); }
-      .flow { grid-template-columns: 1fr 1fr; }
-      .flow-item:not(:last-child)::after { display: none; }
-      .equivalence { grid-template-columns: 1fr; }
-      .equals { justify-self: center; }
-    }
-
-    @media (max-width: 540px) {
-      .page { width: min(100% - 24px, 1120px); }
-      .flow, .explain-grid { grid-template-columns: 1fr; }
-      .reasoning { padding: 22px; }
-      .path-row { grid-template-columns: 1fr; gap: 4px; }
-      pre { padding: 18px; font-size: 0.78rem; }
-      th, td { padding: 11px 10px; }
-    }
-  </style>
+  <meta name="description" content="토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.">
+  <meta name="source-sha256" content="81b0148cd64906abfc944f06f0ac8f7d383df5b1b1dc7f5d3437c69bdffd8bcc">
+  <title>Token Embedding, 코드에서 이해하기</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260820">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -462,66 +18,46 @@
   <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="ko_KR">
-  <meta property="og:title" content="Transformer · Token Embedding">
-  <meta property="og:description" content="Token ID를 Embedding Vector로 조회하고 [Batch, Sequence]를 [Batch, Sequence, d_model]로 바꾸는 학습 문서">
+  <meta property="og:title" content="Token Embedding, 코드에서 이해하기">
+  <meta property="og:description" content="토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.">
   <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html","name":"Transformer · Token Embedding","description":"Token ID를 Embedding Vector로 조회하고 [Batch, Sequence]를 [Batch, Sequence, d_model]로 바꾸는 학습 문서","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html"},"headline":"Transformer · Token Embedding","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#token-embedding","name":"Token Embedding","identifier":"token-embedding"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#token-id","name":"Token ID","identifier":"token-id"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":4,"name":"Token Embedding"}]}]}
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html","name":"Token Embedding, 코드에서 이해하기","description":"토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html"},"headline":"Token Embedding, 코드에서 이해하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#token-embedding","name":"Token Embedding","identifier":"token-embedding"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#token-id","name":"Token ID","identifier":"token-id"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_token_embedding_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Token Embedding, 코드에서 이해하기"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference">
-  <header>
-    <div class="page">
-            <nav class="breadcrumb" aria-label="문서 경로">
-        <a href="../../index.html">⌂ 홈</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="../../wiki.html">기술 위키</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <a href="transformer_learning.html">Transformer</a>
-        <span class="separator" aria-hidden="true">›</span>
-        <span aria-current="page">Token Embedding</span>
-      </nav>
-      <p class="eyebrow">Transformer from scratch · 학습 노트</p>
-      <h1>Token Embedding,<br>코드에서 이해하기</h1>
+<body class="wiki-reference markdown-document">
+  <main class="wrap">
+    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><span aria-current="page">Token Embedding, 코드에서 이해하기</span></nav>
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Token Embedding, 코드에서 이해하기</h1>
       <p class="lead">토큰 ID가 임베딩 벡터가 되는 과정과 초기화·스케일·Shape을 기존 학습 내용 그대로 정리합니다.</p>
-      <a class="doc-link" href="transformer_learning.html">← Transformer 상위 문서</a>
-    </div>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
     </header>
+    <div class="markdown-lead"><p>Cell 01</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#token-embedding">토큰 번호를 의미 벡터로 바꾸기</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="token-embedding" class="markdown-section">
+<h2>토큰 번호를 의미 벡터로 바꾸기</h2>
+<p><code>TokenEmbedding</code>은 정수 토큰 ID를 <code>d_model</code>차원의 연속 벡터로 변환합니다. Transformer가 단어 사이의 관계를 계산하기 전에 반드시 거쳐야 하는 첫 번째 표현 변환입니다.</p>
+<p>token_embedding.pyPyTorch</p>
+<pre><code>import math
 
-  <div class="page layout">
-    <nav aria-label="문서 목차">
-      <p>Topics</p>
-      <a href="transformer_learning.html">← Transformer 상위 문서</a>
-      <a href="#token-embedding">토큰 번호를 의미 벡터로 바꾸기</a>
-      <a href="#flow">한눈에 보는 데이터 흐름</a>
-      <a href="#line-by-line">줄별로 이해하기</a>
-      <a href="#embedding-init">임베딩 행렬은 실제로 어떻게 초기화될까?</a>
-      <a href="#why-scale">어차피 키울 거라면 처음부터 크게 초기화하면 안 될까?</a>
-      <a href="#shapes">텐서 Shape 정리</a>
-      <a href="#tokenizer-dynamic-padding">Tokenizer와 동적 Padding</a>
-      <a href="#pretrained-causal-lm-one-step">사전학습 Causal LM 한 Token 생성</a>
-      <a href="#top-p-boundary-mask">Top-p 경계 Mask를 오른쪽으로 미는 이유</a>
-      <a href="#checkpoint">이 셀을 이해했는지 확인하기</a>
-    </nav>
-
-    <main>
-      <section id="token-embedding">
-        <div class="cell-label">Cell 01</div>
-        <h2>토큰 번호를 의미 벡터로 바꾸기</h2>
-        <p class="summary"><code>TokenEmbedding</code>은 정수 토큰 ID를 <code>d_model</code>차원의 연속 벡터로 변환합니다. Transformer가 단어 사이의 관계를 계산하기 전에 반드시 거쳐야 하는 첫 번째 표현 변환입니다.</p>
-
-        <div class="code-card" aria-label="TokenEmbedding 전체 코드">
-          <div class="code-head"><span>token_embedding.py</span><span>PyTorch</span></div>
-          <pre><code><span class="kw">import</span> math
-
-<span class="kw">import</span> torch
-<span class="kw">from</span> torch <span class="kw">import</span> nn
+import torch
+from torch import nn
 
 
-<span class="kw">class</span> <span class="type">TokenEmbedding</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab_size, d_model):
-        <span class="fn">super</span>().__init__()
+class TokenEmbedding(nn.Module):
+    def __init__(self, vocab_size, d_model):
+        super().__init__()
 
         self.d_model = d_model
         self.embedding = nn.Embedding(
@@ -530,142 +66,102 @@
         )
         nn.init.normal_(
             self.embedding.weight,
-            mean=<span class="num">0.0</span>,
-            std=d_model ** -<span class="num">0.5</span>,
+            mean=0.0,
+            std=d_model ** -0.5,
         )
 
-    <span class="kw">def</span> <span class="fn">forward</span>(self, token_ids):
+    def forward(self, token_ids):
         embeddings = self.embedding(token_ids)
         embeddings = embeddings * math.sqrt(self.d_model)
 
-        <span class="kw">return</span> embeddings</code></pre>
-        </div>
-
-        <p><strong>먼저 바로잡을 부분:</strong> 원문에 표시된 <code>**init**</code>은 Markdown 강조가 섞인 형태입니다. 실제 Python 코드는 앞뒤에 밑줄이 두 개씩 있는 <code>__init__</code>이어야 합니다.</p>
-      </section>
-
-      <section id="flow">
-        <h3>한눈에 보는 데이터 흐름</h3>
-        <div class="flow" aria-label="TokenEmbedding 처리 흐름">
-          <div class="flow-item">
-            <strong>1. Token IDs</strong>
-            <span>토크나이저가 만든 정수 번호</span>
-            <div class="shape">[B, S]</div>
-          </div>
-          <div class="flow-item">
-            <strong>2. Lookup</strong>
-            <span>임베딩 테이블에서 각 행 조회</span>
-            <div class="shape">vocab × d_model</div>
-          </div>
-          <div class="flow-item">
-            <strong>3. Scale</strong>
-            <span>모든 벡터에 √d_model 곱하기</span>
-            <div class="shape">× √d_model</div>
-          </div>
-          <div class="flow-item">
-            <strong>4. Embeddings</strong>
-            <span>Transformer가 처리할 연속 표현</span>
-            <div class="shape">[B, S, D]</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="line-by-line">
-        <h3>줄별로 이해하기</h3>
-        <div class="explain-grid">
-          <article class="note">
-            <span class="number">01</span>
-            <strong><code>class TokenEmbedding(nn.Module)</code></strong>
-            <p>PyTorch 모델의 기본 단위인 <code>nn.Module</code>을 상속합니다. 덕분에 파라미터 추적, 장치 이동, 저장과 로딩이 가능해집니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">02</span>
-            <strong><code>super().__init__()</code></strong>
-            <p>부모 클래스인 <code>nn.Module</code>을 초기화합니다. 이 호출이 빠지면 내부 모듈과 파라미터 등록이 정상적으로 동작하지 않습니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">03</span>
-            <strong><code>nn.Embedding(vocab_size, d_model)</code></strong>
-            <p><code>vocab_size × d_model</code> 크기의 학습 가능한 표를 만듭니다. 각 토큰 ID는 이 표에서 하나의 행을 선택합니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">04</span>
-            <strong><code>nn.init.normal_(..., std=d_model ** -0.5)</code></strong>
-            <p>임베딩을 표준편차 <code>1/√d_model</code>인 정규분포로 초기화합니다. 이후 <code>√d_model</code>을 곱하면 초기 표준편차가 약 1이 됩니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">05</span>
-            <strong><code>self.embedding(token_ids)</code></strong>
-            <p>정수 ID마다 대응하는 벡터를 조회합니다. 계산상 행렬곱처럼 볼 수도 있지만, 실제 역할은 인덱스를 이용한 lookup입니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">06</span>
-            <strong><code>math.sqrt(self.d_model)</code></strong>
-            <p>작게 초기화된 임베딩을 키워 이후 더해질 Positional Encoding에 토큰 의미가 묻히지 않도록 상대적인 스케일을 맞춥니다.</p>
-          </article>
-          <article class="note">
-            <span class="number">07</span>
-            <strong><code>return embeddings</code></strong>
-            <p>토큰마다 하나의 벡터가 생기므로 마지막 축이 추가됩니다. 이 결과가 다음 셀의 Positional Encoding 입력이 됩니다.</p>
-          </article>
-        </div>
-
-        <div class="formula">
-          <span class="math">E = Embedding(token_ids) × √d<sub>model</sub></span>
-          <span><code>std = 1/√d_model</code>로 초기화한 뒤 <code>√d_model</code>을 곱하므로, 초기 출력의 표준편차는 약 <code>1</code>이 됩니다.</span>
-        </div>
-      </section>
-
-      <section class="reasoning" id="embedding-init">
-        <h3>임베딩 행렬은 실제로 어떻게 초기화될까?</h3>
-        <p>학습 전 임베딩은 작은 랜덤값에서 시작한다. 핵심은 평균 0만 정하는 것이 아니라, <code>d_model</code>개의 원소를 가진 벡터 전체가 지나치게 크거나 작아지지 않도록 분산과 표준편차를 정하는 것이다.</p>
-        <p>벡터 제곱합의 기대값, <code>1 / √d_model</code> 표준편차와 PyTorch 초기화 코드는 별도 설명에서 단계별로 전개한다.</p>
-        <p><a class="doc-link" href="transformer_token_embedding_initialization_learning.html#embedding-init">임베딩 초기화의 분산·제곱합·PyTorch 코드 자세히 보기 →</a></p>
-      </section>
-
-      <section class="reasoning" id="why-scale">
-        <h3>왜 <code>√d_model</code>을 곱하는가?</h3>
-        <p>Embedding 초기화와 입력 스케일링은 같은 연산이 아니다. 초기화는 학습 시작점의 벡터 크기를 정하고, <code>√d_model</code> 곱셈은 Positional Encoding과 더해질 때 Token 신호의 크기를 맞춘다.</p>
-        <p><a class="doc-link" href="transformer_token_embedding_scaling_learning.html#why-scale">초기화와 입력 스케일링의 차이를 수식으로 보기 →</a></p>
-      </section>
-
-      <section id="shapes">
-        <h3>텐서 Shape 정리</h3>
-        <div class="table-scroll"><table>
-          <thead>
-            <tr><th>대상</th><th>Shape</th><th>의미</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>token_ids</code></td><td><code>[batch_size, seq_len]</code></td><td>문장마다 나열된 토큰 번호</td></tr>
-            <tr><td>Embedding weight</td><td><code>[vocab_size, d_model]</code></td><td>학습 가능한 전체 토큰 벡터 표</td></tr>
-            <tr><td><code>embeddings</code></td><td><code>[batch_size, seq_len, d_model]</code></td><td>각 토큰의 연속 벡터 표현</td></tr>
-          </tbody>
-        </table></div>
-
-        <div class="code-card" aria-label="TokenEmbedding 실행 예시">
-          <div class="code-head"><span>shape_check.py</span><span>실행 예시</span></div>
-          <pre><code>layer = <span class="type">TokenEmbedding</span>(vocab_size=<span class="num">10_000</span>, d_model=<span class="num">512</span>)
+        return embeddings
+</code></pre>
+<p><strong>먼저 바로잡을 부분:</strong> 원문에 표시된 <code>**init**</code>은 Markdown 강조가 섞인 형태입니다. 실제 Python 코드는 앞뒤에 밑줄이 두 개씩 있는 <code>__init__</code>이어야 합니다.</p>
+<h3>한눈에 보는 데이터 흐름</h3>
+<aside class="md-component md-shape-flow" data-component="shape-flow"><div class="md-component-body"><p><strong>1. Token IDs</strong> 토크나이저가 만든 정수 번호</p>
+<p>[B, S]</p>
+<p><strong>2. Lookup</strong> 임베딩 테이블에서 각 행 조회</p>
+<p>vocab × d_model</p>
+<p><strong>3. Scale</strong> 모든 벡터에 √d_model 곱하기</p>
+<p>× √d_model</p>
+<p><strong>4. Embeddings</strong> Transformer가 처리할 연속 표현</p>
+<p>[B, S, D]</p>
+</div></aside>
+<h3>줄별로 이해하기</h3>
+<p>01 <code>class TokenEmbedding(nn.Module)</code></p>
+<p>PyTorch 모델의 기본 단위인 <code>nn.Module</code>을 상속합니다. 덕분에 파라미터 추적, 장치 이동, 저장과 로딩이 가능해집니다.</p>
+<p>02 <code>super().__init__()</code></p>
+<p>부모 클래스인 <code>nn.Module</code>을 초기화합니다. 이 호출이 빠지면 내부 모듈과 파라미터 등록이 정상적으로 동작하지 않습니다.</p>
+<p>03 <code>nn.Embedding(vocab_size, d_model)</code></p>
+<p><code>vocab_size × d_model</code> 크기의 학습 가능한 표를 만듭니다. 각 토큰 ID는 이 표에서 하나의 행을 선택합니다.</p>
+<p>04 <code>nn.init.normal_(..., std=d_model ** -0.5)</code></p>
+<p>임베딩을 표준편차 <code>1/√d_model</code>인 정규분포로 초기화합니다. 이후 <code>√d_model</code>을 곱하면 초기 표준편차가 약 1이 됩니다.</p>
+<p>05 <code>self.embedding(token_ids)</code></p>
+<p>정수 ID마다 대응하는 벡터를 조회합니다. 계산상 행렬곱처럼 볼 수도 있지만, 실제 역할은 인덱스를 이용한 lookup입니다.</p>
+<p>06 <code>math.sqrt(self.d_model)</code></p>
+<p>작게 초기화된 임베딩을 키워 이후 더해질 Positional Encoding에 토큰 의미가 묻히지 않도록 상대적인 스케일을 맞춥니다.</p>
+<p>07 <code>return embeddings</code></p>
+<p>토큰마다 하나의 벡터가 생기므로 마지막 축이 추가됩니다. 이 결과가 다음 셀의 Positional Encoding 입력이 됩니다.</p>
+<aside class="md-component md-formula" data-component="formula"><div class="md-component-body"><p>E = Embedding(token_ids) × √d_{model} <code>std = 1/√d_model</code>로 초기화한 뒤 <code>√d_model</code>을 곱하므로, 초기 출력의 표준편차는 약 <code>1</code>이 됩니다.</p>
+</div></aside>
+<span class="md-anchor" id="embedding-init" aria-hidden="true"></span>
+<h3>임베딩 행렬은 실제로 어떻게 초기화될까?</h3>
+<p>학습 전 임베딩은 작은 랜덤값에서 시작한다. 핵심은 평균 0만 정하는 것이 아니라, <code>d_model</code>개의 원소를 가진 벡터 전체가 지나치게 크거나 작아지지 않도록 분산과 표준편차를 정하는 것이다.</p>
+<p>벡터 제곱합의 기대값, <code>1 / √d_model</code> 표준편차와 PyTorch 초기화 코드는 별도 설명에서 단계별로 전개한다.</p>
+<p><a href="transformer_token_embedding_initialization_learning.html#embedding-init">임베딩 초기화의 분산·제곱합·PyTorch 코드 자세히 보기 →</a></p>
+<span class="md-anchor" id="why-scale" aria-hidden="true"></span>
+<h3>왜 <code>√d_model</code>을 곱하는가?</h3>
+<p>Embedding 초기화와 입력 스케일링은 같은 연산이 아니다. 초기화는 학습 시작점의 벡터 크기를 정하고, <code>√d_model</code> 곱셈은 Positional Encoding과 더해질 때 Token 신호의 크기를 맞춘다.</p>
+<p><a href="transformer_token_embedding_scaling_learning.html#why-scale">초기화와 입력 스케일링의 차이를 수식으로 보기 →</a></p>
+<h3>텐서 Shape 정리</h3>
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>Shape</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>token_ids</td>
+<td>[batch_size, seq_len]</td>
+<td>문장마다 나열된 토큰 번호</td>
+</tr>
+<tr>
+<td>Embedding weight</td>
+<td>[vocab_size, d_model]</td>
+<td>학습 가능한 전체 토큰 벡터 표</td>
+</tr>
+<tr>
+<td>embeddings</td>
+<td>[batch_size, seq_len, d_model]</td>
+<td>각 토큰의 연속 벡터 표현</td>
+</tr>
+</tbody></table>
+<p>shape_check.py실행 예시</p>
+<pre><code>layer = TokenEmbedding(vocab_size=10_000, d_model=512)
 token_ids = torch.tensor([
-    [<span class="num">12</span>, <span class="num">51</span>, <span class="num">203</span>, <span class="num">7</span>],
-    [<span class="num">91</span>, <span class="num">18</span>, <span class="num">42</span>, <span class="num">0</span>],
+    [12, 51, 203, 7],
+    [91, 18, 42, 0],
 ])
 
 output = layer(token_ids)
-<span class="fn">print</span>(output.shape)  <span class="comment"># torch.Size([2, 4, 512])</span></code></pre>
-        </div>
-
-        <h3 id="tiny-decoder-token-lookup">Tiny Decoder LM에서 실제로 확인한 Token lookup</h3>
-        <p>현재 작은 언어 모델에서는 <code>vocab_size=10</code>, <code>d_model=2</code>로 두었습니다. 따라서 <code>nn.Embedding</code>은 Token ID <code>0~9</code>를 위한 행 10개와 각 Token을 나타낼 값 2개를 가진 조회표를 만듭니다.</p>
-        <pre><code>token_embedding = nn.Embedding(
+print(output.shape)  # torch.Size([2, 4, 512])
+</code></pre>
+<span class="md-anchor" id="tiny-decoder-token-lookup" aria-hidden="true"></span>
+<h3>Tiny Decoder LM에서 실제로 확인한 Token lookup</h3>
+<p>현재 작은 언어 모델에서는 <code>vocab_size=10</code>, <code>d_model=2</code>로 두었습니다. 따라서 <code>nn.Embedding</code>은 Token ID <code>0~9</code>를 위한 행 10개와 각 Token을 나타낼 값 2개를 가진 조회표를 만듭니다.</p>
+<pre><code>token_embedding = nn.Embedding(
     num_embeddings=10,
     embedding_dim=2,
 )
 
 token_embedding.weight.shape = [10, 2]
                                     ↑  ↑
-                              Token 행  벡터 차원</code></pre>
-        <p><code>vocab_size=10</code>은 출력 벡터를 10차원으로 만드는 값이 아니라 조회표의 <strong>행 수</strong>입니다. Token ID는 행 index로 동작하므로, 같은 Embedding 모듈에서 동일한 Token ID를 다시 조회하면 같은 행의 벡터를 가져옵니다. 아직 Position Embedding과 문맥 계산을 더하기 전 단계에서는 같은 Token ID의 lookup vector가 위치에 따라 달라지지 않습니다.</p>
-        <pre><code>input_tokens = [[3, 7, 2]]
+                              Token 행  벡터 차원
+</code></pre>
+<p><code>vocab_size=10</code>은 출력 벡터를 10차원으로 만드는 값이 아니라 조회표의 행 수입니다. Token ID는 행 index로 동작하므로, 같은 Embedding 모듈에서 동일한 Token ID를 다시 조회하면 같은 행의 벡터를 가져옵니다. 아직 Position Embedding과 문맥 계산을 더하기 전 단계에서는 같은 Token ID의 lookup vector가 위치에 따라 달라지지 않습니다.</p>
+<pre><code>input_tokens = [[3, 7, 2]]
 input_tokens.shape = [1, 3]
 
 hidden_states = token_embedding(input_tokens)
@@ -673,94 +169,102 @@ hidden_states.shape = [1, 3, 2]
 
 [batch, seq_len]
 → 각 Token ID가 길이 2인 행 하나를 조회
-→ [batch, seq_len, d_model]</code></pre>
-        <p>저장된 실행 결과에서 입력 Shape <code>[1,3]</code>이 Token 3개 각각의 길이 2 벡터로 바뀌어 <code>[1,3,2]</code>가 되는 것을 확인했습니다. batch 축과 sequence 축은 보존되고 마지막에 <code>d_model</code> 축만 추가됩니다.</p>
-        <h3>Tokenizer 단어장과 Embedding 표는 서로 다른 원본이다</h3>
-        <p>현재 장난감 실습에는 문자열을 Token ID로 바꾸는 실제 Tokenizer 단어장이 없습니다. <code>3</code>·<code>7</code>·<code>2</code>를 직접 입력했기 때문에, 모델에는 ID별 학습 벡터를 저장할 <code>[10,2]</code> Embedding 표만 있으면 실행할 수 있습니다. 실제 언어 모델에서는 Tokenizer가 문자열을 ID로 바꾸고, 모델은 그 ID로 Embedding 표의 행을 조회합니다.</p>
-        <pre><code>Tokenizer vocabulary:  문자열 ↔ Token ID
+→ [batch, seq_len, d_model]
+</code></pre>
+<p>저장된 실행 결과에서 입력 Shape <code>[1,3]</code>이 Token 3개 각각의 길이 2 벡터로 바뀌어 <code>[1,3,2]</code>가 되는 것을 확인했습니다. batch 축과 sequence 축은 보존되고 마지막에 <code>d_model</code> 축만 추가됩니다.</p>
+<h3>Tokenizer 단어장과 Embedding 표는 서로 다른 원본이다</h3>
+<p>현재 장난감 실습에는 문자열을 Token ID로 바꾸는 실제 Tokenizer 단어장이 없습니다. <code>3</code>·<code>7</code>·<code>2</code>를 직접 입력했기 때문에, 모델에는 ID별 학습 벡터를 저장할 <code>[10,2]</code> Embedding 표만 있으면 실행할 수 있습니다. 실제 언어 모델에서는 Tokenizer가 문자열을 ID로 바꾸고, 모델은 그 ID로 Embedding 표의 행을 조회합니다.</p>
+<pre><code>Tokenizer vocabulary:  문자열 ↔ Token ID
 Embedding weight:      Token ID → 학습 가능한 d_model 벡터
 
 vocab_size=10
 → 유효한 Token ID는 0~9
-→ 10 또는 11은 존재하지 않는 행이므로 index 오류</code></pre>
-        <p><code>vocab_size</code>는 최대 ID가 10이라는 뜻이 아니라 행이 총 10개라는 뜻입니다. <code>input_tokens=[[3,7,2]]</code>의 세 숫자는 차원이 아니라 Token ID이고, 이 ID 세 개가 각각 벡터 하나를 조회하므로 <code>d_model=2</code>일 때 출력은 <code>[1,3,2]</code>가 됩니다.</p>
-        <h4 id="tokenizer-embedding-shared-id">서로 다른 객체를 Token ID라는 공통 주소로 연결한다</h4>
-        <p>Tokenizer와 Embedding은 같은 객체가 아닙니다. Tokenizer는 문자열을 정수 ID로 바꾸고, Embedding은 그 정수 ID를 행 번호로 사용해 학습된 벡터를 꺼냅니다. 두 객체가 같은 Token 목록을 직접 공유하는 것이 아니라, <strong>같은 Token ID 체계</strong>를 공유하는 구조입니다.</p>
-        <pre><code>Tokenizer
-"apple" → Token ID 37
+→ 10 또는 11은 존재하지 않는 행이므로 index 오류
+</code></pre>
+<p><code>vocab_size</code>는 최대 ID가 10이라는 뜻이 아니라 행이 총 10개라는 뜻입니다. <code>input_tokens=[[3,7,2]]</code>의 세 숫자는 차원이 아니라 Token ID이고, 이 ID 세 개가 각각 벡터 하나를 조회하므로 <code>d_model=2</code>일 때 출력은 <code>[1,3,2]</code>가 됩니다.</p>
+<h4>서로 다른 객체를 Token ID라는 공통 주소로 연결한다</h4>
+<p>Tokenizer와 Embedding은 같은 객체가 아닙니다. Tokenizer는 문자열을 정수 ID로 바꾸고, Embedding은 그 정수 ID를 행 번호로 사용해 학습된 벡터를 꺼냅니다. 두 객체가 같은 Token 목록을 직접 공유하는 것이 아니라, 같은 Token ID 체계를 공유하는 구조입니다.</p>
+<pre><code>Tokenizer
+&quot;apple&quot; → Token ID 37
 
 Embedding
 Token ID 37 → embedding.weight[37] → 학습된 Vector
 
-Token ID = 두 객체를 연결하는 공통 주소</code></pre>
-        <p>따라서 Tokenizer가 만들 수 있는 모든 ID가 Embedding 표의 유효한 행 번호여야 합니다. ID가 <code>0</code>부터 연속적으로 배정된 일반적인 경우, 최대 ID가 <code>50256</code>이면 전체 Token 수와 <code>num_embeddings</code>는 <code>50257</code>입니다. 언어 모델의 LM Head도 같은 Token 후보를 출력해야 하므로 Vocabulary 축의 크기를 함께 맞춥니다.</p>
-        <pre><code>Tokenizer의 전체 Token 수
+Token ID = 두 객체를 연결하는 공통 주소
+</code></pre>
+<p>따라서 Tokenizer가 만들 수 있는 모든 ID가 Embedding 표의 유효한 행 번호여야 합니다. ID가 <code>0</code>부터 연속적으로 배정된 일반적인 경우, 최대 ID가 <code>50256</code>이면 전체 Token 수와 <code>num_embeddings</code>는 <code>50257</code>입니다. 언어 모델의 LM Head도 같은 Token 후보를 출력해야 하므로 Vocabulary 축의 크기를 함께 맞춥니다.</p>
+<pre><code>Tokenizer의 전체 Token 수
 = Embedding의 num_embeddings
 = LM Head의 출력 후보 수
-= 최대 Token ID + 1</code></pre>
-        <p>현재 사전학습 GPT-2 계열 모델의 실제 구현도 같은 구조입니다. 모델을 만들 때 <code>self.wte</code>에 Vocabulary 크기만큼의 행을 가진 Embedding 표를 두고, Forward에서 <code>input_ids</code>를 그대로 넣어 해당 행들을 조회합니다.</p>
-        <pre><code>self.wte = nn.Embedding(
+= 최대 Token ID + 1
+</code></pre>
+<p>현재 사전학습 GPT-2 계열 모델의 실제 구현도 같은 구조입니다. 모델을 만들 때 <code>self.wte</code>에 Vocabulary 크기만큼의 행을 가진 Embedding 표를 두고, Forward에서 <code>input_ids</code>를 그대로 넣어 해당 행들을 조회합니다.</p>
+<pre><code>self.wte = nn.Embedding(
     config.vocab_size,
     self.embed_dim,
 )
 
-inputs_embeds = self.wte(input_ids)</code></pre>
-        <h4 id="python-runtime-source-tracing">Python·Jupyter에서 실제 모델 구현을 추적하는 순서</h4>
-        <p>Java에서는 변수의 선언 타입이 소스 코드에 명확히 적힌 경우가 많아 IDE가 곧바로 정의로 이동하기 쉽습니다. 반면 <code>AutoModelForCausalLM.from_pretrained(...)</code>은 모델 설정을 읽은 뒤 실행 시점에 알맞은 구체 클래스를 선택합니다. 따라서 Notebook에 보이는 변수 이름만으로 소스를 추측하기보다, <strong>현재 메모리에 만들어진 객체의 실제 타입부터 확인</strong>하는 편이 확실합니다.</p>
-        <pre><code>import inspect
+inputs_embeds = self.wte(input_ids)
+</code></pre>
+<h4>Python·Jupyter에서 실제 모델 구현을 추적하는 순서</h4>
+<p>Java에서는 변수의 선언 타입이 소스 코드에 명확히 적힌 경우가 많아 IDE가 곧바로 정의로 이동하기 쉽습니다. 반면 <code>AutoModelForCausalLM.from_pretrained(...)</code>은 모델 설정을 읽은 뒤 실행 시점에 알맞은 구체 클래스를 선택합니다. 따라서 Notebook에 보이는 변수 이름만으로 소스를 추측하기보다, 현재 메모리에 만들어진 객체의 실제 타입부터 확인하는 편이 확실합니다.</p>
+<pre><code>import inspect
 
 print(type(model))
 print(inspect.getfile(type(model)))
-print(inspect.getsource(type(model)))</code></pre>
-        <p><code>type(model)</code>은 <code>AutoModelForCausalLM</code>이라는 공통 입구 뒤에서 실제로 선택된 클래스가 무엇인지 알려 줍니다. 현재 GPT-2 계열 예제라면 <code>GPT2LMHeadModel</code>이 나오고, <code>inspect.getfile(...)</code>은 그 클래스가 정의된 Python 파일을 알려 줍니다. <code>inspect.getsource(...)</code>는 해당 클래스의 소스를 Notebook에서 바로 확인할 때 사용합니다.</p>
-        <pre><code>AutoModelForCausalLM
+print(inspect.getsource(type(model)))
+</code></pre>
+<p><code>type(model)</code>은 <code>AutoModelForCausalLM</code>이라는 공통 입구 뒤에서 실제로 선택된 클래스가 무엇인지 알려 줍니다. 현재 GPT-2 계열 예제라면 <code>GPT2LMHeadModel</code>이 나오고, <code>inspect.getfile(...)</code>은 그 클래스가 정의된 Python 파일을 알려 줍니다. <code>inspect.getsource(...)</code>는 해당 클래스의 소스를 Notebook에서 바로 확인할 때 사용합니다.</p>
+<pre><code>AutoModelForCausalLM
 → 실행 후 type(model) 확인
 → GPT2LMHeadModel
 → 내부의 GPT2Model
 → self.wte = nn.Embedding(...)
-→ Forward의 self.wte(input_ids)</code></pre>
-        <p>전체 파일을 처음부터 읽을 필요는 없습니다. 이번 질문은 “Token ID를 넣었을 때 Embedding Vector를 어디서 꺼내는가?”였으므로 다음 두 지점만 연결했습니다.</p>
-        <ol>
-          <li><strong>객체를 만드는 위치:</strong> <code>self.wte = nn.Embedding(...)</code></li>
-          <li><strong>입력을 실제로 사용하는 위치:</strong> <code>inputs_embeds = self.wte(input_ids)</code></li>
-        </ol>
-        <div class="caution"><strong>소스 추적의 기준</strong> — 큰 라이브러리 전체를 무작정 읽지 않습니다. 먼저 런타임 객체의 실제 클래스를 찾고, 현재 질문과 관련된 “상태나 Layer를 생성하는 줄 → Forward에서 입력을 넣는 줄”만 연결합니다. 그 두 줄로 설명되지 않을 때에만 한 단계 더 안쪽 구현으로 내려갑니다.</div>
-        <h4 id="concrete-python-type-hints">구체 타입 힌트는 코드 탐색을 돕지만 런타임 검증은 아니다</h4>
-        <p>공통 <code>Auto*</code> 타입만 두는 대신 이번에 실제로 선택된 구체 타입을 적으면 IDE의 자동완성, 속성 확인, 정의 이동이 쉬워집니다. Tokenizer 호출 결과와 모델 출력도 타입을 적어 두면 <code>input_ids</code>와 <code>logits</code>가 어느 객체에서 나오는지 코드만 읽고 추적하기 편해집니다.</p>
-        <pre><code>tokenizer: GPT2TokenizerFast
+→ Forward의 self.wte(input_ids)
+</code></pre>
+<p>전체 파일을 처음부터 읽을 필요는 없습니다. 이번 질문은 “Token ID를 넣었을 때 Embedding Vector를 어디서 꺼내는가?”였으므로 다음 두 지점만 연결했습니다.</p>
+<ol>
+<li><strong>객체를 만드는 위치:</strong> <code>self.wte = nn.Embedding(...)</code></li>
+<li><strong>입력을 실제로 사용하는 위치:</strong> <code>inputs_embeds = self.wte(input_ids)</code></li>
+</ol>
+<p><strong>소스 추적의 기준</strong> — 큰 라이브러리 전체를 무작정 읽지 않습니다. 먼저 런타임 객체의 실제 클래스를 찾고, 현재 질문과 관련된 “상태나 Layer를 생성하는 줄 → Forward에서 입력을 넣는 줄”만 연결합니다. 그 두 줄로 설명되지 않을 때에만 한 단계 더 안쪽 구현으로 내려갑니다.</p>
+<span class="md-anchor" id="concrete-python-type-hints" aria-hidden="true"></span>
+<h4>구체 타입 힌트는 코드 탐색을 돕지만 런타임 검증은 아니다</h4>
+<p>공통 <code>Auto*</code> 타입만 두는 대신 이번에 실제로 선택된 구체 타입을 적으면 IDE의 자동완성, 속성 확인, 정의 이동이 쉬워집니다. Tokenizer 호출 결과와 모델 출력도 타입을 적어 두면 <code>input_ids</code>와 <code>logits</code>가 어느 객체에서 나오는지 코드만 읽고 추적하기 편해집니다.</p>
+<pre><code>tokenizer: GPT2TokenizerFast
 model: GPT2LMHeadModel
 encoded: BatchEncoding
 outputs: CausalLMOutputWithCrossAttentions
 input_ids: torch.Tensor
-logits: torch.Tensor</code></pre>
-        <p>이 표기는 “이 변수에는 이 타입이 들어올 것이다”라는 개발 도구용 정보입니다. Python이 이 타입만 넣도록 실행 중 강제하는 선언은 아닙니다. 실제 객체를 검증할 때는 여전히 <code>type(model)</code>, <code>type(outputs)</code> 또는 <code>isinstance(...)</code>를 사용해야 합니다. 즉 <strong>타입 힌트는 읽기·자동완성·정적 검사를 돕고, <code>type()</code>은 현재 실행 결과를 확인</strong>합니다.</p>
-        <div class="caution"><strong>새 Token을 추가할 때</strong> — Tokenizer에 새 Token을 추가해 ID 범위가 커졌다면 모델의 Embedding과 출력 Vocabulary 축도 함께 늘려야 합니다. Hugging Face 모델에서는 보통 <code>model.resize_token_embeddings(len(tokenizer))</code>로 이 크기를 맞춥니다.</div>
-
-        <h3 id="tokenizer-dynamic-padding">사전학습 Tokenizer에서 확인한 동적 Padding</h3>
-        <p>실제 Tokenizer에 문장 하나를 넣으면 문자열이 Token 조각과 정수 ID로 바뀔 뿐, 아직 Embedding Vector가 만들어지는 것은 아닙니다. Embedding은 이후 모델 내부의 Embedding Layer가 <code>[B,S]</code> Token ID를 <code>[B,S,D]</code> 벡터로 바꾸는 별도 단계입니다.</p>
-        <pre><code>문장
+logits: torch.Tensor
+</code></pre>
+<p>이 표기는 “이 변수에는 이 타입이 들어올 것이다”라는 개발 도구용 정보입니다. Python이 이 타입만 넣도록 실행 중 강제하는 선언은 아닙니다. 실제 객체를 검증할 때는 여전히 <code>type(model)</code>, <code>type(outputs)</code> 또는 <code>isinstance(...)</code>를 사용해야 합니다. 즉 타입 힌트는 읽기·자동완성·정적 검사를 돕고, <code>type()</code>은 현재 실행 결과를 확인합니다.</p>
+<p><strong>새 Token을 추가할 때</strong> — Tokenizer에 새 Token을 추가해 ID 범위가 커졌다면 모델의 Embedding과 출력 Vocabulary 축도 함께 늘려야 합니다. Hugging Face 모델에서는 보통 <code>model.resize_token_embeddings(len(tokenizer))</code>로 이 크기를 맞춥니다.</p>
+<h3>사전학습 Tokenizer에서 확인한 동적 Padding</h3>
+<p>실제 Tokenizer에 문장 하나를 넣으면 문자열이 Token 조각과 정수 ID로 바뀔 뿐, 아직 Embedding Vector가 만들어지는 것은 아닙니다. Embedding은 이후 모델 내부의 Embedding Layer가 <code>[B,S]</code> Token ID를 <code>[B,S,D]</code> 벡터로 바꾸는 별도 단계입니다.</p>
+<pre><code>문장
 → Tokenizer
 → Token 조각
 → Token ID [B, S]
 → 모델의 Embedding Layer
-→ Token Vector [B, S, D]</code></pre>
-
-        <p>길이가 다른 문장 두 개를 <code>return_tensors="pt"</code>로 한 번에 PyTorch Tensor로 만들려면 각 행의 길이가 같아야 합니다. Tensor는 직사각형이므로 Token 3개인 행과 Token 7개인 행을 그대로 <code>[2, ?]</code>로 묶을 수 없습니다. 여기서 <code>padding=True</code>는 <strong>현재 Batch에서 가장 긴 문장</strong>에 맞춰 짧은 문장의 뒤를 채웁니다.</p>
-        <pre><code>tokenizer.pad_token = tokenizer.eos_token
+→ Token Vector [B, S, D]
+</code></pre>
+<p>길이가 다른 문장 두 개를 <code>return_tensors=&quot;pt&quot;</code>로 한 번에 PyTorch Tensor로 만들려면 각 행의 길이가 같아야 합니다. Tensor는 직사각형이므로 Token 3개인 행과 Token 7개인 행을 그대로 <code>[2, ?]</code>로 묶을 수 없습니다. 여기서 <code>padding=True</code>는 현재 Batch에서 가장 긴 문장에 맞춰 짧은 문장의 뒤를 채웁니다.</p>
+<pre><code>tokenizer.pad_token = tokenizer.eos_token
 
 texts = [
-    "I study.",
-    "I study transformers every day.",
+    &quot;I study.&quot;,
+    &quot;I study transformers every day.&quot;,
 ]
 
 batch = tokenizer(
     texts,
     padding=True,
-    return_tensors="pt",
-)</code></pre>
-
-        <p>저장된 실행에서는 짧은 문장이 Token 3개, 긴 문장이 Token 7개였습니다. GPT-2 계열 Tokenizer에 별도 PAD Token이 없어 이번 실습에서는 EOS Token ID <code>50256</code>을 채움값으로 사용했고, <code>attention_mask</code>의 <code>0</code>이 그 위치를 실제 입력 문맥에서 제외하도록 표시했습니다.</p>
-        <pre><code>input_ids =
+    return_tensors=&quot;pt&quot;,
+)
+</code></pre>
+<p>저장된 실행에서는 짧은 문장이 Token 3개, 긴 문장이 Token 7개였습니다. GPT-2 계열 Tokenizer에 별도 PAD Token이 없어 이번 실습에서는 EOS Token ID <code>50256</code>을 채움값으로 사용했고, <code>attention_mask</code>의 <code>0</code>이 그 위치를 실제 입력 문맥에서 제외하도록 표시했습니다.</p>
+<pre><code>input_ids =
 [[   40, 2050,   13, 50256, 50256, 50256, 50256],
  [   40, 2050, 6121,   364,   790,  1110,    13]]
 
@@ -769,89 +273,95 @@ attention_mask =
  [1, 1, 1, 1, 1, 1, 1]]
 
 input_ids.shape      = [2, 7]
-attention_mask.shape = [2, 7]</code></pre>
-
-        <h4 id="eos-as-pad-role">같은 EOS Token ID를 PAD로 빌려 써도 역할은 Mask와 생성 시점으로 구분된다</h4>
-        <p>EOS(End Of Sequence)는 원래 모델이 문장의 끝을 나타내기 위해 사용하는 Token입니다. 생성 반복 중 모델이 EOS Token ID를 다음 Token으로 새로 선택하면 그 문장의 생성을 멈추는 기준으로 사용할 수 있습니다. 반면 GPT-2 계열에는 기본 PAD Token이 따로 없으므로, 이 실습에서는 EOS Token ID <code>50256</code>을 Batch의 빈자리 채움값으로도 빌려 썼습니다.</p>
-        <pre><code>미리 채워진 50256 + attention_mask 0
+attention_mask.shape = [2, 7]
+</code></pre>
+<h4>같은 EOS Token ID를 PAD로 빌려 써도 역할은 Mask와 생성 시점으로 구분된다</h4>
+<p>EOS(End Of Sequence)는 원래 모델이 문장의 끝을 나타내기 위해 사용하는 Token입니다. 생성 반복 중 모델이 EOS Token ID를 다음 Token으로 새로 선택하면 그 문장의 생성을 멈추는 기준으로 사용할 수 있습니다. 반면 GPT-2 계열에는 기본 PAD Token이 따로 없으므로, 이 실습에서는 EOS Token ID <code>50256</code>을 Batch의 빈자리 채움값으로도 빌려 썼습니다.</p>
+<pre><code>미리 채워진 50256 + attention_mask 0
 → Batch 길이를 맞춘 PAD 자리
 
 모델이 다음 Token으로 새로 선택한 50256
 → 실제 EOS 예측
-→ 해당 문장의 생성 종료 기준</code></pre>
-        <p>두 경우의 정수 ID는 같지만 입력에서 맡는 역할은 다릅니다. 짧은 문장 뒤에 미리 채운 <code>50256</code> 위치는 <code>attention_mask=0</code>으로 실제 문맥에서 제외하고, 다음 Token을 고를 때도 <code>last_real_positions</code>로 마지막 실제 Token 위치의 Logit을 선택합니다. 반대로 모델이 다음 Token 후보 중 <code>50256</code>을 직접 선택했다면, 그것은 채움값을 읽은 것이 아니라 현재 문맥에서 종료 Token의 점수가 가장 높았다는 뜻입니다.</p>
-        <div class="caution"><strong>PAD ID 자체가 사라지는 것은 아닙니다</strong> — 채움용 EOS ID도 <code>input_ids</code> Tensor 안에는 그대로 남습니다. <code>attention_mask</code>가 PAD 위치를 문맥에서 제외하고, 마지막 실제 위치를 별도로 골라 PAD 위치의 Logit을 다음 Token 예측에 사용하지 않는 두 처리가 함께 필요합니다.</div>
-
-        <p><code>padding=True</code>를 빼면 Batch 자체가 금지되는 것이 아닙니다. 길이가 서로 다른 두 Token 목록을 <code>return_tensors="pt"</code>가 하나의 직사각형 Tensor로 변환할 수 없어서 오류가 발생합니다. 두 문장의 길이가 원래 같다면 Padding 없이도 묶을 수 있고, 문장이 하나뿐이라면 그 문장 자신이 현재 Batch의 최장 길이이므로 불필요한 PAD가 붙지 않습니다.</p>
-        <h3 id="pretrained-causal-lm-one-step">사전학습 Causal LM에서 다음 Token 하나를 직접 붙이는 흐름</h3>
-        <p>한 문장 <code>"I study."</code>를 Padding 없이 처리한 실행에서는 <code>input_ids</code>가 <code>[B,S]=[1,3]</code>이었습니다. 모델은 각 Token 위치마다 같은 Vocabulary 전체의 raw 점수를 내므로 출력은 <code>[B,S,V]=[1,3,50257]</code>입니다.</p>
-        <pre><code>input_ids.shape = [1, 3]
+→ 해당 문장의 생성 종료 기준
+</code></pre>
+<p>두 경우의 정수 ID는 같지만 입력에서 맡는 역할은 다릅니다. 짧은 문장 뒤에 미리 채운 <code>50256</code> 위치는 <code>attention_mask=0</code>으로 실제 문맥에서 제외하고, 다음 Token을 고를 때도 <code>last_real_positions</code>로 마지막 실제 Token 위치의 Logit을 선택합니다. 반대로 모델이 다음 Token 후보 중 <code>50256</code>을 직접 선택했다면, 그것은 채움값을 읽은 것이 아니라 현재 문맥에서 종료 Token의 점수가 가장 높았다는 뜻입니다.</p>
+<p><strong>PAD ID 자체가 사라지는 것은 아닙니다</strong> — 채움용 EOS ID도 <code>input_ids</code> Tensor 안에는 그대로 남습니다. <code>attention_mask</code>가 PAD 위치를 문맥에서 제외하고, 마지막 실제 위치를 별도로 골라 PAD 위치의 Logit을 다음 Token 예측에 사용하지 않는 두 처리가 함께 필요합니다.</p>
+<p><code>padding=True</code>를 빼면 Batch 자체가 금지되는 것이 아닙니다. 길이가 서로 다른 두 Token 목록을 <code>return_tensors=&quot;pt&quot;</code>가 하나의 직사각형 Tensor로 변환할 수 없어서 오류가 발생합니다. 두 문장의 길이가 원래 같다면 Padding 없이도 묶을 수 있고, 문장이 하나뿐이라면 그 문장 자신이 현재 Batch의 최장 길이이므로 불필요한 PAD가 붙지 않습니다.</p>
+<span class="md-anchor" id="pretrained-causal-lm-one-step" aria-hidden="true"></span>
+<h3>사전학습 Causal LM에서 다음 Token 하나를 직접 붙이는 흐름</h3>
+<p>한 문장 <code>&quot;I study.&quot;</code>를 Padding 없이 처리한 실행에서는 <code>input_ids</code>가 <code>[B,S]=[1,3]</code>이었습니다. 모델은 각 Token 위치마다 같은 Vocabulary 전체의 raw 점수를 내므로 출력은 <code>[B,S,V]=[1,3,50257]</code>입니다.</p>
+<pre><code>input_ids.shape = [1, 3]
         ↓ GPT2LMHeadModel
 logits.shape    = [1, 3, 50257]
 
 last_position_logits = logits[:, -1, :]
-last_position_logits.shape = [1, 50257]</code></pre>
-        <p><code>logits[:, -1, :]</code>는 모든 Batch 행에서 마지막 Token 위치를 고르고, 그 위치의 Vocabulary 점수 <code>50257</code>개를 전부 남깁니다. 따라서 <code>[1,50257]</code>은 아직 Token ID 하나가 아니라 <strong>다음 Token 후보 전체의 점수표</strong>입니다.</p>
-
-        <h4 id="argmax-token-id">Argmax는 최대 점수의 값이 아니라 그 칸의 Token ID를 반환한다</h4>
-        <pre><code>next_token_ids = last_position_logits.argmax(
+last_position_logits.shape = [1, 50257]
+</code></pre>
+<p><code>logits[:, -1, :]</code>는 모든 Batch 행에서 마지막 Token 위치를 고르고, 그 위치의 Vocabulary 점수 <code>50257</code>개를 전부 남깁니다. 따라서 <code>[1,50257]</code>은 아직 Token ID 하나가 아니라 다음 Token 후보 전체의 점수표입니다.</p>
+<h4>Argmax는 최대 점수의 값이 아니라 그 칸의 Token ID를 반환한다</h4>
+<pre><code>next_token_ids = last_position_logits.argmax(
     dim=-1,
     keepdim=True,
 )
 
 [1, 50257] → [1, 1]
-next_token_ids = [[5087]]</code></pre>
-        <p><code>argmax(dim=-1)</code>는 각 행의 마지막 Vocabulary 축에서 가장 큰 <em>원소 값</em>을 반환하지 않습니다. 그 원소가 있던 <strong>열 index</strong>를 반환하며, Vocabulary 열 index가 곧 Token ID입니다. <code>keepdim=True</code>로 후보 축 자리를 길이 1인 축으로 유지했기 때문에 결과가 <code>[B,1]=[1,1]</code>이 되어 기존 <code>[B,S]</code> Token ID Tensor 뒤에 바로 붙일 수 있습니다.</p>
-        <pre><code>logits.argmax(dim=-1).shape
+next_token_ids = [[5087]]
+</code></pre>
+<p><code>argmax(dim=-1)</code>는 각 행의 마지막 Vocabulary 축에서 가장 큰 _원소 값_을 반환하지 않습니다. 그 원소가 있던 열 index를 반환하며, Vocabulary 열 index가 곧 Token ID입니다. <code>keepdim=True</code>로 후보 축 자리를 길이 1인 축으로 유지했기 때문에 결과가 <code>[B,1]=[1,1]</code>이 되어 기존 <code>[B,S]</code> Token ID Tensor 뒤에 바로 붙일 수 있습니다.</p>
+<pre><code>logits.argmax(dim=-1).shape
 # [B, S]       모든 위치마다 예측 ID 하나
 
 logits[:, -1, :].argmax(dim=-1, keepdim=True).shape
-# [B, 1]       각 문장의 마지막 Prefix 뒤에 붙일 ID 하나</code></pre>
-        <p>Causal Mask 때문에 “2번 위치에서 고른 ID”라고만 표현하면 문맥이 빠집니다. 정확히는 <strong>2번 위치까지의 Token 문맥을 반영한 벡터로 예측한 다음 Token ID</strong>입니다. 위치 2의 Logit은 Token 하나만 본 결과가 아니라 현재 Prefix 전체를 볼 수 있는 마지막 문맥 위치의 결과입니다.</p>
-
-        <h4 id="append-and-decode-token-id">Token 축으로 붙이고 첫 Batch 행 전체를 Decode한다</h4>
-        <pre><code>extended_input_ids = torch.cat(
+# [B, 1]       각 문장의 마지막 Prefix 뒤에 붙일 ID 하나
+</code></pre>
+<p>Causal Mask 때문에 “2번 위치에서 고른 ID”라고만 표현하면 문맥이 빠집니다. 정확히는 2번 위치까지의 Token 문맥을 반영한 벡터로 예측한 다음 Token ID입니다. 위치 2의 Logit은 Token 하나만 본 결과가 아니라 현재 Prefix 전체를 볼 수 있는 마지막 문맥 위치의 결과입니다.</p>
+<h4>Token 축으로 붙이고 첫 Batch 행 전체를 Decode한다</h4>
+<pre><code>extended_input_ids = torch.cat(
     [input_ids, next_token_ids],
     dim=1,
 )
 
 [B, S] + [B, 1] → [B, S + 1]
-[1, 3] + [1, 1] → [1, 4]</code></pre>
-        <p><code>dim=1</code>은 현재 <code>[Batch,Token]</code> Tensor의 Token 축입니다. 따라서 Batch마다 선택한 ID 하나가 각 문장의 뒤에 추가됩니다. <code>input_ids[0]</code>은 첫 번째 Token 하나가 아니라 <strong>0번 Batch 행의 전체 Token sequence</strong>이므로, 이를 Decode하면 첫 문장 전체가 나옵니다.</p>
-        <pre><code>tokenizer.decode(input_ids[0])
-→ "I study."
+[1, 3] + [1, 1] → [1, 4]
+</code></pre>
+<p><code>dim=1</code>은 현재 <code>[Batch,Token]</code> Tensor의 Token 축입니다. 따라서 Batch마다 선택한 ID 하나가 각 문장의 뒤에 추가됩니다. <code>input_ids[0]</code>은 첫 번째 Token 하나가 아니라 0번 Batch 행의 전체 Token sequence이므로, 이를 Decode하면 첫 문장 전체가 나옵니다.</p>
+<pre><code>tokenizer.decode(input_ids[0])
+→ &quot;I study.&quot;
 
 tokenizer.decode(extended_input_ids[0])
-→ "I study. factors"</code></pre>
-        <p>Tokenizer의 Decode는 ID를 문자 조각과 문자열로 되돌립니다. 모델의 Token Embedding은 같은 ID를 학습 Vector로 조회하고, LM Head는 각 문맥 Vector를 다시 <strong>동일한 ID 체계</strong>의 후보 점수로 바꿉니다. Tokenizer와 모델은 별도 객체이지만, 이 왕복이 성립하려면 두 객체의 Vocabulary와 Token ID 대응이 맞아야 합니다.</p>
-        <div class="caution"><strong>실행 결과의 범위</strong> — ID <code>5087</code>과 <code>" factors"</code>는 이 작은 사전학습 모델에 한 Prompt를 넣고 Greedy(탐욕 선택) 방식으로 한 번 선택한 관찰값입니다. 문장의 자연스러움이나 모델의 일반 성능을 검증한 결과는 아닙니다.</div>
-
-        <h4 id="top-p-boundary-mask">Top-p 경계 Mask를 오른쪽으로 미는 이유</h4>
-        <p>Top-p(Nucleus Sampling, 누적 확률 기반 샘플링)는 선택 비중이 큰 후보부터 더했을 때 누적합이 기준 <code>p</code>를 처음 충족하는 후보까지 남깁니다. 아래 값은 모델의 raw Logit이 아니라, 작은 예제로 이미 Softmax를 거쳤다고 가정한 후보별 선택 비중입니다.</p>
-        <pre><code>token_weights = [0.10, 0.40, 0.05, 0.30, 0.15]
+→ &quot;I study. factors&quot;
+</code></pre>
+<p>Tokenizer의 Decode는 ID를 문자 조각과 문자열로 되돌립니다. 모델의 Token Embedding은 같은 ID를 학습 Vector로 조회하고, LM Head는 각 문맥 Vector를 다시 동일한 ID 체계의 후보 점수로 바꿉니다. Tokenizer와 모델은 별도 객체이지만, 이 왕복이 성립하려면 두 객체의 Vocabulary와 Token ID 대응이 맞아야 합니다.</p>
+<p><strong>실행 결과의 범위</strong> — ID <code>5087</code>과 <code>&quot; factors&quot;</code>는 이 작은 사전학습 모델에 한 Prompt를 넣고 Greedy(탐욕 선택) 방식으로 한 번 선택한 관찰값입니다. 문장의 자연스러움이나 모델의 일반 성능을 검증한 결과는 아닙니다.</p>
+<h4>Top-p 경계 Mask를 오른쪽으로 미는 이유</h4>
+<p>Top-p(Nucleus Sampling, 누적 확률 기반 샘플링)는 선택 비중이 큰 후보부터 더했을 때 누적합이 기준 <code>p</code>를 처음 충족하는 후보까지 남깁니다. 아래 값은 모델의 raw Logit이 아니라, 작은 예제로 이미 Softmax를 거쳤다고 가정한 후보별 선택 비중입니다.</p>
+<pre><code>token_weights = [0.10, 0.40, 0.05, 0.30, 0.15]
 
 정렬된 선택 비중 = [0.40, 0.30, 0.15, 0.10, 0.05]
 정렬된 Token ID  = [1,    3,    4,    0,    2]
 누적합             = [0.40, 0.70, 0.85, 0.95, 1.00]
-top_p              = 0.80</code></pre>
-        <p>누적합에 바로 <code>&gt; top_p</code>를 적용하면 제거 Mask는 <code>[False, False, True, True, True]</code>가 됩니다. 하지만 앞의 A와 B만 남기면 누적 비중은 <code>0.40 + 0.30 = 0.70</code>이라 기준 <code>0.80</code>에 아직 못 미칩니다. C의 <code>0.15</code>까지 포함해야 누적합 <code>0.85</code>로 처음 기준을 충족하므로, <strong>처음 기준을 넘게 만든 후보 C도 선택 후보에 남겨야 합니다.</strong></p>
-        <pre><code>원래 제거 Mask = [False, False, True,  True, True]
+top_p              = 0.80
+</code></pre>
+<p>누적합에 바로 <code>&gt; top_p</code>를 적용하면 제거 Mask는 <code>[False, False, True, True, True]</code>가 됩니다. 하지만 앞의 A와 B만 남기면 누적 비중은 <code>0.40 + 0.30 = 0.70</code>이라 기준 <code>0.80</code>에 아직 못 미칩니다. C의 <code>0.15</code>까지 포함해야 누적합 <code>0.85</code>로 처음 기준을 충족하므로, <strong>처음 기준을 넘게 만든 후보 C도 선택 후보에 남겨야 합니다.</strong></p>
+<pre><code>원래 제거 Mask = [False, False, True,  True, True]
 오른쪽으로 이동 = [False, False, False, True, True]
                               ↑
-                    처음 초과한 후보 C는 유지</code></pre>
-
-        <h5>“처음 True 하나만 False로 뒤집으면 되는데, 왜 전체 Mask를 미는가?”</h5>
-        <p>한 행의 누적합은 뒤로 갈수록 작아지지 않으므로, <code>누적합 &gt; top_p</code> 결과는 항상 <code>False ... False, True ... True</code> 모양입니다. 따라서 이 Mask를 한 칸 오른쪽으로 미는 것은 경계의 첫 번째 <code>True</code>만 유지 대상으로 바꾸는 것과 결과가 같습니다.</p>
-        <p>첫 <code>True</code>의 위치를 직접 찾아 그 값 하나만 뒤집는 방법도 만들 수 있습니다. 다만 Batch마다 경계 index가 다르고, 어떤 행에는 <code>True</code>가 없을 수도 있어 별도 탐색과 예외 처리가 필요합니다. 오른쪽 이동은 모든 Batch 행에 같은 Tensor 연산을 적용해 이 처리를 한 번에 끝내는 벡터 연산입니다.</p>
-        <pre><code>remove_mask[:, 1:] = remove_mask[:, :-1].clone()
-remove_mask[:, 0] = False</code></pre>
-        <p>첫 줄은 “값을 이동시키는 명령”이라고만 외우기보다 <strong>전체 행의 1번 열부터 끝까지를, 같은 행의 0번 열부터 마지막 전까지의 복사본으로 덮어쓴다</strong>고 읽는 편이 정확합니다.</p>
-        <pre><code>예시 원본:       [1, 2, 3, 4, 5]
+                    처음 초과한 후보 C는 유지
+</code></pre>
+<h5>“처음 True 하나만 False로 뒤집으면 되는데, 왜 전체 Mask를 미는가?”</h5>
+<p>한 행의 누적합은 뒤로 갈수록 작아지지 않으므로, <code>누적합 &gt; top_p</code> 결과는 항상 <code>False ... False, True ... True</code> 모양입니다. 따라서 이 Mask를 한 칸 오른쪽으로 미는 것은 경계의 첫 번째 <code>True</code>만 유지 대상으로 바꾸는 것과 결과가 같습니다.</p>
+<p>첫 <code>True</code>의 위치를 직접 찾아 그 값 하나만 뒤집는 방법도 만들 수 있습니다. 다만 Batch마다 경계 index가 다르고, 어떤 행에는 <code>True</code>가 없을 수도 있어 별도 탐색과 예외 처리가 필요합니다. 오른쪽 이동은 모든 Batch 행에 같은 Tensor 연산을 적용해 이 처리를 한 번에 끝내는 벡터 연산입니다.</p>
+<pre><code>remove_mask[:, 1:] = remove_mask[:, :-1].clone()
+remove_mask[:, 0] = False
+</code></pre>
+<p>첫 줄은 “값을 이동시키는 명령”이라고만 외우기보다 전체 행의 1번 열부터 끝까지를, 같은 행의 0번 열부터 마지막 전까지의 복사본으로 덮어쓴다고 읽는 편이 정확합니다.</p>
+<pre><code>예시 원본:       [1, 2, 3, 4, 5]
 목적지 [:, 1:]:    [2, 3, 4, 5]
 원본   [:, :-1]: [1, 2, 3, 4]
-덮어쓴 결과:    [1, 1, 2, 3, 4]</code></pre>
-        <p><code>.clone()</code>은 같은 Tensor 안에서 원본 범위와 목적지 범위가 겹칠 때, 쓰는 도중 읽을 값까지 바뀌지 않도록 오른쪽에 넣을 값을 먼저 별도 복사합니다. 이어지는 <code>remove_mask[:, 0] = False</code>는 이동 후에도 각 행의 최고 비중 후보만큼은 항상 남도록 0번 위치를 명시적으로 보장합니다.</p>
-        <pre><code>filtered_weights = sorted_weights.masked_fill(
+덮어쓴 결과:    [1, 1, 2, 3, 4]
+</code></pre>
+<p><code>.clone()</code>은 같은 Tensor 안에서 원본 범위와 목적지 범위가 겹칠 때, 쓰는 도중 읽을 값까지 바뀌지 않도록 오른쪽에 넣을 값을 먼저 별도 복사합니다. 이어지는 <code>remove_mask[:, 0] = False</code>는 이동 후에도 각 행의 최고 비중 후보만큼은 항상 남도록 0번 위치를 명시적으로 보장합니다.</p>
+<pre><code>filtered_weights = sorted_weights.masked_fill(
     remove_mask,
     0.0,
 )
@@ -867,13 +377,13 @@ next_token_ids = torch.gather(
     sorted_token_ids,
     dim=-1,
     index=selected_sorted_positions,
-)</code></pre>
-        <p>경계 밖 후보는 <code>masked_fill</code>로 선택 비중을 0으로 만들고, 남은 값은 각 원소를 남은 값의 합으로 나눠 합이 다시 1이 되게 조정합니다. <code>multinomial</code>은 이 바뀐 비중으로 <strong>정렬 목록 안의 위치</strong>를 추첨하고, <code>gather</code>가 같은 위치의 <code>sorted_token_ids</code>에서 실제 Token ID를 가져옵니다. 이 과정에서 추첨용 <code>filtered_weights</code>는 원래 분포와 달라지지만, 실제 ID 목록인 <code>sorted_token_ids</code> 자체는 바뀌지 않습니다.</p>
-        <div class="caution"><strong>확인된 범위</strong> — 작은 선택 비중 예제로 경계 Mask와 오른쪽 이동을 이해한 뒤, 같은 연산을 사전학습 모델의 전체 Vocabulary와 5회 반복 생성에 적용했습니다. 단계마다 남은 후보 수가 달라지는 것과 최종 Token ID Shape <code>[1,8]</code>을 확인했습니다. 이는 Top-p 알고리즘 연결을 검증한 것이며, 생성 문장의 품질이나 사전학습 Causal LM 관문 전체 완료를 뜻하지 않습니다.</div>
-
-        <h4 id="last-real-position-with-padding">Padding Batch에서는 <code>-1</code>이 마지막 실제 Token이 아닐 수 있다</h4>
-        <p>위 한 문장 실행은 Padding이 없어서 <code>-1</code>이 실제 마지막 Token 위치였습니다. 하지만 길이가 다른 문장을 오른쪽 Padding한 <code>[2,7]</code> Batch에서는 짧은 문장의 <code>-1</code> 위치가 PAD입니다. 이때는 <code>attention_mask</code>로 각 행의 실제 마지막 위치 <code>[2,6]</code>을 구하고 Batch index와 함께 고급 인덱싱해야 합니다.</p>
-        <pre><code>real_token_counts = attention_mask.sum(dim=1)
+)
+</code></pre>
+<p>경계 밖 후보는 <code>masked_fill</code>로 선택 비중을 0으로 만들고, 남은 값은 각 원소를 남은 값의 합으로 나눠 합이 다시 1이 되게 조정합니다. <code>multinomial</code>은 이 바뀐 비중으로 정렬 목록 안의 위치를 추첨하고, <code>gather</code>가 같은 위치의 <code>sorted_token_ids</code>에서 실제 Token ID를 가져옵니다. 이 과정에서 추첨용 <code>filtered_weights</code>는 원래 분포와 달라지지만, 실제 ID 목록인 <code>sorted_token_ids</code> 자체는 바뀌지 않습니다.</p>
+<p><strong>확인된 범위</strong> — 작은 선택 비중 예제로 경계 Mask와 오른쪽 이동을 이해한 뒤, 같은 연산을 사전학습 모델의 전체 Vocabulary와 5회 반복 생성에 적용했습니다. 단계마다 남은 후보 수가 달라지는 것과 최종 Token ID Shape <code>[1,8]</code>을 확인했습니다. 이는 Top-p 알고리즘 연결을 검증한 것이며, 생성 문장의 품질이나 사전학습 Causal LM 관문 전체 완료를 뜻하지 않습니다.</p>
+<h4>Padding Batch에서는 <code>-1</code>이 마지막 실제 Token이 아닐 수 있다</h4>
+<p>위 한 문장 실행은 Padding이 없어서 <code>-1</code>이 실제 마지막 Token 위치였습니다. 하지만 길이가 다른 문장을 오른쪽 Padding한 <code>[2,7]</code> Batch에서는 짧은 문장의 <code>-1</code> 위치가 PAD입니다. 이때는 <code>attention_mask</code>로 각 행의 실제 마지막 위치 <code>[2,6]</code>을 구하고 Batch index와 함께 고급 인덱싱해야 합니다.</p>
+<pre><code>real_token_counts = attention_mask.sum(dim=1)
 last_real_positions = real_token_counts - 1
 # tensor([2, 6])
 
@@ -884,69 +394,51 @@ last_real_logits = logits[
     :,
 ]
 
-[B, S, V] → [B, V]</code></pre>
-        <p>이 선택은 <code>0번 Batch → 2번 실제 Token 위치 → Vocabulary 전체 열</code>, <code>1번 Batch → 6번 실제 Token 위치 → Vocabulary 전체 열</code>을 한 번에 수행합니다. 단순한 <code>logits[:, -1, :]</code>은 Padding이 없는 입력이나 모든 문장의 마지막 실제 위치가 같은 경우에만 그대로 사용할 수 있습니다.</p>
-        <h4 id="tensor-dim-semantic-axis">축 번호를 고르는 기준: <code>dim=1</code>과 <code>dim=-1</code></h4>
-        <p>PyTorch에 모든 코드가 따라야 하는 하나의 업계 규칙이 있는 것은 아닙니다. 다만 축의 <strong>의미를 고정해 강조할 때는 양수 축 번호</strong>를, 앞쪽 축이 늘어나도 <strong>항상 마지막 축을 처리하려 할 때는 음수 축 번호</strong>를 쓰는 패턴이 흔합니다.</p>
-        <pre><code>attention_mask.shape = [batch, token]
+[B, S, V] → [B, V]
+</code></pre>
+<p>이 선택은 <code>0번 Batch → 2번 실제 Token 위치 → Vocabulary 전체 열</code>, <code>1번 Batch → 6번 실제 Token 위치 → Vocabulary 전체 열</code>을 한 번에 수행합니다. 단순한 <code>logits[:, -1, :]</code>은 Padding이 없는 입력이나 모든 문장의 마지막 실제 위치가 같은 경우에만 그대로 사용할 수 있습니다.</p>
+<h4>축 번호를 고르는 기준: <code>dim=1</code>과 <code>dim=-1</code></h4>
+<p>PyTorch에 모든 코드가 따라야 하는 하나의 업계 규칙이 있는 것은 아닙니다. 다만 축의 의미를 고정해 강조할 때는 양수 축 번호를, 앞쪽 축이 늘어나도 항상 마지막 축을 처리하려 할 때는 음수 축 번호를 쓰는 패턴이 흔합니다.</p>
+<pre><code>attention_mask.shape = [batch, token]
                                   0      1
 
 real_token_counts = attention_mask.sum(dim=1)
 # [batch, token] 계약에서 Token 축이 1번임을 명시
-# 현재 Token 축은 마지막 축이기도 하므로 dim=-1과 결과는 동일</code></pre>
-        <p>여기서 <code>dim=1</code>은 단순히 “마지막 축”을 가리킨 것이 아니라, <code>[batch, token]</code> 구조에서 <strong>Token 축을 따라 합산한다</strong>는 의도를 드러냅니다. 반대로 Logit의 Shape이 <code>[batch, token, vocab]</code>일 때 <code>softmax(dim=-1)</code>이라고 쓰면, Batch나 Token 축의 수와 상관없이 항상 마지막 Vocabulary 축에서 후보 점수를 정규화한다는 의도가 잘 드러납니다.</p>
-        <pre><code>attention_mask.sum(dim=1)  # 고정된 [B, S]에서 S(Token) 축
-logits.softmax(dim=-1)     # [..., V]에서 항상 마지막 V(Vocabulary) 축</code></pre>
-        <div class="caution"><strong>숫자만 외우지 않는다</strong> — <code>1</code>이 항상 Token 축인 것은 아닙니다. 먼저 현재 Tensor의 Shape을 <code>[B,S]</code>, <code>[B,S,V]</code>처럼 적고, 처리하려는 의미 축의 위치를 확인한 뒤 <code>dim</code>을 선택합니다.</div>
-        <div class="caution"><strong>두 Mask의 역할을 구분한다</strong> — 이 절의 <code>attention_mask</code>는 짧은 문장 뒤의 PAD 위치를 가리는 Padding Mask입니다. Decoder의 Causal Mask는 실제 Token 중에서도 미래 위치를 보지 못하게 가립니다. 두 Mask는 목적이 다르며 모델 안에서 함께 적용될 수 있습니다.</div>
-        <div class="caution"><strong>Tiny Decoder 당시의 경계</strong> — 앞의 <code>vocab_size=10</code>, <code>d_model=2</code> 실행은 Token Embedding lookup까지만 확인했던 당시 기록입니다. 이후 별도 Tiny Decoder 통합과 이번 사전학습 모델 Forward에서는 Position 정보와 Causal Transformer Block, LM Head까지 연결된 Logit을 확인했습니다. 당시 경계와 후속 검증을 서로 다른 실행 증거로 구분합니다.</div>
-        <p><a class="doc-link" href="transformer_learning.html#tiny-decoder-logits-loss">Tiny Decoder의 LM Head와 위치별 Loss로 돌아가기 →</a></p>
-      </section>
+# 현재 Token 축은 마지막 축이기도 하므로 dim=-1과 결과는 동일
+</code></pre>
+<p>여기서 <code>dim=1</code>은 단순히 “마지막 축”을 가리킨 것이 아니라, <code>[batch, token]</code> 구조에서 Token 축을 따라 합산한다는 의도를 드러냅니다. 반대로 Logit의 Shape이 <code>[batch, token, vocab]</code>일 때 <code>softmax(dim=-1)</code>이라고 쓰면, Batch나 Token 축의 수와 상관없이 항상 마지막 Vocabulary 축에서 후보 점수를 정규화한다는 의도가 잘 드러납니다.</p>
+<pre><code>attention_mask.sum(dim=1)  # 고정된 [B, S]에서 S(Token) 축
+logits.softmax(dim=-1)     # [..., V]에서 항상 마지막 V(Vocabulary) 축
+</code></pre>
+<p><strong>숫자만 외우지 않는다</strong> — <code>1</code>이 항상 Token 축인 것은 아닙니다. 먼저 현재 Tensor의 Shape을 <code>[B,S]</code>, <code>[B,S,V]</code>처럼 적고, 처리하려는 의미 축의 위치를 확인한 뒤 <code>dim</code>을 선택합니다.</p>
+<p><strong>두 Mask의 역할을 구분한다</strong> — 이 절의 <code>attention_mask</code>는 짧은 문장 뒤의 PAD 위치를 가리는 Padding Mask입니다. Decoder의 Causal Mask는 실제 Token 중에서도 미래 위치를 보지 못하게 가립니다. 두 Mask는 목적이 다르며 모델 안에서 함께 적용될 수 있습니다.</p>
+<p><strong>Tiny Decoder 당시의 경계</strong> — 앞의 <code>vocab_size=10</code>, <code>d_model=2</code> 실행은 Token Embedding lookup까지만 확인했던 당시 기록입니다. 이후 별도 Tiny Decoder 통합과 이번 사전학습 모델 Forward에서는 Position 정보와 Causal Transformer Block, LM Head까지 연결된 Logit을 확인했습니다. 당시 경계와 후속 검증을 서로 다른 실행 증거로 구분합니다.</p>
+<p><a href="transformer_learning.html#tiny-decoder-logits-loss">Tiny Decoder의 LM Head와 위치별 Loss로 돌아가기 →</a></p>
+<h3>이 셀을 이해했는지 확인하기</h3>
+<details class="md-component md-details"><summary>vocab_size 가 10,000이면 출력 벡터도 10,000차원일까?</summary><div class="md-component-body"><p>아닙니다. <code>vocab_size</code>는 임베딩 표의 행 개수이고, 출력 벡터 차원은 <code>d_model</code>이 결정합니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>nn.Embedding 의 값은 고정되어 있을까?</summary><div class="md-component-body"><p>아닙니다. 임베딩 표는 학습 가능한 파라미터이며, 역전파를 통해 각 토큰 벡터가 업데이트됩니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>입력이  [2, 4] 이고  d_model=512 라면 출력 shape은?</summary><div class="md-component-body"><p><code>[2, 4, 512]</code>입니다. 배치와 시퀀스 축은 유지되고 각 토큰에 벡터 축이 추가됩니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>logits[:, -1, :] 의  [B,V] 는 이미 다음 Token ID일까?</summary><div class="md-component-body"><p>아닙니다. 각 문장의 마지막 Prefix 위치가 Vocabulary 전체에 준 후보 점수입니다. <code>argmax(dim=-1)</code>처럼 후보 선택을 해야 그 열 index인 Token ID가 나옵니다.</p>
+</div></details>
+<details class="md-component md-details"><summary>왜 길이가 다른 Padding Batch에서는 항상  -1 을 선택하면 안 될까?</summary><div class="md-component-body"><p>오른쪽 Padding된 짧은 문장의 <code>-1</code> 위치는 실제 Token이 아니라 PAD일 수 있습니다. <code>attention_mask</code>에서 실제 Token 수를 세고 마지막 실제 위치를 구해 Batch별로 선택해야 합니다.</p>
+</div></details>
 
-      <section class="checkpoint" id="checkpoint">
-        <h3>이 셀을 이해했는지 확인하기</h3>
-        <details>
-          <summary><code>vocab_size</code>가 10,000이면 출력 벡터도 10,000차원일까?</summary>
-          <p>아닙니다. <code>vocab_size</code>는 임베딩 표의 행 개수이고, 출력 벡터 차원은 <code>d_model</code>이 결정합니다.</p>
-        </details>
-        <details>
-          <summary><code>nn.Embedding</code>의 값은 고정되어 있을까?</summary>
-          <p>아닙니다. 임베딩 표는 학습 가능한 파라미터이며, 역전파를 통해 각 토큰 벡터가 업데이트됩니다.</p>
-        </details>
-        <details>
-          <summary>입력이 <code>[2, 4]</code>이고 <code>d_model=512</code>라면 출력 shape은?</summary>
-          <p><code>[2, 4, 512]</code>입니다. 배치와 시퀀스 축은 유지되고 각 토큰에 벡터 축이 추가됩니다.</p>
-        </details>
-        <details>
-          <summary><code>logits[:, -1, :]</code>의 <code>[B,V]</code>는 이미 다음 Token ID일까?</summary>
-          <p>아닙니다. 각 문장의 마지막 Prefix 위치가 Vocabulary 전체에 준 후보 점수입니다. <code>argmax(dim=-1)</code>처럼 후보 선택을 해야 그 열 index인 Token ID가 나옵니다.</p>
-        </details>
-        <details>
-          <summary>왜 길이가 다른 Padding Batch에서는 항상 <code>-1</code>을 선택하면 안 될까?</summary>
-          <p>오른쪽 Padding된 짧은 문장의 <code>-1</code> 위치는 실제 Token이 아니라 PAD일 수 있습니다. <code>attention_mask</code>에서 실제 Token 수를 세고 마지막 실제 위치를 구해 Batch별로 선택해야 합니다.</p>
-        </details>
-      </section>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    </main>
-  </div>
-
-  <footer>
-    <div class="page">Transformer from scratch · Cell 01 Token Embedding · Cell 02 Positional Encoding · Cell 03 Scaled Dot-Product Attention</div>
-  </footer>
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_token_embedding_initialization_learning.html">임베딩 초기화의 분산과 제곱합</a></li>
+<li><a href="transformer_token_embedding_scaling_learning.html">왜 √d_model로 스케일링하는가?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
-  <script src="../../assets/js/global_nav.js?v=20260901-record-pages-1"></script>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
 </html>
