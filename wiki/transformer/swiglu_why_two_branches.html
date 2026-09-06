@@ -1,0 +1,619 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/swiglu_why_two_branches.md. Do not edit directly. source-sha256:38821c26a6dd6fade747051509db9e258b49a48a97cdfa32a8605d5818a22d67 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="기존 FFN과 SwiGLU를 비교하고, SiLU 내부 곱셈과 up·gate 결합, down projection의 서로 다른 역할을 실제 숫자와 Shape으로 설명합니다.">
+  <meta name="source-sha256" content="38821c26a6dd6fade747051509db9e258b49a48a97cdfa32a8605d5818a22d67">
+  <title>SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-wiki-layout-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까">
+  <meta property="og:description" content="기존 FFN과 SwiGLU를 비교하고, SiLU 내부 곱셈과 up·gate 결합, down projection의 서로 다른 역할을 실제 숫자와 Shape으로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html","name":"SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까","description":"기존 FFN과 SwiGLU를 비교하고, SiLU 내부 곱셈과 up·gate 결합, down projection의 서로 다른 역할을 실제 숫자와 Shape으로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html"},"headline":"SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-ffn","name":"FFN","identifier":"topics-ffn"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-ffn","name":"FFN","identifier":"transformer-ffn"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/swiglu_why_two_branches.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Token끼리 섞은 다음 각 Token을 따로 가공하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ffn_learning.html"},{"@type":"ListItem","position":6,"name":"SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_ffn_learning.html">Token끼리 섞은 다음 각 Token을 따로 가공하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까</h1>
+      <p class="lead">기존 FFN과 SwiGLU를 비교하고, SiLU 내부 곱셈과 up·gate 결합, down projection의 서로 다른 역할을 실제 숫자와 Shape으로 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-lead"><p>SwiGLU를 처음 보면 같은 입력을 두 개의 Linear에 넣고, 한쪽에는 SiLU까지 적용한 다음, 두 결과를 다시 곱는 구조가 불필요하게 복잡해 보인다.</p>
+<p>특히 다음과 같은 의문이 생긴다.</p>
+<blockquote>
+<p>하나의 Linear 출력에 SiLU를 적용하고 마지막 Linear로 줄이면 되지 않을까? 왜 별도의 <code>up</code> Linear를 하나 더 만들고 다시 곱할까?</p>
+</blockquote>
+<p>결론부터 말하면, 한 갈래만 사용하는 구조도 충분히 가능한 일반적인 FFN이다. SwiGLU가 두 갈래를 사용하는 이유는 <strong>전달할 중간 특징과 그 특징을 조절할 값을 서로 다른 Linear로 따로 만들기 위해서</strong>다.</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ffn">기존 FFN의 구조</a>
+        <a href="#swiglu">SwiGLU의 구조</a>
+        <a href="#silu">첫 번째 곱셈: SiLU를 만든다</a>
+        <a href="#section-2bdd75fd1722">“부드러운 비선형 변환”의 의미</a>
+        <a href="#up-gate">두 번째 곱셈: up 특징을 gate로 조절한다</a>
+        <a href="#up-linear">왜 up Linear를 별도로 만들까</a>
+        <a href="#linear-down">마지막 Linear down은 무엇을 할까</a>
+        <a href="#section-83fafe31b26c">실습에서 실제로 확인한 범위</a>
+        <a href="#linear-module-practice">Linear까지 연결한 전체 실습</a>
+        <a href="#section-a8e1097b68c2">최종 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="ffn" class="markdown-section">
+<h2>기존 FFN의 구조</h2>
+<p>일반적인 FFN은 입력을 중간 크기로 확장하고 활성화 함수를 적용한 뒤, 다시 원래 feature 크기로 줄인다.</p>
+<pre><code class="language-mermaid">flowchart TD
+    X[&quot;한 토큰의 입력&lt;br/&gt;feature 2개&quot;]
+    U[&quot;Linear up&lt;br/&gt;2 → 3&quot;]
+    A[&quot;GELU 또는 SiLU&lt;br/&gt;비선형 변환&quot;]
+    D[&quot;Linear down&lt;br/&gt;3 → 2&quot;]
+    Y[&quot;한 토큰의 출력&lt;br/&gt;feature 2개&quot;]
+
+    X --&gt; U --&gt; A --&gt; D --&gt; Y
+</code></pre>
+<p>설명용 Shape으로 쓰면 다음과 같다.</p>
+<pre><code class="language-text">[batch, token, 2]
+        ↓ Linear(2, 3)
+[batch, token, 3]
+        ↓ 활성화 함수
+[batch, token, 3]
+        ↓ Linear(3, 2)
+[batch, token, 2]
+</code></pre>
+<p>이 구조에서는 하나의 Linear가 만든 중간값이 두 가지 역할을 함께 담당한다.</p>
+<ul>
+<li>어떤 중간 특징을 표현할지</li>
+<li>그 특징을 얼마나 남길지</li>
+</ul>
+
+</section>
+<section id="swiglu" class="markdown-section">
+<h2>SwiGLU의 구조</h2>
+<p>SwiGLU에서는 같은 입력 전체를 서로 다른 두 Linear에 넣는다.</p>
+<p>입력 feature를 절반씩 쪼개는 것이 아니다. <strong>동일한 입력을 서로 다른 가중치를 가진 두 Linear가 각각 처리하는 것</strong>이다.</p>
+<pre><code class="language-mermaid">flowchart TD
+    X[&quot;한 토큰의 동일한 입력&lt;br/&gt;feature 2개&quot;]
+
+    U[&quot;Linear up&lt;br/&gt;2 → 3&lt;br/&gt;전달할 중간 특징 생성&quot;]
+    G[&quot;Linear gate&lt;br/&gt;2 → 3&lt;br/&gt;조절값 생성&quot;]
+
+    S[&quot;SiLU&lt;br/&gt;gate × sigmoid(gate)&quot;]
+    M[&quot;같은 위치끼리 곱하기&lt;br/&gt;up × SiLU(gate)&quot;]
+    D[&quot;Linear down&lt;br/&gt;3 → 2&lt;br/&gt;조절된 특징을 다시 조합&quot;]
+    Y[&quot;한 토큰의 출력&lt;br/&gt;feature 2개&quot;]
+
+    X --&gt; U
+    X --&gt; G
+    G --&gt; S
+    U --&gt; M
+    S --&gt; M
+    M --&gt; D --&gt; Y
+</code></pre>
+<p>전체 계산은 다음 한 줄로 표현할 수 있다.</p>
+<pre><code class="language-text">출력 = down_proj(SiLU(gate_proj(x)) × up_proj(x))
+</code></pre>
+<p>여기에는 서로 다른 역할을 가진 곱셈이 두 번 등장한다.</p>
+
+</section>
+<section id="silu" class="markdown-section">
+<h2>첫 번째 곱셈: SiLU를 만든다</h2>
+<p>게이트 Linear의 출력이 다음과 같다고 해보자.</p>
+<pre><code class="language-text">gate = [-2, 0, 2]
+</code></pre>
+<p>먼저 각 숫자에 sigmoid를 적용한다.</p>
+<pre><code class="language-text">sigmoid(gate) = [0.1192, 0.5000, 0.8808]
+</code></pre>
+<p>Sigmoid는 각 숫자를 다른 원소와 독립적으로 0과 1 사이로 압축한다.</p>
+<pre><code class="language-text">-2 → 0.1192
+ 0 → 0.5000
+ 2 → 0.8808
+</code></pre>
+<p>다른 원소가 바뀌어도 <code>sigmoid(-2)</code>의 결과는 변하지 않는다. 입력 하나의 값만 보고 출력 하나를 계산하기 때문이다.</p>
+<p>그런데 sigmoid 결과만 사용하면 큰 양수의 크기 차이가 거의 사라진다.</p>
+<pre><code class="language-text">sigmoid(10)   ≈ 1
+sigmoid(1000) ≈ 1
+</code></pre>
+<p>그래서 원래 gate를 다시 곱한다.</p>
+<pre><code class="language-text">SiLU(gate) = gate × sigmoid(gate)
+</code></pre>
+<p>실제 숫자는 다음과 같이 변한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">gate</th>
+<th align="right">sigmoid(gate)</th>
+<th align="right">SiLU(gate)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">−2</td>
+<td align="right">0.1192</td>
+<td align="right">−0.2384</td>
+</tr>
+<tr>
+<td align="right">0</td>
+<td align="right">0.5000</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td align="right">0.8808</td>
+<td align="right">1.7616</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 첫 번째 곱셈은 <strong>gate의 원래 부호와 크기를 완전히 잃지 않으면서, 값에 따라 통과 비율을 부드럽게 바꾸는 계산</strong>이다.</p>
+<p>예를 들어 큰 양수에서는 sigmoid가 거의 1이므로 원래 크기가 대부분 남는다.</p>
+<pre><code class="language-text">SiLU(10)   ≈ 10
+SiLU(1000) ≈ 1000
+</code></pre>
+<p>큰 음수에서는 sigmoid가 거의 0이므로 값이 크게 줄어든다.</p>
+
+</section>
+<section id="section-2bdd75fd1722" class="markdown-section">
+<h2>“부드러운 비선형 변환”의 의미</h2>
+<p>비선형이라는 말은 숫자가 특별한 종류로 바뀐다는 뜻이 아니다. <strong>입력과 출력의 관계를 하나의 직선으로 나타낼 수 없다는 뜻</strong>이다.</p>
+<p>항상 2를 곱하는 계산을 보자.</p>
+<pre><code class="language-text">입력: 0, 1, 2, 3
+출력: 0, 2, 4, 6
+</code></pre>
+<p>입력이 1씩 늘 때마다 출력은 항상 2씩 늘어난다. 그래프로 그리면 직선이다.</p>
+<p>반면 SiLU는 입력이 같은 간격으로 늘어도 출력의 변화량이 일정하지 않다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">입력</th>
+<th align="right">SiLU 출력</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">1</td>
+<td align="right">약 0.7311</td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td align="right">약 1.7616</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td align="right">약 2.8577</td>
+</tr>
+</tbody></table>
+</div>
+<p>그 이유는 항상 같은 숫자를 곱하는 것이 아니라, <code>sigmoid(x)</code>라는 <strong>입력에 따라 달라지는 비율</strong>을 곱하기 때문이다.</p>
+<p>SiLU는 ReLU처럼 음수를 갑자기 0으로 잘라내지도 않는다.</p>
+<pre><code class="language-text">ReLU:
+음수 → 0
+양수 → 그대로 통과
+
+SiLU:
+큰 음수 → 0에 가깝게 줄임
+0 근처 → 부드럽게 변화
+큰 양수 → 대부분 그대로 통과
+</code></pre>
+<p>따라서 “그래프의 꺾이는 부분을 완만하게 한다”는 직관은 맞다. 다만 SiLU의 역할은 단순히 그래프를 예쁘게 만드는 것이 아니라, <strong>각 입력값에 따라 통과 비율을 부드럽게 바꾸는 비선형 활성화</strong>를 만드는 것이다.</p>
+<p>또한 SiLU는 RMSNorm과 같은 정규화가 아니다.</p>
+<ul>
+<li>RMSNorm은 묶음 전체의 RMS를 이용해 전체적인 크기 기준을 맞춘다.</li>
+<li>SiLU는 각 원소가 자기 값에 따라 얼마나 남을지를 결정한다.</li>
+</ul>
+
+</section>
+<section id="up-gate" class="markdown-section">
+<h2>두 번째 곱셈: up 특징을 gate로 조절한다</h2>
+<p>이제 다른 Linear에서 만든 <code>up</code> 특징이 다음과 같다고 해보자.</p>
+<pre><code class="language-text">up = [2, 3, 4]
+</code></pre>
+<p>앞에서 만든 SiLU gate는 다음과 같다.</p>
+<pre><code class="language-text">SiLU(gate) = [-0.2384, 0, 1.7616]
+</code></pre>
+<p>두 텐서를 같은 위치끼리 곱한다.</p>
+<pre><code class="language-text">up × SiLU(gate)
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">up의 중간 특징</th>
+<th align="right">SiLU를 거친 gate</th>
+<th align="right">곱한 결과</th>
+<th>일어난 변화</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">2</td>
+<td align="right">−0.2384</td>
+<td align="right">−0.4768</td>
+<td>크기가 줄고 부호가 바뀜</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td>해당 특징이 사라짐</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">1.7616</td>
+<td align="right">7.0464</td>
+<td>해당 특징이 커짐</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 두 번째 곱셈은 SiLU를 만드는 계산이 아니다. <strong>up 갈래에서 만든 중간 특징을 gate 갈래의 결과로 조절하는 계산</strong>이다.</p>
+<p>두 곱셈의 역할을 분리하면 다음과 같다.</p>
+<pre><code class="language-text">gate × sigmoid(gate)
+</code></pre>
+<p>gate의 부호와 크기를 남기면서 부드럽게 변환한다. 이것이 SiLU다.</p>
+<pre><code class="language-text">up × SiLU(gate)
+</code></pre>
+<p>up이 만든 중간 특징에 입력 의존적인 조절을 적용한다. 이것이 SwiGLU의 게이트 결합이다.</p>
+
+</section>
+<section id="up-linear" class="markdown-section">
+<h2>왜 up Linear를 별도로 만들까</h2>
+<p>만약 up 갈래를 없애면 다음과 같은 구조가 된다.</p>
+<pre><code class="language-mermaid">flowchart TD
+    X[&quot;입력&quot;]
+    G[&quot;Linear&quot;]
+    S[&quot;SiLU&quot;]
+    D[&quot;Linear down&quot;]
+    Y[&quot;출력&quot;]
+
+    X --&gt; G --&gt; S --&gt; D --&gt; Y
+</code></pre>
+<p>이것은 잘못된 구조가 아니다. 실제로 사용할 수 있는 일반적인 SiLU FFN이다.</p>
+<p>하지만 이 구조에서는 하나의 값 <code>g</code>가 두 역할을 동시에 맡는다.</p>
+<pre><code class="language-text">전달할 중간 특징 = g
+통과 정도를 정하는 값 = g
+결과 = g × sigmoid(g)
+</code></pre>
+<p>SwiGLU는 두 역할을 분리한다.</p>
+<pre><code class="language-text">전달할 중간 특징 = up_proj(x)
+조절값             = gate_proj(x)
+
+결과 = up_proj(x) × SiLU(gate_proj(x))
+</code></pre>
+<p>즉, <code>up</code>은 <strong>무엇을 전달할지</strong> 만들고, <code>gate</code>는 <strong>그 특징을 현재 입력에서 어떻게 조절할지</strong> 만든다.</p>
+<p>예를 들어 입력에 <code>내용</code>과 <code>조건</code>에 해당하는 정보가 함께 있다면 서로 다른 Linear가 다음처럼 학습할 수 있다.</p>
+<pre><code class="language-text">up_proj(x)   → 전달할 내용에 반응
+gate_proj(x) → 그 내용을 사용할 조건에 반응
+</code></pre>
+<p>그러면 다음과 같은 계산이 가능해진다.</p>
+<pre><code class="language-text">전달할 내용 × 현재 조건에서 계산한 조절값
+</code></pre>
+<p>따라서 up 갈래를 다시 곱하는 이유를 다음과 같이 이해할 수 있다.</p>
+<blockquote>
+<p>Sigmoid와 SiLU를 거치며 gate를 만들더라도, 실제로 전달하려던 중간 특징의 의미와 크기를 잃고 싶지 않기 때문에 별도의 up 특징을 함께 곱한다.</p>
+</blockquote>
+<p>다만 up 값이 그대로 보존된다는 뜻은 아니다. gate에 의해 줄어들거나 커지고, 0이 되거나 부호가 바뀐 형태로 다음 단계에 전달된다.</p>
+<p>조금 더 정확하게 표현하면 다음과 같다.</p>
+<blockquote>
+<p>한 갈래에서는 전달할 중간 특징을 만들고, 다른 갈래에서는 그 특징을 조절할 값을 만든 뒤, 둘을 곱해 내용과 조절 정보를 함께 반영한다.</p>
+</blockquote>
+
+</section>
+<section id="linear-down" class="markdown-section">
+<h2>마지막 Linear down은 무엇을 할까</h2>
+<p>게이트 곱셈을 마친 결과는 아직 중간 feature 3개다.</p>
+<pre><code class="language-text">[-0.4768, 0, 7.0464]
+</code></pre>
+<p><code>Linear(3, 2)</code>는 이 숫자 세 개를 학습된 가중치로 조합해 출력 feature 두 개를 만든다.</p>
+<pre><code class="language-text">출력 1 = h₁w₁₁ + h₂w₁₂ + h₃w₁₃ + bias₁
+출력 2 = h₁w₂₁ + h₂w₂₂ + h₃w₂₃ + bias₂
+</code></pre>
+<p>따라서 Shape은 다음과 같이 돌아온다.</p>
+<pre><code class="language-text">[batch, token, 3]
+        ↓ Linear(3, 2)
+[batch, token, 2]
+</code></pre>
+<p>마지막 Linear에도 곱셈이 있지만 gate 곱셈과 역할이 다르다.</p>
+<ul>
+<li><code>SiLU(gate)</code>는 현재 입력에 따라 매번 달라진다.</li>
+<li>down Linear의 가중치는 학습 후 추론 중에는 고정돼 있다.</li>
+<li>gate 곱셈은 입력마다 중간 특징을 다르게 조절한다.</li>
+<li>down Linear는 이미 조절된 특징들을 최종 출력으로 조합한다.</li>
+</ul>
+<p>그러므로 마지막 Linear가 앞의 gate 곱셈을 그대로 대신하는 것은 아니다.</p>
+
+</section>
+<section id="section-83fafe31b26c" class="markdown-section">
+<h2>실습에서 실제로 확인한 범위</h2>
+<p>이번 실습에서는 Linear를 직접 실행하지 않고, 두 Linear의 출력이라고 가정한 텐서부터 시작했다.</p>
+<pre><code class="language-text">up   = [2, 3, 4]
+gate = [-2, 0, 2]
+</code></pre>
+<p>그리고 다음 계산을 실제로 확인했다.</p>
+<pre><code class="language-text">sigmoid(gate)
+= [0.1192, 0.5000, 0.8808]
+
+SiLU(gate)
+= gate × sigmoid(gate)
+= [-0.2384, 0, 1.7616]
+
+up × SiLU(gate)
+= [-0.4768, 0, 7.0464]
+</code></pre>
+<p>결과 Shape은 다음과 같았다.</p>
+<pre><code class="language-text">[batch, token, intermediate]
+= [1, 1, 3]
+</code></pre>
+<p>아직 실제로 연결하지 않은 부분은 다음 두 가지다.</p>
+<pre><code class="language-text">입력 → 실제 up Linear와 gate Linear
+곱한 결과 → 실제 down Linear
+</code></pre>
+<p>따라서 이번에 확인한 것은 <strong>SwiGLU의 핵심 중간 계산</strong>이고, 전체 Linear 모듈까지 실행한 것은 아니다.</p>
+
+</section>
+<section id="linear-module-practice" class="markdown-section">
+<h2>Linear까지 연결한 전체 실습</h2>
+<p>앞의 실습에서는 <code>up = [2, 3, 4]</code>와 <code>gate = [-2, 0, 2]</code>를 두 Linear의 출력이라고 가정하고 SwiGLU의 가운데 계산만 확인했습니다. 이번에는 같은 숫자가 나오도록 실제 <code>Linear</code> 가중치를 지정하고, 입력부터 <code>up projection</code>, <code>gate projection</code>, SiLU, 위치별 곱셈, <code>down projection</code>까지 모두 연결합니다.</p>
+<p>Tensor의 축 의미를 코드 안에서 바로 확인할 수 있도록 주요 Tensor에는 <code>jaxtyping</code>을 사용합니다. 입력 Shape은 <code>[batch=1, token=1, input_feature=2]</code>이고, 두 projection은 feature를 2개에서 3개로 늘립니다. 마지막 projection은 3개를 다시 2개로 줄입니다. 계산 흐름을 알아보기 쉽도록 세 Linear의 가중치는 직접 지정합니다.</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+from jaxtyping import Float
+from torch import Tensor
+from torch.nn import Linear
+
+
+hidden_states: Float[
+    Tensor,
+    &quot;batch token input_feature&quot;,
+] = torch.tensor(
+    [[[1.0, 2.0]]]
+)
+
+up_projection = Linear(
+    in_features=2,
+    out_features=3,
+    bias=False,
+)
+
+gate_projection = Linear(
+    in_features=2,
+    out_features=3,
+    bias=False,
+)
+
+down_projection = Linear(
+    in_features=3,
+    out_features=2,
+    bias=False,
+)
+
+with torch.no_grad():
+    up_projection.weight.copy_(
+        torch.tensor(
+            [
+                [2.0, 0.0],
+                [1.0, 1.0],
+                [0.0, 2.0],
+            ]
+        )
+    )
+
+    gate_projection.weight.copy_(
+        torch.tensor(
+            [
+                [-2.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 1.0],
+            ]
+        )
+    )
+
+    down_projection.weight.copy_(
+        torch.tensor(
+            [
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 1.0],
+            ]
+        )
+    )
+
+up_hidden_states: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = up_projection(hidden_states)
+
+gate_hidden_states: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = gate_projection(hidden_states)
+
+sigmoid_gate: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = torch.sigmoid(gate_hidden_states)
+
+silu_gate_manual: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = gate_hidden_states * sigmoid_gate
+
+silu_gate_pytorch: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = F.silu(gate_hidden_states)
+
+gated_hidden_states: Float[
+    Tensor,
+    &quot;batch token intermediate_feature&quot;,
+] = silu_gate_pytorch * up_hidden_states
+
+output: Float[
+    Tensor,
+    &quot;batch token output_feature&quot;,
+] = down_projection(gated_hidden_states)
+
+print(&quot;입력:&quot;)
+print(hidden_states)
+
+print(&quot;\n중간 특징(up):&quot;)
+print(up_hidden_states)
+
+print(&quot;\n게이트의 원래 값:&quot;)
+print(gate_hidden_states)
+
+print(&quot;\nSigmoid 결과:&quot;)
+print(sigmoid_gate)
+
+print(&quot;\n직접 계산한 SiLU = gate × sigmoid(gate):&quot;)
+print(silu_gate_manual)
+
+print(&quot;\nPyTorch SiLU:&quot;)
+print(silu_gate_pytorch)
+
+print(&quot;\n중간 특징 × SiLU 게이트:&quot;)
+print(gated_hidden_states)
+
+print(&quot;\nLinear down을 거친 최종 출력:&quot;)
+print(output)
+
+print(&quot;\nShape 변화:&quot;)
+print(&quot;입력:&quot;, hidden_states.shape)
+print(&quot;중간:&quot;, gated_hidden_states.shape)
+print(&quot;출력:&quot;, output.shape)
+
+print(
+    &quot;\n직접 계산한 SiLU와 PyTorch SiLU가 같은가?:&quot;,
+    torch.allclose(silu_gate_manual, silu_gate_pytorch),
+)
+</code></pre>
+<p>실행하면 핵심 값은 다음과 같이 이어집니다.</p>
+<pre><code class="language-text">입력:
+[[[1.0000, 2.0000]]]
+
+중간 특징(up):
+[[[2.0000, 3.0000, 4.0000]]]
+
+게이트의 원래 값:
+[[[-2.0000, 0.0000, 2.0000]]]
+
+Sigmoid 결과:
+[[[0.1192, 0.5000, 0.8808]]]
+
+직접 계산한 SiLU:
+[[[-0.2384, 0.0000, 1.7616]]]
+
+PyTorch SiLU:
+[[[-0.2384, 0.0000, 1.7616]]]
+
+중간 특징 × SiLU 게이트:
+[[[-0.4768, 0.0000, 7.0464]]]
+
+Linear down을 거친 최종 출력:
+[[[-0.4768, 7.0464]]]
+
+직접 계산한 SiLU와 PyTorch SiLU가 같은가?:
+True
+</code></pre>
+<p><code>silu_gate_manual</code>은 SiLU의 내부 계산을 두 단계로 펼친 결과입니다.</p>
+<pre><code class="language-python">sigmoid_gate = torch.sigmoid(gate_hidden_states)
+silu_gate_manual = gate_hidden_states * sigmoid_gate
+</code></pre>
+<p><code>silu_gate_pytorch</code>은 같은 계산을 PyTorch 함수 하나로 실행한 결과입니다.</p>
+<pre><code class="language-python">silu_gate_pytorch = F.silu(gate_hidden_states)
+</code></pre>
+<p>두 Tensor를 <code>torch.allclose()</code>로 비교한 결과가 <code>True</code>이므로, 이 입력에서는 다음 두 표현이 같은 계산임을 실제로 확인했습니다.</p>
+<pre><code class="language-text">F.silu(gate)
+=
+gate × sigmoid(gate)
+</code></pre>
+<p>이후에 수행하는 곱셈은 SiLU 내부 곱셈과 역할이 다릅니다.</p>
+<pre><code class="language-python">gated_hidden_states = silu_gate_pytorch * up_hidden_states
+</code></pre>
+<p>여기서는 SiLU를 새로 만드는 것이 아니라, <code>up projection</code>이 만든 중간 특징 <code>[2, 3, 4]</code>를 SiLU 처리된 gate <code>[-0.2384, 0, 1.7616]</code>로 위치별 조절합니다. 그 결과가 <code>[-0.4768, 0, 7.0464]</code>입니다.</p>
+<p>마지막 <code>down_projection</code>은 조절을 끝낸 세 개의 중간 특징을 두 개의 출력 특징으로 다시 조합합니다. 실습에서 지정한 가중치에 따라 첫 번째 출력은 첫 번째와 두 번째 중간값을, 두 번째 출력은 두 번째와 세 번째 중간값을 더하므로 최종 결과는 <code>[-0.4768, 7.0464]</code>가 됩니다.</p>
+<p>전체 Shape 변화는 다음과 같습니다.</p>
+<pre><code class="language-text">[batch, token, input_feature]
+[1, 1, 2]
+        ↓ up projection과 gate projection
+[batch, token, intermediate_feature]
+[1, 1, 3]
+        ↓ SiLU와 위치별 곱셈
+[batch, token, intermediate_feature]
+[1, 1, 3]
+        ↓ down projection
+[batch, token, output_feature]
+[1, 1, 2]
+</code></pre>
+<p>출력에 보이는 <code>grad_fn=&lt;...Backward0&gt;</code>은 오류가 아닙니다. 학습 가능한 Linear를 거친 계산이므로 PyTorch가 나중에 역전파할 수 있도록 연산 관계를 기록했다는 뜻입니다.</p>
+<p>전체 SwiGLU 계산은 다음 한 줄로 다시 합칠 수 있습니다.</p>
+<pre><code class="language-python">output = down_projection(
+    F.silu(gate_projection(hidden_states))
+    * up_projection(hidden_states)
+)
+</code></pre>
+<p>앞의 실습과 핵심 계산은 동일합니다. 이번 실습에서 추가로 확인한 부분은 <strong>가정했던 up·gate 값을 실제 Linear projection으로 만들고, 수동 SiLU와 PyTorch SiLU가 같은지 비교한 뒤, down projection까지 연결해 입력과 같은 feature 크기의 최종 출력을 만든 것</strong>입니다.</p>
+
+</section>
+<section id="section-a8e1097b68c2" class="markdown-section">
+<h2>최종 정리</h2>
+<p>SwiGLU의 전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">같은 입력
+  ├─ up Linear   → 전달할 중간 특징
+  └─ gate Linear → 조절값 → SiLU
+                         ↓
+             up × SiLU(gate)
+                         ↓
+                    Linear down
+                         ↓
+                  원래 feature 크기
+</code></pre>
+<p>각 부분의 역할은 다음처럼 정리할 수 있다.</p>
+<ul>
+<li><code>up_proj(x)</code>는 전달할 중간 특징을 만든다.</li>
+<li><code>gate_proj(x)</code>는 그 특징을 조절할 값을 만든다.</li>
+<li><code>gate × sigmoid(gate)</code>는 gate의 크기와 부호를 남기면서 부드럽게 변환하는 SiLU다.</li>
+<li><code>up × SiLU(gate)</code>는 전달할 특징에 입력 의존적인 조절을 적용한다.</li>
+<li><code>down_proj</code>는 조절된 중간 특징을 원래 feature 개수로 다시 조합한다.</li>
+</ul>
+<p>한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p><strong>SwiGLU는 같은 입력에서 ‘전달할 특징’과 ‘그 특징을 조절할 값’을 따로 만든 뒤, 둘을 곱하고 다시 원래 feature 크기로 조합하는 게이트 FFN이다.</strong></p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -7,9 +7,9 @@
   <meta name="description" content="과거 K·V 출력 Tensor의 저장부터 첫 Forward와 후속 Token 입력 계약, 길이가 다른 Batch 생성, DynamicCache 갱신, 전체 ID 검증과 CPU 성능 비교까지 하나의 실행 흐름으로 연결합니다.">
   <meta name="source-sha256" content="631e349d564bbedd4522b1fc7a5d636609a0089dfbf94d549a1de8aceb043c6f">
   <title>KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</title>
-  <link rel="stylesheet" href="../../assets/css/site-theme.css">
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css">
-  <link rel="stylesheet" href="../../assets/css/markdown-document.css">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-wiki-layout-1">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -25,11 +25,15 @@
   {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html","name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","description":"과거 K·V 출력 Tensor의 저장부터 첫 Forward와 후속 Token 입력 계약, 길이가 다른 Batch 생성, DynamicCache 갱신, 전체 ID 검증과 CPU 성능 비교까지 하나의 실행 흐름으로 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},"headline":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가"}]}]}
   </script>
   <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
   <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference markdown-document">
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
   <main class="wrap">
-    <nav class="breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="separator">›</span><a href="../../wiki.html">기술 위키</a><span class="separator">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="separator">›</span><a href="transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="separator">›</span><span aria-current="page">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</span></nav>
     <header id="overview" class="hero">
       <span class="eyebrow">Transformer</span>
       <h1>KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</h1>
@@ -373,6 +377,7 @@ Token 생성 메서드 IDs
 </ul>
 <p>최종 2×2 Benchmark는 tiny GPT-2·로컬 CPU·Prompt <code>&quot;I study&quot;</code>·문장당 새 Token 20개·Warm-up 3회·측정 20회·Greedy <code>generate()</code> Token 생성 메서드를 고정했습니다. 네 조건에서 바꾼 것은 Batch 크기와 <code>use_cache=False/True</code>뿐입니다.</p>
 <p>평균 시간은 문장 한 개의 시간이 아니라 해당 Batch의 모든 문장을 처리하는 Token 생성 호출 한 번의 평균 전체 시간입니다. 처리량은 <code>Batch 크기 × 20</code>개의 새 Token을 그 평균 시간으로 나눈 값입니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
 <table>
 <thead>
 <tr>
@@ -412,6 +417,7 @@ Token 생성 메서드 IDs
 <td></td>
 </tr>
 </tbody></table>
+</div>
 <p><strong>관찰 결과</strong> — Batch 1에서는 <code>23.082 ÷ 15.488 ≈ 1.49</code>로 KV Cache가 약 <code>1.49배</code> 빠르게 측정되었습니다. Batch 4에서는 <code>26.701 ÷ 25.023 ≈ 1.07</code>로 약 <code>1.07배</code>였습니다.</p>
 <p><strong>관찰 결과</strong> — Batch 4의 처리량은 Batch 1과 비교해 No-cache에서 약 <code>3.46배</code>, KV Cache에서 약 <code>2.48배</code>였습니다.</p>
 <p><strong>해석</strong> — Batch를 키우면 한 번의 호출 시간은 늘지만, 동시에 생성한 전체 Token 수가 더 크게 늘어 처리량이 높아질 수 있음을 확인했습니다.</p>
@@ -470,7 +476,7 @@ Prompt 전체 입력
   </main>
   <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
   <!-- static-shell:global-navigation:start -->
-<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">나중에 다시 할 학습</a><a href="../../learning_review.html">기억 강화 세션</a></div></div></nav>
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
 <!-- static-shell:global-navigation:end -->
   <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
 </body>
