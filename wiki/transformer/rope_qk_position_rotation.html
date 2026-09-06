@@ -1,0 +1,898 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/rope_qk_position_rotation.md. Do not edit directly. source-sha256:f955aa35c9e2951e462abfedc1baa70d767df48bdf075836c7def57068f4b2ce -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Q·K 벡터의 차원을 2차원 쌍으로 묶고 토큰 위치와 쌍별 회전속도로 회전각을 정해 위치 정보를 반영하는 RoPE의 흐름을 설명합니다.">
+  <meta name="source-sha256" content="f955aa35c9e2951e462abfedc1baa70d767df48bdf075836c7def57068f4b2ce">
+  <title>RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가">
+  <meta property="og:description" content="Q·K 벡터의 차원을 2차원 쌍으로 묶고 토큰 위치와 쌍별 회전속도로 회전각을 정해 위치 정보를 반영하는 RoPE의 흐름을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html","name":"RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가","description":"Q·K 벡터의 차원을 2차원 쌍으로 묶고 토큰 위치와 쌍별 회전속도로 회전각을 정해 위치 정보를 반영하는 RoPE의 흐름을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html"},"headline":"RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-attention-score","name":"Score·Scaling·Mask","identifier":"topics-attention-score"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-attention","name":"Attention","identifier":"topics-attention"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-attention-score","name":"Score","identifier":"transformer-attention-score"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-attention","name":"Scaled Dot-Product Attention","identifier":"transformer-attention"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_qk_position_rotation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Scaled Dot-Product Attention","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_learning.html"},{"@type":"ListItem","position":6,"name":"Scaled Dot-Product Attention의 계산 흐름","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_math_learning.html"},{"@type":"ListItem","position":7,"name":"RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_learning.html">Scaled Dot-Product Attention</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_math_learning.html">Scaled Dot-Product Attention의 계산 흐름</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>RoPE는 Q·K 내적에 위치 정보를 어떻게 넣는가</h1>
+      <p class="lead">Q·K 벡터의 차원을 2차원 쌍으로 묶고 토큰 위치와 쌍별 회전속도로 회전각을 정해 위치 정보를 반영하는 RoPE의 흐름을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#q-k">Q·K 내적이 갖는 의미</a>
+        <a href="#q-k-2">하지만 Q·K 내적만으로는 토큰의 위치를 알 수 없다</a>
+        <a href="#rope-q-k">RoPE는 Q와 K의 차원쌍을 회전시킨다</a>
+        <a href="#section-ee2448088876">왜 차원을 두 개씩 묶는가</a>
+        <a href="#section-ad25aea6305d">회전한다는 것은 무엇인가</a>
+        <a href="#section-488e801a9596">차원쌍마다 회전속도가 다르다</a>
+        <a href="#section-bf7b7633215d">토큰 위치와 쌍별 회전속도를 이용해 실제 회전각을 만든다</a>
+        <a href="#section-47221aeaf9be">각 차원쌍에 회전공식을 각각 적용한다</a>
+        <a href="#query-key">회전의 대상은 Query와 Key 둘 다다</a>
+        <a href="#q-k-3">위치가 다르면 같은 내용도 다른 Q와 K가 된다</a>
+        <a href="#sinusoidal-positional-encoding">Sinusoidal Positional Encoding과의 연결</a>
+        <a href="#sinusoidal-positional-encoding-rope">Sinusoidal Positional Encoding과 RoPE의 차이</a>
+        <a href="#rope-q-k-2">RoPE는 모든 토큰의 Q와 K에 적용된다</a>
+        <a href="#rope">지금까지 이해한 RoPE의 전체 흐름</a>
+        <a href="#section-22514fc2ab69">현재까지 특히 구분해야 할 것</a>
+        <a href="#section-af9854718523">현재까지의 핵심</a>
+        <a href="#section-f4e9eae8d1b4">상대 위치 차이가 같으면 절대 위치가 달라도 위치 효과는 같다</a>
+        <a href="#rope-rotation-code-reading">코드로 읽는 2차원 회전 과정</a>
+        <a href="#section-2">추후 공부 포인트: 2차원 회전공식</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="q-k" class="markdown-section">
+<h2>Q·K 내적이 갖는 의미</h2>
+<p>Attention에서는 현재 토큰의 Query와 각 토큰의 Key를 내적하여 관계 점수를 만든다.</p>
+<pre><code class="language-text">Q · K₀
+Q · K₁
+Q · K₂
+</code></pre>
+<p>Q·K 내적값이 다른 Key들과 비교했을 때 상대적으로 크다는 것은 현재 Query가 찾는 특징과 해당 Key가 가진 특징이 잘 맞는다는 의미다.</p>
+<p>즉, 내적값이 크다고 해서 해당 토큰 자체가 항상 중요한 것은 아니다.</p>
+<blockquote>
+<p>현재 Query와 해당 Key의 관계가 상대적으로 크다는 의미다.</p>
+</blockquote>
+<p>그리고 Key는 문장 전체에 하나만 존재하는 것이 아니다.</p>
+<p>각 토큰마다 같은 <code>k_projection</code>을 통과해 자신의 Key가 만들어진다.</p>
+<pre><code class="language-text">토큰 0 → K₀
+토큰 1 → K₁
+토큰 2 → K₂
+</code></pre>
+<p>따라서 현재 Query는 각 토큰의 Key와 각각 내적하여 토큰마다 별도의 관계 점수를 계산할 수 있다.</p>
+<hr>
+
+</section>
+<section id="q-k-2" class="markdown-section">
+<h2>하지만 Q·K 내적만으로는 토큰의 위치를 알 수 없다</h2>
+<p>Q와 K의 내용만 가지고 내적한다면 현재 Query와 해당 Key의 내용상 관계는 비교할 수 있다.</p>
+<p>하지만 이것만으로는 두 토큰이 서로 몇 칸 떨어져 있는지 직접 알 수 없다.</p>
+<p>예를 들어 설명을 단순화하여 같은 내용의 토큰이 서로 다른 위치에 있고 동일한 Key가 만들어졌다고 가정해보자.</p>
+<pre><code class="language-text">가까운 위치의 &quot;밥&quot; → K₁
+먼 위치의 &quot;밥&quot;     → K₁₀
+</code></pre>
+<p>위치 정보가 없다면 현재 Query와 두 Key의 내용 관계가 같을 경우 같은 점수를 얻을 수 있다.</p>
+<pre><code class="language-text">Q · K₁  = 1
+Q · K₁₀ = 1
+</code></pre>
+<p>Q·K 내용 내적 자체에는 <code>K₁</code>이 가까운 곳에 있고 <code>K₁₀</code>이 먼 곳에 있다는 정보가 없기 때문이다.</p>
+<p>따라서 Attention에는 내용 관계뿐만 아니라 토큰의 위치 관계도 알려줄 방법이 필요하다.</p>
+<p>RoPE는 이 위치 정보를 Q와 K에 반영하기 위한 방법이다.</p>
+<hr>
+
+</section>
+<section id="rope-q-k" class="markdown-section">
+<h2>RoPE는 Q와 K의 차원쌍을 회전시킨다</h2>
+<h3>Q와 K는 여러 차원을 가진 벡터다</h3>
+<p>예를 들어 위치 3에 있는 토큰의 Query가 다음과 같다고 하자.</p>
+<pre><code class="language-text">Q₃ = [q30, q31, q32, q33, q34, q35]
+</code></pre>
+<p>여기서 <code>Q₃</code> 전체가 <strong>위치 3 토큰의 Query</strong>다.</p>
+<p><code>q30</code>, <code>q31</code> 등이 각각 다른 토큰을 의미하는 것이 아니다.</p>
+<p>하나의 토큰에서 만들어진 Query 벡터 내부의 서로 다른 차원이다.</p>
+<p>RoPE는 이 차원들을 두 개씩 묶는다.</p>
+<pre><code class="language-text">Q₃
+
+[q30, q31]
+[q32, q33]
+[q34, q35]
+</code></pre>
+<p>즉, 토큰을 두 개씩 묶는 것이 아니라 <strong>같은 토큰의 Query 내부 차원을 두 개씩 묶는 것</strong>이다.</p>
+<p>Key도 동일하다.</p>
+<pre><code class="language-text">K₁ = [k10, k11, k12, k13, k14, k15]
+
+[k10, k11]
+[k12, k13]
+[k14, k15]
+</code></pre>
+<p><code>K₁</code>의 모든 값은 위치 1에 있는 하나의 토큰에서 나온 Key의 차원들이다.</p>
+<hr>
+<h3>차원은 서로 겹치지 않는 쌍으로 묶인다</h3>
+<p>RoPE의 회전 단위는 차원 두 개로 이루어진 쌍이다.</p>
+<p>개념적으로는 다음과 같이 생각할 수 있다.</p>
+<pre><code class="language-text">(0, 1)
+(2, 3)
+(4, 5)
+...
+</code></pre>
+<p>각 차원은 하나의 상대 차원과 1:1로 짝을 이룬다.</p>
+<p>따라서 이런 구조는 아니다.</p>
+<pre><code class="language-text">(0, 1)
+(0, 4)   ← 0차원이 다른 쌍에 또 참여하지 않음
+</code></pre>
+<p>또한</p>
+<pre><code class="language-text">(3, 4)
+(4, 3)
+</code></pre>
+<p>처럼 같은 두 차원을 순서만 뒤집어 별도의 쌍으로 다시 만들지도 않는다.</p>
+<p>한 번 정해진 차원쌍은 하나의 2차원 회전 단위로 취급된다.</p>
+<p>실제 구현에서는 차원의 배치 방식에 따라</p>
+<pre><code class="language-text">(0, 1), (2, 3), ...
+</code></pre>
+<p>처럼 보일 수도 있고,</p>
+<pre><code class="language-text">(0, 4), (1, 5), ...
+</code></pre>
+<p>처럼 보일 수도 있다.</p>
+<p>중요한 것은 정확히 몇 번 차원과 몇 번 차원이 짝이 되느냐가 아니라,</p>
+<blockquote>
+<p><strong>RoPE가 적용되는 차원들이 서로 겹치지 않는 2차원 쌍으로 나뉜다</strong></p>
+</blockquote>
+<p>는 점이다.</p>
+<hr>
+
+</section>
+<section id="section-ee2448088876" class="markdown-section">
+<h2>왜 차원을 두 개씩 묶는가</h2>
+<p>두 개의 차원을 하나의 2차원 좌표처럼 생각할 수 있다.</p>
+<pre><code class="language-text">[q30, q31]
+</code></pre>
+<p>여기서</p>
+<pre><code class="language-text">q30 → x 좌표
+q31 → y 좌표
+</code></pre>
+<p>라고 생각할 수 있다.</p>
+<p>중요한 것은 <code>q30</code>과 <code>q31</code>이 선의 양 끝점이라는 뜻이 아니라는 것이다.</p>
+<pre><code class="language-text">잘못된 해석
+
+q30 → 선의 시작점
+q31 → 선의 끝점
+</code></pre>
+<p>실제로는</p>
+<pre><code class="language-text">q30 → x
+q31 → y
+
+[q30, q31] → 하나의 좌표 (x, y)
+</code></pre>
+<p>이다.</p>
+<p>따라서 <code>[q30, q31]</code>은 원점 <code>(0, 0)</code>에서 <code>(q30, q31)</code>을 향하는 하나의 2차원 벡터로 생각할 수 있다.</p>
+<pre><code class="language-text">          (q30, q31)
+              ●
+             /
+            /
+           /
+(0, 0) ●
+</code></pre>
+<p>그래서</p>
+<pre><code class="language-text">Q₃ = [q30, q31, q32, q33, q34, q35]
+</code></pre>
+<p>는 RoPE의 관점에서 여러 개의 2차원 조각으로 나뉜다.</p>
+<pre><code class="language-text">[q30, q31] → 2차원 벡터
+[q32, q33] → 2차원 벡터
+[q34, q35] → 2차원 벡터
+</code></pre>
+<p>Key도 같은 방식으로 묶는다.</p>
+<pre><code class="language-text">Q₃의 첫 번째 차원쌍 → [q30, q31]
+K₁의 첫 번째 차원쌍 → [k10, k11]
+</code></pre>
+<p>이 단계에서는 아직 토큰의 위치 정보가 들어간 것이 아니다.</p>
+<blockquote>
+<p><strong>차원을 두 개씩 묶는 것은 위치 정보를 넣는 작업 자체가 아니라, 위치에 따라 회전시킬 수 있는 2차원 조각을 만드는 준비 과정이다.</strong></p>
+</blockquote>
+<hr>
+
+</section>
+<section id="section-ad25aea6305d" class="markdown-section">
+<h2>회전한다는 것은 무엇인가</h2>
+<p>RoPE는 이 2차원 벡터를 <strong>원점을 중심으로 회전</strong>시킨다.</p>
+<p>예를 들어 차원쌍의 값이 다음과 같다고 하자.</p>
+<pre><code class="language-text">[1, 0]
+</code></pre>
+<p>이것은</p>
+<pre><code class="language-text">x = 1
+y = 0
+</code></pre>
+<p>인 좌표이며 원점에서 오른쪽을 향하는 길이 1의 벡터라고 볼 수 있다.</p>
+<pre><code class="language-text">(0,0) ●──────→ (1,0)
+</code></pre>
+<p>이 벡터를 30도 회전시키면 대략 다음과 같은 새로운 좌표가 된다.</p>
+<pre><code class="language-text">[1, 0]
+   ↓ 30° 회전
+[0.866, 0.5]
+</code></pre>
+<p>여기서 중요한 것은 회전할 때 벡터의 <strong>길이는 유지되고 방향만 바뀐다</strong>는 것이다.</p>
+<p>RoPE는 두 feature의 값을 없애거나 위치값으로 교체하는 것이 아니다.</p>
+<p>기존 두 값을 새로운 두 값으로 변환하여 방향을 바꾼다.</p>
+<pre><code class="language-text">[x, y]
+   ↓ 회전
+[x&#39;, y&#39;]
+</code></pre>
+<p>그리고 회전된 값을 다시 원래 차원 위치에 넣는다.</p>
+<p>예를 들어</p>
+<pre><code class="language-text">Q₃ = [q0, q1, q2, q3]
+</code></pre>
+<p>를</p>
+<pre><code class="language-text">[q0, q1]
+[q2, q3]
+</code></pre>
+<p>로 나누어 각각 회전했다면</p>
+<pre><code class="language-text">[q0, q1]
+→ [q0&#39;, q1&#39;]
+
+[q2, q3]
+→ [q2&#39;, q3&#39;]
+</code></pre>
+<p>회전 결과를 다시 원래 차원 순서대로 조립한다.</p>
+<pre><code class="language-text">Q₃&#39;
+= [q0&#39;, q1&#39;, q2&#39;, q3&#39;]
+</code></pre>
+<p>여기서 <strong>원래 장소로 돌린다</strong>는 것은 방향을 다시 원상복구한다는 뜻이 아니다.</p>
+<blockquote>
+<p>회전된 값을 그대로 유지한 채 원래 차원 슬롯에 다시 배치한다는 뜻이다.</p>
+</blockquote>
+<p>이 과정에 사용되는 실제 2차원 회전공식은 현재 학습에서는 <strong>블랙박스</strong>로 둔다.</p>
+<p>현재 필요한 이해는 다음 정도다.</p>
+<blockquote>
+<p><strong>차원쌍 <code>[x, y]</code>와 회전각을 회전공식에 넣으면 길이는 유지하면서 방향이 바뀐 새로운 차원쌍 <code>[x&#39;, y&#39;]</code>이 나온다.</strong></p>
+</blockquote>
+<p>회전공식과 회전행렬이 왜 그런 형태가 되는지는 추후 별도의 수학 학습 포인트로 남긴다.</p>
+<hr>
+
+</section>
+<section id="section-488e801a9596" class="markdown-section">
+<h2>차원쌍마다 회전속도가 다르다</h2>
+<p>RoPE는 모든 차원쌍을 같은 속도로 회전시키지 않는다.</p>
+<p>각 차원쌍마다 자신에게 정해진 회전속도가 있다.</p>
+<p>설명을 위해 다음과 같이 가정해보자.</p>
+<pre><code class="language-text">첫 번째 차원쌍 → 위치당 30°
+두 번째 차원쌍 → 위치당 10°
+세 번째 차원쌍 → 위치당 1°
+</code></pre>
+<p>이 회전속도는 <strong>토큰마다 달라지는 것이 아니다.</strong></p>
+<p>차원쌍마다 다르다.</p>
+<p>즉 같은 종류의 차원쌍이라면 모든 토큰에서 같은 회전속도를 사용한다.</p>
+<pre><code class="language-text">첫 번째 차원쌍 → 항상 θ₀
+두 번째 차원쌍 → 항상 θ₁
+세 번째 차원쌍 → 항상 θ₂
+</code></pre>
+<hr>
+
+</section>
+<section id="section-bf7b7633215d" class="markdown-section">
+<h2>토큰 위치와 쌍별 회전속도를 이용해 실제 회전각을 만든다</h2>
+<p>어떤 토큰의 위치가 <code>n</code>이고 특정 차원쌍의 회전속도가 <code>θ</code>라면 해당 차원쌍의 실제 회전각은</p>
+<pre><code class="language-text">회전각 = 토큰 위치 × 차원쌍의 회전속도
+</code></pre>
+<p>즉,</p>
+<pre><code class="language-text">n × θ
+</code></pre>
+<p>로 정해진다.</p>
+<p>예를 들어 위치 3 토큰의 Query가 다음과 같다고 하자.</p>
+<pre><code class="language-text">Q₃ = [q0, q1, q2, q3, q4, q5]
+</code></pre>
+<p>이를 세 개의 차원쌍으로 나눈다.</p>
+<pre><code class="language-text">[q0, q1]
+[q2, q3]
+[q4, q5]
+</code></pre>
+<p>각 쌍의 회전속도가 다음과 같다고 가정한다.</p>
+<pre><code class="language-text">[q0, q1] → 위치당 30°
+[q2, q3] → 위치당 10°
+[q4, q5] → 위치당 1°
+</code></pre>
+<p>세 쌍 모두 <strong>같은 위치 3 토큰의 Query</strong>에서 나온 값이므로 토큰 위치 <code>n=3</code>을 공유한다.</p>
+<p>따라서 실제 회전각은 다음과 같이 결정된다.</p>
+<pre><code class="language-text">[q0, q1]
+→ 3 × 30°
+→ 90° 회전
+
+[q2, q3]
+→ 3 × 10°
+→ 30° 회전
+
+[q4, q5]
+→ 3 × 1°
+→ 3° 회전
+</code></pre>
+<p>즉,</p>
+<blockquote>
+<p><strong>같은 토큰의 모든 차원쌍은 동일한 토큰 위치 <code>n</code>을 사용하지만, 각 차원쌍의 회전속도가 다르기 때문에 실제 회전각은 서로 달라진다.</strong></p>
+</blockquote>
+<hr>
+
+</section>
+<section id="section-47221aeaf9be" class="markdown-section">
+<h2>각 차원쌍에 회전공식을 각각 적용한다</h2>
+<p>회전각이 정해졌다면 각 차원쌍에 회전공식을 개별적으로 적용한다.</p>
+<pre><code class="language-text">Q₃ = [q0, q1, q2, q3, q4, q5]
+</code></pre>
+<p>라면 다음과 같은 흐름이다.</p>
+<pre><code class="language-text">[q0, q1]
+→ 회전속도 θ₀
+→ 회전각 3θ₀
+→ 회전공식
+→ [q0&#39;, q1&#39;]
+
+
+[q2, q3]
+→ 회전속도 θ₁
+→ 회전각 3θ₁
+→ 회전공식
+→ [q2&#39;, q3&#39;]
+
+
+[q4, q5]
+→ 회전속도 θ₂
+→ 회전각 3θ₂
+→ 회전공식
+→ [q4&#39;, q5&#39;]
+</code></pre>
+<p>그 결과를 다시 원래 차원 순서대로 합친다.</p>
+<pre><code class="language-text">회전 전
+
+Q₃
+= [q0, q1, q2, q3, q4, q5]
+
+
+회전 후
+
+Q₃&#39;
+= [q0&#39;, q1&#39;, q2&#39;, q3&#39;, q4&#39;, q5&#39;]
+</code></pre>
+<p>이것이 RoPE가 적용된 Query다.</p>
+<p>Key도 완전히 동일한 방식으로 처리한다.</p>
+<hr>
+
+</section>
+<section id="query-key" class="markdown-section">
+<h2>회전의 대상은 Query와 Key 둘 다다</h2>
+<p>RoPE는 Key만 회전시키는 것이 아니다.</p>
+<p>Query와 Key 모두 자신의 토큰 위치에 따라 회전한다.</p>
+<p>예를 들어</p>
+<pre><code class="language-text">Q₃ → 토큰 위치 3
+K₁ → 토큰 위치 1
+</code></pre>
+<p>이고 둘의 첫 번째 차원쌍이</p>
+<pre><code class="language-text">Q₃ → [q30, q31]
+K₁ → [k10, k11]
+</code></pre>
+<p>이라고 하자.</p>
+<p>둘 다 첫 번째 차원쌍이므로 동일한 회전속도 <code>θ₀</code>를 사용한다.</p>
+<p>하지만 토큰 위치가 다르다.</p>
+<pre><code class="language-text">Q₃의 위치 = 3
+K₁의 위치 = 1
+</code></pre>
+<p>첫 번째 차원쌍의 속도가 위치당 30도라고 단순하게 가정하면</p>
+<pre><code class="language-text">Q₃의 첫 번째 차원쌍
+→ 3 × 30°
+→ 90° 회전
+
+K₁의 첫 번째 차원쌍
+→ 1 × 30°
+→ 30° 회전
+</code></pre>
+<p>하게 된다.</p>
+<p>즉 <strong>같은 종류의 차원쌍이어도 토큰 위치가 다르면 서로 다른 방향으로 회전한다.</strong></p>
+<hr>
+
+</section>
+<section id="q-k-3" class="markdown-section">
+<h2>위치가 다르면 같은 내용도 다른 Q와 K가 된다</h2>
+<p>여기서 RoPE가 위치 정보를 넣는다는 의미가 조금 더 분명해진다.</p>
+<p>설명을 위해 내용상 동일한 Query가 서로 다른 위치에서 만들어졌다고 가정해보자.</p>
+<pre><code class="language-text">위치 1의 Q = [1, 0, ...]
+위치 5의 Q = [1, 0, ...]
+</code></pre>
+<p>RoPE를 적용하기 전에는 두 값이 동일할 수 있다.</p>
+<p>하지만 첫 번째 차원쌍의 회전속도가 <code>θ₀</code>라면</p>
+<pre><code class="language-text">위치 1
+→ 1 × θ₀만큼 회전
+
+위치 5
+→ 5 × θ₀만큼 회전
+</code></pre>
+<p>한다.</p>
+<p>따라서 회전 후에는 서로 다른 값이 된다.</p>
+<pre><code class="language-text">동일한 내용의 Q
+        ↓
+토큰 위치가 다름
+        ↓
+회전각이 다름
+        ↓
+서로 다른 Q&#39;
+</code></pre>
+<p>여기에 한 개의 차원쌍만 존재하는 것도 아니다.</p>
+<pre><code class="language-text">첫 번째 차원쌍 → θ₀
+두 번째 차원쌍 → θ₁
+세 번째 차원쌍 → θ₂
+...
+</code></pre>
+<p>따라서 위치 <code>n</code>은 전체 Q와 K에 하나의 숫자로 단순하게 들어가는 것이 아니라,</p>
+<pre><code class="language-text">nθ₀
+nθ₁
+nθ₂
+...
+</code></pre>
+<p>라는 여러 회전 패턴을 만든다.</p>
+<p>즉,</p>
+<blockquote>
+<p><strong>토큰 위치가 달라지면 같은 내용의 Q/K라도 각 차원쌍에 적용되는 회전량이 달라지므로 서로 다른 벡터가 된다.</strong></p>
+</blockquote>
+<p>이런 의미에서 RoPE는 Q와 K에 위치 정보를 새긴다고 볼 수 있다.</p>
+<hr>
+
+</section>
+<section id="sinusoidal-positional-encoding" class="markdown-section">
+<h2>Sinusoidal Positional Encoding과의 연결</h2>
+<p>이 관점은 기존 Sinusoidal Positional Encoding과도 연결해서 생각할 수 있다.</p>
+<p>Sinusoidal Positional Encoding 역시 토큰 위치에 따라 서로 다른 패턴을 만들어 위치 정보를 넣는다.</p>
+<p>단, 기존 Sinusoidal Positional Encoding에서는 그 위치 벡터를 Token Embedding에 <strong>더한다.</strong></p>
+<pre><code class="language-text">Token Embedding
++
+위치 n의 Sinusoidal Position Vector
+        ↓
+위치가 반영된 표현
+</code></pre>
+<p>따라서 같은 단어라도 위치가 다르면 서로 다른 표현이 된다.</p>
+<pre><code class="language-text">위치 1의 &quot;밥&quot;
+→ embedding(&quot;밥&quot;) + PE(1)
+
+위치 10의 &quot;밥&quot;
+→ embedding(&quot;밥&quot;) + PE(10)
+</code></pre>
+<p>RoPE도 큰 관점에서는 비슷하게 <strong>위치에 따라 벡터를 다르게 만든다.</strong></p>
+<p>하지만 위치 정보를 넣는 방법이 다르다.</p>
+<pre><code class="language-text">Sinusoidal Positional Encoding
+
+위치 n
+↓
+위치별 sin/cos 패턴 생성
+↓
+Token Embedding에 더함
+</code></pre>
+<p>RoPE에서는</p>
+<pre><code class="language-text">토큰 위치 n
++
+차원쌍별 회전속도 θ
+↓
+회전각 nθ
+↓
+Q/K 차원쌍을 회전
+↓
+위치에 따라 달라진 Q/K
+</code></pre>
+<p>가 된다.</p>
+<p>따라서 둘 다</p>
+<blockquote>
+<p><strong>같은 내용이라도 위치가 다르면 서로 다른 벡터 표현을 만들 수 있다</strong></p>
+</blockquote>
+<p>는 공통점이 있다.</p>
+<p>하지만 RoPE는 위치 정보를 Token Embedding에 더하는 것이 아니라, <strong>Attention에서 실제로 비교되는 Q와 K 자체를 위치에 따라 변환한다.</strong></p>
+<hr>
+
+</section>
+<section id="sinusoidal-positional-encoding-rope" class="markdown-section">
+<h2>Sinusoidal Positional Encoding과 RoPE의 차이</h2>
+<p>Sinusoidal Positional Encoding에서도 위치 정보는 분명히 들어간다.</p>
+<p>따라서</p>
+<pre><code class="language-text">Sinusoidal PE는 위치 정보를 못 넣었다.
+그래서 RoPE가 필요해졌다.
+</code></pre>
+<p>라고 이해하면 안 된다.</p>
+<p>Sinusoidal Positional Encoding은 기본적으로 <strong>각 토큰의 절대 위치에 대응하는 위치 패턴을 표현에 더하는 방식</strong>이다.</p>
+<p>RoPE는 Q와 K를 각각 자기 위치에 따라 회전시킨다.</p>
+<pre><code class="language-text">Q 위치 = n
+→ nθ만큼 회전
+
+K 위치 = m
+→ mθ만큼 회전
+</code></pre>
+<p>그리고 그 Q와 K가 Attention에서 서로 내적된다.</p>
+<p>RoPE는 이렇게 Attention에서 실제 비교 대상이 되는 Q와 K 자체에 위치에 따른 변화를 적용한다.</p>
+<p>현재까지의 이해 범위에서는 다음과 같이 구분할 수 있다.</p>
+<pre><code class="language-text">Sinusoidal Positional Encoding
+
+Token Embedding
++
+각 토큰의 위치 패턴
+↓
+위치가 포함된 Hidden State
+↓
+Q/K 생성
+↓
+Attention
+</code></pre>
+<p>반면 RoPE는</p>
+<pre><code class="language-text">Token Embedding
+↓
+Q/K 생성
+↓
+각 Q/K를 자신의 위치에 따라 회전
+↓
+Attention
+</code></pre>
+<p>이다.</p>
+<p>그리고 RoPE를 사용하는 모델에서는 일반적으로 기존 방식의 Sinusoidal Positional Encoding을 별도로 더하지 않는다.</p>
+<p>RoPE 자체가 위치 정보를 담당하기 때문이다.</p>
+<p>두 방식 모두 <code>sin</code>, <code>cos</code>를 사용할 수 있지만 역할이 다르다.</p>
+<pre><code class="language-text">Sinusoidal Positional Encoding
+→ sin/cos로 위치 패턴을 만든 뒤 표현에 더한다.
+
+RoPE
+→ sin/cos를 회전에 사용하여 Q/K의 방향을 바꾼다.
+</code></pre>
+<p>현재 단계에서는 다음 정도로 이해할 수 있다.</p>
+<blockquote>
+<p><strong>Sinusoidal Positional Encoding도 토큰 위치에 따라 서로 다른 패턴을 넣어 위치를 구분한다. RoPE 역시 위치에 따라 벡터를 다르게 만들지만, Token Embedding에 위치 벡터를 더하는 대신 Q와 K의 각 차원쌍을 <code>토큰 위치 × 차원쌍별 회전속도</code>만큼 회전시킨다. 따라서 같은 내용의 Q/K라도 토큰 위치가 다르면 다른 방향의 Q/K가 되고, 위치 정보가 Attention 계산에 직접 사용될 준비를 한다.</strong></p>
+</blockquote>
+<hr>
+
+</section>
+<section id="rope-q-k-2" class="markdown-section">
+<h2>RoPE는 모든 토큰의 Q와 K에 적용된다</h2>
+<p>RoPE가 의미가 같은 토큰을 먼저 찾아서 그 토큰들만 회전시키는 것은 아니다.</p>
+<p>모든 토큰의 Q와 K가 자신의 위치에 따라 회전된다.</p>
+<pre><code class="language-text">Q₀, K₀ → 위치 0을 이용해 회전
+Q₁, K₁ → 위치 1을 이용해 회전
+Q₂, K₂ → 위치 2를 이용해 회전
+Q₃, K₃ → 위치 3을 이용해 회전
+...
+</code></pre>
+<p>어떤 토큰끼리 내용상 관계가 큰지는 이후 Q·K 내적을 통해 결정된다.</p>
+<p>RoPE는 그 내적을 하기 전에 각 Q와 K를 <strong>자신의 위치에 맞는 방향으로 변환해두는 것</strong>이다.</p>
+<hr>
+
+</section>
+<section id="rope" class="markdown-section">
+<h2>지금까지 이해한 RoPE의 전체 흐름</h2>
+<p>현재까지 이해한 내용을 연결하면 다음과 같다.</p>
+<pre><code class="language-text">각 토큰마다 Q와 K가 만들어진다.
+        ↓
+Q·K 내적으로 토큰 사이의 내용 관계를 비교한다.
+        ↓
+하지만 내용 기반 Q·K만으로는
+토큰 사이의 위치 차이를 직접 알 수 없다.
+        ↓
+RoPE는 Q와 K 내부 차원을
+서로 겹치지 않게 두 개씩 묶는다.
+        ↓
+각 차원쌍을 하나의 (x, y) 좌표,
+즉 2차원 벡터로 본다.
+        ↓
+각 차원쌍마다 고유한 회전속도 θ가 있다.
+        ↓
+현재 토큰 위치 n을 가져온다.
+        ↓
+회전각 = n × θ
+        ↓
+각 차원쌍에 회전공식을 적용한다.
+        ↓
+벡터의 길이는 유지되고
+방향이 바뀐 새로운 두 feature 값이 나온다.
+        ↓
+회전 결과를 원래 차원 위치에 다시 배치한다.
+        ↓
+RoPE가 적용된 Q와 K가 만들어진다.
+        ↓
+회전된 Q와 K를 Attention에서 내적한다.
+</code></pre>
+<hr>
+
+</section>
+<section id="section-22514fc2ab69" class="markdown-section">
+<h2>현재까지 특히 구분해야 할 것</h2>
+<h3>1. 두 개씩 묶는 것은 토큰이 아니라 차원이다</h3>
+<pre><code class="language-text">Q₃ = [q30, q31, q32, q33]
+
+[q30, q31]
+</code></pre>
+<p>은 서로 다른 토큰 두 개가 아니다.</p>
+<p>같은 위치 3 토큰의 Query 안에 존재하는 두 차원이다.</p>
+<hr>
+<h3>2. 두 차원은 x, y 좌표 역할을 한다</h3>
+<pre><code class="language-text">[q30, q31]
+
+q30 → x
+q31 → y
+</code></pre>
+<p>따라서 두 값을 하나의 2차원 벡터로 보고 회전할 수 있다.</p>
+<hr>
+<h3>3. 차원을 묶는 것 자체에는 위치 정보가 없다</h3>
+<p>차원을 두 개씩 묶는 것은 단지 <strong>회전 가능한 단위</strong>를 만드는 과정이다.</p>
+<p>위치 정보가 사용되는 것은 그다음이다.</p>
+<hr>
+<h3>4. 차원쌍마다 회전속도가 다르다</h3>
+<pre><code class="language-text">첫 번째 쌍 → θ₀
+두 번째 쌍 → θ₁
+세 번째 쌍 → θ₂
+</code></pre>
+<hr>
+<h3>5. 같은 토큰의 차원쌍은 모두 같은 토큰 위치 n을 사용한다</h3>
+<p>하지만 각 쌍의 회전속도가 다르기 때문에 실제 회전각은 서로 다르다.</p>
+<pre><code class="language-text">nθ₀
+nθ₁
+nθ₂
+</code></pre>
+<hr>
+<h3>6. 회전공식은 현재 블랙박스로 둔다</h3>
+<p>현재 이해할 것은 다음뿐이다.</p>
+<pre><code class="language-text">차원쌍 [x, y]
++
+회전각
+        ↓
+회전공식
+        ↓
+새로운 차원쌍 [x&#39;, y&#39;]
+</code></pre>
+<p>벡터의 길이는 유지되고 방향만 바뀐다.</p>
+<hr>
+<h3>7. 회전된 결과는 다시 원래 차원 위치에 배치한다</h3>
+<pre><code class="language-text">[q0, q1] → [q0&#39;, q1&#39;]
+[q2, q3] → [q2&#39;, q3&#39;]
+
+다시 결합
+
+[q0&#39;, q1&#39;, q2&#39;, q3&#39;]
+</code></pre>
+<p>회전을 되돌리는 것이 아니라 <strong>회전된 값을 원래 벡터 구조로 다시 조립하는 것</strong>이다.</p>
+<hr>
+<h3>8. Query와 Key 모두 회전한다</h3>
+<pre><code class="language-text">Q → 자신의 토큰 위치로 회전
+K → 자신의 토큰 위치로 회전
+</code></pre>
+<p>Key만 회전하는 것이 아니다.</p>
+<hr>
+<h3>9. RoPE는 모든 토큰에 적용된다</h3>
+<p>특정 의미의 토큰을 먼저 골라 회전하는 것이 아니다.</p>
+<p>모든 Q와 K에 위치에 따른 회전을 적용한 뒤 Attention을 계산한다.</p>
+<hr>
+<h3>10. 위치가 다르면 같은 내용도 서로 다른 Q/K가 된다</h3>
+<p>같은 Q/K 값이 만들어졌다고 가정하더라도</p>
+<pre><code class="language-text">위치 1 → θ만큼 회전
+위치 5 → 5θ만큼 회전
+</code></pre>
+<p>하므로 회전 후 표현은 달라진다.</p>
+<p>그리고 각 차원쌍의 회전속도까지 다르므로 토큰 위치는 Q/K 전체에 여러 회전 패턴으로 반영된다.</p>
+<hr>
+
+</section>
+<section id="section-af9854718523" class="markdown-section">
+<h2>현재까지의 핵심</h2>
+<p>현재까지 RoPE를 다음과 같이 이해할 수 있다.</p>
+<blockquote>
+<p><strong>Q·K 내적만으로는 토큰 사이의 위치 차이를 직접 알 수 없다. RoPE는 각 토큰의 Q와 K 내부 차원을 두 개씩 묶어 2차원 벡터로 만든다. 각 차원쌍에는 서로 다른 회전속도가 있고, 그 속도에 현재 토큰의 위치값을 곱해 실제 회전각을 정한다. 이후 각각의 차원쌍을 해당 각도만큼 회전시켜 길이는 유지하면서 방향을 바꾸고, 결과를 원래 차원 위치에 다시 조립한다. Query와 Key 모두 이 과정을 거치므로 같은 내용의 Q/K라도 토큰 위치가 다르면 서로 다른 벡터가 된다. 이런 방식으로 RoPE는 위치 정보를 Attention에서 직접 사용하는 Q와 K에 반영한다.</strong></p>
+</blockquote>
+<p>Sinusoidal Positional Encoding과 연결해서 보면 다음처럼 생각할 수 있다.</p>
+<blockquote>
+<p><strong>Sinusoidal Positional Encoding이 위치마다 서로 다른 패턴을 Token Embedding에 더해 같은 단어도 위치에 따라 다른 표현을 갖게 만드는 것처럼, RoPE도 토큰 위치에 따라 Q와 K를 서로 다르게 만든다. 차이는 위치 벡터를 더하는 대신, <code>토큰 위치 × 차원쌍별 회전속도</code>를 이용하여 Q와 K의 각 차원쌍을 회전시킨다는 것이다.</strong></p>
+</blockquote>
+<hr>
+
+</section>
+<section id="section-f4e9eae8d1b4" class="markdown-section">
+<h2>상대 위치 차이가 같으면 절대 위치가 달라도 위치 효과는 같다</h2>
+<p>Q와 K는 각자의 토큰 위치에 따라 회전되므로, 회전된 벡터에는 각각의 위치 정보가 반영된다.</p>
+<pre><code class="language-text">Q 위치 = 3
+→ 3θ만큼 회전
+
+K 위치 = 1
+→ 1θ만큼 회전
+</code></pre>
+<p>이 둘을 내적하면 각자의 회전량을 따로 사용하는 것이 아니라 두 회전량의 차이가 관계에 반영된다.</p>
+<pre><code class="language-text">3θ - 1θ = 2θ
+</code></pre>
+<p>이제 Q와 K를 모두 한 칸 뒤로 옮겨보자.</p>
+<pre><code class="language-text">Q 위치 = 4
+→ 4θ만큼 회전
+
+K 위치 = 2
+→ 2θ만큼 회전
+</code></pre>
+<p>각 토큰의 절대 위치와 회전각은 앞의 예시와 달라졌다. 하지만 두 회전량의 차이는 여전히 같다.</p>
+<pre><code class="language-text">4θ - 2θ = 2θ
+</code></pre>
+<p>따라서 두 경우는 절대 위치가 서로 다르더라도 <strong>Q와 K 사이의 상대 위치 차이가 동일하므로 RoPE가 내적에 넣는 위치 관계도 동일하다.</strong></p>
+<pre><code class="language-text">Q 위치 3, K 위치 1
+→ 상대 위치 차이 2
+
+Q 위치 4, K 위치 2
+→ 상대 위치 차이 2
+</code></pre>
+<p>이것이 RoPE의 중요한 특징이다. 문장 안에서 두 토큰이 어느 절대 위치에 놓였는지만 보는 것이 아니라, 두 토큰이 서로 얼마나 떨어져 있는지를 Q·K 내적에 반영할 수 있다.</p>
+<p>조금 더 근본적으로 보면 Q와 K에는 각 위치에 해당하는 회전행렬이 먼저 적용된다. 그 뒤 회전된 Q와 K를 내적하면 두 회전행렬이 결합하면서 공통으로 이동한 절대 위치 부분은 상쇄되고, 두 위치의 차이에 해당하는 회전만 남는다.</p>
+<p>다만 상대 위치 차이가 같다고 해서 실제 Attention 점수가 언제나 완전히 같다는 뜻은 아니다. 원래 Q와 K의 내용 벡터가 서로 다르면 내용에 따른 내적값도 달라질 수 있다. 동일하다고 말할 수 있는 것은 <strong>RoPE가 추가하는 위치 관계의 효과</strong>다.</p>
+<blockquote>
+<p><strong>RoPE에서는 Q와 K의 절대 위치가 함께 바뀌더라도 둘 사이의 상대 위치 차이가 같으면, 내적에 반영되는 위치 회전 관계는 동일하게 유지된다.</strong></p>
+</blockquote>
+<hr>
+
+</section>
+<section id="rope-rotation-code-reading" class="markdown-section">
+<h2>코드로 읽는 2차원 회전 과정</h2>
+<p>앞에서 개념으로 본 회전을 실제 코드와 연결하면 다음과 같다. 이 코드는 필요한 입력과 상수를 같은 셀에 선언하며, 함수가 바깥 전역변수를 암묵적으로 참조하지 않도록 모든 값을 매개변수로 받는다.</p>
+<pre><code class="language-python">import torch
+
+from torch import Tensor
+from jaxtyping import Float
+
+
+def rotate_pair(
+    vector: Float[Tensor, &quot;pair&quot;],
+    position: int,
+    degrees_per_position: float,
+) -&gt; Float[Tensor, &quot;pair&quot;]:
+    # 토큰 위치에 따라 이번 벡터에 적용할 회전 각도를 결정한다.
+    angle_degrees: float = position * degrees_per_position
+
+    # sin과 cos가 사용할 수 있도록 degree를 radian으로 변환한다.
+    angle_radians: Float[Tensor, &quot;&quot;] = torch.deg2rad(
+        torch.tensor(
+            angle_degrees,
+            dtype=vector.dtype,
+            device=vector.device,
+        )
+    )
+
+    # 회전 공식에 필요한 cosθ와 sinθ를 계산한다.
+    cos_angle: Float[Tensor, &quot;&quot;] = torch.cos(angle_radians)
+    sin_angle: Float[Tensor, &quot;&quot;] = torch.sin(angle_radians)
+
+    # 차원쌍을 2차원 좌표의 x와 y로 취급한다.
+    x: Float[Tensor, &quot;&quot;] = vector[0]
+    y: Float[Tensor, &quot;&quot;] = vector[1]
+
+    # 실제 회전 공식을 적용하고 두 좌표를 다시 하나의 벡터로 묶는다.
+    rotated_vector: Float[Tensor, &quot;pair&quot;] = torch.stack(
+        [
+            x * cos_angle - y * sin_angle,
+            x * sin_angle + y * cos_angle,
+        ]
+    )
+
+    return rotated_vector
+
+
+vector: Float[Tensor, &quot;pair&quot;] = torch.tensor([1.0, 0.0])
+position: int = 2
+degrees_per_position: float = 30.0
+
+rotated_vector: Float[Tensor, &quot;pair&quot;] = rotate_pair(
+    vector=vector,
+    position=position,
+    degrees_per_position=degrees_per_position,
+)
+
+print(rotated_vector)
+# tensor([0.5000, 0.8660])
+</code></pre>
+<h3><code>position * degrees_per_position</code>은 회전각을 정한다</h3>
+<pre><code class="language-python">angle_degrees: float = position * degrees_per_position
+</code></pre>
+<p>이 줄은 벡터를 직접 회전시키지 않는다. 이번 토큰의 차원쌍을 <strong>몇 도 회전할지 결정</strong>할 뿐이다. 예제에서는 위치가 <code>2</code>이고 위치 한 칸당 회전량이 <code>30도</code>이므로 회전각은 <code>60도</code>가 된다.</p>
+<pre><code class="language-text">position 2 × 위치당 30도 = 60도
+</code></pre>
+<h3><code>torch.deg2rad</code>는 각도의 단위를 바꾼다</h3>
+<p>사람에게 익숙한 <code>60도</code>와 달리 <code>torch.sin</code>과 <code>torch.cos</code>는 각도를 라디안 단위로 받는다.</p>
+<pre><code class="language-text">180도 = π 라디안
+90도  = π / 2 라디안
+60도  = π / 3 라디안
+</code></pre>
+<p>따라서 <code>torch.deg2rad</code>는 degree로 표현된 각도를 radian으로 변환한다. 이 변환도 아직 회전 자체는 아니다. 회전 공식에 넣을 각도를 PyTorch 삼각함수가 이해하는 단위로 바꾸는 준비 과정이다.</p>
+<pre><code class="language-python">angle_radians = torch.deg2rad(torch.tensor(60.0))
+# tensor(1.0472)
+</code></pre>
+<p><code>torch.tensor(angle_degrees)</code>는 일반 Python 숫자를 Tensor로 만든다. <code>dtype=vector.dtype</code>은 각도 Tensor의 숫자 자료형을 입력 벡터와 맞추고, <code>device=vector.device</code>는 CPU나 GPU 같은 실행 장치를 입력 벡터와 맞춘다.</p>
+<pre><code class="language-text">vector가 float32이고 CPU에 있음
+→ angle_radians도 float32이고 CPU에 있음
+</code></pre>
+<p><code>Float[Tensor, &quot;&quot;]</code>의 빈 Shape는 값 하나를 가진 스칼라 Tensor를 나타낸다.</p>
+<pre><code class="language-text">tensor(1.0472)   → Shape []
+tensor([1.0472]) → Shape [1]
+</code></pre>
+<h3><code>torch.cos</code>와 <code>torch.sin</code>은 회전 공식의 재료를 만든다</h3>
+<pre><code class="language-python">cos_angle = torch.cos(angle_radians)
+sin_angle = torch.sin(angle_radians)
+</code></pre>
+<p>각도가 60도라면 두 값은 대략 다음과 같다.</p>
+<pre><code class="language-text">cos(60도) ≈ 0.5
+sin(60도) ≈ 0.866
+</code></pre>
+<p>여기에서도 아직 회전된 벡터가 나온 것은 아니다. 실제 회전 계산에 필요한 <code>cosθ</code>와 <code>sinθ</code>를 준비한 것이다.</p>
+<h3><code>vector[0]</code>과 <code>vector[1]</code>은 x와 y 좌표다</h3>
+<pre><code class="language-python">x = vector[0]
+y = vector[1]
+</code></pre>
+<p>RoPE는 차원 두 개를 하나의 2차원 좌표처럼 취급한다. 입력이 <code>[1.0, 0.0]</code>이면 첫 번째 값은 <code>x=1.0</code>, 두 번째 값은 <code>y=0.0</code>이 된다.</p>
+<pre><code class="language-text">vector = [1.0, 0.0]
+           │    │
+           x    y
+</code></pre>
+<h3>두 식이 실제 회전을 수행한다</h3>
+<pre><code class="language-python">x * cos_angle - y * sin_angle
+x * sin_angle + y * cos_angle
+</code></pre>
+<p>이 부분이 실제 2차원 회전 공식을 적용하는 곳이다. 첫 번째 식은 회전 후의 <code>x&#39;</code>, 두 번째 식은 회전 후의 <code>y&#39;</code>를 계산한다.</p>
+<pre><code class="language-text">x&#39; = x cosθ - y sinθ
+y&#39; = x sinθ + y cosθ
+</code></pre>
+<p><code>[1, 0]</code>을 60도 회전시키면 다음과 같이 계산된다.</p>
+<pre><code class="language-text">x&#39; = 1 × 0.5 - 0 × 0.866 = 0.5
+y&#39; = 1 × 0.866 + 0 × 0.5 = 0.866
+</code></pre>
+<p>따라서 회전된 좌표는 <code>[0.5, 0.866]</code>이 된다.</p>
+<h3><code>torch.stack</code>은 회전된 두 값을 벡터로 조립한다</h3>
+<p>회전 공식으로 얻은 <code>x&#39;</code>와 <code>y&#39;</code>는 각각 값 하나인 스칼라 Tensor다. <code>torch.stack</code>은 이 둘을 새로운 차원으로 쌓아 길이 2의 Tensor로 만든다.</p>
+<pre><code class="language-text">tensor(0.5000)
+tensor(0.8660)
+       ↓ torch.stack
+tensor([0.5000, 0.8660])
+</code></pre>
+<p>따라서 <code>torch.stack</code> 자체가 회전하는 것은 아니다. 두 회전식이 실제 회전을 수행하고, <code>torch.stack</code>은 그 결과를 다시 하나의 차원쌍으로 묶는다.</p>
+<blockquote>
+<p><code>position * degrees_per_position</code>은 회전각을 정하고, <code>torch.deg2rad</code>는 각도의 단위를 바꾼다. <code>torch.cos</code>와 <code>torch.sin</code>은 회전 공식의 재료를 만들며, 두 회전식이 실제로 좌표를 회전시킨다. 마지막으로 <code>torch.stack</code>이 회전된 <code>x&#39;</code>, <code>y&#39;</code>를 하나의 벡터로 조립한다.</p>
+</blockquote>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>추후 공부 포인트: 2차원 회전공식</h2>
+<p>현재 RoPE 학습에서는 회전공식을 블랙박스로 사용한다.</p>
+<p>추후 별도의 수학 학습에서 다음 내용을 확인한다.</p>
+<blockquote>
+<p><strong>2차원 벡터 <code>[x, y]</code>를 θ만큼 회전시켰을 때 왜 <code>[x&#39;, y&#39;]</code>가 특정한 형태로 계산되는가?</strong></p>
+</blockquote>
+<p>필요한 배경은 다음과 같다.</p>
+<ul>
+<li>좌표평면과 벡터</li>
+<li><code>sin</code>, <code>cos</code></li>
+<li>삼각함수 덧셈정리</li>
+<li>2차원 회전행렬</li>
+<li>회전해도 벡터의 길이가 보존되는 이유</li>
+</ul>
+<p>RoPE를 이해하기 위해 지금 당장 이 계산을 전개할 필요는 없다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
