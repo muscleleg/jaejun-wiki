@@ -1,0 +1,269 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.md. Do not edit directly. source-sha256:2255af9adafd7897f1f786049c041b7eba3e8330c784d9762bc1e39cbba9688c -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="실제 코딩 에이전트 세션에서 모델 재진입 병목을 발견하고, Draft·Dry-run·Apply를 하나의 결정론적 실행으로 묶은 뒤 토큰을 자동 측정하도록 개선한 과정을 정리한다.">
+  <meta name="source-sha256" content="2255af9adafd7897f1f786049c041b7eba3e8330c784d9762bc1e39cbba9688c">
+  <title>세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-wiki-layout-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화">
+  <meta property="og:description" content="실제 코딩 에이전트 세션에서 모델 재진입 병목을 발견하고, Draft·Dry-run·Apply를 하나의 결정론적 실행으로 묶은 뒤 토큰을 자동 측정하도록 개선한 과정을 정리한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html","name":"세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화","description":"실제 코딩 에이전트 세션에서 모델 재진입 병목을 발견하고, Draft·Dry-run·Apply를 하나의 결정론적 실행으로 묶은 뒤 토큰을 자동 측정하도록 개선한 과정을 정리한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html"},"headline":"세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_deterministic_pipeline.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"코딩 에이전트 CLI 최적화 과정","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/coding_agent_cli_optimization_process.html"},{"@type":"ListItem","position":5,"name":"세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/coding_agent_cli_optimization_process.html">코딩 에이전트 CLI 최적화 과정</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>세션 분석으로 발견한 문서 관리 CLI의 두 번째 토큰 최적화</h1>
+      <p class="lead">실제 코딩 에이전트 세션에서 모델 재진입 병목을 발견하고, Draft·Dry-run·Apply를 하나의 결정론적 실행으로 묶은 뒤 토큰을 자동 측정하도록 개선한 과정을 정리한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-lead"><p>문서 관리 CLI의 첫 번째 최적화는 모델에게 불필요하게 큰 정보를 보여 주지 않는 데 초점을 맞췄다. 전체 문서 대신 수정할 H2와 앞뒤 문맥만 반환하고, 전체 Writer Schema 대신 사용할 작업의 Schema만 조회하도록 바꿨다.</p>
+<p>실제 세션을 다시 분석하자 캐시되지 않은 입력 토큰과 편집 시간은 줄었지만, CLI 실행 단계 사이에 모델이 계속 재진입하는 새로운 병목이 드러났다. 이번 개선은 의미 판단이 끝난 뒤의 반복 절차를 결정론적 실행기로 옮기고, 그 효과를 다음 작업부터 자동 측정할 수 있게 만든 과정이다.</p>
+</div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#discovery">문제는 어떻게 발견했는가?</a>
+        <a href="#remaining-bottleneck">첫 번째 최적화 뒤에도 남은 병목</a>
+        <a href="#deterministic-pipeline">무엇을 개선했는가?</a>
+        <a href="#draft-alias">Draft alias는 왜 필요한가?</a>
+        <a href="#failure-boundary">실패 경계는 어떻게 유지하는가?</a>
+        <a href="#automatic-token-metrics">토큰 사용량을 어떻게 자동 기록하는가?</a>
+        <a href="#benchmark-comparison">같은 작업끼리 어떻게 비교하는가?</a>
+        <a href="#measurement-limitations">측정기의 한계</a>
+        <a href="#before-and-after">개선해서 무엇이 달라졌는가?</a>
+        <a href="#conclusion">결론</a>
+        <a href="#self-improving-follow-up">멈춘 입력이 다음 최적화가 된 사례</a>
+      </nav>
+      <article class="markdown-content">
+        <section id="discovery" class="markdown-section">
+<h2>문제는 어떻게 발견했는가?</h2>
+<p>출발점은 문서 하나를 추가하는 데 4분 이상 걸렸다는 사용자의 체감이었다. 각각의 CLI 기능은 정상적으로 동작했고 개별 명령도 특별히 느리지 않았으므로, 코드만 읽어서는 원인을 찾기 어려웠다.</p>
+<p>실제 코딩 에이전트 세션에서 전체 시간, 모델 응답 횟수, 입력·캐시 입력·출력 토큰, CLI 단계와 재시도 구간을 함께 분석했다. 그 결과 Writer의 연산보다 다음 흐름이 반복되는 것이 문제임을 확인했다.</p>
+<pre><code class="language-text">모델이 문서 작성
+→ Draft 생성 요청
+→ 모델이 결과 확인
+→ Dry-run 요청
+→ 모델이 검증 결과 확인
+→ Apply 요청
+→ 모델이 적용 결과 확인
+→ 변경 요약 요청
+→ 모델이 최종 설명 작성
+</code></pre>
+<p>각 명령은 빨랐지만 명령이 끝날 때마다 모델이 긴 대화 문맥을 다시 읽고 다음 명령을 결정했다. 병목은 하나의 느린 명령이 아니라 여러 번 반복되는 모델 재진입이었다.</p>
+
+</section>
+<section id="remaining-bottleneck" class="markdown-section">
+<h2>첫 번째 최적화 뒤에도 남은 병목</h2>
+<p>앞선 최적화로 전체 문서와 전체 Schema를 반복해서 읽는 문제는 상당 부분 줄었다. 비교 가능한 새 문서 작업에서 캐시되지 않은 입력 토큰은 평균 약 38% 감소했다.</p>
+<p>그러나 최근의 복잡한 문서 편집은 평균 약 17번의 모델 응답 주기를 사용했다. 과거 표본의 평균은 약 10번이었다. CLI 응답 하나하나는 작아졌지만 호출 횟수가 많아 긴 대화 문맥의 캐시된 부분이 계속 다시 처리됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>낭비 종류</th>
+<th>원인</th>
+<th>해결 방법</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>큰 입력 낭비</td>
+<td>전체 문서·전체 Schema 반환</td>
+<td>필요한 절과 작업만 조회</td>
+</tr>
+<tr>
+<td>반복 호출 낭비</td>
+<td>단계마다 모델이 다시 판단</td>
+<td>결정 이후 단계를 하나의 실행으로 결합</td>
+</tr>
+</tbody></table>
+</div>
+<p>이번 개선은 두 번째 문제를 대상으로 한다.</p>
+
+</section>
+<section id="deterministic-pipeline" class="markdown-section">
+<h2>무엇을 개선했는가?</h2>
+<p>새로운 <code>content.execute-change</code> 실행 경로를 추가했다. 모델이 본문과 변경 Plan을 결정하면 한 번의 호출 안에서 다음 단계를 순서대로 실행한다.</p>
+<pre><code class="language-text">모델의 최종 결정
+→ Draft 생성
+→ Draft alias를 실제 ID로 치환
+→ Dry-run과 Plan 저장
+→ 저장된 동일 Plan 적용
+→ 임시 Draft 정리
+→ 짧은 검증 영수증 반환
+</code></pre>
+<p>검증 단계를 없앤 것은 아니다. Dry-run은 여전히 실행되고, 실제 Apply는 Dry-run을 통과해 저장된 <code>validatedPlanId</code>만 사용한다. 빌드, 감사, Hash 확인, 예상 상태 검증과 실패 시 Rollback도 기존 Writer가 그대로 담당한다.</p>
+<p>바뀐 것은 중간 단계마다 모델이 결과를 읽고 다음 명령을 다시 결정하던 과정뿐이다.</p>
+
+</section>
+<section id="draft-alias" class="markdown-section">
+<h2>Draft alias는 왜 필요한가?</h2>
+<p>기존 방식에서는 먼저 Draft를 만들어야 실제 <code>draftId</code>를 알 수 있었다. 모델은 Draft 생성 결과를 받은 뒤 그 ID를 다음 Plan에 복사해야 했다.</p>
+<p>새 실행 경로에서는 Plan에 다음과 같은 임시 별칭을 쓴다.</p>
+<pre><code class="language-json">{
+  &quot;kind&quot;: &quot;draft&quot;,
+  &quot;id&quot;: &quot;@draft:article&quot;
+}
+</code></pre>
+<p>실행기는 Draft를 만든 뒤 <code>@draft:article</code>을 실제 비공개 Draft ID로 치환한다. 모델은 내부 ID를 확인하거나 다음 호출에 다시 복사할 필요가 없다. 여러 문서를 함께 만드는 계층 편집도 서로 다른 alias로 같은 실행 안에서 처리할 수 있다.</p>
+
+</section>
+<section id="failure-boundary" class="markdown-section">
+<h2>실패 경계는 어떻게 유지하는가?</h2>
+<p>결정론적 실행으로 묶었더라도 기존 안전 경계는 유지한다.</p>
+<ul>
+<li>Draft 생성 중 실패하면 이미 만든 임시 Draft를 정리한다.</li>
+<li>Dry-run에서 실패하면 canonical 문서는 변경하지 않는다.</li>
+<li>Apply에서 실패하면 기존 Writer의 Rollback을 수행한다.</li>
+<li>남은 검증 Plan과 실행기가 만든 Draft를 정리한다.</li>
+<li>Apply 성공 후 임시 Draft 정리만 실패하면 적용 성공을 실패로 잘못 보고하지 않고 정리 경고를 반환한다.</li>
+</ul>
+<p>오류에는 <code>draft</code>, <code>dry-run</code>, <code>apply</code>, <code>cleanup</code> 중 실패한 단계가 포함된다. 따라서 긴 구현 파일을 다시 탐색하기 전에 단계와 검증 메시지로 입력을 바로잡을 수 있다.</p>
+
+</section>
+<section id="automatic-token-metrics" class="markdown-section">
+<h2>토큰 사용량을 어떻게 자동 기록하는가?</h2>
+<p>구조를 줄였더라도 실제 토큰이 감소했는지 측정하지 않으면 개선 여부를 확정할 수 없다. 문서 변경이 끝난 턴마다 다음 정보를 자동 기록하는 측정기를 추가했다.</p>
+<ul>
+<li>입력 토큰과 캐시 입력 토큰</li>
+<li>캐시되지 않은 입력 토큰</li>
+<li>출력 토큰과 전체 토큰</li>
+<li>실질 신규 토큰</li>
+<li>모델 응답 주기와 작업시간</li>
+<li>사용 모델과 reasoning effort</li>
+</ul>
+<p>실질 신규 토큰은 다음처럼 계산한다.</p>
+<pre><code class="language-text">실질 신규 토큰
+= 입력 토큰
+- 캐시 입력 토큰
++ 출력 토큰
+</code></pre>
+<p>전체 토큰은 긴 대화의 캐시 문맥이 모델 호출마다 반복 집계되므로 CLI 출력 크기 개선을 판단하기 어렵다. 캐시되지 않은 입력 토큰과 실질 신규 토큰을 함께 봐야 한다.</p>
+
+</section>
+<section id="benchmark-comparison" class="markdown-section">
+<h2>같은 작업끼리 어떻게 비교하는가?</h2>
+<p>문서 추가와 짧은 H2 수정은 난도가 다르므로 같은 표본으로 취급하면 안 된다. 실행 요청에 <code>benchmarkId</code>를 넣어 <code>new-document</code>, <code>h2-edit</code>, <code>hierarchy-restructure</code>처럼 같은 유형의 작업을 묶는다.</p>
+<p>측정 결과는 같은 benchmark, 같은 모델, 같은 reasoning effort 조건으로 필터링한다. Fixture의 품질 검증 결과와 토큰 측정을 함께 비교하면 “동일한 결과와 검증 수준을 유지하면서 토큰이 실제로 줄었는가?”를 확인할 수 있다.</p>
+
+</section>
+<section id="measurement-limitations" class="markdown-section">
+<h2>측정기의 한계</h2>
+<p>현재 Codex Hook이 직접 제공하는 데이터에는 토큰 사용량이 포함되지 않으므로, 세션 transcript의 <code>token_count</code> 이벤트를 읽어 집계한다. transcript 형식은 안정적인 공개 인터페이스가 아니기 때문에 이 기록은 best-effort 관측치다.</p>
+<p>측정 실패는 문서 편집을 실패시키지 않는다. transcript 경로나 대화 본문은 저장하지 않고 세션과 턴 ID도 Hash key로만 보존한다. 기록값은 비용 청구액이 아니라 전후 비교용 지표로 취급한다.</p>
+
+</section>
+<section id="before-and-after" class="markdown-section">
+<h2>개선해서 무엇이 달라졌는가?</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>이전</th>
+<th>개선 후</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Draft 생성</td>
+<td>별도 호출</td>
+<td>실행기 내부 처리</td>
+</tr>
+<tr>
+<td>실제 Draft ID 전달</td>
+<td>모델이 읽고 복사</td>
+<td>alias 자동 치환</td>
+</tr>
+<tr>
+<td>Dry-run</td>
+<td>별도 호출 후 모델 확인</td>
+<td>내부 실행</td>
+</tr>
+<tr>
+<td>Apply</td>
+<td>모델이 다시 요청</td>
+<td>검증 Plan 자동 적용</td>
+</tr>
+<tr>
+<td>임시 Draft 정리</td>
+<td>별도 처리</td>
+<td>실행기 소유로 자동 정리</td>
+</tr>
+<tr>
+<td>결과 확인</td>
+<td>단계별 응답</td>
+<td>최종 검증 영수증 한 번</td>
+</tr>
+<tr>
+<td>토큰 측정</td>
+<td>나중에 수동 분석</td>
+<td>턴 종료 시 자동 기록</td>
+</tr>
+<tr>
+<td>회귀 비교</td>
+<td>서로 다른 작업이 섞임</td>
+<td>benchmark·모델·reasoning 조건으로 필터링</td>
+</tr>
+</tbody></table>
+</div>
+<p>예상되는 가장 큰 변화는 모델 응답 주기의 감소다. 결정이 끝난 이후 여러 번 나뉘던 실행을 한 번의 도구 호출로 줄인다.</p>
+<p>다만 새 실행 경로로 충분한 실제 작업을 반복하기 전에는 추가 토큰 절감률을 확정할 수 없다. 현재 확인된 것은 실행 구조와 안전성, 측정 기반을 마련했다는 사실이다.</p>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>결론</h2>
+<p>이번 개선은 처음부터 설계만 보고 찾아낸 최적화가 아니다. 사용자가 실제 작업시간의 이상을 발견했고, 코딩 에이전트가 세션의 호출 순서와 토큰 사용량을 다시 분석하면서 원인이 드러났다.</p>
+<pre><code class="language-text">실제 작업 수행
+→ 사용자가 이상 징후 발견
+→ 세션 데이터 분석
+→ 반복되는 낭비 구간 식별
+→ 가장 작은 도구 기능 추가
+→ 기존 Fixture로 품질 회귀 검증
+→ 다음 작업부터 자동 측정
+</code></pre>
+<p>핵심은 모델의 판단이 필요한 구간과 이미 결정된 절차를 구분한 것이다. 모델은 문서의 의미와 구조를 결정하고, 결정이 끝난 뒤의 반복 가능한 절차는 CLI가 담당한다. 문서 품질과 안전 검증은 유지하면서 토큰과 시간을 낭비하던 모델 재호출만 줄이는 경계가 만들어졌다.</p>
+
+</section>
+<section id="self-improving-follow-up" class="markdown-section">
+<h2>멈춘 입력이 다음 최적화가 된 사례</h2>
+<p>결정론적 파이프라인 자체는 약 2초 만에 끝났지만, 긴 JSON을 대화형 표준입력으로 전달한 호출이 EOF를 기다리며 전체 작업을 지연시킨 사례가 있었다. <a href="coding_agent_cli_self_improving_workflow.html">멈춘 문서 편집에서 스스로 개선되는 CLI까지</a>는 이 실패를 즉시 거부하는 입력 안전장치와 Fixture로 바꾸고, 이후 작업을 독립적으로 감사하는 사용자 승인형 개선 순환까지 확장한 과정을 다룬다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="coding_agent_cli_self_improving_workflow.html">멈춘 문서 편집에서 스스로 개선되는 CLI까지</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
