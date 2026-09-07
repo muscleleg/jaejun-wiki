@@ -1,0 +1,304 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.md. Do not edit directly. source-sha256:aa2d60815eb8cca7eec348ebee51538e73c2e0f870e377d1f889133311ce7ba0 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Head 수만 달리한 MHA와 GQA Cache를 GPU에 할당해 예상 Byte와 실제 메모리 증가량이 같은 비율로 줄어드는지 검증한다.">
+  <meta name="source-sha256" content="aa2d60815eb8cca7eec348ebee51538e73c2e0f870e377d1f889133311ce7ba0">
+  <title>GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기">
+  <meta property="og:description" content="KV Head 수만 달리한 MHA와 GQA Cache를 GPU에 할당해 예상 Byte와 실제 메모리 증가량이 같은 비율로 줄어드는지 검증한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html","name":"GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기","description":"KV Head 수만 달리한 MHA와 GQA Cache를 GPU에 할당해 예상 Byte와 실제 메모리 증가량이 같은 비율로 줄어드는지 검증한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html"},"headline":"GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-transformer","name":"Transformer","identifier":"topics-transformer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-transformer","name":"Transformer","identifier":"transformer-transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"MHA와 GQA의 모델 전체 KV Cache Byte 비교","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_bytes_learning.html"},{"@type":"ListItem","position":6,"name":"GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_mha_gqa_kv_cache_bytes_learning.html">MHA와 GQA의 모델 전체 KV Cache Byte 비교</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기</h1>
+      <p class="lead">KV Head 수만 달리한 MHA와 GQA Cache를 GPU에 할당해 예상 Byte와 실제 메모리 증가량이 같은 비율로 줄어드는지 검증한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-443b2027cc8c">실습 조건</a>
+        <a href="#gpu">GPU 메모리 측정 코드</a>
+        <a href="#section-04d8d8e4bfbc">측정 경계의 의미</a>
+        <a href="#section-452df0fa333e">실제 실행 결과</a>
+        <a href="#head-kv-cache">Head 수와 KV Cache 크기의 관계</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>MHA(Multi-Head Attention)는 Query Head와 같은 수의 K·V Head를 사용한다. GQA(Grouped-Query Attention)는 여러 Query Head가 더 적은 K·V Head를 공유하게 만들어 KV Cache의 크기를 줄인다.</p>
+<p>KV Cache의 크기는 다음 값들을 모두 곱해 결정된다.</p>
+<pre><code class="language-text">KV Cache Byte
+= 2 × Layer × Batch × Sequence × KV Head × Head dimension × 원소당 Byte
+</code></pre>
+<p>맨 앞의 <code>2</code>는 Key Cache와 Value Cache 두 개를 뜻한다. 나머지 조건이 같다면 KV Cache의 크기는 KV Head 수에 정비례한다. 이번 실습은 이 관계가 Shape 공식뿐 아니라 GPU의 실제 PyTorch Tensor 할당량에서도 나타나는지 확인한다.</p>
+</div>
+        <section id="section-443b2027cc8c" class="markdown-section">
+<h2>실습 조건</h2>
+<pre><code class="language-python">device: torch.device = torch.device(&quot;cuda&quot;)
+cache_dtype: torch.dtype = torch.float16
+
+num_layers: int = 16
+batch_size: int = 1
+cached_sequence_length: int = 4096
+
+num_query_heads: int = 4
+num_kv_heads: int = 2
+head_dim: int = 128
+</code></pre>
+<p><code>num_layers=16</code>은 KV Cache를 따로 보관하는 Transformer Layer가 16개라는 뜻이다. Layer마다 K·V Projection 결과가 다르므로 Cache도 Layer별로 존재한다.</p>
+<p><code>batch_size=1</code>은 동시에 처리하는 토큰 시퀀스 또는 요청이 하나라는 뜻이고, <code>cached_sequence_length=4096</code>은 요청 하나에서 Cache에 저장된 Token 위치가 4096개라는 뜻이다.</p>
+<p>MHA는 Cache Head를 4개 사용하고, GQA는 Cache Head를 2개 사용한다. 다른 모든 조건은 동일하게 유지한다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>GPU 메모리 측정 코드</h2>
+<pre><code class="language-python">import gc
+
+import torch
+from torch import Tensor
+from jaxtyping import Float
+
+
+device: torch.device = torch.device(&quot;cuda&quot;)
+cache_dtype: torch.dtype = torch.float16
+
+num_layers: int = 16
+batch_size: int = 1
+cached_sequence_length: int = 4096
+
+num_query_heads: int = 4
+num_kv_heads: int = 2
+head_dim: int = 128
+
+
+assert torch.cuda.is_available()
+assert num_query_heads % num_kv_heads == 0
+
+
+def measure_kv_cache(
+    cache_head_count: int,
+) -&gt; tuple[int, int, int]:
+
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+
+    memory_before: int = torch.cuda.memory_allocated()
+
+    torch.cuda.reset_peak_memory_stats()
+
+    key_cache: Float[
+        Tensor,
+        &quot;layer batch kv_head cached_sequence head_dim&quot;,
+    ] = torch.empty(
+        num_layers,
+        batch_size,
+        cache_head_count,
+        cached_sequence_length,
+        head_dim,
+        dtype=cache_dtype,
+        device=device,
+    )
+
+    value_cache: Float[
+        Tensor,
+        &quot;layer batch kv_head cached_sequence head_dim&quot;,
+    ] = torch.empty(
+        num_layers,
+        batch_size,
+        cache_head_count,
+        cached_sequence_length,
+        head_dim,
+        dtype=cache_dtype,
+        device=device,
+    )
+
+    torch.cuda.synchronize()
+
+    memory_after: int = torch.cuda.memory_allocated()
+
+    actual_allocated_bytes: int = (
+        memory_after - memory_before
+    )
+
+    peak_increase_bytes: int = (
+        torch.cuda.max_memory_allocated()
+        - memory_before
+    )
+
+    expected_bytes: int = (
+        key_cache.numel() * key_cache.element_size()
+        + value_cache.numel() * value_cache.element_size()
+    )
+
+    del key_cache
+    del value_cache
+
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    return (
+        expected_bytes,
+        actual_allocated_bytes,
+        peak_increase_bytes,
+    )
+
+
+mha_expected_bytes, mha_actual_bytes, mha_peak_bytes = (
+    measure_kv_cache(
+        cache_head_count=num_query_heads,
+    )
+)
+
+gqa_expected_bytes, gqa_actual_bytes, gqa_peak_bytes = (
+    measure_kv_cache(
+        cache_head_count=num_kv_heads,
+    )
+)
+
+
+def bytes_to_mib(byte_count: int) -&gt; float:
+    return byte_count / (1024 ** 2)
+
+
+print(&quot;GPU:&quot;, torch.cuda.get_device_name())
+print(&quot;Cache dtype:&quot;, cache_dtype)
+print()
+
+print(&quot;[MHA]&quot;)
+print(
+    &quot;계산으로 예상한 크기:&quot;,
+    round(bytes_to_mib(mha_expected_bytes), 2),
+    &quot;MiB&quot;,
+)
+print(
+    &quot;실제 GPU 할당 증가:&quot;,
+    round(bytes_to_mib(mha_actual_bytes), 2),
+    &quot;MiB&quot;,
+)
+print(
+    &quot;GPU Peak 증가:&quot;,
+    round(bytes_to_mib(mha_peak_bytes), 2),
+    &quot;MiB&quot;,
+)
+print()
+
+print(&quot;[GQA]&quot;)
+print(
+    &quot;계산으로 예상한 크기:&quot;,
+    round(bytes_to_mib(gqa_expected_bytes), 2),
+    &quot;MiB&quot;,
+)
+print(
+    &quot;실제 GPU 할당 증가:&quot;,
+    round(bytes_to_mib(gqa_actual_bytes), 2),
+    &quot;MiB&quot;,
+)
+print(
+    &quot;GPU Peak 증가:&quot;,
+    round(bytes_to_mib(gqa_peak_bytes), 2),
+    &quot;MiB&quot;,
+)
+print()
+
+print(
+    &quot;계산상 GQA / MHA:&quot;,
+    gqa_expected_bytes / mha_expected_bytes,
+)
+
+print(
+    &quot;실제 GQA / MHA:&quot;,
+    gqa_actual_bytes / mha_actual_bytes,
+)
+</code></pre>
+
+</section>
+<section id="section-04d8d8e4bfbc" class="markdown-section">
+<h2>측정 경계의 의미</h2>
+<p><code>torch.cuda.synchronize()</code>는 현재 CUDA 장치에 예약된 작업이 끝날 때까지 기다린다. GPU는 CPU와 비동기로 실행될 수 있으므로 측정 전후의 경계를 분명하게 만든다.</p>
+<p><code>torch.cuda.memory_allocated()</code>는 호출한 순간 살아 있는 PyTorch Tensor가 사용하는 GPU 메모리를 반환한다. Cache 생성 전의 <code>memory_before</code>와 생성 후의 <code>memory_after</code>를 빼면 이번 K·V Tensor가 추가한 메모리를 구할 수 있다.</p>
+<p><code>torch.cuda.reset_peak_memory_stats()</code>는 GPU 메모리를 비우지 않는다. 이전 연산에서 기록된 최대 사용량 통계만 초기화한다. 이후 <code>torch.cuda.max_memory_allocated()</code>를 읽으면 초기화한 시점 이후의 최대 Tensor 메모리를 확인할 수 있다.</p>
+
+</section>
+<section id="section-452df0fa333e" class="markdown-section">
+<h2>실제 실행 결과</h2>
+<ul>
+<li><a href="transformer_gqa_kv_cache_batch_sequence_scaling.html">GQA KV Cache는 Batch와 문맥 길이에 따라 선형 증가한다</a></li>
+</ul>
+<p>NVIDIA L4에서 실행한 결과는 다음과 같다.</p>
+<pre><code class="language-text">GPU: NVIDIA L4
+Cache dtype: torch.float16
+
+[MHA]
+계산으로 예상한 크기: 128.0 MiB
+실제 GPU 할당 증가: 128.0 MiB
+GPU Peak 증가: 128.0 MiB
+
+[GQA]
+계산으로 예상한 크기: 64.0 MiB
+실제 GPU 할당 증가: 64.0 MiB
+GPU Peak 증가: 64.0 MiB
+
+계산상 GQA / MHA: 0.5
+실제 GQA / MHA: 0.5
+</code></pre>
+<p>계산으로 예상한 Byte와 실제 GPU 할당 증가량이 일치했다. Query Head가 4개인 MHA는 128 MiB를 사용했고, KV Head가 2개인 GQA는 64 MiB를 사용했다.</p>
+
+</section>
+<section id="head-kv-cache" class="markdown-section">
+<h2>Head 수와 KV Cache 크기의 관계</h2>
+<ul>
+<li><a href="transformer_tiny_decoder_weight_kv_cache_memory.html">TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기</a></li>
+</ul>
+<p>이번 조건에서는 GQA의 KV Head가 MHA의 절반이다.</p>
+<pre><code class="language-text">GQA / MHA Cache 비율
+= GQA KV Head 수 / MHA KV Head 수
+= 2 / 4
+= 0.5
+</code></pre>
+<p>따라서 GQA의 Cache도 MHA의 절반이 되었다. 항상 두 배 차이가 나는 것은 아니다. KV Head를 4개에서 1개로 줄인다면 Cache 크기는 4분의 1이 된다.</p>
+<p>이번 실습은 전체 모델의 속도나 출력 품질을 비교한 것이 아니다. Layer, Batch, Sequence, Head dimension과 dtype을 고정하고 <strong>KV Head 수가 실제 GPU KV Cache 메모리에 미치는 영향만 분리해서 확인한 실습</strong>이다.</p>
+<p>결론적으로 다른 축이 같을 때 KV Cache 크기는 KV Head 수에 비례한다. GQA는 적은 K·V Head를 저장하기 때문에 생성 길이와 Batch가 커질수록 MHA보다 적은 GPU 메모리로 문맥을 유지할 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="transformer_tiny_decoder_weight_kv_cache_memory.html">TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기</a></li>
+<li><a href="transformer_gqa_kv_cache_batch_sequence_scaling.html">GQA KV Cache는 Batch와 문맥 길이에 따라 선형 증가한다</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

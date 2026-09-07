@@ -1,0 +1,645 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_mha_kv_cache_gqa_learning.md. Do not edit directly. source-sha256:50e97a6848d2cef64f5dfce9bb9fbf59c58c031d59e91e5233f1b71a6bdb2aaf -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="하나의 Q/K/V Projection을 Head별로 나눠 학습하고 다시 조합하는 MHA 구조에서 KV Cache의 증가와 이를 줄이는 GQA까지 연결합니다.">
+  <meta name="source-sha256" content="50e97a6848d2cef64f5dfce9bb9fbf59c58c031d59e91e5233f1b71a6bdb2aaf">
+  <title>MHA의 학습 구조에서 KV Cache와 GQA까지</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="MHA의 학습 구조에서 KV Cache와 GQA까지">
+  <meta property="og:description" content="하나의 Q/K/V Projection을 Head별로 나눠 학습하고 다시 조합하는 MHA 구조에서 KV Cache의 증가와 이를 줄이는 GQA까지 연결합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html","name":"MHA의 학습 구조에서 KV Cache와 GQA까지","description":"하나의 Q/K/V Projection을 Head별로 나눠 학습하고 다시 조합하는 MHA 구조에서 KV Cache의 증가와 이를 줄이는 GQA까지 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html"},"headline":"MHA의 학습 구조에서 KV Cache와 GQA까지","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-multi-head-attention","name":"Multi-Head","identifier":"topics-multi-head-attention"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-head-split-merge","name":"Head 분리·병합","identifier":"transformer-head-split-merge"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-output-projection","name":"Output Projection","identifier":"transformer-output-projection"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-multi-head-attention","name":"Multi-Head Attention","identifier":"transformer-multi-head-attention"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Scaled Dot-Product Attention","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_learning.html"},{"@type":"ListItem","position":6,"name":"Multi-Head Attention 분리하고 다시 합치기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_multi_head_attention_learning.html"},{"@type":"ListItem","position":7,"name":"MHA의 학습 구조에서 KV Cache와 GQA까지"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_learning.html">Scaled Dot-Product Attention</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_multi_head_attention_learning.html">Multi-Head Attention 분리하고 다시 합치기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">MHA의 학습 구조에서 KV Cache와 GQA까지</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>MHA의 학습 구조에서 KV Cache와 GQA까지</h1>
+      <p class="lead">하나의 Q/K/V Projection을 Head별로 나눠 학습하고 다시 조합하는 MHA 구조에서 KV Cache의 증가와 이를 줄이는 GQA까지 연결합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#head">히든 스테이트는 처음부터 Head로 나뉘어 있지 않다</a>
+        <a href="#mha-projection-head">MHA는 하나의 Projection 결과를 여러 Head로 나눠 연산한다</a>
+        <a href="#projection-head">Projection 결과를 Head별 영역으로 나눈다</a>
+        <a href="#head-2">각 Head는 전체 히든 스테이트로부터 만들어진다</a>
+        <a href="#head-projection">Head별 계산을 통해 Projection의 각 영역이 다르게 학습된다</a>
+        <a href="#head-3">왜 Head로 나누는가?</a>
+        <a href="#head-4">Head 결과는 먼저 기계적으로 이어 붙인다</a>
+        <a href="#output-projection-head">Output Projection이 Head들의 정보를 조합한다</a>
+        <a href="#attention">Attention 결과를 원래 히든 스테이트와 더한다</a>
+        <a href="#head-projection-2">Head가 하나여도 Projection 직후의 모양은 달라지지 않는다</a>
+        <a href="#k-v">토큰 생성에서는 같은 K와 V 계산이 반복된다</a>
+        <a href="#kv-cache-head-k-v">KV Cache에는 Head별 K와 V가 저장된다</a>
+        <a href="#k-v-2">새로운 토큰은 캐시에 저장된 K와 V를 사용한다</a>
+        <a href="#mha-q-k-v-head">MHA에서는 Q와 같은 수의 K/V Head를 저장한다</a>
+        <a href="#kv-cache-gqa">KV Cache가 커지는 문제를 줄이기 위해 GQA가 등장한다</a>
+        <a href="#gqa-k-v-head">GQA는 K/V Head 수를 줄인다</a>
+        <a href="#gqa-k-v-head-2">GQA는 기존 K/V Head를 기계적으로 잘라내는 것이 아니다</a>
+        <a href="#mha-gqa">MHA에서 GQA까지의 전체 흐름</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Transformer의 Multi-Head Attention을 이해하려면 먼저 히든 스테이트가 어떻게 Q, K, V가 되고, 이 값들이 어떻게 여러 Head로 나뉘는지 알아야 한다.</p>
+<p>그다음 여러 Head의 결과가 다시 어떻게 하나의 히든 스테이트로 합쳐지는지 이해하면, 토큰 생성 과정에서 KV Cache가 왜 필요하고 GQA가 왜 등장했는지도 자연스럽게 연결된다.</p>
+</div>
+        <section id="head" class="markdown-section">
+<h2>히든 스테이트는 처음부터 Head로 나뉘어 있지 않다</h2>
+<p>Transformer에서 각 토큰은 먼저 하나의 온전한 히든 스테이트로 표현된다.</p>
+<pre><code class="language-text">hidden_states: [batch, sequence, d_model]
+</code></pre>
+<p>예를 들어 <code>d_model=8</code>이라면 토큰 하나는 하나의 8차원 벡터로 표현된다.</p>
+<pre><code class="language-text">토큰 하나의 hidden state
+= [h₀, h₁, h₂, h₃, h₄, h₅, h₆, h₇]
+</code></pre>
+<p>아직 이 상태에서는 Head가 나뉘어 있지 않다.</p>
+<p>이 히든 스테이트를 Q, K, V Projection에 넣는다.</p>
+<pre><code class="language-python">q = q_projection(hidden_states)
+k = k_projection(hidden_states)
+v = v_projection(hidden_states)
+</code></pre>
+<p>일반적인 MHA 구현에서는 Q, K, V마다 하나의 Projection을 사용한다.</p>
+<pre><code class="language-python">q_projection = nn.Linear(d_model, d_model)
+k_projection = nn.Linear(d_model, d_model)
+v_projection = nn.Linear(d_model, d_model)
+</code></pre>
+<p>Projection 직후의 모양은 다음과 같다.</p>
+<pre><code class="language-text">Q: [batch, sequence, d_model]
+K: [batch, sequence, d_model]
+V: [batch, sequence, d_model]
+</code></pre>
+<p>이 시점까지는 명시적인 Head 축이 없다.</p>
+
+</section>
+<section id="mha-projection-head" class="markdown-section">
+<h2>MHA는 하나의 Projection 결과를 여러 Head로 나눠 연산한다</h2>
+<p>여기서 Multi-Head Attention의 의미를 분명히 할 필요가 있다.</p>
+<p>이 코드에서는 Head가 4개라고 해서 Q Projection, K Projection, V Projection을 각각 4개씩 따로 만들지 않는다.</p>
+<pre><code class="language-text">전체 hidden state
+├─ 하나의 Q Projection → 하나의 온전한 Q
+├─ 하나의 K Projection → 하나의 온전한 K
+└─ 하나의 V Projection → 하나의 온전한 V
+</code></pre>
+<p>Multi-Head Attention은 이렇게 만든 하나의 온전한 Q, K, V를 Head 수에 맞게 여러 영역으로 나누고, 각 영역에서 Attention을 따로 계산하는 구조다.</p>
+<pre><code class="language-text">하나의 온전한 Q
+├─ Head 1이 사용할 영역
+├─ Head 2가 사용할 영역
+├─ Head 3이 사용할 영역
+└─ Head 4가 사용할 영역
+</code></pre>
+<p>따라서 Multi-Head라는 말은 처음부터 Head 수만큼 별도의 Q/K/V Projection 모듈을 가지고 있다는 뜻이 아니다.</p>
+<blockquote>
+<p>Q, K, V마다 하나의 큰 Projection을 사용하고, 그 결과를 Head별 영역으로 나눠 각각 Attention을 계산한다는 뜻이다.</p>
+</blockquote>
+<p>수학적인 설명에서는 Head마다 서로 다른 Projection을 가진다고 표현하기도 한다. 하나의 큰 Projection 안에서 각 Head가 사용하는 출력 영역이 서로 다른 가중치로 만들어지기 때문에, 수학적으로는 Head별 Projection으로 나누어 표현할 수 있기 때문이다.</p>
+<p>하지만 현재 코드가 실행되는 흐름을 기준으로는 <strong>하나의 큰 Projection 결과를 Head별로 나눠 사용한다</strong>고 이해하는 것이 가장 직접적이다.</p>
+
+</section>
+<section id="projection-head" class="markdown-section">
+<h2>Projection 결과를 Head별 영역으로 나눈다</h2>
+<p><code>d_model=8</code>, <code>num_heads=4</code>라면 Head 하나가 사용할 차원은 2가 된다.</p>
+<pre><code class="language-text">head_dim = d_model / num_heads
+         = 8 / 4
+         = 2
+</code></pre>
+<p>Q Projection으로 만든 8차원 결과를 네 개 영역으로 나눈다.</p>
+<pre><code class="language-text">Q 전체: [q₀, q₁, q₂, q₃, q₄, q₅, q₆, q₇]
+
+Head 1이 사용할 영역: [q₀, q₁]
+Head 2가 사용할 영역: [q₂, q₃]
+Head 3이 사용할 영역: [q₄, q₅]
+Head 4가 사용할 영역: [q₆, q₇]
+</code></pre>
+<p>코드에서는 <code>view()</code>를 사용해 Head 축을 만든다.</p>
+<pre><code class="language-python">q_heads = q.view(
+    batch_size,
+    sequence_length,
+    num_heads,
+    head_dim,
+)
+</code></pre>
+<p>모양은 다음처럼 바뀐다.</p>
+<pre><code class="language-text">[batch, sequence, 8]
+→ [batch, sequence, 4 heads, 2 dimensions]
+</code></pre>
+<p>Attention 계산을 편하게 하기 위해 Head 축을 앞으로 옮긴다.</p>
+<pre><code class="language-python">q_heads = q_heads.transpose(1, 2)
+</code></pre>
+<pre><code class="language-text">[batch, sequence, 4 heads, 2 dimensions]
+→ [batch, 4 heads, sequence, 2 dimensions]
+</code></pre>
+<p>K와 V에도 같은 과정을 적용한다.</p>
+<pre><code class="language-python">k_heads = k.view(
+    batch_size,
+    sequence_length,
+    num_heads,
+    head_dim,
+).transpose(1, 2)
+
+v_heads = v.view(
+    batch_size,
+    sequence_length,
+    num_heads,
+    head_dim,
+).transpose(1, 2)
+</code></pre>
+<p>여기서 <code>view()</code>가 새로운 값을 만들거나 Head의 의미를 학습하는 것은 아니다.</p>
+<p><code>view()</code>는 하나의 큰 Projection 결과에서 각 Head가 사용할 영역을 구분하는 기계적인 모양 변경이다.</p>
+
+</section>
+<section id="head-2" class="markdown-section">
+<h2>각 Head는 전체 히든 스테이트로부터 만들어진다</h2>
+<p>Projection 결과를 Head별로 나눈다고 해서 각 Head가 원래 히든 스테이트의 일부만 보는 것은 아니다.</p>
+<p>각 Head가 사용하는 값은 전체 히든 스테이트를 Projection에 넣어 만든 결과의 일부다.</p>
+<pre><code class="language-text">전체 8차원 hidden state
+→ 하나의 큰 Q Projection
+→ Q 8차원
+→ 2차원씩 네 Head 영역으로 구분
+</code></pre>
+<p>따라서 다음처럼 이해하면 안 된다.</p>
+<pre><code class="language-text">Head 1은 hidden state의 앞 2차원만 본다.
+Head 2는 hidden state의 다음 2차원만 본다.
+</code></pre>
+<p>실제로는 각 Head가 사용할 출력값 모두가 전체 히든 스테이트의 영향을 받는다.</p>
+<pre><code class="language-text">전체 hidden state → Head 1이 사용할 Q 영역
+전체 hidden state → Head 2가 사용할 Q 영역
+전체 hidden state → Head 3이 사용할 Q 영역
+전체 hidden state → Head 4가 사용할 Q 영역
+</code></pre>
+<p>즉, 히든 스테이트의 입력을 여러 조각으로 잘라 Head에 나눠 주는 것이 아니다.</p>
+<blockquote>
+<p>전체 히든 스테이트로 하나의 Projection 결과를 만든 다음, 그 출력 결과를 Head별 영역으로 나누는 것이다.</p>
+</blockquote>
+
+</section>
+<section id="head-projection" class="markdown-section">
+<h2>Head별 계산을 통해 Projection의 각 영역이 다르게 학습된다</h2>
+<p>Q, K, V Projection은 각각 하나의 큰 결과를 만든다. 그 결과를 Head별로 나누면 각 영역은 서로 다른 Attention 계산에 사용된다.</p>
+<pre><code class="language-text">Q Projection의 전체 출력
+├─ 첫 번째 영역 → Head 1 Attention
+├─ 두 번째 영역 → Head 2 Attention
+├─ 세 번째 영역 → Head 3 Attention
+└─ 네 번째 영역 → Head 4 Attention
+</code></pre>
+<p>각 Head는 자신에게 배정된 Q, K, V 영역으로 토큰 관계를 계산한다.</p>
+<pre><code class="language-text">Head 1: Q 영역 1과 K 영역 1로 Attention 계산
+Head 2: Q 영역 2와 K 영역 2로 Attention 계산
+Head 3: Q 영역 3과 K 영역 3으로 Attention 계산
+Head 4: Q 영역 4와 K 영역 4로 Attention 계산
+</code></pre>
+<p>모든 Head의 결과를 합쳐 최종 예측을 만들고, 정답과 비교해 얼마나 틀렸는지 확인한다.</p>
+<p>모델은 다음번에 더 좋은 답을 만들 수 있도록 각 Head가 사용한 Projection 영역의 값을 조금씩 수정한다.</p>
+<pre><code class="language-text">Head 1의 계산 결과
+→ Head 1이 사용한 Projection 영역 조정
+
+Head 2의 계산 결과
+→ Head 2가 사용한 Projection 영역 조정
+
+Head 3과 Head 4도 같은 방식으로 조정
+</code></pre>
+<p>각 Head를 완전히 별도의 모델처럼 따로 학습하는 것은 아니다. 모든 Head의 결과를 합쳐 하나의 답을 만들고, 그 답을 기준으로 전체 모델이 함께 학습된다.</p>
+<p>하지만 Head마다 서로 다른 Projection 영역과 Attention 계산을 사용하므로, 학습이 반복되면서 Projection의 각 영역이 서로 다른 역할을 맡을 수 있다.</p>
+<p>따라서 MHA는 다음과 같이 이해할 수 있다.</p>
+<blockquote>
+<p>하나의 큰 Q/K/V Projection으로 전체 값을 만든 다음, 그 결과를 여러 Head가 사용할 영역으로 나눈다. 각 Head는 자신의 영역으로 서로 다른 Attention을 계산하고, 그 계산 결과에 따라 큰 Projection의 각 영역이 서로 다르게 학습된다.</p>
+</blockquote>
+
+</section>
+<section id="head-3" class="markdown-section">
+<h2>왜 Head로 나누는가?</h2>
+<p>Head로 나누지 않는다면 전체 Q와 K를 한 번에 내적해 하나의 Attention 분포를 만든다.</p>
+<pre><code class="language-text">Q 8차원 · K 8차원
+→ Attention 분포 1개
+</code></pre>
+<p>Head가 4개라면 각 Head가 독립적인 Attention 분포를 만든다.</p>
+<pre><code class="language-text">Head 1: Q 2차원 · K 2차원 → Attention 분포 1개
+Head 2: Q 2차원 · K 2차원 → Attention 분포 1개
+Head 3: Q 2차원 · K 2차원 → Attention 분포 1개
+Head 4: Q 2차원 · K 2차원 → Attention 분포 1개
+</code></pre>
+<p>코드로는 다음과 같이 계산한다.</p>
+<pre><code class="language-python">scores = q_heads @ k_heads.transpose(-2, -1)
+attention_weights = torch.softmax(scores, dim=-1)
+head_outputs = attention_weights @ v_heads
+</code></pre>
+<p>각 Head가 서로 다른 Projection 영역과 Attention 분포를 사용하므로 같은 문장을 보더라도 서로 다른 토큰 관계에 집중할 수 있다.</p>
+<p>어떤 Head가 어떤 관계를 담당할지는 사람이 미리 정하지 않는다. 모델이 정답을 더 잘 맞히도록 계속 조정되는 과정에서 Head별 차이가 생긴다.</p>
+
+</section>
+<section id="head-4" class="markdown-section">
+<h2>Head 결과는 먼저 기계적으로 이어 붙인다</h2>
+<p>각 Head에서 Attention 계산이 끝나면 Head별 결과가 나온다.</p>
+<p>Head가 4개이고 <code>head_dim=2</code>라면 다음과 같다.</p>
+<pre><code class="language-text">Head 1 결과: [a₀, a₁]
+Head 2 결과: [b₀, b₁]
+Head 3 결과: [c₀, c₁]
+Head 4 결과: [d₀, d₁]
+</code></pre>
+<p>이 결과를 먼저 순서대로 이어 붙인다.</p>
+<pre><code class="language-text">[a₀, a₁] + [b₀, b₁] + [c₀, c₁] + [d₀, d₁]
+
+→ [a₀, a₁, b₀, b₁, c₀, c₁, d₀, d₁]
+</code></pre>
+<p>코드에서는 <code>transpose()</code>와 <code>reshape()</code>를 사용한다.</p>
+<pre><code class="language-python">outputs_by_token = head_outputs.transpose(1, 2)
+
+concatenated_output = outputs_by_token.reshape(
+    batch_size,
+    sequence_length,
+    d_model,
+)
+</code></pre>
+<p>모양은 다음처럼 변한다.</p>
+<pre><code class="language-text">[batch, heads, sequence, head_dim]
+→ [batch, sequence, heads, head_dim]
+→ [batch, sequence, d_model]
+</code></pre>
+<p>Head 결과를 이어 붙이는 것 자체는 기계적인 모양 변경이다.</p>
+<p>하지만 단순히 이어 붙였다고 해서 여러 Head의 정보가 서로 섞인 것은 아니다.</p>
+<pre><code class="language-text">[Head 1 결과 | Head 2 결과 | Head 3 결과 | Head 4 결과]
+</code></pre>
+<p>각 Head의 결과가 하나의 벡터 안에 나란히 놓여 있을 뿐이다.</p>
+
+</section>
+<section id="output-projection-head" class="markdown-section">
+<h2>Output Projection이 Head들의 정보를 조합한다</h2>
+<p>이어 붙인 Head 결과는 Output Projection을 통과한다.</p>
+<pre><code class="language-python">attention_output = output_projection(concatenated_output)
+</code></pre>
+<p>Output Projection은 학습 가능한 <code>Linear</code>다.</p>
+<pre><code class="language-python">output_projection = nn.Linear(
+    d_model,
+    d_model,
+    bias=False,
+)
+</code></pre>
+<p>Output Projection은 여러 Head의 결과를 섞어 새로운 출력 차원을 만든다.</p>
+<pre><code class="language-text">새로운 출력 차원 1
+= Head 1의 일부 + Head 2의 일부 + Head 4의 일부
+
+새로운 출력 차원 2
+= Head 1의 일부 + Head 3의 일부
+</code></pre>
+<p>학습이 반복되면서 Output Projection은 다음과 같은 조합 방법을 배우게 된다.</p>
+<pre><code class="language-text">어떤 Head의 정보를 얼마나 사용할 것인가?
+여러 Head의 정보를 어떻게 조합할 것인가?
+다음 계층에는 어떤 형태로 전달할 것인가?
+</code></pre>
+<p>따라서 Head를 나누고 다시 합치는 과정의 역할은 다음과 같이 구분할 수 있다.</p>
+<pre><code class="language-text">Q/K/V Projection
+→ Head마다 사용할 서로 다른 표현을 만듦
+
+Head별 Attention
+→ 각 Head가 서로 다른 토큰 관계를 계산함
+
+이어 붙이기
+→ Head 결과를 하나의 벡터로 모음
+
+Output Projection
+→ 모아 놓은 Head 정보를 서로 섞어
+  다음 히든 스테이트에 유용한 형태로 만듦
+</code></pre>
+<p>Output Projection이 Head의 의미를 혼자서 만드는 것은 아니다.</p>
+<p>Head마다 다른 정보를 만드는 것은 Q/K/V Projection과 Head별 Attention이고, Output Projection은 그렇게 얻은 여러 정보를 하나의 표현으로 조합한다.</p>
+<blockquote>
+<p>Head 결과를 합치는 첫 단계는 기계적으로 이어 붙이는 과정이다. Output Projection은 이어 붙인 여러 Head의 정보를 섞어 다음 계층에서 사용하기 좋은 하나의 표현으로 만든다.</p>
+</blockquote>
+
+</section>
+<section id="attention" class="markdown-section">
+<h2>Attention 결과를 원래 히든 스테이트와 더한다</h2>
+<p>Output Projection을 통과한 Attention 결과는 일반적으로 원래 히든 스테이트와 더해진다.</p>
+<pre><code class="language-python">hidden_states = hidden_states + attention_output
+</code></pre>
+<p>Layer Normalization까지 포함하면 Transformer 구조에 따라 대략 다음처럼 처리될 수 있다.</p>
+<pre><code class="language-python">hidden_states = layer_norm(
+    hidden_states + attention_output
+)
+</code></pre>
+<p>원래 히든 스테이트를 함께 더하기 때문에 Attention이 만든 정보만 남는 것이 아니다. 기존 토큰 표현을 유지하면서 여러 Head가 찾아낸 관계 정보를 추가하는 것이다.</p>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">원래 hidden state
+→ Q/K/V Projection
+→ Head별로 나눔
+→ Head별 Attention
+→ Head 결과를 기계적으로 이어 붙임
+→ Output Projection으로 Head 정보 조합
+→ 원래 hidden state와 더함
+→ 다음 hidden state
+</code></pre>
+
+</section>
+<section id="head-projection-2" class="markdown-section">
+<h2>Head가 하나여도 Projection 직후의 모양은 달라지지 않는다</h2>
+<p><code>d_model=8</code>을 유지한다면 Head가 하나일 때도 Q, K, V Projection 결과는 8차원이다.</p>
+<pre><code class="language-text">Single Head:
+Q, K, V → [batch, sequence, 8]
+</code></pre>
+<p>Head가 4개여도 Projection 직후에는 8차원이다.</p>
+<pre><code class="language-text">Multi Head:
+Q, K, V → [batch, sequence, 8]
+</code></pre>
+<p>차이는 그 결과로 Attention을 계산하는 방식에 있다.</p>
+<pre><code class="language-text">Single Head:
+8차원 전체로 Attention 한 번 계산
+
+Multi Head:
+8차원을 2차원씩 네 영역으로 나눠
+Attention 네 번 계산
+</code></pre>
+<p>따라서 MHA는 Q, K, V의 전체 모양을 무조건 바꾸는 개념이 아니다.</p>
+<p>하나의 Projection 결과를 여러 Head 영역으로 나누고, 영역마다 Attention을 따로 계산하도록 만든 구조다. 그리고 Head별 계산 결과에 따라 Projection의 각 영역이 다르게 학습된다.</p>
+<p>MHA는 별도의 학습 알고리즘이라기보다 모델이 Attention을 계산하고 학습하는 구조라고 표현하는 것이 더 정확하다.</p>
+
+</section>
+<section id="k-v" class="markdown-section">
+<h2>토큰 생성에서는 같은 K와 V 계산이 반복된다</h2>
+<p>모델을 학습할 때는 일반적으로 문장 전체를 한 번에 넣고 모든 토큰의 Attention을 병렬로 계산한다.</p>
+<p>반면 학습을 마친 모델이 문장을 생성할 때는 토큰을 하나씩 만든다.</p>
+<pre><code class="language-text">입력: 나는
+생성: 오늘
+
+입력: 나는 오늘
+생성: 학교에
+
+입력: 나는 오늘 학교에
+생성: 간다
+</code></pre>
+<p>첫 번째 단계에서는 <code>나는</code>의 K와 V를 계산한다.</p>
+<p>두 번째 단계에서는 <code>오늘</code>을 생성하기 위해 <code>나는</code>의 K와 V가 다시 필요하다.</p>
+<p>세 번째 단계에서는 <code>학교에</code>를 생성하기 위해 <code>나는</code>, <code>오늘</code>의 K와 V가 다시 필요하다.</p>
+<p>아무것도 저장하지 않는다면 과거 토큰의 K와 V를 생성 단계마다 다시 계산해야 한다.</p>
+<pre><code class="language-text">1단계:
+토큰 1의 K/V 계산
+
+2단계:
+토큰 1의 K/V 다시 계산
+토큰 2의 K/V 계산
+
+3단계:
+토큰 1의 K/V 다시 계산
+토큰 2의 K/V 다시 계산
+토큰 3의 K/V 계산
+</code></pre>
+<p>하지만 과거 토큰의 K와 V는 이미 계산한 값이고 생성 중에는 바뀌지 않는다. 따라서 한 번 계산한 K와 V를 저장해 두었다가 다시 사용하면 된다.</p>
+<p>이것이 KV Cache다.</p>
+
+</section>
+<section id="kv-cache-head-k-v" class="markdown-section">
+<h2>KV Cache에는 Head별 K와 V가 저장된다</h2>
+<p>KV Cache는 K/V Projection의 가중치를 저장하는 것이 아니다.</p>
+<p>각 토큰이 K/V Projection을 통과하고 Head별 영역으로 나뉜 뒤 만들어진 실제 K와 V 값을 저장한다.</p>
+<pre><code class="language-text">hidden state
+→ K/V Projection
+→ Head별 영역으로 나눔
+→ Head별 K/V 값을 KV Cache에 저장
+</code></pre>
+<p>캐시의 일반적인 모양은 다음과 같다.</p>
+<pre><code class="language-text">K Cache: [batch, kv_heads, past_sequence, head_dim]
+V Cache: [batch, kv_heads, past_sequence, head_dim]
+</code></pre>
+<p>MHA에서 K Cache를 펼쳐 보면 다음과 같다.</p>
+<pre><code class="language-text">K Cache
+├─ 과거 토큰들의 K Head 1
+├─ 과거 토큰들의 K Head 2
+├─ 과거 토큰들의 K Head 3
+└─ 과거 토큰들의 K Head 4
+</code></pre>
+<p>V도 같은 방식으로 저장한다.</p>
+<pre><code class="language-text">V Cache
+├─ 과거 토큰들의 V Head 1
+├─ 과거 토큰들의 V Head 2
+├─ 과거 토큰들의 V Head 3
+└─ 과거 토큰들의 V Head 4
+</code></pre>
+<p>RoPE를 사용하는 모델이라면 일반적으로 K는 다음 과정을 거친 후 캐시에 저장된다.</p>
+<pre><code class="language-text">K Projection
+→ Head별 영역으로 나눔
+→ RoPE 적용
+→ K Cache에 저장
+</code></pre>
+<p>V에는 일반적으로 RoPE를 적용하지 않는다.</p>
+
+</section>
+<section id="k-v-2" class="markdown-section">
+<h2>새로운 토큰은 캐시에 저장된 K와 V를 사용한다</h2>
+<p>새 토큰을 생성할 때는 새 토큰의 Q, K, V만 계산한다. 새롭게 계산한 K와 V는 기존 KV Cache 뒤에 추가한다.</p>
+<pre><code class="language-text">기존 K Cache + 새 토큰의 K
+→ 갱신된 K Cache
+
+기존 V Cache + 새 토큰의 V
+→ 갱신된 V Cache
+</code></pre>
+<p>새 토큰의 Q는 캐시에 저장된 모든 K와 비교한다.</p>
+<pre><code class="language-python">scores = new_q @ cached_k.transpose(-2, -1)
+attention_weights = torch.softmax(scores, dim=-1)
+output = attention_weights @ cached_v
+</code></pre>
+<p>과거 Q는 다음 토큰을 생성할 때 다시 사용할 필요가 없다. 그래서 일반적으로 Q는 캐시에 저장하지 않고 K와 V만 저장한다.</p>
+
+</section>
+<section id="mha-q-k-v-head" class="markdown-section">
+<h2>MHA에서는 Q와 같은 수의 K/V Head를 저장한다</h2>
+<p>일반적인 MHA에서는 Q, K, V의 Head 수가 모두 같다.</p>
+<pre><code class="language-text">Q Head: 4개
+K Head: 4개
+V Head: 4개
+</code></pre>
+<p>각 Q Head는 자신에게 대응하는 K/V Head와 Attention을 계산한다.</p>
+<pre><code class="language-text">Q Head 1 ↔ K/V Head 1
+Q Head 2 ↔ K/V Head 2
+Q Head 3 ↔ K/V Head 3
+Q Head 4 ↔ K/V Head 4
+</code></pre>
+<p>따라서 KV Cache에도 토큰마다 네 개의 K Head와 네 개의 V Head가 저장된다.</p>
+<pre><code class="language-text">K Cache: [batch, 4, sequence, head_dim]
+V Cache: [batch, 4, sequence, head_dim]
+</code></pre>
+
+</section>
+<section id="kv-cache-gqa" class="markdown-section">
+<h2>KV Cache가 커지는 문제를 줄이기 위해 GQA가 등장한다</h2>
+<p>MHA에서는 새로운 토큰을 생성할 때마다 그 토큰의 모든 K Head와 V Head가 KV Cache에 추가된다.</p>
+<pre><code class="language-text">토큰 1 생성
+→ K Head 4개, V Head 4개 저장
+
+토큰 2 생성
+→ K Head 4개, V Head 4개 추가
+
+토큰 3 생성
+→ K Head 4개, V Head 4개 추가
+</code></pre>
+<p>생성하는 문장이 길어질수록 <code>sequence</code>가 커지므로 KV Cache도 계속 커진다.</p>
+<p>또한 Transformer에는 Attention Layer가 여러 개 있다. 각 Layer가 자신만의 K와 V를 저장해야 하므로 실제로는 모든 Layer의 KV Cache가 함께 증가한다.</p>
+<pre><code class="language-text">긴 문장 생성
+→ 저장할 과거 토큰 증가
+→ 각 토큰의 K/V Head를 계속 저장
+→ 모든 Attention Layer의 KV Cache 증가
+→ 메모리 사용량과 데이터 처리 비용 증가
+</code></pre>
+<p>모델의 가중치는 한 번 메모리에 올리면 계속 사용할 수 있지만, KV Cache는 생성하는 문장의 길이와 동시에 처리하는 문장 수에 따라 증가한다.</p>
+<p>따라서 긴 문장을 생성하거나 여러 사용자의 요청을 동시에 처리할 때 KV Cache가 큰 부담이 될 수 있다.</p>
+<p>이 문제를 줄이기 위한 대표적인 구조가 GQA다.</p>
+<pre><code class="language-text">MHA의 문제:
+Q Head 수만큼 K/V Head를 저장
+→ 문장이 길어질수록 KV Cache 증가
+
+GQA의 해결 방향:
+여러 Q Head가 더 적은 K/V Head를 공유
+→ 저장할 K/V Head 수 감소
+→ KV Cache와 생성 비용 감소
+</code></pre>
+
+</section>
+<section id="gqa-k-v-head" class="markdown-section">
+<h2>GQA는 K/V Head 수를 줄인다</h2>
+<p>Grouped Query Attention은 Q Head 수는 유지하면서 K/V Head 수를 줄이는 구조다.</p>
+<p>MHA가 다음과 같다면:</p>
+<pre><code class="language-text">Q Head: 4개
+K Head: 4개
+V Head: 4개
+</code></pre>
+<p>GQA는 다음과 같이 구성할 수 있다.</p>
+<pre><code class="language-text">Q Head: 4개
+K Head: 2개
+V Head: 2개
+</code></pre>
+<p>여러 Q Head가 하나의 K/V Head를 공유한다.</p>
+<pre><code class="language-text">Q Head 1 ─┐
+          ├─ K/V Head 1
+Q Head 2 ─┘
+
+Q Head 3 ─┐
+          ├─ K/V Head 2
+Q Head 4 ─┘
+</code></pre>
+<p>Q Head는 여전히 4개이므로 네 개의 Attention 계산을 수행할 수 있다. 하지만 KV Cache에 저장해야 하는 K/V Head는 2개로 줄어든다.</p>
+<pre><code class="language-text">MHA:
+K Head 4개 + V Head 4개 저장
+
+GQA:
+K Head 2개 + V Head 2개 저장
+</code></pre>
+<p>이 예제에서는 KV Cache의 Head 방향 크기가 절반으로 줄어든다.</p>
+<p>따라서 MHA에서 GQA로 이어지는 핵심 흐름은 다음과 같다.</p>
+<blockquote>
+<p>MHA는 Q와 같은 수의 K/V Head를 사용하므로 토큰 생성이 길어질수록 KV Cache가 크게 증가한다. GQA는 이 부담을 줄이기 위해 여러 Q Head가 더 적은 K/V Head를 공유하도록 만든 구조다.</p>
+</blockquote>
+
+</section>
+<section id="gqa-k-v-head-2" class="markdown-section">
+<h2>GQA는 기존 K/V Head를 기계적으로 잘라내는 것이 아니다</h2>
+<p>GQA는 MHA처럼 K/V Head를 4개 만든 다음 그중 2개를 버리는 구조가 아니다.</p>
+<p>처음부터 K/V Projection의 출력 크기를 줄여 더 적은 수의 K/V Head 영역을 만든다.</p>
+<p>Q Head가 4개이고 K/V Head가 2개이며 <code>head_dim=2</code>라면 다음과 같다.</p>
+<pre><code class="language-text">Q Projection 출력:
+4 heads × 2 dimensions = 8차원
+
+K Projection 출력:
+2 heads × 2 dimensions = 4차원
+
+V Projection 출력:
+2 heads × 2 dimensions = 4차원
+</code></pre>
+<p>코드로 표현하면 다음과 같다.</p>
+<pre><code class="language-python">q_projection = nn.Linear(
+    d_model,
+    num_query_heads * head_dim,
+)
+
+k_projection = nn.Linear(
+    d_model,
+    num_kv_heads * head_dim,
+)
+
+v_projection = nn.Linear(
+    d_model,
+    num_kv_heads * head_dim,
+)
+</code></pre>
+<p>GQA의 K/V Head도 전체 히든 스테이트를 입력으로 받는다.</p>
+<pre><code class="language-text">전체 hidden state
+→ 더 적은 수의 K/V Head 영역 생성
+</code></pre>
+<p>즉, 히든 스테이트의 일부를 잘라 버리는 것이 아니다.</p>
+<p>처음부터 더 적은 수의 K/V 영역을 만들고, 여러 Q Head가 함께 사용하기에 적절한 K/V 표현이 되도록 학습하는 것이다.</p>
+
+</section>
+<section id="mha-gqa" class="markdown-section">
+<h2>MHA에서 GQA까지의 전체 흐름</h2>
+<p>전체 과정을 하나로 연결하면 다음과 같다.</p>
+<pre><code class="language-text">1. 토큰마다 전체 d_model 크기의 hidden state를 만든다.
+
+2. hidden state를 하나의 큰 Q/K/V Projection에 넣는다.
+
+3. Projection 결과를 Head 수에 맞춰 여러 영역으로 나눈다.
+
+4. 각 Head가 자신의 Q/K/V 영역으로
+   별도의 Attention을 계산한다.
+
+5. 최종 답이 얼마나 틀렸는지 확인하면서
+   각 Head가 사용한 Projection 영역을 조정한다.
+
+6. 이 과정이 반복되면서
+   Projection의 각 영역이 서로 다른 역할을 맡을 수 있다.
+
+7. Head별 Attention 결과를 기계적으로 이어 붙인다.
+
+8. Output Projection이 여러 Head의 정보를 섞어
+   다음 계층에서 사용할 하나의 표현으로 만든다.
+
+9. 이 결과를 원래 hidden state와 더해
+   다음 hidden state를 만든다.
+
+10. 토큰 생성 중에는
+    과거 토큰의 Head별 K/V 값이 반복해서 필요하다.
+
+11. 이미 계산한 K/V 값을 KV Cache에 저장한다.
+
+12. MHA에서는 Q와 같은 수의 K/V Head를 저장하므로
+    문장이 길어질수록 KV Cache가 크게 증가한다.
+
+13. GQA는 여러 Q Head가 더 적은 K/V Head를 공유하게 해
+    Q의 여러 Attention 관점은 유지하면서 KV Cache를 줄인다.
+</code></pre>
+<p>결국 MHA, KV Cache, GQA는 다음과 같이 연결된다.</p>
+<blockquote>
+<p>MHA는 하나의 큰 Q/K/V Projection 결과를 여러 Head가 사용할 영역으로 나누고, 각 Head가 서로 다른 Attention을 계산하도록 만든 구조다. Head별 결과는 먼저 기계적으로 이어 붙이고, Output Projection이 여러 Head의 정보를 하나의 표현으로 조합한다. 토큰 생성 과정에서는 과거 토큰의 Head별 K/V 값이 반복해서 필요하므로 이를 KV Cache에 저장한다. 하지만 MHA에서는 Q와 같은 수의 K/V Head를 저장해야 하므로 문장이 길어질수록 KV Cache가 커진다. GQA는 이 문제를 줄이기 위해 Q Head 수는 유지하면서 여러 Q Head가 더 적은 K/V Head를 공유하도록 하여 메모리 사용량과 생성 비용을 절감한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

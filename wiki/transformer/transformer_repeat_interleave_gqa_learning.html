@@ -1,0 +1,274 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_repeat_interleave_gqa_learning.md. Do not edit directly. source-sha256:bbe3e0f65bc60f4834e52e38c97a240f212340e736cb9bf1eb1c206b9b566be2 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="repeat_interleave의 repeats와 dim을 작은 Tensor로 이해하고 GQA에서 KV Head를 Q Head 수에 맞춰 사용하는 과정을 설명합니다.">
+  <meta name="source-sha256" content="bbe3e0f65bc60f4834e52e38c97a240f212340e736cb9bf1eb1c206b9b566be2">
+  <title>`repeat_interleave()` 문법</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="`repeat_interleave()` 문법">
+  <meta property="og:description" content="repeat_interleave의 repeats와 dim을 작은 Tensor로 이해하고 GQA에서 KV Head를 Q Head 수에 맞춰 사용하는 과정을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html","name":"`repeat_interleave()` 문법","description":"repeat_interleave의 repeats와 dim을 작은 Tensor로 이해하고 GQA에서 KV Head를 Q Head 수에 맞춰 사용하는 과정을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html"},"headline":"`repeat_interleave()` 문법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-multi-head-attention","name":"Multi-Head","identifier":"topics-multi-head-attention"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-head-split-merge","name":"Head 분리·병합","identifier":"transformer-head-split-merge"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-multi-head-attention","name":"Multi-Head Attention","identifier":"transformer-multi-head-attention"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_repeat_interleave_gqa_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Scaled Dot-Product Attention","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_learning.html"},{"@type":"ListItem","position":6,"name":"Multi-Head Attention 분리하고 다시 합치기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_multi_head_attention_learning.html"},{"@type":"ListItem","position":7,"name":"`repeat_interleave()` 문법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_learning.html">Scaled Dot-Product Attention</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_multi_head_attention_learning.html">Multi-Head Attention 분리하고 다시 합치기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">`repeat_interleave()` 문법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>`repeat_interleave()` 문법</h1>
+      <p class="lead">repeat_interleave의 repeats와 dim을 작은 Tensor로 이해하고 GQA에서 KV Head를 Q Head 수에 맞춰 사용하는 과정을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-7d9387335791">가장 간단한 예제</a>
+        <a href="#gqa">GQA 코드에서의 사용법</a>
+        <a href="#tensor-head">작은 Tensor로 Head 반복 확인하기</a>
+        <a href="#gqa-2">GQA에서 만들어지는 공유 관계</a>
+        <a href="#dim"><code>dim</code>을 생략하면 주의해야 한다</a>
+        <a href="#repeat"><code>repeat()</code>와의 차이</a>
+        <a href="#section-be32351177bf">현재 실습에서의 의미</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><code>repeat_interleave()</code>는 Tensor의 특정 축에서 <strong>각 항목을 지정한 횟수만큼 연속으로 반복</strong>한다.</p>
+<p>기본 문법은 다음과 같다.</p>
+<pre><code class="language-python">result = tensor.repeat_interleave(
+    repeats,
+    dim=반복할_축,
+)
+</code></pre>
+<ul>
+<li><code>repeats</code>: 각 항목을 몇 번 반복할지</li>
+<li><code>dim</code>: 어느 축의 항목을 반복할지</li>
+</ul>
+</div>
+        <section id="section-7d9387335791" class="markdown-section">
+<h2>가장 간단한 예제</h2>
+<pre><code class="language-python">import torch
+
+numbers = torch.tensor([10, 20, 30])
+
+result = numbers.repeat_interleave(
+    repeats=2,
+    dim=0,
+)
+
+print(result)
+</code></pre>
+<p>출력:</p>
+<pre><code class="language-text">tensor([10, 10, 20, 20, 30, 30])
+</code></pre>
+<p>각 숫자가 그 자리에서 두 번씩 반복된다.</p>
+<pre><code class="language-text">10 → 10, 10
+20 → 20, 20
+30 → 30, 30
+</code></pre>
+
+</section>
+<section id="gqa" class="markdown-section">
+<h2>GQA 코드에서의 사용법</h2>
+<p>GQA 실습에서는 다음과 같이 사용했다.</p>
+<pre><code class="language-python">key_for_attention = key_cache.repeat_interleave(
+    query_heads_per_kv_head,
+    dim=1,
+)
+</code></pre>
+<p>현재 Tensor Shape은 다음과 같다.</p>
+<pre><code class="language-text">key_cache:
+[batch, kv_head, sequence, head_dim]
+[1,     2,       3,        2]
+</code></pre>
+<p><code>dim=1</code>은 <code>kv_head</code> 축이다.</p>
+<pre><code class="language-python">query_heads_per_kv_head = 2
+</code></pre>
+<p>따라서 KV Head 축의 각 Head를 두 번씩 반복한다.</p>
+<pre><code class="language-text">반복 전:
+[KV Head 0, KV Head 1]
+
+반복 후:
+[KV Head 0, KV Head 0, KV Head 1, KV Head 1]
+</code></pre>
+<p>Shape도 바뀐다.</p>
+<pre><code class="language-text">반복 전: [1, 2, 3, 2]
+반복 후: [1, 4, 3, 2]
+</code></pre>
+<p>여기서 Sequence와 Head dimension은 바뀌지 않는다. <code>dim=1</code>인 Head 축만 2에서 4로 커진다.</p>
+
+</section>
+<section id="tensor-head" class="markdown-section">
+<h2>작은 Tensor로 Head 반복 확인하기</h2>
+<pre><code class="language-python">import torch
+
+kv_heads = torch.tensor(
+    [
+        [
+            [10, 11],  # KV Head 0
+            [20, 21],  # KV Head 1
+        ]
+    ]
+)
+
+print(&quot;반복 전 Shape:&quot;, kv_heads.shape)
+print(kv_heads)
+
+repeated_heads = kv_heads.repeat_interleave(
+    repeats=2,
+    dim=1,
+)
+
+print(&quot;반복 후 Shape:&quot;, repeated_heads.shape)
+print(repeated_heads)
+</code></pre>
+<p>반복 전:</p>
+<pre><code class="language-text">Shape: [1, 2, 2]
+
+[
+    [
+        [10, 11],
+        [20, 21]
+    ]
+]
+</code></pre>
+<p>반복 후:</p>
+<pre><code class="language-text">Shape: [1, 4, 2]
+
+[
+    [
+        [10, 11],
+        [10, 11],
+        [20, 21],
+        [20, 21]
+    ]
+]
+</code></pre>
+
+</section>
+<section id="gqa-2" class="markdown-section">
+<h2>GQA에서 만들어지는 공유 관계</h2>
+<p>Q Head가 4개이고 KV Head가 2개라면:</p>
+<pre><code class="language-python">query_heads_per_kv_head = (
+    num_query_heads // num_kv_heads
+)
+</code></pre>
+<pre><code class="language-text">4 // 2 = 2
+</code></pre>
+<p>각 KV Head를 두 번씩 사용한다.</p>
+<pre><code class="language-text">계산용 Head 0 = KV Head 0 → Q Head 0이 사용
+계산용 Head 1 = KV Head 0 → Q Head 1이 사용
+
+계산용 Head 2 = KV Head 1 → Q Head 2가 사용
+계산용 Head 3 = KV Head 1 → Q Head 3이 사용
+</code></pre>
+<p>다음 코드로 실제로 같은 값인지 확인할 수 있다.</p>
+<pre><code class="language-python">print(
+    torch.equal(
+        repeated_heads[:, 0],
+        repeated_heads[:, 1],
+    )
+)
+
+print(
+    torch.equal(
+        repeated_heads[:, 2],
+        repeated_heads[:, 3],
+    )
+)
+</code></pre>
+<p>출력:</p>
+<pre><code class="language-text">True
+True
+</code></pre>
+
+</section>
+<section id="dim" class="markdown-section">
+<h2><code>dim</code>을 생략하면 주의해야 한다</h2>
+<p><code>dim</code>을 지정하지 않으면 Tensor를 일렬로 펼친 다음 각 값을 반복한다.</p>
+<pre><code class="language-python">matrix = torch.tensor(
+    [
+        [1, 2],
+        [3, 4],
+    ]
+)
+
+result = matrix.repeat_interleave(2)
+
+print(result)
+</code></pre>
+<p>출력:</p>
+<pre><code class="language-text">tensor([1, 1, 2, 2, 3, 3, 4, 4])
+</code></pre>
+<p>원래 행과 열 구조가 사라졌기 때문에, GQA에서는 반드시 Head 축인 <code>dim=1</code>을 명시해야 한다.</p>
+
+</section>
+<section id="repeat" class="markdown-section">
+<h2><code>repeat()</code>와의 차이</h2>
+<p><code>repeat_interleave()</code>는 각 항목을 바로 옆에서 반복한다.</p>
+<pre><code class="language-python">x = torch.tensor([1, 2, 3])
+
+print(x.repeat_interleave(2))
+</code></pre>
+<pre><code class="language-text">[1, 1, 2, 2, 3, 3]
+</code></pre>
+<p><code>repeat()</code>는 Tensor 전체 패턴을 반복한다.</p>
+<pre><code class="language-python">print(x.repeat(2))
+</code></pre>
+<pre><code class="language-text">[1, 2, 3, 1, 2, 3]
+</code></pre>
+<p>GQA에서는 다음 순서가 필요하다.</p>
+<pre><code class="language-text">KV Head 0, KV Head 0, KV Head 1, KV Head 1
+</code></pre>
+<p>따라서 <code>repeat()</code>이 아니라 <code>repeat_interleave()</code>를 사용한다.</p>
+
+</section>
+<section id="section-be32351177bf" class="markdown-section">
+<h2>현재 실습에서의 의미</h2>
+<pre><code class="language-python">key_for_attention = key_cache.repeat_interleave(
+    repeats=query_heads_per_kv_head,
+    dim=1,
+)
+</code></pre>
+<p>이 코드는 다음 의미다.</p>
+<blockquote>
+<p>K Cache의 KV Head 축에서 각 Head를 Q Head가 공유하는 횟수만큼 연속으로 반복해, Attention 계산에 사용할 Q Head 수와 맞춘다.</p>
+</blockquote>
+<p>단, 실제 KV Cache 자체가 4개 Head로 늘어나는 것은 아니다.</p>
+<pre><code class="language-text">실제 Cache:       KV Head 2개
+Attention 계산용: KV Head 4개처럼 사용
+</code></pre>
+<p><code>key_cache</code>와 <code>value_cache</code>에는 원래의 KV Head 2개만 저장되어 있기 때문에 KV Cache 절감 효과는 유지된다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
