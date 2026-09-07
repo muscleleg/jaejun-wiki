@@ -1,0 +1,501 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.md. Do not edit directly. source-sha256:b296444d16d3f82d2dea72d0179ab7bceb3a6b5c17282709ed8b079ffb5692da -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="새 토큰의 K·V를 적은 KV Head 상태로 Cache에 추가한 뒤 Attention 계산에서 여러 Q Head가 공유하는 GQA의 저장·계산 흐름을 Shape과 코드로 설명한다.">
+  <meta name="source-sha256" content="b296444d16d3f82d2dea72d0179ab7bceb3a6b5c17282709ed8b079ffb5692da">
+  <title>GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다">
+  <meta property="og:description" content="새 토큰의 K·V를 적은 KV Head 상태로 Cache에 추가한 뒤 Attention 계산에서 여러 Q Head가 공유하는 GQA의 저장·계산 흐름을 Shape과 코드로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html","name":"GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다","description":"새 토큰의 K·V를 적은 KV Head 상태로 Cache에 추가한 뒤 Attention 계산에서 여러 Q Head가 공유하는 GQA의 저장·계산 흐름을 Shape과 코드로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html"},"headline":"GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-transformer","name":"Transformer","identifier":"topics-transformer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-transformer","name":"Transformer","identifier":"transformer-transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_kv_cache_attention_head_expansion.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>GQA는 KV Cache에 먼저 추가하고 Attention 계산 때 Head를 늘린다</h1>
+      <p class="lead">새 토큰의 K·V를 적은 KV Head 상태로 Cache에 추가한 뒤 Attention 계산에서 여러 Q Head가 공유하는 GQA의 저장·계산 흐름을 Shape과 코드로 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kv-cache-k-v">기존 KV Cache에는 과거 토큰의 K·V가 저장되어 있다</a>
+        <a href="#k-v-2-head">새 토큰의 K·V도 2개 Head로 만든다</a>
+        <a href="#k-v-cache">새 K·V를 작은 상태 그대로 Cache에 추가한다</a>
+        <a href="#attention-q-head-4">Attention 계산에서는 Q Head가 4개다</a>
+        <a href="#attention-head">Attention 계산 때 Head를 늘린다</a>
+        <a href="#cache-k-v">Cache에는 늘린 K·V를 저장하지 않는다</a>
+        <a href="#q-kv-cache">새 Q는 전체 KV Cache를 조회한다</a>
+        <a href="#section-705ff27dcb79">전체 흐름을 확인하는 코드</a>
+        <a href="#head">실제 구현에서는 Head를 물리적으로 늘리지 않을 수 있다</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GQA(Grouped Query Attention)는 Query Head보다 적은 수의 Key·Value Head를 사용하여 KV Cache의 메모리 사용량을 줄이는 Attention 구조다.</p>
+<p>예를 들어 다음과 같은 GQA 구조를 생각해 보자.</p>
+<pre><code class="language-text">Query Head 수: 4
+KV Head 수:    2
+Head 차원:     2
+현재 토큰 수:  3
+</code></pre>
+<p>이 구조에서는 Query가 4개 Head를 사용하더라도 KV Cache에는 K·V를 각각 2개 Head만 저장한다.</p>
+<pre><code class="language-text">Q Head 수:        4
+저장되는 KV Head: 2
+</code></pre>
+<p>새로운 토큰이 들어오면 GQA는 다음 순서로 처리한다.</p>
+<pre><code class="language-text">1. 새 토큰의 K·V를 2개 KV Head로 만든다.
+2. 2개 Head 상태 그대로 기존 KV Cache에 추가한다.
+3. Attention을 계산할 때 4개 Q Head에 맞춰 K·V를 공유한다.
+</code></pre>
+<p>핵심은 <strong>Cache를 갱신하는 단계와 Attention을 계산하는 단계가 서로 다른 형태의 K·V를 사용한다는 것</strong>이다.</p>
+</div>
+        <section id="kv-cache-k-v" class="markdown-section">
+<h2>기존 KV Cache에는 과거 토큰의 K·V가 저장되어 있다</h2>
+<p>과거 토큰이 3개라면 K Cache의 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[batch, kv_head, cached_sequence, head_dim]
+[1,     2,       3,               2]
+</code></pre>
+<p>V Cache도 같은 Shape을 가진다.</p>
+<pre><code class="language-text">K Cache: [1, 2, 3, 2]
+V Cache: [1, 2, 3, 2]
+</code></pre>
+<p>각 축은 다음 의미를 가진다.</p>
+<pre><code class="language-text">batch:           문장 묶음
+kv_head:         K·V Head
+cached_sequence: Cache에 저장된 토큰 위치
+head_dim:        각 Head가 담당하는 차원
+</code></pre>
+<p>KV Head는 2개지만, 각 Head 안에는 과거 세 토큰의 정보가 모두 들어 있다.</p>
+<pre><code class="language-text">KV Head 0: 토큰 1, 2, 3의 K·V
+KV Head 1: 토큰 1, 2, 3의 K·V
+</code></pre>
+<p>따라서 KV Head가 적다고 해서 일부 토큰의 문맥을 저장하지 않는 것은 아니다. 모든 토큰을 저장하되, 토큰마다 만들어지는 K·V의 Head 수를 줄인 것이다.</p>
+
+</section>
+<section id="k-v-2-head" class="markdown-section">
+<h2>새 토큰의 K·V도 2개 Head로 만든다</h2>
+<p>새 토큰 하나가 들어오면 이 토큰에 대해서만 Q·K·V Projection을 수행한다.</p>
+<p>GQA에서는 Q Projection과 K·V Projection의 출력 크기가 다르다.</p>
+<pre><code class="language-text">Q Projection 출력 크기
+= Query Head 수 × Head 차원
+= 4 × 2
+= 8
+
+K·V Projection 출력 크기
+= KV Head 수 × Head 차원
+= 2 × 2
+= 4
+</code></pre>
+<p>따라서 새 토큰의 Q·K·V Shape은 다음과 같다.</p>
+<pre><code class="language-text">새 Q: [1, 4, 1, 2]
+새 K: [1, 2, 1, 2]
+새 V: [1, 2, 1, 2]
+</code></pre>
+<p>새 토큰의 K·V를 Q처럼 4개 Head로 만든 후 일부를 제거하는 것이 아니다. K·V Projection이 처음부터 2개 Head에 필요한 크기만 출력한다.</p>
+
+</section>
+<section id="k-v-cache" class="markdown-section">
+<h2>새 K·V를 작은 상태 그대로 Cache에 추가한다</h2>
+<p>기존 K Cache에는 세 토큰의 K가 들어 있다.</p>
+<pre><code class="language-text">기존 K Cache: [1, 2, 3, 2]
+</code></pre>
+<p>새 토큰 하나의 K는 다음 Shape을 가진다.</p>
+<pre><code class="language-text">새 K: [1, 2, 1, 2]
+</code></pre>
+<p>이 둘을 토큰 축인 <code>dim=2</code>로 연결한다.</p>
+<pre><code class="language-python">updated_key_cache = torch.cat(
+    [key_cache, new_key_heads],
+    dim=2,
+)
+</code></pre>
+<p>Shape 변화는 다음과 같다.</p>
+<pre><code class="language-text">[1, 2, 3, 2]
+       +
+[1, 2, 1, 2]
+       ↓
+[1, 2, 4, 2]
+</code></pre>
+<p>V Cache도 같은 방식으로 갱신한다.</p>
+<pre><code class="language-python">updated_value_cache = torch.cat(
+    [value_cache, new_value_heads],
+    dim=2,
+)
+</code></pre>
+<p>결과적으로 KV Head 수는 그대로이고, 저장된 토큰 수만 증가한다.</p>
+<pre><code class="language-text">KV Head 축: 2 → 2
+토큰 축:    3 → 4
+</code></pre>
+<p>갱신된 Cache는 다음 Shape을 가진다.</p>
+<pre><code class="language-text">갱신된 K Cache: [1, 2, 4, 2]
+갱신된 V Cache: [1, 2, 4, 2]
+</code></pre>
+<p>이것이 GQA가 KV Cache를 갱신하는 방식이다.</p>
+<blockquote>
+<p>새 토큰의 K·V는 Q Head 수에 맞춰 늘리기 전에, 작은 KV Head 상태 그대로 Cache에 추가한다.</p>
+</blockquote>
+
+</section>
+<section id="attention-q-head-4" class="markdown-section">
+<h2>Attention 계산에서는 Q Head가 4개다</h2>
+<p>Decode 단계에서는 현재 토큰 하나의 Q만 새로 계산한다.</p>
+<pre><code class="language-text">새 토큰 Q: [1, 4, 1, 2]
+</code></pre>
+<p>과거 토큰들의 Attention 결과는 이전 단계에서 이미 계산되었다. 새 토큰이 들어오더라도 Causal Attention에서는 과거 위치의 결과가 바뀌지 않는다.</p>
+<p>따라서 현재 토큰 하나의 Q만 있으면 된다.</p>
+<p>하지만 현재 토큰의 Q가 참고할 K·V는 과거 세 토큰과 현재 토큰을 포함해야 한다.</p>
+<pre><code class="language-text">Q의 토큰 길이:        1
+KV Cache의 토큰 길이: 4
+</code></pre>
+<p>이제 다음 두 Tensor로 Attention을 계산해야 한다.</p>
+<pre><code class="language-text">Q:        [1, 4, 1, 2]
+KV Cache: [1, 2, 4, 2]
+</code></pre>
+<p>Q Head는 4개인데 KV Head는 2개이므로 Head 수가 서로 다르다. GQA는 여러 Q Head가 같은 KV Head를 공유하도록 만들어 이 차이를 해결한다.</p>
+<pre><code class="language-text">Q Head 0 ─┐
+          ├─ KV Head 0 공유
+Q Head 1 ─┘
+
+Q Head 2 ─┐
+          ├─ KV Head 1 공유
+Q Head 3 ─┘
+</code></pre>
+
+</section>
+<section id="attention-head" class="markdown-section">
+<h2>Attention 계산 때 Head를 늘린다</h2>
+<p>연습 코드에서는 <code>repeat_interleave()</code>를 사용하여 KV Head를 Q Head 수에 맞출 수 있다.</p>
+<pre><code class="language-python">query_heads_per_kv_head = (
+    num_query_heads // num_kv_heads
+)
+
+key_for_attention = updated_key_cache.repeat_interleave(
+    query_heads_per_kv_head,
+    dim=1,
+)
+
+value_for_attention = updated_value_cache.repeat_interleave(
+    query_heads_per_kv_head,
+    dim=1,
+)
+</code></pre>
+<p>현재 설정에서는 하나의 KV Head를 두 번씩 사용한다.</p>
+<pre><code class="language-text">num_query_heads: 4
+num_kv_heads:    2
+
+query_heads_per_kv_head
+= 4 // 2
+= 2
+</code></pre>
+<p>따라서 Head가 다음처럼 대응된다.</p>
+<pre><code class="language-text">기존 KV Head 0 → 계산용 Head 0, 1
+기존 KV Head 1 → 계산용 Head 2, 3
+</code></pre>
+<p>Shape은 다음과 같이 변한다.</p>
+<pre><code class="language-text">실제 KV Cache:     [1, 2, 4, 2]
+Attention 계산용: [1, 4, 4, 2]
+</code></pre>
+<p>여기서는 토큰 축이 아니라 Head 축이 변한다.</p>
+<pre><code class="language-text">KV Head 축: 2 → 4
+토큰 축:    4 → 4
+</code></pre>
+<p>각 토큰 위치마다 Head를 반복하는 것이 아니다. 네 토큰 위치를 모두 가진 하나의 KV Head 전체를 여러 Q Head가 공유하는 것이다.</p>
+
+</section>
+<section id="cache-k-v" class="markdown-section">
+<h2>Cache에는 늘린 K·V를 저장하지 않는다</h2>
+<p>Attention 계산용 K·V는 4개 Head처럼 보이지만, 실제 KV Cache는 여전히 2개 Head만 저장한다.</p>
+<pre><code class="language-text">저장용 KV Cache:  [1, 2, 4, 2]
+Attention 계산용: [1, 4, 4, 2]
+</code></pre>
+<p>만약 4개로 늘린 K·V를 Cache에 저장한다면 GQA의 메모리 절약 효과가 사라진다.</p>
+<p>K와 V를 모두 포함한 Cache 원소 수를 비교하면 다음과 같다.</p>
+<pre><code class="language-text">KV Head 2개로 저장
+= K·V 2개 × Batch 1 × Head 2 × 토큰 4 × 차원 2
+= 32개
+
+Head 4개로 늘려서 저장
+= K·V 2개 × Batch 1 × Head 4 × 토큰 4 × 차원 2
+= 64개
+</code></pre>
+<p>따라서 GQA는 두 형태를 구분한다.</p>
+<pre><code class="language-text">저장할 때
+→ KV Head 2개 유지
+→ 메모리 절약
+
+Attention을 계산할 때
+→ 4개 Q Head가 2개 KV Head를 나누어 공유
+→ Head별 Attention 계산 가능
+</code></pre>
+<p><code>updated_key_cache</code>는 저장을 위한 Tensor이고, <code>key_for_attention</code>은 계산을 위한 임시 Tensor다.</p>
+
+</section>
+<section id="q-kv-cache" class="markdown-section">
+<h2>새 Q는 전체 KV Cache를 조회한다</h2>
+<p>새 토큰의 Q와 계산용 K의 Shape은 다음과 같다.</p>
+<pre><code class="language-text">새 Q:  [1, 4, 1, 2]
+전체 K: [1, 4, 4, 2]
+</code></pre>
+<p>K의 마지막 두 축을 바꾸면 다음과 같다.</p>
+<pre><code class="language-text">Kᵀ: [1, 4, 2, 4]
+</code></pre>
+<p>Q와 K를 행렬 곱하면 다음 결과가 나온다.</p>
+<pre><code class="language-text">[1, 4, 1, 2]
+        @
+[1, 4, 2, 4]
+        ↓
+[1, 4, 1, 4]
+</code></pre>
+<p>Attention Score의 Shape은 다음 의미를 가진다.</p>
+<pre><code class="language-text">[batch, query_head, query_sequence, key_sequence]
+[1,     4,          1,              4]
+</code></pre>
+<p>즉, 네 개의 Q Head가 각각 현재 토큰 하나를 기준으로 네 토큰 위치를 조회한다.</p>
+<p>그다음 Attention Weight와 V를 곱하면 다음 결과가 나온다.</p>
+<pre><code class="language-text">Attention Weight: [1, 4, 1, 4]
+V:                [1, 4, 4, 2]
+Head별 결과:       [1, 4, 1, 2]
+</code></pre>
+<p>Head별 결과를 이어 붙이면 다시 모델 차원으로 돌아온다.</p>
+<pre><code class="language-text">[1, 4, 1, 2]
+       ↓
+[1, 1, 8]
+</code></pre>
+
+</section>
+<section id="section-705ff27dcb79" class="markdown-section">
+<h2>전체 흐름을 확인하는 코드</h2>
+<pre><code class="language-python">import math
+
+import torch
+from torch import Tensor
+from jaxtyping import Float
+
+
+batch_size: int = 1
+num_query_heads: int = 4
+num_kv_heads: int = 2
+cached_sequence_length: int = 3
+head_dim: int = 2
+
+query_heads_per_kv_head: int = (
+    num_query_heads // num_kv_heads
+)
+
+
+# 과거 토큰 3개의 KV Cache
+key_cache: Float[
+    Tensor,
+    &quot;batch kv_head cached_sequence head_dim&quot;,
+] = torch.randn(
+    batch_size,
+    num_kv_heads,
+    cached_sequence_length,
+    head_dim,
+)
+
+value_cache: Float[
+    Tensor,
+    &quot;batch kv_head cached_sequence head_dim&quot;,
+] = torch.randn(
+    batch_size,
+    num_kv_heads,
+    cached_sequence_length,
+    head_dim,
+)
+
+
+# 새 토큰 하나의 Q/K/V
+new_query_heads: Float[
+    Tensor,
+    &quot;batch query_head new_sequence head_dim&quot;,
+] = torch.randn(
+    batch_size,
+    num_query_heads,
+    1,
+    head_dim,
+)
+
+new_key_heads: Float[
+    Tensor,
+    &quot;batch kv_head new_sequence head_dim&quot;,
+] = torch.randn(
+    batch_size,
+    num_kv_heads,
+    1,
+    head_dim,
+)
+
+new_value_heads: Float[
+    Tensor,
+    &quot;batch kv_head new_sequence head_dim&quot;,
+] = torch.randn(
+    batch_size,
+    num_kv_heads,
+    1,
+    head_dim,
+)
+
+
+# 새 토큰의 K/V를 압축된 Head 상태로 Cache에 추가한다.
+updated_key_cache: Float[
+    Tensor,
+    &quot;batch kv_head cached_sequence head_dim&quot;,
+] = torch.cat(
+    [key_cache, new_key_heads],
+    dim=2,
+)
+
+updated_value_cache: Float[
+    Tensor,
+    &quot;batch kv_head cached_sequence head_dim&quot;,
+] = torch.cat(
+    [value_cache, new_value_heads],
+    dim=2,
+)
+
+
+# Attention을 계산할 때만 Q Head 수에 맞춘다.
+key_for_attention: Float[
+    Tensor,
+    &quot;batch query_head cached_sequence head_dim&quot;,
+] = updated_key_cache.repeat_interleave(
+    query_heads_per_kv_head,
+    dim=1,
+)
+
+value_for_attention: Float[
+    Tensor,
+    &quot;batch query_head cached_sequence head_dim&quot;,
+] = updated_value_cache.repeat_interleave(
+    query_heads_per_kv_head,
+    dim=1,
+)
+
+
+# 현재 토큰의 Q가 전체 KV Cache를 조회한다.
+attention_scores: Float[
+    Tensor,
+    &quot;batch query_head query_sequence key_sequence&quot;,
+] = torch.matmul(
+    new_query_heads,
+    key_for_attention.transpose(-2, -1),
+)
+
+scaled_attention_scores: Float[
+    Tensor,
+    &quot;batch query_head query_sequence key_sequence&quot;,
+] = attention_scores / math.sqrt(head_dim)
+
+attention_weights: Float[
+    Tensor,
+    &quot;batch query_head query_sequence key_sequence&quot;,
+] = torch.softmax(
+    scaled_attention_scores,
+    dim=-1,
+)
+
+head_outputs: Float[
+    Tensor,
+    &quot;batch query_head query_sequence head_dim&quot;,
+] = torch.matmul(
+    attention_weights,
+    value_for_attention,
+)
+
+
+print(&quot;기존 K Cache:&quot;, key_cache.shape)
+print(&quot;새 토큰 K:&quot;, new_key_heads.shape)
+print(&quot;갱신된 K Cache:&quot;, updated_key_cache.shape)
+print(&quot;Attention 계산용 K:&quot;, key_for_attention.shape)
+print(&quot;새 토큰 Q:&quot;, new_query_heads.shape)
+print(&quot;Attention Score:&quot;, attention_scores.shape)
+print(&quot;Head별 결과:&quot;, head_outputs.shape)
+</code></pre>
+<p>예상 출력은 다음과 같다.</p>
+<pre><code class="language-text">기존 K Cache: torch.Size([1, 2, 3, 2])
+새 토큰 K: torch.Size([1, 2, 1, 2])
+갱신된 K Cache: torch.Size([1, 2, 4, 2])
+Attention 계산용 K: torch.Size([1, 4, 4, 2])
+새 토큰 Q: torch.Size([1, 4, 1, 2])
+Attention Score: torch.Size([1, 4, 1, 4])
+Head별 결과: torch.Size([1, 4, 1, 2])
+</code></pre>
+
+</section>
+<section id="head" class="markdown-section">
+<h2>실제 구현에서는 Head를 물리적으로 늘리지 않을 수 있다</h2>
+<p><code>repeat_interleave()</code>는 GQA의 공유 구조를 쉽게 확인하기 위한 연습용 코드다. 이 코드에서는 K·V Tensor를 실제로 반복하여 계산용 Tensor를 만든다.</p>
+<p>하지만 최적화된 Attention 구현은 K·V Tensor를 물리적으로 복제하지 않을 수 있다. 대신 각 Q Head가 자신에게 대응하는 KV Head를 직접 사용한다.</p>
+<p>현재 구조에서 대응 관계는 다음 계산으로 구할 수 있다.</p>
+<pre><code class="language-text">Q Head가 사용할 KV Head
+= Q Head 번호 // KV Head당 Q Head 수
+</code></pre>
+<p>현재는 하나의 KV Head를 두 개의 Q Head가 공유하므로 다음과 같다.</p>
+<pre><code class="language-text">Q Head 0 // 2 = KV Head 0
+Q Head 1 // 2 = KV Head 0
+Q Head 2 // 2 = KV Head 1
+Q Head 3 // 2 = KV Head 1
+</code></pre>
+<p>따라서 “Attention 계산 때 Head를 늘린다”는 말은 개념적으로 다음을 의미한다.</p>
+<blockquote>
+<p>Attention 계산에서 4개 Q Head가 사용할 수 있도록 2개 KV Head의 공유 관계를 적용한다.</p>
+</blockquote>
+<p>연습 코드에서는 이를 실제 반복으로 표현하지만, 최적화된 구현에서는 같은 KV Head를 직접 참조하여 불필요한 복제를 피할 수 있다.</p>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p>GQA에서는 새 토큰의 K·V를 작은 KV Head 구조로 만든다.</p>
+<pre><code class="language-text">새 K·V: [1, 2, 1, 2]
+</code></pre>
+<p>이 값을 Head 수를 늘리지 않은 상태로 기존 KV Cache에 추가한다.</p>
+<pre><code class="language-text">기존 Cache: [1, 2, 3, 2]
+새 K·V:     [1, 2, 1, 2]
+갱신 Cache: [1, 2, 4, 2]
+</code></pre>
+<p>Attention을 계산할 때는 여러 Q Head가 같은 KV Head를 공유하도록 대응시킨다.</p>
+<pre><code class="language-text">저장용 KV Cache:  [1, 2, 4, 2]
+Attention 계산용: [1, 4, 4, 2]
+</code></pre>
+<p>결국 GQA의 처리 순서는 다음 한 문장으로 정리할 수 있다.</p>
+<blockquote>
+<p>GQA는 K·V를 적은 Head 상태로 KV Cache에 먼저 추가하고, Attention을 계산할 때만 여러 Q Head가 같은 KV Head를 공유하도록 Head 수를 맞춘다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.md. Do not edit directly. source-sha256:2d7a196dd4849a501351b7389deda36eb333ce4d024cd35acbf1065844a1f2be -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TinyDecoderLM의 학습 가능한 Parameter Tensor와 MHA KV Cache의 예상 Byte를 계산하고 실제 GPU allocated·reserved·peak 측정값의 의미를 구분한다.">
+  <meta name="source-sha256" content="2d7a196dd4849a501351b7389deda36eb333ce4d024cd35acbf1065844a1f2be">
+  <title>TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기">
+  <meta property="og:description" content="TinyDecoderLM의 학습 가능한 Parameter Tensor와 MHA KV Cache의 예상 Byte를 계산하고 실제 GPU allocated·reserved·peak 측정값의 의미를 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html","name":"TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기","description":"TinyDecoderLM의 학습 가능한 Parameter Tensor와 MHA KV Cache의 예상 Byte를 계산하고 실제 GPU allocated·reserved·peak 측정값의 의미를 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html"},"headline":"TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-transformer","name":"Transformer","identifier":"topics-transformer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-transformer","name":"Transformer","identifier":"transformer-transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_tiny_decoder_weight_kv_cache_memory.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"MHA와 GQA의 모델 전체 KV Cache Byte 비교","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_bytes_learning.html"},{"@type":"ListItem","position":6,"name":"GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html"},{"@type":"ListItem","position":7,"name":"TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_mha_gqa_kv_cache_bytes_learning.html">MHA와 GQA의 모델 전체 KV Cache Byte 비교</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_mha_gqa_kv_cache_gpu_memory.html">GPU에서 MHA와 GQA의 KV Cache 메모리 비교하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>TinyDecoderLM의 가중치와 KV Cache 메모리 측정 코드 이해하기</h1>
+      <p class="lead">TinyDecoderLM의 학습 가능한 Parameter Tensor와 MHA KV Cache의 예상 Byte를 계산하고 실제 GPU allocated·reserved·peak 측정값의 의미를 구분한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#num-layers-1"><code>num_layers=1</code>은 무엇인가</a>
+        <a href="#batch-size-1"><code>batch_size=1</code>은 문장 하나인가</a>
+        <a href="#tensor-numel"><code>tensor.numel()</code>은 무엇인가</a>
+        <a href="#tensor-element-size"><code>tensor.element_size()</code>는 무엇인가</a>
+        <a href="#tensor-byte">Tensor의 전체 Byte 계산</a>
+        <a href="#tensor">모델의 가중치는 결국 Tensor인가</a>
+        <a href="#linear">Linear의 가중치 행렬</a>
+        <a href="#model-parameters"><code>model.parameters()</code>는 무엇인가</a>
+        <a href="#bytes-per-element"><code>bytes_per_element</code>는 원자 크기인가</a>
+        <a href="#kv-cache-byte">KV Cache 예상 Byte 공식</a>
+        <a href="#gc-collect"><code>gc.collect()</code>은 무엇을 하는가</a>
+        <a href="#torch-cuda-empty-cache"><code>torch.cuda.empty_cache()</code>는 무엇을 하는가</a>
+        <a href="#torch-cuda-synchronize"><code>torch.cuda.synchronize()</code>는 왜 사용하는가</a>
+        <a href="#torch-cuda-reset-peak-memory-stats"><code>torch.cuda.reset_peak_memory_stats()</code>는 무엇인가</a>
+        <a href="#memory-before-model"><code>memory_before_model</code>은 무엇인가</a>
+        <a href="#gpu">모델을 GPU에 올리는 과정</a>
+        <a href="#section-52a01b94adcd">실제 모델 가중치 메모리 계산</a>
+        <a href="#memory-before-cache"><code>memory_before_cache</code>는 왜 다시 측정하는가</a>
+        <a href="#key-cache-value-cache-cache"><code>key_cache</code>, <code>value_cache</code>는 실제 생성 Cache인가</a>
+        <a href="#expected-cache-bytes-actual-cache-bytes"><code>expected_cache_bytes</code>와 <code>actual_cache_bytes</code></a>
+        <a href="#allocated"><code>allocated</code>는 무엇인가</a>
+        <a href="#reserved"><code>reserved</code>는 무엇인가</a>
+        <a href="#peak"><code>peak</code>은 무엇인가</a>
+        <a href="#section-324a3d8454d5">이 실습에서 확인하는 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 실습은 실제 <code>TinyDecoderLM</code>을 GPU에 올린 뒤 모델 가중치와 MHA의 KV Cache가 각각 차지하는 메모리를 분리해 측정한다.</p>
+<pre><code class="language-text">측정 대상
+= 모델 가중치 메모리
++ KV Cache 메모리
+</code></pre>
+</div>
+        <section id="num-layers-1" class="markdown-section">
+<h2><code>num_layers=1</code>은 무엇인가</h2>
+<p>현재 <code>TinyDecoderLM</code>은 <code>CausalTransformerBlock</code> 하나만 가진다. Block 하나에는 Attention이 하나 있으므로 Attention Layer 수도 하나다.</p>
+<p>Layer마다 서로 다른 K/V Projection 결과가 만들어지므로 KV Cache도 Layer별로 따로 존재한다. 따라서 이 실습에서는 Layer 하나 분량의 K/V Cache를 만든다.</p>
+<pre><code class="language-python">num_layers: int = 1
+</code></pre>
+
+</section>
+<section id="batch-size-1" class="markdown-section">
+<h2><code>batch_size=1</code>은 문장 하나인가</h2>
+<p>정확히는 동시에 처리하는 요청 또는 Token Sequence가 하나라는 뜻이다.</p>
+<pre><code class="language-python">batch_size: int = 1
+cached_sequence_length: int = 4096
+</code></pre>
+<p>이 설정은 하나의 요청에서 4096개 Token 위치의 K/V를 Cache에 저장한다는 뜻이다.</p>
+
+</section>
+<section id="tensor-numel" class="markdown-section">
+<h2><code>tensor.numel()</code>은 무엇인가</h2>
+<p><code>numel()</code>은 Tensor에 들어 있는 전체 원소 개수를 반환한다.</p>
+<pre><code class="language-python">tensor = torch.zeros(2, 3, 4)
+
+print(tensor.numel())  # 24
+</code></pre>
+<p>Shape이 <code>[2, 3, 4]</code>이므로 전체 원소 수는 다음과 같다.</p>
+<pre><code class="language-text">2 × 3 × 4 = 24
+</code></pre>
+
+</section>
+<section id="tensor-element-size" class="markdown-section">
+<h2><code>tensor.element_size()</code>는 무엇인가</h2>
+<p><code>element_size()</code>는 Tensor 원소 하나가 사용하는 Byte 수를 반환한다.</p>
+<pre><code class="language-text">float16 → 2 Byte
+float32 → 4 Byte
+float64 → 8 Byte
+</code></pre>
+<p>같은 Shape이라도 dtype이 달라지면 Tensor의 전체 메모리 크기도 달라진다.</p>
+
+</section>
+<section id="tensor-byte" class="markdown-section">
+<h2>Tensor의 전체 Byte 계산</h2>
+<pre><code class="language-python">def tensor_bytes(tensor: Tensor) -&gt; int:
+    return tensor.numel() * tensor.element_size()
+</code></pre>
+<p>이 함수는 다음 계산을 수행한다.</p>
+<pre><code class="language-text">Tensor의 전체 원소 개수
+× 원소 하나의 Byte
+= Tensor 전체 메모리 Byte
+</code></pre>
+<p>예를 들어 원소가 100개인 <code>float16</code> Tensor라면 다음과 같다.</p>
+<pre><code class="language-text">100개 × 2 Byte = 200 Byte
+</code></pre>
+
+</section>
+<section id="tensor" class="markdown-section">
+<h2>모델의 가중치는 결국 Tensor인가</h2>
+<p>그렇다. 모델의 가중치는 결국 모델 내부에 저장된 학습 가능한 <code>Parameter</code> Tensor다.</p>
+<p>가중치라고 하면 흔히 2차원 행렬을 떠올리지만, 모든 가중치가 행렬인 것은 아니다. 행렬뿐 아니라 벡터 형태의 Parameter도 존재한다.</p>
+<pre><code class="language-text">Embedding weight
+→ [vocab_size, d_model] 행렬
+
+Linear weight
+→ [out_features, in_features] 행렬
+
+Linear bias
+→ [out_features] 벡터
+
+LayerNorm weight
+→ [d_model] 벡터
+
+LayerNorm bias
+→ [d_model] 벡터
+</code></pre>
+<p>따라서 정확한 표현은 다음과 같다.</p>
+<blockquote>
+<p>모델 가중치는 학습하면서 값이 변경되는 Parameter Tensor이며, 대부분 행렬이지만 벡터도 포함한다.</p>
+</blockquote>
+
+</section>
+<section id="linear" class="markdown-section">
+<h2>Linear의 가중치 행렬</h2>
+<p>다음 Linear Layer를 생각해 보자.</p>
+<pre><code class="language-python">linear = torch.nn.Linear(
+    in_features=512,
+    out_features=2048,
+)
+</code></pre>
+<p>이 Linear에는 다음 Parameter가 들어 있다.</p>
+<pre><code class="language-text">weight Shape: [2048, 512]
+bias Shape:   [2048]
+</code></pre>
+<p><code>weight</code>는 입력의 각 값을 출력의 각 값으로 어떻게 섞을지를 학습한 행렬이고, <code>bias</code>는 계산 결과에 더해지는 학습 가능한 벡터다.</p>
+
+</section>
+<section id="model-parameters" class="markdown-section">
+<h2><code>model.parameters()</code>는 무엇인가</h2>
+<pre><code class="language-python">model.parameters()
+</code></pre>
+<p>는 모델 안에 등록된 모든 학습 가능한 Parameter Tensor를 차례대로 반환한다.</p>
+<p><code>TinyDecoderLM</code>에서는 다음과 같은 Parameter가 포함된다.</p>
+<pre><code class="language-text">Token / Position Embedding 가중치
+Q / K / V / Output Projection 가중치
+FFN Linear 가중치와 bias
+LayerNorm weight와 bias
+LM Head weight와 bias
+</code></pre>
+<p>따라서 다음 함수는 Linear 가중치만 더하는 것이 아니라 모델이 가진 모든 학습 가능한 Tensor의 Byte를 합산한다.</p>
+<pre><code class="language-python">def model_parameter_bytes(model: TinyDecoderLM) -&gt; int:
+    return sum(
+        tensor_bytes(parameter)
+        for parameter in model.parameters()
+    )
+</code></pre>
+<p>계산 흐름은 다음과 같다.</p>
+<pre><code class="language-text">각 Parameter Tensor
+→ numel()로 원소 수 계산
+→ element_size()로 원소당 Byte 확인
+→ 둘을 곱해 Parameter Byte 계산
+→ 모든 Parameter Byte 합산
+</code></pre>
+
+</section>
+<section id="bytes-per-element" class="markdown-section">
+<h2><code>bytes_per_element</code>는 원자 크기인가</h2>
+<pre><code class="language-python">bytes_per_element: int = torch.empty(
+    (),
+    dtype=dtype,
+).element_size()
+</code></pre>
+<p>맞다. 여기서 원자는 Tensor를 구성하는 숫자 하나를 뜻한다.</p>
+<p><code>torch.empty(())</code>는 0차원 스칼라 Tensor를 만들고, <code>element_size()</code>는 지정한 dtype의 원소 하나가 몇 Byte인지 반환한다.</p>
+<pre><code class="language-python">torch.empty((), dtype=torch.float16).element_size()  # 2
+torch.empty((), dtype=torch.float32).element_size()  # 4
+</code></pre>
+
+</section>
+<section id="kv-cache-byte" class="markdown-section">
+<h2>KV Cache 예상 Byte 공식</h2>
+<pre><code class="language-python">return (
+    2
+    * num_layers
+    * batch_size
+    * cached_sequence_length
+    * num_kv_heads
+    * head_dim
+    * bytes_per_element
+)
+</code></pre>
+<p>각 값의 의미는 다음과 같다.</p>
+<pre><code class="language-text">2 → Key Cache와 Value Cache
+num_layers → Layer마다 별도의 K/V Cache가 존재
+batch_size → 동시에 처리하는 요청 수
+cached_sequence_length → Cache에 저장한 Token 위치 수
+num_kv_heads → 저장하는 K/V Head 수
+head_dim → Head 하나의 벡터 차원
+bytes_per_element → 원소 하나의 Byte
+</code></pre>
+<p>결국 KV Cache의 전체 원소 수에 원소 하나의 Byte를 곱하는 계산이다.</p>
+
+</section>
+<section id="gc-collect" class="markdown-section">
+<h2><code>gc.collect()</code>은 무엇을 하는가</h2>
+<p><code>gc.collect()</code>은 Python에서 더 이상 참조되지 않는 객체를 찾아 정리하도록 요청한다. 어떤 Tensor가 여전히 변수에 연결돼 있다면 그 Tensor는 정리되지 않는다.</p>
+
+</section>
+<section id="torch-cuda-empty-cache" class="markdown-section">
+<h2><code>torch.cuda.empty_cache()</code>는 무엇을 하는가</h2>
+<p><code>torch.cuda.empty_cache()</code>는 PyTorch가 더 이상 사용하지 않지만 CUDA allocator에 보관하고 있던 GPU 메모리 블록을 반환한다. 살아 있는 Tensor의 메모리를 지우는 함수는 아니다.</p>
+
+</section>
+<section id="torch-cuda-synchronize" class="markdown-section">
+<h2><code>torch.cuda.synchronize()</code>는 왜 사용하는가</h2>
+<p><code>torch.cuda.synchronize(device)</code>는 해당 CUDA 장치에 앞서 요청된 GPU 작업이 끝날 때까지 CPU를 기다리게 한다. GPU 작업은 CPU와 비동기로 진행될 수 있으므로 모델 이동이나 Tensor 할당이 끝난 뒤 메모리를 읽기 위해 사용한다.</p>
+
+</section>
+<section id="torch-cuda-reset-peak-memory-stats" class="markdown-section">
+<h2><code>torch.cuda.reset_peak_memory_stats()</code>는 무엇인가</h2>
+<p><code>torch.cuda.reset_peak_memory_stats(device)</code>는 GPU 메모리를 비우지 않는다. 지금까지 기록된 최대 메모리 사용량 통계만 초기화한다.</p>
+
+</section>
+<section id="memory-before-model" class="markdown-section">
+<h2><code>memory_before_model</code>은 무엇인가</h2>
+<p><code>memory_before_model</code>은 모델을 GPU에 올리기 직전, 현재 살아 있는 PyTorch Tensor들이 사용하는 GPU 메모리의 순간값이다. 모델을 올린 뒤 측정한 값과 비교하기 위한 기준점이다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>모델을 GPU에 올리는 과정</h2>
+<p><code>TinyDecoderLM</code>을 생성하면 Parameter Tensor가 만들어진다. <code>.to(device=device, dtype=model_dtype)</code>는 이 Parameter들을 GPU로 옮기고 <code>float16</code>으로 변환한다.</p>
+
+</section>
+<section id="section-52a01b94adcd" class="markdown-section">
+<h2>실제 모델 가중치 메모리 계산</h2>
+<pre><code class="language-python">actual_weight_bytes: int = (
+    memory_after_model
+    - memory_before_model
+)
+</code></pre>
+<p>모델을 올린 뒤 GPU 사용량에서 모델을 올리기 전 GPU 사용량을 빼면 모델 Parameter가 추가한 실제 GPU 메모리를 구할 수 있다.</p>
+
+</section>
+<section id="memory-before-cache" class="markdown-section">
+<h2><code>memory_before_cache</code>는 왜 다시 측정하는가</h2>
+<p>이 시점에는 모델 가중치가 이미 GPU에 올라가 있다. Cache를 만든 뒤의 메모리에서 이 값을 빼면 모델 가중치를 제외하고 K/V Cache만 추가한 메모리를 얻을 수 있다.</p>
+
+</section>
+<section id="key-cache-value-cache-cache" class="markdown-section">
+<h2><code>key_cache</code>, <code>value_cache</code>는 실제 생성 Cache인가</h2>
+<p>이 Tensor들은 실제 생성 과정에서 Token마다 채워 온 Cache는 아니다. 현재 MHA 모델이 다음 조건으로 Cache를 저장할 경우 필요한 전체 Shape을 직접 할당한 것이다.</p>
+<pre><code class="language-text">[Layer=1, Batch=1, KV Head=4, Cache Token=4096, Head dim=128]
+</code></pre>
+<p><code>torch.empty()</code>는 내부 값을 초기화하지 않지만 지정한 Shape만큼 GPU 메모리는 실제로 할당한다.</p>
+
+</section>
+<section id="expected-cache-bytes-actual-cache-bytes" class="markdown-section">
+<h2><code>expected_cache_bytes</code>와 <code>actual_cache_bytes</code></h2>
+<p><code>expected_cache_bytes</code>는 Shape 공식과 dtype으로 계산한 예상 KV Cache Byte다. <code>actual_cache_bytes</code>는 K/V Tensor를 만들기 전후의 GPU <code>allocated</code> 차이로 측정한 실제 증가 Byte다.</p>
+<p>둘이 일치하면 KV Cache 공식으로 계산한 값이 실제 Tensor 할당량과 일치한 것이다.</p>
+
+</section>
+<section id="allocated" class="markdown-section">
+<h2><code>allocated</code>는 무엇인가</h2>
+<p><code>torch.cuda.memory_allocated(device)</code>는 현재 살아 있는 PyTorch Tensor들이 실제로 점유하는 GPU 메모리를 반환한다. 이 값은 호출한 순간의 사용량이며 시계열 기록이 아니다.</p>
+
+</section>
+<section id="reserved" class="markdown-section">
+<h2><code>reserved</code>는 무엇인가</h2>
+<p><code>torch.cuda.memory_reserved(device)</code>는 PyTorch CUDA allocator가 GPU에서 확보한 전체 메모리를 반환한다.</p>
+<pre><code class="language-text">allocated = 살아 있는 Tensor가 실제 사용하는 메모리
+reserved = PyTorch allocator가 확보한 전체 메모리
+</code></pre>
+<p>따라서 일반적으로 <code>reserved &gt;= allocated</code> 관계가 성립한다.</p>
+
+</section>
+<section id="peak" class="markdown-section">
+<h2><code>peak</code>은 무엇인가</h2>
+<p><code>torch.cuda.max_memory_allocated(device)</code>는 <code>reset_peak_memory_stats()</code> 이후 기록된 가장 큰 <code>allocated</code> 값을 반환한다.</p>
+<p>실제 Forward까지 실행하면 Q/K/V Projection 출력, Attention Score, Attention Weight, FFN 중간 출력, Logit 같은 중간 Tensor가 잠시 추가되므로 실제 추론의 Peak 메모리는 모델 가중치와 KV Cache의 합보다 더 커질 수 있다.</p>
+
+</section>
+<section id="section-324a3d8454d5" class="markdown-section">
+<h2>이 실습에서 확인하는 것</h2>
+<p>이 코드는 실제 MHA <code>TinyDecoderLM</code>의 모델 가중치를 GPU에 올리고, 같은 모델 구조에 해당하는 KV Cache 공간을 추가로 할당한다.</p>
+<pre><code class="language-text">모델 가중치 예상 Byte
+↔ 모델을 올릴 때 증가한 allocated Byte
+
+KV Cache 예상 Byte
+↔ Cache Tensor를 만들 때 증가한 allocated Byte
+</code></pre>
+<p>다만 <code>key_cache</code>와 <code>value_cache</code>는 아직 실제 생성 Forward가 채운 Cache는 아니다. 모델 구조와 동일한 Shape의 저장 공간을 직접 할당해 메모리 크기를 검증한 것이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

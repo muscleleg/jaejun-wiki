@@ -1,0 +1,391 @@
+<!doctype html>
+<!-- Generated from content/wiki/pytorch/pytorch_cuda_memory_reserved_scope.md. Do not edit directly. source-sha256:7141acaf7a13337290b03a388bec773745a0ba6bed22d2a1754ea1f35a69beff -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="reserved를 allocated와 재사용 영역의 합으로 이해하고, 현재 PyTorch 프로세스 범위와 KV Cache 측정 전후 값의 올바른 해석을 설명한다.">
+  <meta name="source-sha256" content="7141acaf7a13337290b03a388bec773745a0ba6bed22d2a1754ea1f35a69beff">
+  <title>PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가">
+  <meta property="og:description" content="reserved를 allocated와 재사용 영역의 합으로 이해하고, 현재 PyTorch 프로세스 범위와 KV Cache 측정 전후 값의 올바른 해석을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html","name":"PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가","description":"reserved를 allocated와 재사용 영역의 합으로 이해하고, 현재 PyTorch 프로세스 범위와 KV Cache 측정 전후 값의 올바른 해석을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html"},"headline":"PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_reserved_scope.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-pytorch"},{"@type":"ListItem","position":4,"name":"데이터에서 y = 3x + 2 를 찾아내기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":5,"name":".to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_device_cuda_parallel_learning.html"},{"@type":"ListItem","position":6,"name":"`torch.cuda.memory_allocated()`로 현재 Tensor의 GPU 메모리 측정하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_cuda_memory_allocated.html"},{"@type":"ListItem","position":7,"name":"PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-pytorch">PyTorch</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/pytorch/pytorch_linear_regression_learning.html">데이터에서 y = 3x + 2 를 찾아내기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/pytorch/pytorch_device_cuda_parallel_learning.html">.to(device)로 옮긴 Tensor는 어떻게 GPU 병렬 연산으로 이어지는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/pytorch/pytorch_cuda_memory_allocated.html">`torch.cuda.memory_allocated()`로 현재 Tensor의 GPU 메모리 측정하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">PyTorch</span>
+      <h1>PyTorch의 reserved 메모리는 무엇을 기준으로 측정되는가</h1>
+      <p class="lead">reserved를 allocated와 재사용 영역의 합으로 이해하고, 현재 PyTorch 프로세스 범위와 KV Cache 측정 전후 값의 올바른 해석을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#pytorch-gpu">PyTorch는 왜 GPU 메모리를 미리 확보하는가</a>
+        <a href="#allocated-reserved">allocated와 reserved의 차이</a>
+        <a href="#reserved">reserved의 크기는 무엇을 기준으로 결정되는가</a>
+        <a href="#memory-reserved">memory_reserved가 측정하는 범위</a>
+        <a href="#gpu">다른 프로세스의 GPU 메모리는 포함되지 않는다</a>
+        <a href="#kv-cache-reserved">KV Cache 실습에서 reserved를 측정하는 의미</a>
+        <a href="#reserved-0">reserved 증가량이 0일 수도 있다</a>
+        <a href="#empty-cache">empty_cache의 역할</a>
+        <a href="#section-b7c3762a161f">여러 요청이 동시에 실행될 때의 한계</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>PyTorch에서 GPU 메모리를 측정하다 보면 <code>allocated</code>와 <code>reserved</code>라는 두 값이 등장한다.</p>
+<pre><code class="language-python">torch.cuda.memory_allocated(device)
+torch.cuda.memory_reserved(device)
+</code></pre>
+<p>두 값은 비슷해 보이지만 의미가 다르다.</p>
+<p><code>allocated</code>는 현재 살아 있는 Tensor가 실제 사용하는 메모리다. 반면 <code>reserved</code>는 PyTorch가 CUDA로부터 확보해 관리하고 있는 전체 메모리다.</p>
+<p>개념적으로는 다음과 같은 포함 관계가 성립한다.</p>
+<pre><code class="language-text">reserved
+├── allocated: 현재 Tensor가 실제 사용하는 영역
+└── cached: 현재는 사용하지 않지만 재사용하려고 보관하는 영역
+</code></pre>
+<p>따라서 이해를 위한 식으로는 다음처럼 표현할 수 있다.</p>
+<pre><code class="language-text">reserved = allocated + cached
+</code></pre>
+<p>여기서 <code>cached</code>는 별도의 단일 측정값이라기보다, PyTorch가 확보한 메모리 중 현재 Tensor에 배정되지 않은 재사용 가능 영역을 가리키는 표현이다.</p>
+<pre><code class="language-python">approximately_cached_bytes = (
+    torch.cuda.memory_reserved(device)
+    - torch.cuda.memory_allocated(device)
+)
+</code></pre>
+<p>다만 내부적으로 분할된 블록과 정렬 공간 등이 존재하므로, 이 차이 전체를 언제든 사용할 수 있는 하나의 연속된 공간이라고 해석하면 안 된다.</p>
+</div>
+        <section id="pytorch-gpu" class="markdown-section">
+<h2>PyTorch는 왜 GPU 메모리를 미리 확보하는가</h2>
+<p>GPU 메모리가 필요할 때마다 CUDA에 새로운 메모리를 요청하고, Tensor가 사라질 때마다 즉시 반환하면 비용이 발생한다.</p>
+<p>PyTorch는 이 비용을 줄이기 위해 CUDA Caching Allocator라는 메모리 관리자를 사용한다.</p>
+<p>Tensor가 GPU 메모리를 요청하면 PyTorch는 먼저 자신이 이미 확보한 <code>reserved</code> 영역을 확인한다.</p>
+<pre><code class="language-text">Tensor가 메모리 요청
+        ↓
+기존 reserved 안에 적절한 빈 블록이 있는가?
+</code></pre>
+<p>재사용할 수 있는 블록이 있다면 새로운 GPU 메모리를 요청하지 않고 기존 공간을 사용한다.</p>
+<pre><code class="language-text">allocated 증가
+reserved 변화 없음
+</code></pre>
+<p>재사용할 수 있는 블록이 없다면 PyTorch는 CUDA에 새로운 메모리를 요청한다.</p>
+<pre><code class="language-text">allocated 증가
+reserved 증가
+</code></pre>
+<p>이때 PyTorch가 CUDA로부터 확보하는 크기는 Tensor가 요청한 크기와 항상 정확히 같지는 않다. 메모리를 효율적으로 관리하고 이후의 할당에 재사용하기 위해 요청 크기를 조정하거나 더 큰 블록을 확보할 수 있기 때문이다.</p>
+
+</section>
+<section id="allocated-reserved" class="markdown-section">
+<h2>allocated와 reserved의 차이</h2>
+<p>예를 들어 PyTorch가 CUDA로부터 총 <code>10 MiB</code>를 확보했다고 가정해 보자.</p>
+<p>그중 현재 Tensor가 <code>7 MiB</code>를 사용한다면 메모리 상태는 다음과 같다.</p>
+<pre><code class="language-text">reserved  = 10 MiB
+allocated = 7 MiB
+cached    ≈ 3 MiB
+</code></pre>
+<p>구조로 표현하면 다음과 같다.</p>
+<pre><code class="language-text">PyTorch가 확보한 GPU 메모리: 10 MiB
+├── 현재 Tensor가 사용:       7 MiB
+└── 이후 재사용할 빈 영역:    3 MiB
+</code></pre>
+<p>이 상태에서 새로운 Tensor가 <code>2 MiB</code>를 요구하면 PyTorch는 남아 있는 <code>3 MiB</code> 영역을 재사용할 수 있다.</p>
+<pre><code class="language-text">할당 전
+allocated = 7 MiB
+reserved  = 10 MiB
+
+할당 후
+allocated = 9 MiB
+reserved  = 10 MiB
+</code></pre>
+<p>Tensor가 새로 만들어졌으므로 <code>allocated</code>는 증가했지만, CUDA에서 추가 메모리를 가져오지 않았기 때문에 <code>reserved</code>는 그대로다.</p>
+<p>반대로 남아 있는 공간이 부족하면 PyTorch는 CUDA에 추가 메모리를 요청한다.</p>
+<pre><code class="language-text">할당 전
+allocated = 10 MiB
+reserved  = 10 MiB
+
+4 MiB Tensor 생성
+
+할당 후 예시
+allocated = 14 MiB
+reserved  = 16 MiB
+</code></pre>
+<p>새 Tensor는 <code>4 MiB</code>를 사용하지만, PyTorch가 CUDA로부터 <code>6 MiB</code> 단위의 블록을 추가로 확보했다고 가정한 경우다.</p>
+<pre><code class="language-text">allocated 증가 = 4 MiB
+reserved 증가  = 6 MiB
+새 미사용 영역 = 2 MiB
+</code></pre>
+
+</section>
+<section id="reserved" class="markdown-section">
+<h2>reserved의 크기는 무엇을 기준으로 결정되는가</h2>
+<p>PyTorch가 앞으로 필요한 모델 메모리를 미리 예측해서 <code>reserved</code>를 결정하는 것은 아니다.</p>
+<p>예를 들어 다음처럼 판단하는 것이 아니다.</p>
+<pre><code class="language-text">이 모델은 앞으로 요청이 많을 것 같으니
+미리 GPU 메모리 10 GiB를 확보하자.
+</code></pre>
+<p>실제로는 Tensor의 메모리 요청이 들어올 때마다 현재 메모리 상태를 확인한다.</p>
+<pre><code class="language-text">지금 N Byte의 연속된 공간이 필요하다.
+        ↓
+기존 reserved 영역으로 처리할 수 있는가?
+        ↓
+불가능하다면 CUDA에서 새 블록을 확보한다.
+</code></pre>
+<p>PyTorch가 CUDA에 요청할 크기에 영향을 주는 요소는 다음과 같다.</p>
+<ul>
+<li>Tensor가 요구한 Byte 크기</li>
+<li>기존 <code>reserved</code> 영역에 적절한 빈 블록이 있는지</li>
+<li>빈 영역이 요청 크기를 수용할 만큼 연속되어 있는지</li>
+<li>메모리 블록의 분할 및 재사용 상태</li>
+<li>요청 크기에 대한 올림과 정렬</li>
+<li>현재 사용 중인 CUDA Allocator 방식</li>
+<li>PyTorch의 메모리 관리 설정</li>
+</ul>
+<p>결국 <code>reserved</code>의 여유 공간은 미래 사용량을 정확히 계산해 확보한 공간이 아니다.</p>
+<blockquote>
+<p>PyTorch가 Tensor의 메모리 요청을 블록 단위로 처리하고, 반환된 블록을 재사용하는 과정에서 현재 보유하게 된 공간이다.</p>
+</blockquote>
+
+</section>
+<section id="memory-reserved" class="markdown-section">
+<h2>memory_reserved가 측정하는 범위</h2>
+<p>다음 코드를 호출한다고 해보자.</p>
+<pre><code class="language-python">reserved_bytes: int = torch.cuda.memory_reserved(
+    device
+)
+</code></pre>
+<p>여기서 <code>device</code>는 특정 모델을 선택하는 값이 아니다. 어떤 CUDA GPU를 조회할 것인지 지정하는 값이다.</p>
+<p>이 함수가 측정하는 범위는 다음과 같다.</p>
+<blockquote>
+<p>현재 Python 프로세스의 PyTorch CUDA 메모리 관리자가 선택한 GPU에서 관리 중인 전체 메모리</p>
+</blockquote>
+<p>따라서 특정 모델 하나의 <code>reserved</code> 메모리를 반환하지 않는다.</p>
+<p>같은 Python 프로세스에 모델이 여러 개 있다면 해당 GPU에 올라간 모든 PyTorch 모델과 Tensor가 함께 포함된다.</p>
+<pre><code class="language-text">현재 Python 프로세스
+└── PyTorch reserved
+    ├── Model A의 가중치
+    ├── Model B의 가중치
+    ├── KV Cache
+    ├── 입력 Tensor
+    ├── 중간 Tensor
+    └── 재사용을 위해 보관 중인 빈 블록
+</code></pre>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>다른 프로세스의 GPU 메모리는 포함되지 않는다</h2>
+<p>같은 GPU에서 게임과 PyTorch 모델이 동시에 실행된다고 가정해 보자.</p>
+<pre><code class="language-text">게임 프로세스:            4 GiB
+Python/PyTorch 프로세스:  6 GiB
+CUDA Context와 기타 비용: 1 GiB
+</code></pre>
+<p>Python 프로세스에서 다음 코드를 실행하더라도:</p>
+<pre><code class="language-python">torch.cuda.memory_reserved(device)
+</code></pre>
+<p>게임이 사용하는 <code>4 GiB</code>는 결과에 포함되지 않는다.</p>
+<p>이 함수는 현재 Python 프로세스의 PyTorch Allocator가 관리하는 메모리만 반환한다.</p>
+<p>GPU 전체 사용량은 <code>nvidia-smi</code>나 NVML과 같은 별도의 시스템 측정 수단으로 확인해야 한다.</p>
+<pre><code class="language-text">torch.cuda.memory_reserved()
+→ 현재 프로세스의 PyTorch 예약 메모리
+
+nvidia-smi
+→ 다른 프로세스와 시스템 비용을 포함한 GPU 사용 현황
+</code></pre>
+<p>CUDA Context, CUDA 라이브러리의 작업 공간, 다른 프로그램의 메모리 등은 PyTorch의 <code>memory_reserved()</code> 결과와 별도로 존재할 수 있다.</p>
+
+</section>
+<section id="kv-cache-reserved" class="markdown-section">
+<h2>KV Cache 실습에서 reserved를 측정하는 의미</h2>
+<p>KV Cache 실습에서는 Cache를 생성하기 전과 후의 값을 측정한다.</p>
+<pre><code class="language-python">allocated_before: int = (
+    torch.cuda.memory_allocated(device)
+)
+
+reserved_before: int = (
+    torch.cuda.memory_reserved(device)
+)
+</code></pre>
+<p>그다음 K·V Tensor를 생성한다.</p>
+<pre><code class="language-python">key_cache, value_cache = model.allocate_kv_cache(
+    batch_size=batch_size,
+    cached_sequence_length=cached_sequence_length,
+    dtype=dtype,
+    device=device,
+)
+</code></pre>
+<p>생성이 끝난 뒤 다시 메모리를 확인한다.</p>
+<pre><code class="language-python">allocated_after: int = (
+    torch.cuda.memory_allocated(device)
+)
+
+reserved_after: int = (
+    torch.cuda.memory_reserved(device)
+)
+</code></pre>
+<p>각 차이는 다음과 같이 계산한다.</p>
+<pre><code class="language-python">actual_allocated_bytes: int = (
+    allocated_after - allocated_before
+)
+
+reserved_increase_bytes: int = (
+    reserved_after - reserved_before
+)
+</code></pre>
+<p>두 값은 서로 다른 질문에 답한다.</p>
+<pre><code class="language-text">actual_allocated_bytes
+→ K·V Tensor가 실제로 사용한 메모리는 얼마인가?
+
+reserved_increase_bytes
+→ K·V Tensor를 할당하는 동안 PyTorch의 메모리 풀이 얼마나 확장됐는가?
+</code></pre>
+<p>KV Cache의 실제 크기를 확인할 때 중심이 되는 값은 <code>actual_allocated_bytes</code>다.</p>
+<p><code>reserved_increase_bytes</code>는 KV Cache 크기의 정답이 아니라, Cache 할당을 처리하는 과정에서 PyTorch가 CUDA로부터 추가로 확보한 메모리를 보여주는 값이다.</p>
+
+</section>
+<section id="reserved-0" class="markdown-section">
+<h2>reserved 증가량이 0일 수도 있다</h2>
+<p>KV Cache가 <code>4 MiB</code>의 메모리를 사용했더라도 <code>reserved</code> 증가량은 <code>0 MiB</code>일 수 있다.</p>
+<pre><code class="language-text">Cache 생성 전
+allocated = 100 MiB
+reserved  = 110 MiB
+
+Cache 생성 후
+allocated = 104 MiB
+reserved  = 110 MiB
+</code></pre>
+<p>계산하면 다음과 같다.</p>
+<pre><code class="language-text">allocated 증가 = 4 MiB
+reserved 증가  = 0 MiB
+</code></pre>
+<p>PyTorch가 기존 <code>reserved</code> 안에 있던 빈 공간을 재사용했기 때문이다.</p>
+<p>반대로 기존 공간이 부족하면 <code>reserved</code>가 증가한다.</p>
+<pre><code class="language-text">Cache 생성 전
+allocated = 100 MiB
+reserved  = 100 MiB
+
+Cache 생성 후
+allocated = 104 MiB
+reserved  = 106 MiB
+</code></pre>
+<p>이 경우 결과는 다음과 같다.</p>
+<pre><code class="language-text">allocated 증가 = 4 MiB
+reserved 증가  = 6 MiB
+</code></pre>
+<p>Cache는 <code>4 MiB</code>를 사용했지만 PyTorch의 메모리 풀은 <code>6 MiB</code> 확장됐다.</p>
+<p>따라서 다음 관계를 항상 기대하면 안 된다.</p>
+<pre><code class="language-python">reserved_increase_bytes == cache_bytes
+</code></pre>
+<p>Cache 크기는 Shape과 dtype을 사용해 계산하거나 <code>allocated</code> 증가량으로 확인해야 한다.</p>
+
+</section>
+<section id="empty-cache" class="markdown-section">
+<h2>empty_cache의 역할</h2>
+<p>PyTorch가 보관 중인 미사용 예약 메모리는 다음 함수로 일부 반환할 수 있다.</p>
+<pre><code class="language-python">torch.cuda.empty_cache()
+</code></pre>
+<p>이 함수는 살아 있는 Tensor가 사용하는 <code>allocated</code> 메모리를 삭제하지 않는다.</p>
+<pre><code class="language-text">allocated 영역
+→ 반환하지 않음
+
+사용하지 않는 cached 영역
+→ 반환 가능한 블록을 CUDA에 반환
+</code></pre>
+<p>따라서 모델 가중치나 KV Cache Tensor가 여전히 살아 있다면 그 메모리는 그대로 유지된다.</p>
+<pre><code class="language-python">del key_cache
+del value_cache
+
+gc.collect()
+torch.cuda.empty_cache()
+</code></pre>
+<p>이와 같이 Tensor를 가리키는 참조를 먼저 제거하고, 사용하지 않는 객체를 정리한 다음 <code>empty_cache()</code>를 호출해야 해당 Cache가 사용하던 예약 영역이 반환 대상이 될 수 있다.</p>
+<p>다만 메모리가 여러 블록으로 분할된 상태이거나 일부 영역이 다른 Tensor에 사용되고 있다면 모든 빈 공간이 즉시 반환되지는 않을 수 있다.</p>
+
+</section>
+<section id="section-b7c3762a161f" class="markdown-section">
+<h2>여러 요청이 동시에 실행될 때의 한계</h2>
+<p>통제된 실습에서는 측정 구간에 KV Cache 하나만 추가되도록 만들 수 있다.</p>
+<pre><code class="language-text">측정 전 메모리
+→ KV Cache 생성
+→ 측정 후 메모리
+</code></pre>
+<p>따라서 전후 차이를 KV Cache의 영향으로 해석할 수 있다.</p>
+<p>하지만 실제 추론 서버에서 요청이 동시에 처리되면 상황이 달라진다.</p>
+<pre><code class="language-text">측정 시작
+├── 요청 A가 KV Cache 생성
+├── 요청 B가 중간 Tensor 생성
+├── 요청 C의 Tensor 해제
+└── 측정 종료
+</code></pre>
+<p>이때 전후 차이에는 여러 요청의 메모리 변화가 섞인다.</p>
+<pre><code class="language-python">after - before
+</code></pre>
+<p>만으로는 특정 요청 하나가 사용한 메모리를 알 수 없다.</p>
+<p>동시 요청 환경에서 <code>memory_reserved()</code>는 다음과 같은 프로세스 전체 지표로 사용하는 것이 적절하다.</p>
+<ul>
+<li>PyTorch 프로세스가 확보한 전체 GPU 메모리</li>
+<li>동시 요청 수에 따른 메모리 풀의 증가</li>
+<li>시간에 따른 전체 메모리 변화</li>
+<li>최대 메모리 사용량과 OOM 위험</li>
+<li>사용 후에도 예약 메모리가 계속 증가하는지 여부</li>
+</ul>
+<p>특정 요청 하나의 KV Cache 크기는 Cache Shape과 dtype으로 계산하고, 통제된 단일 요청 실험에서 <code>allocated</code> 증가량과 비교하는 편이 정확하다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p><code>reserved</code>는 특정 모델을 위해 사전에 정해 놓은 메모리가 아니다.</p>
+<p>현재 Python 프로세스에서 PyTorch의 CUDA 메모리 관리자가 Tensor 할당을 처리하기 위해 CUDA로부터 확보하고 관리하는 전체 GPU 메모리다.</p>
+<p>개념적으로 다음 포함 관계를 가진다.</p>
+<pre><code class="language-text">reserved
+├── allocated: 현재 Tensor가 실제 사용
+└── cached: PyTorch가 재사용하려고 보관
+</code></pre>
+<p>KV Cache 실습에서 각 값은 다음과 같이 해석해야 한다.</p>
+<pre><code class="language-text">expected_bytes
+→ Cache Shape과 dtype으로 계산한 예상 크기
+
+allocated_after - allocated_before
+→ Cache Tensor가 실제 점유한 메모리
+
+reserved_after - reserved_before
+→ Cache 할당 과정에서 PyTorch 메모리 풀이 확장된 크기
+</code></pre>
+<p>따라서 <code>reserved</code>는 KV Cache 자체의 크기를 알려주는 값이 아니다.</p>
+<blockquote>
+<p><code>allocated</code>는 현재 Tensor가 실제 사용하는 메모리를 보여주고, <code>reserved</code>는 그 메모리를 포함해 PyTorch가 CUDA로부터 확보하여 관리하는 전체 메모리를 보여준다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
