@@ -1,0 +1,521 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_kv_cache_batch_effect.md. Do not edit directly. source-sha256:6eb439ac322db4cafc8b8cbdc870fa13c40c4bb784a1257cf98ec1dbe95980ed -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Batch 증가에 따른 KV Cache와 Full Forward의 Tensor·Peak 메모리·실행 시간 변화를 실험 결과로 비교한다.">
+  <meta name="source-sha256" content="6eb439ac322db4cafc8b8cbdc870fa13c40c4bb784a1257cf98ec1dbe95980ed">
+  <title>Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가">
+  <meta property="og:description" content="Batch 증가에 따른 KV Cache와 Full Forward의 Tensor·Peak 메모리·실행 시간 변화를 실험 결과로 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html","name":"Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가","description":"Batch 증가에 따른 KV Cache와 Full Forward의 Tensor·Peak 메모리·실행 시간 변화를 실험 결과로 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html"},"headline":"Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_batch_effect.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Batch가 증가할 때 KV Cache와 Full Forward의 메모리는 어떻게 달라지는가</h1>
+      <p class="lead">Batch 증가에 따른 KV Cache와 Full Forward의 Tensor·Peak 메모리·실행 시간 변화를 실험 결과로 비교한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#batch-transformer">Batch는 여러 Transformer를 따로 실행하는 것이 아니다</a>
+        <a href="#kv-cache-batch">KV Cache도 Batch별로 분리되어 있다</a>
+        <a href="#layer-layer-cache">여러 Layer 모델에서는 Layer마다 Cache가 존재한다</a>
+        <a href="#kv-cache-batch-prefix">KV Cache가 없으면 Batch 전체의 Prefix를 다시 계산한다</a>
+        <a href="#kv-cache">KV Cache가 있으면 각 문장의 새 토큰만 계산한다</a>
+        <a href="#batch-tensor">Batch 하나당 만드는 Tensor의 크기가 다르다</a>
+        <a href="#section-36de45696b46">실험 결과</a>
+        <a href="#batch-token">Batch가 증가해도 같은 Token을 선택했다</a>
+        <a href="#kv-cache-batch-2">KV Cache 크기는 Batch에 비례했다</a>
+        <a href="#full-forward-peak">Full Forward의 Peak 메모리</a>
+        <a href="#cache-decode-peak">Cache Decode의 Peak 메모리</a>
+        <a href="#kv-cache-2">KV Cache가 없어서 커진 것은 무엇인가</a>
+        <a href="#prompt-batch">Prompt 길이 실험과 Batch 실험의 차이</a>
+        <a href="#batch">실행 시간은 Batch에 정확히 비례하지 않았다</a>
+        <a href="#peak">이번 Peak 측정의 범위</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM은 여러 문장을 하나의 Batch로 묶어 동시에 처리할 수 있다.</p>
+<p>Batch가 커지면 한 번에 처리하는 문장 수가 늘어난다. 이때 KV Cache를 사용하는 Decode와 전체 Prefix를 다시 계산하는 Full Forward는 모두 더 많은 GPU 메모리를 사용한다.</p>
+<p>하지만 두 방식이 문장 하나당 만드는 중간 Tensor의 크기가 다르기 때문에, 같은 Batch 크기에서도 필요한 작업 메모리에 큰 차이가 발생한다.</p>
+<p>이번 실습에서는 Prompt 길이를 <code>512</code>로 고정하고 Batch 크기를 다음과 같이 늘렸다.</p>
+<pre><code class="language-text">Batch 1
+Batch 2
+Batch 4
+Batch 8
+</code></pre>
+<p>그리고 각 Batch 크기에서 다음 두 방식을 비교했다.</p>
+<pre><code class="language-text">Full Forward
+→ Batch에 들어 있는 모든 문장의 전체 Prefix를 다시 계산
+
+KV Cache Decode
+→ 각 문장의 과거 K·V를 재사용
+→ 각 문장의 새 토큰 하나만 계산
+</code></pre>
+</div>
+        <section id="batch-transformer" class="markdown-section">
+<h2>Batch는 여러 Transformer를 따로 실행하는 것이 아니다</h2>
+<p>Batch가 8이라고 해서 Transformer 모델을 8개 만들어 각각 실행하는 것은 아니다.</p>
+<p>여러 문장을 하나의 Tensor로 묶어 같은 모델 연산을 병렬로 실행한다.</p>
+<pre><code class="language-text">Batch 1
+[B=1, S, D]
+
+Batch 8
+[B=8, S, D]
+</code></pre>
+<p><code>B</code>는 Batch 크기, <code>S</code>는 Sequence 길이, <code>D</code>는 Model Dimension이다.</p>
+<p>Batch 안에 있는 문장들은 같은 모델 가중치를 사용한다.</p>
+<pre><code class="language-text">같은 Q Projection
+같은 K Projection
+같은 V Projection
+같은 FFN
+같은 LM Head
+</code></pre>
+<p>하지만 각 문장은 서로 다른 Token Sequence이므로 Hidden State와 Attention 결과, KV Cache는 서로 분리되어 있다.</p>
+<pre><code class="language-text">Batch 0의 문맥
+Batch 1의 문맥
+Batch 2의 문맥
+...
+</code></pre>
+<p>이 값들은 실제 Tensor에서 Batch 축으로 묶여 GPU에서 병렬로 처리된다.</p>
+
+</section>
+<section id="kv-cache-batch" class="markdown-section">
+<h2>KV Cache도 Batch별로 분리되어 있다</h2>
+<p>KV Cache의 기본 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[B, KV Head, Sequence, Head Dimension]
+</code></pre>
+<p>Batch가 1이라면 한 문장의 K·V만 저장한다.</p>
+<pre><code class="language-text">K Cache: [1, KVH, S, Dh]
+V Cache: [1, KVH, S, Dh]
+</code></pre>
+<p>Batch가 8이라면 여덟 문장의 K·V를 함께 저장한다.</p>
+<pre><code class="language-text">K Cache: [8, KVH, S, Dh]
+V Cache: [8, KVH, S, Dh]
+</code></pre>
+<p>각 Batch 항목의 K·V는 해당 문장의 과거 문맥을 나타낸다. Batch 0의 새 Query는 Batch 0의 K·V만 보고, Batch 1의 새 Query는 Batch 1의 K·V만 본다.</p>
+<p>서로 다른 문장의 K·V가 Attention에서 섞이는 것은 아니다.</p>
+
+</section>
+<section id="layer-layer-cache" class="markdown-section">
+<h2>여러 Layer 모델에서는 Layer마다 Cache가 존재한다</h2>
+<p>실제 Decoder-only Transformer는 여러 개의 Transformer Layer로 구성된다.</p>
+<p>각 Layer는 서로 다른 Hidden State와 Projection 가중치를 사용하므로 각 Layer에서 계산한 K·V도 서로 다르다.</p>
+<p>따라서 일반적인 KV Cache는 다음과 같은 구조를 가진다.</p>
+<pre><code class="language-text">Batch 0
+├─ Layer 1의 K·V
+├─ Layer 2의 K·V
+├─ Layer 3의 K·V
+└─ Layer L의 K·V
+
+Batch 1
+├─ Layer 1의 K·V
+├─ Layer 2의 K·V
+├─ Layer 3의 K·V
+└─ Layer L의 K·V
+</code></pre>
+<p>Tensor 전체로 표현하면 대략 다음과 같다.</p>
+<pre><code class="language-text">[Layer, Batch, KV Head, Sequence, Head Dimension]
+</code></pre>
+<p>이번 실습의 Tiny GQA Decoder는 Transformer Block이 하나뿐이다. 따라서 실제 측정값에는 한 Layer의 KV Cache만 포함되어 있다.</p>
+<p>하지만 여러 Layer를 가진 모델에서는 같은 구조의 Cache가 모든 Layer에 존재한다.</p>
+
+</section>
+<section id="kv-cache-batch-prefix" class="markdown-section">
+<h2>KV Cache가 없으면 Batch 전체의 Prefix를 다시 계산한다</h2>
+<p>현재까지 각 문장의 Token이 513개라고 가정해 보자.</p>
+<p>KV Cache가 없다면 다음 토큰을 예측할 때 Batch에 포함된 모든 문장의 전체 513개 Token을 다시 입력한다.</p>
+<pre><code class="language-text">Batch 전체 Token
+[B, 513]
+</code></pre>
+<p>Embedding을 통과한 전체 Hidden State는 다음 Shape을 가진다.</p>
+<pre><code class="language-text">[B, 513, D]
+</code></pre>
+<p>각 Transformer Layer에서는 Batch의 모든 문장에 대해 전체 Q·K·V를 다시 계산한다.</p>
+<pre><code class="language-text">Q: [B, Query Head, 513, Head Dimension]
+K: [B, KV Head, 513, Head Dimension]
+V: [B, KV Head, 513, Head Dimension]
+</code></pre>
+<p>전체 Query와 전체 Key를 행렬곱하면 Attention Score는 다음 Shape을 가진다.</p>
+<pre><code class="language-text">[B, Query Head, 513, 513]
+</code></pre>
+<p>FFN도 Batch의 전체 Token에 적용된다.</p>
+<pre><code class="language-text">FFN 중간 Tensor
+[B, 513, d_ff]
+</code></pre>
+<p>따라서 Batch가 커지면 전체 Prefix 재계산에 필요한 모든 Tensor도 Batch에 비례해 증가한다.</p>
+
+</section>
+<section id="kv-cache" class="markdown-section">
+<h2>KV Cache가 있으면 각 문장의 새 토큰만 계산한다</h2>
+<p>KV Cache를 사용하면 각 문장의 과거 K·V가 Layer마다 저장되어 있다.</p>
+<p>따라서 Decode에서는 각 문장에서 새로 들어온 Token 하나만 모델에 넣는다.</p>
+<pre><code class="language-text">새 Token
+[B, 1]
+</code></pre>
+<p>Embedding 이후의 Hidden State도 각 문장당 하나다.</p>
+<pre><code class="language-text">새 Hidden State
+[B, 1, D]
+</code></pre>
+<p>새 Q·K·V 역시 Token 하나에 대해서만 계산한다.</p>
+<pre><code class="language-text">새 Q: [B, Query Head, 1, Head Dimension]
+새 K: [B, KV Head, 1, Head Dimension]
+새 V: [B, KV Head, 1, Head Dimension]
+</code></pre>
+<p>새 K·V는 각 문장의 기존 Cache 끝에 추가한다.</p>
+<p>새 Query는 해당 문장의 전체 K Cache를 바라본다.</p>
+<pre><code class="language-text">새 Q:    [B, Query Head, 1, Head Dimension]
+K Cache: [B, Query Head, S, Head Dimension]
+</code></pre>
+<p>Attention Score의 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[B, Query Head, 1, S]
+</code></pre>
+<p>FFN도 새 Token 하나의 Hidden State에만 적용된다.</p>
+<pre><code class="language-text">FFN 중간 Tensor
+[B, 1, d_ff]
+</code></pre>
+<p>즉, KV Cache Decode에서도 Batch 크기만큼의 연산은 필요하지만 각 문장에서는 새 Token 하나만 계산한다.</p>
+
+</section>
+<section id="batch-tensor" class="markdown-section">
+<h2>Batch 하나당 만드는 Tensor의 크기가 다르다</h2>
+<p>Batch가 증가하면 Full Forward와 Cache Decode의 메모리는 모두 증가한다.</p>
+<p>하지만 문장 하나당 만드는 Tensor의 크기가 다르다.</p>
+<h3>Full Forward</h3>
+<pre><code class="language-text">Hidden State: [B, S, D]
+Q:            [B, H, S, Dh]
+K·V:          [B, KVH, S, Dh]
+Attention:    [B, H, S, S]
+FFN:          [B, S, d_ff]
+</code></pre>
+<h3>KV Cache Decode</h3>
+<pre><code class="language-text">Hidden State: [B, 1, D]
+새 Q:         [B, H, 1, Dh]
+새 K·V:       [B, KVH, 1, Dh]
+Attention:    [B, H, 1, S]
+FFN:          [B, 1, d_ff]
+</code></pre>
+<p>핵심 차이는 Attention Shape이다.</p>
+<pre><code class="language-text">Full Forward
+S × S
+
+KV Cache Decode
+1 × S
+</code></pre>
+<p>같은 Batch 크기라도 Full Forward는 문장마다 전체 Query를 다시 만들고 전체 Key와 연산한다. Cache Decode는 문장마다 새 Query 하나만 전체 Key Cache와 연산한다.</p>
+
+</section>
+<section id="section-36de45696b46" class="markdown-section">
+<h2>실험 결과</h2>
+<p>Prompt 길이를 <code>512</code>로 고정하고 Batch 크기를 변경한 결과는 다음과 같았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Batch</th>
+<th align="right">KV Cache</th>
+<th align="right">Full 시간</th>
+<th align="right">Cache 시간</th>
+<th align="right">Full Peak</th>
+<th align="right">Cache Peak</th>
+<th align="center">같은 Token</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">0.5000 MiB</td>
+<td align="right">0.5563 ms</td>
+<td align="right">0.3317 ms</td>
+<td align="right">10.3452 MiB</td>
+<td align="right">1.5776 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td align="right">1.0000 MiB</td>
+<td align="right">0.7739 ms</td>
+<td align="right">0.3537 ms</td>
+<td align="right">23.2666 MiB</td>
+<td align="right">4.1523 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">2.0000 MiB</td>
+<td align="right">1.1892 ms</td>
+<td align="right">0.3984 ms</td>
+<td align="right">42.6143 MiB</td>
+<td align="right">8.2998 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">4.0000 MiB</td>
+<td align="right">2.1799 ms</td>
+<td align="right">0.4773 ms</td>
+<td align="right">80.9912 MiB</td>
+<td align="right">12.6143 MiB</td>
+<td align="center">True</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="batch-token" class="markdown-section">
+<h2>Batch가 증가해도 같은 Token을 선택했다</h2>
+<p>모든 Batch 크기에서 다음 결과가 나왔다.</p>
+<pre><code class="language-text">Same Tokens = True
+</code></pre>
+<p>이는 Full Forward와 Cache Decode가 각 문장에서 같은 다음 Token을 선택했다는 뜻이다.</p>
+<pre><code class="language-text">Full Forward
+→ 각 문장의 전체 Prefix 재계산
+→ 다음 Token 예측
+
+KV Cache Decode
+→ 각 문장의 과거 K·V 재사용
+→ 새 Token 하나만 계산
+→ 다음 Token 예측
+</code></pre>
+<p>KV Cache를 사용하면서 계산 범위는 줄었지만 모델의 예측 결과는 유지됐다.</p>
+
+</section>
+<section id="kv-cache-batch-2" class="markdown-section">
+<h2>KV Cache 크기는 Batch에 비례했다</h2>
+<p>KV Cache 크기는 다음과 같이 증가했다.</p>
+<pre><code class="language-text">Batch 1 → 0.5 MiB
+Batch 2 → 1.0 MiB
+Batch 4 → 2.0 MiB
+Batch 8 → 4.0 MiB
+</code></pre>
+<p>Batch가 두 배가 될 때마다 Cache 크기도 정확히 두 배가 됐다.</p>
+<p>KV Cache 크기는 다음 요소에 비례한다.</p>
+<pre><code class="language-text">2
+× Layer 수
+× Batch 크기
+× Cache Token 수
+× KV Head 수
+× Head Dimension
+× 원소당 Byte
+</code></pre>
+<p>이번 실험에서는 Layer 수와 Prompt 길이, KV Head 수, Head Dimension, dtype을 고정했다.</p>
+<p>변경한 것은 Batch 크기뿐이므로 다음 관계가 그대로 나타났다.</p>
+<pre><code class="language-text">KV Cache 크기 ∝ Batch 크기
+</code></pre>
+<p>Batch가 8배가 되면 서로 다른 여덟 문장의 K·V를 저장해야 하므로 KV Cache도 8배가 된다.</p>
+
+</section>
+<section id="full-forward-peak" class="markdown-section">
+<h2>Full Forward의 Peak 메모리</h2>
+<p>Full Forward의 Peak allocated 증가량은 다음과 같았다.</p>
+<pre><code class="language-text">Batch 1 → 10.3452 MiB
+Batch 2 → 23.2666 MiB
+Batch 4 → 42.6143 MiB
+Batch 8 → 80.9912 MiB
+</code></pre>
+<p>Batch 1에서 Batch 8로 증가하자 Peak 작업 메모리는 약 7.83배가 됐다.</p>
+<p>Batch의 각 문장마다 다음 Tensor를 만들어야 하기 때문이다.</p>
+<pre><code class="language-text">전체 Sequence Hidden State
+전체 Q·K·V
+S × S Attention Score
+S × S Attention Weight
+전체 Sequence FFN 중간 Tensor
+</code></pre>
+<p>따라서 Batch에 들어 있는 문장 수가 증가하면 전체 재계산의 작업 메모리도 대체로 Batch에 비례해 증가한다.</p>
+
+</section>
+<section id="cache-decode-peak" class="markdown-section">
+<h2>Cache Decode의 Peak 메모리</h2>
+<p>Cache Decode의 Peak allocated 증가량도 Batch에 따라 증가했다.</p>
+<pre><code class="language-text">Batch 1 → 1.5776 MiB
+Batch 2 → 4.1523 MiB
+Batch 4 → 8.2998 MiB
+Batch 8 → 12.6143 MiB
+</code></pre>
+<p>Cache Decode라고 해서 Batch 증가의 영향을 받지 않는 것은 아니다.</p>
+<p>Batch가 8이면 여덟 문장 각각에 대해 다음 값을 계산해야 한다.</p>
+<pre><code class="language-text">새 Hidden State
+새 Q·K·V
+1 × S Attention
+Residual과 LayerNorm
+FFN 중간 Tensor
+Logit
+</code></pre>
+<p>또 현재 교육용 구현에서는 <code>torch.cat()</code>으로 기존 Cache와 새 K·V를 합쳐 갱신된 Cache Tensor를 새로 만든다. GQA Attention 계산을 위해 KV Head를 Query Head 수에 맞게 확장하는 Tensor도 만든다.</p>
+<p>따라서 Cache Decode의 작업 메모리도 Batch에 따라 증가한다.</p>
+<p>다만 Full Forward처럼 문장마다 <code>S × S</code> Attention과 전체 Sequence FFN을 만들지 않기 때문에 같은 Batch 크기에서 훨씬 작은 Peak를 기록했다.</p>
+<p>Batch 8일 때 결과는 다음과 같다.</p>
+<pre><code class="language-text">Full Forward Peak
+80.9912 MiB
+
+KV Cache Decode Peak
+12.6143 MiB
+</code></pre>
+
+</section>
+<section id="kv-cache-2" class="markdown-section">
+<h2>KV Cache가 없어서 커진 것은 무엇인가</h2>
+<p>KV Cache가 없으면 Cache 저장 메모리는 필요하지 않다.</p>
+<p>하지만 각 Decode 단계에서 Batch의 모든 문장에 대해 전체 Prefix를 다시 계산해야 한다.</p>
+<pre><code class="language-text">KV Cache 없음
+→ 각 Layer의 과거 K·V가 없음
+→ 과거 K·V를 다시 만들기 위해 전체 Hidden State가 필요함
+→ Batch의 모든 문장을 전체 Sequence 길이로 다시 계산
+→ 전체 Q·K·V와 S × S Attention 생성
+→ 큰 작업 메모리 사용
+</code></pre>
+<p>반대로 KV Cache가 있으면 지속적으로 K·V를 보관하는 메모리가 필요하다.</p>
+<pre><code class="language-text">KV Cache 있음
+→ Batch별·Layer별 과거 K·V 저장
+→ 새 Token의 Q·K·V만 계산
+→ 1 × S Attention 수행
+→ 새 Hidden State 하나만 다음 Layer로 전달
+</code></pre>
+<p>즉, KV Cache는 메모리를 사용하지 않는 방법이 아니다.</p>
+<pre><code class="language-text">추가되는 것
+→ Batch별·Layer별 K·V Cache 저장 메모리
+
+줄어드는 것
+→ Batch 전체 Prefix의 반복 계산에서 발생하는 작업 메모리
+</code></pre>
+
+</section>
+<section id="prompt-batch" class="markdown-section">
+<h2>Prompt 길이 실험과 Batch 실험의 차이</h2>
+<p>Prompt 길이를 증가시키는 실험과 Batch를 증가시키는 실험은 모두 메모리가 늘어나는 모습을 보여준다.</p>
+<p>하지만 증가하는 축과 비용 구조가 다르다.</p>
+<h3>Prompt 길이가 증가할 때</h3>
+<p>Sequence 길이 <code>S</code>가 증가한다.</p>
+<pre><code class="language-text">KV Cache
+B × KVH × S × Dh
+→ S에 비례
+
+Cache Decode Attention
+B × H × 1 × S
+→ S에 비례
+
+Full Forward Attention
+B × H × S × S
+→ S의 제곱에 영향받음
+</code></pre>
+<p>따라서 Prompt가 길어질수록 Full Forward의 Attention 작업 메모리가 특히 빠르게 증가한다.</p>
+<h3>Batch가 증가할 때</h3>
+<p>Batch 크기 <code>B</code>가 증가한다.</p>
+<pre><code class="language-text">KV Cache
+B × KVH × S × Dh
+
+Cache Decode Attention
+B × H × 1 × S
+
+Full Forward Attention
+B × H × S × S
+</code></pre>
+<p>모두 맨 앞의 Batch 축 <code>B</code>에 비례한다. 따라서 Batch를 증가시키면 두 방식의 메모리가 모두 대체로 선형으로 증가한다.</p>
+<p>하지만 Full Forward는 Batch 하나당 <code>S × S</code> Attention을 만들고, Cache Decode는 Batch 하나당 <code>1 × S</code> Attention을 만든다.</p>
+<p>그래서 증가 방향은 비슷해도 절대적인 작업 메모리에 큰 차이가 난다.</p>
+
+</section>
+<section id="batch" class="markdown-section">
+<h2>실행 시간은 Batch에 정확히 비례하지 않았다</h2>
+<p>Batch는 1에서 8로 8배 증가했지만 실행 시간은 8배가 되지 않았다.</p>
+<pre><code class="language-text">Full Forward
+0.5563 ms → 2.1799 ms
+약 3.9배
+
+KV Cache Decode
+0.3317 ms → 0.4773 ms
+약 1.44배
+</code></pre>
+<p>GPU는 Batch에 들어 있는 여러 문장을 병렬로 처리할 수 있다.</p>
+<p>Batch 1에서는 GPU의 연산 장치를 충분히 활용하지 못할 수 있지만, Batch가 증가하면 더 많은 연산을 동시에 수행하며 GPU 활용률이 높아질 수 있다.</p>
+<p>따라서 다음과 같은 차이가 나타난다.</p>
+<pre><code class="language-text">GPU 메모리
+→ Batch에 따라 비교적 직접적으로 증가
+
+실행 시간
+→ GPU 병렬 처리와 활용률의 영향을 받음
+→ Batch와 정확히 같은 비율로 증가하지 않을 수 있음
+</code></pre>
+<p>이것이 서빙에서 Batch를 사용하는 이유 중 하나다. 더 많은 메모리를 사용하지만 여러 요청을 함께 처리하여 GPU 처리량을 높일 수 있다.</p>
+
+</section>
+<section id="peak" class="markdown-section">
+<h2>이번 Peak 측정의 범위</h2>
+<p>실험의 <code>Cache MiB</code>는 지속적으로 저장된 K·V Cache 크기다.</p>
+<pre><code class="language-text">Batch 8 KV Cache
+4.0000 MiB
+</code></pre>
+<p><code>Cache Peak MiB</code>는 Cache가 이미 존재하는 상태에서 새 Token을 계산하며 추가로 필요했던 작업 메모리다.</p>
+<pre><code class="language-text">Batch 8 Decode Peak 증가
+12.6143 MiB
+</code></pre>
+<p>따라서 Cache Decode의 전체 메모리 부담은 개념적으로 다음과 같다.</p>
+<pre><code class="language-text">기존 KV Cache 저장 메모리
++
+Decode 중 추가 작업 메모리
+</code></pre>
+<p>Full Forward Peak도 KV Cache 크기와 직접 비교하는 값이 아니라, 전체 Prefix를 다시 계산하면서 추가로 필요했던 작업 메모리다.</p>
+<p>이번 결과를 해석할 때는 지속적인 Cache 메모리와 일시적인 작업 메모리를 구분해야 한다.</p>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p>Batch가 증가하면 한 번에 처리하는 문장 수가 늘어난다.</p>
+<p>각 문장은 자신의 문맥을 가지므로 KV Cache 역시 Batch별로 필요하다. 여러 Layer를 가진 모델에서는 각 Batch 항목의 각 Transformer Layer에 과거 K·V가 저장된다.</p>
+<p>따라서 KV Cache 크기는 Batch에 비례해 증가한다.</p>
+<pre><code class="language-text">Batch 1 → 0.5 MiB
+Batch 8 → 4.0 MiB
+</code></pre>
+<p>KV Cache Decode의 작업 메모리도 Batch에 따라 증가하지만, 각 문장에서 새 Token 하나만 계산한다.</p>
+<p>반면 KV Cache가 없으면 Batch의 모든 문장에 대해 전체 Prefix를 다시 계산해야 한다. 각 문장마다 전체 Hidden State, 전체 Q·K·V, <code>S × S</code> Attention과 전체 Sequence FFN 중간 Tensor가 만들어진다.</p>
+<p>그 결과 Batch 8에서 다음과 같은 차이가 나타났다.</p>
+<pre><code class="language-text">Full Forward Peak
+80.9912 MiB
+
+KV Cache Decode Peak
+12.6143 MiB
+</code></pre>
+<p>최종적으로 두 방식은 모든 Batch 크기에서 같은 Token을 선택했다.</p>
+<p>이번 실습의 핵심은 다음과 같다.</p>
+<blockquote>
+<p>Batch에는 여러 문장이 들어 있으며 각 문장은 각 Transformer Layer에서 자신의 K·V Cache를 가진다. KV Cache를 사용하면 Batch별 Cache 저장 메모리는 증가하지만, 각 문장의 새 Token 하나만 계산할 수 있다. KV Cache가 없으면 Batch에 포함된 모든 문장의 전체 Prefix를 모든 Layer에서 다시 계산해야 하므로 훨씬 큰 작업 메모리가 필요하다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_prefill_decode_independent_timing.md. Do not edit directly. source-sha256:2270c7c55c2f3154b16b8bace6d20f1d605451e349c7165e874da5e3e10494a0 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GQA Tiny Decoder에서 Prompt 전체 Prefill과 준비된 KV Cache를 사용하는 Decode 1 Token의 CUDA 측정 경계를 분리하고 시간과 Cache Shape을 해석한다.">
+  <meta name="source-sha256" content="2270c7c55c2f3154b16b8bace6d20f1d605451e349c7165e874da5e3e10494a0">
+  <title>Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기">
+  <meta property="og:description" content="GQA Tiny Decoder에서 Prompt 전체 Prefill과 준비된 KV Cache를 사용하는 Decode 1 Token의 CUDA 측정 경계를 분리하고 시간과 Cache Shape을 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html","name":"Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기","description":"GQA Tiny Decoder에서 Prompt 전체 Prefill과 준비된 KV Cache를 사용하는 Decode 1 Token의 CUDA 측정 경계를 분리하고 시간과 Cache Shape을 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html"},"headline":"Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_prefill_decode_independent_timing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"GQA Prefill·Decode의 출력 정확성과 GPU 비용 측정","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.html"},{"@type":"ListItem","position":7,"name":"Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.html">GQA Prefill·Decode의 출력 정확성과 GPU 비용 측정</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기</h1>
+      <p class="lead">GQA Tiny Decoder에서 Prompt 전체 Prefill과 준비된 KV Cache를 사용하는 Decode 1 Token의 CUDA 측정 경계를 분리하고 시간과 Cache Shape을 해석한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#why-separate-prefill-and-decode-time">Prefill과 Decode 시간을 따로 기록해야 하는 이유</a>
+        <a href="#measurement-boundaries">이번 실습에서 고정한 측정 경계</a>
+        <a href="#explicit-function-inputs">함수 안에서 실험 전역 상태를 사용하지 않는 구조</a>
+        <a href="#partial-bound-operation"><code>partial()</code>로 측정할 연산과 인자를 묶기</a>
+        <a href="#warmup-and-cuda-synchronize">Warm-up과 CUDA 동기화로 측정 경계 고정하기</a>
+        <a href="#measurement-results">실행 결과</a>
+        <a href="#why-ratio-was-removed">두 시간을 배율로 비교하지 않은 이유</a>
+        <a href="#conclusion">이번 실습에서 확인한 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM의 생성 과정을 측정할 때 전체 실행 시간 하나만 기록하면 어디에서 시간이 사용됐는지 알기 어렵다. Prompt 전체를 처음 처리하는 Prefill과, 이미 만들어진 KV Cache를 이용해 새 Token을 하나씩 생성하는 Decode는 입력의 크기와 반복 횟수가 다르기 때문이다.</p>
+<p>이번 실습에서는 같은 GQA Tiny Decoder를 사용하면서 측정 경계를 두 개로 분리했다. 첫 번째 경계는 GPU에 준비된 Prompt Token을 Embedding에 넣은 시점부터 최초 KV Cache와 다음 Token Logit을 만들 때까지다. 두 번째 경계는 Prompt Cache가 이미 준비된 상태에서 새 Token 하나를 Embedding하고, Cache를 갱신해 다음 Logit을 만들 때까지다. 이를 통해 Prefill은 요청마다 한 번 발생하는 전체 Prompt 처리 비용으로, Decode는 생성 과정에서 반복되는 Token당 비용으로 기록할 수 있다.</p>
+</div>
+        <section id="why-separate-prefill-and-decode-time" class="markdown-section">
+<h2>Prefill과 Decode 시간을 따로 기록해야 하는 이유</h2>
+<p>전체 생성 시간은 개념적으로 다음처럼 나눠 생각할 수 있다.</p>
+<pre><code class="language-text">전체 생성 시간
+≈ Prefill 시간
++ Decode Token당 시간 × 생성 Token 수
+</code></pre>
+<p>이 식은 Decode 비용이 언제나 일정하다는 정확한 계산식은 아니다. 생성이 진행되면 KV Cache가 길어지고 새 Query가 조회해야 할 과거 K·V도 늘어나므로 Decode Token당 시간은 조금씩 달라질 수 있다. 하지만 전체 시간 하나만 보는 것보다 어느 단계의 비용이 큰지 구분하는 출발점으로 유용하다.</p>
+<p>Prefill은 Prompt 전체에 대해 Q·K·V Projection과 Causal Attention을 수행하고 최초 K·V를 Cache에 저장한다. 반면 Decode는 새 Token 하나의 Q·K·V만 만들고, 새 K·V를 기존 Cache 끝에 추가한 뒤 새 Query와 전체 Cache로 Attention을 계산한다. 두 단계는 같은 모델을 사용하지만 처리하는 Sequence 범위가 다르다.</p>
+
+</section>
+<section id="measurement-boundaries" class="markdown-section">
+<h2>이번 실습에서 고정한 측정 경계</h2>
+<p>실험 조건은 다음과 같다.</p>
+<ul>
+<li>Device: CUDA GPU</li>
+<li>dtype: <code>torch.float16</code></li>
+<li>Batch: 1</li>
+<li>Prompt 길이: 512 Token</li>
+<li>Query Head: 4개</li>
+<li>KV Head: 2개</li>
+<li>Warm-up: 3회</li>
+<li>본 측정: 20회</li>
+<li>CPU에서 GPU로 Token을 전송하는 시간: 제외</li>
+</ul>
+<p>Prompt Token과 Position Tensor는 측정을 시작하기 전에 GPU에 만들어 둔다. 따라서 이번 수치는 서비스 요청 수신, Tokenization, CPU 작업, Host-to-Device 전송 시간을 포함하지 않는다. 순수하게 준비된 GPU 입력이 Tiny Decoder의 Prefill 또는 Decode 경로를 통과하는 시간을 비교한다.</p>
+<p>Prefill 측정에는 다음 과정이 포함된다.</p>
+<ol>
+<li>Prompt Token Embedding과 Position Embedding을 더해 Prompt 전체 Hidden State를 만든다.</li>
+<li>Prompt 전체의 Q·K·V를 Projection한다.</li>
+<li>Causal Attention을 계산한다.</li>
+<li>Prompt의 K·V를 최초 KV Cache로 만든다.</li>
+<li>Attention 이후 Residual, LayerNorm, FFN을 처리한다.</li>
+<li>마지막 Prompt 위치를 LM Head에 넣어 다음 Token Logit을 만든다.</li>
+</ol>
+<p>Decode 측정은 최초 Prompt Cache를 만드는 작업을 포함하지 않는다. 측정을 시작하기 전에 Cache를 한 번 준비하고 다음 과정만 잰다.</p>
+<ol>
+<li>새 Token 하나의 Embedding과 Position Embedding을 더한다.</li>
+<li>새 Token 하나의 Q·K·V를 Projection한다.</li>
+<li>새 K·V를 기존 Cache의 Sequence 축 끝에 추가한다.</li>
+<li>새 Query와 갱신된 전체 K·V Cache로 Attention을 계산한다.</li>
+<li>새 Token 하나만 Residual, LayerNorm, FFN을 통과한다.</li>
+<li>LM Head로 다음 Token Logit을 만든다.</li>
+</ol>
+
+</section>
+<section id="explicit-function-inputs" class="markdown-section">
+<h2>함수 안에서 실험 전역 상태를 사용하지 않는 구조</h2>
+<p>측정 함수가 바깥의 <code>gqa_model</code>, Token Tensor, KV Cache 또는 Device를 직접 참조하면 함수의 입력만 보고 어떤 조건을 측정하는지 알기 어렵다. 같은 함수를 다른 모델이나 입력에 재사용할 때도 바깥 상태에 따라 결과가 달라질 수 있다.</p>
+<p>따라서 Prefill 함수는 모델, Prompt Token, Position을 모두 인자로 받고 Decode 함수는 모델, 새 Token, 새 Position, 기존 K·V Cache를 모두 인자로 받는다. CUDA 측정 함수 역시 Device와 반복 횟수를 인자로 받는다.</p>
+<pre><code class="language-python">@torch.inference_mode()
+def run_prefill(
+    model: TinyGQADecoderLM,
+    input_tokens: Tensor,
+    input_positions: Tensor,
++) -&gt; tuple[Tensor, Tensor, Tensor]:
+    prompt_hidden: Tensor = (
+        model.token_embedding(input_tokens)
+        + model.position_embedding(input_positions)
+    )
+
+    (
+        prefill_attention_output,
+        _,
+        key_cache,
+        value_cache,
+    ) = prefill_gqa_attention(
+        attention_module=model.block.attention,
+        prompt_hidden=prompt_hidden,
+    )
+
+    prefill_block_output: Tensor = (
+        finish_transformer_block(
+            block=model.block,
+            input_hidden=prompt_hidden,
+            attention_output=prefill_attention_output,
+        )
+    )
+
+    last_logits: Tensor = model.lm_head(
+        prefill_block_output[:, -1:, :]
+    )
+
+    return last_logits, key_cache, value_cache
+</code></pre>
+<p>Decode도 동일한 원칙을 사용한다.</p>
+<pre><code class="language-python">@torch.inference_mode()
+def run_decode_one_token(
+    model: TinyGQADecoderLM,
+    input_token: Tensor,
+    input_position: Tensor,
+    key_cache: Tensor,
+    value_cache: Tensor,
+) -&gt; tuple[Tensor, Tensor, Tensor]:
+    new_hidden: Tensor = (
+        model.token_embedding(input_token)
+        + model.position_embedding(input_position)
+    )
+
+    (
+        decode_attention_output,
+        _,
+        updated_key_cache,
+        updated_value_cache,
+    ) = decode_gqa_attention(
+        attention_module=model.block.attention,
+        new_hidden=new_hidden,
+        key_cache=key_cache,
+        value_cache=value_cache,
+    )
+
+    decode_block_output: Tensor = (
+        finish_transformer_block(
+            block=model.block,
+            input_hidden=new_hidden,
+            attention_output=decode_attention_output,
+        )
+    )
+
+    decode_logits: Tensor = model.lm_head(
+        decode_block_output
+    )
+
+    return (
+        decode_logits,
+        updated_key_cache,
+        updated_value_cache,
+    )
+</code></pre>
+<p>이 구조에서는 함수가 처리할 데이터가 함수 선언에 드러난다. Prefill은 Prompt 전체를 받고 Decode는 이미 만들어진 Cache와 새 Token 하나를 받는다는 차이도 인자에서 바로 확인할 수 있다.</p>
+
+</section>
+<section id="partial-bound-operation" class="markdown-section">
+<h2><code>partial()</code>로 측정할 연산과 인자를 묶기</h2>
+<p>CUDA 측정 함수는 측정 대상마다 서로 다른 인자를 알 필요가 없다. 단지 호출할 수 있는 인자 없는 함수 하나만 받으면 된다. <code>functools.partial()</code>은 기존 함수와 사용할 인자를 미리 묶어 이런 호출 형태를 만든다.</p>
+<pre><code class="language-python">from functools import partial
+
+prefill_operation = partial(
+    run_prefill,
+    model=gqa_model,
+    input_tokens=prompt_tokens,
+    input_positions=prompt_positions,
+)
+</code></pre>
+<p><code>partial()</code>이 실행될 때 Prefill이 수행되는 것은 아니다. 이때는 <code>run_prefill</code>과 세 인자를 함께 보관하는 새로운 함수 객체만 만들어진다. 실제 Prefill은 다음처럼 호출할 때 수행된다.</p>
+<pre><code class="language-python">(
+    prefill_logits,
+    prepared_key_cache,
+    prepared_value_cache,
+) = prefill_operation()
+</code></pre>
+<p>위 코드는 다음 호출과 같은 의미다.</p>
+<pre><code class="language-python">(
+    prefill_logits,
+    prepared_key_cache,
+    prepared_value_cache,
+) = run_prefill(
+    model=gqa_model,
+    input_tokens=prompt_tokens,
+    input_positions=prompt_positions,
+)
+</code></pre>
+<p>왼쪽 괄호는 함수 호출이 아니라 반환된 세 값을 세 변수에 차례대로 넣는 Tuple Unpacking이다. <code>prefill_operation()</code>을 호출할 때마다 <code>run_prefill()</code>이 다시 실행되어 Logit과 새 K·V Cache를 반환한다.</p>
+<p>Decode도 같은 방식으로 모델, 새 Token, Position, 준비된 Cache를 묶는다.</p>
+<pre><code class="language-python">decode_operation = partial(
+    run_decode_one_token,
+    model=gqa_model,
+    input_token=new_token,
+    input_position=new_position,
+    key_cache=prepared_key_cache,
+    value_cache=prepared_value_cache,
+)
+</code></pre>
+
+</section>
+<section id="warmup-and-cuda-synchronize" class="markdown-section">
+<h2>Warm-up과 CUDA 동기화로 측정 경계 고정하기</h2>
+<p>CUDA 연산은 CPU 코드와 비동기적으로 실행된다. <code>operation()</code>을 호출한 직후 CPU 시각만 읽으면 GPU 작업이 끝나기 전의 시간이 측정될 수 있다. 따라서 각 측정의 시작 전과 연산이 끝난 후에 <code>torch.cuda.synchronize()</code>를 호출해 경계를 고정한다.</p>
+<pre><code class="language-python">def measure_average_ms(
+    operation: Callable[[], object],
+    measurement_device: torch.device,
+    warmup_run_count: int,
+    measured_run_count: int,
+) -&gt; float:
+    for _ in range(warmup_run_count):
+        warmup_result: object = operation()
+        del warmup_result
+
+    torch.cuda.synchronize(measurement_device)
+
+    elapsed_times_ms: list[float] = []
+
+    for _ in range(measured_run_count):
+        torch.cuda.synchronize(measurement_device)
+        start_time: float = time.perf_counter()
+
+        result: object = operation()
+
+        torch.cuda.synchronize(measurement_device)
+        end_time: float = time.perf_counter()
+
+        elapsed_times_ms.append(
+            (end_time - start_time) * 1_000
+        )
+
+        del result
+
+    return sum(elapsed_times_ms) / len(
+        elapsed_times_ms
+    )
+</code></pre>
+<p>Warm-up은 첫 실행에 섞일 수 있는 CUDA Context, Kernel, 내부 라이브러리와 Allocator 준비 비용을 본 측정에서 분리한다. 그다음 매 측정 전에 이전 GPU 작업의 완료를 기다리고, 측정 대상이 만든 GPU 작업도 모두 끝난 후 종료 시각을 읽는다.</p>
+<p>Prefill과 Decode는 같은 함수에 각각 별도의 연산으로 전달된다.</p>
+<pre><code class="language-python">prefill_average_ms: float = measure_average_ms(
+    operation=prefill_operation,
+    measurement_device=measurement_device,
+    warmup_run_count=3,
+    measured_run_count=20,
+)
+
+decode_one_token_average_ms: float = (
+    measure_average_ms(
+        operation=decode_operation,
+        measurement_device=measurement_device,
+        warmup_run_count=3,
+        measured_run_count=20,
+    )
+)
+</code></pre>
+
+</section>
+<section id="measurement-results" class="markdown-section">
+<h2>실행 결과</h2>
+<p>실행 결과 Prefill은 Prompt 512개를 처리해 다음 Cache를 만들었다.</p>
+<pre><code class="language-text">K Cache Shape: (1, 2, 512, 128)
+V Cache Shape: (1, 2, 512, 128)
+Prompt 전체 평균 시간: 1.0866 ms
+</code></pre>
+<p>각 축은 Batch, KV Head, Cache Sequence, Head Dimension을 뜻한다. Query Head는 4개지만 GQA Cache에는 실제 KV Head 2개만 저장된다.</p>
+<p>준비된 Cache로 새 Token 하나를 Decode한 결과는 다음과 같다.</p>
+<pre><code class="language-text">Decode 후 K Cache Shape: (1, 2, 513, 128)
+Decode 후 V Cache Shape: (1, 2, 513, 128)
+Decode 1 Token 평균 시간: 0.6182 ms/token
+</code></pre>
+<p>Cache Sequence가 512에서 513으로 증가한 것은 새 Token의 K·V가 기존 Cache 끝에 추가됐다는 뜻이다. Decode 시간에는 새 Token의 Embedding, Q·K·V Projection, <code>torch.cat()</code>을 통한 교육용 Cache 갱신, 전체 Cache Attention, Block 후반부와 LM Head가 포함된다.</p>
+
+</section>
+<section id="why-ratio-was-removed" class="markdown-section">
+<h2>두 시간을 배율로 비교하지 않은 이유</h2>
+<p>처음에는 Prefill 전체 시간을 Decode 1 Token 시간으로 나누어 <code>1.7577배</code>라는 값도 출력했다. 그러나 이 값은 서로 같은 작업량의 성능 비교가 아니다. Prefill은 512개 Token을 병렬로 처리하고 Decode는 Cache가 준비된 상태에서 새 Token 하나를 처리한다.</p>
+<p>따라서 <code>1.7577배</code>를 Prefill이 Decode보다 1.7577배 비효율적이라는 의미로 해석할 수 없다. 작은 1 Layer 교육용 모델에서는 Python 함수 호출, Kernel Launch, <code>torch.cat()</code> 같은 고정 비용의 비중도 크다. 이번 실습의 목적에는 각 단계의 독립된 시간 자체가 중요하므로 최종 출력에서는 이 배율을 제거했다.</p>
+<p>Prefill과 Decode가 예측한 Token도 직접 비교하지 않았다. Prefill Logit은 Prompt 다음 위치를 예측하지만 Decode Logit은 실험용 새 Token까지 문맥에 포함한 다음 위치를 예측한다. 서로 다른 문맥 위치의 예측이므로 같은 Token이 나와야 하는 검증이 아니다.</p>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>이번 실습에서 확인한 결론</h2>
+<p>Prefill과 Decode는 같은 Transformer를 사용하지만 측정 단위가 다르다. Prefill은 Prompt 전체를 처음 처리해 Layer별 KV Cache를 만드는 요청당 비용이고, Decode는 준비된 Cache를 이용해 새 Token 하나를 처리하는 반복 비용이다.</p>
+<p>이번 실습에서는 GPU 입력 준비 이후를 시작점으로 고정하고 Warm-up과 CUDA 동기화를 적용했다. 그 결과 Prompt 512개의 Prefill 전체 시간과 Cache가 준비된 상태의 Decode 1 Token 시간을 서로 섞지 않고 별도로 기록했다. Cache Shape가 512에서 513으로 증가하는 것도 함께 확인해 Decode 측정이 실제 Cache 갱신을 포함한다는 점을 검증했다.</p>
+<p>이 두 경계를 구분해 두면 이후 다른 모델이나 vLLM에서 같은 조건을 적용했을 때 개선이 Prompt 처리 단계에서 발생했는지, 반복 생성 단계에서 발생했는지를 분리해서 설명할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

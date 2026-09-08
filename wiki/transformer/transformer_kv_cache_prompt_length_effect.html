@@ -1,0 +1,451 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_kv_cache_prompt_length_effect.md. Do not edit directly. source-sha256:e73559d314576977aec97c7e80fd7461ee3edd369270a56f42e2dc81474cb1c1 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prompt 길이에 따른 Full Forward와 KV Cache Decode의 계산 범위·작업 메모리·실행 시간 차이를 실험 결과로 비교한다.">
+  <meta name="source-sha256" content="e73559d314576977aec97c7e80fd7461ee3edd369270a56f42e2dc81474cb1c1">
+  <title>프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다">
+  <meta property="og:description" content="Prompt 길이에 따른 Full Forward와 KV Cache Decode의 계산 범위·작업 메모리·실행 시간 차이를 실험 결과로 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html","name":"프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다","description":"Prompt 길이에 따른 Full Forward와 KV Cache Decode의 계산 범위·작업 메모리·실행 시간 차이를 실험 결과로 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html"},"headline":"프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_prompt_length_effect.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>프롬프트가 길어질수록 KV Cache가 만드는 차이가 커진다</h1>
+      <p class="lead">Prompt 길이에 따른 Full Forward와 KV Cache Decode의 계산 범위·작업 메모리·실행 시간 차이를 실험 결과로 비교한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-5fcda201179c">실험에서 비교한 두 가지 계산 방식</a>
+        <a href="#section-90e1aa9e3918">실험 조건</a>
+        <a href="#section-36de45696b46">실험 결과</a>
+        <a href="#token">두 방식은 같은 Token을 선택했다</a>
+        <a href="#kv-cache-prompt">KV Cache 크기는 Prompt 길이에 비례했다</a>
+        <a href="#full-forward">Full Forward의 작업 메모리는 훨씬 빠르게 증가했다</a>
+        <a href="#cache-decode-query-1">Cache Decode에서는 Query 길이가 항상 1이다</a>
+        <a href="#cache-decode-peak">Cache Decode의 Peak도 증가한 이유</a>
+        <a href="#prompt">실행 시간 차이는 긴 Prompt에서 더 분명해졌다</a>
+        <a href="#peak-kv-cache">이번 Peak 값에는 기존 KV Cache 크기가 포함되지 않았다</a>
+        <a href="#prompt-2">Prompt가 길어질수록 차이가 벌어지는 이유</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM이 다음 토큰 하나를 예측하는 방법은 KV Cache의 사용 여부에 따라 달라진다.</p>
+<p>KV Cache가 없다면 지금까지 입력된 전체 Prefix를 다시 모델에 넣어야 한다. 반면 KV Cache가 있다면 과거 토큰의 K·V를 재사용하고 새 토큰 하나만 계산할 수 있다.</p>
+<p>짧은 Prompt에서는 두 방식의 차이가 작아 보일 수 있다. 하지만 Prompt가 길어지면 전체 재계산에서 만들어지는 중간 Tensor가 빠르게 커지면서 시간과 메모리 차이가 분명해진다.</p>
+<p>이번 실습에서는 Prompt 길이를 바꾸면서 다음 두 방식을 비교했다.</p>
+<pre><code class="language-text">Full Forward
+→ Prompt와 새 토큰 전체를 다시 계산
+
+KV Cache Decode
+→ Prompt의 K·V를 Cache에서 재사용
+→ 새 토큰 하나만 계산
+</code></pre>
+</div>
+        <section id="section-5fcda201179c" class="markdown-section">
+<h2>실험에서 비교한 두 가지 계산 방식</h2>
+<p>Prompt 길이가 512이고 그 뒤에 새 토큰 하나가 추가됐다고 가정해 보자.</p>
+<h3>Full Forward</h3>
+<p>KV Cache가 없는 경우에는 513개의 토큰을 모두 다시 계산한다.</p>
+<pre><code class="language-text">Prompt 512개
++
+새 토큰 1개
+=
+전체 513개 토큰
+</code></pre>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">전체 Token ID
+→ 전체 Token Embedding
+→ 전체 Position Embedding
+→ 전체 Hidden State
+→ 전체 Q·K·V
+→ 전체 Attention
+→ 전체 FFN
+→ 마지막 Hidden State
+→ 다음 Token Logit
+</code></pre>
+<p>최종적으로 필요한 것은 마지막 위치의 Logit뿐이지만, 그 값을 만들기 위해 513개 토큰 전체가 Transformer Block을 통과한다.</p>
+<h3>KV Cache Decode</h3>
+<p>KV Cache를 사용하는 경우에는 Prompt를 처리하면서 만든 K·V를 이미 가지고 있다.</p>
+<pre><code class="language-text">Prompt K Cache
+Prompt V Cache
+</code></pre>
+<p>따라서 새 토큰 하나만 모델에 넣는다.</p>
+<pre><code class="language-text">새 Token ID
+→ 새 Token Embedding
+→ 새 Position Embedding
+→ 새 Q·K·V
+→ 새 K·V를 Cache에 추가
+→ 새 Q와 전체 K Cache로 Attention
+→ 새 Hidden State
+→ 다음 Token Logit
+</code></pre>
+<p>새 토큰도 전체 과거 문맥을 참고한다. 다만 과거 토큰의 Hidden State와 Q·K·V를 다시 계산하지 않는다.</p>
+
+</section>
+<section id="section-90e1aa9e3918" class="markdown-section">
+<h2>실험 조건</h2>
+<p>Prompt 길이는 다음과 같이 증가시켰다.</p>
+<pre><code class="language-text">64
+128
+256
+512
+1024
+</code></pre>
+<p>각 Prompt 길이마다 동일한 Token Sequence를 대상으로 Full Forward와 Cache Decode를 실행했다.</p>
+<p>여기서 “동일한 문장을 처리한다”는 것은 각 행에서 두 방식이 같은 Prompt와 같은 새 토큰을 처리한다는 뜻이다. Prompt 길이 64 실험과 Prompt 길이 128 실험의 입력은 서로 다른 길이지만, 같은 길이 안에서는 Full Forward와 Cache Decode의 입력 내용이 같다.</p>
+<p>측정한 값은 다음과 같다.</p>
+<ul>
+<li>Prompt K·V Cache 크기</li>
+<li>Full Forward 평균 실행 시간</li>
+<li>Cache Decode 평균 실행 시간</li>
+<li>Full Forward의 Peak allocated 증가량</li>
+<li>Cache Decode의 Peak allocated 증가량</li>
+<li>두 방식이 같은 다음 Token을 선택하는지 여부</li>
+</ul>
+
+</section>
+<section id="section-36de45696b46" class="markdown-section">
+<h2>실험 결과</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Prompt 길이</th>
+<th align="right">KV Cache</th>
+<th align="right">Full 시간</th>
+<th align="right">Cache 시간</th>
+<th align="right">Full Peak</th>
+<th align="right">Cache Peak</th>
+<th align="center">같은 Token</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">64</td>
+<td align="right">0.0625 MiB</td>
+<td align="right">0.3926 ms</td>
+<td align="right">0.3298 ms</td>
+<td align="right">1.9189 MiB</td>
+<td align="right">1.1567 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">128</td>
+<td align="right">0.1250 MiB</td>
+<td align="right">0.3944 ms</td>
+<td align="right">0.3266 ms</td>
+<td align="right">2.8262 MiB</td>
+<td align="right">1.1880 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">256</td>
+<td align="right">0.2500 MiB</td>
+<td align="right">0.4152 ms</td>
+<td align="right">0.3301 ms</td>
+<td align="right">5.8242 MiB</td>
+<td align="right">1.2505 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">512</td>
+<td align="right">0.5000 MiB</td>
+<td align="right">0.5768 ms</td>
+<td align="right">0.3320 ms</td>
+<td align="right">10.3452 MiB</td>
+<td align="right">1.5776 MiB</td>
+<td align="center">True</td>
+</tr>
+<tr>
+<td align="right">1024</td>
+<td align="right">1.0000 MiB</td>
+<td align="right">0.9419 ms</td>
+<td align="right">0.3532 ms</td>
+<td align="right">35.9702 MiB</td>
+<td align="right">4.0845 MiB</td>
+<td align="center">True</td>
+</tr>
+</tbody></table>
+</div>
+<p>결과를 보면 Prompt 길이가 길어질수록 Full Forward의 비용이 Cache Decode보다 훨씬 빠르게 증가했다.</p>
+
+</section>
+<section id="token" class="markdown-section">
+<h2>두 방식은 같은 Token을 선택했다</h2>
+<p>모든 Prompt 길이에서 다음 결과가 나왔다.</p>
+<pre><code class="language-text">Same Token = True
+</code></pre>
+<p>이는 두 방식의 목적과 출력이 같았다는 뜻이다.</p>
+<pre><code class="language-text">Full Forward
+→ 전체 Prefix를 다시 계산
+→ 다음 Token 예측
+
+KV Cache Decode
+→ 과거 K·V를 재사용
+→ 새 토큰 하나만 계산
+→ 다음 Token 예측
+</code></pre>
+<p>계산 과정은 다르지만 최종적으로 선택한 Token ID는 동일했다.</p>
+<p>따라서 KV Cache는 모델이 다른 답을 만들도록 하는 기능이 아니다. 같은 모델의 같은 예측을 더 적은 중복 계산으로 얻기 위한 기능이다.</p>
+
+</section>
+<section id="kv-cache-prompt" class="markdown-section">
+<h2>KV Cache 크기는 Prompt 길이에 비례했다</h2>
+<p>KV Cache 크기는 다음과 같이 증가했다.</p>
+<pre><code class="language-text">Prompt 64    → 0.0625 MiB
+Prompt 128   → 0.1250 MiB
+Prompt 256   → 0.2500 MiB
+Prompt 512   → 0.5000 MiB
+Prompt 1024  → 1.0000 MiB
+</code></pre>
+<p>Prompt 길이가 두 배가 될 때마다 KV Cache 크기도 정확히 두 배가 됐다.</p>
+<p>KV Cache의 크기는 다음 요소에 비례하기 때문이다.</p>
+<pre><code class="language-text">2
+× Layer 수
+× Batch 크기
+× Cache Token 수
+× KV Head 수
+× Head Dimension
+× 원소당 Byte
+</code></pre>
+<p>이 실험에서는 Layer 수, Batch 크기, KV Head 수, Head Dimension과 dtype을 고정했다. 따라서 변한 것은 Cache Token 수인 Prompt 길이뿐이다.</p>
+<pre><code class="language-text">KV Cache 크기 ∝ Prompt 길이
+</code></pre>
+<p>즉, KV Cache는 Prompt가 길어질수록 선형으로 증가하는 지속적인 메모리 비용을 가진다.</p>
+
+</section>
+<section id="full-forward" class="markdown-section">
+<h2>Full Forward의 작업 메모리는 훨씬 빠르게 증가했다</h2>
+<p>Full Forward의 Peak allocated 증가량은 다음과 같았다.</p>
+<pre><code class="language-text">Prompt 64    → 1.9189 MiB
+Prompt 128   → 2.8262 MiB
+Prompt 256   → 5.8242 MiB
+Prompt 512   → 10.3452 MiB
+Prompt 1024  → 35.9702 MiB
+</code></pre>
+<p>Prompt 길이가 늘어날수록 Peak 메모리가 빠르게 증가했다.</p>
+<p>가장 중요한 이유는 Full Forward에서 전체 Query와 전체 Key를 연산하기 때문이다.</p>
+<pre><code class="language-text">Q: [B, H, S, Dh]
+K: [B, H, S, Dh]
+</code></pre>
+<p>두 Tensor를 행렬곱하면 다음 크기의 Attention Score가 만들어진다.</p>
+<pre><code class="language-text">Attention Score: [B, H, S, S]
+</code></pre>
+<p>Sequence 길이에 해당하는 <code>S</code>가 두 축에 들어간다.</p>
+<pre><code class="language-text">Prompt 길이 64
+→ Attention 위치 관계 64 × 64
+
+Prompt 길이 512
+→ Attention 위치 관계 512 × 512
+
+Prompt 길이 1024
+→ Attention 위치 관계 1024 × 1024
+</code></pre>
+<p>Prompt 길이가 두 배가 되면 Attention 위치 관계의 개수는 이론적으로 네 배가 된다.</p>
+<p>실제 Peak 메모리가 항상 정확히 네 배가 되지는 않는다. Hidden State, FFN, 고정적인 실행 비용과 PyTorch 메모리 할당 방식도 함께 영향을 주기 때문이다.</p>
+<p>그럼에도 Prompt가 길어질수록 <code>S × S</code> Attention Tensor의 영향이 커지므로 Full Forward의 작업 메모리가 빠르게 증가하는 흐름을 확인할 수 있다.</p>
+
+</section>
+<section id="cache-decode-query-1" class="markdown-section">
+<h2>Cache Decode에서는 Query 길이가 항상 1이다</h2>
+<p>KV Cache Decode의 Attention Shape은 다르다.</p>
+<pre><code class="language-text">새 Q:    [B, H, 1, Dh]
+K Cache: [B, H, S, Dh]
+</code></pre>
+<p>따라서 Attention Score는 다음 Shape을 가진다.</p>
+<pre><code class="language-text">Attention Score: [B, H, 1, S]
+</code></pre>
+<p>Prompt가 길어지면 새 Query가 참고해야 할 Key의 개수는 증가한다. 하지만 새로 계산하는 Query의 개수는 항상 하나다.</p>
+<pre><code class="language-text">Prompt 64
+→ 1 × 65
+
+Prompt 512
+→ 1 × 513
+
+Prompt 1024
+→ 1 × 1025
+</code></pre>
+<p>Full Forward와 비교하면 다음과 같다.</p>
+<pre><code class="language-text">Full Forward
+→ S × S
+
+KV Cache Decode
+→ 1 × S
+</code></pre>
+<p>따라서 Prompt가 길어져도 Cache Decode의 Attention 작업 메모리는 Full Forward보다 훨씬 작다.</p>
+
+</section>
+<section id="cache-decode-peak" class="markdown-section">
+<h2>Cache Decode의 Peak도 증가한 이유</h2>
+<p>Cache Decode의 Peak allocated 증가량도 완전히 고정된 것은 아니었다.</p>
+<pre><code class="language-text">Prompt 64    → 1.1567 MiB
+Prompt 128   → 1.1880 MiB
+Prompt 256   → 1.2505 MiB
+Prompt 512   → 1.5776 MiB
+Prompt 1024  → 4.0845 MiB
+</code></pre>
+<p>새 Query가 하나더라도 참고하는 K·V Cache 길이는 계속 증가한다.</p>
+<p>또한 현재 실습의 <code>decode_gqa_attention()</code>은 새 K·V를 기존 Cache에 추가할 때 <code>torch.cat()</code>을 사용한다.</p>
+<pre><code class="language-python">updated_key_cache = torch.cat(
+    [
+        key_cache,
+        new_key_heads,
+    ],
+    dim=2,
+)
+</code></pre>
+<p><code>torch.cat()</code>은 기존 Cache 뒤에 값을 제자리에서 추가하지 않는다. 기존 Cache와 새 K를 담을 수 있는 새로운 Tensor를 만든다.</p>
+<pre><code class="language-text">기존 K Cache
++
+새 K
+→ 갱신된 전체 K Cache Tensor를 새로 생성
+</code></pre>
+<p>Value Cache도 같은 방식으로 복사된다.</p>
+<p>또 GQA Attention을 계산할 때 KV Head를 Query Head 수에 맞게 <code>repeat_interleave()</code>로 확장한다.</p>
+<pre><code class="language-text">KV Head 2개
+→ Attention 계산용 4개
+</code></pre>
+<p>이 과정에서도 Prompt 길이에 비례하는 중간 Tensor가 만들어진다.</p>
+<p>따라서 현재 교육용 구현의 Cache Decode Peak에는 다음 비용이 포함된다.</p>
+<ul>
+<li>K Cache를 <code>torch.cat()</code>으로 갱신하는 비용</li>
+<li>V Cache를 <code>torch.cat()</code>으로 갱신하는 비용</li>
+<li>K Head를 Attention 계산용으로 확장하는 비용</li>
+<li>V Head를 Attention 계산용으로 확장하는 비용</li>
+<li><code>1 × S</code> Attention Score와 Weight</li>
+<li>새 토큰의 Hidden State와 FFN 중간 Tensor</li>
+</ul>
+<p>실제 LLM 서빙 엔진은 미리 확보한 Cache 공간에 새 K·V를 기록하거나 Paged Attention 같은 방식을 사용해 전체 Cache를 매번 복사하는 비용을 줄인다.</p>
+<p>따라서 이번 Cache Decode Peak는 최적화된 상용 서빙 엔진의 최솟값이 아니라, 현재 교육용 PyTorch 구현에서 발생한 값이다.</p>
+
+</section>
+<section id="prompt" class="markdown-section">
+<h2>실행 시간 차이는 긴 Prompt에서 더 분명해졌다</h2>
+<p>실행 시간 결과는 다음과 같았다.</p>
+<pre><code class="language-text">Prompt 64
+Full:  0.3926 ms
+Cache: 0.3298 ms
+
+Prompt 1024
+Full:  0.9419 ms
+Cache: 0.3532 ms
+</code></pre>
+<p>Prompt가 짧을 때는 두 실행 시간의 차이가 작았다.</p>
+<p>현재 모델은 Transformer Block이 하나뿐인 작은 실습 모델이다. 개별 실행 시간이 1ms보다도 작기 때문에 Python 함수 호출, GPU Kernel 실행 준비와 측정 오차의 비중이 상대적으로 크다.</p>
+<p>하지만 Prompt가 길어지자 흐름이 달라졌다.</p>
+<pre><code class="language-text">Full Forward
+0.3926 ms → 0.9419 ms
+
+KV Cache Decode
+0.3298 ms → 0.3532 ms
+</code></pre>
+<p>Full Forward는 전체 Sequence를 다시 계산하므로 Prompt 길이에 따라 실행 시간이 눈에 띄게 증가했다.</p>
+<p>Cache Decode도 과거 K·V 전체를 참고해야 하므로 비용이 전혀 증가하지 않는 것은 아니다. 하지만 Query는 계속 하나이므로 Full Forward보다 완만하게 증가했다.</p>
+<p>이번처럼 매우 작은 실행 시간을 가진 모델에서 개별 숫자를 절대적인 성능으로 해석하는 것은 어렵다. 그렇지만 Prompt 길이에 따른 변화 방향은 확인할 수 있다.</p>
+
+</section>
+<section id="peak-kv-cache" class="markdown-section">
+<h2>이번 Peak 값에는 기존 KV Cache 크기가 포함되지 않았다</h2>
+<p>이번 실험에서 출력한 <code>Cache MiB</code>와 <code>Cache Peak MiB</code>는 서로 다른 값이다.</p>
+<pre><code class="language-text">Cache MiB
+→ Prompt K·V를 지속적으로 저장하는 메모리
+
+Cache Peak MiB
+→ 이미 Cache가 존재하는 상태에서
+   새 토큰 하나를 계산하며 추가로 사용한 작업 메모리
+</code></pre>
+<p>측정 함수는 KV Cache가 이미 만들어진 상태에서 현재 <code>allocated</code>를 기준점으로 잡았다.</p>
+<pre><code class="language-python">allocated_before = torch.cuda.memory_allocated()
+</code></pre>
+<p>그리고 연산 중 발생한 Peak에서 기준점을 뺐다.</p>
+<pre><code class="language-python">peak_increase_bytes = (
+    peak_allocated
+    - allocated_before
+)
+</code></pre>
+<p>따라서 <code>Cache Peak MiB</code>에는 측정 전에 존재하던 KV Cache 저장 공간이 포함되지 않는다.</p>
+<p>전체 Cache 사용량을 생각하려면 개념적으로 다음 두 값을 함께 봐야 한다.</p>
+<pre><code class="language-text">KV Cache Decode의 전체 메모리 부담
+=
+기존 KV Cache 저장 크기
++
+Decode 중 추가 작업 메모리
+</code></pre>
+<p>Prompt 길이가 1024일 때 실험값은 다음과 같다.</p>
+<pre><code class="language-text">기존 KV Cache:       1.0000 MiB
+Decode Peak 증가:    4.0845 MiB
+</code></pre>
+<p>반면 Full Forward의 <code>35.9702 MiB</code>는 전체 Prefix를 다시 계산하는 동안 기준점보다 추가로 필요했던 작업 메모리다.</p>
+
+</section>
+<section id="prompt-2" class="markdown-section">
+<h2>Prompt가 길어질수록 차이가 벌어지는 이유</h2>
+<p>Prompt가 길어지면 KV Cache도 커진다. 따라서 KV Cache를 사용하는 것 역시 공짜는 아니다.</p>
+<p>하지만 두 방식의 증가 구조가 다르다.</p>
+<pre><code class="language-text">KV Cache 저장 크기
+→ Prompt 길이에 대해 선형 증가
+
+Cache Decode Attention
+→ 1 × S
+
+Full Forward Attention
+→ S × S
+</code></pre>
+<p>짧은 Prompt에서는 고정적인 Tensor와 실행 비용 때문에 차이가 작아 보일 수 있다.</p>
+<p>긴 Prompt에서는 전체 재계산의 <code>S × S</code> Attention과 전체 Sequence의 Hidden State·Q·K·V·FFN 중간 Tensor가 커지기 때문에 차이가 빠르게 벌어진다.</p>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p>이번 실습에서는 Prompt 길이를 <code>64</code>에서 <code>1024</code>까지 늘리면서 Full Forward와 KV Cache Decode를 비교했다.</p>
+<p>두 방식은 모든 Prompt 길이에서 같은 다음 Token을 선택했다.</p>
+<pre><code class="language-text">Same Token = True
+</code></pre>
+<p>하지만 같은 예측을 얻기 위해 사용한 작업 메모리와 실행 시간은 달랐다.</p>
+<p>Full Forward는 Prompt가 길어질수록 전체 Token의 Hidden State와 Q·K·V를 다시 만들고 <code>S × S</code> Attention을 계산해야 했다. 그 결과 Peak 작업 메모리가 <code>1.9189 MiB</code>에서 <code>35.9702 MiB</code>까지 빠르게 증가했다.</p>
+<p>KV Cache Decode는 과거 K·V를 저장하는 메모리를 별도로 사용하지만, 새 Query 하나만 계산했다. Cache 저장 크기는 Prompt 길이에 비례해 <code>0.0625 MiB</code>에서 <code>1 MiB</code>로 증가했고, Decode 작업 중 Peak 증가량은 Full Forward보다 훨씬 작았다.</p>
+<p>이번 실습의 결론은 다음과 같다.</p>
+<blockquote>
+<p>같은 Prompt와 새 토큰을 처리하더라도 KV Cache가 없으면 전체 Prefix를 다시 계산해야 하므로, Prompt가 길어질수록 Full Forward의 작업 메모리와 실행 시간이 빠르게 증가한다. KV Cache를 사용하면 과거 K·V 저장 비용은 증가하지만, 새 Query 하나만 계산하므로 긴 Prompt에서 반복 계산과 작업 메모리를 크게 줄일 수 있다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
