@@ -1,0 +1,1068 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.md. Do not edit directly. source-sha256:7d1962abdee7b66284f425293a884929d107953b9bf44350e5f81ea4aa4038ab -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="작은 GQA 모델에서 Prompt Prefill, 새 Token Decode, Layer별 K·V Cache 갱신과 전체 재계산 비교를 Attention 단위로 설명한다.">
+  <meta name="source-sha256" content="7d1962abdee7b66284f425293a884929d107953b9bf44350e5f81ea4aa4038ab">
+  <title>GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름">
+  <meta property="og:description" content="작은 GQA 모델에서 Prompt Prefill, 새 Token Decode, Layer별 K·V Cache 갱신과 전체 재계산 비교를 Attention 단위로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html","name":"GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름","description":"작은 GQA 모델에서 Prompt Prefill, 새 Token Decode, Layer별 K·V Cache 갱신과 전체 재계산 비교를 Attention 단위로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html"},"headline":"GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_kv_cache_flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>GQA 모델로 직접 확인하는 Prefill, Decode와 KV Cache의 전체 흐름</h1>
+      <p class="lead">작은 GQA 모델에서 Prompt Prefill, 새 Token Decode, Layer별 K·V Cache 갱신과 전체 재계산 비교를 Attention 단위로 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-39e36444983f">실습에서 사용한 모델 조건</a>
+        <a href="#section-1-prompt-hidden-state">1. Prompt와 새 토큰의 최초 Hidden State 생성</a>
+        <a href="#section-2-prompt-gqa-q-k-v">2. Prompt 전체의 GQA Q·K·V 계산</a>
+        <a href="#section-3-prompt-k-v-kv-cache">3. Prompt의 K·V를 KV Cache에 저장</a>
+        <a href="#section-4-prompt-q1-q4-prefill-attention">4. Prompt의 Q1~Q4로 Prefill Attention 계산</a>
+        <a href="#section-5-q5-k5-v5">5. 새 토큰의 Q5·K5·V5만 계산</a>
+        <a href="#section-6-k5-v5-cache">6. K5·V5를 기존 Cache 끝에 추가</a>
+        <a href="#section-7-q5-cache-k1-k5-decode-attention">7. Q5와 Cache의 K1~K5로 Decode Attention 계산</a>
+        <a href="#section-8-attention">8. 전체 재계산의 마지막 Attention 결과와 비교</a>
+        <a href="#section-e2c9963947ff">이 실습을 통해 확인한 전체 구조</a>
+        <a href="#prefill-decode">Prefill과 Decode를 어떻게 구분해야 하는가?</a>
+        <a href="#section-9e407c4b61ce">이번 실습의 범위</a>
+        <a href="#section-a8e1097b68c2">최종 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM이 문장을 생성할 때는 지금까지 입력된 모든 토큰을 참고해야 한다.</p>
+<p>예를 들어 다음과 같은 Prompt가 있다고 해보자.</p>
+<pre><code class="language-text">x1, x2, x3, x4
+</code></pre>
+<p>모델은 이 Prompt를 읽고 다음 토큰 <code>x5</code>를 예측한다. 그다음에는 <code>x1~x5</code>를 참고해 <code>x6</code>를 예측해야 한다.</p>
+<p>KV Cache를 사용하지 않는다면 새로운 토큰을 생성할 때마다 과거 토큰 전체를 모델에 다시 넣을 수 있다.</p>
+<pre><code class="language-text">x5를 생성할 때
+→ x1, x2, x3, x4 처리
+
+x6를 생성할 때
+→ x1, x2, x3, x4, x5 다시 처리
+
+x7을 생성할 때
+→ x1, x2, x3, x4, x5, x6 다시 처리
+</code></pre>
+<p>이 방식도 올바른 결과를 만들지만, 이미 계산한 과거 토큰의 K·V를 계속 다시 계산한다는 문제가 있다.</p>
+<p>KV Cache는 과거 토큰에서 계산한 K·V를 저장해 두고, 새로운 토큰의 Q·K·V만 추가로 계산하는 방법이다.</p>
+<pre><code class="language-text">과거 토큰의 K·V
+→ Cache에서 재사용
+
+새 토큰의 Q·K·V
+→ 새로 계산
+</code></pre>
+<p>이번 실습에서는 이 과정이 코드상 어떻게 가능한지 Attention 단위에서 직접 확인했다.</p>
+<p>전체 실습의 흐름은 다음과 같다.</p>
+<pre><code class="language-text">Prompt Hidden State 생성
+→ Prompt 전체의 Q·K·V 계산
+→ Prompt K·V를 Cache에 저장
+→ Prompt 전체의 Prefill Attention 계산
+→ 새 토큰의 Q·K·V만 계산
+→ 새 K·V를 기존 Cache에 추가
+→ 새 Q와 전체 KV Cache로 Decode Attention 계산
+→ 전체 재계산의 마지막 결과와 비교
+</code></pre>
+</div>
+        <section id="section-39e36444983f" class="markdown-section">
+<h2>실습에서 사용한 모델 조건</h2>
+<p>이번 실습에서는 다음과 같은 작은 GQA 모델을 사용했다.</p>
+<pre><code class="language-text">Batch Size:       1
+Prompt Token 수:  4
+새 Token 수:      1
+
+Model Dimension:  512
+Query Head 수:    4
+KV Head 수:       2
+Head Dimension:   128
+</code></pre>
+<p>Head Dimension은 다음과 같이 계산된다.</p>
+<pre><code class="language-text">Head Dimension
+= Model Dimension / Query Head 수
+= 512 / 4
+= 128
+</code></pre>
+<p>GQA에서는 Query Head보다 KV Head를 적게 사용한다.</p>
+<pre><code class="language-text">Query Head: 4개
+KV Head:    2개
+</code></pre>
+<p>따라서 K·V Projection의 출력 크기도 Q Projection보다 작다.</p>
+<pre><code class="language-text">Q Projection 출력 크기
+4 × 128
+= 512
+
+K Projection 출력 크기
+2 × 128
+= 256
+
+V Projection 출력 크기
+2 × 128
+= 256
+</code></pre>
+<p>중요한 점은 GQA가 Projection 이후에 K·V Head를 기계적으로 삭제하는 방법이 아니라는 것이다.</p>
+<p>모델을 만들 때부터 K·V Projection의 출력 크기를 작게 설계한다.</p>
+<pre><code class="language-python">self.query_projections = nn.Linear(
+    d_model,
+    num_query_heads * head_dim,
+    bias=False,
+)
+
+self.key_projection = nn.Linear(
+    d_model,
+    num_kv_heads * head_dim,
+    bias=False,
+)
+
+self.value_projections = nn.Linear(
+    d_model,
+    num_kv_heads * head_dim,
+    bias=False,
+)
+</code></pre>
+<p>이번 Tiny 모델은 Transformer Block이 하나뿐이다. 따라서 이번 실습에서 다룬 KV Cache는 한 Layer의 Cache다.</p>
+<p>실제 LLM은 여러 Transformer Layer를 가지며, 각 Layer는 자신의 Q·K·V Projection과 KV Cache를 따로 가진다.</p>
+<hr>
+
+</section>
+<section id="section-1-prompt-hidden-state" class="markdown-section">
+<h2>1. Prompt와 새 토큰의 최초 Hidden State 생성</h2>
+<p>먼저 Prompt Token과 새 Token을 준비했다.</p>
+<pre><code class="language-python">prompt_tokens = torch.tensor(
+    [[1, 2, 3, 4]],
+    dtype=torch.long,
+    device=model_device,
+)
+
+new_token = torch.tensor(
+    [[5]],
+    dtype=torch.long,
+    device=model_device,
+)
+</code></pre>
+<p>여기서 <code>1</code>, <code>2</code>, <code>3</code>, <code>4</code>, <code>5</code>는 실제 단어가 아니라 Token ID라고 생각하면 된다.</p>
+<pre><code class="language-text">Prompt Token ID
+[[1, 2, 3, 4]]
+
+새 Token ID
+[[5]]
+</code></pre>
+<p>이번 실습에서는 <code>x5</code>가 실제 모델의 Logit에서 선택됐다고 가정했다. 실제로 LM Head를 실행해 <code>x5</code>를 생성한 것은 아니다.</p>
+<h3>Prompt 위치 만들기</h3>
+<p>Prompt Token의 위치는 <code>0</code>, <code>1</code>, <code>2</code>, <code>3</code>이다.</p>
+<pre><code class="language-python">prompt_positions = torch.arange(
+    4,
+    device=model_device,
+).unsqueeze(0)
+</code></pre>
+<p><code>torch.arange(4)</code>는 다음 Tensor를 만든다.</p>
+<pre><code class="language-text">[0, 1, 2, 3]
+</code></pre>
+<p>Shape은 <code>[4]</code>이다.</p>
+<p>그다음 <code>unsqueeze(0)</code>으로 Batch 차원을 추가한다.</p>
+<pre><code class="language-text">[[0, 1, 2, 3]]
+</code></pre>
+<p>최종 Shape은 <code>[1, 4]</code>가 된다.</p>
+<pre><code class="language-text">[Batch, Sequence]
+[1,     4]
+</code></pre>
+<p>새 토큰 <code>x5</code>는 다섯 번째 토큰이지만 위치 번호는 <code>0</code>부터 시작하므로 위치가 <code>4</code>다.</p>
+<pre><code class="language-python">new_position = torch.tensor(
+    [[4]],
+    dtype=torch.long,
+    device=model_device,
+)
+</code></pre>
+<h3>토큰 임베딩과 위치 임베딩 더하기</h3>
+<p>현재 <code>TinyGQADecoderLM</code>은 학습 가능한 절대 위치 임베딩을 사용한다.</p>
+<pre><code class="language-python">prompt_hidden = (
+    gqa_model.token_embedding(prompt_tokens)
+    + gqa_model.position_embedding(
+        prompt_positions
+    )
+)
+
+new_hidden = (
+    gqa_model.token_embedding(new_token)
+    + gqa_model.position_embedding(
+        new_position
+    )
+)
+</code></pre>
+<p>각 토큰에 대해 다음 두 벡터를 더한다.</p>
+<pre><code class="language-text">Token Embedding
+→ 해당 토큰의 의미를 표현하는 벡터
+
+Position Embedding
+→ 해당 토큰의 위치를 표현하는 벡터
+</code></pre>
+<p>두 벡터를 더한 결과가 Transformer Block에 들어갈 최초 Hidden State다.</p>
+<pre><code class="language-text">Token Embedding
++
+Position Embedding
+=
+최초 Hidden State
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">Prompt Hidden:
+[1, 4, 512]
+
+New Hidden:
+[1, 1, 512]
+</code></pre>
+<p><code>prompt_hidden</code>에는 토큰 네 개의 초기 벡터가 들어 있고, <code>new_hidden</code>에는 새 토큰 하나의 초기 벡터가 들어 있다.</p>
+<p>아직 Attention을 통과하지 않았기 때문에 토큰 사이의 문맥 관계는 반영되지 않았다.</p>
+<h3>이 모델은 RoPE를 사용하지 않는다</h3>
+<p>현재 모델은 위치 임베딩을 토큰 임베딩에 직접 더한다.</p>
+<pre><code class="language-text">Token Embedding + Position Embedding
+</code></pre>
+<p>RoPE를 사용하는 모델은 위치 정보를 적용하는 시점이 다르다.</p>
+<pre><code class="language-text">Token Embedding
+→ Hidden State
+→ Q·K Projection
+→ Head로 분리
+→ Q와 K에 RoPE 적용
+</code></pre>
+<p>따라서 이번 실습에서는 RoPE 회전이 등장하지 않는다.</p>
+<hr>
+
+</section>
+<section id="section-2-prompt-gqa-q-k-v" class="markdown-section">
+<h2>2. Prompt 전체의 GQA Q·K·V 계산</h2>
+<p>다음으로 <code>prompt_hidden</code>을 GQA의 Q·K·V Projection에 통과시켰다.</p>
+<pre><code class="language-python">attention_module = gqa_model.block.attention
+</code></pre>
+<p>Prompt Hidden Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 512]
+</code></pre>
+<p>이를 각 Projection에 넣었다.</p>
+<pre><code class="language-python">with torch.no_grad():
+    prompt_query = (
+        attention_module.query_projections(
+            prompt_hidden
+        )
+    )
+
+    prompt_key = (
+        attention_module.key_projection(
+            prompt_hidden
+        )
+    )
+
+    prompt_value = (
+        attention_module.value_projections(
+            prompt_hidden
+        )
+    )
+</code></pre>
+<p>출력 Shape은 다음과 같다.</p>
+<pre><code class="language-text">Q: [1, 4, 512]
+K: [1, 4, 256]
+V: [1, 4, 256]
+</code></pre>
+<p>Sequence 길이 <code>4</code>는 모두 같다. Prompt의 토큰 네 개 각각에 대해 Q·K·V를 계산했기 때문이다.</p>
+<p>마지막 차원만 다르다.</p>
+<pre><code class="language-text">Q 마지막 차원
+512 = Query Head 4개 × Head Dimension 128
+
+K·V 마지막 차원
+256 = KV Head 2개 × Head Dimension 128
+</code></pre>
+<p>이 지점에서 이미 GQA가 적용되어 있다.</p>
+<h3>Projection 결과를 Head 형태로 재배열하기</h3>
+<p>Projection 결과는 아직 Head 축이 명시적으로 드러나 있지 않다.</p>
+<p>Q의 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[Batch, Sequence, Query Features]
+[1,     4,        512]
+</code></pre>
+<p>마지막 차원 <code>512</code>를 Query Head 4개와 Head Dimension 128로 나눈다.</p>
+<pre><code class="language-python">prompt_query_heads = prompt_query.reshape(
+    prompt_batch_size,
+    prompt_sequence_length,
+    attention_module.num_query_heads,
+    attention_module.head_dim,
+).transpose(
+    1,
+    2,
+)
+</code></pre>
+<p>Shape 변화는 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 512]
+→ reshape
+[1, 4, 4, 128]
+→ transpose
+[1, 4, 4, 128]
+</code></pre>
+<p>앞의 두 <code>4</code>는 의미가 다르다.</p>
+<pre><code class="language-text">[Batch, Query Head, Sequence, Head Dimension]
+[1,     4,          4,        128]
+</code></pre>
+<p>K·V도 같은 방식으로 재배열했다.</p>
+<pre><code class="language-python">prompt_key_heads = prompt_key.reshape(
+    prompt_batch_size,
+    prompt_sequence_length,
+    attention_module.num_kv_heads,
+    attention_module.head_dim,
+).transpose(
+    1,
+    2,
+)
+
+prompt_value_heads = prompt_value.reshape(
+    prompt_batch_size,
+    prompt_sequence_length,
+    attention_module.num_kv_heads,
+    attention_module.head_dim,
+).transpose(
+    1,
+    2,
+)
+</code></pre>
+<p>결과는 다음과 같다.</p>
+<pre><code class="language-text">Q Head Shape: [1, 4, 4, 128]
+K Head Shape: [1, 2, 4, 128]
+V Head Shape: [1, 2, 4, 128]
+</code></pre>
+<p><code>reshape()</code>가 GQA를 적용한 것은 아니다.</p>
+<p>GQA는 이미 Q·K·V Projection의 출력 크기에 반영돼 있었다. <code>reshape()</code>와 <code>transpose()</code>는 그 결과를 Head별로 보기 좋은 Tensor 구조로 재배열한 것이다.</p>
+<hr>
+
+</section>
+<section id="section-3-prompt-k-v-kv-cache" class="markdown-section">
+<h2>3. Prompt의 K·V를 KV Cache에 저장</h2>
+<p>Prompt에서 계산한 K·V를 KV Cache 역할의 Tensor로 보관했다.</p>
+<pre><code class="language-python">prompt_key_cache = prompt_key_heads.clone()
+prompt_value_cache = prompt_value_heads.clone()
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">K Cache: [1, 2, 4, 128]
+V Cache: [1, 2, 4, 128]
+</code></pre>
+<p>각 차원의 의미는 다음과 같다.</p>
+<pre><code class="language-text">[Batch, KV Head, Cached Sequence, Head Dimension]
+[1,     2,       4,               128]
+</code></pre>
+<p>Cache에는 Prompt 토큰 네 개의 K·V가 들어 있다.</p>
+<pre><code class="language-text">K Cache
+[K1, K2, K3, K4]
+
+V Cache
+[V1, V2, V3, V4]
+</code></pre>
+<p>여기서 <code>clone()</code>은 특별한 KV Cache 클래스를 만드는 기능이 아니다.</p>
+<p>기존 K·V Tensor와 같은 값을 가진 독립적인 Tensor를 만들고, 이번 실습에서 그 Tensor를 Cache 용도로 사용하기로 한 것이다.</p>
+<p>실제 추론 시스템에서는 다음과 같은 다양한 방법으로 Cache를 관리할 수 있다.</p>
+<pre><code class="language-text">미리 큰 Cache Tensor를 할당
+현재 토큰 위치에 K·V를 복사
+Layer별 Cache 객체 사용
+Paged Attention용 Block 단위 Cache 사용
+</code></pre>
+<p>이번 실습에서는 원리를 단순하게 보기 위해 <code>clone()</code>과 <code>torch.cat()</code>을 사용했다.</p>
+<h3>Q는 왜 Cache에 저장하지 않는가?</h3>
+<p>Prefill Attention을 계산할 때는 Prompt의 Q·K·V가 모두 필요하다.</p>
+<p>하지만 다음 Decode 단계에서 다시 필요한 것은 과거 K와 V다.</p>
+<p>새로운 토큰 <code>x5</code>를 처리할 때는 <code>x5</code>의 Q를 새로 계산한다.</p>
+<pre><code class="language-text">다음 Decode에 필요한 것
+
+새로운 Q5
+과거 K1~K4
+과거 V1~V4
+새로운 K5
+새로운 V5
+</code></pre>
+<p>과거 Q1~Q4는 다시 사용하지 않는다.</p>
+<p>따라서 Q Cache가 아니라 KV Cache라고 부른다.</p>
+<hr>
+
+</section>
+<section id="section-4-prompt-q1-q4-prefill-attention" class="markdown-section">
+<h2>4. Prompt의 Q1~Q4로 Prefill Attention 계산</h2>
+<p>Prompt 전체의 Q·K·V를 사용해 Causal Self-Attention을 계산했다.</p>
+<p>여기서 중요한 사실은 Prefill이라는 별도의 Attention 공식이 있는 것이 아니라는 점이다.</p>
+<pre><code class="language-text">Prompt 전체에 Causal Attention을 수행하고
+계산한 K·V를 이후 Decode를 위해 남겨 두는 과정
+=
+Prefill
+</code></pre>
+<p>이번 단계만 보면 일반적인 Prompt 전체 GQA Attention과 동일하다. Prefill이라는 의미는 이후 Decode에서 이 K·V Cache를 재사용할 때 분명해진다.</p>
+<h3>KV Head를 Attention 계산용으로 확장하기</h3>
+<p>현재 Shape은 다음과 같다.</p>
+<pre><code class="language-text">Q: [1, 4, 4, 128]
+K: [1, 2, 4, 128]
+V: [1, 2, 4, 128]
+</code></pre>
+<p>Q Head는 4개지만 KV Head는 2개이므로 그대로는 Head 축의 크기가 맞지 않는다.</p>
+<p>KV Head 하나를 몇 개의 Query Head가 공유하는지 계산했다.</p>
+<pre><code class="language-python">group_size = (
+    attention_module.num_query_heads
+    // attention_module.num_kv_heads
+)
+</code></pre>
+<p>현재 설정에서는:</p>
+<pre><code class="language-text">4 Query Head / 2 KV Head
+= 그룹당 Query Head 2개
+</code></pre>
+<p>각 KV Head를 두 Query Head가 공유한다.</p>
+<pre><code class="language-text">Query Head 0, 1
+→ KV Head 0 공유
+
+Query Head 2, 3
+→ KV Head 1 공유
+</code></pre>
+<p>Attention을 계산할 때만 K·V Tensor를 반복했다.</p>
+<pre><code class="language-python">expanded_prompt_key = (
+    prompt_key_cache.repeat_interleave(
+        group_size,
+        dim=1,
+    )
+)
+
+expanded_prompt_value = (
+    prompt_value_cache.repeat_interleave(
+        group_size,
+        dim=1,
+    )
+)
+</code></pre>
+<p>Shape은 다음과 같이 변한다.</p>
+<pre><code class="language-text">원본 K·V Cache
+[1, 2, 4, 128]
+
+Attention 계산용 K·V
+[1, 4, 4, 128]
+</code></pre>
+<p>Cache 자체는 KV Head 2개 상태로 유지된다.</p>
+<p>이번 단순 구현의 <code>repeat_interleave()</code>는 반복된 Tensor를 실제로 만든다. 최적화된 실제 GQA Kernel은 물리적인 복사 없이 동일한 KV Head를 여러 Query Head가 참조하게 만들 수도 있다.</p>
+<h3>Prompt Attention Score 계산</h3>
+<p>Q와 확장된 K를 행렬곱했다.</p>
+<pre><code class="language-python">prefill_attention_scores = torch.matmul(
+    prompt_query_heads,
+    expanded_prompt_key.transpose(-2, -1),
+) / math.sqrt(
+    attention_module.head_dim
+)
+</code></pre>
+<p>Shape은 다음과 같이 계산된다.</p>
+<pre><code class="language-text">Q:  [1, 4, 4, 128]
+Kᵀ: [1, 4, 128, 4]
+
+Q @ Kᵀ
+→ [1, 4, 4, 4]
+</code></pre>
+<p>마지막 두 차원은 다음 관계를 나타낸다.</p>
+<pre><code class="language-text">Query Token 4개 × Key Token 4개
+</code></pre>
+<h3>Causal Mask 적용</h3>
+<p>Prompt 전체를 병렬로 계산하면 Q1도 미래의 K2~K4와 Score를 만들게 된다.</p>
+<p>Decoder는 미래 토큰을 볼 수 없어야 하므로 Causal Mask를 적용했다.</p>
+<pre><code class="language-text">q1 → k1
+q2 → k1, k2
+q3 → k1, k2, k3
+q4 → k1, k2, k3, k4
+</code></pre>
+<p>미래 위치의 Score를 <code>-inf</code>로 바꾸고 Softmax를 적용한다.</p>
+<pre><code class="language-text">미래 위치 Score
+→ -inf
+→ exp(-inf)
+→ 0
+→ Attention Weight 0
+</code></pre>
+<p>이렇게 만든 Attention Weight를 V에 적용했다.</p>
+<pre><code class="language-python">prefill_attention_heads = torch.matmul(
+    prefill_attention_weights,
+    expanded_prompt_value,
+)
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 4, 128]
+</code></pre>
+<p>4개 Query Head가 토큰 4개에 대해 각각 128차원 결과를 만든 것이다.</p>
+<h3>Head 결과 합치기</h3>
+<p>Head별 결과를 이어 붙였다.</p>
+<pre><code class="language-text">Head 4개 × Head Dimension 128
+= Model Dimension 512
+</code></pre>
+<pre><code class="language-python">prefill_merged_attention = (
+    prefill_attention_heads.transpose(
+        1,
+        2,
+    ).reshape(
+        prompt_batch_size,
+        prompt_sequence_length,
+        attention_module.d_model,
+    )
+)
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 512]
+</code></pre>
+<p>그다음 Output Projection을 적용했다.</p>
+<pre><code class="language-python">prefill_attention_output = (
+    attention_module.output_projection(
+        prefill_merged_attention
+    )
+)
+</code></pre>
+<p>이 단계에서 Q1~Q4는 모두 사용됐다.</p>
+<pre><code class="language-text">Q1~Q4
+→ Prompt의 Prefill Attention 계산에 사용
+→ 이후 Decode에는 다시 필요하지 않음
+
+K1~K4, V1~V4
+→ Prefill Attention 계산에 사용
+→ 이후 Decode에서도 필요하므로 Cache에 보관
+</code></pre>
+<hr>
+
+</section>
+<section id="section-5-q5-k5-v5" class="markdown-section">
+<h2>5. 새 토큰의 Q5·K5·V5만 계산</h2>
+<p>다음으로 새 토큰 <code>x5</code>의 Hidden State만 Q·K·V Projection에 넣었다.</p>
+<pre><code class="language-python">with torch.no_grad():
+    new_query = (
+        attention_module.query_projections(
+            new_hidden
+        )
+    )
+
+    new_key = (
+        attention_module.key_projection(
+            new_hidden
+        )
+    )
+
+    new_value = (
+        attention_module.value_projections(
+            new_hidden
+        )
+    )
+</code></pre>
+<p>입력 Shape은 다음과 같다.</p>
+<pre><code class="language-text">new_hidden: [1, 1, 512]
+</code></pre>
+<p>토큰 하나만 넣었으므로 Sequence 길이가 <code>1</code>이다.</p>
+<p>Projection 결과는 다음과 같다.</p>
+<pre><code class="language-text">새 Q: [1, 1, 512]
+새 K: [1, 1, 256]
+새 V: [1, 1, 256]
+</code></pre>
+<p>이를 Head 형태로 재배열했다.</p>
+<pre><code class="language-text">새 Q Head: [1, 4, 1, 128]
+새 K Head: [1, 2, 1, 128]
+새 V Head: [1, 2, 1, 128]
+</code></pre>
+<p>여기가 전체 재계산과 KV Cache Decode의 핵심적인 차이다.</p>
+<p>전체 재계산 방식이라면 토큰 다섯 개의 Q·K·V를 모두 다시 만든다.</p>
+<pre><code class="language-text">Q1, Q2, Q3, Q4, Q5
+K1, K2, K3, K4, K5
+V1, V2, V3, V4, V5
+</code></pre>
+<p>KV Cache 방식에서는 새 토큰 하나만 Projection한다.</p>
+<pre><code class="language-text">새로 계산
+Q5, K5, V5
+
+다시 계산하지 않음
+Q1~Q4, K1~K4, V1~V4
+</code></pre>
+<p>과거 K1<del>K4와 V1</del>V4는 Cache에 이미 들어 있다.</p>
+<hr>
+
+</section>
+<section id="section-6-k5-v5-cache" class="markdown-section">
+<h2>6. K5·V5를 기존 Cache 끝에 추가</h2>
+<p>새 토큰에서 계산한 K5·V5를 기존 KV Cache의 Sequence 축 끝에 추가했다.</p>
+<p>기존 Cache Shape은 다음과 같다.</p>
+<pre><code class="language-text">K Cache: [1, 2, 4, 128]
+V Cache: [1, 2, 4, 128]
+</code></pre>
+<p>새 K·V Shape은 다음과 같다.</p>
+<pre><code class="language-text">K5: [1, 2, 1, 128]
+V5: [1, 2, 1, 128]
+</code></pre>
+<p>Sequence 축은 2번 축이므로 <code>dim=2</code>를 사용해 연결했다.</p>
+<pre><code class="language-python">updated_key_cache = torch.cat(
+    [
+        prompt_key_cache,
+        new_key_heads,
+    ],
+    dim=2,
+)
+
+updated_value_cache = torch.cat(
+    [
+        prompt_value_cache,
+        new_value_heads,
+    ],
+    dim=2,
+)
+</code></pre>
+<p>결과는 다음과 같다.</p>
+<pre><code class="language-text">기존 K Cache
+[K1, K2, K3, K4]
+
+새 K
+[K5]
+
+갱신된 K Cache
+[K1, K2, K3, K4, K5]
+</code></pre>
+<p>V도 동일하다.</p>
+<pre><code class="language-text">기존 V Cache
+[V1, V2, V3, V4]
+
+새 V
+[V5]
+
+갱신된 V Cache
+[V1, V2, V3, V4, V5]
+</code></pre>
+<p>최종 Shape은 다음과 같다.</p>
+<pre><code class="language-text">K Cache: [1, 2, 5, 128]
+V Cache: [1, 2, 5, 128]
+</code></pre>
+<p>여기서 새 Q5는 Cache에 넣지 않는다.</p>
+<pre><code class="language-text">Q5
+→ 현재 Decode Attention 계산에 사용
+→ Cache에 저장하지 않음
+
+K5·V5
+→ 현재 Decode Attention에 사용
+→ 다음 Decode에서도 필요하므로 Cache에 저장
+</code></pre>
+<p>실제 다중 Layer Transformer에서는 이 과정이 Layer마다 순차적으로 일어난다.</p>
+<pre><code class="language-text">새 토큰의 최초 Hidden State
+↓
+Layer 1의 Q5·K5·V5 계산
+↓
+Layer 1 KV Cache 갱신
+↓
+Layer 1 출력 Hidden State
+↓
+Layer 2의 Q5·K5·V5 계산
+↓
+Layer 2 KV Cache 갱신
+↓
+...
+</code></pre>
+<p>각 Layer는 자신의 K·V를 자신의 Cache에 저장한다.</p>
+<hr>
+
+</section>
+<section id="section-7-q5-cache-k1-k5-decode-attention" class="markdown-section">
+<h2>7. Q5와 Cache의 K1~K5로 Decode Attention 계산</h2>
+<p>이제 새 Query Q5와 갱신된 KV Cache를 사용해 Decode Attention을 계산했다.</p>
+<p>현재 Shape은 다음과 같다.</p>
+<pre><code class="language-text">Q5:      [1, 4, 1, 128]
+K Cache: [1, 2, 5, 128]
+V Cache: [1, 2, 5, 128]
+</code></pre>
+<p>KV Cache는 Head 2개 상태로 저장돼 있다. Attention 계산 시에만 Query Head 4개에 맞게 확장했다.</p>
+<pre><code class="language-python">expanded_updated_key_cache = (
+    updated_key_cache.repeat_interleave(
+        decode_group_size,
+        dim=1,
+    )
+)
+
+expanded_updated_value_cache = (
+    updated_value_cache.repeat_interleave(
+        decode_group_size,
+        dim=1,
+    )
+)
+</code></pre>
+<p>확장 후 Shape은 다음과 같다.</p>
+<pre><code class="language-text">K: [1, 4, 5, 128]
+V: [1, 4, 5, 128]
+</code></pre>
+<h3>Decode Attention Score 계산</h3>
+<p>새 Q5와 K1~K5를 행렬곱했다.</p>
+<pre><code class="language-python">decode_attention_scores = torch.matmul(
+    new_query_heads,
+    expanded_updated_key_cache.transpose(
+        -2,
+        -1,
+    ),
+) / math.sqrt(
+    attention_module.head_dim
+)
+</code></pre>
+<p>Shape은 다음과 같이 계산된다.</p>
+<pre><code class="language-text">Q5: [1, 4, 1, 128]
+Kᵀ: [1, 4, 128, 5]
+
+Q5 @ Kᵀ
+→ [1, 4, 1, 5]
+</code></pre>
+<p>이 연산을 풀어 쓰면 다음과 같다.</p>
+<pre><code class="language-text">Q5 @ [K1, K2, K3, K4, K5]ᵀ
+</code></pre>
+<p>과거 Query Q1~Q4는 존재하지 않는다.</p>
+<p>하지만 새 토큰이 과거 토큰을 참고하기 위해 필요한 K1~K4는 Cache에 모두 들어 있다.</p>
+<h3>Decode에서는 왜 Causal Mask가 없어도 되는가?</h3>
+<p>현재 Q5는 Sequence의 마지막 위치에 있다.</p>
+<p>Cache에는 다음 위치만 존재한다.</p>
+<pre><code class="language-text">K1, K2, K3, K4, K5
+</code></pre>
+<p>모두 Q5보다 과거이거나 현재 위치다. 미래의 K6는 아직 만들어지지 않았으므로 Cache에도 없다.</p>
+<p>따라서 새 토큰 하나를 처리하는 이번 Decode에서는 별도의 Causal Mask가 없어도 미래를 볼 수 없다.</p>
+<pre><code class="language-text">Q5가 볼 수 있는 Cache
+→ K1~K5
+
+Q5가 보면 안 되는 미래
+→ K6 이후
+→ 아직 Cache에 존재하지 않음
+</code></pre>
+<p>여러 새 토큰을 한 번에 처리하거나 Padding이 포함된 실제 구현에서는 추가 Mask가 필요할 수 있다.</p>
+<h3>Attention Weight와 V 연산</h3>
+<p>Score에 Softmax를 적용했다.</p>
+<pre><code class="language-python">decode_attention_weights = torch.softmax(
+    decode_attention_scores,
+    dim=-1,
+)
+</code></pre>
+<p>Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 1, 5]
+</code></pre>
+<p>각 Query Head에서 Q5가 V1~V5를 얼마나 사용할지 결정하는 가중치다.</p>
+<p>예를 들어 첫 번째 Head의 Weight가 다음과 같았다.</p>
+<pre><code class="language-text">[0.3320, 0.2568, 0.1908, 0.0853, 0.1353]
+</code></pre>
+<p>이는 첫 번째 Head에서 다음과 같은 가중합을 계산한다는 의미다.</p>
+<pre><code class="language-text">0.3320 × V1
++ 0.2568 × V2
++ 0.1908 × V3
++ 0.0853 × V4
++ 0.1353 × V5
+</code></pre>
+<p>Weight의 합은 <code>1</code>이다.</p>
+<p>그다음 Weight를 전체 V Cache에 적용했다.</p>
+<pre><code class="language-python">decode_attention_heads = torch.matmul(
+    decode_attention_weights,
+    expanded_updated_value_cache,
+)
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 1, 128]
+</code></pre>
+<p>각 Query Head가 새 토큰 하나에 대한 128차원 결과를 만든 것이다.</p>
+<p>Head 결과를 이어 붙이면 다음 Shape이 된다.</p>
+<pre><code class="language-text">4 Head × 128
+= 512
+
+[1, 4, 1, 128]
+→ [1, 1, 512]
+</code></pre>
+<p>마지막으로 Output Projection을 통과시켰다.</p>
+<pre><code class="language-text">Decode Attention Output
+[1, 1, 512]
+</code></pre>
+<p>이 값은 생성된 Token ID가 아니다. 새 토큰 <code>x5</code>에 대한 Attention 출력 Hidden State다.</p>
+<p>실제 모델에서 다음 토큰을 선택하려면 Residual, LayerNorm, FFN, LM Head 등의 연산이 더 필요하다.</p>
+<hr>
+
+</section>
+<section id="section-8-attention" class="markdown-section">
+<h2>8. 전체 재계산의 마지막 Attention 결과와 비교</h2>
+<p>마지막으로 KV Cache를 사용한 결과가 전체 Sequence를 다시 계산한 결과와 같은지 비교했다.</p>
+<h3>전체 Hidden State 만들기</h3>
+<p>Prompt Hidden과 새 토큰 Hidden을 연결했다.</p>
+<pre><code class="language-python">full_hidden = torch.cat(
+    [
+        prompt_hidden,
+        new_hidden,
+    ],
+    dim=1,
+)
+</code></pre>
+<p>Shape은 다음과 같다.</p>
+<pre><code class="language-text">Prompt Hidden: [1, 4, 512]
+New Hidden:    [1, 1, 512]
+
+Full Hidden:   [1, 5, 512]
+</code></pre>
+<h3>전체 토큰의 Attention 다시 계산하기</h3>
+<p>토큰 다섯 개 전체를 Attention 모듈에 넣었다.</p>
+<pre><code class="language-python">with torch.no_grad():
+    (
+        full_attention_output,
+        full_attention_weights,
+    ) = attention_module(
+        full_hidden
+    )
+</code></pre>
+<p>결과 Shape은 다음과 같다.</p>
+<pre><code class="language-text">전체 Attention 출력:
+[1, 5, 512]
+
+전체 Attention Weight:
+[1, 4, 5, 5]
+</code></pre>
+<p>전체 재계산에서는 Query Token이 5개이고 Key Token도 5개다.</p>
+<pre><code class="language-text">Q1~Q5 × K1~K5
+</code></pre>
+<p>하지만 우리가 필요한 것은 마지막 토큰 <code>x5</code>의 결과뿐이다.</p>
+<p>따라서 마지막 위치만 선택했다.</p>
+<pre><code class="language-python">full_last_attention_output = (
+    full_attention_output[
+        :,
+        -1:,
+        :,
+    ]
+)
+
+full_last_attention_weights = (
+    full_attention_weights[
+        :,
+        :,
+        -1:,
+        :,
+    ]
+)
+</code></pre>
+<p>Shape은 다음과 같다.</p>
+<pre><code class="language-text">전체 재계산의 마지막 Attention 출력:
+[1, 1, 512]
+
+전체 재계산의 마지막 Attention Weight:
+[1, 4, 1, 5]
+</code></pre>
+<p>KV Cache Decode 결과와 Shape이 같아졌다.</p>
+<h3>두 결과 비교하기</h3>
+<p>다음 두 결과를 비교했다.</p>
+<pre><code class="language-text">전체 재계산의 마지막 토큰
+Q5 @ [K1, K2, K3, K4, K5]ᵀ
+
+KV Cache Decode
+Q5 @ [K1, K2, K3, K4, K5]ᵀ
+</code></pre>
+<p>코드에서는 <code>torch.allclose()</code>를 사용했다.</p>
+<pre><code class="language-python">output_is_same = torch.allclose(
+    full_last_attention_output,
+    decode_attention_output,
+    atol=1e-3,
+    rtol=1e-3,
+)
+
+weight_is_same = torch.allclose(
+    full_last_attention_weights,
+    decode_attention_weights,
+    atol=1e-3,
+    rtol=1e-3,
+)
+</code></pre>
+<p>실행 결과는 다음과 같았다.</p>
+<pre><code class="language-text">마지막 Token의 Attention 출력이 같은가?: True
+마지막 Token의 Attention Weight가 같은가?: True
+</code></pre>
+<p>Attention Weight는 완전히 같았다.</p>
+<pre><code class="language-text">Attention Weight의 최대 차이: 0.0
+</code></pre>
+<p>Attention 출력에는 매우 작은 차이가 있었다.</p>
+<pre><code class="language-text">Attention 출력의 최대 차이:
+0.00048828125
+</code></pre>
+<p>현재 모델이 <code>float16</code>을 사용하기 때문에 연산 Shape이나 계산 순서에 따른 미세한 반올림 차이가 발생할 수 있다.</p>
+<p>이 차이는 설정한 허용 오차보다 작기 때문에 동일한 결과로 판단할 수 있다.</p>
+<h3>Attention 행렬 크기 비교</h3>
+<p>전체 재계산의 Attention Weight Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 5, 5]
+</code></pre>
+<p>각 Head에서:</p>
+<pre><code class="language-text">5 Query × 5 Key
+= 25개 Score
+</code></pre>
+<p>를 계산한다.</p>
+<p>KV Cache Decode의 Shape은 다음과 같다.</p>
+<pre><code class="language-text">[1, 4, 1, 5]
+</code></pre>
+<p>각 Head에서:</p>
+<pre><code class="language-text">1 Query × 5 Key
+= 5개 Score
+</code></pre>
+<p>만 계산한다.</p>
+<p>Query Head가 4개이므로 전체 Score 원소 수는 다음과 같다.</p>
+<pre><code class="language-text">전체 재계산
+4 Head × 5 Query × 5 Key
+= 100개
+
+KV Cache Decode
+4 Head × 1 Query × 5 Key
+= 20개
+</code></pre>
+<p>현재 길이 5인 Decode 단계에서는 Attention Score 원소 수가 5분의 1로 줄었다.</p>
+<p>Q·K·V Projection도 전체 토큰 5개가 아니라 새 토큰 하나에 대해서만 실행했다.</p>
+
+</section>
+<section id="section-e2c9963947ff" class="markdown-section">
+<h2>이 실습을 통해 확인한 전체 구조</h2>
+<p>전체 과정은 다음과 같다.</p>
+<pre><code class="language-text">Prompt x1~x4
+↓
+Token Embedding + Position Embedding
+↓
+Prompt Hidden State
+↓
+GQA Q1~Q4, K1~K4, V1~V4 계산
+↓
+Prompt 전체의 Causal Attention 계산
+↓
+K1~K4, V1~V4를 Cache에 저장
+</code></pre>
+<p>새 토큰 <code>x5</code>가 들어오면 다음 과정이 실행된다.</p>
+<pre><code class="language-text">x5
+↓
+Token Embedding + Position Embedding
+↓
+새 Hidden State
+↓
+Q5, K5, V5만 계산
+↓
+K5, V5를 기존 Cache 끝에 추가
+↓
+Q5 @ [K1, K2, K3, K4, K5]ᵀ
+↓
+Attention Weight × [V1, V2, V3, V4, V5]
+↓
+x5의 Attention 출력
+</code></pre>
+<p>전체 재계산 방식과 비교하면 다음과 같다.</p>
+<pre><code class="language-text">전체 재계산
+Q1~Q5, K1~K5, V1~V5를 모두 다시 계산
+→ 마지막 x5 결과만 사용
+
+KV Cache Decode
+Q5, K5, V5만 새로 계산
+→ K1~K4, V1~V4는 Cache에서 재사용
+→ x5 결과 사용
+</code></pre>
+<p>두 방식은 마지막 토큰에 대해 본질적으로 같은 연산을 수행한다.</p>
+<pre><code class="language-text">Q5 @ [K1, K2, K3, K4, K5]ᵀ
+</code></pre>
+<p>차이는 과거 토큰의 값을 다시 계산했는지, Cache에서 가져왔는지에 있다.</p>
+
+</section>
+<section id="prefill-decode" class="markdown-section">
+<h2>Prefill과 Decode를 어떻게 구분해야 하는가?</h2>
+<p>Prefill과 Decode가 서로 다른 Attention 공식을 사용하는 것은 아니다.</p>
+<p>Prefill은 Prompt 전체를 처음 처리하는 단계다.</p>
+<pre><code class="language-text">Prompt 전체의 Q·K·V 계산
+Prompt 전체의 Causal Attention 계산
+Prompt의 K·V Cache 생성
+</code></pre>
+<p>Decode는 생성된 새 토큰 하나를 처리하는 단계다.</p>
+<pre><code class="language-text">새 토큰의 Q·K·V만 계산
+새 K·V를 Cache에 추가
+새 Q와 전체 KV Cache로 Attention 계산
+</code></pre>
+<p>따라서 핵심 차이는 입력 Sequence 길이와 Cache 재사용 여부다.</p>
+<pre><code class="language-text">Prefill
+Q Sequence 길이 = Prompt 길이
+K·V Sequence 길이 = Prompt 길이
+
+Decode
+Q Sequence 길이 = 1
+K·V Sequence 길이 = 지금까지의 전체 길이
+</code></pre>
+<p>이번 실습에서는 다음 Shape으로 그 차이를 확인했다.</p>
+<pre><code class="language-text">Prefill Attention
+[1, 4, 4, 4]
+
+Decode Attention
+[1, 4, 1, 5]
+</code></pre>
+
+</section>
+<section id="section-9e407c4b61ce" class="markdown-section">
+<h2>이번 실습의 범위</h2>
+<p>이번에 검증한 것은 GQA Attention 단위의 Prefill과 Decode다.</p>
+<p>다음 요소까지 포함한 전체 생성 루프를 구현한 것은 아니다.</p>
+<pre><code class="language-text">Residual Connection
+LayerNorm
+FFN
+여러 Transformer Layer
+LM Head
+Vocabulary Logit
+다음 Token 선택
+반복 생성 Loop
+</code></pre>
+<p>하지만 “KV Cache를 사용하면 왜 과거 Q가 필요하지 않은가?”, “새 Q 하나만으로 어떻게 전체 문맥을 참고하는가?”라는 핵심 원리는 충분히 확인했다.</p>
+<p>과거 Q는 Prefill에서 이미 사용됐다.</p>
+<pre><code class="language-text">Q1~Q4
+→ Prompt 문맥 계산에 사용
+→ 이후 역할 종료
+</code></pre>
+<p>과거 K·V는 새 Query가 과거 문맥을 참고하는 데 계속 필요하다.</p>
+<pre><code class="language-text">K1~K4, V1~V4
+→ Cache에 보존
+→ Q5, Q6, Q7 등이 계속 재사용
+</code></pre>
+
+</section>
+<section id="section-a8e1097b68c2" class="markdown-section">
+<h2>최종 정리</h2>
+<p>이번 실습을 한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>Prefill에서는 Prompt 전체의 Q·K·V를 계산하고 K·V를 Cache에 저장하며, Decode에서는 새 토큰의 Q·K·V만 계산한 뒤 새 K·V를 Cache에 추가하고 새 Q와 전체 Cache를 이용해 Attention을 계산한다.</p>
+</blockquote>
+<p>KV Cache는 모델의 결과를 바꾸는 기술이 아니다.</p>
+<pre><code class="language-text">전체 재계산 결과
+≈
+KV Cache Decode 결과
+</code></pre>
+<p>KV Cache의 목적은 이미 계산한 과거 K·V를 재사용하여 불필요한 Projection과 Attention 연산을 줄이는 것이다.</p>
+<p>이번 실습에서는 실제로 다음 결과를 확인했다.</p>
+<pre><code class="language-text">전체 재계산의 마지막 Attention Weight
+=
+KV Cache Decode Attention Weight
+
+전체 재계산의 마지막 Attention 출력
+≈
+KV Cache Decode Attention 출력
+</code></pre>
+<p>따라서 최종적으로 다음 사실을 코드로 검증했다.</p>
+<blockquote>
+<p>과거 토큰의 K·V가 Cache에 저장되어 있다면 과거 Q·K·V 전체를 다시 계산하지 않고 새 토큰의 Q·K·V만 계산해도, 전체 Sequence를 다시 계산했을 때와 동일한 마지막 토큰 Attention 결과를 얻을 수 있다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

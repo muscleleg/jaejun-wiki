@@ -1,0 +1,380 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_layer_sequential_processing.md. Do not edit directly. source-sha256:6742e7d7999e40b094841172b6a93df75fc591faf4af4c9af3f9971c5a68fc1c -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transformer Layer 사이의 순차 의존성과 Layer별 Q·K·V·KV Cache, 한 Layer 내부 토큰 병렬 처리의 차이를 설명한다.">
+  <meta name="source-sha256" content="6742e7d7999e40b094841172b6a93df75fc591faf4af4c9af3f9971c5a68fc1c">
+  <title>Transformer Layer는 순차적으로 처리된다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Transformer Layer는 순차적으로 처리된다">
+  <meta property="og:description" content="Transformer Layer 사이의 순차 의존성과 Layer별 Q·K·V·KV Cache, 한 Layer 내부 토큰 병렬 처리의 차이를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html","name":"Transformer Layer는 순차적으로 처리된다","description":"Transformer Layer 사이의 순차 의존성과 Layer별 Q·K·V·KV Cache, 한 Layer 내부 토큰 병렬 처리의 차이를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html"},"headline":"Transformer Layer는 순차적으로 처리된다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-transformer-block","name":"Transformer 핵심 손코딩","identifier":"project-transformer-block"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_layer_sequential_processing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-projects"},{"@type":"ListItem","position":4,"name":"Token이 문맥을 얻는 Transformer Block 손코딩","item":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/road-to-llm-inference/transformer-core.html"},{"@type":"ListItem","position":5,"name":"Transformer Layer는 순차적으로 처리된다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/projects/road-to-llm-inference/transformer-core.html">Token이 문맥을 얻는 Transformer Block 손코딩</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Transformer Layer는 순차적으로 처리된다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">개인 프로젝트</span>
+      <h1>Transformer Layer는 순차적으로 처리된다</h1>
+      <p class="lead">Transformer Layer 사이의 순차 의존성과 Layer별 Q·K·V·KV Cache, 한 Layer 내부 토큰 병렬 처리의 차이를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#layer-layer">각 Layer는 앞 Layer의 출력을 입력으로 받는다</a>
+        <a href="#layer">Layer들을 독립적으로 병렬 실행할 수 없는 이유</a>
+        <a href="#layer-q-k-v">각 Layer는 자신의 Q·K·V를 계산한다</a>
+        <a href="#kv-cache-layer">KV Cache도 Layer마다 따로 존재한다</a>
+        <a href="#layer-2">새 토큰도 Layer를 순서대로 통과한다</a>
+        <a href="#layer-3">Layer의 순차 처리와 토큰의 병렬 처리는 다르다</a>
+        <a href="#decode">Decode의 토큰 생성도 순차적이다</a>
+        <a href="#gqa">GQA 모델에서도 동일하다</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Transformer는 여러 개의 Transformer Layer를 쌓아 만든다.</p>
+<p>각 Layer는 독립적으로 동시에 입력을 처리하는 것이 아니라, 앞 Layer가 만든 Hidden State를 받아 순서대로 처리한다.</p>
+<pre><code class="language-text">입력 Hidden State
+→ Layer 1
+→ Layer 2
+→ Layer 3
+→ ...
+→ Final Hidden State
+</code></pre>
+<p>Layer 2는 Layer 1의 출력이 있어야 계산할 수 있고, Layer 3은 Layer 2의 출력이 있어야 계산할 수 있다.</p>
+<p>따라서 Transformer Layer 사이에는 순서 의존성이 있다.</p>
+</div>
+        <section id="layer-layer" class="markdown-section">
+<h2>각 Layer는 앞 Layer의 출력을 입력으로 받는다</h2>
+<p>토큰 임베딩과 위치 임베딩으로 최초 Hidden State를 만들었다고 해보자.</p>
+<pre><code class="language-python">hidden_states = (
+    token_embedding(token_ids)
+    + position_embedding(positions)
+)
+</code></pre>
+<p>이 값이 첫 번째 Transformer Layer에 들어간다.</p>
+<pre><code class="language-text">최초 Hidden State
+↓
+Layer 1
+↓
+Layer 1 출력 Hidden State
+</code></pre>
+<p>Layer 1은 Attention과 FFN을 이용해 최초 Hidden State를 갱신한다.</p>
+<pre><code class="language-text">Layer 1 입력
+→ Attention
+→ Residual과 LayerNorm
+→ FFN
+→ Residual과 LayerNorm
+→ Layer 1 출력
+</code></pre>
+<p>Layer 2에는 최초 Hidden State가 직접 들어가는 것이 아니라 Layer 1이 갱신한 Hidden State가 들어간다.</p>
+<pre><code class="language-text">Layer 1 출력 Hidden State
+↓
+Layer 2
+↓
+Layer 2 출력 Hidden State
+</code></pre>
+<p>이를 코드 형태로 단순화하면 다음과 같다.</p>
+<pre><code class="language-python">hidden_states = input_hidden_states
+
+for transformer_layer in transformer_layers:
+    hidden_states = transformer_layer(
+        hidden_states
+    )
+</code></pre>
+<p>반복문으로 표현할 수 있는 이유는 각 Layer의 출력이 다음 Layer의 입력이 되기 때문이다.</p>
+
+</section>
+<section id="layer" class="markdown-section">
+<h2>Layer들을 독립적으로 병렬 실행할 수 없는 이유</h2>
+<p>Layer 1과 Layer 2는 서로 다른 가중치를 가지고 있다.</p>
+<pre><code class="language-text">Layer 1
+→ Layer 1의 Q·K·V Projection
+→ Layer 1의 FFN
+
+Layer 2
+→ Layer 2의 Q·K·V Projection
+→ Layer 2의 FFN
+</code></pre>
+<p>그러나 가중치가 서로 다르다는 이유만으로 두 Layer를 동시에 계산할 수 있는 것은 아니다.</p>
+<p>Layer 2가 계산해야 할 Q·K·V는 Layer 1 출력으로부터 만들어지기 때문이다.</p>
+<pre><code class="language-text">Layer 1의 출력이 아직 없음
+→ Layer 2의 입력도 없음
+→ Layer 2의 Q·K·V를 계산할 수 없음
+</code></pre>
+<p>따라서 다음 계산은 불가능하다.</p>
+<pre><code class="language-text">최초 Hidden State
+├─ Layer 1 동시 실행
+└─ Layer 2 동시 실행
+</code></pre>
+<p>실제 의존 관계는 다음과 같다.</p>
+<pre><code class="language-text">최초 Hidden State
+↓
+Layer 1 처리 완료
+↓
+Layer 1 출력 생성
+↓
+Layer 2 처리 시작
+</code></pre>
+
+</section>
+<section id="layer-q-k-v" class="markdown-section">
+<h2>각 Layer는 자신의 Q·K·V를 계산한다</h2>
+<p>모델에 Transformer Layer가 여러 개 있다면 각 Layer는 자신의 Q·K·V Projection을 가진다.</p>
+<pre><code class="language-text">Layer 1
+Wq₁, Wk₁, Wv₁
+
+Layer 2
+Wq₂, Wk₂, Wv₂
+
+Layer 3
+Wq₃, Wk₃, Wv₃
+</code></pre>
+<p>같은 토큰을 처리하더라도 Layer마다 입력 Hidden State와 Projection 가중치가 다르므로 서로 다른 Q·K·V가 만들어진다.</p>
+<pre><code class="language-text">최초 Hidden State
+↓ Layer 1 Projection
+Layer 1의 Q·K·V
+↓ Layer 1 Attention과 FFN
+Layer 1 출력 Hidden State
+↓ Layer 2 Projection
+Layer 2의 Q·K·V
+</code></pre>
+<p>따라서 모델 전체에서 한 번 만든 Q·K·V를 모든 Layer가 공유하는 구조가 아니다.</p>
+<blockquote>
+<p>각 Layer는 앞 Layer가 만든 Hidden State를 사용해 자신의 Q·K·V를 새로 계산한다.</p>
+</blockquote>
+
+</section>
+<section id="kv-cache-layer" class="markdown-section">
+<h2>KV Cache도 Layer마다 따로 존재한다</h2>
+<p>자동회귀 방식으로 토큰을 생성할 때는 과거 토큰의 K·V를 KV Cache에 저장한다.</p>
+<p>Transformer Layer가 여러 개라면 KV Cache도 Layer별로 존재한다.</p>
+<pre><code class="language-text">Layer 1
+├─ K Cache 1
+└─ V Cache 1
+
+Layer 2
+├─ K Cache 2
+└─ V Cache 2
+
+Layer 3
+├─ K Cache 3
+└─ V Cache 3
+</code></pre>
+<p>Layer 1의 K·V와 Layer 2의 K·V는 같은 값이 아니다.</p>
+<p>각 Layer는 서로 다른 Hidden State와 Projection 가중치를 사용하기 때문이다.</p>
+<p>KV Cache Shape 공식에 Layer 수가 포함되는 이유도 여기에 있다.</p>
+<pre><code class="language-text">KV Cache 원소 수
+
+2
+× Layer 수
+× Batch 크기
+× Cache Token 수
+× KV Head 수
+× Head Dimension
+</code></pre>
+<p>앞의 <code>2</code>는 K Cache와 V Cache를 의미한다.</p>
+
+</section>
+<section id="layer-2" class="markdown-section">
+<h2>새 토큰도 Layer를 순서대로 통과한다</h2>
+<p>Prefill이 끝난 뒤 새로운 토큰 <code>x5</code>를 처리한다고 해보자.</p>
+<p>먼저 토큰 임베딩과 위치 임베딩으로 <code>x5</code>의 최초 Hidden State를 만든다.</p>
+<pre><code class="language-text">x5
+→ Token Embedding + Position Embedding
+→ x5의 최초 Hidden State
+</code></pre>
+<p>그다음 Layer 1에서 <code>x5</code>의 Q·K·V를 계산한다.</p>
+<pre><code class="language-text">x5의 최초 Hidden State
+↓
+Layer 1의 Q5·K5·V5 생성
+↓
+Layer 1 KV Cache에 K5·V5 추가
+↓
+Layer 1 Attention과 FFN
+↓
+Layer 1 출력 Hidden State
+</code></pre>
+<p>Layer 1의 출력이 Layer 2로 전달된다.</p>
+<pre><code class="language-text">Layer 1 출력 Hidden State
+↓
+Layer 2의 Q5·K5·V5 생성
+↓
+Layer 2 KV Cache에 K5·V5 추가
+↓
+Layer 2 Attention과 FFN
+↓
+Layer 2 출력 Hidden State
+</code></pre>
+<p>이 과정이 마지막 Layer까지 반복된다.</p>
+<pre><code class="language-text">x5의 최초 Hidden State
+↓
+Layer 1 처리 및 Layer 1 Cache 갱신
+↓
+Layer 2 처리 및 Layer 2 Cache 갱신
+↓
+Layer 3 처리 및 Layer 3 Cache 갱신
+↓
+Final Hidden State
+↓
+LM Head
+↓
+다음 토큰 확률
+</code></pre>
+<p>새 토큰의 K·V를 한 번만 계산해서 모든 Layer의 Cache에 넣는 것이 아니다.</p>
+<p>각 Layer가 자신의 입력 Hidden State를 기준으로 새 K·V를 계산하고 자신의 Cache에 추가한다.</p>
+
+</section>
+<section id="layer-3" class="markdown-section">
+<h2>Layer의 순차 처리와 토큰의 병렬 처리는 다르다</h2>
+<p>Transformer Layer가 순차적으로 처리된다는 말과 한 Layer 안에서 여러 토큰을 병렬로 처리한다는 말은 서로 모순되지 않는다.</p>
+<p>두 문장은 서로 다른 축을 설명한다.</p>
+<h3>Layer 축</h3>
+<p>Layer는 앞 Layer의 출력에 의존한다.</p>
+<pre><code class="language-text">Layer 1
+↓
+Layer 2
+↓
+Layer 3
+</code></pre>
+<p>따라서 순차적으로 처리된다.</p>
+<h3>Sequence 축</h3>
+<p>Prefill에서는 한 Layer 안에서 Prompt 토큰 전체의 Q·K·V를 Tensor 연산으로 한꺼번에 계산할 수 있다.</p>
+<pre><code class="language-text">Prompt: x1, x2, x3, x4
+
+한 번의 Q Projection
+→ Q1, Q2, Q3, Q4
+
+한 번의 K Projection
+→ K1, K2, K3, K4
+
+한 번의 V Projection
+→ V1, V2, V3, V4
+</code></pre>
+<p>여러 토큰을 한꺼번에 계산하더라도 Causal Mask가 미래 토큰을 보지 못하게 막는다.</p>
+<pre><code class="language-text">q1 → k1
+q2 → k1, k2
+q3 → k1, k2, k3
+q4 → k1, k2, k3, k4
+</code></pre>
+<p>따라서 다음처럼 구분해야 한다.</p>
+<pre><code class="language-text">Transformer Layer 사이
+→ 순차 처리
+
+한 Layer 안의 Prompt 토큰
+→ 병렬 계산 가능
+→ Causal Mask로 미래 참조 제한
+</code></pre>
+
+</section>
+<section id="decode" class="markdown-section">
+<h2>Decode의 토큰 생성도 순차적이다</h2>
+<p>Decode에서는 새로운 토큰을 한 개씩 생성한다.</p>
+<pre><code class="language-text">Prompt
+→ x5 생성
+→ x5를 입력하여 x6 생성
+→ x6를 입력하여 x7 생성
+</code></pre>
+<p><code>x6</code>를 계산하려면 <code>x5</code>가 먼저 결정돼야 한다. 따라서 토큰 생성 순서에도 의존성이 있다.</p>
+<pre><code class="language-text">Decode의 시간 축
+x5 → x6 → x7
+</code></pre>
+<p>새 토큰 하나를 처리하는 동안에는 다시 모든 Transformer Layer를 순서대로 거친다.</p>
+<pre><code class="language-text">x5
+→ Layer 1
+→ Layer 2
+→ Layer 3
+→ x6 예측
+
+x6
+→ Layer 1
+→ Layer 2
+→ Layer 3
+→ x7 예측
+</code></pre>
+<p>따라서 Decode에는 두 가지 순차성이 함께 존재한다.</p>
+<pre><code class="language-text">토큰 생성 순서
+→ 이전 토큰이 있어야 다음 토큰을 생성
+
+Layer 처리 순서
+→ 이전 Layer 출력이 있어야 다음 Layer를 처리
+</code></pre>
+
+</section>
+<section id="gqa" class="markdown-section">
+<h2>GQA 모델에서도 동일하다</h2>
+<p>GQA는 Q Head보다 K·V Head를 적게 사용하는 Attention 구조다.</p>
+<pre><code class="language-text">Query Head: 4개
+KV Head:    2개
+</code></pre>
+<p>하지만 GQA를 사용해도 Layer 사이의 처리 순서는 달라지지 않는다.</p>
+<p>각 Layer가 자신만의 GQA Projection과 KV Cache를 가진다.</p>
+<pre><code class="language-text">Layer 1
+→ Q Head 4개
+→ KV Head 2개
+→ Layer 1 KV Cache
+
+Layer 2
+→ Q Head 4개
+→ KV Head 2개
+→ Layer 2 KV Cache
+</code></pre>
+<p>GQA는 각 Layer 내부에서 K·V Projection과 Cache 크기를 줄이는 방법이다. 여러 Transformer Layer를 병렬로 만드는 방법은 아니다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>Transformer에서는 Layer의 출력이 다음 Layer의 입력이 된다.</p>
+<pre><code class="language-text">입력 Hidden State
+→ Layer 1 출력
+→ Layer 2 출력
+→ Layer 3 출력
+→ Final Hidden State
+</code></pre>
+<p>각 Layer는 자신의 Q·K·V Projection을 가지고 있으며, 자동회귀 추론에서는 자신의 KV Cache도 따로 관리한다.</p>
+<pre><code class="language-text">새 토큰
+→ Layer 1의 K·V 생성 및 Layer 1 Cache 갱신
+→ Layer 2의 K·V 생성 및 Layer 2 Cache 갱신
+→ ...
+</code></pre>
+<p>다만 Prefill에서 한 Layer 안의 여러 토큰은 Tensor 연산으로 동시에 계산할 수 있다.</p>
+<p>한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>Transformer Layer는 앞 Layer의 출력 Hidden State에 의존하므로 순차적으로 처리되며, 각 Layer는 자신의 Q·K·V와 KV Cache를 따로 가진다. 다만 한 Layer 내부에서는 Prompt의 여러 토큰을 병렬로 계산할 수 있다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
