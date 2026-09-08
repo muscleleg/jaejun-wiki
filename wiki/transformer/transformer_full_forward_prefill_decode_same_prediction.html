@@ -1,0 +1,877 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.md. Do not edit directly. source-sha256:b6a324f9a5b0e17bc187a0495b0685b99ee5a86ec1756d37853ec09f260cb790 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="풀포워드와 Prefill·Decode의 계산 경로를 비교하고, 과거 K·V Cache를 재사용해 같은 다음 Token을 예측하는 이유를 설명한다.">
+  <meta name="source-sha256" content="b6a324f9a5b0e17bc187a0495b0685b99ee5a86ec1756d37853ec09f260cb790">
+  <title>풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가">
+  <meta property="og:description" content="풀포워드와 Prefill·Decode의 계산 경로를 비교하고, 과거 K·V Cache를 재사용해 같은 다음 Token을 예측하는 이유를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html","name":"풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가","description":"풀포워드와 Prefill·Decode의 계산 경로를 비교하고, 과거 K·V Cache를 재사용해 같은 다음 Token을 예측하는 이유를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html"},"headline":"풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_full_forward_prefill_decode_same_prediction.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>풀포워드와 Prefill·Decode는 어떻게 같은 다음 토큰을 예측하는가</h1>
+      <p class="lead">풀포워드와 Prefill·Decode의 계산 경로를 비교하고, 과거 K·V Cache를 재사용해 같은 다음 Token을 예측하는 이유를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#hidden-state">다음 토큰 예측에 직접 사용되는 것은 마지막 위치의 Hidden State다</a>
+        <a href="#hidden-state-2">Hidden State는 하나가 아니라 토큰 위치마다 존재한다</a>
+        <a href="#full-forward-token">Full Forward에서는 다음 Token을 만들 때 전체를 다시 계산한다</a>
+        <a href="#full-forward">Full Forward에서 어떤 계산이 중복되는가</a>
+        <a href="#layer-hidden-state">다음 Layer에서 과거 Hidden State가 필요한 이유</a>
+        <a href="#kv-cache-hidden-state">KV Cache는 Hidden State 자체를 저장하지 않는다</a>
+        <a href="#kv-cache-layer">KV Cache는 Layer마다 따로 존재한다</a>
+        <a href="#prefill-layer-k-v">Prefill은 이 Layer별 K/V를 처음 만들어두는 단계다</a>
+        <a href="#prefill-decode">Prefill 이후에는 Decode가 시작된다</a>
+        <a href="#decode-token-hidden-state-layer">Decode에서는 새 Token 하나의 Hidden State만 Layer 사이를 이동한다</a>
+        <a href="#layer-2-hidden-state-layer-2-kv-cache">Layer 2에서는 과거 Hidden State 대신 Layer 2 KV Cache를 사용한다</a>
+        <a href="#q">그렇다면 과거 Q는 어디로 갔는가</a>
+        <a href="#full-forward-cached-decode">Full Forward와 Cached Decode는 마지막 위치에서 같은 계산을 한다</a>
+        <a href="#token">문맥을 마지막 Token 하나에 전부 저장해서 전달하는 것은 아니다</a>
+        <a href="#full-forward-prefill-decode">Full Forward와 Prefill·Decode의 차이</a>
+        <a href="#full-forward-2">Full Forward</a>
+        <a href="#prefill-kv-cache-decode">Prefill + KV Cache Decode</a>
+        <a href="#kv-cache">결국 KV Cache가 절약하는 것은 무엇인가</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Transformer의 Autoregressive Generation을 처음 이해할 때는 보통 다음과 같이 생각하게 된다.</p>
+<pre><code class="language-text">x1 x2 x3 x4
+→ Transformer
+→ x5 예측
+
+x1 x2 x3 x4 x5
+→ Transformer
+→ x6 예측
+
+x1 x2 x3 x4 x5 x6
+→ Transformer
+→ x7 예측
+</code></pre>
+<p>새로운 토큰이 하나 생성될 때마다 지금까지 존재하는 모든 토큰을 다시 Transformer에 넣고 전체 문맥을 계산하는 방식이다.</p>
+<p>이를 <strong>Full Forward 방식</strong>이라고 생각할 수 있다.</p>
+<p>그런데 실제 LLM 추론에서는 KV Cache를 사용하면서 조금 다른 방식으로 동작한다.</p>
+<pre><code class="language-text">x1 x2 x3 x4
+→ Prefill
+→ x5 예측
+
+x5
+→ Decode
+→ x6 예측
+
+x6
+→ Decode
+→ x7 예측
+</code></pre>
+<p>처음 Prompt는 전체를 처리하지만, 그다음부터는 새롭게 생성된 토큰 하나만 Transformer에 넣는다.</p>
+<p>처음 이 구조를 보면 의문이 생긴다.</p>
+<blockquote>
+<p>Full Forward에서는 과거 모든 토큰의 Q/K/V와 Hidden State를 계속 다시 계산하는데, Decode에서는 마지막 토큰 하나만 계산하고도 어떻게 기존 문맥을 잃지 않는가?</p>
+</blockquote>
+<p>이 질문을 이해하려면 먼저 <strong>Transformer가 실제로 다음 토큰을 예측할 때 무엇을 사용하는지</strong>, 그리고 <strong>Hidden State가 Transformer Layer를 어떻게 통과하는지</strong>부터 볼 필요가 있다.</p>
+<hr>
+</div>
+        <section id="hidden-state" class="markdown-section">
+<h2>다음 토큰 예측에 직접 사용되는 것은 마지막 위치의 Hidden State다</h2>
+<p>현재 시퀀스가 다음과 같다고 하자.</p>
+<pre><code class="language-text">x1 x2 x3 x4
+</code></pre>
+<p>Transformer의 마지막 Layer를 통과하면 각 토큰 위치에 대응하는 Hidden State가 만들어진다.</p>
+<pre><code class="language-text">h1 h2 h3 h4
+</code></pre>
+<p>Decoder-only Transformer에는 Causal Attention이 적용되므로 각 위치는 자신보다 앞에 있는 토큰만 볼 수 있다.</p>
+<p>따라서 개념적으로 보면:</p>
+<pre><code class="language-text">h1 = x1까지 반영된 표현
+h2 = x1~x2까지 반영된 표현
+h3 = x1~x3까지 반영된 표현
+h4 = x1~x4까지 반영된 표현
+</code></pre>
+<p>이 된다.</p>
+<p>다음 토큰 <code>x5</code>를 예측할 때 LM Head에 직접 사용되는 것은 마지막 위치의 <code>h4</code>다.</p>
+<pre><code class="language-text">h4
+↓
+LM Head
+↓
+Vocab Size 크기의 Logits
+↓
+x5 선택
+</code></pre>
+<p>즉 다음 토큰 예측의 최종 목표는 다음과 같이 생각할 수 있다.</p>
+<pre><code class="language-text">현재 시퀀스
+↓
+마지막 위치의 최종 Layer Hidden State
+↓
+LM Head
+↓
+다음 Token
+</code></pre>
+<p>앞에 있는 <code>h1</code>, <code>h2</code>, <code>h3</code>가 LM Head의 다음 토큰 예측에 직접 사용되는 것은 아니다.</p>
+<p>하지만 그렇다고 이 Hidden State들이 계산 과정에서 필요 없는 것은 아니다.</p>
+<hr>
+
+</section>
+<section id="hidden-state-2" class="markdown-section">
+<h2>Hidden State는 하나가 아니라 토큰 위치마다 존재한다</h2>
+<p>Transformer에서 Hidden State를 하나의 벡터라고만 생각하면 구조가 헷갈릴 수 있다.</p>
+<p>실제로는 각 토큰 위치마다 Hidden State가 존재한다.</p>
+<pre><code class="language-text">x1 x2 x3 x4
+↓
+Embedding
+↓
+e1 e2 e3 e4
+</code></pre>
+<p>첫 번째 Transformer Layer를 통과하면 각 위치에 대응하는 새로운 표현이 만들어진다.</p>
+<pre><code class="language-text">e1 e2 e3 e4
+↓
+Transformer Layer 1
+↓
+h1 h2 h3 h4
+</code></pre>
+<p>그리고 Transformer Layer가 여러 개라면 이 <code>h1~h4</code>가 그대로 다음 Layer의 입력이 된다.</p>
+<pre><code class="language-text">Layer 1
+
+h1 h2 h3 h4
+       ↓
+       ↓
+
+Layer 2 입력
+</code></pre>
+<p>Layer 2는 이 Hidden State들로 다시 Q/K/V를 만든다.</p>
+<pre><code class="language-text">h1 → q1, k1, v1
+h2 → q2, k2, v2
+h3 → q3, k3, v3
+h4 → q4, k4, v4
+</code></pre>
+<p>그리고 다시 Attention과 FFN 등을 수행해서 새로운 Hidden State를 만든다.</p>
+<pre><code class="language-text">h1&#39; h2&#39; h3&#39; h4&#39;
+</code></pre>
+<p>그 결과가 다시 다음 Layer의 입력이 된다.</p>
+<p>따라서 전체 구조는 다음과 같다.</p>
+<pre><code class="language-text">Token
+↓
+Embedding
+
+↓ Layer 1
+각 Token의 Q/K/V
+→ 각 Token의 Hidden State
+
+↓ Layer 2
+각 Hidden State로 다시 Q/K/V
+→ 새로운 Hidden State
+
+↓ Layer 3
+다시 Q/K/V
+→ 새로운 Hidden State
+
+↓
+...
+
+↓
+마지막 위치의 최종 Hidden State
+↓
+LM Head
+↓
+다음 Token
+</code></pre>
+<p>즉 Hidden State는 하나만 존재하는 것이 아니다.</p>
+<p><strong>각 토큰 위치마다 Hidden State가 존재하고, 이 토큰별 Hidden State 전체가 다음 Layer의 입력이 된다.</strong></p>
+<p>레이어가 올라갈수록 각 토큰의 표현은 이전 Layer에서 만들어진 문맥 정보를 다시 입력으로 받아 더 가공된다.</p>
+<hr>
+
+</section>
+<section id="full-forward-token" class="markdown-section">
+<h2>Full Forward에서는 다음 Token을 만들 때 전체를 다시 계산한다</h2>
+<p>KV Cache가 없는 Autoregressive Generation을 생각해보자.</p>
+<p>처음 입력이:</p>
+<pre><code class="language-text">x1 x2 x3 x4
+</code></pre>
+<p>라면 모든 Layer에서 전체 시퀀스를 처리한다.</p>
+<pre><code class="language-text">x1 x2 x3 x4
+
+↓ Layer 1
+전체 Q/K/V
+→ h1 h2 h3 h4
+
+↓ Layer 2
+전체 Q/K/V
+→ h1&#39; h2&#39; h3&#39; h4&#39;
+
+↓
+...
+
+↓
+마지막 h4
+↓
+LM Head
+↓
+x5
+</code></pre>
+<p>이제 <code>x5</code>가 만들어졌다.</p>
+<p>KV Cache를 사용하지 않는다면 다음 <code>x6</code>을 예측하기 위해:</p>
+<pre><code class="language-text">x1 x2 x3 x4 x5
+</code></pre>
+<p>전체를 다시 모델에 넣는다.</p>
+<pre><code class="language-text">x1 x2 x3 x4 x5
+
+↓ Layer 1
+q1~q5
+k1~k5
+v1~v5
+
+→ h1~h5
+
+↓ Layer 2
+q1~q5
+k1~k5
+v1~v5
+
+→ 새로운 h1~h5
+
+↓
+...
+
+↓
+마지막 h5
+↓
+LM Head
+↓
+x6
+</code></pre>
+<p>그런데 실제 <code>x6</code> 예측에 직접 사용하는 것은 마지막 위치의 최종 <code>h5</code>뿐이다.</p>
+<p>Full Forward는 <code>h5</code>를 얻는 과정에서 과거의:</p>
+<pre><code class="language-text">h1
+h2
+h3
+h4
+</code></pre>
+<p>까지 다시 계산한다.</p>
+<hr>
+
+</section>
+<section id="full-forward" class="markdown-section">
+<h2>Full Forward에서 어떤 계산이 중복되는가</h2>
+<p><code>x5</code>가 새롭게 추가되었다고 해서 과거 위치의 Causal Attention 결과가 달라지는 것은 아니다.</p>
+<p>예를 들어 Layer 1의 Attention은:</p>
+<pre><code class="language-text">q1 → k1
+
+q2 → k1 k2
+
+q3 → k1 k2 k3
+
+q4 → k1 k2 k3 k4
+
+q5 → k1 k2 k3 k4 k5
+</code></pre>
+<p>와 같은 형태다.</p>
+<p><code>x5</code>가 추가되더라도:</p>
+<pre><code class="language-text">q1
+q2
+q3
+q4
+</code></pre>
+<p>가 미래의 <code>x5</code>를 볼 수는 없다.</p>
+<p>따라서 과거 위치의 계산은 이전과 동일하다.</p>
+<p>그럼에도 Full Forward에서는:</p>
+<pre><code class="language-text">과거 Hidden State 다시 계산
+→ 다음 Layer의 과거 Q/K/V 다시 계산
+→ 다시 Hidden State 계산
+→ ...
+</code></pre>
+<p>을 반복한다.</p>
+<p>Autoregressive Decode에서는 이것이 중복 연산이 된다.</p>
+<p>여기서 자연스럽게 다음 질문이 생긴다.</p>
+<blockquote>
+<p>그렇다면 과거 Hidden State를 매번 다시 만들지 않으려면 무엇을 보관해야 할까?</p>
+</blockquote>
+<hr>
+
+</section>
+<section id="layer-hidden-state" class="markdown-section">
+<h2>다음 Layer에서 과거 Hidden State가 필요한 이유</h2>
+<p>예를 들어 Layer 1에서:</p>
+<pre><code class="language-text">h1 h2 h3 h4 h5
+</code></pre>
+<p>가 만들어졌다고 하자.</p>
+<p>Layer 2에서는 이 값들을 입력으로 받아 다시 Q/K/V를 만든다.</p>
+<pre><code class="language-text">h1 → q1, k1, v1
+h2 → q2, k2, v2
+h3 → q3, k3, v3
+h4 → q4, k4, v4
+h5 → q5, k5, v5
+</code></pre>
+<p>그런데 Layer 2에서 마지막 위치 <code>h5</code>를 계산할 때 실제로 필요한 것은 과거 <code>h1~h4</code> 자체가 아니다.</p>
+<p>Attention에 직접 필요한 것은:</p>
+<pre><code class="language-text">현재 q5
++
+과거 k1~k4
++
+과거 v1~v4
+</code></pre>
+<p>이다.</p>
+<p>즉 과거 Hidden State를 다시 계산한 뒤 다시 K/V Projection까지 수행하는 대신,</p>
+<p><strong>그 Hidden State에서 이미 계산해두었던 K/V를 보관하고 있다면 과거 계산 전체를 다시 수행할 필요가 없다.</strong></p>
+<p>이것이 KV Cache가 필요한 이유다.</p>
+<hr>
+
+</section>
+<section id="kv-cache-hidden-state" class="markdown-section">
+<h2>KV Cache는 Hidden State 자체를 저장하지 않는다</h2>
+<p>어떤 Layer의 입력 Hidden State가:</p>
+<pre><code class="language-text">H = [h1, h2, h3, h4]
+</code></pre>
+<p>라면 그 Layer에서는:</p>
+<pre><code class="language-text">Q = H @ Wq
+K = H @ Wk
+V = H @ Wv
+</code></pre>
+<p>를 수행한다.</p>
+<p>그리고 이 중:</p>
+<pre><code class="language-text">K
+V
+</code></pre>
+<p>를 Cache에 저장한다.</p>
+<p>즉:</p>
+<pre><code class="language-text">Hidden State 자체       저장 X
+Q Projection 결과       저장 X
+K Projection 결과       저장 O
+V Projection 결과       저장 O
+</code></pre>
+<p>이다.</p>
+<p>과거 Hidden State를 그대로 저장하는 것이 아니라, <strong>미래의 Query가 해당 과거 위치를 Attention할 때 직접 필요한 형태인 K/V로 변환해서 저장하는 것</strong>이다.</p>
+<hr>
+
+</section>
+<section id="kv-cache-layer" class="markdown-section">
+<h2>KV Cache는 Layer마다 따로 존재한다</h2>
+<p>모든 Layer가 같은 KV Cache를 공유하는 것도 아니다.</p>
+<p>예를 들어 Transformer Layer가 3개라면:</p>
+<pre><code class="language-text">Layer 1 KV Cache
+
+Layer 2 KV Cache
+
+Layer 3 KV Cache
+</code></pre>
+<p>가 각각 존재한다.</p>
+<p>왜냐하면 각 Layer에 들어오는 Hidden State가 서로 다르기 때문이다.</p>
+<p>Layer 1은 Embedding에 가까운 Hidden State를 입력받는다.</p>
+<pre><code class="language-text">Embedding
+↓
+Layer 1 입력
+↓
+Layer 1 K/V
+</code></pre>
+<p>반면 Layer 2는 Layer 1이 Attention과 FFN을 수행한 결과를 입력받는다.</p>
+<pre><code class="language-text">Layer 1 출력 Hidden State
+↓
+Layer 2 입력
+↓
+Layer 2 K/V
+</code></pre>
+<p>따라서 Layer 2의 KV Cache에는 <strong>Layer 1에서 이미 처리된 문맥 정보가 반영된 Hidden State를 K/V Projection한 결과</strong>가 들어간다.</p>
+<p>Layer 3도 마찬가지다.</p>
+<pre><code class="language-text">Layer 1 처리
+↓
+Layer 2 처리
+↓
+Layer 3 K/V
+</code></pre>
+<p>즉 Layer가 올라갈수록 이전 Transformer Layer에서 가공된 표현을 기반으로 K/V가 만들어진다.</p>
+<hr>
+
+</section>
+<section id="prefill-layer-k-v" class="markdown-section">
+<h2>Prefill은 이 Layer별 K/V를 처음 만들어두는 단계다</h2>
+<p>KV Cache를 사용하는 추론에서는 처음 Prompt를 처리할 때 <strong>Prefill</strong>을 수행한다.</p>
+<p>Prompt가:</p>
+<pre><code class="language-text">x1 x2 x3 x4
+</code></pre>
+<p>라면 Prefill에서는 Full Forward와 마찬가지로 <strong>모든 Layer에서 Prompt 전체를 계산한다.</strong></p>
+<pre><code class="language-text">x1 x2 x3 x4
+
+↓ Layer 1
+전체 Q/K/V
+→ 전체 Hidden State
+→ Layer 1 K/V 저장
+
+↓ Layer 2
+전체 Q/K/V
+→ 전체 Hidden State
+→ Layer 2 K/V 저장
+
+↓ Layer 3
+전체 Q/K/V
+→ 전체 Hidden State
+→ Layer 3 K/V 저장
+
+↓
+...
+
+↓
+마지막 h4
+↓
+LM Head
+↓
+x5
+</code></pre>
+<p>즉 Prefill 자체에서는:</p>
+<pre><code class="language-text">모든 Prompt Token
+×
+모든 Transformer Layer
+</code></pre>
+<p>를 계산한다.</p>
+<p>이 과정에서 각 Layer마다 이후 Decode에서 사용할 과거 K/V가 준비된다.</p>
+<hr>
+
+</section>
+<section id="prefill-decode" class="markdown-section">
+<h2>Prefill 이후에는 Decode가 시작된다</h2>
+<p>Prefill이 끝나서:</p>
+<pre><code class="language-text">x1 x2 x3 x4
+</code></pre>
+<p>로부터 <code>x5</code>를 생성했다고 하자.</p>
+<p>이제 <code>x6</code>을 예측해야 한다.</p>
+<p>Full Forward라면:</p>
+<pre><code class="language-text">x1 x2 x3 x4 x5
+</code></pre>
+<p>전체를 다시 계산한다.</p>
+<p>하지만 KV Cache를 사용하는 Decode에서는 <strong>x5 하나만 입력한다.</strong></p>
+<pre><code class="language-text">x5
+↓
+Embedding
+↓
+현재 x5의 Hidden State
+</code></pre>
+<p>따라서 Decode 시작 시 Hidden State의 Shape은:</p>
+<pre><code class="language-text">[B, 1, d_model]
+</code></pre>
+<p>이다.</p>
+<hr>
+
+</section>
+<section id="decode-token-hidden-state-layer" class="markdown-section">
+<h2>Decode에서는 새 Token 하나의 Hidden State만 Layer 사이를 이동한다</h2>
+<p>Layer 1에서는 현재 <code>x5</code> Hidden State로 새 Q/K/V를 만든다.</p>
+<pre><code class="language-text">x5 Hidden
+↓
+q5
+k5
+v5
+</code></pre>
+<p>과거 <code>x1~x4</code>에 대한 K/V는 Prefill 때 이미 저장되어 있다.</p>
+<pre><code class="language-text">Layer 1 KV Cache
+
+k1 k2 k3 k4
+v1 v2 v3 v4
+</code></pre>
+<p>따라서:</p>
+<pre><code class="language-text">q5
++
+[k1 k2 k3 k4 k5]
++
+[v1 v2 v3 v4 v5]
+</code></pre>
+<p>로 Attention을 수행한다.</p>
+<p>그 결과 현재 <code>x5</code> 위치의 새로운 Hidden State 하나가 만들어진다.</p>
+<pre><code class="language-text">h5
+</code></pre>
+<p>그리고 <strong>이 h5 하나만 Layer 2로 전달한다.</strong></p>
+<hr>
+
+</section>
+<section id="layer-2-hidden-state-layer-2-kv-cache" class="markdown-section">
+<h2>Layer 2에서는 과거 Hidden State 대신 Layer 2 KV Cache를 사용한다</h2>
+<p>Full Forward라면 Layer 1에서:</p>
+<pre><code class="language-text">h1 h2 h3 h4 h5
+</code></pre>
+<p>전체를 만들어 Layer 2로 전달한다.</p>
+<p>그러나 Cached Decode에서는:</p>
+<pre><code class="language-text">h5
+</code></pre>
+<p>하나만 Layer 2로 전달한다.</p>
+<p>여기서 가장 큰 의문이 생긴다.</p>
+<blockquote>
+<p><code>h1~h4</code>가 Layer 2로 넘어오지 않는데 과거 문맥이 사라지는 것은 아닐까?</p>
+</blockquote>
+<p>Layer 2에 들어온 현재 <code>h5</code>는 새로운:</p>
+<pre><code class="language-text">q5
+k5
+v5
+</code></pre>
+<p>를 만든다.</p>
+<p>그리고 Prefill 당시 이미 만들어둔 <strong>Layer 2 전용 KV Cache</strong>를 가져온다.</p>
+<pre><code class="language-text">Layer 2 Cache
+
+k1 k2 k3 k4
+v1 v2 v3 v4
+</code></pre>
+<p>이 Layer 2 Cache의 <code>k1~k4</code>, <code>v1~v4</code>는 단순한 원본 Embedding에서 만들어진 값이 아니다.</p>
+<p>Prefill 당시 이미:</p>
+<pre><code class="language-text">Layer 1
+
+q1~q4 Attention
+↓
+h1~h4
+↓
+Layer 2 입력
+↓
+Layer 2 K/V Projection
+↓
+Layer 2 KV Cache
+</code></pre>
+<p>라는 과정을 거쳤다.</p>
+<p>따라서 Layer 1에서 과거 토큰들이 만들어낸 문맥 처리 결과는 <strong>Layer 2의 K/V Cache에 반영되어 있다.</strong></p>
+<p>Decode에서는:</p>
+<pre><code class="language-text">현재 h5
+↓
+Layer 2 q5,k5,v5
+
++
+
+Layer 2 cached K1~K4,V1~V4
+
+↓
+새로운 h5
+</code></pre>
+<p>를 계산한다.</p>
+<p>이 과정을 모든 Layer에서 반복한다.</p>
+<pre><code class="language-text">x5
+↓
+Embedding
+
+↓ Layer 1
+새 x5 Q/K/V
++ Layer 1 과거 KV
+→ h5
+
+↓ Layer 2
+새 h5의 Q/K/V
++ Layer 2 과거 KV
+→ 더 가공된 h5
+
+↓ Layer 3
+새 Q/K/V
++ Layer 3 과거 KV
+→ 더 가공된 h5
+
+↓
+...
+
+↓
+최종 x5 Hidden
+↓
+LM Head
+↓
+x6
+</code></pre>
+<hr>
+
+</section>
+<section id="q" class="markdown-section">
+<h2>그렇다면 과거 Q는 어디로 갔는가</h2>
+<p>Prefill에서는 분명:</p>
+<pre><code class="language-text">q1
+q2
+q3
+q4
+</code></pre>
+<p>를 모두 계산했다.</p>
+<p>이전 Q들은 각 위치의 Hidden State를 만드는 데 사용된다.</p>
+<pre><code class="language-text">q1 → h1
+q2 → h2
+q3 → h3
+q4 → h4
+</code></pre>
+<p>그리고:</p>
+<pre><code class="language-text">h1 h2 h3 h4
+</code></pre>
+<p>는 다음 Layer로 전달된다.</p>
+<p>다음 Layer에서는 이 Hidden State들로 새로운 K/V를 만든다.</p>
+<pre><code class="language-text">h1 → k1,v1
+h2 → k2,v2
+h3 → k3,v3
+h4 → k4,v4
+</code></pre>
+<p>그리고 이것들을 해당 Layer의 KV Cache에 저장한다.</p>
+<p>즉 과거 Q의 역할을 추적하면:</p>
+<pre><code class="language-text">과거 Q
+↓
+과거 Token의 Hidden State 생성
+↓
+다음 Layer의 입력
+↓
+다음 Layer의 K/V 생성
+↓
+다음 Layer KV Cache 저장
+</code></pre>
+<p>이 된다.</p>
+<p>따라서 Decode에서는 과거 Hidden State를 다시 만들 필요가 없다.</p>
+<p>그리고 과거 Hidden State를 다시 만들 필요가 없으므로:</p>
+<pre><code class="language-text">q1
+q2
+q3
+q4
+</code></pre>
+<p>도 다시 계산할 필요가 없다.</p>
+<hr>
+
+</section>
+<section id="full-forward-cached-decode" class="markdown-section">
+<h2>Full Forward와 Cached Decode는 마지막 위치에서 같은 계산을 한다</h2>
+<p>이제 두 방식을 직접 비교할 수 있다.</p>
+<p>예를 들어 Layer 1에서 <code>x5</code>의 Hidden State를 계산한다고 하자.</p>
+<p>Full Forward에서도 마지막 위치의 계산은:</p>
+<pre><code class="language-text">h5 =
+Attention(
+    q5,
+    [k1,k2,k3,k4,k5],
+    [v1,v2,v3,v4,v5]
+)
+</code></pre>
+<p>이다.</p>
+<p>Cached Decode에서도:</p>
+<pre><code class="language-text">h5 =
+Attention(
+    q5,
+    [cached k1,k2,k3,k4 + k5],
+    [cached v1,v2,v3,v4 + v5]
+)
+</code></pre>
+<p>이다.</p>
+<p>사용되는 값은 같다.</p>
+<p>Full Forward에서는 추가로:</p>
+<pre><code class="language-text">h1
+h2
+h3
+h4
+</code></pre>
+<p>까지 다시 계산할 뿐이다.</p>
+<p>Cached Decode에서는 현재 다음 토큰 예측에 필요한 마지막 위치의 <code>h5</code>만 계산한다.</p>
+<p>그리고 상위 Layer에서도 같은 원리가 반복된다.</p>
+<p>Full Forward는 과거 Hidden State를 다시 만들어 K/V를 다시 계산하고,</p>
+<p>Cached Decode는 Prefill에서 이미 만들어둔 해당 Layer의 K/V를 가져온다.</p>
+<p>따라서 두 방식 모두 최종적으로 같은 마지막 위치의 Hidden State를 만드는 것을 목표로 한다.</p>
+<hr>
+
+</section>
+<section id="token" class="markdown-section">
+<h2>문맥을 마지막 Token 하나에 전부 저장해서 전달하는 것은 아니다</h2>
+<p>여기서 한 가지 주의할 점이 있다.</p>
+<p>Cached Decode를 다음과 같이 이해하면 안 된다.</p>
+<pre><code class="language-text">h5 하나 안에 모든 과거 문맥이 완전히 압축되어 있으므로
+과거 정보가 더 이상 필요하지 않다.
+</code></pre>
+<p>정확한 구조는:</p>
+<pre><code class="language-text">현재 Token Hidden 하나
++
+각 Layer의 과거 KV Cache
+</code></pre>
+<p>이다.</p>
+<p>현재 Token의 Hidden State는 Layer를 올라갈 때마다 각 Layer에 저장된 과거 K/V를 다시 Attention한다.</p>
+<pre><code class="language-text">현재 h5
+↓
+Layer 1 과거 KV 조회
+↓
+새로운 h5
+
+↓
+Layer 2 과거 KV 조회
+↓
+더 가공된 h5
+
+↓
+Layer 3 과거 KV 조회
+↓
+더 가공된 h5
+</code></pre>
+<p>즉 <strong>새 Token의 Hidden State 하나가 Layer별 과거 KV Cache를 계속 조회하면서 문맥을 누적해가는 구조</strong>다.</p>
+<hr>
+
+</section>
+<section id="full-forward-prefill-decode" class="markdown-section">
+<h2>Full Forward와 Prefill·Decode의 차이</h2>
+<p>두 방식 모두 최종 목표는 같다.</p>
+<pre><code class="language-text">마지막 위치의 최종 Hidden State
+↓
+LM Head
+↓
+다음 Token
+</code></pre>
+<p>차이는 그 마지막 Hidden State를 어떻게 계산하느냐다.</p>
+
+</section>
+<section id="full-forward-2" class="markdown-section">
+<h2>Full Forward</h2>
+<p>토큰이 추가될 때마다 전체를 다시 계산한다.</p>
+<pre><code class="language-text">x1 x2 x3 x4 x5
+
+↓ Layer 1
+모든 Token Q/K/V
+→ 모든 Hidden State
+
+↓ Layer 2
+모든 Token Q/K/V
+→ 모든 Hidden State
+
+↓
+...
+
+→ 마지막 h5
+→ x6
+</code></pre>
+
+</section>
+<section id="prefill-kv-cache-decode" class="markdown-section">
+<h2>Prefill + KV Cache Decode</h2>
+<p>처음 Prompt에서는 전체를 계산한다.</p>
+<pre><code class="language-text">Prefill:
+
+x1 x2 x3 x4
+↓
+모든 Layer에서 전체 Q/K/V
+↓
+각 Layer K/V Cache 저장
+↓
+x5 생성
+</code></pre>
+<p>그 이후에는 새로운 토큰 하나만 처리한다.</p>
+<pre><code class="language-text">Decode:
+
+x5
+↓
+각 Layer에서 새 x5 Q/K/V만 계산
++
+각 Layer의 과거 KV Cache
+↓
+최종 h5
+↓
+x6
+</code></pre>
+<p>다음에는:</p>
+<pre><code class="language-text">x6
+↓
+새 q6/k6/v6
++
+누적된 K/V Cache
+↓
+최종 h6
+↓
+x7
+</code></pre>
+<p>가 된다.</p>
+<hr>
+
+</section>
+<section id="kv-cache" class="markdown-section">
+<h2>결국 KV Cache가 절약하는 것은 무엇인가</h2>
+<p>KV Cache는 단순히 K Projection과 V Projection 연산 두 개만 아끼는 기술이라고 생각하면 부족하다.</p>
+<p>핵심은 <strong>과거 토큰의 Hidden State를 다시 계산할 필요 자체를 없애는 것</strong>이다.</p>
+<p>Full Forward에서는:</p>
+<pre><code class="language-text">과거 Token
+↓
+과거 Q/K/V 재계산
+↓
+과거 Hidden State 재계산
+↓
+다음 Layer에서 다시 Q/K/V
+↓
+...
+</code></pre>
+<p>를 토큰 생성마다 반복한다.</p>
+<p>KV Cache에서는 Prefill 때:</p>
+<pre><code class="language-text">각 Layer의 과거 K/V
+</code></pre>
+<p>를 미리 만들어 보존해두기 때문에 Decode에서는:</p>
+<pre><code class="language-text">현재 Token Hidden 하나
++
+Layer별 과거 KV Cache
+</code></pre>
+<p>만 가지고 계속 앞으로 진행할 수 있다.</p>
+<p>따라서 Decode 동안 Sequence 방향으로 커지는 것은 현재 Hidden State가 아니다.</p>
+<p>현재 Hidden State는 계속:</p>
+<pre><code class="language-text">[B, 1, D]
+</code></pre>
+<p>이다.</p>
+<p>대신 KV Cache의 Sequence 길이가 증가한다.</p>
+<pre><code class="language-text">Prompt 4 tokens
+
+K/V length = 4
+
+x5 처리 후
+K/V length = 5
+
+x6 처리 후
+K/V length = 6
+
+x7 처리 후
+K/V length = 7
+</code></pre>
+<hr>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>Decoder-only Transformer에서 다음 토큰 예측에 직접 사용하는 것은 <strong>마지막 위치의 최종 Layer Hidden State</strong>다.</p>
+<p>Full Forward 방식에서는 새로운 토큰이 생성될 때마다 전체 Sequence를 다시 모든 Transformer Layer에 통과시키며, 각 Token 위치의 Hidden State와 Q/K/V를 반복해서 계산한다.</p>
+<p>하지만 최종 다음 토큰 예측에 직접 필요한 것은 마지막 위치의 Hidden State뿐이다.</p>
+<p>Full Forward가 과거 위치까지 다시 계산하는 이유는 다음 Layer에서 과거 위치의 K/V가 다시 필요하기 때문이다.</p>
+<p>Prefill-Decode 구조에서는 이 중복 계산을 제거한다.</p>
+<p>Prefill에서는 Prompt 전체를 모든 Layer에 통과시키면서 각 Layer의 전체 Hidden State를 만들고, 각 Layer에 들어온 과거 Hidden State를 K/V Projection해서 얻은 값을 Layer별 KV Cache에 저장한다.</p>
+<p>이후 Decode에서는 새로운 Token 하나의 Hidden State만 Layer 사이를 전달한다.</p>
+<p>각 Layer에서는 현재 Token의 Q/K/V만 새롭게 계산하고, 과거 Token에 대해서는 Prefill에서 이미 만들어둔 해당 Layer의 K/V를 Cache에서 가져온다.</p>
+<p>과거 Q는 이미 과거 Token의 Hidden State를 만드는 데 사용되었고, 그 Hidden State를 통해 다음 Layer에서 필요한 K/V 역시 Prefill 과정에서 이미 계산되어 Cache에 저장되어 있다.</p>
+<p>따라서 Decode에서 과거 Hidden State와 과거 Q를 다시 계산할 필요가 없다.</p>
+<p>결국:</p>
+<pre><code class="language-text">Full Forward
+= 모든 Token의 과거 계산까지 반복해서
+  마지막 Hidden State를 다시 만든다.
+
+Prefill + Decode
+= 과거 Layer별 K/V를 저장해두고
+  새 Token의 Hidden State만 증분 계산해서
+  같은 마지막 Hidden State를 만든다.
+</code></pre>
+<p>라고 볼 수 있다.</p>
+<p>즉 KV Cache를 사용하는 Prefill-Decode는 <strong>문맥 정보를 생략해서 빨라지는 구조가 아니라, 과거 문맥 계산에서 미래 Attention에 다시 필요한 K/V만 Layer별로 보존함으로써 동일한 마지막 위치 계산을 중복 없이 수행하는 구조</strong>다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

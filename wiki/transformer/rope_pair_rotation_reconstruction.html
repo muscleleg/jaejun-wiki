@@ -1,0 +1,240 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/rope_pair_rotation_reconstruction.md. Do not edit directly. source-sha256:8182654f998f3e4ae88a847d14c7afe41bd051d71faa5bbb8f0d789c524deef9 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RoPE가 Q·K Projection 결과를 Head별 차원쌍으로 회전한 뒤 Shape을 유지한 채 원래 배열로 재구성해 상대 위치를 Attention Score에 반영하는 흐름을 설명한다.">
+  <meta name="source-sha256" content="8182654f998f3e4ae88a847d14c7afe41bd051d71faa5bbb8f0d789c524deef9">
+  <title>RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다">
+  <meta property="og:description" content="RoPE가 Q·K Projection 결과를 Head별 차원쌍으로 회전한 뒤 Shape을 유지한 채 원래 배열로 재구성해 상대 위치를 Attention Score에 반영하는 흐름을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html","name":"RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다","description":"RoPE가 Q·K Projection 결과를 Head별 차원쌍으로 회전한 뒤 Shape을 유지한 채 원래 배열로 재구성해 상대 위치를 Attention Score에 반영하는 흐름을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html"},"headline":"RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-attention-score","name":"Score·Scaling·Mask","identifier":"topics-attention-score"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-attention","name":"Attention","identifier":"topics-attention"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-attention-score","name":"Score","identifier":"transformer-attention-score"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-attention","name":"Scaled Dot-Product Attention","identifier":"transformer-attention"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/rope_pair_rotation_reconstruction.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Scaled Dot-Product Attention","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_learning.html"},{"@type":"ListItem","position":6,"name":"Scaled Dot-Product Attention의 계산 흐름","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_attention_math_learning.html"},{"@type":"ListItem","position":7,"name":"RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_learning.html">Scaled Dot-Product Attention</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_attention_math_learning.html">Scaled Dot-Product Attention의 계산 흐름</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>RoPE는 Q·K 벡터를 차원쌍으로 회전한 뒤 원래 배열로 되돌린다</h1>
+      <p class="lead">RoPE가 Q·K Projection 결과를 Head별 차원쌍으로 회전한 뒤 Shape을 유지한 채 원래 배열로 재구성해 상대 위치를 Attention Score에 반영하는 흐름을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#q-k-projection-rope">Q·K Projection 결과에 RoPE를 적용한다</a>
+        <a href="#head">한 Head의 벡터를 차원쌍으로 나눈다</a>
+        <a href="#section-1cff602cce2a">각 차원쌍을 회전한다</a>
+        <a href="#section-e24e9e4ccd55">회전된 값을 원래 벡터 배열로 되돌린다</a>
+        <a href="#rope-tensor-shape">RoPE를 적용해도 Tensor Shape은 변하지 않는다</a>
+        <a href="#q-k-attention-score">회전된 Q와 K로 Attention Score를 계산한다</a>
+        <a href="#gqa">GQA와는 서로 다른 역할이다</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>RoPE(Rotary Position Embedding)는 토큰의 위치 정보를 Q와 K에 반영하는 방법이다.</p>
+<p>RoPE는 Head 개수를 줄이거나 벡터 차원을 축소하는 기술이 아니다. Q·K Projection으로 만든 벡터를 차원쌍으로 나누어 회전한 뒤, 다시 원래 벡터 형태로 배치한다.</p>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-css">Hidden State
+→ Q·K·V Projection
+→ Head로 나누기
+→ 각 Head의 Q·K 벡터에 RoPE 적용
+→ 회전된 Q·K로 Attention Score 계산
+</code></pre>
+</div>
+        <section id="q-k-projection-rope" class="markdown-section">
+<h2>Q·K Projection 결과에 RoPE를 적용한다</h2>
+<p>Transformer는 Hidden State를 Q·K·V Projection에 통과시킨다.</p>
+<pre><code class="language-ini">query = query_projection(hidden_states)
+key = key_projection(hidden_states)
+value = value_projection(hidden_states)
+</code></pre>
+<p>그다음 결과를 여러 Head로 나눈다.</p>
+<pre><code class="language-yaml">Q: [Batch, Q Head, Sequence, Head Dimension]
+K: [Batch, KV Head, Sequence, Head Dimension]
+V: [Batch, KV Head, Sequence, Head Dimension]
+</code></pre>
+<p>RoPE는 이 중 Q와 K에만 적용한다. V에는 일반적으로 적용하지 않는다.</p>
+<pre><code>Q → RoPE 적용
+K → RoPE 적용
+V → 그대로 유지
+</code></pre>
+
+</section>
+<section id="head" class="markdown-section">
+<h2>한 Head의 벡터를 차원쌍으로 나눈다</h2>
+<p>한 Head의 Q 벡터가 다음과 같다고 해보자.</p>
+<pre><code class="language-ini">Q = [q₀, q₁, q₂, q₃]
+</code></pre>
+<p>RoPE는 이 벡터를 2차원 차원쌍으로 본다.</p>
+<pre><code class="language-css">(q₀, q₁)
+(q₂, q₃)
+</code></pre>
+<p>각 차원쌍은 하나의 2차원 벡터가 된다.</p>
+<p>토큰의 위치가 달라지면 차원쌍에 적용되는 회전 각도도 달라진다.</p>
+<pre><code>회전 각도 = 토큰 위치 × 차원쌍별 회전 속도
+</code></pre>
+<p>각 차원쌍은 서로 다른 회전 속도를 사용할 수 있다. 덕분에 하나의 Q·K 벡터 안에 여러 주기의 위치 정보가 들어간다.</p>
+
+</section>
+<section id="section-1cff602cce2a" class="markdown-section">
+<h2>각 차원쌍을 회전한다</h2>
+<p>2차원 벡터 <code>(x, y)</code>를 각도 <code>θ</code>만큼 회전하는 공식은 다음과 같다.</p>
+<pre><code class="language-cpp">x′ = x cos(θ) - y sin(θ)
+y′ = x sin(θ) + y cos(θ)
+</code></pre>
+<p>이를 Q 벡터의 각 차원쌍에 적용한다.</p>
+<pre><code class="language-css">(q₀, q₁) → (q₀′, q₁′)
+(q₂, q₃) → (q₂′, q₃′)
+</code></pre>
+<p>K 벡터도 같은 방식으로 회전한다.</p>
+<pre><code class="language-scss">(k₀, k₁) → (k₀′, k₁′)
+(k₂, k₃) → (k₂′, k₃′)
+</code></pre>
+
+</section>
+<section id="section-e24e9e4ccd55" class="markdown-section">
+<h2>회전된 값을 원래 벡터 배열로 되돌린다</h2>
+<p>회전이 끝나면 각 차원쌍을 원래 순서대로 다시 배치한다.</p>
+<pre><code class="language-css">회전 전 Q
+[q₀, q₁, q₂, q₃]
+
+차원쌍 회전
+(q₀, q₁) → (q₀′, q₁′)
+(q₂, q₃) → (q₂′, q₃′)
+
+회전 후 Q
+[q₀′, q₁′, q₂′, q₃′]
+</code></pre>
+<p>K도 마찬가지다.</p>
+<pre><code class="language-csharp">회전 전 K
+[k₀, k₁, k₂, k₃]
+
+회전 후 K
+[k₀′, k₁′, k₂′, k₃′]
+</code></pre>
+<p>여기서 “다시 뭉친다”는 것은 여러 Attention Head를 합친다는 뜻이 아니다.</p>
+<blockquote>
+<p>한 Head 안에서 나누어 생각했던 차원쌍을 회전한 뒤, 원래 Head 벡터의 차원 순서로 재구성한다는 뜻이다.</p>
+</blockquote>
+<p>실제로 구현할 때는 Tensor의 일부를 물리적으로 분리했다가 새롭게 합칠 수도 있고, 짝수·홀수 차원을 이용한 벡터 연산으로 한꺼번에 계산할 수도 있다.</p>
+
+</section>
+<section id="rope-tensor-shape" class="markdown-section">
+<h2>RoPE를 적용해도 Tensor Shape은 변하지 않는다</h2>
+<p>RoPE는 벡터의 방향을 바꾸지만 원소 개수와 Shape은 바꾸지 않는다.</p>
+<pre><code class="language-css">RoPE 적용 전 Q
+[B, Q Head, Sequence, Head Dimension]
+
+RoPE 적용 후 Q
+[B, Q Head, Sequence, Head Dimension]
+</code></pre>
+<p>K도 동일하다.</p>
+<pre><code class="language-csharp">RoPE 적용 전 K
+[B, KV Head, Sequence, Head Dimension]
+
+RoPE 적용 후 K
+[B, KV Head, Sequence, Head Dimension]
+</code></pre>
+<p>예를 들어 한 Head의 차원이 <code>128</code>이라면, RoPE는 이를 64개의 차원쌍으로 해석해 회전한다.</p>
+<pre><code class="language-yaml">Head Dimension: 128
+차원쌍 개수: 64
+RoPE 적용 후 Head Dimension: 128
+</code></pre>
+<p>따라서 RoPE는 차원을 줄이는 Projection이 아니다.</p>
+
+</section>
+<section id="q-k-attention-score" class="markdown-section">
+<h2>회전된 Q와 K로 Attention Score를 계산한다</h2>
+<p>원래 벡터 형태로 재구성된 Q와 K는 Attention Score 계산에 사용된다.</p>
+<pre><code>attention_scores = torch.matmul(
+    rotated_query,
+    rotated_key.transpose(-2, -1),
+)
+</code></pre>
+<p>RoPE의 목적은 Q와 K를 회전시키는 것 자체가 아니다. 서로 다른 위치에서 회전된 Q와 K를 내적할 때 두 토큰의 상대적인 위치 차이가 내적에 반영되게 만드는 것이다.</p>
+<pre><code class="language-css">두 토큰의 절대 위치가 함께 이동하고
+상대 위치 차이는 같다면
+→ Q·K 내적의 위치 관계는 유지된다.
+
+두 토큰의 상대 위치 차이가 달라지면
+→ Q·K 내적도 달라진다.
+</code></pre>
+<p>그다음 과정은 일반적인 Attention과 같다.</p>
+<pre><code>회전된 Q·K로 Attention Score 계산
+→ Softmax로 Attention Weight 계산
+→ Attention Weight를 V에 적용
+→ Head별 Attention 결과 생성
+→ Head별 결과를 이어 붙임
+→ Output Projection 적용
+</code></pre>
+<p>RoPE로 회전된 Q와 K 자체를 여러 Head 사이에서 합치는 것은 아니다. Q와 K는 Attention Score를 만드는 데 사용되고, 나중에 합치는 것은 각 Head에서 계산된 Attention 결과다.</p>
+
+</section>
+<section id="gqa" class="markdown-section">
+<h2>GQA와는 서로 다른 역할이다</h2>
+<p>RoPE와 GQA는 Attention 내부에서 함께 사용될 수 있지만 목적은 다르다.</p>
+<pre><code class="language-css">RoPE
+→ Q와 K에 위치 관계를 반영한다.
+
+GQA
+→ Q Head보다 K·V Head를 적게 만들어
+  KV Cache와 K·V Projection 크기를 줄인다.
+</code></pre>
+<p>GQA 모델에서도 Q와 K에 RoPE를 적용할 수 있다.</p>
+<pre><code class="language-less">Q Projection: Q Head 4개
+K·V Projection: KV Head 2개
+→ Q와 K에 RoPE 적용
+→ Attention 계산에서 K·V Head를 Q Head들이 공유
+</code></pre>
+<p>GQA가 Head 구조를 결정하고, RoPE가 각 Q·K Head 벡터에 위치 정보를 반영한다고 구분하면 된다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>RoPE의 핵심 과정은 다음과 같다.</p>
+<pre><code class="language-css">Q·K Projection 결과를 Head로 나눈다.
+→ 각 Head의 벡터를 차원쌍으로 해석한다.
+→ 토큰 위치와 차원쌍별 속도에 따라 회전한다.
+→ 회전된 차원쌍을 원래 벡터 배열로 되돌린다.
+→ 회전된 Q와 K로 Attention Score를 계산한다.
+</code></pre>
+<p>한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>RoPE는 Q·K Projection으로 만든 각 Head의 벡터를 차원쌍으로 회전하고 원래 배열로 재구성하여, Q·K 내적에 토큰의 상대적인 위치 관계가 반영되게 한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
