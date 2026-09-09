@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- Generated from content/wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.md. Do not edit directly. source-sha256:cf10586649cbeacdc5c58207d59c390c6bf137851f054a6675658035583932e4 -->
+<!-- Generated from content/wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.md. Do not edit directly. source-sha256:bdbfe3710575b9d25a09015c6a371fb7b4142e856b459ac3c7881165e9462d40 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="GQA Tiny Decoder에서 Prefill·Decode를 구현하고 Full Forward와 Logit·Token 결과를 대조한 뒤 Prompt·Batch·생성 길이별 GPU 시간과 Peak 메모리를 측정한다.">
-  <meta name="source-sha256" content="cf10586649cbeacdc5c58207d59c390c6bf137851f054a6675658035583932e4">
+  <meta name="source-sha256" content="bdbfe3710575b9d25a09015c6a371fb7b4142e856b459ac3c7881165e9462d40">
   <title>GQA Prefill·Decode의 출력 정확성과 GPU 비용 측정</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
@@ -290,6 +290,9 @@ Cache Decode:   [B, H, 1, S]
 </section>
 <section id="section-8" class="markdown-section">
 <h2>8. 생성 길이에 따른 비용 변화</h2>
+<ul>
+<li><a href="transformer_ttft_first_token_arrival.html">TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다</a></li>
+</ul>
 <p>마지막으로 Prompt 길이 512와 Batch 1을 고정하고 1, 4, 8, 16, 32개 토큰을 연속 생성했다. 전체 Prefix를 매번 다시 계산하는 방식과 KV Cache를 갱신하며 새 토큰만 계산하는 방식의 결과, 시간, Peak 메모리를 비교했다.</p>
 <h3>Cache 없이 여러 Token 생성하기</h3>
 <p>Full Forward는 매 단계 방금 생성한 Token을 기존 Prefix 끝에 붙이고, 길어진 전체 Sequence를 다시 모델에 넣는다.</p>
@@ -338,6 +341,12 @@ Cache Decode:   [B, H, 1, S]
 </section>
 <section id="section-d693a088b9c3" class="markdown-section">
 <h2>전체 실습을 통해 확인한 결론</h2>
+<ul>
+<li><p><a href="transformer_kv_cache_output_validity_logit_sequence.html">KV Cache 사용 여부에 따른 출력 유효성은 Logit과 전체 Token Sequence로 검증한다</a></p>
+</li>
+<li><p><a href="transformer_model_generate_throughput_calculation.html"><code>model.generate()</code>의 실행 시간과 생성 토큰 수로 Throughput을 계산한다</a></p>
+</li>
+</ul>
 <p>이번 실습은 KV Cache의 정확성과 비용을 단계적으로 연결했다.</p>
 <p>먼저 Prefill에서 Prompt 전체의 K·V를 저장했다. Decode에서는 새 토큰의 Q·K·V만 계산하고 새 K·V를 Cache에 추가한 뒤, 새 Q 하나와 전체 Cache로 Attention을 계산했다. 이 결과를 Transformer Block 후반부와 LM Head까지 연결했으며, 전체 Prefix를 다시 계산한 방식과 같은 Logit 및 예측 Token을 얻었다.</p>
 <p>정확성을 확인한 뒤 GPU 비용을 비교했다. Prompt가 길어질수록 Full Forward의 Attention 중간 Tensor는 <code>[B, H, S, S]</code> 구조 때문에 크게 증가했지만, Cache Decode는 <code>[B, H, 1, S]</code>만 필요했다. Batch가 커지면 두 방식 모두 비용이 증가하지만, Full Forward에서는 각 문장의 전체 Prefix 재계산 비용이 함께 누적되었다. 여러 Token을 생성할 때 Full Forward는 길어지는 Prefix 전체를 매번 다시 처리했지만, Cache Decode는 Cache를 한 칸씩 갱신하며 새 Token 하나만 처리했다.</p>
@@ -361,7 +370,10 @@ Layer와 Batch, Sequence Length, KV Head 수에 비례하는 Cache
 </section>
         <section class="markdown-related-documents" aria-labelledby="related-child-documents">
     <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
-    <ul><li><a href="transformer_prefill_decode_independent_timing.html">Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기</a></li></ul>
+    <ul><li><a href="transformer_prefill_decode_independent_timing.html">Prefill 전체 시간과 Decode 토큰당 시간을 분리해서 측정하기</a></li>
+<li><a href="transformer_model_generate_throughput_calculation.html">`model.generate()`의 실행 시간과 생성 토큰 수로 Throughput을 계산한다</a></li>
+<li><a href="transformer_kv_cache_output_validity_logit_sequence.html">KV Cache 사용 여부에 따른 출력 유효성은 Logit과 전체 Token Sequence로 검증한다</a></li>
+<li><a href="transformer_ttft_first_token_arrival.html">TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다</a></li></ul>
   </section>
       </article>
     </div>

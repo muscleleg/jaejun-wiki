@@ -1,0 +1,459 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_kv_cache_past_key_values_flow.md. Do not edit directly. source-sha256:25d0de72c9b8fed7359c1cba32688d15bc63d11af841911653eb0b909a0103a6 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Cache 유무에 따라 past_key_values를 전달하는 추론 경로와 DynamicCache의 K·V 갱신 구조를 설명합니다.">
+  <meta name="source-sha256" content="25d0de72c9b8fed7359c1cba32688d15bc63d11af841911653eb0b909a0103a6">
+  <title>KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다">
+  <meta property="og:description" content="KV Cache 유무에 따라 past_key_values를 전달하는 추론 경로와 DynamicCache의 K·V 갱신 구조를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html","name":"KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다","description":"KV Cache 유무에 따라 past_key_values를 전달하는 추론 경로와 DynamicCache의 K·V 갱신 구조를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html"},"headline":"KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_past_key_values_flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"KV Cache에 과거 토큰의 K·V가 저장되어 있는지에 따라 Decode의 계산 구조가 달라진다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_decode_hidden_state_structure.html"},{"@type":"ListItem","position":7,"name":"KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_decode_hidden_state_structure.html">KV Cache에 과거 토큰의 K·V가 저장되어 있는지에 따라 Decode의 계산 구조가 달라진다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>KV Cache가 없는 추론과 있는 추론의 차이는 `past_key_values` 전달이다</h1>
+      <p class="lead">KV Cache 유무에 따라 past_key_values를 전달하는 추론 경로와 DynamicCache의 K·V 갱신 구조를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kv-cache">KV Cache를 사용하지 않는 추론</a>
+        <a href="#kv-cache-forward">KV Cache를 사용하는 첫 번째 Forward</a>
+        <a href="#kv-cache-decode">KV Cache를 사용하는 Decode</a>
+        <a href="#use-cache-past-key-values"><code>use_cache</code>와 <code>past_key_values</code>의 차이</a>
+        <a href="#dynamiccache"><code>DynamicCache</code>의 제자리 갱신</a>
+        <a href="#dynamiccache-2">현재 <code>DynamicCache</code>에서는 재할당이 필수는 아니다</a>
+        <a href="#cache-forward">추론 전 Cache 길이는 Forward 전에 저장해야 한다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Decoder-only 언어 모델은 지금까지 입력된 Token을 바탕으로 다음 Token을 예측한다. 새로운 Token이 생성될 때마다 과거 문맥을 다시 사용해야 하므로, 과거 연산 결과를 어떻게 처리하는지에 따라 추론 구조가 달라진다.</p>
+<p>KV Cache를 사용하지 않는 추론은 지금까지의 전체 Token을 매번 다시 모델에 입력한다. KV Cache를 사용하는 추론은 첫 번째 Forward에서 반환된 <code>past_key_values</code>를 다음 Forward에 전달하고, 새로 생성된 Token만 입력한다.</p>
+<p>따라서 두 추론 방식을 구분하는 핵심은 이전 모델 출력의 <code>past_key_values</code>를 다음 모델 호출에 다시 전달하는지 여부다.</p>
+</div>
+        <section id="kv-cache" class="markdown-section">
+<h2>KV Cache를 사용하지 않는 추론</h2>
+<p>다음과 같은 Prompt가 있다고 가정한다.</p>
+<pre><code class="language-text">x1, x2, x3
+</code></pre>
+<p>KV Cache를 사용하지 않는 경우에는 <code>use_cache=False</code>로 모델을 호출한다.</p>
+<pre><code class="language-python">outputs = model(
+    input_ids=input_ids,
+    attention_mask=attention_mask,
+    use_cache=False,
+    return_dict=True,
+)
+</code></pre>
+<p><code>use_cache=False</code>라고 해서 모델이 K·V Projection을 수행하지 않는 것은 아니다. Attention을 계산하려면 현재 입력의 Q·K·V가 필요하므로 Forward 내부에서는 여전히 Q·K·V를 계산한다.</p>
+<pre><code class="language-text">x1, x2, x3
+    ↓
+Embedding
+    ↓
+각 Transformer Layer의 Q·K·V Projection
+    ↓
+Attention
+    ↓
+Logit
+</code></pre>
+<p>달라지는 것은 Forward가 끝난 이후다. 계산된 K·V를 다음 Forward에서 재사용할 수 있도록 반환하지 않는다.</p>
+<pre><code class="language-python">print(outputs.past_key_values)
+# None
+</code></pre>
+<p>첫 번째 Forward의 마지막 Logit에서 새 Token <code>x4</code>를 선택했다고 가정한다.</p>
+<pre><code class="language-python">new_token_ids = (
+    outputs
+    .logits[:, -1:, :]
+    .argmax(dim=-1)
+)
+</code></pre>
+<p>KV Cache가 없으므로 다음 Forward에는 새 Token <code>x4</code>만 입력할 수 없다. 과거 문맥의 K·V가 남아 있지 않기 때문에 지금까지의 전체 Token을 다시 모델에 입력해야 한다.</p>
+<pre><code class="language-python">full_input_ids = torch.cat(
+    [
+        input_ids,
+        new_token_ids,
+    ],
+    dim=1,
+)
+</code></pre>
+<pre><code class="language-python">outputs = model(
+    input_ids=full_input_ids,
+    attention_mask=full_attention_mask,
+    use_cache=False,
+    return_dict=True,
+)
+</code></pre>
+<p>이 과정에서는 <code>x1~x4</code>의 Q·K·V가 모두 다시 계산된다.</p>
+<pre><code class="language-text">첫 번째 Forward
+→ x1~x3의 Q·K·V 계산
+
+두 번째 Forward
+→ x1~x4의 Q·K·V 계산
+
+세 번째 Forward
+→ x1~x5의 Q·K·V 계산
+</code></pre>
+<p>새 Token이 생성될 때마다 과거 Token의 연산까지 반복된다.</p>
+
+</section>
+<section id="kv-cache-forward" class="markdown-section">
+<h2>KV Cache를 사용하는 첫 번째 Forward</h2>
+<p>KV Cache를 사용하는 추론에서는 첫 번째 Forward에서 Prompt 전체를 처리하고 K·V를 Cache로 반환받는다. 이 최초 실행을 Prefill이라고 한다.</p>
+<pre><code class="language-python">prefill_outputs = model(
+    input_ids=input_ids,
+    attention_mask=attention_mask,
+    use_cache=True,
+    return_dict=True,
+)
+</code></pre>
+<p><code>use_cache=True</code>는 이번 Forward에서 계산된 K·V를 다음 실행에서 재사용할 수 있도록 반환하라는 설정이다.</p>
+<pre><code class="language-text">Prompt 입력
+→ x1, x2, x3
+
+새로 계산하는 Query
+→ Q1, Q2, Q3
+
+새로 계산하는 Key
+→ K1, K2, K3
+
+새로 계산하는 Value
+→ V1, V2, V3
+</code></pre>
+<p>생성된 KV Cache는 모델 출력의 <code>past_key_values</code>에 들어 있다.</p>
+<pre><code class="language-python">prompt_cache = (
+    prefill_outputs.past_key_values
+)
+</code></pre>
+<p>첫 번째 Prefill에서는 기존 Cache가 존재하지 않는다. 따라서 모델이 반환한 <code>past_key_values</code>를 처음 꺼내 보관해야 한다.</p>
+<pre><code class="language-text">Prefill 이전
+→ KV Cache 없음
+
+Prefill 이후
+→ x1~x3의 Layer별 K·V를 저장한 Cache 존재
+</code></pre>
+
+</section>
+<section id="kv-cache-decode" class="markdown-section">
+<h2>KV Cache를 사용하는 Decode</h2>
+<p>Prefill의 마지막 Logit에서 다음 Token <code>x4</code>를 선택한다.</p>
+<pre><code class="language-python">new_token_ids = (
+    prefill_outputs
+    .logits[:, -1:, :]
+    .argmax(dim=-1)
+)
+</code></pre>
+<p>다음 모델 호출에는 새 Token <code>x4</code>와 Prefill에서 반환받은 <code>prompt_cache</code>를 함께 전달한다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    attention_mask=decode_attention_mask,
+    past_key_values=prompt_cache,
+    use_cache=True,
+    return_dict=True,
+)
+</code></pre>
+<p>이 코드에서 각 인수의 역할은 다음과 같다.</p>
+<pre><code class="language-text">input_ids=new_token_ids
+→ 이번 Forward에서 새로 처리할 Token x4
+
+past_key_values=prompt_cache
+→ 이전 Forward에서 계산한 x1~x3의 Layer별 K·V
+
+use_cache=True
+→ 이번에 계산한 x4의 K·V도 Cache에 추가하여 반환
+</code></pre>
+<p>Decode에서는 새 Token의 Q·K·V만 계산한다.</p>
+<pre><code class="language-text">새로 계산
+→ Q4, K4, V4
+
+기존 Cache에서 재사용
+→ K1~K3, V1~V3
+</code></pre>
+<p>새 Query <code>Q4</code>는 기존 Cache의 Key와 현재 Forward에서 계산한 <code>K4</code>를 함께 조회한다.</p>
+<pre><code class="language-text">Q4 × [K1, K2, K3, K4]ᵀ
+</code></pre>
+<p>계산된 Attention Weight는 과거 Value와 새 Value 전체에 적용된다.</p>
+<pre><code class="language-text">Attention Weight × [V1, V2, V3, V4]
+</code></pre>
+<p>모델에 새 Token 하나만 입력했지만, Attention에서는 <code>x1~x4</code>의 전체 문맥이 사용된다.</p>
+
+</section>
+<section id="use-cache-past-key-values" class="markdown-section">
+<h2><code>use_cache</code>와 <code>past_key_values</code>의 차이</h2>
+<p><code>use_cache</code>와 <code>past_key_values</code>는 서로 다른 역할을 수행한다.</p>
+<pre><code class="language-python">use_cache=True
+</code></pre>
+<p>현재 Forward에서 계산한 K·V를 Cache로 반환하도록 지정한다.</p>
+<pre><code class="language-python">past_key_values=prompt_cache
+</code></pre>
+<p>이전 Forward에서 반환된 Cache를 현재 Forward의 과거 문맥으로 전달한다.</p>
+<pre><code class="language-text">use_cache=True
+→ 현재 Forward의 K·V를 반환
+
+outputs.past_key_values
+→ 모델이 반환한 KV Cache
+
+past_key_values=prompt_cache
+→ 반환받은 KV Cache를 다음 Forward에 입력
+</code></pre>
+<p>따라서 <code>use_cache=True</code>만 지정했다고 해서 이전 Cache가 자동으로 재사용되는 것은 아니다.</p>
+<p>Prefill은 Cache를 처음 만드는 호출이다.</p>
+<pre><code class="language-python">prefill_outputs = model(
+    input_ids=prompt_input_ids,
+    use_cache=True,
+)
+
+prompt_cache = (
+    prefill_outputs.past_key_values
+)
+</code></pre>
+<p>Decode는 Prefill에서 만든 Cache를 실제로 재사용하는 호출이다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+</code></pre>
+<p>KV Cache가 있는 Decode를 구성하려면 이전 모델 출력의 <code>past_key_values</code>를 다음 모델 호출의 <code>past_key_values</code> 인수로 전달해야 한다.</p>
+
+</section>
+<section id="dynamiccache" class="markdown-section">
+<h2><code>DynamicCache</code>의 제자리 갱신</h2>
+<p>현재 사용하는 Hugging Face Transformers 모델에서는 <code>past_key_values</code>가 <code>DynamicCache</code> 객체로 반환될 수 있다.</p>
+<pre><code class="language-python">prompt_cache = (
+    prefill_outputs.past_key_values
+)
+
+print(type(prompt_cache))
+</code></pre>
+<pre><code class="language-text">transformers.cache_utils.DynamicCache
+</code></pre>
+<p>이 <code>DynamicCache</code>를 다음 Forward의 <code>past_key_values</code>로 전달하면 모델은 새 Token의 K·V를 계산하여 기존 Cache 객체 내부에 추가한다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+    return_dict=True,
+)
+</code></pre>
+<p>처리 전후의 구조는 다음과 같다.</p>
+<pre><code class="language-text">Decode 이전 DynamicCache
+→ K1~K3, V1~V3
+→ Token 길이 3
+
+새 Token x4 처리
+
+Decode 이후 DynamicCache
+→ K1~K4, V1~V4
+→ Token 길이 4
+</code></pre>
+<p>현재 <code>DynamicCache</code> 구현에서는 모델에 전달한 Cache와 모델이 반환한 Cache가 동일한 객체일 수 있다.</p>
+<pre><code class="language-python">updated_cache = (
+    decode_outputs.past_key_values
+)
+
+print(
+    prompt_cache is updated_cache
+)
+# True
+</code></pre>
+<p>두 변수는 별도의 Cache 복사본을 보관하지 않는다.</p>
+<pre><code class="language-text">prompt_cache  ─┐
+               ├→ 동일한 DynamicCache 객체
+updated_cache ─┘
+</code></pre>
+<p>Decode Forward 과정에서 동일한 객체의 내부 K·V와 Token 길이가 갱신된다.</p>
+
+</section>
+<section id="dynamiccache-2" class="markdown-section">
+<h2>현재 <code>DynamicCache</code>에서는 재할당이 필수는 아니다</h2>
+<p>같은 <code>DynamicCache</code> 객체가 제자리에서 갱신되는 경우에는 모델이 반환한 Cache를 기존 변수에 다시 할당하지 않아도 된다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+</code></pre>
+<p>이 호출이 끝나면 기존 <code>prompt_cache</code>가 가리키는 객체의 내부 상태가 이미 변경되어 있다.</p>
+<pre><code class="language-python">print(
+    prompt_cache.get_seq_length()
+)
+# 새 Token이 추가된 길이
+</code></pre>
+<p>따라서 현재 구현에서는 다음 재할당이 없어도 갱신된 Cache를 사용할 수 있다.</p>
+<pre><code class="language-python">prompt_cache = (
+    decode_outputs.past_key_values
+)
+</code></pre>
+<p>그러나 일반적인 생성 코드는 반환된 Cache를 다시 할당하는 형태로 작성하는 것이 안전하다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+
+prompt_cache = (
+    decode_outputs.past_key_values
+)
+</code></pre>
+<p>다른 모델이나 Cache 구현에서는 기존 객체를 수정하지 않고 갱신된 새 Cache 객체를 반환할 수도 있기 때문이다.</p>
+<pre><code class="language-text">제자리 갱신 방식
+→ Cache 객체 X를 입력
+→ 객체 X의 내부 상태 갱신
+→ 객체 X 반환
+
+새 객체 반환 방식
+→ Cache 객체 X를 입력
+→ 갱신된 Cache 객체 Y 생성
+→ 객체 Y 반환
+</code></pre>
+<p>현재 <code>DynamicCache</code>의 제자리 갱신만 기준으로 하면 재할당은 필수가 아니다. 그러나 구현 방식에 의존하지 않는 코드를 작성하려면 모델이 반환한 <code>past_key_values</code>를 다시 저장하는 것이 적절하다.</p>
+
+</section>
+<section id="cache-forward" class="markdown-section">
+<h2>추론 전 Cache 길이는 Forward 전에 저장해야 한다</h2>
+<p>같은 객체가 제자리에서 갱신되면 Decode 이후의 <code>prompt_cache</code>에서도 이미 변경된 길이가 확인된다.</p>
+<pre><code class="language-python">updated_cache = (
+    decode_outputs.past_key_values
+)
+
+print(
+    prompt_cache.get_seq_length()
+)
+# 4
+
+print(
+    updated_cache.get_seq_length()
+)
+# 4
+</code></pre>
+<p><code>prompt_cache</code>라는 변수 이름이 Decode 이전 상태를 별도로 보존하지는 않는다.</p>
+<p>Decode 전후의 길이를 비교하려면 Forward를 실행하기 전에 길이를 정수로 꺼내야 한다.</p>
+<pre><code class="language-python">cache_length_before: int = (
+    prompt_cache.get_seq_length()
+)
+
+decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+
+cache_length_after: int = (
+    prompt_cache.get_seq_length()
+)
+
+print(
+    &quot;Decode 이전:&quot;,
+    cache_length_before,
+)
+
+print(
+    &quot;Decode 이후:&quot;,
+    cache_length_after,
+)
+</code></pre>
+<pre><code class="language-text">Decode 이전: 3
+Decode 이후: 4
+</code></pre>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<h3>KV Cache가 없는 추론</h3>
+<pre><code class="language-python">outputs = model(
+    input_ids=full_input_ids,
+    use_cache=False,
+)
+</code></pre>
+<pre><code class="language-text">새 Token이 생성될 때마다
+→ 지금까지의 전체 input_ids를 다시 입력
+→ 과거 Token을 포함한 전체 Q·K·V 재계산
+→ 재사용할 past_key_values 없음
+</code></pre>
+<h3>KV Cache가 있는 Prefill</h3>
+<pre><code class="language-python">prefill_outputs = model(
+    input_ids=prompt_input_ids,
+    use_cache=True,
+)
+
+prompt_cache = (
+    prefill_outputs.past_key_values
+)
+</code></pre>
+<pre><code class="language-text">Prompt 전체 처리
+→ Prompt의 Layer별 K·V 계산
+→ past_key_values로 KV Cache 반환
+</code></pre>
+<h3>KV Cache가 있는 Decode</h3>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+</code></pre>
+<pre><code class="language-text">새 Token만 입력
+→ 과거 K·V는 past_key_values에서 재사용
+→ 새 Token의 Q·K·V만 계산
+→ Cache에 새 K·V 추가
+→ 갱신된 past_key_values 반환
+</code></pre>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p>KV Cache를 사용하지 않는 추론은 새로운 Token이 생성될 때마다 지금까지의 전체 Token을 다시 모델에 입력한다. 각 Transformer Layer에서도 과거 Token의 Q·K·V가 반복해서 계산된다.</p>
+<p>KV Cache를 사용하는 추론은 첫 번째 Prefill에서 반환된 <code>past_key_values</code>를 보관하고, 이후 Decode에서 다음과 같이 다시 전달한다.</p>
+<pre><code class="language-python">decode_outputs = model(
+    input_ids=new_token_ids,
+    past_key_values=prompt_cache,
+    use_cache=True,
+)
+</code></pre>
+<p>이전 모델 출력의 <code>past_key_values</code>를 다음 모델 호출에 전달하는 것이 KV Cache를 실제로 재사용하는 핵심이다.</p>
+<p>현재 <code>DynamicCache</code> 구현에서는 전달한 Cache와 반환된 Cache가 동일한 객체를 가리키며, Decode 과정에서 객체 내부의 K·V가 갱신된다. 따라서 반환 Cache를 재할당하지 않아도 기존 변수를 통해 갱신된 상태를 확인할 수 있다.</p>
+<p>다만 다른 Cache 구현에서도 안전하게 동작하도록 다음과 같이 반환된 <code>past_key_values</code>를 다시 저장하는 방식이 권장된다.</p>
+<pre><code class="language-python">prompt_cache = (
+    decode_outputs.past_key_values
+)
+</code></pre>
+<p>재할당이 Cache를 갱신하는 것은 아니다. Cache 갱신은 모델의 Decode Forward 과정에서 일어난다. 재할당은 모델이 반환한 최신 Cache 객체를 다음 Decode 단계에서도 명확하게 사용하기 위한 처리다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

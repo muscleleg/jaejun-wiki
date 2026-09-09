@@ -1,0 +1,298 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_ttft_first_token_arrival.md. Do not edit directly. source-sha256:d1e98b71fed336aaf583840649059f73a2d30d66028399f4d432de9a1acc9d79 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TTFT의 시작·종료 시점과 Prefill·Decode, Queue·전처리·네트워크를 포함하는 서비스 범위를 스트리밍·비스트리밍 관점에서 설명합니다.">
+  <meta name="source-sha256" content="d1e98b71fed336aaf583840649059f73a2d30d66028399f4d432de9a1acc9d79">
+  <title>TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다">
+  <meta property="og:description" content="TTFT의 시작·종료 시점과 Prefill·Decode, Queue·전처리·네트워크를 포함하는 서비스 범위를 스트리밍·비스트리밍 관점에서 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html","name":"TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다","description":"TTFT의 시작·종료 시점과 Prefill·Decode, Queue·전처리·네트워크를 포함하는 서비스 범위를 스트리밍·비스트리밍 관점에서 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html"},"headline":"TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_ttft_first_token_arrival.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"GQA Prefill·Decode의 출력 정확성과 GPU 비용 측정","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.html"},{"@type":"ListItem","position":7,"name":"TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_gqa_prefill_decode_accuracy_gpu_cost.html">GQA Prefill·Decode의 출력 정확성과 GPU 비용 측정</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>TTFT는 첫 번째 토큰이 사용자에게 도착하기까지의 시간이다</h1>
+      <p class="lead">TTFT의 시작·종료 시점과 Prefill·Decode, Queue·전처리·네트워크를 포함하는 서비스 범위를 스트리밍·비스트리밍 관점에서 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ttft">TTFT의 시작과 끝</a>
+        <a href="#prefill">첫 번째 토큰은 Prefill 결과에서 나온다</a>
+        <a href="#decode">두 번째 토큰부터 Decode가 시작된다</a>
+        <a href="#prefill-latency-ttft">Prefill Latency와 서비스 TTFT는 다르다</a>
+        <a href="#token-chunk">첫 Token 생성과 첫 응답 Chunk 도착은 다를 수 있다</a>
+        <a href="#section-2a464e4a4442">스트리밍에서는 첫 응답이 일찍 도착한다</a>
+        <a href="#decode-2">비스트리밍에서는 전체 Decode 시간이 포함될 수 있다</a>
+        <a href="#ttft-2">모델 내부 TTFT와 클라이언트 관찰 시간을 구분해야 한다</a>
+        <a href="#section-6df6f072e5cc">생성 성능 지표의 구분</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>TTFT(Time To First Token)는 사용자가 요청을 보낸 순간부터 모델이 생성한 첫 번째 토큰을 받기까지 걸린 시간이다.</p>
+<p>LLM 서비스가 스트리밍 방식으로 응답할 때 사용자는 전체 답변이 완성되기 전에 첫 번째 응답을 받을 수 있다. 이때 사용자가 첫 번째 응답을 기다린 시간이 TTFT다.</p>
+</div>
+        <section id="ttft" class="markdown-section">
+<h2>TTFT의 시작과 끝</h2>
+<p>TTFT는 사용자 요청이 서비스에 도착하면서 시작한다.</p>
+<pre><code>TTFT 시작
+= 사용자 요청이 서버에 도착한 시점
+</code></pre>
+<p>이후 다음 과정이 진행된다.</p>
+<pre><code>사용자 요청 도착
+→ Queue 대기
+→ Prompt 전처리
+→ Tokenization
+→ GPU 전송
+→ Prefill
+→ 첫 번째 Token 선택
+→ Token ID를 문자열로 변환
+→ 스트리밍 전송
+→ 사용자에게 첫 응답 도착
+</code></pre>
+<p>사용자가 첫 번째 토큰 또는 첫 번째 응답 Chunk를 받으면 TTFT 측정이 끝난다.</p>
+<pre><code>TTFT 종료
+= 첫 번째 스트리밍 응답이 사용자에게 도착한 시점
+</code></pre>
+<p>따라서 TTFT는 모델의 GPU 연산 시간만 측정하는 지표가 아니다. 요청 처리부터 사용자에게 응답을 전달하는 과정까지 포함하는 서비스 관점의 지표다.</p>
+
+</section>
+<section id="prefill" class="markdown-section">
+<h2>첫 번째 토큰은 Prefill 결과에서 나온다</h2>
+<p>Decoder-only 언어 모델은 먼저 Prompt 전체를 Prefill한다.</p>
+<pre><code>Prompt 전체
+→ Prefill
+→ Prompt의 KV Cache 생성
+→ 마지막 Prompt 위치의 Logit 생성
+</code></pre>
+<p>모델은 마지막 위치의 Logit에서 첫 번째 새 토큰을 선택한다.</p>
+<pre><code>마지막 Logit
+→ Greedy 또는 Sampling
+→ 첫 번째 새 Token
+</code></pre>
+<p>첫 번째 토큰을 생성하기 위해 별도의 Decode 반복을 먼저 실행하는 것은 아니다. 첫 번째 새 토큰은 Prefill 결과로 얻는다.</p>
+<pre><code class="language-diff">Prefill
+= Prompt 전체 처리
++ Prompt KV Cache 생성
++ 첫 번째 새 Token을 선택할 Logit 생성
+</code></pre>
+<p>선택한 첫 번째 토큰을 문자열로 변환하여 사용자에게 스트리밍하면 TTFT가 종료된다.</p>
+<pre><code>Prefill 완료
+→ 첫 Token 선택
+→ 문자열 변환
+→ 사용자에게 전송
+→ TTFT 종료
+</code></pre>
+
+</section>
+<section id="decode" class="markdown-section">
+<h2>두 번째 토큰부터 Decode가 시작된다</h2>
+<p>첫 번째 토큰이 선택되면 그 토큰을 입력으로 사용하여 두 번째 토큰을 생성한다.</p>
+<pre><code>첫 번째 생성 Token
++ Prefill에서 만든 Prompt KV Cache
+→ Decode
+→ 첫 번째 Token의 K·V를 Cache에 추가
+→ 두 번째 Token 생성
+</code></pre>
+<p>이후에는 같은 과정이 반복된다.</p>
+<pre><code>두 번째 생성 Token
++ 갱신된 KV Cache
+→ Decode
+→ 두 번째 Token의 K·V를 Cache에 추가
+→ 세 번째 Token 생성
+</code></pre>
+<p>따라서 생성 단계는 다음처럼 나뉜다.</p>
+<pre><code>첫 번째 생성 Token
+= Prefill 결과
+
+두 번째 이후 Token
+= 반복 Decode 결과
+</code></pre>
+<p>스트리밍 서비스는 Decode로 새로운 토큰이 만들어질 때마다 그 결과를 사용자에게 순차적으로 전송할 수 있다.</p>
+
+</section>
+<section id="prefill-latency-ttft" class="markdown-section">
+<h2>Prefill Latency와 서비스 TTFT는 다르다</h2>
+<p>Prefill Latency는 모델 내부의 연산 시간만 나타낸다.</p>
+<pre><code>GPU에 입력 준비 완료
+→ Prompt 전체 Forward
+→ 첫 Logit 생성
+</code></pre>
+<p>반면 서비스 TTFT에는 Prefill 전후의 작업도 포함된다.</p>
+<pre><code class="language-diff">Queue 대기
++ 입력 전처리
++ Tokenization
++ H2D 전송
++ Prefill
++ 첫 Token 선택
++ 문자열 변환
++ 네트워크 전송
+</code></pre>
+<p>따라서 다음과 같은 포함 관계가 성립한다.</p>
+<pre><code>서비스 TTFT
+└── 모델 Prefill Latency 포함
+</code></pre>
+<p>예를 들어 각 과정에 다음 시간이 걸렸다고 가정해보자.</p>
+<pre><code>Queue 대기       20ms
+Tokenization     10ms
+GPU 전송          5ms
+Prefill         100ms
+Token 선택         2ms
+문자열 변환        1ms
+네트워크 전송     12ms
+────────────────────
+서비스 TTFT      150ms
+</code></pre>
+<p>이 경우 모델 Prefill Latency는 100ms지만 사용자가 경험한 TTFT는 150ms다.</p>
+<p>따라서 Prefill Latency를 측정했다고 해서 서비스 TTFT를 측정한 것은 아니다.</p>
+
+</section>
+<section id="token-chunk" class="markdown-section">
+<h2>첫 Token 생성과 첫 응답 Chunk 도착은 다를 수 있다</h2>
+<p>Token은 모델 내부의 계산 단위다. 하나의 Token이 반드시 사용자에게 바로 보여줄 수 있는 완전한 문자열이 되는 것은 아니다.</p>
+<p>Tokenizer에 따라 하나의 Token은 다음과 같은 형태일 수 있다.</p>
+<pre><code>단어의 일부
+공백
+구두점
+특수 Token
+디코딩하면 화면에 나타나지 않는 문자열
+</code></pre>
+<p>또한 서버가 생성된 Token을 하나씩 보내지 않고 여러 개를 묶어서 하나의 응답 Chunk로 전송할 수도 있다.</p>
+<p>따라서 다음 두 시점은 서로 다를 수 있다.</p>
+<pre><code>모델이 첫 Token을 생성한 시점
+사용자가 첫 응답 Chunk를 받은 시점
+</code></pre>
+<p>모델 내부 성능만 측정한다면 첫 Token이 계산된 시점을 사용할 수 있다. 실제 사용자 경험을 측정한다면 첫 번째 응답 Chunk가 클라이언트에 도착한 시점을 사용하는 것이 더 적절하다.</p>
+
+</section>
+<section id="section-2a464e4a4442" class="markdown-section">
+<h2>스트리밍에서는 첫 응답이 일찍 도착한다</h2>
+<p>스트리밍 응답에서는 첫 번째 토큰이 만들어진 뒤 전체 생성 완료를 기다리지 않고 사용자에게 전송한다.</p>
+<pre><code>요청
+→ Prefill
+→ 첫 Token 생성
+→ 첫 Chunk 전송
+→ 사용자에게 도착
+────────────── TTFT 종료
+
+→ Decode
+→ 두 번째 Token 전송
+→ Decode
+→ 세 번째 Token 전송
+→ 반복
+</code></pre>
+<p>이 경우 사용자 관점의 TTFT에는 첫 번째 토큰 이후의 반복 Decode 시간이 포함되지 않는다.</p>
+<pre><code>스트리밍 TTFT
+= 요청 도착부터 첫 응답 Chunk 도착까지
+</code></pre>
+<p>첫 응답 이후의 생성 속도는 TPOT 또는 ITL로 따로 측정한다.</p>
+
+</section>
+<section id="decode-2" class="markdown-section">
+<h2>비스트리밍에서는 전체 Decode 시간이 포함될 수 있다</h2>
+<p>비스트리밍 응답은 전체 문장이 완성될 때까지 결과를 사용자에게 보내지 않는다.</p>
+<pre><code>요청
+→ Prefill
+→ 첫 Token 생성
+→ 반복 Decode
+→ 마지막 Token 생성
+→ 전체 문자열 변환
+→ 응답 전송
+→ 사용자가 처음 응답을 받음
+</code></pre>
+<p>따라서 비스트리밍 API를 사용하는 클라이언트가 관찰한 첫 응답 시간에는 다음 과정이 모두 포함된다.</p>
+<pre><code class="language-diff">Queue와 전처리
++ Prefill
++ 모든 Decode
++ 전체 후처리
++ 네트워크 전송
+</code></pre>
+<p>이 값은 순수한 TTFT라기보다 End-to-End Latency에 가까워진다.</p>
+<p>비스트리밍에서는 모델이 내부적으로 첫 토큰을 일찍 생성했더라도 클라이언트가 그 사실을 알 수 없다. 전체 생성이 끝난 후에야 첫 응답을 받기 때문이다.</p>
+
+</section>
+<section id="ttft-2" class="markdown-section">
+<h2>모델 내부 TTFT와 클라이언트 관찰 시간을 구분해야 한다</h2>
+<p>비스트리밍 서비스에서도 서버 내부에서는 첫 번째 토큰이 생성된 시점을 기록할 수 있다.</p>
+<pre><code>모델 내부 TTFT
+= 요청 처리 시작부터 첫 Token 계산까지
+= 이후 Decode 제외
+</code></pre>
+<p>하지만 클라이언트가 직접 관찰하는 시간은 다르다.</p>
+<pre><code>비스트리밍 클라이언트의 첫 응답 시간
+= 요청부터 전체 응답 도착까지
+= 모든 Decode 포함
+</code></pre>
+<p>따라서 비스트리밍 환경에서 클라이언트가 순수 TTFT를 측정하기는 어렵다.</p>
+<p>순수 TTFT를 측정하려면 다음 방법 중 하나가 필요하다.</p>
+<pre><code>서버 내부에서 첫 Token 생성 시점 기록
+또는
+스트리밍 응답으로 첫 Chunk 도착 시점 측정
+</code></pre>
+
+</section>
+<section id="section-6df6f072e5cc" class="markdown-section">
+<h2>생성 성능 지표의 구분</h2>
+<p>LLM 생성 성능은 다음 지표로 나눌 수 있다.</p>
+<pre><code class="language-vbnet">TTFT
+= 요청부터 첫 Token 또는 첫 Chunk 도착까지
+
+TPOT 또는 ITL
+= 첫 Token 이후 각 Token이 생성되는 간격
+
+End-to-End Latency
+= 요청부터 전체 생성 완료까지
+</code></pre>
+<p>스트리밍 환경에서는 세 지표의 경계가 비교적 분명하다.</p>
+<pre><code class="language-vbnet">요청
+│
+├─ Prefill과 첫 Token 전달
+│  └─ TTFT
+│
+├─ 반복 Decode와 Token 전달
+│  └─ TPOT 또는 ITL
+│
+└─ 전체 생성 완료
+   └─ End-to-End Latency
+</code></pre>
+<p>비스트리밍 환경에서는 첫 Token이 즉시 전달되지 않으므로 클라이언트가 측정한 첫 응답 시간이 End-to-End Latency와 거의 같아진다.</p>
+<p>결국 TTFT는 <strong>사용자의 요청이 서비스에 도착한 순간부터 Prefill 결과로 선택된 첫 번째 토큰이 사용자에게 처음 전달되기까지의 시간</strong>이다. 스트리밍에서는 첫 번째 응답 Chunk 도착 시점으로 측정할 수 있지만, 비스트리밍에서는 모든 Decode가 끝난 뒤 전체 응답이 도착하므로 클라이언트가 관찰하는 시간에 전체 생성 과정이 포함된다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

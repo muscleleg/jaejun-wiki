@@ -1,0 +1,361 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.md. Do not edit directly. source-sha256:cc40724c2f92fe2e9d79bfcc5add59f748e87d567e97cb30a256c68e047d455a -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PyTorch Transformer의 Parameter 구성과 model.parameters()·next()로 대표 가중치의 dtype·Device를 확인하고 전체 상태를 검증하는 방법을 설명합니다.">
+  <meta name="source-sha256" content="cc40724c2f92fe2e9d79bfcc5add59f748e87d567e97cb30a256c68e047d455a">
+  <title>모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가">
+  <meta property="og:description" content="PyTorch Transformer의 Parameter 구성과 model.parameters()·next()로 대표 가중치의 dtype·Device를 확인하고 전체 상태를 검증하는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html","name":"모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가","description":"PyTorch Transformer의 Parameter 구성과 model.parameters()·next()로 대표 가중치의 dtype·Device를 확인하고 전체 상태를 검증하는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html"},"headline":"모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_model_parameter_dtype_device_check.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>모델에는 어떤 Parameter가 있고, 첫 번째 Parameter에서 dtype과 Device를 어떻게 확인하는가</h1>
+      <p class="lead">PyTorch Transformer의 Parameter 구성과 model.parameters()·next()로 대표 가중치의 dtype·Device를 확인하고 전체 상태를 검증하는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#model-parameters"><code>model.parameters()</code>는 무엇을 반환하는가</a>
+        <a href="#parameter-tensor">첫 번째 Parameter Tensor 꺼내기</a>
+        <a href="#parameter">첫 번째 Parameter에서 꺼내 확인한 정보</a>
+        <a href="#parameter-2">왜 첫 번째 Parameter로 확인하는가</a>
+        <a href="#parameter-3">두 번째나 마지막 Parameter로 확인해도 되는가</a>
+        <a href="#parameter-4">선택한 Parameter에 따라 결과가 달라질 수도 있다</a>
+        <a href="#dtype-device">모델 전체의 dtype과 Device 확인하기</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>PyTorch 모델은 하나의 거대한 Tensor가 아니다. 여러 Layer가 가진 수많은 가중치 Tensor를 하나의 모델 객체로 묶어 놓은 것이다.</p>
+<p>Transformer 모델에는 대략 다음과 같은 Parameter가 들어 있다.</p>
+<pre><code class="language-text">Token Embedding
+└── embed_tokens.weight
+
+Transformer Layer
+├── Attention
+│   ├── q_proj.weight
+│   ├── k_proj.weight
+│   ├── v_proj.weight
+│   └── o_proj.weight
+│
+├── FFN
+│   ├── gate_proj.weight
+│   ├── up_proj.weight
+│   └── down_proj.weight
+│
+└── RMSNorm
+    ├── input_layernorm.weight
+    └── post_attention_layernorm.weight
+
+마지막 부분
+├── final_norm.weight
+└── lm_head.weight
+</code></pre>
+<p>각 <code>weight</code>는 <code>nn.Parameter</code> 객체다.</p>
+<p><code>nn.Parameter</code>는 모델이 학습하는 대상으로 등록된 Tensor이므로 일반 Tensor처럼 다음 정보를 가지고 있다.</p>
+<pre><code class="language-python">parameter.shape
+parameter.dtype
+parameter.device
+parameter.requires_grad
+</code></pre>
+</div>
+        <section id="model-parameters" class="markdown-section">
+<h2><code>model.parameters()</code>는 무엇을 반환하는가</h2>
+<pre><code class="language-python">model.parameters()
+</code></pre>
+<p>는 모델에 등록된 Parameter Tensor를 차례대로 전달하는 반복자를 반환한다.</p>
+<pre><code class="language-python">for parameter in model.parameters():
+    print(parameter.shape)
+</code></pre>
+<p>이렇게 순회하면 모델이 가진 Embedding, Attention, FFN 등의 모든 Parameter를 확인할 수 있다.</p>
+<p>다만 <code>parameters()</code>는 Parameter의 이름 없이 Tensor만 전달한다.</p>
+
+</section>
+<section id="parameter-tensor" class="markdown-section">
+<h2>첫 번째 Parameter Tensor 꺼내기</h2>
+<p>다음 코드는 모델의 Parameter 중 처음 전달되는 Tensor 하나를 꺼낸다.</p>
+<pre><code class="language-python">first_parameter = next(
+    model.parameters()
+)
+</code></pre>
+<p>처리 과정은 다음과 같다.</p>
+<pre><code class="language-text">model.parameters()
+→ 모델의 Parameter를 전달하는 반복자 생성
+
+next(...)
+→ 반복자가 처음 전달하는 Parameter Tensor를 꺼냄
+</code></pre>
+<p>첫 번째 Parameter가 무엇인지는 모델이 Module과 Parameter를 등록한 순서에 따라 결정된다.</p>
+<p>Qwen 같은 Decoder-only Transformer에서는 일반적으로 Token Embedding 가중치가 먼저 나올 수 있다.</p>
+<pre><code class="language-text">model.embed_tokens.weight
+</code></pre>
+<p>정확한 Parameter 이름까지 확인하고 싶다면 <code>named_parameters()</code>를 사용한다.</p>
+<pre><code class="language-python">(
+    first_parameter_name,
+    first_parameter,
+) = next(
+    model.named_parameters()
+)
+
+print(first_parameter_name)
+print(first_parameter.shape)
+</code></pre>
+<p><code>parameters()</code>와 <code>named_parameters()</code>의 차이는 다음과 같다.</p>
+<pre><code class="language-text">model.parameters()
+→ Parameter Tensor
+
+model.named_parameters()
+→ Parameter 이름과 Parameter Tensor
+</code></pre>
+
+</section>
+<section id="parameter" class="markdown-section">
+<h2>첫 번째 Parameter에서 꺼내 확인한 정보</h2>
+<p>현재 실습에서는 첫 번째 Parameter의 값 자체를 계산에 사용하지 않는다.</p>
+<p>첫 번째 Parameter Tensor가 가진 다음 두 정보를 확인한다.</p>
+<pre><code class="language-python">first_parameter.dtype
+first_parameter.device
+</code></pre>
+<h3><code>dtype</code></h3>
+<pre><code class="language-python">first_parameter.dtype
+</code></pre>
+<p>모델의 가중치가 어떤 숫자 자료형으로 올라갔는지 확인한다.</p>
+<pre><code class="language-text">torch.float16
+torch.bfloat16
+torch.float32
+</code></pre>
+<p>예를 들어 다음 검사는 대표 Parameter의 가중치가 <code>float16</code>인지 확인한다.</p>
+<pre><code class="language-python">assert (
+    first_parameter.dtype
+    == torch.float16
+)
+</code></pre>
+<h3><code>device</code></h3>
+<pre><code class="language-python">first_parameter.device
+</code></pre>
+<p>해당 가중치 Tensor가 어느 장치에 올라가 있는지 확인한다.</p>
+<pre><code class="language-text">cpu
+cuda:0
+cuda:1
+</code></pre>
+<p>다음 검사는 대표 Parameter가 첫 번째 GPU에 올라갔는지 확인한다.</p>
+<pre><code class="language-python">assert (
+    first_parameter.device
+    == torch.device(&quot;cuda:0&quot;)
+)
+</code></pre>
+<p>따라서 이 코드는 다음 두 질문에 답하기 위한 것이다.</p>
+<pre><code class="language-text">모델 가중치가 요청한 dtype으로 로드됐는가?
+모델 가중치가 요청한 GPU에 올라갔는가?
+</code></pre>
+
+</section>
+<section id="parameter-2" class="markdown-section">
+<h2>왜 첫 번째 Parameter로 확인하는가</h2>
+<p>모델을 다음과 같이 한 번에 로드하고 이동했다면 일반적으로 모델의 실수 Parameter들이 같은 dtype과 Device를 갖는다.</p>
+<pre><code class="language-python">model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.float16,
+)
+
+model = model.to(&quot;cuda:0&quot;)
+</code></pre>
+<p>예상되는 상태는 다음과 같다.</p>
+<pre><code class="language-text">Embedding 가중치 → float16, cuda:0
+Q Projection     → float16, cuda:0
+K Projection     → float16, cuda:0
+V Projection     → float16, cuda:0
+FFN 가중치       → float16, cuda:0
+</code></pre>
+<p>모든 Parameter에서 똑같은 정보를 확인하는 대신, 가장 간단하게 얻을 수 있는 첫 번째 Parameter 하나를 대표로 확인하는 것이다.</p>
+<pre><code class="language-python">first_parameter = next(
+    model.parameters()
+)
+
+assert first_parameter.dtype == torch.float16
+assert first_parameter.device == torch.device(&quot;cuda:0&quot;)
+</code></pre>
+<p>첫 번째 Parameter가 모델 전체를 대표하도록 특별히 만들어진 것은 아니다. 단지 <code>next()</code> 한 번으로 가장 간단하게 꺼낼 수 있어서 사용하는 것이다.</p>
+
+</section>
+<section id="parameter-3" class="markdown-section">
+<h2>두 번째나 마지막 Parameter로 확인해도 되는가</h2>
+<p>두 번째, 세 번째 또는 마지막 Parameter로 확인해도 된다.</p>
+<p>현재 실습처럼 모델 전체를 하나의 dtype으로 변환하고 하나의 GPU에 올렸다면, 몇 번째 Parameter를 선택하더라도 일반적으로 같은 결과가 나온다.</p>
+<pre><code class="language-text">첫 번째 Parameter → float16, cuda:0
+두 번째 Parameter → float16, cuda:0
+세 번째 Parameter → float16, cuda:0
+마지막 Parameter → float16, cuda:0
+</code></pre>
+<p>예를 들어 모든 Parameter를 리스트로 변환하면 원하는 위치의 Parameter를 선택할 수 있다.</p>
+<pre><code class="language-python">parameters = list(
+    model.parameters()
+)
+
+first_parameter = parameters[0]
+second_parameter = parameters[1]
+third_parameter = parameters[2]
+last_parameter = parameters[-1]
+</code></pre>
+<p>각 Parameter의 <code>dtype</code>과 <code>device</code>를 확인할 수 있다.</p>
+<pre><code class="language-python">print(first_parameter.dtype)
+print(second_parameter.dtype)
+print(third_parameter.device)
+print(last_parameter.device)
+</code></pre>
+<p>따라서 첫 번째 Parameter만 사용할 수 있는 것은 아니다.</p>
+<pre><code class="language-text">첫 번째 Parameter를 사용해도 됨
+두 번째 Parameter를 사용해도 됨
+세 번째 Parameter를 사용해도 됨
+마지막 Parameter를 사용해도 됨
+</code></pre>
+<p>첫 번째 Parameter를 사용하는 이유는 다음 코드가 가장 간단하기 때문이다.</p>
+<pre><code class="language-python">first_parameter = next(
+    model.parameters()
+)
+</code></pre>
+<p>두 번째나 마지막 Parameter가 기술적으로 부적절해서 첫 번째를 선택한 것이 아니다.</p>
+
+</section>
+<section id="parameter-4" class="markdown-section">
+<h2>선택한 Parameter에 따라 결과가 달라질 수도 있다</h2>
+<p>모든 모델에서 어느 Parameter를 선택하든 항상 같은 결과가 나오는 것은 아니다.</p>
+<p>모델이 여러 GPU에 분산되어 있다면 Parameter마다 Device가 다를 수 있다.</p>
+<pre><code class="language-text">Token Embedding → float16, cuda:0
+앞쪽 Layer     → float16, cuda:0
+뒤쪽 Layer     → float16, cuda:1
+LM Head        → float16, cuda:1
+</code></pre>
+<p>이 경우 첫 번째 Parameter와 마지막 Parameter의 Device가 다르다.</p>
+<pre><code class="language-python">print(first_parameter.device)
+# cuda:0
+
+print(last_parameter.device)
+# cuda:1
+</code></pre>
+<p>모델 내부에서 일부 Parameter가 다른 dtype을 사용할 수도 있다.</p>
+<pre><code class="language-text">대부분의 가중치     → float16
+일부 정규화 가중치 → float32
+</code></pre>
+<p>이 경우에도 어떤 Parameter를 선택했느냐에 따라 확인되는 dtype이 달라질 수 있다.</p>
+<pre><code class="language-text">첫 번째 Parameter → float16
+특정 Parameter   → float32
+</code></pre>
+<p>따라서 Parameter 하나만 확인하는 것은 어디까지나 빠른 대표 검사다.</p>
+<p>현재 실습처럼 모델 전체를 하나의 dtype과 하나의 GPU에 올린 상황에서는 첫 번째, 두 번째, 마지막 Parameter 중 무엇을 확인해도 보통 같은 결과가 나온다.</p>
+<p>하지만 모델이 여러 dtype이나 여러 GPU를 사용한다면 Parameter 하나의 정보만으로 모델 전체의 상태를 판단할 수 없다.</p>
+
+</section>
+<section id="dtype-device" class="markdown-section">
+<h2>모델 전체의 dtype과 Device 확인하기</h2>
+<p>모델 전체 상태를 확실하게 검사하려면 모든 Parameter를 확인해야 한다.</p>
+<p>모든 Parameter의 Device를 집합으로 모을 수 있다.</p>
+<pre><code class="language-python">parameter_devices: set[torch.device] = {
+    parameter.device
+    for parameter in model.parameters()
+}
+</code></pre>
+<p>모델 전체가 하나의 GPU에 있다면 다음과 같이 하나의 Device만 나온다.</p>
+<pre><code class="language-text">{device(type=&quot;cuda&quot;, index=0)}
+</code></pre>
+<p>모델이 여러 GPU에 분산되어 있다면 여러 Device가 나온다.</p>
+<pre><code class="language-text">{
+    device(type=&quot;cuda&quot;, index=0),
+    device(type=&quot;cuda&quot;, index=1),
+}
+</code></pre>
+<p>모든 실수 Parameter의 dtype도 확인할 수 있다.</p>
+<pre><code class="language-python">parameter_dtypes: set[torch.dtype] = {
+    parameter.dtype
+    for parameter in model.parameters()
+    if parameter.is_floating_point()
+}
+</code></pre>
+<p>모든 가중치가 <code>float16</code>이면 다음과 같이 나온다.</p>
+<pre><code class="language-text">{torch.float16}
+</code></pre>
+<p>서로 다른 dtype을 사용한다면 여러 값이 나온다.</p>
+<pre><code class="language-text">{
+    torch.float16,
+    torch.float32,
+}
+</code></pre>
+<p>따라서 검사 목적은 다음과 같이 구분할 수 있다.</p>
+<pre><code class="language-text">Parameter 하나 확인
+→ 모델이 대략 기대한 상태로 로드됐는지 빠르게 확인
+
+모든 Parameter 확인
+→ 모델 전체가 같은 dtype과 Device를 사용하는지 엄밀하게 확인
+</code></pre>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>PyTorch Transformer 모델에는 Embedding, Attention Projection, FFN, 정규화, LM Head 등의 여러 Parameter Tensor가 들어 있다.</p>
+<pre><code class="language-python">first_parameter = next(
+    model.parameters()
+)
+</code></pre>
+<p>이 코드는 그중 처음 등록된 Parameter Tensor 하나를 꺼낸다.</p>
+<p>그리고 현재 실습에서는 그 Tensor로부터 다음 정보를 확인했다.</p>
+<pre><code class="language-python">first_parameter.dtype
+first_parameter.device
+</code></pre>
+<pre><code class="language-text">dtype
+→ 모델 가중치가 어떤 숫자 자료형으로 로드됐는지 확인
+
+device
+→ 모델 가중치가 CPU와 GPU 중 어디에 올라갔는지 확인
+</code></pre>
+<p>두 번째, 세 번째 또는 마지막 Parameter를 사용해도 된다. 모델 전체가 동일한 dtype과 동일한 GPU에 올라가 있다면 어느 Parameter를 선택해도 일반적으로 같은 결과가 나온다.</p>
+<p>첫 번째 Parameter를 선택한 이유는 첫 번째 Parameter만 특별한 정보를 가지고 있기 때문이 아니다.</p>
+<pre><code class="language-python">first_parameter = next(
+    model.parameters()
+)
+</code></pre>
+<p>처럼 가장 간단하게 Parameter 하나를 꺼낼 수 있기 때문이다.</p>
+<p>즉, 코드의 의미는 다음과 같다.</p>
+<blockquote>
+<p>모델을 구성하는 여러 가중치 Tensor 중 가장 간단하게 접근할 수 있는 첫 번째 Parameter를 대표로 꺼내고, 그 Tensor의 <code>dtype</code>과 <code>device</code>를 통해 모델 가중치가 지정한 자료형과 GPU에 올라갔는지 빠르게 확인한다. 두 번째나 마지막 Parameter를 사용해도 되지만, 모델 전체 상태를 확실하게 검증하려면 모든 Parameter를 확인해야 한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

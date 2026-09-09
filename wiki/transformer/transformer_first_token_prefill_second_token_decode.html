@@ -1,0 +1,218 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_first_token_prefill_second_token_decode.md. Do not edit directly. source-sha256:815ae51e6583941e86e5af55c221b8422974196d488abe7e5e338cae9c799343 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="첫 번째 새 Token은 Prefill 마지막 Logit에서 선택되고, 두 번째부터는 새 Token과 누적 KV Cache를 사용하는 반복 Decode로 생성되는 흐름을 설명합니다.">
+  <meta name="source-sha256" content="815ae51e6583941e86e5af55c221b8422974196d488abe7e5e338cae9c799343">
+  <title>첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다">
+  <meta property="og:description" content="첫 번째 새 Token은 Prefill 마지막 Logit에서 선택되고, 두 번째부터는 새 Token과 누적 KV Cache를 사용하는 반복 Decode로 생성되는 흐름을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html","name":"첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다","description":"첫 번째 새 Token은 Prefill 마지막 Logit에서 선택되고, 두 번째부터는 새 Token과 누적 KV Cache를 사용하는 반복 Decode로 생성되는 흐름을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html"},"headline":"첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_first_token_prefill_second_token_decode.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html"},{"@type":"ListItem","position":6,"name":"`model.generate()` 내부에는 Prefill과 반복 Decode가 들어 있다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_model_generate_prefill_decode_loop.html"},{"@type":"ListItem","position":7,"name":"첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_kv_cache_end_to_end_generation_learning.html">KV Cache는 무엇을 저장하고 다음 Token 생성에서 어떻게 재사용되는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_model_generate_prefill_decode_loop.html">`model.generate()` 내부에는 Prefill과 반복 Decode가 들어 있다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>첫 번째 토큰은 Prefill에서 나오고 두 번째 토큰부터 Decode로 생성된다</h1>
+      <p class="lead">첫 번째 새 Token은 Prefill 마지막 Logit에서 선택되고, 두 번째부터는 새 Token과 누적 KV Cache를 사용하는 반복 Decode로 생성되는 흐름을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#prefill-prompt">Prefill은 Prompt 전체를 처리한다</a>
+        <a href="#prefill-cache-prompt-k-v">Prefill Cache에는 Prompt의 K·V가 저장된다</a>
+        <a href="#decode">첫 번째 생성 토큰을 입력하면서 Decode가 시작된다</a>
+        <a href="#decode-2">이후에는 같은 Decode 과정이 반복된다</a>
+        <a href="#section-379392fa33b3">전체 생성 흐름</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Decoder-only 언어 모델이 문장을 생성하는 과정은 크게 Prefill과 Decode로 나뉜다.</p>
+<p>두 단계의 차이를 이해할 때는 첫 번째 새 토큰이 어디에서 만들어지는지를 기준으로 보면 이해하기 쉽다.</p>
+<pre><code>첫 번째 새 토큰
+= Prefill 결과에서 선택
+
+두 번째 이후 토큰
+= KV Cache를 사용하는 반복 Decode로 생성
+</code></pre>
+</div>
+        <section id="prefill-prompt" class="markdown-section">
+<h2>Prefill은 Prompt 전체를 처리한다</h2>
+<p>사용자가 다음 Prompt를 입력했다고 가정해보자.</p>
+<pre><code>나는 오늘 학교에
+</code></pre>
+<p>모델은 먼저 Prompt의 모든 토큰을 한꺼번에 처리한다.</p>
+<pre><code>나는 / 오늘 / 학교에
+→ Prefill
+</code></pre>
+<p>Prefill에서는 Prompt 전체의 Q·K·V를 계산하고, 각 Transformer Layer에서 만들어진 K와 V를 KV Cache에 저장한다.</p>
+<pre><code>Prefill 입력
+= Prompt 전체 Token
+
+Prefill 결과
+= Prompt의 KV Cache
++ 각 Prompt 위치의 Logit
+</code></pre>
+<p>Decoder-only 언어 모델은 마지막 Prompt 위치의 Logit을 이용해 다음 토큰을 선택한다.</p>
+<pre><code>Prompt 마지막 위치의 Logit
+→ argmax 또는 Sampling
+→ 첫 번째 새 Token
+</code></pre>
+<p>예를 들어 첫 번째 새 토큰으로 <code>간다</code>가 선택될 수 있다.</p>
+<pre><code>나는 오늘 학교에
+→ Prefill
+→ 간다
+</code></pre>
+<p>따라서 첫 번째 새 토큰을 얻기 위해 별도의 Decode를 먼저 실행할 필요는 없다. Prefill이 이미 Prompt 마지막 위치의 Logit을 만들었기 때문이다.</p>
+
+</section>
+<section id="prefill-cache-prompt-k-v" class="markdown-section">
+<h2>Prefill Cache에는 Prompt의 K·V가 저장된다</h2>
+<p>Prefill이 끝난 직후 KV Cache에는 Prompt 토큰들의 K·V가 들어 있다.</p>
+<pre><code>KV Cache
+
+나는   → K1, V1
+오늘   → K2, V2
+학교에 → K3, V3
+</code></pre>
+<p>하지만 방금 생성된 첫 번째 새 토큰 <code>간다</code>의 K·V는 아직 Cache에 없다.</p>
+<p><code>간다</code>는 Prefill의 출력 Logit에서 선택된 토큰일 뿐, 아직 모델 입력으로 처리되지 않았기 때문이다.</p>
+<pre><code>Prefill 직후 Cache
+= Prompt의 K·V만 존재
+
+첫 번째 생성 Token의 K·V
+= 아직 존재하지 않음
+</code></pre>
+
+</section>
+<section id="decode" class="markdown-section">
+<h2>첫 번째 생성 토큰을 입력하면서 Decode가 시작된다</h2>
+<p>두 번째 새 토큰을 만들려면 방금 생성된 <code>간다</code>를 모델에 다시 입력해야 한다.</p>
+<pre><code>새 입력
+= 간다
+
+과거 문맥
+= Prefill에서 만든 Prompt KV Cache
+</code></pre>
+<p>첫 번째 Decode에서는 <code>간다</code> 하나에 대해서만 Q·K·V Projection을 수행한다.</p>
+<pre><code>간다
+→ Q_new
+→ K_new
+→ V_new
+</code></pre>
+<p>이때 새로 계산한 K와 V를 기존 KV Cache 끝에 추가한다.</p>
+<pre><code>기존 Cache
+나는 / 오늘 / 학교에
+
+새 K·V 추가
+나는 / 오늘 / 학교에 / 간다
+</code></pre>
+<p>그리고 <code>간다</code>의 새 Query는 Cache에 들어 있는 전체 K와 Attention 연산을 수행한다.</p>
+<pre><code class="language-scss">Q(간다)
+×
+K(나는, 오늘, 학교에, 간다)
+</code></pre>
+<p>그 결과로 만들어진 Logit에서 두 번째 새 토큰을 선택한다.</p>
+<pre><code>첫 번째 생성 Token + Prompt Cache
+→ Decode
+→ 두 번째 생성 Token
+</code></pre>
+
+</section>
+<section id="decode-2" class="markdown-section">
+<h2>이후에는 같은 Decode 과정이 반복된다</h2>
+<p>두 번째 토큰이 생성되면 그 토큰도 다음 Decode의 입력이 된다.</p>
+<pre><code>Decode 1회차
+
+첫 번째 새 Token
++ Prompt KV Cache
+→ 첫 번째 Token의 K·V 추가
+→ 두 번째 새 Token 생성
+</code></pre>
+<pre><code>Decode 2회차
+
+두 번째 새 Token
++ 갱신된 KV Cache
+→ 두 번째 Token의 K·V 추가
+→ 세 번째 새 Token 생성
+</code></pre>
+<pre><code>Decode 3회차
+
+세 번째 새 Token
++ 다시 갱신된 KV Cache
+→ 세 번째 Token의 K·V 추가
+→ 네 번째 새 Token 생성
+</code></pre>
+<p>각 Decode에서는 지금까지의 전체 Token을 다시 입력하지 않는다.</p>
+<p>모델에는 새로 생성된 토큰 하나만 넣고, 과거 토큰의 K·V는 누적된 KV Cache에서 가져온다.</p>
+
+</section>
+<section id="section-379392fa33b3" class="markdown-section">
+<h2>전체 생성 흐름</h2>
+<p>전체 과정을 연결하면 다음과 같다.</p>
+<pre><code>Prompt 전체
+→ Prefill
+→ Prompt KV Cache 생성
+→ 마지막 Logit에서 첫 번째 새 Token 선택
+
+첫 번째 새 Token + Prompt KV Cache
+→ Decode
+→ 첫 번째 Token의 K·V를 Cache에 추가
+→ 두 번째 새 Token 선택
+
+두 번째 새 Token + 갱신된 KV Cache
+→ Decode
+→ 두 번째 Token의 K·V를 Cache에 추가
+→ 세 번째 새 Token 선택
+
+→ EOS 또는 최대 생성 Token 수까지 반복
+</code></pre>
+<p>이를 간단하게 줄이면 다음과 같다.</p>
+<pre><code class="language-diff">Prefill
+= Prompt 전체 처리
++ Prompt KV Cache 생성
++ 첫 번째 새 Token 선택
+
+Decode
+= 직전에 생성된 Token 하나 처리
++ 해당 Token의 K·V를 Cache에 추가
++ 다음 새 Token 선택
+</code></pre>
+<p>따라서 첫 번째 새 토큰은 Prefill 결과에서 나오고, 두 번째 새 토큰부터는 이전에 생성된 토큰과 누적된 KV Cache를 이용한 반복 Decode로 생성된다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
