@@ -1,15 +1,15 @@
 <!doctype html>
-<!-- Generated from content/wiki/projects/ko-k8s-function-calling.md. Do not edit directly. source-sha256:9288896991149474bc4cbf4866b37e0c82767be04d8a88ef020614a102521d87 -->
+<!-- Generated from content/wiki/projects/ko-k8s-function-calling.md. Do not edit directly. source-sha256:e5840c3241d957b6c95cfa72148b40e1a30ed5e0ed8d59492efc6db8f692aba3 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Qwen3-1.7B가 한국어 Kubernetes 조회 요청에 맞는 함수와 인자를 선택하도록 LoRA 파인튜닝하고 동일 조건에서 평가했습니다.">
-  <meta name="source-sha256" content="9288896991149474bc4cbf4866b37e0c82767be04d8a88ef020614a102521d87">
+  <meta name="source-sha256" content="e5840c3241d957b6c95cfa72148b40e1a30ed5e0ed8d59492efc6db8f692aba3">
   <title>소형 LLM의 Kubernetes Function Calling: 36%에서 96%까지</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
-  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-project-typography-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-project-spacing-4">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/ko-k8s-function-calling.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -28,13 +28,13 @@
 <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
   <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
 </head>
-<body class="wiki-reference markdown-document markdown-project audience-first-project site-breadcrumb-shell" data-document-toc="off">
+<body class="wiki-reference markdown-document markdown-project audience-first-project site-breadcrumb-shell">
 <!-- static-shell:breadcrumb:start -->
 <nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">소형 LLM의 Kubernetes Function Calling: 36%에서 96%까지</span></nav>
 <!-- static-shell:breadcrumb:end -->
 
   <main class="wrap">
-    <header id="overview" class="hero">
+    <header class="hero">
       <span class="eyebrow">개인 프로젝트</span>
       <h1>소형 LLM의 Kubernetes Function Calling: 36%에서 96%까지</h1>
       <p class="lead">Qwen3-1.7B가 한국어 Kubernetes 조회 요청에 맞는 함수와 인자를 선택하도록 LoRA 파인튜닝하고 동일 조건에서 평가했습니다.</p>
@@ -42,11 +42,22 @@
       <div class="markdown-actions"><a href="../../projects.html">← 프로젝트</a><a href="../../knowledge_map.html">지식 지도</a></div>
     </header>
     <div class="markdown-layout">
-      
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#overview">프로젝트 개요</a>
+        <a href="#problem">실험 질문</a>
+        <a href="#scope">실험 범위</a>
+        <a href="#training">파인튜닝</a>
+        <a href="#evaluation">핵심 결과</a>
+        <a href="#limits">한계와 다음 단계</a>
+      </nav>
       <article class="markdown-content">
-        <div class="markdown-lead"><span class="md-anchor" id="document-toc-off" aria-hidden="true"></span>
-<p>작은 모델도 제한된 함수 집합이라면 한국어 요청을 안정적인 Function Call로 변환할 수 있을까요? Kubernetes 조회를 흉내 낸 다섯 개의 함수 Schema로 Qwen3-1.7B를 평가해 보니, 호출 필요 여부는 비교적 잘 판단했지만 함수 인자를 정확히 생성하지 못해 전체 성공률은 36%에 그쳤습니다. 같은 계약의 합성 데이터로 LoRA 파인튜닝한 뒤 동일한 holdout으로 다시 평가하자 전체 성공률은 96%까지 상승했습니다.</p>
-<p>이 글의 중심은 코드 자체가 아니라 <strong>작은 모델의 실패 원인을 계약과 데이터로 좁히고, 제한된 과제에서 실제 성능 개선을 확인한 과정</strong>입니다. 실험의 목적·방법·결과·한계는 바로 읽을 수 있게 두고, 전체 코드와 세부 구현 해설은 필요한 독자만 펼쳐 보도록 구성했습니다.</p>
+        
+        <section id="overview" class="markdown-section markdown-project-section">
+<h2>프로젝트 개요</h2>
+<p>이 프로젝트는 Qwen3-1.7B를 한국어 Kubernetes 조회 요청에 맞는 Function Calling 라우터로 파인튜닝하고, 동일한 평가 조건에서 성능 개선을 검증한 실험입니다. Kubernetes 조회용 함수 5개의 Schema를 정의하고, 원본 모델의 실패를 호출 여부·도구 선택·JSON·Schema·인자 정확도로 나누어 측정했습니다.</p>
+<p>원본 모델은 호출 필요 여부는 비교적 잘 판단했지만 정확한 함수 인자를 생성하지 못해 전체 성공률이 36%에 머물렀습니다. 같은 함수 계약으로 만든 합성 데이터를 사용해 LoRA 파인튜닝한 뒤 동일한 holdout으로 다시 평가한 결과, 전체 성공률은 96%까지 상승했습니다.</p>
+<p>핵심은 작은 모델의 실패 원인을 계약과 데이터로 좁히고, 제한된 과제에서 실제 개선을 수치로 확인한 데 있습니다. 아래에서는 실험 범위와 학습·평가 방법, 핵심 결과와 한계를 순서대로 소개하며, 전체 코드와 세부 구현 해설은 필요한 경우 펼쳐 확인할 수 있습니다.</p>
 <aside class="md-component md-metric-grid" data-component="metric-grid"><p class="md-component-title">실험 한눈에 보기</p><div class="md-component-body"><ul>
 <li><strong>5개</strong> Kubernetes 조회 함수</li>
 <li><strong>36%</strong> 파인튜닝 전 전체 성공률</li>
@@ -54,8 +65,9 @@
 <li><strong>+60%p</strong> 동일 holdout에서의 개선</li>
 </ul>
 </div></aside>
-</div>
-        <section id="problem" class="markdown-section markdown-project-section">
+
+</section>
+<section id="problem" class="markdown-section markdown-project-section">
 <h2>실험 질문</h2>
 <p>소형 모델이 한국어 요청을 읽고 제한된 도구 중 올바른 함수를 선택해 정확한 인자를 만들 수 있는지 확인했습니다.</p>
 <aside class="md-component md-shape-flow" data-component="shape-flow"><p class="md-component-title">요청에서 출력까지</p><div class="md-component-body"><ol>
