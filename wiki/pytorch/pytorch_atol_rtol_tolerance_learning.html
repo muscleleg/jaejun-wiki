@@ -1,0 +1,330 @@
+<!doctype html>
+<!-- Generated from content/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.md. Do not edit directly. source-sha256:0cb4eb63cd63eae04c8574916316f0691604c6e8a30019020d2dfd849336fb56 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="1e-5 과학적 표기법부터 PyTorch의 atol·rtol 오차 허용 공식, 계산 예시와 적절한 기준 선택까지 설명합니다.">
+  <meta name="source-sha256" content="0cb4eb63cd63eae04c8574916316f0691604c6e8a30019020d2dfd849336fb56">
+  <title>atol·rtol로 부동소수점 오차 허용 기준 이해하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <link rel="stylesheet" href="../../assets/vendor/katex/katex.min.css">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="atol·rtol로 부동소수점 오차 허용 기준 이해하기">
+  <meta property="og:description" content="1e-5 과학적 표기법부터 PyTorch의 atol·rtol 오차 허용 공식, 계산 예시와 적절한 기준 선택까지 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html","name":"atol·rtol로 부동소수점 오차 허용 기준 이해하기","description":"1e-5 과학적 표기법부터 PyTorch의 atol·rtol 오차 허용 공식, 계산 예시와 적절한 기준 선택까지 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html"},"headline":"atol·rtol로 부동소수점 오차 허용 기준 이해하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-tensor-contract","name":"Shape·dtype·device","identifier":"topics-tensor-contract"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_atol_rtol_tolerance_learning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"PyTorch","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-pytorch"},{"@type":"ListItem","position":4,"name":"데이터에서 y = 3x + 2 를 찾아내기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/pytorch/pytorch_linear_regression_learning.html"},{"@type":"ListItem","position":5,"name":"atol·rtol로 부동소수점 오차 허용 기준 이해하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-pytorch">PyTorch</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/pytorch/pytorch_linear_regression_learning.html">데이터에서 y = 3x + 2 를 찾아내기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">atol·rtol로 부동소수점 오차 허용 기준 이해하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">PyTorch</span>
+      <h1>atol·rtol로 부동소수점 오차 허용 기준 이해하기</h1>
+      <p class="lead">1e-5 과학적 표기법부터 PyTorch의 atol·rtol 오차 허용 공식, 계산 예시와 적절한 기준 선택까지 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1e-5">1e-5는 무엇을 뜻하는가</a>
+        <a href="#pytorch">PyTorch의 오차 비교 공식</a>
+        <a href="#atol">atol: 절대 허용 오차</a>
+        <a href="#rtol">rtol: 상대 허용 오차</a>
+        <a href="#atol-rtol">왜 atol과 rtol을 함께 사용하는가</a>
+        <a href="#section-9e9a7a0112cc">큰 값에서의 전체 계산 예시</a>
+        <a href="#section-0">0 근처에서의 전체 계산 예시</a>
+        <a href="#pytorch-2">PyTorch에서 사용하기</a>
+        <a href="#atol-rtol-2">atol과 rtol을 정하는 방법</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>컴퓨터는 실수를 이진 부동소수점으로 저장하기 때문에 모든 소수를 정확히 표현하지 못한다. 그래서 수학적으로 같은 계산도 아주 작은 차이가 생길 수 있다.</p>
+<pre><code class="language-python">0.1 + 0.2 == 0.3
+# False
+</code></pre>
+<p>이런 이유로 PyTorch에서는 두 값이 완전히 같은지를 검사하기보다, 차이가 허용 범위 안에 있는지 검사할 때 torch.isclose() 또는 torch.allclose()를 사용한다.</p>
+</div>
+        <section id="section-1e-5" class="markdown-section">
+<h2>1e-5는 무엇을 뜻하는가</h2>
+<p>1e-5에서 맨 앞은 영문 소문자 l이 아니라 숫자 1이다.</p>
+<p>e는 지수(exponent)를 나타내는 과학적 표기법이다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>a</mi><mtext>e</mtext><mi>b</mi><mo>=</mo><mi>a</mi><mo>×</mo><msup><mn>10</mn><mi>b</mi></msup></mrow><annotation encoding="application/x-tex">a\text{e}b=a\times10^b</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mord text"><span class="mord">e</span></span><span class="mord mathnormal">b</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8991em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8991em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span></span></span></span></span></span></span></span></span></div>
+<p>따라서 다음과 같다.</p>
+<pre><code class="language-text">1e-5 = 1 × 10⁻⁵ = 0.00001
+1e-8 = 1 × 10⁻⁸ = 0.00000001
+</code></pre>
+<p>지수가 음수이면 소수점을 왼쪽으로 옮긴다고 생각하면 된다.</p>
+<pre><code class="language-text">1e-1 = 0.1
+1e-2 = 0.01
+1e-3 = 0.001
+1e-4 = 0.0001
+1e-5 = 0.00001
+</code></pre>
+<p>지수가 양수이면 큰 숫자를 나타낸다.</p>
+<pre><code class="language-text">1e1 = 10
+1e2 = 100
+1e3 = 1000
+</code></pre>
+<p>맨 앞의 숫자가 반드시 1일 필요는 없다.</p>
+<pre><code class="language-text">2e-3   = 2 × 10⁻³   = 0.002
+2.5e-4 = 2.5 × 10⁻⁴ = 0.00025
+</code></pre>
+<p>여기서 e는 자연상수 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi></mrow><annotation encoding="application/x-tex">e</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.4306em;"></span><span class="mord mathnormal">e</span></span></span></span>가 아니라, 10의 몇 제곱을 곱할지 나타내는 표기다.</p>
+
+</section>
+<section id="pytorch" class="markdown-section">
+<h2>PyTorch의 오차 비교 공식</h2>
+<p>PyTorch는 다음 조건으로 두 값을 비교한다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="normal">∣</mi><mtext>실제값</mtext><mo>−</mo><mtext>기준값</mtext><mi mathvariant="normal">∣</mi><mo>≤</mo><mtext>atol</mtext><mo>+</mo><mtext>rtol</mtext><mo>×</mo><mi mathvariant="normal">∣</mi><mtext>기준값</mtext><mi mathvariant="normal">∣</mi></mrow><annotation encoding="application/x-tex">|\text{실제값}-\text{기준값}|
+\le
+\text{atol}+\text{rtol}\times|\text{기준값}|</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">실제값</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">atol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">rtol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span></span></span></span></span></div>
+<p>코드처럼 표현하면 다음과 같다.</p>
+<pre><code class="language-python">actual_difference = abs(actual - expected)
+
+allowed_difference = (
+    atol
+    + rtol * abs(expected)
+)
+
+is_close = actual_difference &lt;= allowed_difference
+</code></pre>
+<p>여기서 actual은 실제 계산 결과이고, expected는 비교 기준이 되는 예상값이다. PyTorch의 공식은 두 번째 값인 expected를 기준으로 상대 허용량을 계산한다.</p>
+
+</section>
+<section id="atol" class="markdown-section">
+<h2>atol: 절대 허용 오차</h2>
+<p>atol은 absolute tolerance, 즉 절대 허용 오차다. 값의 크기와 관계없이 적용하는 고정 허용량이다.</p>
+<p>예를 들어 다음과 같이 설정하면:</p>
+<pre><code class="language-python">atol = 0.1
+</code></pre>
+<p>두 값의 차이를 고정적으로 0.1까지 허용한다.</p>
+<pre><code class="language-text">10.00과 10.05의 차이 = 0.05 → 허용
+10.00과 10.20의 차이 = 0.20 → 불허
+</code></pre>
+<p>값이 10이든 1,000이든 atol이 제공하는 허용량은 항상 0.1이다.</p>
+<p>atol은 PyTorch가 비교 대상에서 자동으로 찾는 값이 아니다. 테스트나 프로그램을 작성하는 사람이 다음을 고려해 정한다.</p>
+<ul>
+<li>어느 정도의 작은 차이까지 무시해도 되는가</li>
+<li>계산 과정에서 반올림 오차가 얼마나 발생하는가</li>
+<li>float16, float32, float64 중 어떤 자료형을 사용하는가</li>
+<li>해당 문제에서 요구하는 정확도가 얼마인가</li>
+<li>값이 0 근처일 때 어느 정도까지 같은 값으로 볼 것인가</li>
+</ul>
+<p>예를 들어 0 근처에서 0.000001 정도의 차이는 무시해도 된다고 판단했다면 다음처럼 설정할 수 있다.</p>
+<pre><code class="language-python">atol = 1e-6  # 0.000001
+</code></pre>
+<p>atol은 비교하는 값과 같은 단위를 가진다. 길이를 미터 단위로 비교하면서 atol=0.01로 정했다면 0.01m, 즉 1cm까지의 차이를 허용한다는 의미다.</p>
+
+</section>
+<section id="rtol" class="markdown-section">
+<h2>rtol: 상대 허용 오차</h2>
+<p>rtol은 relative tolerance, 즉 상대 허용 오차다. 기준값의 크기에 비례하는 허용 비율이다.</p>
+<p>실제 상대 허용량은 다음과 같이 구한다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>상대 허용량</mtext><mo>=</mo><mi mathvariant="normal">∣</mi><mtext>기준값</mtext><mi mathvariant="normal">∣</mi><mo>×</mo><mtext>rtol</mtext></mrow><annotation encoding="application/x-tex">\text{상대 허용량}=|\text{기준값}|\times\text{rtol}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord text"><span class="mord hangul_fallback">상대</span><span class="mord"> </span><span class="mord hangul_fallback">허용량</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord text"><span class="mord">rtol</span></span></span></span></span></span></div>
+<p>예를 들어 다음과 같이 설정하면:</p>
+<pre><code class="language-python">rtol = 0.001
+</code></pre>
+<p>기준값의 0.1%까지 허용한다는 뜻이다.</p>
+<p>기준값이 1000이라면:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>1000</mn><mo>×</mo><mn>0.001</mn><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">1000\times0.001=1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1000</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.001</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></span></div>
+<p>따라서 상대 허용량은 1이다.</p>
+<pre><code class="language-text">실제값: 1000.8
+기준값: 1000.0
+
+실제 차이 = |1000.8 - 1000.0| = 0.8
+상대 허용량 = 1000 × 0.001 = 1
+</code></pre>
+<p>실제 차이 0.8이 허용량 1보다 작으므로 통과한다.</p>
+<p>같은 rtol=0.001이어도 기준값이 10이면:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>10</mn><mo>×</mo><mn>0.001</mn><mo>=</mo><mn>0.01</mn></mrow><annotation encoding="application/x-tex">10\times0.001=0.01</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">10</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.001</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.01</span></span></span></span></span></div>
+<p>만 허용한다. 즉, 기준값이 크면 실제 허용량도 커지고 기준값이 작으면 허용량도 작아진다.</p>
+<p>rtol을 백분율로 바꾸려면 100을 곱한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">rtol</th>
+<th align="right">허용 비율</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0.1</td>
+<td align="right">10%</td>
+</tr>
+<tr>
+<td align="right">0.01</td>
+<td align="right">1%</td>
+</tr>
+<tr>
+<td align="right">0.001</td>
+<td align="right">0.1%</td>
+</tr>
+<tr>
+<td align="right">1e-4</td>
+<td align="right">0.01%</td>
+</tr>
+<tr>
+<td align="right">1e-5</td>
+<td align="right">0.001%</td>
+</tr>
+</tbody></table>
+</div>
+<p>rtol은 비율이므로 단위가 없다.</p>
+
+</section>
+<section id="atol-rtol" class="markdown-section">
+<h2>왜 atol과 rtol을 함께 사용하는가</h2>
+<p>atol과 rtol은 서로 다른 상황을 처리한다.</p>
+<ul>
+<li>값이 크면 값의 크기에 맞춰 허용 범위도 달라져야 하므로 rtol이 필요하다.</li>
+<li>기준값이 0에 가까우면 상대 허용량도 0에 가까워지므로 atol이 필요하다.</li>
+</ul>
+<p>기준값이 정확히 0이면 다음과 같다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>rtol</mtext><mo>×</mo><mi mathvariant="normal">∣</mi><mn>0</mn><mi mathvariant="normal">∣</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\text{rtol}\times|0|=0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">rtol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣0∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span></span></div>
+<p>따라서 rtol만 사용하면 아주 작은 오차도 허용하지 못한다. 그래서 PyTorch는 두 허용량을 더한다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mtext>최종 허용량</mtext><mo>=</mo><mtext>atol</mtext><mo>+</mo><mtext>rtol</mtext><mo>×</mo><mi mathvariant="normal">∣</mi><mtext>기준값</mtext><mi mathvariant="normal">∣</mi></mrow><annotation encoding="application/x-tex">\text{최종 허용량}
+=\text{atol}+\text{rtol}\times|\text{기준값}|</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord text"><span class="mord hangul_fallback">최종</span><span class="mord"> </span><span class="mord hangul_fallback">허용량</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">atol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">rtol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span></span></span></span></span></div>
+<p>직관적으로는 다음과 같다.</p>
+<pre><code class="language-text">최종 허용량
+= 최소 고정 여유분
++ 기준값 크기에 따른 비례 여유분
+</code></pre>
+
+</section>
+<section id="section-9e9a7a0112cc" class="markdown-section">
+<h2>큰 값에서의 전체 계산 예시</h2>
+<p>다음 값을 비교한다고 해보자.</p>
+<pre><code class="language-python">actual = 1000.00
+expected = 1000.01
+
+atol = 1e-8
+rtol = 1e-5
+</code></pre>
+<p>먼저 실제 차이를 계산한다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="normal">∣</mi><mn>1000.00</mn><mo>−</mo><mn>1000.01</mn><mi mathvariant="normal">∣</mi><mo>=</mo><mn>0.01</mn></mrow><annotation encoding="application/x-tex">|1000.00-1000.01|=0.01</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣1000.00</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">1000.01∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.01</span></span></span></span></span></div>
+<p>atol은 다음과 같다.</p>
+<pre><code class="language-text">atol = 1e-8 = 0.00000001
+</code></pre>
+<p>rtol은 1e-5, 즉 0.00001, 0.001%다. 기준값에 곱하면:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>1000.01</mn><mo>×</mo><mn>0.00001</mn><mo>=</mo><mn>0.0100001</mn></mrow><annotation encoding="application/x-tex">1000.01\times0.00001=0.0100001</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1000.01</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.00001</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.0100001</span></span></span></span></span></div>
+<p>따라서 최종 허용량은:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>0.00000001</mn><mo>+</mo><mn>0.0100001</mn><mo>=</mo><mn>0.01000011</mn></mrow><annotation encoding="application/x-tex">0.00000001+0.0100001=0.01000011</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">0.00000001</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.0100001</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.01000011</span></span></span></span></span></div>
+<p>실제 차이와 비교하면 다음과 같다.</p>
+<pre><code class="language-text">실제 차이: 0.01000000
+허용 차이: 0.01000011
+</code></pre>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>0.01</mn><mo>≤</mo><mn>0.01000011</mn></mrow><annotation encoding="application/x-tex">0.01\le0.01000011</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">0.01</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.01000011</span></span></span></span></span></div>
+<p>실제 차이가 허용량보다 작으므로 두 값은 충분히 가깝다고 판단한다. 이 예에서는 기준값이 약 1,000으로 크기 때문에 rtol이 허용량의 대부분을 결정하고 atol=1e-8의 영향은 거의 없다.</p>
+
+</section>
+<section id="section-0" class="markdown-section">
+<h2>0 근처에서의 전체 계산 예시</h2>
+<p>이번에는 기준값이 0인 경우를 보자.</p>
+<pre><code class="language-python">actual = 0.0000008
+expected = 0.0
+
+atol = 1e-6
+rtol = 1e-5
+</code></pre>
+<p>실제 차이는 다음과 같다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="normal">∣</mi><mn>0.0000008</mn><mo>−</mo><mn>0</mn><mi mathvariant="normal">∣</mi><mo>=</mo><mn>0.0000008</mn></mrow><annotation encoding="application/x-tex">|0.0000008-0|=0.0000008</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣0.0000008</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">0∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.0000008</span></span></span></span></span></div>
+<p>상대 허용량은 다음과 같다.</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>1</mn><mi>e</mi><mo>−</mo><mn>5</mn><mo>×</mo><mi mathvariant="normal">∣</mi><mn>0</mn><mi mathvariant="normal">∣</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">1e-5\times|0|=0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mord mathnormal">e</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣0∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0</span></span></span></span></span></div>
+<p>atol=1e-6이므로 최종 허용량은:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>0.000001</mn><mo>+</mo><mn>0</mn><mo>=</mo><mn>0.000001</mn></mrow><annotation encoding="application/x-tex">0.000001+0=0.000001</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">0.000001</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.000001</span></span></span></span></span></div>
+<p>실제 차이와 비교하면:</p>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mn>0.0000008</mn><mo>≤</mo><mn>0.000001</mn></mrow><annotation encoding="application/x-tex">0.0000008\le0.000001</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">0.0000008</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.6444em;"></span><span class="mord">0.000001</span></span></span></span></span></div>
+<p>따라서 True다. 이 경우 기준값이 0이므로 rtol은 허용량을 만들지 못하고 atol이 비교 결과를 결정한다.</p>
+
+</section>
+<section id="pytorch-2" class="markdown-section">
+<h2>PyTorch에서 사용하기</h2>
+<pre><code class="language-python">import torch
+
+actual = torch.tensor([1000.00])
+expected = torch.tensor([1000.01])
+
+result = torch.isclose(
+    actual,
+    expected,
+    atol=1e-8,
+    rtol=1e-5,
+)
+
+print(result)
+# tensor([True])
+</code></pre>
+<p>torch.isclose()는 각 원소의 비교 결과를 반환한다.</p>
+<pre><code class="language-python">torch.isclose(actual, expected)
+# tensor([True, False, True, ...])
+</code></pre>
+<p>torch.allclose()는 모든 원소가 허용 범위 안에 있는지를 하나의 논리값으로 반환한다.</p>
+<pre><code class="language-python">torch.allclose(actual, expected)
+# True 또는 False
+</code></pre>
+<p>일반적인 기본값은 다음과 같다.</p>
+<pre><code class="language-python">rtol = 1e-5  # 0.00001
+atol = 1e-8  # 0.00000001
+</code></pre>
+<p>하지만 이 값들은 범용 기본값일 뿐 모든 계산에 맞는 절대적인 기준은 아니다. 자료형, 계산 과정, 값의 범위와 문제에서 요구하는 정확도에 맞춰 조정해야 한다.</p>
+
+</section>
+<section id="atol-rtol-2" class="markdown-section">
+<h2>atol과 rtol을 정하는 방법</h2>
+<p>먼저 문제에서 “어느 정도의 차이까지 같은 결과로 볼 것인가”를 정한다.</p>
+<ol>
+<li>기준값이 0 또는 매우 작은 범위에 있을 때 무시할 수 있는 절대 오차를 정하고 atol로 사용한다.</li>
+<li>값의 크기가 다양할 때 허용할 상대 오차 비율을 정하고 rtol로 사용한다.</li>
+<li>가장 중요한 입력 범위에서 실제 차이와 최종 허용량을 계산해 기준이 너무 느슨하거나 엄격하지 않은지 확인한다.</li>
+<li>float16, bfloat16, float32처럼 정밀도가 다른 자료형에서는 같은 값을 그대로 사용하지 않고 실제 계산 결과로 검증한다.</li>
+</ol>
+<p>atol을 너무 작게 정하면 정상적인 반올림 오차도 실패할 수 있고, 너무 크게 정하면 실제 버그를 놓칠 수 있다. rtol도 마찬가지로 문제에서 의미 있는 비율을 기준으로 정해야 한다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<ul>
+<li>1e-5는 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup></mrow><annotation encoding="application/x-tex">1\times10^{-5}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">5</span></span></span></span></span></span></span></span></span></span></span></span>, 즉 0.00001이다.</li>
+<li>atol은 값의 크기와 관계없는 고정 허용량이다.</li>
+<li>rtol은 기준값 크기에 곱하는 허용 비율이다.</li>
+<li>실제 비교에서는 두 허용량을 더한다.</li>
+</ul>
+<div class="markdown-math-display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi mathvariant="normal">∣</mi><mtext>실제값</mtext><mo>−</mo><mtext>기준값</mtext><mi mathvariant="normal">∣</mi><mo>≤</mo><mtext>atol</mtext><mo>+</mo><mtext>rtol</mtext><mo>×</mo><mi mathvariant="normal">∣</mi><mtext>기준값</mtext><mi mathvariant="normal">∣</mi></mrow><annotation encoding="application/x-tex">|\text{실제값}-\text{기준값}|
+\le
+\text{atol}+\text{rtol}\times|\text{기준값}|</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">실제값</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">atol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">rtol</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">∣</span><span class="mord text"><span class="mord hangul_fallback">기준값</span></span><span class="mord">∣</span></span></span></span></span></div>
+<p>한 문장으로 기억하면 다음과 같다.</p>
+<blockquote>
+<p>atol은 “0 근처에서도 최소한 이 정도 차이는 봐주자”, rtol은 “기준값 크기의 이 비율만큼 차이는 봐주자”라는 뜻이다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
