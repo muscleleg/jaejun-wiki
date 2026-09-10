@@ -1,0 +1,338 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/huggingface_model_artifact_download.md. Do not edit directly. source-sha256:9fc59a19188dda09927d9839bb681f4b06198200cdb12a3a3e527e4251765422 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hugging Face 모델을 고정된 로컬 Artifact 경로에 내려받고 실제 파일과 저장 위치를 검증하는 절차를 정리합니다.">
+  <meta name="source-sha256" content="9fc59a19188dda09927d9839bb681f4b06198200cdb12a3a3e527e4251765422">
+  <title>모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정">
+  <meta property="og:description" content="Hugging Face 모델을 고정된 로컬 Artifact 경로에 내려받고 실제 파일과 저장 위치를 검증하는 절차를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html","name":"모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정","description":"Hugging Face 모델을 고정된 로컬 Artifact 경로에 내려받고 실제 파일과 저장 위치를 검증하는 절차를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html"},"headline":"모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/huggingface_model_artifact_download.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"vLLM 전에 고정하는 Benchmark 계약 실습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html"},{"@type":"ListItem","position":7,"name":"모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html">vLLM 전에 고정하는 Benchmark 계약 실습</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>모델 저장 폴더를 만들고 실제 모델 파일을 내려받는 과정</h1>
+      <p class="lead">Hugging Face 모델을 고정된 로컬 Artifact 경로에 내려받고 실제 파일과 저장 위치를 검증하는 절차를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-581b9c2b74fa">모델을 저장할 경로를 정의한다</a>
+        <a href="#section-02e784c09ce9">모델 전용 폴더를 만든다</a>
+        <a href="#section-2ef3306c0746">실제 모델 파일을 내려받는다</a>
+        <a href="#section-383d3fdcf2f7">다운로드 후 디렉터리 구조</a>
+        <a href="#section-6b52da81db54">실제 저장 위치를 정리한다</a>
+        <a href="#section-61e9ef6f5583">지정한 위치에 저장됐는지 확인한다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Hugging Face 모델을 로컬에서 사용하려면 먼저 모델 파일을 저장할 폴더를 준비하고, 그 안에 실제 모델 파일을 내려받아야 한다.</p>
+<p>전체 과정은 다음과 같다.</p>
+<pre><code class="language-text">모델을 저장할 경로 정의
+→ 모델 전용 폴더 생성
+→ Hugging Face에서 모델 파일 다운로드
+→ 실제 저장 위치와 주요 파일 확인
+</code></pre>
+</div>
+        <section id="section-581b9c2b74fa" class="markdown-section">
+<h2>모델을 저장할 경로를 정의한다</h2>
+<pre><code class="language-python">from pathlib import Path
+
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+)
+</code></pre>
+<p>Python에서는 붙어 있는 문자열을 자동으로 하나로 합친다.</p>
+<pre><code class="language-python">&quot;/root/models/&quot;
+&quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+</code></pre>
+<p>따라서 실제 경로는 다음과 같다.</p>
+<pre><code class="language-text">/root/models/Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+<p>마지막에 있는 <code>Qwen2.5-1.5B-Instruct-989aa798</code>은 모델 파일이 아니다. 모델을 구성하는 여러 파일을 담을 디렉터리 이름이다.</p>
+<p><code>model_artifact_path</code>는 모델 파일 하나가 아니라 모델 파일 묶음이 저장될 위치를 나타낸다.</p>
+
+</section>
+<section id="section-02e784c09ce9" class="markdown-section">
+<h2>모델 전용 폴더를 만든다</h2>
+<pre><code class="language-python">model_artifact_path.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+</code></pre>
+<p>이 코드는 다음 디렉터리 구조를 만든다.</p>
+<pre><code class="language-text">/root
+└── models
+    └── Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+<p><code>mkdir()</code>에 전달한 옵션은 다음 의미를 가진다.</p>
+<h3><code>parents=True</code></h3>
+<p>중간 부모 디렉터리가 없으면 함께 생성한다.</p>
+<p>예를 들어 <code>/root/models</code>가 없어도 다음 디렉터리까지 한 번에 만들어진다.</p>
+<pre><code class="language-text">/root/models/Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+<p><code>parents=False</code>라면 부모인 <code>/root/models</code>가 없을 때 오류가 발생한다.</p>
+<h3><code>exist_ok=True</code></h3>
+<p>해당 디렉터리가 이미 존재해도 오류를 발생시키지 않는다.</p>
+<p>따라서 Notebook 셀을 다시 실행해도 폴더가 이미 있다는 이유로 실패하지 않는다.</p>
+<p>중요한 점은 <code>mkdir()</code>가 모델을 다운로드하는 함수는 아니라는 것이다. 이 단계에서는 비어 있는 모델 저장 폴더만 만들어진다.</p>
+<pre><code class="language-text">mkdir()
+→ 폴더만 생성
+
+모델 다운로드
+→ 아직 수행하지 않음
+</code></pre>
+
+</section>
+<section id="section-2ef3306c0746" class="markdown-section">
+<h2>실제 모델 파일을 내려받는다</h2>
+<p>폴더가 준비되면 <code>snapshot_download()</code>를 사용해 Hugging Face 모델 저장소의 파일을 내려받는다.</p>
+<pre><code class="language-python">from huggingface_hub import snapshot_download
+
+
+downloaded_model_path: str = snapshot_download(
+    repo_id=&quot;Qwen/Qwen2.5-1.5B-Instruct&quot;,
+    revision=(
+        &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+    ),
+    local_dir=model_artifact_path,
+)
+</code></pre>
+<p>각 인자는 다음 의미를 가진다.</p>
+<ul>
+<li><code>repo_id</code><ul>
+<li>내려받을 Hugging Face 모델 저장소</li>
+</ul>
+</li>
+<li><code>revision</code><ul>
+<li>내려받을 모델 저장소의 정확한 Git Commit</li>
+</ul>
+</li>
+<li><code>local_dir</code><ul>
+<li>모델 파일을 저장할 로컬 디렉터리</li>
+</ul>
+</li>
+</ul>
+<p><code>revision</code>을 고정하면 모델 저장소가 나중에 변경되더라도 항상 같은 시점의 모델 파일을 받을 수 있다.</p>
+<p><code>local_dir</code>에는 앞에서 만든 모델 전용 폴더를 전달한다.</p>
+<pre><code class="language-python">local_dir=model_artifact_path
+</code></pre>
+<p>따라서 다운로드된 파일들은 다음 위치에 저장된다.</p>
+<pre><code class="language-text">/root/models/Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+
+</section>
+<section id="section-383d3fdcf2f7" class="markdown-section">
+<h2>다운로드 후 디렉터리 구조</h2>
+<p>다운로드가 완료되면 비어 있던 모델 폴더 안에 실제 모델 파일이 들어간다.</p>
+<pre><code class="language-text">/root/models
+└── Qwen2.5-1.5B-Instruct-989aa798
+    ├── config.json
+    ├── generation_config.json
+    ├── tokenizer.json
+    ├── tokenizer_config.json
+    ├── tokenizer_config.json
+    └── model.safetensors
+</code></pre>
+<p>파일마다 역할이 다르다.</p>
+<ul>
+<li><code>config.json</code><ul>
+<li>모델 구조와 설정</li>
+</ul>
+</li>
+<li><code>tokenizer.json</code><ul>
+<li>문자열을 Token ID로 변환하는 Tokenizer 정보</li>
+</ul>
+</li>
+<li><code>tokenizer_config.json</code><ul>
+<li>Tokenizer의 추가 설정</li>
+</ul>
+</li>
+<li><code>generation_config.json</code><ul>
+<li>생성에 사용하는 기본 설정</li>
+</ul>
+</li>
+<li><code>model.safetensors</code><ul>
+<li>실제 학습된 모델 가중치</li>
+</ul>
+</li>
+</ul>
+<p>모델은 파일 하나가 아니라 이러한 파일들의 묶음으로 구성된다. 그래서 모델 이름을 사용한 전용 디렉터리를 만들고 그 안에 전체 파일을 저장한다.</p>
+
+</section>
+<section id="section-6b52da81db54" class="markdown-section">
+<h2>실제 저장 위치를 정리한다</h2>
+<p><code>snapshot_download()</code>는 모델이 저장된 경로를 문자열로 반환한다.</p>
+<pre><code class="language-python">downloaded_model_path: str = snapshot_download(...)
+</code></pre>
+<p>이를 <code>Path</code> 객체로 바꾸고 <code>resolve()</code>를 적용할 수 있다.</p>
+<pre><code class="language-python">resolved_model_path = Path(
+    downloaded_model_path
+).resolve()
+</code></pre>
+<p><code>resolve()</code>는 상대 경로와 <code>.</code>·<code>..</code>, Symbolic Link 등을 처리하여 정리된 절대 경로를 반환한다.</p>
+<pre><code class="language-text">다운로드 함수가 반환한 경로
+→ Path 객체로 변환
+→ 실제 절대 경로로 정리
+</code></pre>
+
+</section>
+<section id="section-61e9ef6f5583" class="markdown-section">
+<h2>지정한 위치에 저장됐는지 확인한다</h2>
+<pre><code class="language-python">assert (
+    resolved_model_path
+    == model_artifact_path.resolve()
+)
+</code></pre>
+<p>이 검사는 다음 두 경로가 같은지 확인한다.</p>
+<pre><code class="language-text">Hugging Face가 실제로 모델을 저장한 위치
+==
+우리가 모델을 저장하라고 지정한 위치
+</code></pre>
+<p>경로가 같다는 사실만으로 다운로드된 모델 파일이 완전하다고 단정할 수는 없다. 따라서 주요 파일도 별도로 확인한다.</p>
+<pre><code class="language-python">config_path = (
+    resolved_model_path
+    / &quot;config.json&quot;
+)
+
+tokenizer_config_path = (
+    resolved_model_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+weight_paths = list(
+    resolved_model_path.glob(
+        &quot;*.safetensors&quot;
+    )
+)
+
+assert config_path.exists()
+assert tokenizer_config_path.exists()
+assert len(weight_paths) &gt;= 1
+</code></pre>
+<p>이 검사를 통해 최소한 다음 사실을 확인한다.</p>
+<ul>
+<li>모델 설정 파일이 존재한다.</li>
+<li>Tokenizer 설정 파일이 존재한다.</li>
+<li>모델 가중치 파일이 하나 이상 존재한다.</li>
+</ul>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<pre><code class="language-python">from pathlib import Path
+
+from huggingface_hub import snapshot_download
+
+
+# 1. 모델 파일들을 저장할 경로
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+)
+
+# 2. 모델 전용 폴더 생성
+model_artifact_path.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+# 3. 실제 모델 파일 다운로드
+downloaded_model_path: str = snapshot_download(
+    repo_id=&quot;Qwen/Qwen2.5-1.5B-Instruct&quot;,
+    revision=(
+        &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+    ),
+    local_dir=model_artifact_path,
+)
+
+# 4. 실제 저장 위치 정리
+resolved_model_path = Path(
+    downloaded_model_path
+).resolve()
+
+# 5. 지정한 위치와 실제 위치 비교
+assert (
+    resolved_model_path
+    == model_artifact_path.resolve()
+)
+
+# 6. 주요 모델 파일 확인
+assert (
+    resolved_model_path
+    / &quot;config.json&quot;
+).exists()
+
+assert len(
+    list(
+        resolved_model_path.glob(
+            &quot;*.safetensors&quot;
+        )
+    )
+) &gt;= 1
+</code></pre>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p><code>Path</code>와 <code>mkdir()</code>는 모델을 저장할 디렉터리를 준비한다. 이 단계에서는 아직 모델 파일이 존재하지 않는다.</p>
+<p>그다음 <code>snapshot_download()</code>가 Hugging Face에서 실제 설정·Tokenizer·가중치 파일을 내려받아 준비된 디렉터리 안에 저장한다.</p>
+<pre><code class="language-text">Path
+→ 저장할 경로 표현
+
+mkdir()
+→ 모델 전용 폴더 생성
+
+snapshot_download()
+→ 실제 모델 파일 다운로드
+
+resolve()
+→ 실제 저장 경로 정리
+
+exists()와 glob()
+→ 주요 모델 파일 존재 여부 확인
+</code></pre>
+<p>즉, 이 코드는 단순히 모델 경로를 표현하는 코드가 아니라 모델을 저장할 폴더를 만들고, 그 폴더 안에 고정된 Revision의 실제 모델 파일을 내려받은 뒤 정상적으로 저장됐는지 확인하는 전체 과정이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

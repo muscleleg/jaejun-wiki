@@ -1,0 +1,678 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/pytorch_vllm_generation_options.md. Do not edit directly. source-sha256:c1ed1b5ce9d4e7b5f1b6194e069624fe0a4ec61a751614132ef4c9627f6ce929 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="첫 Token ID·Logprob 비교와 Temperature·Top-k·Top-p·Penalty·EOS 등 PyTorch와 vLLM의 생성 조건을 같은 의미로 맞추는 방법을 정리합니다.">
+  <meta name="source-sha256" content="c1ed1b5ce9d4e7b5f1b6194e069624fe0a4ec61a751614132ef4c9627f6ce929">
+  <title>PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션">
+  <meta property="og:description" content="첫 Token ID·Logprob 비교와 Temperature·Top-k·Top-p·Penalty·EOS 등 PyTorch와 vLLM의 생성 조건을 같은 의미로 맞추는 방법을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html","name":"PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션","description":"첫 Token ID·Logprob 비교와 Temperature·Top-k·Top-p·Penalty·EOS 등 PyTorch와 vLLM의 생성 조건을 같은 의미로 맞추는 방법을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html"},"headline":"PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_generation_options.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"vLLM 전에 고정하는 Benchmark 계약 실습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html"},{"@type":"ListItem","position":7,"name":"PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html">vLLM 전에 고정하는 Benchmark 계약 실습</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>PyTorch와 vLLM의 생성 결과를 같게 만들기 위해 맞춰야 하는 옵션</h1>
+      <p class="lead">첫 Token ID·Logprob 비교와 Temperature·Top-k·Top-p·Penalty·EOS 등 PyTorch와 vLLM의 생성 조건을 같은 의미로 맞추는 방법을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#first-token-logprob">첫 번째 Token ID와 Logprob를 함께 비교하는 이유</a>
+        <a href="#greedy-sampling">Greedy와 Sampling 중 선택 방식을 맞춘다</a>
+        <a href="#temperature">temperature는 확률 격차를 조절한다</a>
+        <a href="#top-k">top_k는 상위 K개 후보를 남긴 뒤 다시 정규화한다</a>
+        <a href="#top-p">top_p는 누적 확률까지 후보를 남기고 다시 정규화한다</a>
+        <a href="#repetition-penalty">repetition_penalty는 이미 등장한 Token의 점수를 조정한다</a>
+        <a href="#presence-penalty">presence_penalty는 등장 여부를 기준으로 조정한다</a>
+        <a href="#frequency-penalty">frequency_penalty는 등장 횟수에 비례해 조정한다</a>
+        <a href="#beam-search">num_beams는 여러 생성 경로를 유지한다</a>
+        <a href="#generation-length">생성 Token 수를 같게 맞춘다</a>
+        <a href="#eos-policy">EOS 종료 정책을 맞춘다</a>
+        <a href="#stop">stop은 문자열이나 특정 Token에서 생성을 끝낸다</a>
+        <a href="#seed">seed는 Sampling의 난수 상태를 통제한다</a>
+        <a href="#score-observation">logprobs와 output_scores는 결과를 관찰하기 위한 옵션이다</a>
+        <a href="#model-defaults">모델 Artifact의 기본 생성 설정을 주의한다</a>
+        <a href="#pytorch-settings">Greedy 비교에 사용할 PyTorch 설정</a>
+        <a href="#vllm-settings">같은 의미로 맞춘 vLLM 설정</a>
+        <a href="#option-mapping">두 엔진의 옵션 대응 관계</a>
+        <a href="#option-groups">어떤 옵션이 Token과 길이를 바꾸는가</a>
+        <a href="#conclusion">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>같은 모델과 같은 Prompt를 PyTorch와 vLLM에 넣더라도 생성 옵션이 다르면 서로 다른 Token이 만들어질 수 있다.</p>
+<p>모델은 다음 Token을 곧바로 출력하지 않는다.</p>
+<pre><code class="language-text">Prompt와 이전 생성 Token
+→ 모델이 Vocabulary 전체의 Logit 계산
+→ 생성 옵션으로 후보와 점수 조정
+→ 다음 Token 선택
+→ 선택한 Token을 입력에 추가
+→ 다음 Decode 반복
+</code></pre>
+<p>따라서 두 엔진의 결과를 비교하려면 모델과 Prompt뿐 아니라 Greedy·Sampling 방식, Temperature, Top-k·Top-p, 반복 Penalty, 생성 길이, EOS·Stop 정책을 함께 맞춰야 한다.</p>
+</div>
+        <section id="first-token-logprob" class="markdown-section">
+<h2>첫 번째 Token ID와 Logprob를 함께 비교하는 이유</h2>
+<p>첫 번째 생성 Token은 Prompt만을 입력으로 사용해 결정된다.</p>
+<pre><code class="language-text">Prompt
+  ↓
+첫 번째 Token의 Logit
+  ↓
+첫 번째 생성 Token
+</code></pre>
+<p>아직 앞에서 생성된 Token이 없기 때문에 이후 생성 결과의 영향을 받지 않는다. 따라서 PyTorch와 vLLM이 동일한 입력을 어떻게 처리했는지 비교하기 좋은 지점이다.</p>
+<p>첫 번째 Token ID는 두 엔진이 같은 Token을 선택했는지 확인한다. Token ID는 정수인 실제 선택 결과이므로 정확히 같아야 한다.</p>
+<pre><code class="language-text">PyTorch Token ID: 82707
+vLLM Token ID:    82707
+→ 같은 선택
+
+PyTorch Token ID: 82707
+vLLM Token ID:    19479
+→ 다른 선택
+</code></pre>
+<p>Logprob는 선택된 Token에 부여된 실수 점수다. 같은 모델과 GPU를 사용해도 두 엔진이 서로 다른 연산 경로와 CUDA Kernel을 사용하면 마지막 소수점이 달라질 수 있다.</p>
+<pre><code class="language-text">PyTorch Logprob: -0.2410527
+vLLM Logprob:    -0.2388833
+</code></pre>
+<p>따라서 Logprob는 완전 일치가 아니라 허용 오차 안에서 비교한다.</p>
+<pre><code class="language-python">math.isclose(
+    pytorch_logprob,
+    vllm_logprob,
+    abs_tol=1e-2,
+    rel_tol=1e-2,
+)
+</code></pre>
+<p>또는 Tensor라면 다음과 같이 비교한다.</p>
+<pre><code class="language-python">torch.isclose(
+    pytorch_logprob,
+    vllm_logprob,
+    atol=1e-2,
+    rtol=1e-2,
+)
+</code></pre>
+<p>atol은 허용할 절대 차이이고 rtol은 기준값의 크기에 비례해 허용할 상대 차이다.</p>
+<pre><code class="language-text">허용 조건
+실제 차이 ≤ atol + rtol × 기준값의 절댓값
+</code></pre>
+<p>첫 Token ID가 같고 Logprob도 허용 범위 안이라면 최초 결정과 그 결정의 수치가 충분히 가까웠다는 뜻이다. 하지만 이것만으로 전체 생성 Sequence가 같다고 결론 내릴 수는 없다. 이후 Decode에서 생성 설정이 달라지면 다음 Token부터 경로가 갈라질 수 있기 때문이다.</p>
+
+</section>
+<section id="greedy-sampling" class="markdown-section">
+<h2>Greedy와 Sampling 중 선택 방식을 맞춘다</h2>
+<p>모델이 다음과 같은 확률을 계산했다고 하자.</p>
+<pre><code class="language-text">Token A: 70%
+Token B: 20%
+Token C: 10%
+</code></pre>
+<p>Greedy는 확률에 따라 추첨하지 않고 가장 높은 Token을 선택한다.</p>
+<pre><code class="language-text">선택 결과
+→ Token A
+</code></pre>
+<p>PyTorch에서는 다음과 같이 설정한다.</p>
+<pre><code class="language-python">generation_config.do_sample = False
+generation_config.num_beams = 1
+</code></pre>
+<p>vLLM에서는 temperature=0.0으로 Greedy 생성을 표현한다.</p>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    temperature=0.0,
+)
+</code></pre>
+<p>Sampling은 확률에 따라 추첨한다. 같은 Prompt를 여러 번 실행하면 Token B나 C도 선택될 수 있다. Sampling은 일부러 나쁜 Token을 고르는 방식이 아니라, 모델이 가능성을 부여한 여러 후보를 사용해 결과의 다양성을 만드는 방식이다.</p>
+<pre><code class="language-text">다양한 출력이 목적
+→ Sampling
+
+같은 입력에서 같은 결과가 나오는지 검증
+→ Greedy
+</code></pre>
+
+</section>
+<section id="temperature" class="markdown-section">
+<h2>temperature는 확률 격차를 조절한다</h2>
+<p>Temperature는 이미 만들어진 확률에 직접 곱하는 값이 아니다. Softmax를 적용하기 전에 Logit을 Temperature로 나눈다.</p>
+<pre><code class="language-text">probability = softmax(logit / temperature)
+</code></pre>
+<p>Logit이 다음과 같다고 하자.</p>
+<pre><code class="language-text">Token A: 2.0
+Token B: 1.0
+</code></pre>
+<p>Temperature가 1.0이면 대략 다음 확률이 된다.</p>
+<pre><code class="language-text">A: 73%
+B: 27%
+</code></pre>
+<p>Temperature를 0.5로 낮추면 Logit 차이가 확대된다.</p>
+<pre><code class="language-text">[2.0, 1.0] / 0.5 = [4.0, 2.0]
+
+A: 88%
+B: 12%
+</code></pre>
+<p>B의 원래 점수가 좋아진 것이 아니라 A와 B 사이의 확률 격차가 커진 것이다.</p>
+<p>Temperature를 2.0으로 높이면 Logit 차이가 축소된다.</p>
+<pre><code class="language-text">[2.0, 1.0] / 2.0 = [1.0, 0.5]
+
+A: 62%
+B: 38%
+</code></pre>
+<p>B가 A보다 높은 점수가 된 것은 아니다. A가 여전히 가장 높지만 Sampling에서 B가 뽑힐 가능성이 커진 것이다.</p>
+<pre><code class="language-text">낮은 Temperature
+→ 확률 격차 확대
+→ 가장 높은 Token에 집중
+
+높은 Temperature
+→ 확률 격차 축소
+→ 다른 후보도 추첨될 가능성 증가
+</code></pre>
+<p>Sampling을 사용할 때는 양쪽에 같은 값을 지정한다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.do_sample = True
+generation_config.temperature = 0.7
+
+# vLLM
+sampling_params = SamplingParams(
+    temperature=0.7,
+)
+</code></pre>
+<p>Greedy 비교에서는 PyTorch의 do_sample=False와 vLLM의 temperature=0.0을 사용한다. Greedy에서는 추첨하지 않으므로 Temperature보다 Greedy 여부가 핵심이다.</p>
+
+</section>
+<section id="top-k" class="markdown-section">
+<h2>top_k는 상위 K개 후보를 남긴 뒤 다시 정규화한다</h2>
+<p>top_k는 Vocabulary 전체에서 점수가 높은 Token을 K개만 남긴다.</p>
+<pre><code class="language-text">A: 40%
+B: 25%
+C: 15%
+D: 12%
+E:  8%
+</code></pre>
+<p>top_k=3이면 A, B, C만 후보로 남는다. 남은 확률의 합은 80%이므로 다시 합이 100%가 되도록 정규화한다.</p>
+<pre><code class="language-text">A: 40 / 80 = 50.00%
+B: 25 / 80 = 31.25%
+C: 15 / 80 = 18.75%
+</code></pre>
+<p>그다음 정규화된 확률로 Sampling한다. D와 E가 선택될 확률은 0%다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.do_sample = True
+generation_config.top_k = 20
+
+# vLLM
+sampling_params = SamplingParams(
+    temperature=0.7,
+    top_k=20,
+)
+</code></pre>
+<p>Top-k 제한을 끄는 값은 프레임워크마다 다를 수 있다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.top_k = 0
+
+# vLLM
+sampling_params = SamplingParams(top_k=-1)
+</code></pre>
+<p>Greedy에서는 가장 높은 Token만 선택하므로 일반적인 Top-k 제한은 결과를 바꾸지 않는다.</p>
+
+</section>
+<section id="top-p" class="markdown-section">
+<h2>top_p는 누적 확률까지 후보를 남기고 다시 정규화한다</h2>
+<p>top_k가 후보 개수를 고정한다면 top_p는 누적 확률을 기준으로 후보를 정한다.</p>
+<pre><code class="language-text">A: 45%  → 누적 45%
+B: 25%  → 누적 70%
+C: 12%  → 누적 82%
+D: 10%  → 누적 92%
+E:  8%  → 누적 100%
+</code></pre>
+<p>top_p=0.8이면 누적 확률이 처음으로 80% 이상이 되는 C까지 남긴다.</p>
+<pre><code class="language-text">남는 후보 → A, B, C
+제외되는 후보 → D, E
+</code></pre>
+<p>후보를 자른 직후 남은 확률의 합은 82%다. 이 상태로 바로 추첨하지 않고 다시 합이 1이 되도록 정규화한다.</p>
+<pre><code class="language-text">A: 45 / 82 ≈ 54.88%
+B: 25 / 82 ≈ 30.49%
+C: 12 / 82 ≈ 14.63%
+합: 100%
+</code></pre>
+<p>그다음 정규화된 확률로 Sampling한다. D와 E는 후보에서 제거됐으므로 선택될 확률이 0%다.</p>
+<pre><code class="language-text">1. 전체 Vocabulary의 확률 계산
+2. 확률이 높은 Token부터 정렬
+3. 누적 확률이 top_p 이상이 될 때까지 후보 선택
+4. 나머지 후보 제거
+5. 남은 확률을 다시 합이 1이 되도록 정규화
+6. 정규화된 확률에 따라 Sampling
+</code></pre>
+<p>모델이 한 Token을 매우 확신하면 후보가 하나만 남을 수 있고, 확률이 넓게 분산되면 많은 후보가 남을 수 있다.</p>
+<pre><code class="language-text">Top-k → 후보 개수가 고정됨
+Top-p → 모델의 확신 정도에 따라 후보 개수가 달라짐
+</code></pre>
+<pre><code class="language-python"># PyTorch
+generation_config.do_sample = True
+generation_config.top_p = 0.8
+
+# vLLM
+sampling_params = SamplingParams(
+    temperature=0.7,
+    top_p=0.8,
+)
+</code></pre>
+<p>top_p=1.0은 확률 누적 기준으로 후보를 제거하지 않는다는 뜻이다. Greedy에서는 확률 추첨을 하지 않으므로 top_p가 최종 선택을 바꾸지 않는다.</p>
+
+</section>
+<section id="repetition-penalty" class="markdown-section">
+<h2>repetition_penalty는 이미 등장한 Token의 점수를 조정한다</h2>
+<p>repetition_penalty는 Prompt나 생성 결과에 이미 등장한 Token이 다시 선택되는 정도를 조절한다.</p>
+<pre><code class="language-text">repetition_penalty=1.0
+→ 반복 점수 조정 없음
+
+repetition_penalty&gt;1.0
+→ 이미 등장한 Token의 재선택 억제
+</code></pre>
+<p>이미 등장한 A의 Logit이 5.0이고 B가 4.6이라고 하자.</p>
+<pre><code class="language-text">A: 5.0
+B: 4.6
+→ A 선택
+</code></pre>
+<p>repetition_penalty=1.2로 A의 점수를 조정하면 A가 B보다 낮아질 수 있다.</p>
+<pre><code class="language-text">A: 5.0 / 1.2 ≈ 4.17
+B: 4.6
+→ B 선택
+</code></pre>
+<p>확률 추첨을 사용하지 않는 Greedy에서도 Logit 자체가 바뀌므로 결과가 달라질 수 있다.</p>
+<p>이번 PyTorch와 vLLM 비교에서 처음 전체 Sequence가 달랐던 원인은 이 옵션의 불일치였다.</p>
+<pre><code class="language-text">PyTorch: repetition_penalty=1.1
+vLLM:    repetition_penalty=1.0
+</code></pre>
+<p>첫 번째 Token은 같았지만 생성 이력이 누적된 뒤 PyTorch에서만 반복 페널티가 적용됐다. 그 결과 세 번째 생성 Token부터 경로가 갈라졌다.</p>
+<p>양쪽을 다음처럼 맞춘 뒤에는 전체 생성 Sequence가 동일해졌다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.repetition_penalty = 1.0
+
+# vLLM
+sampling_params = SamplingParams(
+    repetition_penalty=1.0,
+)
+</code></pre>
+<p>따라서 repetition_penalty는 Greedy 비교에서도 반드시 맞춰야 한다.</p>
+
+</section>
+<section id="presence-penalty" class="markdown-section">
+<h2>presence_penalty는 등장 여부를 기준으로 조정한다</h2>
+<p>다음과 같은 생성 이력이 있다고 하자.</p>
+<pre><code class="language-text">A, A, A, B
+</code></pre>
+<p>Presence Penalty는 A가 세 번 등장했는지보다 한 번이라도 등장했는지를 본다.</p>
+<pre><code class="language-text">A가 등장했는가? → 예
+B가 등장했는가? → 예
+C가 등장했는가? → 아니오
+</code></pre>
+<pre><code class="language-text">presence_penalty=0.0
+→ 등장 여부에 따른 조정 없음
+
+presence_penalty&gt;0.0
+→ 이미 등장한 Token의 재선택 억제
+→ 새로운 Token 사용 유도
+</code></pre>
+<p>vLLM에서는 다음과 같이 비활성화할 수 있다.</p>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    presence_penalty=0.0,
+)
+</code></pre>
+<p>PyTorch에서 같은 역할의 별도 LogitsProcessor를 사용하지 않는다면 vLLM도 0.0으로 두어야 한다.</p>
+
+</section>
+<section id="frequency-penalty" class="markdown-section">
+<h2>frequency_penalty는 등장 횟수에 비례해 조정한다</h2>
+<p>frequency_penalty는 Token이 몇 번 등장했는지를 본다.</p>
+<pre><code class="language-text">A, A, A, B
+
+A: 3번
+B: 1번
+C: 0번
+</code></pre>
+<p>Frequency Penalty가 적용되면 세 번 등장한 A가 한 번 등장한 B보다 더 많이 억제된다.</p>
+<pre><code class="language-text">frequency_penalty=0.0
+→ 등장 횟수에 따른 조정 없음
+
+frequency_penalty&gt;0.0
+→ 자주 등장한 Token일수록 더 많이 억제
+</code></pre>
+<p>Presence Penalty와의 차이는 다음과 같다.</p>
+<pre><code class="language-text">Presence Penalty → 한 번이라도 등장했는가?
+Frequency Penalty → 몇 번 등장했는가?
+</code></pre>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    frequency_penalty=0.0,
+)
+</code></pre>
+
+</section>
+<section id="beam-search" class="markdown-section">
+<h2>num_beams는 여러 생성 경로를 유지한다</h2>
+<p>Greedy는 매 단계에서 가장 높은 Token 하나를 선택한다. Beam Search는 여러 후보 경로를 동시에 유지한다.</p>
+<pre><code class="language-text">첫 번째 후보: A로 시작
+두 번째 후보: B로 시작
+세 번째 후보: C로 시작
+</code></pre>
+<p>첫 Token만 보면 A가 높아도 전체 문장 점수는 B 경로가 더 좋을 수 있다. Beam Search는 여러 경로를 유지하기 때문에 나중에 더 좋은 전체 경로를 선택할 수 있다.</p>
+<pre><code class="language-python"># PyTorch에서 Beam Search 사용 안 함
+generation_config.num_beams = 1
+</code></pre>
+<p>PyTorch와 vLLM의 일반적인 Greedy 결과를 비교할 때는 Beam Search를 사용하지 않는 것이 단순하다.</p>
+
+</section>
+<section id="generation-length" class="markdown-section">
+<h2>생성 Token 수를 같게 맞춘다</h2>
+<p>PyTorch와 vLLM은 생성 길이 옵션의 이름이 다르다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.max_new_tokens = 32
+
+# vLLM
+sampling_params = SamplingParams(
+    max_tokens=32,
+)
+</code></pre>
+<p>두 옵션 모두 Prompt를 제외하고 새로 생성할 최대 Token 수를 의미한다.</p>
+<pre><code class="language-text">Prompt Token 수: 37
+새 Token 수:     32
+최대 전체 길이:  69
+</code></pre>
+<p>양쪽 생성 길이가 다르면 앞부분이 같아도 전체 Sequence는 같을 수 없다.</p>
+
+</section>
+<section id="eos-policy" class="markdown-section">
+<h2>EOS 종료 정책을 맞춘다</h2>
+<p>EOS는 문장의 끝을 나타내는 특별한 Token이다.</p>
+<pre><code class="language-text">최대 생성 수: 32
+10번째 Token: EOS
+
+실제 생성
+→ 10개에서 종료
+</code></pre>
+<p>정확히 N개를 비교하는 Benchmark에서는 EOS가 나와도 계속 생성하도록 설정할 수 있다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.eos_token_id = None
+generation_config.forced_eos_token_id = None
+generation_config.max_new_tokens = 32
+
+# vLLM
+sampling_params = SamplingParams(
+    max_tokens=32,
+    ignore_eos=True,
+)
+</code></pre>
+<p>실제 서비스 동작을 비교한다면 양쪽에서 같은 EOS Token ID를 사용하고 EOS가 나오면 종료되도록 해야 한다.</p>
+<pre><code class="language-text">고정 길이 Benchmark → EOS 무시 → 정확히 N개 생성
+실제 서비스 비교 → 같은 EOS 정책 → EOS가 나오면 종료
+</code></pre>
+
+</section>
+<section id="stop" class="markdown-section">
+<h2>stop은 문자열이나 특정 Token에서 생성을 끝낸다</h2>
+<p>EOS 외에도 특정 문자열이나 Token ID가 나오면 종료할 수 있다.</p>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    stop=[&quot;\n\n&quot;],
+    stop_token_ids=[1234],
+)
+</code></pre>
+<p>vLLM에만 Stop 조건이 있고 PyTorch에는 같은 조건이 없다면 결과 길이가 달라질 수 있다. 비교에서 별도 Stop 조건을 사용하지 않는다면 다음처럼 비활성화한다.</p>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    stop=None,
+    stop_token_ids=None,
+)
+</code></pre>
+<p>Stop 조건이 필요하다면 PyTorch에도 같은 의미의 StoppingCriteria를 구현해야 한다.</p>
+
+</section>
+<section id="seed" class="markdown-section">
+<h2>seed는 Sampling의 난수 상태를 통제한다</h2>
+<p>Sampling은 확률 추첨이므로 난수가 필요하다.</p>
+<pre><code class="language-python"># PyTorch
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+
+# vLLM
+sampling_params = SamplingParams(
+    seed=42,
+)
+</code></pre>
+<p>Seed는 같은 엔진과 같은 환경에서 Sampling 결과를 재현하는 데 도움이 된다. 그러나 서로 다른 엔진이 같은 Seed를 사용한다고 해서 반드시 같은 결과가 보장되는 것은 아니다. 난수 소비 순서와 Sampling 구현이 다를 수 있기 때문이다.</p>
+<p>Greedy는 난수 추첨을 하지 않으므로 엔진 간 Token 비교에서는 Seed보다 Greedy 설정을 고정하는 것이 중요하다.</p>
+
+</section>
+<section id="score-observation" class="markdown-section">
+<h2>logprobs와 output_scores는 결과를 관찰하기 위한 옵션이다</h2>
+<p>선택된 Token의 점수를 확인하려면 점수 반환을 요청해야 한다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.output_scores = True
+generation_config.return_dict_in_generate = True
+
+# vLLM
+sampling_params = SamplingParams(
+    logprobs=1,
+)
+</code></pre>
+<p>이 옵션들은 Token 선택 규칙을 바꾸지 않는다.</p>
+<pre><code class="language-text">Temperature·Top-k·Top-p·Penalty
+→ Token 선택에 영향
+
+output_scores·logprobs
+→ 선택 결과를 관찰하기 위한 옵션
+</code></pre>
+
+</section>
+<section id="model-defaults" class="markdown-section">
+<h2>모델 Artifact의 기본 생성 설정을 주의한다</h2>
+<p>PyTorch에서 다음 코드를 사용하면 모델 Artifact의 generation_config.json을 복사한다.</p>
+<pre><code class="language-python">generation_config = copy.deepcopy(
+    model.generation_config
+)
+</code></pre>
+<p>이 설정에는 다음과 같은 값이 들어 있을 수 있다.</p>
+<pre><code class="language-json">{
+  &quot;do_sample&quot;: true,
+  &quot;temperature&quot;: 0.7,
+  &quot;top_p&quot;: 0.8,
+  &quot;top_k&quot;: 20,
+  &quot;repetition_penalty&quot;: 1.1
+}
+</code></pre>
+<p>이 상태에서 do_sample만 바꾸면 Sampling은 꺼지지만 다른 값은 객체에 여전히 남아 있다.</p>
+<pre><code class="language-python">generation_config.do_sample = False
+</code></pre>
+<p>Temperature, Top-k, Top-p는 Greedy에서 적용되지 않을 수 있다. 그러나 repetition_penalty는 Greedy에서도 Logit을 수정한다.</p>
+<p>따라서 비교 실험에서는 기본값을 추측하지 말고 중요한 값을 모두 명시적으로 덮어써야 한다.</p>
+
+</section>
+<section id="pytorch-settings" class="markdown-section">
+<h2>Greedy 비교에 사용할 PyTorch 설정</h2>
+<pre><code class="language-python">generation_config = copy.deepcopy(
+    model.generation_config
+)
+
+generation_config.do_sample = False
+generation_config.num_beams = 1
+generation_config.repetition_penalty = 1.0
+generation_config.max_new_tokens = 32
+
+generation_config.eos_token_id = None
+generation_config.forced_eos_token_id = None
+
+generation_config.output_scores = True
+generation_config.return_dict_in_generate = True
+</code></pre>
+
+</section>
+<section id="vllm-settings" class="markdown-section">
+<h2>같은 의미로 맞춘 vLLM 설정</h2>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    temperature=0.0,
+    top_p=1.0,
+    top_k=-1,
+    repetition_penalty=1.0,
+    presence_penalty=0.0,
+    frequency_penalty=0.0,
+    max_tokens=32,
+    ignore_eos=True,
+    stop=None,
+    stop_token_ids=None,
+    seed=42,
+    logprobs=1,
+)
+</code></pre>
+
+</section>
+<section id="option-mapping" class="markdown-section">
+<h2>두 엔진의 옵션 대응 관계</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>목적</th>
+<th>PyTorch</th>
+<th>vLLM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Greedy 생성</td>
+<td>do_sample=False</td>
+<td>temperature=0.0</td>
+</tr>
+<tr>
+<td>Beam Search 미사용</td>
+<td>num_beams=1</td>
+<td>일반 Greedy 실행</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>Sampling일 때 지정</td>
+<td>temperature</td>
+</tr>
+<tr>
+<td>Top-k 제한 없음</td>
+<td>top_k=0 또는 Greedy에서 미적용</td>
+<td>top_k=-1</td>
+</tr>
+<tr>
+<td>Top-p 제한 없음</td>
+<td>top_p=1.0 또는 Greedy에서 미적용</td>
+<td>top_p=1.0</td>
+</tr>
+<tr>
+<td>반복 페널티 없음</td>
+<td>repetition_penalty=1.0</td>
+<td>repetition_penalty=1.0</td>
+</tr>
+<tr>
+<td>Presence 페널티 없음</td>
+<td>별도 Processor 없음</td>
+<td>presence_penalty=0.0</td>
+</tr>
+<tr>
+<td>Frequency 페널티 없음</td>
+<td>별도 Processor 없음</td>
+<td>frequency_penalty=0.0</td>
+</tr>
+<tr>
+<td>생성 Token 수</td>
+<td>max_new_tokens=N</td>
+<td>max_tokens=N</td>
+</tr>
+<tr>
+<td>EOS 무시</td>
+<td>eos_token_id=None</td>
+<td>ignore_eos=True</td>
+</tr>
+<tr>
+<td>Stop 문자열 없음</td>
+<td>별도 기준 없음</td>
+<td>stop=None</td>
+</tr>
+<tr>
+<td>Seed</td>
+<td>torch.manual_seed()</td>
+<td>seed</td>
+</tr>
+<tr>
+<td>점수 반환</td>
+<td>output_scores=True</td>
+<td>logprobs=1</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="option-groups" class="markdown-section">
+<h2>어떤 옵션이 Token과 길이를 바꾸는가</h2>
+<p>Token 선택에 직접 영향을 줄 수 있는 옵션은 다음과 같다.</p>
+<pre><code class="language-text">do_sample
+temperature
+top_k
+top_p
+repetition_penalty
+presence_penalty
+frequency_penalty
+num_beams
+</code></pre>
+<p>생성 길이와 종료 위치에 영향을 주는 옵션은 다음과 같다.</p>
+<pre><code class="language-text">max_new_tokens
+max_tokens
+eos_token_id
+ignore_eos
+stop
+stop_token_ids
+</code></pre>
+<p>결과를 관찰하지만 Token 선택을 직접 바꾸지는 않는 옵션은 다음과 같다.</p>
+<pre><code class="language-text">output_scores
+return_dict_in_generate
+logprobs
+</code></pre>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>결론</h2>
+<p>PyTorch와 vLLM의 생성 결과를 비교할 때는 같은 모델과 Prompt를 사용하는 것만으로 충분하지 않다.</p>
+<pre><code class="language-text">모델의 원래 Logit
+→ 반복 관련 Penalty로 점수 조정
+→ Temperature로 확률 격차 조정
+→ Top-k·Top-p로 후보 제한
+→ 남은 후보의 확률을 다시 합이 1이 되도록 정규화
+→ Greedy 또는 Sampling으로 Token 선택
+→ EOS·Stop 조건으로 계속 생성할지 결정
+</code></pre>
+<p>특히 PyTorch의 model.generation_config에는 모델 제작자가 저장한 기본값이 들어 있을 수 있다. vLLM의 기본값과 다를 수 있으므로 비교 실험에서는 기본값을 추측하지 말고 주요 옵션을 모두 명시해야 한다.</p>
+<p>이번 실습에서는 repetition_penalty가 달랐기 때문에 첫 Token은 같았지만 세 번째 생성 Token부터 Sequence가 달라졌다. 양쪽을 repetition_penalty=1.0으로 맞춘 뒤에는 전체 생성 Token Sequence가 동일해졌다.</p>
+<p>결국 두 엔진의 조건을 맞춘다는 것은 옵션 이름이나 숫자를 무조건 똑같이 복사한다는 뜻이 아니다. PyTorch와 vLLM에서 <strong>최종 Token을 고르는 실질적인 규칙이 같도록 설정한다는 뜻</strong>이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

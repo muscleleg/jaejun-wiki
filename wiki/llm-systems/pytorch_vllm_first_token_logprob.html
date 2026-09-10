@@ -1,0 +1,202 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/pytorch_vllm_first_token_logprob.md. Do not edit directly. source-sha256:01d23bd7c1c1fc8938896a722d67ae900179bb88dade4cc4649aaae8925f714c -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="첫 번째 Token ID와 Logprob를 비교하는 이유, 엔진 간 수치 오차 허용 기준, 전체 생성 Sequence 검증 방법을 정리합니다.">
+  <meta name="source-sha256" content="01d23bd7c1c1fc8938896a722d67ae900179bb88dade4cc4649aaae8925f714c">
+  <title>PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유">
+  <meta property="og:description" content="첫 번째 Token ID와 Logprob를 비교하는 이유, 엔진 간 수치 오차 허용 기준, 전체 생성 Sequence 검증 방법을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html","name":"PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유","description":"첫 번째 Token ID와 Logprob를 비교하는 이유, 엔진 간 수치 오차 허용 기준, 전체 생성 Sequence 검증 방법을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html"},"headline":"PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_first_token_logprob.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"vLLM 전에 고정하는 Benchmark 계약 실습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html"},{"@type":"ListItem","position":7,"name":"PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html">vLLM 전에 고정하는 Benchmark 계약 실습</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>PyTorch와 vLLM의 첫 번째 Token Logprob를 비교할 때 오차 범위를 두는 이유</h1>
+      <p class="lead">첫 번째 Token ID와 Logprob를 비교하는 이유, 엔진 간 수치 오차 허용 기준, 전체 생성 Sequence 검증 방법을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#logprob-token">Logprob는 선택한 Token의 확률을 로그로 표현한 값이다</a>
+        <a href="#token">첫 번째 Token을 비교하는 이유</a>
+        <a href="#logprob">Logprob에 오차 범위가 필요한 이유</a>
+        <a href="#token-id">Token ID에는 오차 범위를 적용하지 않는다</a>
+        <a href="#token-2">첫 번째 Token만 같으면 전체 생성도 같은가</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>PyTorch와 vLLM이 같은 모델, 같은 Prompt, 같은 생성 설정을 사용한다면 첫 번째로 선택하는 Token ID도 같아야 한다.</p>
+<p>그러나 해당 Token의 <code>logprob</code>까지 소수점 단위로 완전히 같을 필요는 없다. Token ID와 <code>logprob</code>는 서로 다른 기준으로 비교해야 하기 때문이다.</p>
+</div>
+        <section id="logprob-token" class="markdown-section">
+<h2>Logprob는 선택한 Token의 확률을 로그로 표현한 값이다</h2>
+<p>언어 모델은 다음 Token 후보마다 Logit을 출력한다. 이 Logit에 Softmax를 적용하면 각 Token의 확률이 만들어진다.</p>
+<p>예를 들어 다음 Token의 확률이 아래와 같다고 하자.</p>
+<pre><code class="language-text">Token A: 0.78
+Token B: 0.15
+Token C: 0.07
+</code></pre>
+<p>Greedy 생성에서는 확률이 가장 높은 <code>Token A</code>를 선택한다.</p>
+<p><code>logprob</code>는 이 확률에 자연로그를 적용한 값이다.</p>
+<pre><code class="language-text">logprob = log(probability)
+</code></pre>
+<p>확률은 <code>0~1</code> 사이이므로 일반적인 <code>logprob</code>는 음수가 된다. 값이 <code>0</code>에 가까울수록 모델이 해당 Token을 높은 확률로 선택했다는 뜻이다.</p>
+<pre><code class="language-text">logprob = -0.1  → 비교적 높은 확률
+logprob = -5.0  → 매우 낮은 확률
+</code></pre>
+
+</section>
+<section id="token" class="markdown-section">
+<h2>첫 번째 Token을 비교하는 이유</h2>
+<p>첫 번째 생성 Token은 Prompt만을 입력으로 사용해 결정된다.</p>
+<pre><code class="language-text">Prompt
+  ↓
+첫 번째 Token의 Logit
+  ↓
+첫 번째 생성 Token
+</code></pre>
+<p>아직 앞에서 생성된 Token이 없기 때문에 이후 생성 결과의 영향을 받지 않는다. 따라서 PyTorch와 vLLM이 동일한 입력을 어떻게 처리했는지 직접 비교하기 가장 좋은 지점이다.</p>
+<p>다음 두 항목을 함께 확인한다.</p>
+<pre><code class="language-text">첫 번째 Token ID
+→ 두 엔진이 실제로 같은 Token을 선택했는가?
+
+선택된 Token의 Logprob
+→ 해당 Token에 부여한 점수도 충분히 가까운가?
+</code></pre>
+<p>첫 Token ID가 같다는 것은 두 엔진이 같은 결정을 내렸다는 뜻이다. Logprob까지 가깝다면 그 결정을 만들어 낸 수치도 비슷했다는 것을 추가로 확인할 수 있다.</p>
+
+</section>
+<section id="logprob" class="markdown-section">
+<h2>Logprob에 오차 범위가 필요한 이유</h2>
+<p>같은 모델과 GPU를 사용해도 PyTorch와 vLLM은 내부적으로 완전히 동일한 연산 코드를 사용하지 않을 수 있다.</p>
+<p>예를 들면 다음과 같은 차이가 발생할 수 있다.</p>
+<pre><code class="language-text">PyTorch
+→ 일반적인 PyTorch·Transformers 연산 경로 사용
+
+vLLM
+→ 최적화된 Attention Kernel과 자체 추론 엔진 사용
+</code></pre>
+<p>GPU의 부동소수점 연산은 계산 순서가 달라지면 마지막 소수점 값이 조금 달라질 수 있다.</p>
+<p>실제 비교 결과도 다음과 같았다.</p>
+<pre><code class="language-yaml">PyTorch 첫 Token Logprob: -0.2410527
+vLLM 첫 Token Logprob:    -0.2388833
+절댓값 차이:               0.0021694
+</code></pre>
+<p>두 값이 문자열이나 비트 단위로 완전히 같지는 않지만, 첫 Token ID는 동일했다. 이 정도의 차이는 Token 선택을 바꾸지 않는 작은 수치 차이로 볼 수 있다.</p>
+<p>따라서 실수 값을 다음처럼 직접 비교하면 안 된다.</p>
+<pre><code class="language-text">pytorch_logprob == vllm_logprob
+</code></pre>
+<p>대신 절대 오차와 상대 오차를 허용하는 비교를 사용한다.</p>
+<pre><code class="language-text">math.isclose(
+    pytorch_logprob,
+    vllm_logprob,
+    abs_tol=1e-2,
+    rel_tol=1e-2,
+)
+</code></pre>
+<p>PyTorch Tensor라면 다음과 같이 비교할 수 있다.</p>
+<pre><code class="language-text">torch.isclose(
+    pytorch_logprob,
+    vllm_logprob,
+    atol=1e-2,
+    rtol=1e-2,
+)
+</code></pre>
+<p>비교 기준은 대략 다음과 같다.</p>
+<pre><code class="language-text">실제 차이 ≤ atol + rtol × 기준값의 절댓값
+</code></pre>
+<ul>
+<li><code>atol</code>은 값의 크기와 상관없이 허용할 절대 차이다.</li>
+<li><code>rtol</code>은 기준값의 크기에 비례해 허용할 상대 차이다.</li>
+</ul>
+
+</section>
+<section id="token-id" class="markdown-section">
+<h2>Token ID에는 오차 범위를 적용하지 않는다</h2>
+<p>Token ID는 실수가 아니라 정수이자 모델이 실제로 선택한 결과다.</p>
+<pre><code class="language-yaml">PyTorch Token ID: 82707
+vLLM Token ID:    82707
+</code></pre>
+<p>이 값은 정확히 같아야 한다.</p>
+<pre><code class="language-text">same_token = (
+    pytorch_token_id == vllm_token_id
+)
+</code></pre>
+<p>다음 결과를 오차 범위로 넘어가서는 안 된다.</p>
+<pre><code class="language-yaml">PyTorch Token ID: 82707
+vLLM Token ID:    19479
+</code></pre>
+<p>Logprob 차이가 작더라도 선택된 Token ID가 다르면 실제 생성 결과가 달라진 것이다.</p>
+<p>따라서 비교 기준을 다음처럼 구분해야 한다.</p>
+<pre><code class="language-text">Token ID
+→ 정확히 일치해야 한다.
+
+Logprob
+→ 정한 수치 오차 범위 안에서 비교한다.
+</code></pre>
+
+</section>
+<section id="token-2" class="markdown-section">
+<h2>첫 번째 Token만 같으면 전체 생성도 같은가</h2>
+<p>그렇지는 않다.</p>
+<p>첫 번째 Token이 같아도 이후 단계의 생성 설정이 다르면 두 번째 이후 Token부터 결과가 달라질 수 있다.</p>
+<p>실제로 처음 비교했을 때는 PyTorch가 모델 Artifact의 다음 설정을 물려받고 있었다.</p>
+<pre><code class="language-text">repetition_penalty = 1.1
+</code></pre>
+<p>vLLM은 기본값을 사용하고 있었다.</p>
+<pre><code class="language-text">repetition_penalty = 1.0
+</code></pre>
+<p>첫 번째 Token에서는 이 차이가 선택 결과를 바꾸지 않았지만, 생성 이력이 쌓인 뒤에는 반복 페널티가 다음 Token의 점수를 다르게 바꿨다. 그 결과 세 번째 생성 Token부터 전체 Sequence가 달라졌다.</p>
+<p>양쪽을 모두 다음과 같이 맞춘 후에는 전체 생성 Token ID도 동일해졌다.</p>
+<pre><code class="language-text">repetition_penalty = 1.0
+</code></pre>
+<p>따라서 완전한 검증에서는 세 가지를 구분해야 한다.</p>
+<pre><code class="language-text">첫 번째 Token ID 일치
+→ 최초 생성 결정이 같다.
+
+첫 번째 Token Logprob가 허용 오차 내에서 일치
+→ 최초 결정의 수치도 충분히 가깝다.
+
+전체 생성 Token Sequence 일치
+→ 반복 Decode를 포함한 최종 생성 결과가 같다.
+</code></pre>
+<p>첫 Token의 Logprob 비교는 엔진 간 수치가 비슷한지 확인하는 보조 검증이다. 최종 출력 재현성을 증명하려면 전체 생성 Token ID도 별도로 비교해야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

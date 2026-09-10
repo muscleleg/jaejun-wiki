@@ -1,0 +1,255 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_repetition_penalty.md. Do not edit directly. source-sha256:7904f80ea084f984a0bb01298382f34f7a33166904fb71d518f9a616b5233beb -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="repetition_penalty가 이미 등장한 토큰의 Logit과 다음 토큰 선택을 어떻게 바꾸는지, PyTorch와 vLLM 비교에서 같은 값을 고정해야 하는 이유를 정리합니다.">
+  <meta name="source-sha256" content="7904f80ea084f984a0bb01298382f34f7a33166904fb71d518f9a616b5233beb">
+  <title>`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다">
+  <meta property="og:description" content="repetition_penalty가 이미 등장한 토큰의 Logit과 다음 토큰 선택을 어떻게 바꾸는지, PyTorch와 vLLM 비교에서 같은 값을 고정해야 하는 이유를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html","name":"`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다","description":"repetition_penalty가 이미 등장한 토큰의 Logit과 다음 토큰 선택을 어떻게 바꾸는지, PyTorch와 vLLM 비교에서 같은 값을 고정해야 하는 이유를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html"},"headline":"`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_repetition_penalty.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"vLLM 전에 고정하는 Benchmark 계약 실습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html"},{"@type":"ListItem","position":7,"name":"`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html">vLLM 전에 고정하는 Benchmark 계약 실습</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>`repetition_penalty`가 다르면 같은 모델과 GPU에서도 생성 토큰이 달라질 수 있다</h1>
+      <p class="lead">repetition_penalty가 이미 등장한 토큰의 Logit과 다음 토큰 선택을 어떻게 바꾸는지, PyTorch와 vLLM 비교에서 같은 값을 고정해야 하는 이유를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#logit">다음 토큰은 Logit을 기준으로 선택한다</a>
+        <a href="#repetition-penalty-logit"><code>repetition_penalty</code>는 이미 등장한 토큰의 Logit을 조정한다</a>
+        <a href="#section-0aaf5a145b80">값에 따른 의미</a>
+        <a href="#gpu">같은 모델과 GPU를 사용해도 결과가 달라질 수 있다</a>
+        <a href="#greedy">Greedy 생성에서도 반드시 값을 맞춰야 한다</a>
+        <a href="#pytorch-vllm">PyTorch와 vLLM 비교에서는 같은 값으로 고정해야 한다</a>
+        <a href="#section-163d8dbe6de2">생성 결과 비교 전에 고정해야 하는 조건</a>
+        <a href="#section-79a66407ffdf">비교 결과가 다를 때 확인하는 방법</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><code>repetition_penalty</code>는 모델이 이미 사용한 토큰을 다시 선택할 가능성을 조정하는 추론 옵션이다.</p>
+<p>모델 가중치를 다시 학습시키는 옵션이 아니며, 모델이 다음 토큰을 선택하기 직전에 출력한 Logit을 변경한다.</p>
+</div>
+        <section id="logit" class="markdown-section">
+<h2>다음 토큰은 Logit을 기준으로 선택한다</h2>
+<p>Decoder-only 언어 모델은 현재 문맥을 바탕으로 어휘에 포함된 모든 토큰의 Logit을 계산한다.</p>
+<pre><code class="language-text">현재 문맥
+→ 모델 Forward
+→ 어휘 전체의 Logit
+→ 생성 옵션 적용
+→ 다음 토큰 선택
+</code></pre>
+<p>Greedy 생성이라면 최종 Logit이 가장 큰 토큰을 선택한다.</p>
+<pre><code class="language-text">Token A Logit: 5.0
+Token B Logit: 4.6
+
+선택 결과
+→ Token A
+</code></pre>
+<p>여기서 Token A가 이미 Prompt나 생성 결과에 등장한 토큰이라고 가정해 보자.</p>
+
+</section>
+<section id="repetition-penalty-logit" class="markdown-section">
+<h2><code>repetition_penalty</code>는 이미 등장한 토큰의 Logit을 조정한다</h2>
+<p><code>repetition_penalty=1.0</code>이면 Logit을 변경하지 않는다.</p>
+<pre><code class="language-text">Token A: 5.0
+Token B: 4.6
+
+선택 결과
+→ Token A
+</code></pre>
+<p>하지만 <code>repetition_penalty=1.2</code>를 적용하면 이미 등장한 Token A의 점수가 불리하게 조정될 수 있다.</p>
+<pre><code class="language-text">반복된 Token A
+5.0 / 1.2 = 약 4.17
+
+반복되지 않은 Token B
+4.6
+</code></pre>
+<p>최종 순서는 다음처럼 바뀐다.</p>
+<pre><code class="language-text">Token A: 약 4.17
+Token B: 4.6
+
+선택 결과
+→ Token B
+</code></pre>
+<p>모델이 처음 계산한 Logit은 같지만, 다음 토큰을 선택하기 전에 적용한 생성 옵션 때문에 최종 선택이 달라진 것이다.</p>
+
+</section>
+<section id="section-0aaf5a145b80" class="markdown-section">
+<h2>값에 따른 의미</h2>
+<pre><code class="language-text">repetition_penalty = 1.0
+→ 반복 페널티를 적용하지 않는다.
+
+repetition_penalty &gt; 1.0
+→ 이미 등장한 토큰을 다시 선택하기 어렵게 만든다.
+
+repetition_penalty &lt; 1.0
+→ 이미 등장한 토큰을 다시 선택하기 쉽게 만든다.
+</code></pre>
+<p>값을 높이면 같은 표현이 반복되는 현상을 줄일 수 있다. 그러나 너무 높이면 이름, 전문 용어, 조사처럼 실제로 다시 사용해야 하는 토큰까지 피할 수 있어 문장이 부자연스러워질 수 있다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>같은 모델과 GPU를 사용해도 결과가 달라질 수 있다</h2>
+<p>다음 두 실행이 같은 조건이라고 가정해 보자.</p>
+<pre><code class="language-text">같은 Model Artifact
+같은 GPU
+같은 dtype
+같은 Prompt
+같은 Tokenizer
+같은 Seed
+</code></pre>
+<p>그런데 <code>repetition_penalty</code>가 다르다면 두 실행은 완전히 같은 생성 조건이 아니다.</p>
+<pre><code class="language-text">실행 A
+repetition_penalty = 1.0
+
+실행 B
+repetition_penalty = 1.2
+</code></pre>
+<p>두 실행 모두 모델 Forward 단계에서는 같은 Logit을 만들 수 있다. 하지만 그다음 단계에서 반복 토큰의 Logit을 서로 다르게 조정하므로 최종 Token 순서가 바뀔 수 있다.</p>
+<pre><code class="language-text">같은 모델 Logit
+        ↓
+서로 다른 repetition_penalty
+        ↓
+서로 다른 최종 Logit 순서
+        ↓
+서로 다른 다음 Token
+</code></pre>
+<p>첫 생성 토큰이 달라지면 다음 Decode 단계에 들어가는 문맥도 달라진다.</p>
+<pre><code class="language-text">PyTorch 첫 Token: A
+vLLM 첫 Token: B
+
+다음 문맥
+PyTorch: Prompt + A
+vLLM:    Prompt + B
+</code></pre>
+<p>이제 두 엔진은 서로 다른 문맥을 기준으로 다음 토큰을 계산한다. 따라서 처음에는 토큰 하나만 달랐더라도 이후 생성 Sequence 전체가 달라질 수 있다.</p>
+
+</section>
+<section id="greedy" class="markdown-section">
+<h2>Greedy 생성에서도 반드시 값을 맞춰야 한다</h2>
+<p>Greedy 생성은 확률적으로 토큰을 뽑지 않고 가장 높은 점수의 토큰을 선택한다.</p>
+<p>그래서 Seed만 같으면 항상 같은 결과가 나올 것처럼 생각할 수 있다. 하지만 <code>repetition_penalty</code>는 가장 큰 토큰을 고르기 전에 Logit 자체를 바꾼다.</p>
+<pre><code class="language-text">원래 가장 높은 토큰
+→ repetition_penalty 적용
+→ 순위가 내려갈 수 있음
+→ 다른 토큰이 Greedy 선택됨
+</code></pre>
+<p>따라서 <code>do_sample=False</code> 또는 <code>temperature=0.0</code>인 Greedy 생성에서도 <code>repetition_penalty</code>를 동일하게 설정해야 한다.</p>
+
+</section>
+<section id="pytorch-vllm" class="markdown-section">
+<h2>PyTorch와 vLLM 비교에서는 같은 값으로 고정해야 한다</h2>
+<p>Transformers/PyTorch에서는 다음처럼 지정할 수 있다.</p>
+<pre><code class="language-python">pytorch_generated_ids = model.generate(
+    input_ids=input_ids,
+    attention_mask=attention_mask,
+    do_sample=False,
+    repetition_penalty=1.0,
+    max_new_tokens=32,
+)
+</code></pre>
+<p>vLLM에서는 <code>SamplingParams</code>에 같은 값을 지정한다.</p>
+<pre><code class="language-python">from vllm import SamplingParams
+
+vllm_sampling_params = SamplingParams(
+    temperature=0.0,
+    repetition_penalty=1.0,
+    max_tokens=32,
+)
+</code></pre>
+<p>두 실행의 설정은 다음처럼 대응돼야 한다.</p>
+<pre><code class="language-text">Transformers/PyTorch
+repetition_penalty=1.0
+
+vLLM
+repetition_penalty=1.0
+</code></pre>
+<p>한쪽에서 값을 생략하고 다른 쪽에서만 지정하는 것도 피해야 한다. 현재 기본값이 같더라도 라이브러리 버전이나 설정 파일에 따라 실제 적용값을 놓칠 수 있기 때문이다.</p>
+<p>Benchmark에서는 기본값에 의존하지 않고 양쪽 값을 명시적으로 기록하는 편이 안전하다.</p>
+
+</section>
+<section id="section-163d8dbe6de2" class="markdown-section">
+<h2>생성 결과 비교 전에 고정해야 하는 조건</h2>
+<p>PyTorch와 vLLM의 출력을 비교하려면 적어도 다음 조건을 맞춰야 한다.</p>
+<pre><code class="language-text">Model Artifact와 Revision
+Tokenizer와 Chat Template
+실제 Prompt Token ID
+Weight dtype
+KV Cache dtype
+Greedy 또는 Sampling 방식
+temperature
+top_p
+top_k
+repetition_penalty
+Seed
+최대 생성 Token 수
+EOS와 Stop 정책
+</code></pre>
+<p>이 중 하나라도 다르면 같은 모델을 사용해도 생성 결과가 달라질 수 있다.</p>
+<p>특히 <code>repetition_penalty</code>가 다르면 모델 구현의 차이가 없어도 Token 선택 단계에서 결과가 달라진다. 이 차이를 확인하지 않으면 생성 Sequence 불일치를 PyTorch와 vLLM 엔진의 계산 오류로 잘못 판단할 수 있다.</p>
+
+</section>
+<section id="section-79a66407ffdf" class="markdown-section">
+<h2>비교 결과가 다를 때 확인하는 방법</h2>
+<p>PyTorch와 vLLM의 생성 결과가 다르면 먼저 양쪽의 실제 옵션을 출력한다.</p>
+<pre><code class="language-text">PyTorch repetition_penalty:
+vLLM repetition_penalty:
+</code></pre>
+<p>그다음 다음 순서로 확인한다.</p>
+<pre><code class="language-text">1. Prompt Token ID가 같은가?
+2. Greedy와 Sampling 조건이 같은가?
+3. repetition_penalty가 같은가?
+4. temperature·top_p·top_k가 같은가?
+5. 최대 생성 길이와 EOS 정책이 같은가?
+6. 첫 번째로 달라진 Token 위치가 어디인가?
+</code></pre>
+<p><code>repetition_penalty</code>를 동일하게 맞춘 뒤 결과가 같아진다면, 이전 불일치의 원인은 모델이나 GPU가 아니라 생성 옵션 차이였다고 판단할 수 있다.</p>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p><code>repetition_penalty</code>는 이미 등장한 토큰의 Logit을 조정해 반복 가능성을 바꾸는 추론 옵션이다.</p>
+<p>같은 모델, 같은 GPU, 같은 Prompt를 사용해도 이 값이 다르면 다음 토큰의 순위가 달라질 수 있다. 첫 토큰이 달라지면 이후 Decode 문맥도 달라지므로 전체 생성 Sequence까지 달라질 수 있다.</p>
+<p>따라서 PyTorch와 vLLM의 결과를 비교할 때는 <code>repetition_penalty</code>를 같은 값으로 명시적으로 고정해야 한다. 그렇지 않으면 생성 옵션 때문에 발생한 차이를 두 추론 엔진의 차이로 잘못 해석할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
