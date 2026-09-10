@@ -1,0 +1,207 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_logprobs_cumulative.md. Do not edit directly. source-sha256:5d0a2e1b4daae5e0f04c4ffe76584c5fbd57a75a3646bdc730cdfe7c4d018c56 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM 생성 결과의 토큰별 logprobs와 cumulative_logprob, 확률의 로그 변환·누적 이유·길이 보정·수치 검증을 정리합니다.">
+  <meta name="source-sha256" content="5d0a2e1b4daae5e0f04c4ffe76584c5fbd57a75a3646bdc730cdfe7c4d018c56">
+  <title>`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유">
+  <meta property="og:description" content="vLLM 생성 결과의 토큰별 logprobs와 cumulative_logprob, 확률의 로그 변환·누적 이유·길이 보정·수치 검증을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html","name":"`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유","description":"vLLM 생성 결과의 토큰별 logprobs와 cumulative_logprob, 확률의 로그 변환·누적 이유·길이 보정·수치 검증을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html"},"headline":"`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_logprobs_cumulative.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"vLLM은 무엇이고 왜 배우는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_overview.html"},{"@type":"ListItem","position":6,"name":"`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_overview.html">vLLM은 무엇이고 왜 배우는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>`logprobs`의 의미와 여러 토큰의 값을 누적하는 이유</h1>
+      <p class="lead">vLLM 생성 결과의 토큰별 logprobs와 cumulative_logprob, 확률의 로그 변환·누적 이유·길이 보정·수치 검증을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#logprobs"><code>logprobs</code>는 각 토큰의 로그 확률이다</a>
+        <a href="#section-6bf61c39442c">왜 확률을 그대로 사용하지 않고 로그로 바꾸는가</a>
+        <a href="#cumulative-logprob"><code>cumulative_logprob</code>는 선택된 토큰들의 누적 점수다</a>
+        <a href="#logprob">Logprob를 누적하는 이유</a>
+        <a href="#section-7f2a8453b5bc">길이가 다른 시퀀스는 단순 비교하면 안 된다</a>
+        <a href="#section-b20beea2e4b6">수치 검증에서는 누적값이 꼭 필요하지 않다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>언어 모델은 문장을 한 번에 만드는 것이 아니라, 현재 문맥을 바탕으로 다음 토큰을 하나씩 선택한다.</p>
+<p>예를 들어 다음과 같이 생성한다고 생각해 보자.</p>
+<pre><code class="language-makefile">입력: 나는 오늘
+생성: 학교에 → 간다
+</code></pre>
+<p>모델은 먼저 <code>학교에</code>가 나올 확률을 계산하고, 그다음에는 <code>나는 오늘 학교에</code>를 문맥으로 사용하여 <code>간다</code>가 나올 확률을 계산한다.</p>
+</div>
+        <section id="logprobs" class="markdown-section">
+<h2><code>logprobs</code>는 각 토큰의 로그 확률이다</h2>
+<p><code>logprobs</code>는 모델이 각 토큰 후보에 부여한 확률을 로그로 변환한 값이다.</p>
+<pre><code>토큰 확률:     0.8
+로그 확률: log(0.8) ≈ -0.223
+</code></pre>
+<p>확률은 <code>0</code>과 <code>1</code> 사이지만, 로그 확률은 일반적으로 <code>0</code> 이하가 된다.</p>
+<pre><code>확률 1.0 → logprob  0
+확률 0.8 → logprob -0.223
+확률 0.5 → logprob -0.693
+확률 0.1 → logprob -2.303
+</code></pre>
+<p>따라서 <code>logprob</code>가 <code>0</code>에 가까울수록 모델이 해당 토큰을 가능성 높게 평가했다는 뜻이다. 반대로 절댓값이 큰 음수일수록 가능성을 낮게 평가했다는 뜻이다.</p>
+<p>vLLM에서 다음과 같이 설정하면 생성 위치별 Logprob 정보를 반환받을 수 있다.</p>
+<pre><code>sampling_params = SamplingParams(
+    logprobs=1,
+)
+</code></pre>
+<p>그리고 생성 결과에서는 다음과 같이 확인한다.</p>
+<pre><code>completion_output.logprobs
+</code></pre>
+<p>이 값에는 첫 번째 생성 토큰, 두 번째 생성 토큰과 같은 각 생성 위치의 토큰 후보와 Logprob가 들어 있다.</p>
+
+</section>
+<section id="section-6bf61c39442c" class="markdown-section">
+<h2>왜 확률을 그대로 사용하지 않고 로그로 바꾸는가</h2>
+<p>여러 토큰으로 구성된 문장 전체의 확률은 각 토큰의 조건부 확률을 곱해서 구한다.</p>
+<p>예를 들어 모델이 다음과 같이 평가했다고 가정하자.</p>
+<pre><code class="language-arduino">P(&quot;학교에&quot; | &quot;나는 오늘&quot;) = 0.8
+
+P(&quot;간다&quot; | &quot;나는 오늘 학교에&quot;) = 0.7
+</code></pre>
+<p>전체 생성 결과인 <code>학교에 간다</code>의 확률은 다음과 같다.</p>
+<pre><code>0.8 × 0.7 = 0.56
+</code></pre>
+<p>하지만 실제 문장은 토큰이 훨씬 많고 각 확률은 대부분 <code>1</code>보다 작다. 작은 값을 계속 곱하면 결과가 지나치게 작아져 컴퓨터가 안정적으로 표현하기 어려워질 수 있다.</p>
+<pre><code>0.01 × 0.02 × 0.03 × ...
+</code></pre>
+<p>확률을 로그로 변환하면 곱셈을 덧셈으로 바꿀 수 있다.</p>
+<pre><code class="language-arduino">log(0.8 × 0.7)
+= log(0.8) + log(0.7)
+</code></pre>
+<p>따라서 토큰이 많아져도 확률을 직접 계속 곱하는 것보다 안정적이고 다루기도 쉽다.</p>
+
+</section>
+<section id="cumulative-logprob" class="markdown-section">
+<h2><code>cumulative_logprob</code>는 선택된 토큰들의 누적 점수다</h2>
+<p><code>cumulative_logprob</code>는 모델이 실제로 선택한 생성 토큰들의 Logprob를 모두 더한 값이다.</p>
+<pre><code class="language-yaml">생성 토큰: 학교에 → 간다
+
+학교에 logprob: -0.223
+간다   logprob: -0.357
+
+cumulative_logprob:
+-0.223 + -0.357 = -0.580
+</code></pre>
+<p>즉, 다음 두 값은 역할이 다르다.</p>
+<pre><code>logprobs
+→ 생성 위치별 토큰의 개별 점수
+
+cumulative_logprob
+→ 실제로 생성한 전체 토큰 시퀀스의 누적 점수
+</code></pre>
+
+</section>
+<section id="logprob" class="markdown-section">
+<h2>Logprob를 누적하는 이유</h2>
+<p>개별 <code>logprob</code>만 보면 모델이 각 위치에서 특정 토큰을 얼마나 가능성 높게 평가했는지는 알 수 있다. 하지만 여러 토큰으로 이루어진 생성 결과 전체를 하나의 값으로 평가하기는 어렵다.</p>
+<p>예를 들어 두 생성 후보가 있다고 생각해 보자.</p>
+<pre><code class="language-yaml">후보 A: 학교에 간다
+토큰별 logprob: -0.2, -0.3
+누적값: -0.5
+
+후보 B: 집에서 잔다
+토큰별 logprob: -0.7, -0.4
+누적값: -1.1
+</code></pre>
+<p>누적값만 비교하면 후보 A가 <code>0</code>에 더 가까우므로 모델이 후보 A 전체를 더 가능성 높은 시퀀스로 평가했다고 볼 수 있다.</p>
+<p>이처럼 누적 Logprob는 다음과 같은 상황에 활용할 수 있다.</p>
+<ul>
+<li>여러 생성 후보의 전체 점수를 비교할 때</li>
+<li>Beam Search에서 유지할 후보를 선택할 때</li>
+<li>모델이 특정 문장 전체를 얼마나 자연스럽게 평가하는지 확인할 때</li>
+<li>생성 결과의 순위를 다시 정할 때</li>
+</ul>
+
+</section>
+<section id="section-7f2a8453b5bc" class="markdown-section">
+<h2>길이가 다른 시퀀스는 단순 비교하면 안 된다</h2>
+<p>누적 Logprob에는 중요한 주의점이 있다. 각 토큰의 Logprob는 일반적으로 음수이므로 토큰을 많이 생성할수록 음수를 더 많이 더하게 된다.</p>
+<pre><code class="language-diff">짧은 결과:
+-0.2 + -0.3 = -0.5
+
+긴 결과:
+-0.2 + -0.2 + -0.2 + -0.2 = -0.8
+</code></pre>
+<p>긴 결과의 각 토큰이 충분히 자연스러워도, 토큰 수가 많다는 이유로 누적값이 더 작아질 수 있다. 따라서 길이가 다른 생성 결과를 비교할 때는 누적값만 그대로 사용하지 않고 다음과 같이 토큰 수로 나눈 평균 Logprob를 사용할 수 있다.</p>
+<pre><code>평균 Logprob
+= cumulative_logprob / 생성 토큰 수
+</code></pre>
+<p>앞의 예에 적용하면 다음과 같다.</p>
+<pre><code>짧은 결과: -0.5 / 2 = -0.25
+긴 결과:   -0.8 / 4 = -0.20
+</code></pre>
+<p>평균으로 비교하면 긴 결과가 토큰당 더 높은 확률을 받았다는 것을 알 수 있다. 실제 생성 알고리즘에서는 이와 비슷한 길이 보정을 적용하기도 한다.</p>
+
+</section>
+<section id="section-b20beea2e4b6" class="markdown-section">
+<h2>수치 검증에서는 누적값이 꼭 필요하지 않다</h2>
+<p>생성 결과가 정상적인 숫자인지만 확인하려는 실습이라면 개별 <code>logprobs</code>만 검사해도 충분하다.</p>
+<pre><code>all_logprobs_are_finite = all(
+    math.isfinite(logprob_value)
+    for logprob_value in logprob_values
+)
+</code></pre>
+<p>이 검사는 Logprob에 다음과 같은 비정상적인 값이 없는지 확인한다.</p>
+<pre><code>NaN
+양의 무한대
+음의 무한대
+</code></pre>
+<p>이 목적에서는 <code>cumulative_logprob</code>가 반드시 필요하지 않다. 개별 Logprob가 모두 정상이라면 그 값만으로도 토큰별 출력의 수치 상태를 검사할 수 있다.</p>
+<p>반면 여러 토큰으로 구성된 생성 결과 전체를 하나의 점수로 평가하거나 여러 후보를 비교하려면 누적 Logprob가 필요하다.</p>
+<p>정리하면 다음과 같다.</p>
+<pre><code>토큰별 상태와 점수를 확인한다
+→ logprobs
+
+전체 생성 시퀀스의 점수를 확인한다
+→ cumulative_logprob
+
+길이가 다른 시퀀스를 비교한다
+→ 평균 Logprob 또는 길이 보정 점수
+</code></pre>
+<p><code>logprobs</code>는 각 토큰에 대한 모델의 평가이고, 이를 누적하는 이유는 여러 토큰으로 이루어진 생성 결과 전체를 하나의 점수로 표현하기 위해서다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

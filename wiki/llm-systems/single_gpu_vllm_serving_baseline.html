@@ -1,0 +1,1359 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_vllm_serving_baseline.md. Do not edit directly. source-sha256:b39268c8c37134c6ac092d3a7d5b8a3b3c68b60429e825d012679ee584c03f11 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="단일 GPU vLLM Serving의 실행·비교 계약, 모델과 엔진 검증, OpenAI-compatible API, 출력 검증 범위와 재시작 재현성을 하나의 실습 흐름으로 정리합니다.">
+  <meta name="source-sha256" content="b39268c8c37134c6ac092d3a7d5b8a3b3c68b60429e825d012679ee584c03f11">
+  <title>단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지">
+  <meta property="og:description" content="단일 GPU vLLM Serving의 실행·비교 계약, 모델과 엔진 검증, OpenAI-compatible API, 출력 검증 범위와 재시작 재현성을 하나의 실습 흐름으로 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html","name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","description":"단일 GPU vLLM Serving의 실행·비교 계약, 모델과 엔진 검증, OpenAI-compatible API, 출력 검증 범위와 재시작 재현성을 하나의 실습 흐름으로 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},"headline":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</h1>
+      <p class="lead">단일 GPU vLLM Serving의 실행·비교 계약, 모델과 엔진 검증, OpenAI-compatible API, 출력 검증 범위와 재시작 재현성을 하나의 실습 흐름으로 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#execution-contract">단일 GPU 실행·비교 계약 자체 정의</a>
+        <a href="#single-gpu-execution">단일 GPU 실행 환경과 생성 검증</a>
+        <a href="#output-validation">Transformers/PyTorch와 vLLM 출력 검증</a>
+        <a href="#api-serving">OpenAI-compatible API Serving 검증</a>
+        <a href="#restart-reproducibility">단일 GPU Server 재시작 재현성</a>
+        <a href="#conclusion">전체 실습 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 문서는 단일 GPU에서 vLLM Serving 기준선을 만드는 전체 실습을 하나의 흐름으로 정리한다. 실행·비교 계약을 먼저 고정하고, 모델 Artifact와 GPU 환경을 검증한 뒤, Python vLLM 생성과 OpenAI-compatible API Serving을 실행한다. 마지막에는 Server를 재시작해 같은 설정과 생성 결과가 복원되는지 확인한다.</p>
+<p>다섯 Criterion 문서의 설명·코드·실측값·질문에서 정리한 개념·완료 판정을 생략하지 않고 다음 순서로 합쳤다.</p>
+<ol>
+<li>단일 GPU 실행·비교 계약 자체 정의</li>
+<li>단일 GPU 실행 환경과 생성 검증</li>
+<li>Transformers/PyTorch와 vLLM 출력 검증</li>
+<li>OpenAI-compatible API Serving 검증</li>
+<li>단일 GPU Server 재시작 재현성</li>
+</ol>
+<p>각 장의 완료 판정은 실제 실행 근거를 기준으로 유지한다. 특히 PyTorch와 vLLM의 직접적인 Token Sequence 비교는 아직 끝나지 않았으므로, 개별 실행 성공과 교차 엔진 출력 일치를 구분한다.</p>
+<hr>
+</div>
+        <section id="execution-contract" class="markdown-section">
+<h2>단일 GPU 실행·비교 계약 자체 정의</h2>
+<p>Criterion ID: <code>single-gpu-vllm-execution-contract</code></p>
+<p>실습 진행 순서: <strong>1/5</strong></p>
+<h3>이 Criterion에서 확인할 것</h3>
+<p>이번 vLLM 실습에서 실제로 사용할 모델·입력·생성·측정·출력 검증 조건을 하나의 계약으로 고정한다. 이후 모든 PyTorch·vLLM 실행과 API 요청은 이 계약의 값을 사용한다.</p>
+<h3>vLLM을 비교하기 전에 기준선을 만드는 이유</h3>
+<p>vLLM은 Qwen이나 Llama처럼 학습된 모델이 아니라, 학습된 모델을 GPU에서 효율적으로 실행하고 여러 요청에 제공하는 추론 엔진이다.</p>
+<pre><code class="language-text">학습된 Causal LM
++ KV Cache 메모리 관리
++ 요청 Scheduler
++ Continuous Batching
++ 최적화된 GPU Kernel
++ Python·HTTP 실행 Interface
+= vLLM 추론 실행 환경
+</code></pre>
+<p>vLLM은 Transformer의 가중치나 Attention 원리를 다른 모델로 바꾸는 것이 아니라, 같은 모델 계산을 Serving 환경에서 실행하는 방법을 최적화한다. Python에서 <code>LLM.generate()</code>로 직접 사용할 수도 있고 <code>vllm serve</code>로 OpenAI-compatible HTTP API를 열 수도 있다.</p>
+<p>따라서 vLLM의 효과를 판단하려면 먼저 모델 Revision, Tokenizer 입력, dtype, 생성 길이와 Sampling, GPU 수, 메모리 제한과 측정 경계를 고정해야 한다. 기준 없이 결과만 비교하면 모델·입력 차이와 Engine 최적화의 효과를 구분할 수 없다.</p>
+<h3>모델과 생성 계약</h3>
+<ul>
+<li>Model ID·Local Model Artifact·Revision</li>
+<li>Tokenizer와 Chat Template</li>
+<li>Weight dtype과 KV Cache dtype</li>
+<li>Prompt와 Batch</li>
+<li><code>max_model_len</code>과 Output Token 수</li>
+<li>Sampling·Seed·평가 모드·Greedy 조건</li>
+<li>EOS 종료 정책</li>
+<li><code>gpu_memory_utilization</code>과 <code>max_num_seqs</code></li>
+</ul>
+<h3>측정 계약</h3>
+<ul>
+<li>Warm-up 횟수와 측정 반복 횟수</li>
+<li>CUDA 동기화가 필요한 측정의 시작·종료 위치</li>
+<li>입력 준비·H2D·D2H·KV Cache 준비 포함 여부</li>
+<li>GPU 메모리 측정 도구·측정 범위·관찰 주기</li>
+<li>단일 요청과 동시 요청의 측정 구간</li>
+</ul>
+<h3>지표 정의</h3>
+<pre><code class="language-text">TTFT
+= Client 요청 시작부터 실제 생성 내용이 처음 도착할 때까지
+
+ITL
+= Token 도착을 구분할 수 있을 때 인접 생성 Token 사이의 시간
+  Chunk만 관찰할 수 있다면 Chunk 간격으로 별도 표기
+
+TPOT
+= 첫 생성 내용 이후 마지막 생성 내용까지의 시간
+  / 그 구간에서 생성된 Token 수
+
+E2E Latency
+= Client 요청 시작부터 정상 응답 종료까지
+
+Throughput
+= 측정 구간에서 완료된 요청의 새 생성 Token 총수
+  / 측정 구간 시간
+
+Peak VRAM
+= 고정한 관찰 주기에서 확인한 GPU 사용 메모리의 최댓값
+</code></pre>
+<h3>출력 검증 계약</h3>
+<ul>
+<li>Logit 또는 Logprob 유한값 검사 범위</li>
+<li><code>atol</code>과 <code>rtol</code></li>
+<li>첫 Greedy Token ID 일치</li>
+<li>전체 생성 Sequence 일치</li>
+<li>최초 불일치 위치 계산</li>
+<li>불일치 진단 순서</li>
+</ul>
+<pre><code class="language-text">Tokenizer
+→ Chat Template
+→ Prompt Token ID
+→ Position
+→ dtype
+→ EOS·Sampling·Generation 설정
+</code></pre>
+<h3>실습을 통해 정리한 Benchmark 확인 기준</h3>
+<h4>오늘 Notebook에서 고정한 계약의 실제 값</h4>
+<p>오늘은 모델 실행 계약·측정 계약·출력 검증 계약을 각각 <code>@dataclass(frozen=True)</code>로 만들고, 이를 <code>VLLMBenchmarkContract</code> 하나로 묶었다. 계약 객체는 조건을 한곳에서 보존하고 JSON으로 저장하기 위한 구조이며, 함수에 계약 전체를 숨겨 전달하기 위한 용도가 아니다.</p>
+<pre><code class="language-text">Model:
+Qwen/Qwen2.5-1.5B-Instruct
+
+Revision:
+989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+
+Weight dtype:
+float16
+
+KV Cache dtype:
+float16
+
+CUDA_VISIBLE_DEVICES:
+0
+
+Tensor Parallel:
+1
+
+Max Model Length:
+4096
+
+GPU Memory Utilization:
+0.8
+
+Max Number of Sequences:
+8
+
+Prompt Batch:
+1
+
+Max New Tokens:
+32
+
+Sampling:
+Greedy, temperature=0.0, top_p=1.0
+
+Server Interface:
+served_model_name=qwen2.5-1.5b-instruct
+host=127.0.0.1
+port=8000
+generation_config=vllm
+trust_remote_code=false
+request_log=true
+</code></pre>
+<p><code>frozen=True</code>는 만든 계약 객체의 필드를 나중에 실수로 바꾸지 못하게 한다. 값을 변경해야 할 때는 <code>dataclasses.replace()</code>로 새 객체를 만든다. JSON 저장 시에는 <code>asdict()</code>로 중첩 Dataclass를 Dictionary로 바꾼 뒤 직렬화한다.</p>
+<p>계약을 만든 뒤에도 함수 호출부에서 어떤 조건을 사용하는지 보이지 않으면 실험을 읽기 어렵다. 따라서 측정 함수에는 계약 객체 전체 대신 <code>engine</code>, Prompt, Sampling 조건, GPU 식별자, 측정 주기처럼 함수가 실제로 사용하는 값을 개별 인자로 전달한다. 이렇게 하면 함수의 입력과 측정 범위가 호출부에 드러나면서도 조건의 원본은 계약에 남는다.</p>
+<h4>계약 설정과 vLLM 엔진 실행 옵션의 연결</h4>
+<p>Python의 <code>LLM(...)</code> 호출은 계약값을 실제 vLLM 엔진 설정으로 옮기는 단계다.</p>
+<pre><code class="language-text">model
+→ 고정한 Local Model Artifact
+
+tokenizer
+→ 같은 Artifact의 Tokenizer
+
+runner=&quot;generate&quot;
+→ 텍스트 생성 모델로 실행
+
+dtype
+→ 모델 가중치와 주요 연산의 dtype
+
+kv_cache_dtype
+→ KV Cache 저장 dtype
+
+tensor_parallel_size
+→ 사용할 GPU 수
+
+max_model_len
+→ Prompt와 생성 Token을 합친 최대 길이
+
+gpu_memory_utilization
+→ vLLM 메모리 계획 상한
+
+max_num_seqs
+→ 동시에 처리할 최대 Sequence 수
+
+`seed`
+→ 재현성에 사용할 난수 Seed
+</code></pre>
+<p>이 옵션들은 엔진을 로드할 때 적용되고, <code>SamplingParams</code>의 <code>temperature</code>, <code>top_p</code>, <code>max_tokens</code> 같은 옵션은 실제 생성 요청에서 적용된다. 엔진 실행 조건과 요청 생성 조건을 같은 종류의 값으로 취급하면 안 된다.</p>
+<p><code>runner</code>는 vLLM이 모델을 어떤 작업으로 실행할지 정한다.</p>
+<pre><code class="language-text">`runner=&quot;generate&quot;`
+→ 다음 Token을 순서대로 생성하는 Causal LM 실행
+→ 이번 Qwen 실습에서 사용한 방식
+
+`runner=&quot;pooling&quot;`
+→ 여러 Token의 표현을 하나의 고정 길이 Vector로 모으는 실행
+→ Embedding·분류처럼 입력을 하나의 표현으로 바꾸는 모델에서 사용
+</code></pre>
+<p>따라서 <code>pooling</code>은 생성 결과를 얻기 위한 옵션이 아니다. 모든 모델이 Pooling 작업을 지원하는 것도 아니며, 현재처럼 Prompt에 이어질 Token을 생성하고자 할 때는 <code>runner=&quot;generate&quot;</code>를 사용해야 한다.</p>
+<h4>계약 설정과 <code>vllm serve</code>의 연결</h4>
+<p>Python <code>LLM(...)</code>에서 확인한 실행 조건을 HTTP Server에도 같은 값으로 옮겼다. 여기에 API Server에서만 필요한 조건을 추가했다.</p>
+<pre><code class="language-text">--served-model-name qwen2.5-1.5b-instruct
+→ Client Request Body에서 사용할 모델 이름
+
+--generation-config vllm
+→ 모델 저장소의 별도 생성 기본값이 아니라 계약에 적은 요청값과 vLLM 기본값 사용
+
+--host 127.0.0.1 --port 8000
+→ RunPod 내부 Loopback에서 Server 실행
+
+--no-trust-remote-code
+→ Model Repository의 임의 Python 코드를 실행하지 않음
+
+--enable-log-requests
+→ 요청 수신·Engine 추가·HTTP 응답을 Request ID와 함께 기록
+</code></pre>
+<p>Server는 VS Code Remote SSH Port Forwarding으로 접근했다. 따라서 <code>127.0.0.1</code>은 “Client가 접근할 수 없는 잘못된 설정”이 아니라 외부 공개 없이 원격 Server에 접근하기 위해 선택한 네트워크 경계다.</p>
+<p>실행 명령에는 <code>set -o pipefail</code>, <code>set -x</code>, <code>2&gt;&amp;1 | tee ...</code>도 포함했다. 이것들은 모델 연산 조건이 아니라 실패 상태와 실제 CLI 옵션, 표준 출력·오류를 하나의 Server Log로 보존하기 위한 실행 기록 계약이다. 전체 명령은 <a href="#single-gpu-execution">단일 GPU 실행 환경과 생성 검증</a>에 기록했다.</p>
+<h4>Client Timeout과 Server Timeout은 다른 계약이다</h4>
+<p>HTTP Client에서는 연결·응답 읽기·요청 쓰기·Connection Pool 대기를 각각 구분했다.</p>
+<pre><code class="language-text">정상 Client 요청:
+connect=10초, read=120초, write=10초, pool=10초
+
+Timeout 검증 요청:
+connect=10초, read=0.001초, write=10초, pool=10초
+</code></pre>
+<p>아주 짧은 <code>read</code> 값은 Client가 응답을 얼마나 기다릴지 검증하기 위한 값이다. 현재 <code>vllm serve</code> 명령에는 Server가 요청 실행 자체를 일정 시간 후 강제 종료하는 별도 Request Timeout을 지정하지 않았다. 두 제한을 하나의 “Server Timeout”으로 합쳐 적으면 실제로 어느 쪽이 연결을 끊었는지 알 수 없다.</p>
+<h4>오늘 계약과 실행 결과의 관계</h4>
+<p>계약 셀에서 값을 선언하고 <code>assert</code>로 형식을 확인한 것만으로 실행이 검증되는 것은 아니다. 이후 셀에서 실제 GPU 수, Model Revision, Tokenizer 입력, 생성 조건, Logprob 유한값, GPU 메모리 표본이 계약값과 일치하는지 확인해야 한다. 오늘 실행에서는 계약의 단일 GPU·고정 모델·Greedy·최대 32 Token·0.1초 VRAM 관찰 조건을 실제 호출에 사용했다.</p>
+<h4>같은 모델과 Tokenizer를 재현할 수 있어야 한다</h4>
+<p>모델 이름만 기록하면 저장소의 <code>main</code>이 변경됐을 때 다른 파일을 받을 수 있다. Model ID·Tokenizer ID와 함께 고정된 Revision과 실제 Local Model Artifact 경로를 기록해야 한다. PyTorch와 vLLM이 같은 로컬 파일을 읽어야 모델 파일 차이를 제거할 수 있다.</p>
+<h4>같은 Chat Template을 사용해야 한다</h4>
+<p>같은 Prompt 문자열도 Chat Template이 다르면 System Prompt·역할 구분 Token·Assistant 시작 Token이 달라질 수 있다. Chat Template 사용 여부와 출처를 고정하고, 최종적으로 두 엔진에 들어간 Prompt Token ID가 같은지 확인해야 한다.</p>
+<h4>하나의 물리 GPU만 사용했음을 확인해야 한다</h4>
+<p><code>cuda:0</code>은 현재 프로세스에 보이는 첫 번째 논리 GPU다. <code>CUDA_VISIBLE_DEVICES</code>·Tensor Parallel 크기·PyTorch가 보는 GPU 수와 함께 실제 GPU UUID와 vLLM Server 프로세스가 사용하는 GPU를 확인해야 한다.</p>
+<h4>모델 가중치와 KV Cache의 dtype을 구분해야 한다</h4>
+<p>Weight dtype은 모델 Parameter의 자료형이고 KV Cache dtype은 생성 중 누적되는 Key·Value의 자료형이다. 두 값은 메모리와 수치 결과에 각각 영향을 주므로 따로 고정하고, 실제 Parameter와 Server Log에서도 적용값을 확인해야 한다.</p>
+<h4>최대 문맥 길이를 고정해야 한다</h4>
+<p>실제 요청은 Prompt Token 수와 최대 생성 Token 수의 합이 최대 문맥 길이를 넘지 않아야 한다. 문자열 길이가 아니라 Chat Template과 Tokenizer를 거친 실제 Token 수로 검사해야 한다.</p>
+<h4>GPU 메모리 사용 조건을 고정해야 한다</h4>
+<p>GPU 메모리 사용 비율, 최대 문맥 길이, 최대 동시 Sequence 수, Weight dtype과 KV Cache dtype은 vLLM의 메모리 계획과 처리 가능한 요청 수에 영향을 준다. 같은 모델을 비교하려면 이 값들을 실행 전에 고정해야 한다.</p>
+<h4>Prompt 개수와 Batch 크기가 일치해야 한다</h4>
+<p>Prompt 하나가 Batch의 한 행이므로 Prompt 목록의 개수와 Batch 크기가 같아야 한다. 문자열만 같다고 판단하지 않고 실제 Prompt Token ID까지 비교해야 한다.</p>
+<h4>PyTorch와 vLLM의 Greedy 조건을 맞춰야 한다</h4>
+<p>PyTorch에서는 Sampling을 끄고 vLLM에서는 Temperature를 0으로 설정해 가장 점수가 높은 Token을 선택한다. <code>top_p</code>는 후보를 제한하지 않는 중립값으로 고정하고 Seed·최대 생성 Token 수·EOS 정책도 함께 맞춘다.</p>
+<h4>EOS 종료 정책을 같게 해야 한다</h4>
+<p>한 엔진은 EOS에서 멈추고 다른 엔진은 생성을 계속하면 Sequence 길이가 달라진다. EOS에서 종료할지 정해진 Token 수까지 계속 생성할지를 실행 전에 고정해야 한다.</p>
+<h4>Warm-up과 본 측정 횟수를 정해야 한다</h4>
+<p>첫 GPU 실행에는 CUDA Context·Kernel·메모리 준비 비용이 섞일 수 있다. 본 측정 전에 Warm-up을 실행하고 결과 통계에서는 제외한다. 본 측정 반복 횟수도 결과를 보기 전에 정해야 한다.</p>
+<h4>측정에 포함할 작업을 정해야 한다</h4>
+<p>추론에는 입력 준비·H2D 전송·KV Cache 생성·D2H 전송·문자열 변환·HTTP 통신이 함께 들어갈 수 있다. 순수 모델 시간과 서비스 시간을 구분하고 각 측정에 무엇이 포함되는지 기록해야 한다. Prefill 측정에는 Prompt의 KV Cache를 만드는 시간을 포함한다.</p>
+<h4>CUDA 작업 완료 후 시간을 읽어야 한다</h4>
+<p>현재 Python 프로세스에서 실행하는 CUDA 연산은 비동기일 수 있다. 시작 전과 종료 후 GPU 작업 완료를 기다려야 실제 계산 시간을 잴 수 있다. 별도 vLLM Server의 서비스 시간은 Client 요청과 응답 도착 시각으로 측정한다.</p>
+<h4>Client와 Server의 Timeout을 구분해야 한다</h4>
+<p>연결을 기다리는 시간, 연결 후 응답을 기다리는 시간, Server가 모델을 로드해 준비될 때까지 기다리는 시간은 서로 다르다. 각 제한을 따로 기록하고 Server에 별도의 생성 제한이 없다면 그 사실도 남긴다.</p>
+<h4>지표의 시작점과 종료점을 정의해야 한다</h4>
+<p>TTFT는 요청 시작부터 첫 실제 생성 내용 도착까지다. ITL은 구분 가능한 인접 Token 사이의 시간이며 Chunk만 볼 수 있으면 Chunk 간격이라고 표시한다. TPOT은 첫 Token 이후의 생성 시간을 이후 Token 수로 나눈 값이고, E2E는 요청 시작부터 전체 응답 종료까지다. Throughput은 공동 측정 구간의 새 생성 Token 총수를 시간으로 나눈 값이다.</p>
+<h4>Peak VRAM의 측정 방법을 기록해야 한다</h4>
+<p>별도 vLLM Server 프로세스는 Notebook의 PyTorch 메모리 통계만으로 측정할 수 없다. GPU 전체 사용량을 일정 간격으로 관찰하고 도구·시작 및 종료 시점·관찰 주기·다른 GPU 프로세스 존재 여부를 함께 기록한다. 이 값은 관찰 사이의 짧은 Peak를 놓칠 수 있으므로 관측된 Peak VRAM으로 표현한다.</p>
+<h4>출력 수치가 유효한지 확인해야 한다</h4>
+<p>실제로 반환받은 Logit이나 Logprob에 <code>NaN</code>·<code>Inf</code>가 없는지 확인한다. 서로 의미가 다른 PyTorch Logit과 vLLM Logprob를 직접 비교하지 않고 같은 위치의 같은 종류 수치를 얻었을 때만 허용오차를 적용한다.</p>
+<h4>생성 결과는 Token ID를 기준으로 비교해야 한다</h4>
+<p>문자열은 공백과 특수 Token 처리에 따라 다르게 보일 수 있다. 실제 Prompt Token ID, 첫 Greedy Token ID, 전체 생성 Token ID Sequence와 길이를 우선 비교하고 문자열은 사람이 읽기 위한 보조 결과로 사용한다.</p>
+<h4>최초 불일치 위치와 원인을 확인해야 한다</h4>
+<p>두 Sequence가 다르면 공통 길이까지 비교해 처음 달라진 Batch와 생성 위치를 찾는다. 원인은 Tokenizer·Chat Template·Prompt Token ID·Position·dtype·EOS·Sampling·Generation 설정 순서로 확인한다.</p>
+<h4>계약값이 실제 실행에 사용됐는지 확인해야 한다</h4>
+<p>계약 객체와 JSON을 저장하는 것만으로는 완료되지 않는다. 이후 PyTorch 모델 로드·vLLM Server 명령·API Request와 측정 코드가 계약값을 실제 사용하고, 실행 Log와 결과가 계약에 맞는지 확인해야 한다.</p>
+<h3>완료 판정</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> 모든 계약값이 하나의 데이터 구조에 선언돼 있다.</li>
+<li><input checked="" disabled="" type="checkbox"> 필수 값 누락을 <code>assert</code>로 검사했다.</li>
+<li><input checked="" disabled="" type="checkbox"> PyTorch Baseline과 vLLM 실행이 같은 모델·입력·생성 기준을 사용하도록 연결했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 각 지표의 계산식과 시작·종료 경계를 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 메모리 측정 범위와 관찰 주기를 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 출력의 허용오차·Token·Sequence 판정 기준을 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 계약 전체를 JSON 등 다시 읽을 수 있는 형태로 저장했다.</li>
+</ul>
+<h3>다음 단계</h3>
+<p><a href="#single-gpu-execution">다음: 단일 GPU 실행 환경과 생성 검증</a></p>
+<hr>
+
+</section>
+<section id="single-gpu-execution" class="markdown-section">
+<h2>단일 GPU 실행 환경과 생성 검증</h2>
+<p>Criterion ID: <code>llm-systems-gate-03-model-execution</code></p>
+<p>실습 진행 순서: <strong>2/5</strong></p>
+<p><a href="#execution-contract">이전: 단일 GPU 실행·비교 계약 자체 정의</a></p>
+<h3>이 Criterion에서 확인할 것</h3>
+<p>vLLM이 하나의 물리 GPU만 사용하도록 실행하고, 고정한 모델과 생성 조건으로 단일 Prompt 생성을 성공시킨다. 실행 환경과 Server 설정을 함께 기록하여 나중에도 어떤 조건에서 나온 결과인지 확인할 수 있어야 한다.</p>
+<h3>고정할 실행 조건</h3>
+<ul>
+<li><code>CUDA_VISIBLE_DEVICES</code>와 실제 GPU UUID</li>
+<li>Model ID와 Local Model Artifact 경로</li>
+<li>Revision과 Tokenizer</li>
+<li>Chat Template</li>
+<li>Weight dtype과 KV Cache dtype</li>
+<li><code>max_model_len</code></li>
+<li><code>gpu_memory_utilization</code></li>
+<li><code>max_num_seqs</code></li>
+<li>Prompt와 Generation 조건</li>
+<li>전체 vLLM Server 실행 명령</li>
+</ul>
+<h3>고정 Revision의 모델 Artifact 준비</h3>
+<p>vLLM이 재현 가능한 조건으로 모델을 실행하려면 Model ID만 기록해서는 부족하다. 같은 Model ID의 저장소도 시간이 지나면서 파일이 바뀔 수 있으므로, 사용할 Commit Revision과 로컬 저장 경로를 함께 고정해야 한다.</p>
+<p>이번 실습에서는 다음 순서로 모델 Artifact를 준비했다.</p>
+<ol>
+<li>모델 전용 로컬 폴더를 만든다.</li>
+<li>계약에 기록한 Revision이 Hugging Face 모델 저장소에 실제로 존재하는 Commit인지 확인한다.</li>
+<li>해당 Revision의 전체 모델 파일을 지정한 폴더에 내려받는다.</li>
+<li>다운로드 함수가 반환한 경로와 처음 지정한 경로가 같은 실제 위치인지 확인한다.</li>
+<li>설정, Tokenizer 설정, 가중치 파일이 존재하는지 검사한다.</li>
+<li>확인이 끝난 실제 로컬 경로를 Benchmark 실행 계약에 반영한다.</li>
+</ol>
+<h4>모델 이름까지 포함한 경로로 폴더를 만드는 이유</h4>
+<pre><code class="language-python">model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+)
+
+model_artifact_path.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+</code></pre>
+<p>서로 붙어 있는 두 문자열 리터럴은 Python이 하나의 문자열로 합친다. 따라서 <code>model_artifact_path</code>는 다음 디렉터리를 가리킨다.</p>
+<pre><code class="language-text">/root/models/Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+<p>마지막의 <code>Qwen2.5-1.5B-Instruct-989aa798</code>은 모델 파일 이름이 아니라 한 모델의 파일을 모아 둘 전용 디렉터리 이름이다.</p>
+<p><code>mkdir(parents=True, exist_ok=True)</code>의 의미는 다음과 같다.</p>
+<ul>
+<li><code>parents=True</code>: 상위 <code>/root/models</code>가 없다면 함께 만든다.</li>
+<li><code>exist_ok=True</code>: 디렉터리가 이미 있어도 오류를 내지 않는다.</li>
+</ul>
+<p>이 시점에는 저장할 빈 디렉터리만 준비되며, 모델 파일은 아직 다운로드되지 않는다.</p>
+<h4>지정한 Revision이 실제 Commit인지 확인</h4>
+<pre><code class="language-python">model_information = HfApi().model_info(
+    repo_id=execution_contract.model_id,
+    revision=execution_contract.revision,
+)
+
+resolved_revision: str = model_information.sha
+
+assert (
+    resolved_revision
+    == execution_contract.revision
+)
+</code></pre>
+<p><code>model_info()</code>에 Model ID와 Revision을 전달하면 Hugging Face Hub가 해당 Revision을 해석한 결과를 반환한다. 그 결과의 실제 Commit SHA가 계약에 적어 둔 Revision과 같은지 검사한다.</p>
+<p>이 검사를 통해 단순히 최신 상태를 받는 것이 아니라, 계약에서 고정한 정확한 모델 버전을 사용하고 있음을 먼저 확인한다.</p>
+<h4><code>snapshot_download()</code>로 모델 파일 저장</h4>
+<pre><code class="language-python">downloaded_model_path: str = snapshot_download(
+    repo_id=execution_contract.model_id,
+    revision=execution_contract.revision,
+    local_dir=model_artifact_path,
+)
+</code></pre>
+<p><code>snapshot_download()</code>는 Hugging Face Hub 저장소의 특정 시점에 포함된 파일들을 한꺼번에 내려받는 범용 함수다.</p>
+<ul>
+<li><code>repo_id</code>: 내려받을 모델 저장소</li>
+<li><code>revision</code>: 내려받을 Commit Revision</li>
+<li><code>local_dir</code>: 파일을 저장할 로컬 디렉터리</li>
+</ul>
+<p>다운로드가 끝나면 모델 전용 디렉터리 안에 설정, Tokenizer, 가중치 같은 실제 파일이 저장된다.</p>
+<pre><code class="language-text">/root/models/Qwen2.5-1.5B-Instruct-989aa798/
+├── config.json
+├── tokenizer_config.json
+├── tokenizer.json
+└── model.safetensors
+</code></pre>
+<h4><code>resolve()</code>로 실제 경로를 정규화하여 비교</h4>
+<pre><code class="language-python">resolved_model_path = Path(
+    downloaded_model_path
+).resolve()
+
+assert (
+    resolved_model_path
+    == model_artifact_path.resolve()
+)
+</code></pre>
+<p><code>Path.resolve()</code>는 경로를 새로 만들거나 모델을 다운로드하는 함수가 아니다. 상대 경로, <code>.</code>과 <code>..</code>, 심볼릭 링크 등을 반영하여 비교하기 좋은 절대 경로로 정리한다.</p>
+<p>여기서는 다음 두 경로를 비교한다.</p>
+<ul>
+<li><code>resolved_model_path</code>: <code>snapshot_download()</code>가 실제 다운로드 위치로 반환한 경로</li>
+<li><code>model_artifact_path.resolve()</code>: 처음 저장 위치로 지정한 경로</li>
+</ul>
+<p>두 값이 같다면 모델이 의도한 디렉터리에 저장됐다는 뜻이다. 다만 경로가 같다는 사실만으로 필요한 파일이 모두 있다는 것까지 보장되지는 않으므로 파일 검사를 별도로 수행한다.</p>
+<h4>모델 실행에 필요한 주요 파일 확인</h4>
+<pre><code class="language-python">config_path = resolved_model_path / &quot;config.json&quot;
+
+tokenizer_config_path = (
+    resolved_model_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+weight_paths = list(
+    resolved_model_path.glob(&quot;*.safetensors&quot;)
+)
+
+assert config_path.exists()
+assert tokenizer_config_path.exists()
+assert len(weight_paths) &gt;= 1
+</code></pre>
+<p>이 검사는 다음 내용을 확인한다.</p>
+<ul>
+<li><code>config.json</code>: 모델 구조 설정이 존재한다.</li>
+<li><code>tokenizer_config.json</code>: Tokenizer 설정이 존재한다.</li>
+<li><code>*.safetensors</code>: 가중치 파일이 한 개 이상 존재한다.</li>
+</ul>
+<p>즉, 디렉터리만 만들어졌는지를 보는 것이 아니라 vLLM 실행에 필요한 주요 Artifact가 실제로 내려받아졌는지 확인한다.</p>
+<h4>검증한 로컬 경로를 실행 계약에 반영</h4>
+<pre><code class="language-python">vllm_execution_contract = replace(
+    execution_contract,
+    local_model_path=str(
+        resolved_model_path
+    ),
+)
+
+vllm_benchmark_contract = replace(
+    vllm_benchmark_contract,
+    execution=vllm_execution_contract,
+)
+</code></pre>
+<p>계약이 변경 불가능한 Dataclass로 정의되어 있으므로 기존 객체의 필드를 직접 바꾸지 않고 <code>dataclasses.replace()</code>로 새 계약 객체를 만든다.</p>
+<p>첫 번째 <code>replace()</code>는 검증된 로컬 모델 경로를 실행 계약에 넣고, 두 번째 <code>replace()</code>는 갱신된 실행 계약을 전체 Benchmark 계약에 다시 넣는다.</p>
+<p>이 갱신은 현재 Python 메모리 안의 객체를 바꾸는 작업이다. 계약 JSON을 앞선 셀에서 이미 저장했다면 파일이 자동으로 갱신되지는 않으므로, 최종 계약을 저장하는 단계에서 갱신된 객체를 다시 직렬화해야 한다.</p>
+<h4>이번 실습에서 확인한 흐름</h4>
+<pre><code class="language-text">Model ID와 Revision 고정
+        ↓
+모델 전용 로컬 디렉터리 생성
+        ↓
+Revision을 실제 Commit SHA로 확인
+        ↓
+해당 Revision의 모델 Snapshot 다운로드
+        ↓
+실제 저장 경로 정규화 및 비교
+        ↓
+설정·Tokenizer·가중치 파일 확인
+        ↓
+검증된 로컬 경로를 Benchmark 계약에 반영
+</code></pre>
+<p>따라서 이번 단계에서 확인한 것은 모델 실행 자체가 아니다. vLLM이 다음 단계에서 사용할 모델 버전과 파일 위치를 재현 가능한 형태로 준비하고 검증한 것이다.</p>
+<h3>실습 순서</h3>
+<ol>
+<li>GPU 이름·UUID·전체 VRAM과 Driver 버전을 확인한다.</li>
+<li>CUDA·PyTorch·Transformers·vLLM 버전을 기록한다.</li>
+<li>Python과 vLLM Server가 보는 GPU 수가 1개인지 확인한다.</li>
+<li>고정한 Local Model Artifact를 vLLM에 로드한다.</li>
+<li>Server Log에서 실제 Attention Backend와 주요 실행 설정을 확인한다.</li>
+<li>단일 Prompt를 Greedy 조건으로 생성한다.</li>
+<li>Prompt Token ID와 생성 Token ID를 저장한다.</li>
+<li>반환된 Logprob 등 실제로 제공받은 수치에 <code>NaN</code>이나 <code>Inf</code>가 없는지 확인한다.</li>
+<li>정한 관찰 주기로 GPU 메모리를 측정하고 관측된 Peak VRAM을 기록한다.</li>
+<li>생성이 정상 종료됐는지와 종료 사유를 확인한다.</li>
+</ol>
+<h3>vLLM 생성과 GPU 메모리를 동시에 측정하는 구조</h3>
+<p><code>measure_generation_peak_vram()</code>은 Peak VRAM을 직접 계산하는 함수라기보다 vLLM 생성과 GPU 메모리 측정을 동시에 진행하도록 조율하는 함수다. 생성이 끝난 뒤에만 메모리를 읽으면 생성 중 잠깐 높아진 값을 놓칠 수 있으므로 두 실행 흐름을 사용한다.</p>
+<pre><code class="language-text">메인 Thread
+→ vLLM Token 생성
+
+측정 Thread
+→ 생성 중 일정 주기로 GPU 전체 사용 메모리 측정
+</code></pre>
+<h4>GPU 메모리 측정 Thread</h4>
+<p>측정 Thread의 역할은 다음과 같다.</p>
+<pre><code class="language-text">종료 신호가 올 때까지 반복:
+    현재 GPU 메모리를 읽는다
+    메모리 표본 목록에 추가한다
+    첫 표본이 준비됐다고 메인 Thread에 알린다
+
+    다음 측정 시간까지 기다린다
+    단, 종료 신호가 오면 즉시 반복을 끝낸다
+</code></pre>
+<p><code>while not stop_event.is_set()</code>은 종료 신호가 설정되지 않은 동안 반복한다는 의미다. vLLM 생성이 끝나 <code>stop_event.set()</code>이 호출되면 조건이 거짓이 되어 다음 반복을 시작하지 않는다.</p>
+<pre><code class="language-python">stop_event.wait(
+    sampling_interval_seconds
+)
+</code></pre>
+<p>이 코드는 종료 신호를 측정 주기만큼 기다린다. 그동안 신호가 오지 않으면 다음 메모리를 측정하고, 기다리는 중 신호가 오면 주기가 다 지나지 않아도 즉시 대기에서 풀린다. 반드시 정한 시간을 모두 기다리는 <code>sleep()</code>과 달리 종료 신호에 바로 반응할 수 있다.</p>
+<h4>전체 함수의 조율 순서</h4>
+<pre><code class="language-text">1. 메모리 표본 목록과 오류 목록을 만든다
+2. 종료 신호와 첫 측정 완료 신호를 만든다
+3. GPU 메모리 측정 Thread를 준비하고 시작한다
+4. 첫 메모리 표본이 들어올 때까지 메인 Thread가 기다린다
+5. 첫 측정 오류가 있으면 측정을 종료하고 오류를 알린다
+6. 시작 시간을 기록한다
+7. 메인 Thread에서 engine.generate()를 실행한다
+8. 성공·실패와 관계없이 측정 Thread에 종료 신호를 보낸다
+9. 측정 Thread가 완전히 끝날 때까지 기다린다
+10. 종료 시간을 기록한다
+11. 생성 직후 GPU 메모리를 한 번 더 측정한다
+12. 생성 결과, 메모리 표본 목록, 측정 시간을 반환한다
+</code></pre>
+<p><code>first_sample_ready.wait()</code>는 측정 Thread가 첫 표본을 저장하고 <code>first_sample_ready.set()</code>을 호출할 때까지 메인 Thread를 대기시킨다. 이 신호 덕분에 생성 전 기준 메모리를 먼저 확보한 뒤 vLLM 생성을 시작할 수 있다.</p>
+<p><code>stop_event.set()</code>은 측정 Thread에 종료 신호를 보내는 작업이고, <code>sampler_thread.join()</code>은 측정 Thread가 실제로 완전히 끝날 때까지 메인 Thread를 기다리게 하는 작업이다. 즉, 종료 요청과 실제 종료 완료를 구분한다.</p>
+<h4>반환된 표본에서 Peak VRAM 계산</h4>
+<p>함수는 생성 결과, GPU 메모리 표본 목록, 생성 시간을 반환한다. Peak VRAM은 호출부에서 목록의 최댓값으로 계산한다.</p>
+<pre><code class="language-python">baseline_vram_mib = (
+    measured_memory_samples_mib[0]
+)
+
+peak_vram_mib = max(
+    measured_memory_samples_mib
+)
+
+peak_increase_mib = (
+    peak_vram_mib - baseline_vram_mib
+)
+</code></pre>
+<pre><code class="language-text">첫 번째 표본
+→ 생성 전 기준 VRAM
+
+전체 표본의 최댓값
+→ 관측된 Peak VRAM
+
+Peak VRAM - 생성 전 VRAM
+→ 생성 중 관찰된 최대 증가량
+</code></pre>
+<p>이번 실습에서는 다음 결과를 관찰했다.</p>
+<pre><code class="language-text">측정 주기: 0.1초
+수집한 전체 표본: 5개
+생성 전 VRAM: 12382 MiB
+관측된 Peak VRAM: 12382 MiB
+생성 중 최대 증가량: 0 MiB
+생성 시간: 0.5107초
+</code></pre>
+<p>전체 표본 5개 중 마지막 1개는 측정 Thread가 종료된 뒤 별도로 수집한 표본이다. 따라서 이번 실행에서 측정 Thread의 <code>while</code> 반복은 4회 실행됐고 마지막 표본 1개가 추가됐다.</p>
+<p>증가량이 0 MiB였던 것은 측정 실패가 아니다. vLLM이 엔진 초기화 때 모델 가중치와 KV Cache에 사용할 GPU 메모리를 대부분 미리 확보했기 때문에 짧은 단일 요청 중 추가 사용량이 <code>nvidia-smi</code>의 MiB 단위에서 관찰되지 않은 것이다.</p>
+<p>현재 코드는 <code>sampler_thread.join()</code> 이후에 종료 시간을 기록한다. 따라서 출력 시간에는 순수한 <code>engine.generate()</code> 실행 시간뿐 아니라 측정 Thread를 종료하는 짧은 시간도 포함된다. 순수 생성 시간만 비교하려면 생성 호출이 반환된 즉시 종료 시간을 별도로 기록해야 한다.</p>
+<h3>오늘 RunPod Notebook에서 확인한 실제 실행값</h3>
+<p>환경 확인 셀에서는 다음 실행 조건을 확인했다.</p>
+<pre><code class="language-text">Python:
+/root/transformer-practice/transformer/.venv-vllm/bin/python
+
+vLLM: 0.29.0
+PyTorch: 2.13.0+cu130
+Transformers: 5.17.0
+PyTorch CUDA: 13.0
+
+GPU:
+NVIDIA RTX 2000 Ada Generation
+
+CUDA_VISIBLE_DEVICES: 0
+보이는 GPU 수: 1
+GPU UUID:
+GPU-fc2d8ac6-a050-6eb0-3311-74f3c33962a2
+전체 VRAM: 16380 MiB
+Driver: 580.159.04
+</code></pre>
+<p>여기서 <code>cuda:0</code>은 현재 프로세스가 보는 첫 번째 논리 GPU이고, UUID는 물리 GPU를 식별하는 값이다. 두 값을 함께 기록하면 논리 장치 번호와 실제 장치를 혼동하지 않을 수 있다.</p>
+<p>vLLM 엔진 Log에서는 다음 실제 실행 설정도 확인했다.</p>
+<pre><code class="language-text">모델 구조: Qwen2ForCausalLM
+Attention Backend: FLASH_ATTN
+FlashAttention: version 2
+KV Cache layout: LBNHC
+Max Model Length: 4096
+GPU Memory Utilization: 0.8
+Max Number of Sequences: 8
+Prefix Caching: enabled
+Chunked Prefill: enabled
+사용 가능한 KV Cache: 8.84 GiB
+GPU KV Cache 용량: 331,104 Token
+</code></pre>
+<p>계약에 직접 적은 값과 vLLM이 엔진을 초기화하며 선택한 실제 Backend·Cache layout·KV Cache 용량은 구분해야 한다. 계약은 실행 조건을 고정하고, Server Log는 그 조건이 실제로 어떻게 적용됐는지 확인하는 근거다.</p>
+<p>단일 Prompt 생성 결과도 기록했다.</p>
+<pre><code class="language-text">Prompt Token 수: 37
+생성 Token 수: 32
+Finish Reason: length
+모든 Logprob가 유한한가: True
+</code></pre>
+<p>이 결과는 Python 안에서 <code>LLM(...)</code> 엔진을 만들고 <code>engine.generate()</code>를 직접 호출해 얻었다. 이어서 Notebook Kernel을 종료해 기존 EngineCore의 GPU 메모리를 해제하고, 별도 Terminal에서 HTTP API Server도 실제로 실행했다.</p>
+<h3>단일 GPU vLLM Server 실행</h3>
+<p>Server 실행 전 다음 명령으로 Notebook의 기존 <code>VLLM::EngineCore</code>가 남아 있지 않은지 확인했다.</p>
+<pre><code class="language-bash">nvidia-smi \
+  --query-compute-apps=pid,process_name,used_memory \
+  --format=csv,noheader
+</code></pre>
+<p>같은 GPU에 Python <code>LLM</code> Engine과 API Server를 동시에 올린 채 측정하면 어떤 프로세스의 설정과 메모리인지 경계가 흐려질 수 있다. 따라서 Python Engine을 내린 뒤 다음의 전체 명령으로 Server를 시작했다.</p>
+<pre><code class="language-bash">cd /root/transformer-practice/transformer
+source .venv-vllm/bin/activate
+export CUDA_VISIBLE_DEVICES=0
+
+mkdir -p results/vllm_serving_baseline
+set -o pipefail
+
+{
+  set -x
+
+  vllm serve \
+    /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+    --served-model-name qwen2.5-1.5b-instruct \
+    --tokenizer /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+    --runner generate \
+    --dtype float16 \
+    --kv-cache-dtype float16 \
+    --tensor-parallel-size 1 \
+    --max-model-len 4096 \
+    --gpu-memory-utilization 0.8 \
+    --max-num-seqs 8 \
+    --seed 0 \
+    --generation-config vllm \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --no-trust-remote-code \
+    --enable-log-requests
+
+} 2&gt;&amp;1 | tee \
+  results/vllm_serving_baseline/vllm_server.log
+</code></pre>
+<p>Shell 구성의 역할은 다음과 같다.</p>
+<pre><code class="language-text">set -o pipefail
+→ vllm serve가 실패하면 뒤의 tee가 성공해도 전체 명령을 실패로 판정
+
+set -x
+→ 실제 실행 명령과 옵션을 Log에 출력
+
+2&gt;&amp;1
+→ 표준 오류를 표준 출력에 합침
+
+tee
+→ Terminal에 보이면서 같은 내용을 파일에 저장
+</code></pre>
+<p>Server Log에서 다음 실제 상태를 확인했다.</p>
+<pre><code class="language-text">API Server PID: 22333
+EngineCore PID: 22502
+Host: 127.0.0.1
+Port: 8000
+Attention Backend: FLASH_ATTN
+FlashAttention: version 2
+Tensor Parallel: 1
+GPU KV Cache Capacity: 약 316,336 Token
+Application startup complete
+</code></pre>
+<p>앞서 Python <code>LLM</code> Engine에서 관찰한 KV Cache Capacity <code>331,104</code> Token과 Server 실행에서 본 약 <code>316,336</code> Token은 서로 다른 실행 인스턴스의 초기화 Log다. 같은 문서에 두 값을 섞어 하나의 고정 상수로 해석하지 않고, 각각 어떤 실행에서 나온 값인지 구분해 기록해야 한다.</p>
+<p>Server가 <code>127.0.0.1</code>에만 바인딩돼도 VS Code Remote SSH의 Port Forwarding을 사용하면 로컬의 <code>localhost:8000</code>으로 안전하게 접근할 수 있다. 실제 HTTP Endpoint와 요청 결과는 다음 API Serving 챕터에 정리한다.</p>
+<h4>GPU 정보를 확인하는 도구의 역할</h4>
+<p>오늘 환경 확인에서는 <code>torch.cuda</code>와 <code>nvidia-smi</code>를 함께 사용했다.</p>
+<pre><code class="language-text">torch.cuda
+→ 현재 Python 프로세스에 노출된 논리 GPU 수·이름·CUDA 사용 가능 여부 확인
+
+nvidia-smi
+→ 물리 GPU의 이름·UUID·전체 VRAM·Driver와 GPU 프로세스 확인
+
+NVML
+→ nvidia-smi가 제공하는 GPU 상태 조회를 Python API로 자동화할 때 사용
+</code></pre>
+<p><code>torch.cuda.device_count() == 1</code>은 이 Python 프로세스가 GPU 한 장만 볼 수 있다는 뜻이고, <code>nvidia-smi</code>의 UUID와 Compute Process 목록은 실제 물리 장치와 어떤 프로세스가 사용 중인지 확인하는 근거다. vLLM이 별도 EngineCore 프로세스에서 동작하므로, 그 프로세스의 전체 VRAM을 보려면 Python의 PyTorch 메모리 통계만으로 판단하지 않고 외부 GPU 조회를 함께 사용해야 한다.</p>
+<h4>GPU 메타데이터를 프로그램에서 제공할 때는 NVML을 사용한다</h4>
+<p>NVML은 NVIDIA Management Library의 약자다. NVIDIA Driver가 관리하는 GPU 정보를 프로그램에서 구조화된 값으로 조회하는 API이며 <code>nvidia-smi</code>도 내부적으로 NVML을 사용한다.</p>
+<pre><code class="language-text">nvidia-smi
+→ 사람이 Terminal에서 읽기 좋은 출력
+
+NVML·pynvml
+→ Python에서 GPU 이름·UUID·VRAM·Driver 등을 구조화된 값으로 조회
+
+NVML + FastAPI
+→ 필요한 GPU 메타데이터를 JSON API로 제공
+
+DCGM Exporter + Prometheus
+→ 사용률·온도·전력·메모리처럼 계속 변하는 지표를 시계열로 수집
+</code></pre>
+<p>MIG 정보도 NVML로 조회할 수 있지만 일반 GPU 메타데이터에 자동으로 포함되지는 않는다. MIG 전용 API를 사용해 지원 여부, 활성화 상태, Instance UUID, GPU·Compute Instance ID와 할당 VRAM을 따로 조회해야 한다.</p>
+<p>현재 실습 GPU인 RTX 2000 Ada Generation에서는 MIG를 실제로 사용하거나 증명하지 않았다. 따라서 이 내용은 GPU 메타데이터를 외부에 제공하는 방법으로 공부한 개념이며, 이번 단일 GPU vLLM 실행 결과에는 <code>MIG Instance 없음</code>으로 해석한다.</p>
+<p>외부 API에는 PID·실행 명령·사용자명·내부 경로·불필요한 GPU UUID를 그대로 공개하지 않고 필요한 필드만 제공해야 한다.</p>
+<p>Notebook의 마지막 확인 명령은 다음과 같다.</p>
+<pre><code class="language-bash">nvidia-smi \
+  --query-compute-apps=pid,process_name,used_memory \
+  --format=csv,noheader
+</code></pre>
+<p>이 명령은 GPU를 사용하는 Compute Process의 PID·이름·사용 메모리를 보여준다. 이 명령의 결과와 Server Log를 함께 보존해야 “단일 GPU에서 어떤 vLLM 프로세스가 실행됐는가”를 재현할 수 있다.</p>
+<h3>기록할 결과</h3>
+<pre><code class="language-text">GPU 이름:
+GPU UUID:
+전체 VRAM:
+Driver:
+CUDA:
+PyTorch:
+Transformers:
+vLLM:
+Attention Backend:
+Model Artifact:
+전체 Server 명령:
+Prompt Token IDs:
+Output Token IDs:
+수치 유한값 검사:
+관측된 Peak VRAM:
+메모리 관찰 주기:
+종료 사유:
+</code></pre>
+<h3>완료 판정</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> 하나의 물리 GPU만 사용했음을 GPU UUID와 프로세스로 확인했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 환경 버전과 실제 Server 설정을 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 고정한 단일 Prompt 생성에 성공했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Prompt와 Output Token ID를 저장했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 확인 가능한 수치에서 <code>NaN</code>·<code>Inf</code>가 없었다.</li>
+<li><input checked="" disabled="" type="checkbox"> 측정 범위와 관찰 주기를 포함해 Peak VRAM을 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Server 명령과 정상 기동 상태를 남겼다.</li>
+</ul>
+<h3>다음 단계</h3>
+<p><a href="#output-validation">다음: Transformers/PyTorch와 vLLM 출력 검증</a></p>
+<hr>
+
+</section>
+<section id="output-validation" class="markdown-section">
+<h2>Transformers/PyTorch와 vLLM 출력 검증</h2>
+<p>Criterion ID: <code>llm-systems-gate-03-output-reproducibility</code></p>
+<p>실습 진행 순서: <strong>3/5</strong></p>
+<p><a href="#single-gpu-execution">이전: 단일 GPU 실행 환경과 생성 검증</a></p>
+<h3>이 Criterion에서 확인할 것</h3>
+<p>같은 Local Model Artifact를 Transformers/PyTorch와 vLLM에서 각각 새로 로드한다. 같은 Tokenizer 입력과 Greedy Generation 조건을 사용해 첫 생성 Token과 전체 생성 Sequence를 비교하고, 불일치가 발생하면 최초 위치와 실제 설정 차이를 찾아 수정한 뒤 다시 검증한다.</p>
+<h3>비교 조건</h3>
+<ul>
+<li>같은 Local Model Artifact와 Revision</li>
+<li>같은 Tokenizer와 Chat Template</li>
+<li>같은 Prompt Token ID</li>
+<li>같은 Weight dtype</li>
+<li>같은 <code>max_new_tokens</code></li>
+<li>Greedy 생성</li>
+<li>같은 Seed와 EOS 종료 정책</li>
+<li>같은 Logit 처리 설정</li>
+</ul>
+<p>마지막 항목에는 <code>repetition_penalty</code>처럼 Sampling 여부와 무관하게 Token 선택 직전의 Logit을 바꾸는 설정도 포함된다.</p>
+<h3>실습 순서</h3>
+<ol>
+<li>공통 Chat Template으로 Prompt Token ID를 한 번 만든다.</li>
+<li>Transformers/PyTorch 프로세스에서 모델을 새로 로드해 첫 Token Logprob·생성 Token ID·전체 Sequence를 저장한다.</li>
+<li>PyTorch 프로세스를 종료해 GPU 메모리와 실행 상태를 분리한다.</li>
+<li>vLLM을 별도 프로세스에서 같은 Local Model Artifact로 새로 실행한다.</li>
+<li>공통 Prompt Token ID를 문자열 전처리 없이 그대로 전달한다.</li>
+<li>두 엔진의 첫 생성 Token·전체 Sequence·생성 길이·종료 이유를 비교한다.</li>
+<li>Sequence가 다르면 최초 불일치 위치를 찾고 입력과 생성 설정을 하나씩 대조한다.</li>
+<li>원인을 수정한 뒤 두 프로세스를 새로 실행해 전체 비교를 반복한다.</li>
+</ol>
+<h3>Prompt 입력의 경계</h3>
+<p><code>apply_chat_template()</code>에 <code>return_dict=True</code>를 전달하면 단순한 <code>list[int]</code>가 아니라 <code>BatchEncoding</code> 객체를 받을 수 있다.</p>
+<pre><code class="language-python">prompt_encoding = input_tokenizer.apply_chat_template(
+    conversation,
+    tokenize=True,
+    add_generation_prompt=True,
+    return_dict=True,
+)
+
+prompt_token_ids = list(
+    prompt_encoding[&quot;input_ids&quot;]
+)
+</code></pre>
+<p><code>BatchEncoding</code>은 Tokenizer가 만든 <code>input_ids</code>, <code>attention_mask</code> 같은 입력 묶음이다. vLLM의 <code>TokensPrompt</code>에는 그중 Prompt Token ID만 전달하므로 <code>input_ids</code>를 꺼내 <code>list[int]</code>로 변환했다.</p>
+<p>반환 형태는 Transformers 버전과 <code>return_dict</code> 인자에 따라 달라질 수 있다. 따라서 외부 API의 실제 반환 타입을 확인한 뒤 vLLM 입력 경계에서 필요한 <code>input_ids</code>만 변환해야 한다.</p>
+<p><code>request_output.prompt_token_ids</code>는 생성 중 계속 늘어나는 문맥이 아니라 최초 요청에 전달한 Prompt Token만 나타낸다.</p>
+<pre><code class="language-text">최초 Prompt: [1, 2, 3]
+생성 결과:   [4, 5]
+
+request_output.prompt_token_ids
+→ [1, 2, 3]
+
+completion_output.token_ids
+→ [4, 5]
+</code></pre>
+<p>Decode 중 누적되는 문맥은 vLLM 내부 KV Cache가 관리한다. 외부 결과 객체의 Prompt Token ID와 내부 Decode 문맥을 같은 값으로 해석하면 안 된다.</p>
+<h3>Chat Template와 모델별 입력 형식</h3>
+<p><code>AutoTokenizer</code>는 모델 설정에 맞는 Tokenizer 구현을 자동으로 선택한다. 모든 모델이 Chat Template을 제공하는 것은 아니므로, Template이 없는 모델은 모델이 요구하는 일반 텍스트 형식이나 별도의 Template을 사용해야 한다.</p>
+<p>Chat Template은 역할 표식, System 메시지, User·Assistant 구분 Token과 Assistant 시작 표식을 입력에 추가할 수 있다. 같은 사용자 문자열이라도 Template이 다르면 실제 Prompt Token ID가 달라진다. 특정 System Prompt 형식으로 Fine-tuning한 모델은 추론과 Serving에서도 같은 형식을 일관되게 적용해야 한다.</p>
+<p>이번 비교에서는 Chat Template을 부모 프로세스에서 한 번만 적용하고, 생성한 37개 Prompt Token ID를 두 엔진에 그대로 전달했다. 따라서 두 엔진의 문자열 전처리 차이는 비교에서 제거됐다.</p>
+<h3>Logprob 검증의 범위</h3>
+<p><code>completion_output.logprobs</code>는 각 생성 위치의 Token 후보에 부여된 로그 확률이다. <code>cumulative_logprob</code>는 실제로 선택한 생성 Token들의 Logprob를 처음부터 끝까지 더한 값이다.</p>
+<p>이번 검증에서는 반환 수치에 <code>NaN</code>이나 <code>Inf</code>가 없는지 확인하고, 두 엔진의 첫 Token Logprob 차이가 계약한 허용오차 안인지 비교했다. 길이가 다른 결과는 누적값이 더 많이 불리하므로 <code>cumulative_logprob</code>를 길이 보정 없이 단순 비교하지 않았다.</p>
+<h3>최초 비교에서는 세 번째 생성 Token부터 달랐다</h3>
+<p>처음 두 엔진을 직접 비교했을 때 Model Artifact와 Prompt Token ID, 첫 생성 Token은 같았지만 전체 Sequence는 달랐다.</p>
+<pre><code class="language-text">같은 Model Artifact: True
+Prompt Token ID 동일: True
+첫 Token ID 동일: True
+전체 생성 Sequence 동일: False
+최초 불일치 생성 위치: 2
+</code></pre>
+<p>위치 <code>2</code>는 0부터 세었을 때 세 번째 생성 Token을 뜻한다. Autoregressive 생성에서 한 Token이 달라지면 다음 Decode부터 입력 Prefix 자체가 달라지므로 이후 Sequence도 연쇄적으로 달라질 수 있다.</p>
+<p>처음에는 Attention Backend, CUDA Kernel 또는 <code>float16</code> 연산 순서의 차이를 의심할 수 있었다. 그러나 첫 Token Logprob 비교만으로 세 번째 Token의 불일치 원인을 수치 오차라고 결론 내릴 수는 없다. 첫 Token 수치는 첫 번째 생성 위치만 검사하기 때문이다.</p>
+<h3>실제 원인은 <code>repetition_penalty</code> 설정 차이였다</h3>
+<p>PyTorch 코드는 모델에 저장된 Generation 설정을 복사해 사용했다.</p>
+<pre><code class="language-python">generation_config = copy.deepcopy(
+    model.generation_config
+)
+</code></pre>
+<p>Qwen 모델의 기본 Generation 설정에는 <code>repetition_penalty=1.1</code>이 포함돼 있었다. 비교 코드에서 <code>do_sample=False</code>, 생성 길이와 EOS 정책은 덮어썼지만 이 값은 바꾸지 않았다.</p>
+<p>반면 vLLM은 새 <code>SamplingParams</code>를 만들면서 <code>repetition_penalty</code>를 지정하지 않았기 때문에 기본값 <code>1.0</code>을 사용했다.</p>
+<pre><code class="language-text">PyTorch repetition_penalty: 1.1
+vLLM repetition_penalty:    1.0
+</code></pre>
+<p><code>repetition_penalty=1.0</code>이면 이미 등장한 Token의 점수를 바꾸지 않는다. <code>1.0</code>보다 크면 Prompt나 생성 결과에 이미 등장한 Token이 다시 선택되기 어렵도록 Logit을 조정한다. Greedy 생성도 조정된 Logit에서 가장 높은 Token을 고르므로, <code>do_sample=False</code>라고 해서 반복 페널티가 무시되지는 않는다.</p>
+<p>Qwen의 기본값에 있던 <code>temperature</code>, <code>top_p</code>, <code>top_k</code>는 <code>do_sample=False</code>인 이번 PyTorch Greedy 생성에서 확률 Sampling 기준으로 사용되지 않았다. 반면 <code>repetition_penalty</code>는 Greedy에서도 적용되므로 두 엔진에서 반드시 같아야 했다.</p>
+<h3>반복 페널티를 맞춘 뒤 전체 Sequence가 같아졌다</h3>
+<p>두 엔진 모두 반복 페널티를 명시적으로 <code>1.0</code>으로 맞췄다.</p>
+<pre><code class="language-python"># PyTorch
+generation_config.repetition_penalty = 1.0
+</code></pre>
+<pre><code class="language-python"># vLLM
+sampling_params = SamplingParams(
+    temperature=0.0,
+    top_p=1.0,
+    repetition_penalty=1.0,
+    max_tokens=max_new_tokens,
+    ignore_eos=True,
+    logprobs=1,
+    seed=seed,
+)
+</code></pre>
+<p>수정 후 PyTorch와 vLLM을 각각 새로운 프로세스에서 다시 실행한 결과는 다음과 같았다.</p>
+<pre><code class="language-text">같은 Model Artifact: True
+Prompt Token ID 동일: True
+PyTorch 첫 Token ID: 82707
+vLLM 첫 Token ID: 82707
+첫 Token ID 동일: True
+전체 생성 Sequence 동일: True
+최초 불일치 생성 위치: None
+
+PyTorch 생성 Token 수: 32
+vLLM 생성 Token 수: 32
+</code></pre>
+<p>두 엔진이 생성한 32개 Token ID가 처음부터 끝까지 정확히 같았다. PyTorch의 종료 이유 <code>fixed_max_new_tokens</code>와 vLLM의 <code>length</code>는 표현은 다르지만, 두 실행 모두 EOS를 무시하고 고정한 32개 Token까지 생성했다는 같은 실행 경계를 뜻한다.</p>
+<h3>Logprob의 작은 차이와 Token 일치는 함께 성립할 수 있다</h3>
+<p>설정을 맞춘 뒤에도 첫 Token Logprob는 완전히 같은 실수가 아니었다.</p>
+<pre><code class="language-text">PyTorch 첫 Token Logprob: -0.24105273187160492
+vLLM 첫 Token Logprob:    -0.23888330161571503
+절댓값 차이:               0.0021694302558898926
+허용오차 안에서 동일:      True
+</code></pre>
+<p>PyTorch와 vLLM은 서로 다른 Kernel과 실행 경로를 사용할 수 있으므로 작은 수치 차이는 남을 수 있다. 하지만 이번 차이는 Greedy 후보의 순위를 바꾸지 않았고, 첫 Token뿐 아니라 전체 32개 생성 Token ID도 같았다.</p>
+<pre><code class="language-text">Logprob 수치
+→ 조금 다름
+
+Greedy Token ID
+→ 동일
+
+전체 생성 Sequence
+→ 동일
+</code></pre>
+<p>따라서 최초 Sequence 불일치의 원인은 엔진의 수치 구현 차이가 아니라 두 엔진에 적용된 Generation 계약의 차이였다.</p>
+<h3>이번 실습으로 증명한 것</h3>
+<pre><code class="language-text">- 두 엔진이 같은 Local Model Artifact를 각각 새로 로드했다.
+- 같은 37개 Prompt Token ID를 직접 입력했다.
+- float16, Greedy, Seed 0, EOS 비활성화와 생성 길이 32를 맞췄다.
+- 최초 불일치 위치를 찾아 Generation 설정을 대조했다.
+- repetition_penalty 1.1과 1.0의 차이를 원인으로 확인했다.
+- 두 값을 1.0으로 맞춘 뒤 전체 32개 생성 Token ID가 일치했다.
+- 첫 Token Logprob 차이는 약 0.002169로 허용오차 안이었다.
+- PyTorch Logit과 vLLM Logprob가 모두 유한값이었다.
+</code></pre>
+<p>이 결과는 고정한 모델·입력·생성 계약 아래 두 실행 엔진의 결과가 재현됐다는 뜻이다. 이를 일반적인 모델 품질이나 모든 Hardware·Backend 조건의 동일성으로 확대해서는 안 된다.</p>
+<h3>완료 판정</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> 두 엔진이 같은 Local Model Artifact를 각각 새로 로드했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Tokenizer·Prompt·Generation 조건을 동일하게 맞췄다.</li>
+<li><input checked="" disabled="" type="checkbox"> 첫 생성 Token ID와 전체 Sequence를 비교했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 최초 불일치 위치를 찾았다.</li>
+<li><input checked="" disabled="" type="checkbox"> <code>repetition_penalty</code> 설정 오류를 수정한 뒤 다시 검증했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 남은 Logprob 차이와 생성 결과에 미친 영향을 구분했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 출력 일치를 일반적인 모델 품질 일치로 확대하지 않았다.</li>
+</ul>
+<h3>다음 단계</h3>
+<p><a href="#api-serving">다음: OpenAI-compatible API Serving 검증</a></p>
+<hr>
+
+</section>
+<section id="api-serving" class="markdown-section">
+<h2>OpenAI-compatible API Serving 검증</h2>
+<p>Criterion ID: <code>llm-systems-gate-03-api-serving</code></p>
+<p>실습 진행 순서: <strong>4/5</strong></p>
+<p><a href="#output-validation">이전: Transformers/PyTorch와 vLLM 출력 검증</a></p>
+<h3>이 Criterion에서 확인할 것</h3>
+<p>단일 GPU vLLM Server에 실제 HTTP 요청을 보내 Non-streaming·Streaming·동시 요청을 처리한다. 성공 응답뿐 아니라 오류와 Timeout 조건도 확인하여 Client와 Server 사이의 동작 경계를 기록한다.</p>
+<h3>Python <code>LLM</code> 호출과 HTTP API Server의 차이</h3>
+<p><code>from vllm import LLM</code>으로 객체를 만들고 <code>engine.generate()</code>를 호출하는 방식은 현재 Python 프로세스가 vLLM 추론 엔진을 직접 사용하는 방식이다. Notebook에서 모델 로드·생성 결과·GPU 메모리를 확인하기에는 편하지만 HTTP 포트를 열어 외부 Client의 요청을 받는 Server는 아니다.</p>
+<pre><code class="language-text">Python 코드
+→ LLM 객체
+→ generate() 직접 호출
+→ Python 반환 객체
+</code></pre>
+<p>OpenAI-compatible API Serving은 <code>vllm serve</code>로 별도 Server를 시작하고 Client가 HTTP Endpoint에 요청하는 방식이다.</p>
+<pre><code class="language-text">HTTP Client
+→ /v1/chat/completions
+→ vLLM API Server
+→ vLLM 추론 엔진
+→ JSON 또는 SSE Streaming 응답
+</code></pre>
+<p>두 방식은 같은 vLLM 추론 엔진을 사용하지만 검증 범위가 다르다.</p>
+<pre><code class="language-text">Python LLM 호출
+→ 모델과 vLLM Engine 자체 검증
+
+vLLM API Server
+→ HTTP 형식·Streaming·동시 요청·오류·Timeout·Server Log 검증
+</code></pre>
+<p>이번 실습에서는 두 번째 경계까지 실제로 실행했다.</p>
+<h3>Server 실행과 Endpoint 확인</h3>
+<p>Notebook에서 실행 중이던 <code>VLLM::EngineCore</code>를 먼저 종료해 GPU를 비운 뒤, 별도 RunPod Terminal에서 <code>vllm serve</code>를 실행했다. Server는 외부에 직접 공개하지 않고 <code>127.0.0.1:8000</code>에 바인딩했으며 VS Code Remote SSH의 Port Forwarding을 통해 접근했다.</p>
+<p>Server 시작 후 다음 Endpoint를 확인했다.</p>
+<pre><code class="language-text">/docs
+→ OpenAPI·Swagger 문서
+
+/v1/models
+→ 현재 서빙 중인 모델 정보
+
+/v1/chat/completions
+→ Chat Completion 요청
+
+/metrics
+→ Prometheus 형식의 관측 지표
+</code></pre>
+<p><code>/v1/models</code>는 HTTP <code>200</code>을 반환했고 다음 설정을 확인했다.</p>
+<pre><code class="language-text">Model ID: qwen2.5-1.5b-instruct
+Provider: vllm
+Model Root: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Max Model Length: 4096
+Sampling 허용: true
+Logprobs 허용: true
+Fine-tuning API 허용: false
+</code></pre>
+<p>이 결과는 Port Forwarding을 거친 Client가 RunPod 내부의 vLLM Server와 연결됐고, <code>--served-model-name</code>과 로컬 Model Artifact가 실제 Server에 적용됐음을 보여준다.</p>
+<h3>Non-streaming 요청</h3>
+<p>고정한 Prompt와 Greedy 조건으로 <code>stream: false</code> 요청을 보냈다.</p>
+<pre><code class="language-text">Prompt: Explain KV Cache in one sentence.
+Model: qwen2.5-1.5b-instruct
+temperature: 0.0
+top_p: 1.0
+max_tokens: 32
+seed: 0
+stream: false
+</code></pre>
+<p>실제 응답은 다음과 같았다.</p>
+<pre><code class="language-text">HTTP Status: 200
+Prompt Token: 37
+Completion Token: 32
+Total Token: 69
+Finish Reason: length
+System Fingerprint: vllm-0.29.0-7a518a0f
+</code></pre>
+<p>생성 문자열:</p>
+<pre><code class="language-text">KV Cache, or Key-Value Cache, is a type of in-memory data storage that stores key-value pairs, allowing for fast retrieval of data by key.
+</code></pre>
+<p><code>finish_reason: length</code>는 오류가 아니다. 요청의 <code>max_tokens=32</code>와 실제 <code>completion_tokens=32</code>가 같으므로 최대 생성 길이에 도달해 정상 종료됐다는 의미다. 모델이 EOS나 Stop 조건을 만나 자연스럽게 끝냈다면 일반적으로 <code>stop</code>으로 표시된다.</p>
+<p>응답의 <code>logprobs</code>, <code>token_ids</code>, <code>prompt_logprobs</code>, <code>metrics</code>가 <code>null</code>이었던 것은 해당 정보를 반환하도록 요청하지 않았기 때문이다. HTTP <code>200</code>과 생성 문자열만으로 이 필드들이 항상 제공된다고 가정하면 안 된다.</p>
+<p>결과는 다음 경로에 보존했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/non_streaming_response.json
+</code></pre>
+<h3>Streaming 요청</h3>
+<p>같은 Prompt와 생성 조건에서 <code>stream: true</code>와 <code>stream_options.include_usage: true</code>를 사용했다. 응답 Header는 다음과 같았다.</p>
+<pre><code class="language-text">HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Transfer-Encoding: chunked
+</code></pre>
+<p>이는 한 번에 완성된 JSON을 반환한 것이 아니라 SSE(Server-Sent Events) Chunk를 순서대로 전송했다는 뜻이다.</p>
+<p>실제 Chunk 흐름은 다음과 같았다.</p>
+<pre><code class="language-text">1. Assistant 역할을 알리는 빈 Delta
+2. &quot;KV&quot;, &quot; Cache&quot;, &quot;,&quot;, &quot; or&quot; ... 생성 내용 Delta
+3. 마지막 내용과 finish_reason: length
+4. choices가 비어 있고 usage가 들어 있는 Usage Chunk
+5. data: [DONE]
+</code></pre>
+<p>각 Chunk의 <code>choices[0].delta.content</code>를 도착 순서대로 이어 붙이면 Non-streaming 응답과 같은 문장이 됐다. 마지막 Usage Chunk도 Prompt <code>37</code>, Completion <code>32</code>, Total <code>69</code>로 같았으며 <code>[DONE]</code>을 통해 Stream의 정상 종료를 확인했다.</p>
+<p><code>curl</code>에는 연결 제한 <code>10</code>초와 전체 요청 제한 <code>120</code>초를 적용했다. 이는 이후 <code>httpx</code>로 만든 아주 짧은 Read Timeout 실험과 다른 조건이다.</p>
+<p>Streaming 응답은 다음 경로에 보존했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/streaming_response.log
+</code></pre>
+<h3>동시 요청 세 개</h3>
+<p><code>httpx.AsyncClient</code>와 <code>asyncio.gather()</code>를 사용해 다음 세 Prompt를 동시에 전송했다.</p>
+<pre><code class="language-text">Explain KV Cache in one sentence.
+Explain prefill in one sentence.
+Explain continuous batching in one sentence.
+</code></pre>
+<p>각 Task는 자신의 요청 시작·종료 시각, HTTP Status, 응답 Body를 따로 기록했다. <code>asyncio.gather(*tasks)</code>는 앞 요청이 끝날 때까지 기다린 뒤 다음 요청을 보내는 것이 아니라 세 Coroutine을 같은 측정 구간에서 함께 진행시킨다.</p>
+<p>실제 결과에서 세 요청은 모두 HTTP <code>200</code>과 각 Prompt에 대응하는 생성 결과를 반환했다.</p>
+<pre><code class="language-text">동시에 전송한 요청 수: 3
+완료한 요청 수: 3
+성공 HTTP Status 수: 3
+각 응답과 원래 Prompt의 대응: 정상
+</code></pre>
+<p>이 실습은 Server가 여러 HTTP 요청을 받을 수 있음을 보여준다. 다만 요청이 매우 짧아 통계 표본이 찍힐 때는 이미 모두 끝나 있었으므로, 이 결과만으로 Queue가 오래 유지되거나 <code>Waiting &gt; 0</code>인 고부하 상태까지 증명한 것은 아니다.</p>
+<p>동시 요청 결과는 다음 경로에 보존했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/concurrent_requests.log
+</code></pre>
+<h3>요청 로그와 주기적 통계 로그</h3>
+<p><code>--enable-log-requests</code>를 적용한 Server Log에는 요청별 진행 상태와 Engine 통계가 함께 출력됐다. 둘은 의미가 다르다.</p>
+<h4>요청 로그</h4>
+<pre><code class="language-text">Received request
+→ API Server가 Client 요청을 받음
+
+Added request
+→ 요청을 vLLM Engine의 처리 대상으로 추가함
+
+POST /v1/chat/completions 200 OK
+→ HTTP 요청을 정상 처리함
+</code></pre>
+<p>각 요청에는 <code>chatcmpl-...</code> 형식의 Request ID가 있으므로 요청 수신부터 Engine 추가와 HTTP 응답까지 같은 요청을 연결할 수 있다. 동시 요청 세 개에서는 다음 ID의 요청별 로그가 세 묶음으로 나타났다.</p>
+<pre><code class="language-text">chatcmpl-bbd0148168c76a28
+chatcmpl-970b27cc9f235137
+chatcmpl-b3c5d16d3d2b7413
+</code></pre>
+<h4>통계 로그</h4>
+<p>다음 항목은 요청 하나의 시작·종료 이벤트가 아니라 일정 통계 구간 동안 처리한 작업과 출력 시점의 Engine 상태다.</p>
+<pre><code class="language-text">Avg prompt throughput
+→ 직전 구간의 Prefill Token 처리량
+
+Avg generation throughput
+→ 직전 구간의 Decode Token 처리량
+
+Running
+→ 통계 출력 시점에 실행 중인 요청 수
+
+Waiting
+→ Scheduler에서 기다리는 요청 수
+
+GPU KV cache usage
+→ vLLM이 준비한 KV Cache 전체 공간 중 사용 비율
+
+Prefix cache hit rate
+→ 이전과 같은 Prompt Prefix를 재사용한 비율
+</code></pre>
+<p>이번 짧은 동시 요청은 약 <code>08:04:20</code>에 시작해 <code>08:04:21</code> 전후로 완료됐고, 첫 통계는 <code>08:04:25</code>에 출력됐다. 따라서 첫 통계가 다음처럼 보였다.</p>
+<pre><code class="language-text">Avg prompt throughput: 4.7 tokens/s
+Avg generation throughput: 10.1 tokens/s
+Running: 0 reqs
+Waiting: 0 reqs
+GPU KV cache usage: 0.0%
+</code></pre>
+<p><code>Running: 0</code>인데 처리량이 0보다 큰 것은 모순이 아니다. 요청은 통계 출력 시점 전에 끝났지만 직전 통계 구간에는 Token 처리가 있었기 때문이다. 다음 유휴 통계 구간에는 처리량도 0으로 바뀌었다.</p>
+<p>짧은 요청의 KV Cache 사용량이 <code>0.0%</code>로 표시된 것도 Cache를 사용하지 않았다는 뜻이 아니다. 전체 Cache Capacity에 비해 사용량이 작아 표시 정밀도에서 0.0%로 반올림될 수 있다.</p>
+<p>요청이 통계 주기보다 오래 실행되면 <code>Running</code>과 <code>Waiting</code>의 변화가 여러 통계에 걸쳐 나타날 수 있다. 장기간의 시계열 관찰에는 Console Log보다 <code>/metrics</code>를 Prometheus가 일정 주기로 수집하는 방식이 더 적합하다.</p>
+<pre><code class="language-text">요청 로그
+→ 개별 요청의 진행 상태
+
+Console 통계 로그
+→ 일정 구간의 Engine 요약
+
+/metrics
+→ 외부 수집기가 저장할 수 있는 관측 지표
+</code></pre>
+<p>Server Log는 다음 경로에 보존했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/vllm_server.log
+</code></pre>
+<h3>의도한 오류·Client Timeout·복구 요청</h3>
+<p>정상 요청만 처리되는 것을 확인하는 데서 끝내지 않고, 오류가 발생한 뒤에도 Server가 계속 동작하는지 한 셀에서 검증했다.</p>
+<h4>존재하지 않는 모델 이름</h4>
+<p>요청의 <code>model</code>을 <code>model-that-does-not-exist</code>로 바꿨다. Server는 HTTP <code>4xx</code> 오류와 JSON 오류 Body를 반환했다. 이 결과는 Client가 잘못된 모델을 요청했을 때 프로세스 전체가 죽는 대신 요청 단위 오류로 응답한다는 것을 보여준다.</p>
+<h4>Client Read Timeout</h4>
+<p><code>httpx.Client</code>에는 <code>connect</code>, <code>read</code>, <code>write</code>, <code>pool</code>을 직접 전달할 수 없다. 먼저 <code>httpx.Timeout</code> 객체로 묶어 <code>timeout=</code>에 전달해야 한다.</p>
+<pre><code class="language-python">short_read_timeout = httpx.Timeout(
+    connect=10.0,
+    read=0.001,
+    write=10.0,
+    pool=10.0,
+)
+
+with httpx.Client(
+    timeout=short_read_timeout,
+) as client:
+    ...
+</code></pre>
+<p>연결과 요청 전송에는 충분한 시간을 주고 응답을 읽는 시간만 <code>0.001</code>초로 제한했다. 실제로 <code>httpx.TimeoutException</code>이 발생해 Client 측 Read Timeout 처리를 확인했다.</p>
+<p>현재 <code>vllm serve</code> 실행 명령에는 Server가 한 요청의 추론을 일정 시간이 지나면 자체 중단시키는 별도 Request Timeout을 지정하지 않았다. 따라서 이번 실험에서 증명한 것은 Client가 응답 기다리기를 포기하는 조건이지, Server 내부 추론 제한이 아니다.</p>
+<h4>오류 이후 정상 요청</h4>
+<p>오류 응답과 Client Timeout 직후 <code>Say only: server is healthy</code>라는 정상 요청을 다시 보냈다. 정상 요청은 HTTP <code>200</code>과 생성 결과를 반환했다. 따라서 의도한 오류와 Client 연결 종료가 발생해도 vLLM Server가 다음 요청을 계속 처리함을 확인했다.</p>
+<p>전체 결과는 다음 경로에 JSON으로 저장했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/api_error_timeout_recovery.json
+</code></pre>
+<h3>이번 실습에서 증명한 범위</h3>
+<pre><code class="language-text">vLLM Server 기동
+→ /v1/models 확인
+→ Non-streaming JSON 응답
+→ Streaming SSE Chunk와 [DONE]
+→ 동시 요청 세 개 처리
+→ 요청 로그와 Engine 통계 구분
+→ 잘못된 모델의 HTTP 4xx
+→ Client Read Timeout
+→ 오류 직후 정상 요청 HTTP 200
+</code></pre>
+<p>이를 통해 단일 GPU vLLM Server가 OpenAI-compatible API 형식으로 정상·Streaming·동시·오류 요청을 처리하고, 오류 뒤에도 서비스를 지속한다는 것을 증명했다.</p>
+<p>다만 이번 실습은 외부 Load Balancer, 인증, 인터넷 구간의 네트워크 지연이나 장시간 고부하 안정성까지 증명한 것은 아니다. 이들은 실제 배포 환경의 E2E 검증 범위다.</p>
+<h3>기록한 결과</h3>
+<pre><code class="language-text">Non-streaming: HTTP 200, JSON 응답, Token Usage 저장
+Streaming: HTTP 200, SSE Chunk 순서, Usage, [DONE] 저장
+동시 요청: 3/3 HTTP 200
+오류 응답: 존재하지 않는 모델의 HTTP 4xx와 Body 저장
+Client Timeout: read=0.001초, TimeoutException 확인
+Server Request Timeout: 별도 설정 없음
+오류 후 복구: 정상 요청 HTTP 200
+Client 결과: results/vllm_serving_baseline/*
+Server Log: vllm_server.log
+</code></pre>
+<h3>완료 판정</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Non-streaming 요청이 성공했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Streaming Chunk의 순서와 정상 종료를 확인했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 여러 동시 요청이 모두 올바르게 완료됐다.</li>
+<li><input checked="" disabled="" type="checkbox"> 의도한 오류 응답을 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Client와 Server의 Timeout 조건을 구분해 기록했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 오류 이후 Server가 계속 정상 동작했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 요청·응답과 Client·Server Log를 보존했다.</li>
+</ul>
+<h3>다음 단계</h3>
+<p><a href="#restart-reproducibility">다음: 단일 GPU Server 재시작 재현성</a></p>
+<hr>
+
+</section>
+<section id="restart-reproducibility" class="markdown-section">
+<h2>단일 GPU Server 재시작 재현성</h2>
+<p>Criterion ID: <code>single-gpu-vllm-restart-reproducibility</code></p>
+<p>실습 진행 순서: <strong>5/5</strong></p>
+<p><a href="#api-serving">이전: OpenAI-compatible API Serving 검증</a></p>
+<h3>이 Criterion에서 확인할 것</h3>
+<p>처음 실행한 vLLM Server를 종료한 뒤 저장한 명령과 설정만으로 다시 실행한다. 재시작 전후의 실제 환경·설정·API 결과를 비교해 같은 Serving Baseline을 복원할 수 있는지 확인한다.</p>
+<p>이 실습에서 말하는 재현성은 다음 범위다.</p>
+<pre><code class="language-text">같은 실행 명령과 Model Artifact
+→ 같은 Server 설정 복원
+→ 같은 고정 요청 전송
+→ 같은 HTTP 상태·생성 결과·Token 사용량 확인
+</code></pre>
+<p>이는 Server 재시작 뒤 같은 서비스 기준선을 복원할 수 있음을 검증한다. 내부 Logit의 모든 원소, Latency, 처리량, 일반적인 모델 품질이 언제나 완전히 같다는 뜻은 아니다.</p>
+<h3>재시작 전에 고정한 조건</h3>
+<ul>
+<li>Model Artifact: <code>/root/models/Qwen2.5-1.5B-Instruct-989aa798</code></li>
+<li>Served Model Name: <code>qwen2.5-1.5b-instruct</code></li>
+<li>Runner: <code>generate</code></li>
+<li>Weight dtype: <code>float16</code></li>
+<li>KV Cache dtype: <code>float16</code></li>
+<li>Tensor Parallel: <code>1</code></li>
+<li>Max Model Length: <code>4096</code></li>
+<li>GPU Memory Utilization: <code>0.8</code></li>
+<li>Max Number of Sequences: <code>8</code></li>
+<li>Seed: <code>0</code></li>
+<li>Generation Config: <code>vllm</code></li>
+<li>Host·Port: <code>127.0.0.1:8000</code></li>
+<li>Remote Code 실행: 사용하지 않음</li>
+<li>Request Log: 사용</li>
+</ul>
+<p>기준 API 요청도 동일하게 보존했다.</p>
+<pre><code class="language-text">Prompt: Explain KV Cache in one sentence.
+temperature: 0.0
+top_p: 1.0
+max_tokens: 32
+seed: 0
+stream: false
+</code></pre>
+<h3>재시작 전 기준 응답 저장</h3>
+<p>Server를 종료하기 전에 <code>/v1/models</code>와 <code>/v1/chat/completions</code>를 호출하고 요청·응답을 JSON으로 저장했다.</p>
+<pre><code class="language-text">Models HTTP Status: 200
+Generation HTTP Status: 200
+Finish Reason: length
+Prompt Token: 37
+Completion Token: 32
+Total Token: 69
+</code></pre>
+<p>생성 결과:</p>
+<pre><code class="language-text">KV Cache, or Key-Value Cache, is a type of in-memory data storage that stores key-value pairs, allowing for fast retrieval of data by key.
+</code></pre>
+<p>결과 파일:</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/restart_before.json
+</code></pre>
+<p><code>finish_reason: length</code>는 생성 실패가 아니다. 요청의 <code>max_tokens=32</code>와 실제 Completion Token 수가 모두 <code>32</code>이므로 길이 제한에 도달해 종료된 것이다. 자연스러운 EOS 종료를 증명한 결과는 아니지만, 재시작 전후에 동일한 제한 종료가 재현되는지를 비교하기에는 고정된 조건이다.</p>
+<h3>Server 종료와 동일 명령 재실행</h3>
+<p>기존 Server Terminal에서 <code>Ctrl+C</code>로 Server를 종료한 뒤 같은 <code>vllm serve</code> 옵션으로 다시 실행했다. 이전 시작 Log를 덮어쓰지 않도록 재시작 Log는 별도 파일에 저장했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/vllm_server_restart.log
+</code></pre>
+<p>재시작에서 바뀐 것은 Log 파일 이름뿐이며 모델, GPU, dtype, Scheduler 범위, 생성 기본값, Host와 Port는 같게 유지했다.</p>
+<pre><code class="language-text">기존 Server 종료
+→ 같은 vllm serve 명령 재실행
+→ Application startup complete 확인
+→ /v1/models 재확인
+→ 재시작 전과 같은 API 요청 전송
+</code></pre>
+<h3>재시작 후 같은 요청 실행</h3>
+<p>재시작 전 JSON에 저장한 <code>request</code>를 다시 읽어 그대로 전송했다. 문자열을 기억에 의존해 새로 적지 않고 저장된 Request Body를 재사용했기 때문에 Prompt와 생성 조건이 달라지는 실수를 피했다.</p>
+<p>재시작 후에도 다음 결과가 나왔다.</p>
+<pre><code class="language-text">Generation HTTP Status: 200
+Finish Reason: length
+Prompt Token: 37
+Completion Token: 32
+Total Token: 69
+</code></pre>
+<p>생성 문자열도 재시작 전과 같았다.</p>
+<pre><code class="language-text">KV Cache, or Key-Value Cache, is a type of in-memory data storage that stores key-value pairs, allowing for fast retrieval of data by key.
+</code></pre>
+<p>재시작 후 결과는 다음 파일에 저장했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/restart_after.json
+</code></pre>
+<h3>재시작 전후 비교 결과</h3>
+<p>재시작 전후에 다음 항목을 각각 비교했다.</p>
+<pre><code class="language-text">same_model_id: True
+same_model_root: True
+same_max_model_length: True
+same_generated_content: True
+same_finish_reason: True
+same_prompt_token_count: True
+same_completion_token_count: True
+same_total_token_count: True
+single_visible_gpu: True
+</code></pre>
+<p>GPU 확인 결과도 다음과 같았다.</p>
+<pre><code class="language-text">보이는 GPU 수: 1
+GPU UUID: GPU-fc2d8ac6-a050-6eb0-3311-74f3c33962a2
+GPU Process: VLLM::EngineCore
+</code></pre>
+<p>PID는 재시작 후 <code>25259</code>였다. PID는 프로세스를 다시 시작하면 달라질 수 있으므로 동일성 판정의 기준이 아니다. 중요한 것은 한 장의 GPU만 노출됐고, 같은 물리 GPU UUID에서 새 <code>VLLM::EngineCore</code>가 실행됐다는 점이다.</p>
+<p>비교 결과는 다음 경로에 저장했다.</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/results/
+vllm_serving_baseline/restart_comparison.json
+</code></pre>
+<h3>무엇이 증명됐는가</h3>
+<p>이번 결과로 다음을 확인했다.</p>
+<pre><code class="language-text">저장한 Server 실행 조건만으로 재기동 가능
+→ 같은 Model ID와 로컬 Artifact 사용
+→ 같은 Max Model Length 적용
+→ 같은 고정 요청이 HTTP 200으로 성공
+→ 같은 생성 문자열과 Finish Reason 반환
+→ 같은 Prompt·Completion·Total Token 수 반환
+→ 같은 물리 GPU 한 장에서 EngineCore 실행
+</code></pre>
+<p>따라서 저장한 명령과 결과 파일만으로 단일 GPU vLLM Serving Baseline을 다시 복원할 수 있음을 실제 재시작으로 검증했다.</p>
+<p>이번 실습에서 직접 비교하지 않은 범위도 구분해야 한다.</p>
+<ul>
+<li>재시작 전후 모든 Logit 원소의 완전한 일치</li>
+<li>재시작 전후 Latency와 Throughput의 완전한 일치</li>
+<li>다른 Prompt·Batch·Sampling 설정에서도 항상 같은 품질</li>
+<li>다른 GPU나 Driver 환경에서의 재현성</li>
+<li>장시간 부하 상태의 안정성</li>
+</ul>
+<h3>기록한 결과</h3>
+<pre><code class="language-text">재시작 전: restart_before.json
+재시작 후: restart_after.json
+전후 비교: restart_comparison.json
+최초 Server Log: vllm_server.log
+재시작 Server Log: vllm_server_restart.log
+같은 GPU UUID: True
+재시작 전 HTTP Status: 200
+재시작 후 HTTP Status: 200
+생성 결과 일치: True
+Finish Reason 일치: True
+Token Usage 일치: True
+</code></pre>
+<h3>완료 판정</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Server를 종료하고 같은 설정으로 다시 시작했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 저장한 명령과 설정만으로 Server가 다시 실행됐다.</li>
+<li><input checked="" disabled="" type="checkbox"> 재시작 전후 Model·Tokenizer·Generation 설정을 같게 유지했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 같은 물리 GPU 한 장을 사용했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 같은 요청이 재시작 후에도 HTTP <code>200</code>으로 성공했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 생성 결과·종료 사유·Token 사용량을 재시작 전후 비교했다.</li>
+<li><input checked="" disabled="" type="checkbox"> Server Log와 재시작 전후 JSON 결과를 각각 보존했다.</li>
+<li><input checked="" disabled="" type="checkbox"> 증명한 범위와 증명하지 않은 범위를 구분했다.</li>
+</ul>
+<h3>실습 완료</h3>
+<p>이 실습으로 <code>단일 GPU Server 재시작 재현성</code> Criterion의 실행과 결과 비교를 완료했다. 다섯 Criterion 전체를 합칠 때는 이 문서를 마지막 단계의 재현성 근거로 사용한다.</p>
+<hr>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>전체 실습 결론</h2>
+<p>이번 실습에서는 단일 GPU vLLM Serving Baseline을 구성하는 다음 범위를 실제 실행 결과로 확인했다.</p>
+<pre><code class="language-text">실행·비교 계약 정의
+단일 GPU vLLM Engine과 Server 실행
+OpenAI-compatible API의 정상·Streaming·동시·오류 요청 처리
+동일 설정 Server 재시작과 생성 결과 복원
+PyTorch와 vLLM의 동일 입력·동일 생성 계약 출력 비교
+</code></pre>
+<p>단일 GPU, 고정 Model Revision, Tokenizer, dtype, 최대 문맥 길이, GPU 메모리 비율, 최대 Sequence 수와 Greedy 생성 조건을 계약으로 만들었다. 고정 Revision의 Model Artifact를 내려받아 파일과 실제 경로를 검증했고, Python <code>LLM.generate()</code>와 <code>vllm serve</code>를 각각 실행했다.</p>
+<p>HTTP Server에서는 <code>/v1/models</code>, Non-streaming, SSE Streaming, 동시 요청 세 개, 잘못된 모델 요청, Client Read Timeout과 오류 후 정상 복구를 확인했다. Server를 종료한 뒤 같은 명령으로 다시 시작했을 때 모델 정보, 생성 문자열, 종료 사유, Token 사용량과 단일 GPU 조건이 모두 같았다.</p>
+<h3>PyTorch와 vLLM을 독립 프로세스로 비교한 이유</h3>
+<p>PyTorch와 vLLM은 각각 GPU 메모리를 사용하는 실행 엔진이다. 이전 엔진의 메모리와 실행 상태가 다음 비교에 영향을 주지 않도록 공통 입력을 JSON으로 만든 뒤 PyTorch 자식 프로세스를 실행하고 완전히 종료한 다음 vLLM 자식 프로세스를 실행했다.</p>
+<p>Chat Template은 부모 프로세스에서 한 번만 적용하고 같은 37개 Prompt Token ID를 두 엔진에 직접 전달했다. 두 엔진 모두 <code>float16</code>, Greedy, Seed <code>0</code>, EOS 종료 비활성화와 정확히 32개의 새 Token 생성 조건을 사용했다.</p>
+<h3>최초 불일치와 원인 확인</h3>
+<p>최초 실행에서는 첫 Token ID는 같았지만 세 번째 생성 Token부터 전체 Sequence가 달라졌다.</p>
+<pre><code class="language-text">첫 Token ID 동일: True
+전체 생성 Sequence 동일: False
+최초 불일치 생성 위치: 2
+</code></pre>
+<p>원인은 실행 Backend가 아니라 Generation 설정이었다. PyTorch는 모델의 <code>generation_config</code>에서 <code>repetition_penalty=1.1</code>을 물려받았고, vLLM은 명시하지 않은 기본값 <code>1.0</code>을 사용했다. <code>do_sample=False</code>인 Greedy 생성에서도 반복 페널티는 Token 선택 전 Logit을 바꾸므로 이 차이는 실제 생성 결과를 바꿀 수 있다.</p>
+<pre><code class="language-text">최초 비교
+PyTorch repetition_penalty: 1.1
+vLLM repetition_penalty:    1.0
+→ 세 번째 생성 Token부터 불일치
+</code></pre>
+<h3>수정 후 직접 비교 결과</h3>
+<p>두 엔진의 <code>repetition_penalty</code>를 모두 <code>1.0</code>으로 맞추고 새로운 프로세스에서 다시 실행했다.</p>
+<pre><code class="language-text">같은 Model Artifact: True
+Prompt Token ID 동일: True
+PyTorch 첫 Token ID: 82707
+vLLM 첫 Token ID: 82707
+첫 Token ID 동일: True
+전체 생성 Sequence 동일: True
+최초 불일치 생성 위치: None
+PyTorch 생성 Token 수: 32
+vLLM 생성 Token 수: 32
+</code></pre>
+<p>첫 Token Logprob는 PyTorch <code>-0.2410527319</code>, vLLM <code>-0.2388833016</code>으로 약 <code>0.002169</code> 차이가 났다. 이는 계약한 허용오차 안이었고 두 값 모두 유한했다. 서로 다른 Kernel과 실행 경로가 작은 수치 차이를 만들 수 있지만, 이번에는 그 차이가 Greedy Token 순위를 바꾸지 않아 전체 32개 생성 Token ID가 일치했다.</p>
+<h3>최종적으로 확인한 범위</h3>
+<pre><code class="language-text">실행·비교 계약
+→ 고정 Revision과 Local Model Artifact 검증
+→ 단일 GPU vLLM Engine·Server 실행
+→ Prompt·Output Token과 Peak VRAM 기록
+→ OpenAI-compatible API의 정상·Streaming·동시·오류·복구 검증
+→ 같은 설정으로 Server 재시작과 응답 재현
+→ PyTorch와 vLLM의 동일 Prompt Token 직접 비교
+→ 최초 불일치 위치 탐지와 Generation 설정 원인 분석
+→ repetition_penalty 수정 후 전체 32개 Token Sequence 일치
+</code></pre>
+<p>이번 실습은 같은 모델과 GPU만 맞춘다고 공정한 비교가 되는 것이 아님을 보여준다. 한쪽은 모델의 Generation 기본값을 복사하고 다른 쪽은 새로운 설정 객체를 만들면 보이지 않는 기본값 차이가 생길 수 있다. <code>do_sample</code>, Sampling 설정, <code>repetition_penalty</code>, EOS·Stop 조건, 생성 길이와 Seed까지 실제 적용값을 명시적으로 맞춰야 한다.</p>
+<p>따라서 <code>단일 GPU vLLM Serving Baseline</code>의 다섯 Criterion인 실행·비교 계약, 단일 GPU 실행, 출력 검증, OpenAI-compatible API Serving, Server 재시작 재현성을 모두 완료했다. 이 결과는 고정한 단일 GPU·모델·입력·생성 조건의 Baseline이며, 다른 모델·GPU·dtype·Backend에서도 항상 같은 출력을 보장한다는 뜻은 아니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

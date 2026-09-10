@@ -1,0 +1,263 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_server_logs_statistics.md. Do not edit directly. source-sha256:39c91c08c1c443d31bdb0dbb5d5c696717f8f0bc204d3e2f042ab5835cf7184f -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM Server의 요청 진행 로그와 Engine 통계 로그를 구분하고 Running·Waiting·처리량·KV Cache 지표를 해석하는 방법">
+  <meta name="source-sha256" content="39c91c08c1c443d31bdb0dbb5d5c696717f8f0bc204d3e2f042ab5835cf7184f">
+  <title>vLLM Server의 요청 로그와 주기적 통계 로그 이해하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM Server의 요청 로그와 주기적 통계 로그 이해하기">
+  <meta property="og:description" content="vLLM Server의 요청 진행 로그와 Engine 통계 로그를 구분하고 Running·Waiting·처리량·KV Cache 지표를 해석하는 방법">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html","name":"vLLM Server의 요청 로그와 주기적 통계 로그 이해하기","description":"vLLM Server의 요청 진행 로그와 Engine 통계 로그를 구분하고 Running·Waiting·처리량·KV Cache 지표를 해석하는 방법","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html"},"headline":"vLLM Server의 요청 로그와 주기적 통계 로그 이해하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"vLLM은 무엇이고 왜 배우는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_overview.html"},{"@type":"ListItem","position":6,"name":"vLLM Server의 요청 로그와 주기적 통계 로그 이해하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_overview.html">vLLM은 무엇이고 왜 배우는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM Server의 요청 로그와 주기적 통계 로그 이해하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM Server의 요청 로그와 주기적 통계 로그 이해하기</h1>
+      <p class="lead">vLLM Server의 요청 진행 로그와 Engine 통계 로그를 구분하고 Running·Waiting·처리량·KV Cache 지표를 해석하는 방법</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-6023ad00e2f5">요청 로그는 개별 요청의 진행 상태를 보여준다</a>
+        <a href="#section-8591952cc616">통계 로그는 요청 하나의 시작과 종료가 아니다</a>
+        <a href="#section-653407cfd9f3">통계 로그의 항목</a>
+        <a href="#section-2df7289bbab1">짧은 부하에서는 통계 로그가 두 번만 보일 수 있다</a>
+        <a href="#section-cd1cf6b78590">긴 부하에서는 주기적인 상태 변화가 보인다</a>
+        <a href="#console-log-prometheus">Console Log와 Prometheus 지표는 역할이 다르다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM API Server에 요청을 보내면 Server Terminal에는 여러 종류의 로그가 출력된다. 이 로그를 모두 요청의 시작과 종료라고 이해하면 실제 처리 상태를 잘못 해석할 수 있다.</p>
+<p>vLLM Server의 로그는 크게 다음 두 종류로 나눌 수 있다.</p>
+<pre><code class="language-text">개별 요청의 진행 상태를 기록하는 요청 로그
+일정 구간의 Engine 상태를 요약하는 통계 로그
+</code></pre>
+</div>
+        <section id="section-6023ad00e2f5" class="markdown-section">
+<h2>요청 로그는 개별 요청의 진행 상태를 보여준다</h2>
+<p><code>--enable-log-requests</code> 옵션을 적용하면 Server는 요청마다 다음과 같은 로그를 출력한다.</p>
+<pre><code class="language-bash">Received request
+Added request
+POST /v1/chat/completions 200 OK
+</code></pre>
+<p>각 로그의 의미는 다음과 같다.</p>
+<pre><code class="language-text">Received request
+→ API Server가 Client의 요청을 받았다.
+
+Added request
+→ 받은 요청을 vLLM 추론 엔진의 처리 대상으로 추가했다.
+
+POST /v1/chat/completions 200 OK
+→ HTTP 요청을 정상적으로 처리했다.
+</code></pre>
+<p>동시 요청을 세 개 보냈다면 각 요청에 해당하는 <code>Received request</code>와 <code>Added request</code>가 출력된다.</p>
+<p>요청 로그에는 다음과 같은 요청 ID도 포함된다.</p>
+<pre><code class="language-text">chatcmpl-bbd0148168c76a28
+chatcmpl-970b27cc9f235137
+chatcmpl-b3c5d16d3d2b7413
+</code></pre>
+<p>따라서 하나의 요청이 API Server에 들어와 추론 엔진에 추가되고 HTTP 응답으로 이어지는 과정을 요청 ID로 연결할 수 있다.</p>
+
+</section>
+<section id="section-8591952cc616" class="markdown-section">
+<h2>통계 로그는 요청 하나의 시작과 종료가 아니다</h2>
+<p>다음과 같은 로그는 개별 요청의 시작과 종료를 직접 기록하는 로그가 아니다.</p>
+<pre><code class="language-text">Engine 000:
+Avg prompt throughput: 4.7 tokens/s
+Avg generation throughput: 10.1 tokens/s
+Running: 0 reqs
+Waiting: 0 reqs
+GPU KV cache usage: 0.0%
+Prefix cache hit rate: 64.9%
+</code></pre>
+<p>이 로그는 일정한 통계 구간 동안 vLLM Engine이 처리한 작업과 로그 출력 시점의 상태를 요약한 것이다.</p>
+<p>처리 중인 요청이 통계 출력 주기보다 오래 유지되면 다음처럼 통계 로그가 주기적으로 발생한다.</p>
+<pre><code class="language-text">첫 번째 통계
+Running: 3
+Waiting: 2
+
+두 번째 통계
+Running: 3
+Waiting: 0
+
+세 번째 통계
+Running: 1
+Waiting: 0
+
+네 번째 통계
+Running: 0
+Waiting: 0
+</code></pre>
+<p>반면 요청이 통계 출력 주기보다 빠르게 끝나면 처리 중인 상태가 로그에 잡히지 않을 수 있다. 이 경우 작업이 끝난 뒤 직전 구간의 처리량과 유휴 상태만 보이게 된다.</p>
+<p>완전히 유휴 상태가 된 뒤에는 Console 통계가 계속 무한히 출력되기보다 유휴 상태를 한 번 더 보여주고 멈출 수도 있다.</p>
+<p>정리하면 다음과 같다.</p>
+<pre><code class="language-text">요청이 실행 중이고 통계가 계속 갱신됨
+→ 일정 간격으로 통계 로그 발생
+
+요청이 통계 주기보다 빠르게 끝남
+→ 처리 중 상태를 놓치고 완료 후 통계만 보일 수 있음
+
+모든 요청이 끝남
+→ 유휴 통계가 한 번 더 나온 뒤 출력이 멈출 수 있음
+</code></pre>
+
+</section>
+<section id="section-653407cfd9f3" class="markdown-section">
+<h2>통계 로그의 항목</h2>
+<h3><code>Avg prompt throughput</code></h3>
+<p>Prompt를 처음 처리하는 Prefill 단계에서 초당 처리한 평균 Token 수다.</p>
+<pre><code class="language-text">Avg prompt throughput: 4.7 tokens/s
+</code></pre>
+<p>직전 통계 구간에 Prompt Token을 처리했다는 뜻이다.</p>
+<h3><code>Avg generation throughput</code></h3>
+<p>Decode 단계에서 초당 생성한 평균 Token 수다.</p>
+<pre><code class="language-text">Avg generation throughput: 10.1 tokens/s
+</code></pre>
+<p>직전 통계 구간에 생성한 Token의 평균 처리량을 보여준다.</p>
+<h3><code>Running</code></h3>
+<p>통계가 출력된 시점에 추론 엔진이 처리 중인 요청 수다.</p>
+<pre><code class="language-text">Running: 3 reqs
+</code></pre>
+<p>라면 현재 세 요청이 처리되고 있다는 뜻이다.</p>
+<h3><code>Waiting</code></h3>
+<p>아직 실행되지 못하고 Scheduler에서 기다리는 요청 수다.</p>
+<pre><code class="language-text">Waiting: 2 reqs
+</code></pre>
+<p>라면 두 요청이 실행 순서를 기다리고 있다는 뜻이다.</p>
+<h3><code>GPU KV cache usage</code></h3>
+<p>vLLM이 준비한 전체 GPU KV Cache 공간 중 현재 요청들이 사용하고 있는 비율이다.</p>
+<p>짧은 요청은 전체 KV Cache Capacity 중 극히 일부만 사용하므로 소수점 표시에서 <code>0.0%</code>로 보일 수 있다. 따라서 <code>0.0%</code>가 KV Cache를 전혀 사용하지 않았다는 뜻은 아니다.</p>
+<h3><code>Prefix cache hit rate</code></h3>
+<p>이전에 처리한 것과 같은 Prompt Prefix를 재사용한 비율이다.</p>
+<p>같은 Prompt를 반복해서 보내면 이미 계산한 Prefix의 KV Cache를 재사용할 수 있으므로 이 값이 높아질 수 있다.</p>
+
+</section>
+<section id="section-2df7289bbab1" class="markdown-section">
+<h2>짧은 부하에서는 통계 로그가 두 번만 보일 수 있다</h2>
+<p>이번 실습에서는 동시 요청이 다음 시점에 들어왔다.</p>
+<pre><code class="language-text">08:04:20 요청 시작
+</code></pre>
+<p>통계 로그는 다음 시점에 출력됐다.</p>
+<pre><code class="language-text">08:04:25 처리량이 존재하는 통계
+08:04:35 처리량이 0인 통계
+</code></pre>
+<p>요청들은 통계 출력 주기보다 빠르게 완료됐다.</p>
+<pre><code class="language-text">08:04:20 요청 시작
+08:04:21 전후 요청 완료
+08:04:25 첫 통계 출력
+</code></pre>
+<p>따라서 첫 통계가 출력됐을 때는 이미 요청 처리가 끝난 상태였다.</p>
+<pre><code class="language-text">Running: 0 reqs
+Waiting: 0 reqs
+</code></pre>
+<p>하지만 직전 통계 구간에는 Token을 처리했기 때문에 처리량은 0보다 크게 나타났다.</p>
+<pre><code class="language-text">Avg prompt throughput: 4.7 tokens/s
+Avg generation throughput: 10.1 tokens/s
+</code></pre>
+<p>그다음 통계 구간에는 새로운 작업이 없었으므로 모든 처리량이 0으로 출력됐다.</p>
+<pre><code class="language-text">Avg prompt throughput: 0.0 tokens/s
+Avg generation throughput: 0.0 tokens/s
+Running: 0 reqs
+Waiting: 0 reqs
+</code></pre>
+<p>이 때문에 겉으로는 다음처럼 보일 수 있다.</p>
+<pre><code class="language-text">첫 번째 로그: 부하 시작
+두 번째 로그: 부하 종료
+</code></pre>
+<p>하지만 실제 의미는 다르다.</p>
+<pre><code class="language-text">첫 번째 로그
+→ 직전 통계 구간에 처리한 작업이 있었다.
+
+두 번째 로그
+→ 이번 통계 구간에는 처리한 작업이 없었다.
+</code></pre>
+<p>즉, 두 로그는 요청의 시작과 종료 이벤트가 아니라 서로 다른 통계 구간의 상태다.</p>
+
+</section>
+<section id="section-cd1cf6b78590" class="markdown-section">
+<h2>긴 부하에서는 주기적인 상태 변화가 보인다</h2>
+<p>요청이 통계 출력 주기보다 오래 실행되거나 Client가 요청을 지속적으로 보내면 통계 로그에도 처리 중인 상태가 나타난다.</p>
+<pre><code class="language-text">10초: Running 3, Waiting 2
+20초: Running 3, Waiting 0
+30초: Running 1, Waiting 0
+40초: Running 0, Waiting 0
+</code></pre>
+<p>이 결과를 통해 요청이 Scheduler에서 기다리다가 실행되고 차례로 끝나는 흐름을 관찰할 수 있다.</p>
+<p>하지만 짧은 단일 요청이나 적은 수의 동시 요청은 통계가 출력되기 전에 모두 완료될 수 있다. 이런 부하에서는 Console Log만으로 처리 중간 상태를 관찰하기 어렵다.</p>
+
+</section>
+<section id="console-log-prometheus" class="markdown-section">
+<h2>Console Log와 Prometheus 지표는 역할이 다르다</h2>
+<ul>
+<li><a href="vllm_stuck_progress_diagnostics.html">vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기</a></li>
+</ul>
+<p>vLLM의 Console 통계 로그는 사람이 실행 상태를 빠르게 확인하기 위한 요약 정보다. 모든 내부 상태를 정해진 간격으로 영구 저장하는 시계열 데이터는 아니다.</p>
+<p>지속적인 관찰에는 vLLM의 <code>/metrics</code> Endpoint를 사용하는 것이 적합하다.</p>
+<pre><code class="language-text">http://127.0.0.1:8000/metrics
+</code></pre>
+<p>Prometheus는 이 Endpoint를 지정한 주기로 조회한다.</p>
+<pre><code class="language-text">5초마다 /metrics 조회
+→ 시점별 측정값 저장
+→ 시간에 따른 변화 확인
+→ Grafana 등으로 시각화
+</code></pre>
+<p>따라서 Console Log가 출력되지 않는 동안에도 Prometheus가 <code>/metrics</code>를 계속 수집하면 다음 변화를 시계열로 확인할 수 있다.</p>
+<pre><code class="language-text">Running Request 수
+Waiting Request 수
+Prompt·Generation 처리량
+KV Cache 사용량
+요청 Latency
+성공·실패 요청 수
+</code></pre>
+<p>전체 차이를 정리하면 다음과 같다.</p>
+<pre><code class="language-text">Received request·Added request·HTTP 200
+→ 개별 요청의 진행 상태를 확인하는 로그
+
+Avg throughput·Running·Waiting·KV Cache usage
+→ 일정 구간의 Engine 상태를 요약한 통계 로그
+
+/metrics
+→ 외부 수집기가 원하는 주기로 가져가는 관측 지표
+</code></pre>
+<p>짧은 요청에서는 통계 로그가 부하 전후로 두 번만 출력되는 것처럼 보일 수 있다. 그러나 이는 요청의 시작과 종료를 직접 기록한 것이 아니라, 작업이 있었던 통계 구간과 작업이 사라진 다음 통계 구간이 연속으로 출력된 결과다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="vllm_stuck_progress_diagnostics.html">vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_stuck_progress_diagnostics.md. Do not edit directly. source-sha256:d90484475a34f3da1f59a1d9d284f35684825241d48a661229be9e9655bbb473 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM이 멈춘 것처럼 보일 때 ps·nvidia-smi·watch로 CPU 작업, GPU 프로세스, CUDA Kernel 컴파일 진행 상태를 확인하는 방법을 정리합니다.">
+  <meta name="source-sha256" content="d90484475a34f3da1f59a1d9d284f35684825241d48a661229be9e9655bbb473">
+  <title>vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기">
+  <meta property="og:description" content="vLLM이 멈춘 것처럼 보일 때 ps·nvidia-smi·watch로 CPU 작업, GPU 프로세스, CUDA Kernel 컴파일 진행 상태를 확인하는 방법을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html","name":"vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기","description":"vLLM이 멈춘 것처럼 보일 때 ps·nvidia-smi·watch로 CPU 작업, GPU 프로세스, CUDA Kernel 컴파일 진행 상태를 확인하는 방법을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html"},"headline":"vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_stuck_progress_diagnostics.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"vLLM은 무엇이고 왜 배우는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_overview.html"},{"@type":"ListItem","position":6,"name":"vLLM Server의 요청 로그와 주기적 통계 로그 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_server_logs_statistics.html"},{"@type":"ListItem","position":7,"name":"vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_overview.html">vLLM은 무엇이고 왜 배우는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_server_logs_statistics.html">vLLM Server의 요청 로그와 주기적 통계 로그 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM이 멈춘 것처럼 보일 때 실제 진행 상태 확인하기</h1>
+      <p class="lead">vLLM이 멈춘 것처럼 보일 때 ps·nvidia-smi·watch로 CPU 작업, GPU 프로세스, CUDA Kernel 컴파일 진행 상태를 확인하는 방법을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ps-cpu"><code>ps</code>로 CPU에서 실행 중인 작업을 확인한다</a>
+        <a href="#section-b418e4f71a1c">부모와 자식 프로세스로 작업의 흐름을 확인한다</a>
+        <a href="#nvidia-smi-gpu"><code>nvidia-smi</code>로 GPU 상태를 확인한다</a>
+        <a href="#gpu">GPU를 사용하는 프로세스를 따로 확인한다</a>
+        <a href="#watch"><code>watch</code>로 상태 변화를 계속 확인한다</a>
+        <a href="#section-45ef52b11bcb">세 명령의 결과를 함께 해석한다</a>
+        <a href="#section-6499a75f38a2">처음에는 이 세 명령만 기억하면 된다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM을 실행했는데 Notebook에서 계속 실행 표시만 나타나면, 먼저 다음 두 가지를 확인해야 한다.</p>
+<pre><code class="language-text">CPU에서 어떤 프로그램이 실행되고 있는가?
+GPU에는 어떤 프로세스가 올라가 있는가?
+</code></pre>
+<p>이번 실습에서는 <code>ps</code>와 <code>nvidia-smi</code>를 사용해 vLLM이 멈춘 것이 아니라 CUDA Kernel을 컴파일하고 있다는 사실을 확인했다.</p>
+</div>
+        <section id="ps-cpu" class="markdown-section">
+<h2><code>ps</code>로 CPU에서 실행 중인 작업을 확인한다</h2>
+<p>사용한 명령은 다음과 같다.</p>
+<pre><code class="language-bash">ps -eo \
+pid,ppid,stat,etime,%cpu,%mem,cmd \
+--sort=-%cpu |
+head -30
+</code></pre>
+<p><code>ps</code>는 현재 컴퓨터에서 실행 중인 프로그램, 즉 프로세스를 보여주는 명령어다.</p>
+<p>아무 옵션 없이 실행할 수도 있다.</p>
+<pre><code class="language-bash">ps
+</code></pre>
+<p>하지만 이렇게 하면 현재 터미널과 관련된 일부 프로세스만 보인다. 서버에서 실행 중인 vLLM과 CUDA 컴파일러까지 확인하려면 세부 옵션을 사용해야 한다.</p>
+<h3><code>-e</code>: 모든 프로세스를 확인한다</h3>
+<pre><code class="language-bash">ps -e
+</code></pre>
+<p><code>-e</code>는 현재 서버에서 실행 중인 모든 프로세스를 가져오라는 뜻이다.</p>
+<p>이 옵션이 있어야 Notebook, vLLM Engine, CUDA 컴파일러처럼 다른 터미널이나 자식 프로세스에서 실행된 작업도 함께 볼 수 있다.</p>
+<h3><code>-o</code>: 출력할 정보를 직접 선택한다</h3>
+<pre><code class="language-bash">-o pid,ppid,stat,etime,%cpu,%mem,cmd
+</code></pre>
+<p><code>-o</code>는 각 프로세스에서 어떤 정보를 보여줄지 정하는 옵션이다.</p>
+<p>이번에는 다음 정보를 선택했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>의미</th>
+<th>확인하는 이유</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pid</code></td>
+<td>프로세스 고유 번호</td>
+<td>특정 프로세스를 구분한다</td>
+</tr>
+<tr>
+<td><code>ppid</code></td>
+<td>부모 프로세스 번호</td>
+<td>어떤 프로그램이 이 프로세스를 실행했는지 확인한다</td>
+</tr>
+<tr>
+<td><code>stat</code></td>
+<td>현재 실행 상태</td>
+<td>실행 중인지, 기다리는 중인지 확인한다</td>
+</tr>
+<tr>
+<td><code>etime</code></td>
+<td>실행 후 지난 시간</td>
+<td>얼마나 오래 실행됐는지 확인한다</td>
+</tr>
+<tr>
+<td><code>%cpu</code></td>
+<td>CPU 사용률</td>
+<td>실제로 CPU 작업을 수행하는지 확인한다</td>
+</tr>
+<tr>
+<td><code>%mem</code></td>
+<td>시스템 메모리 사용률</td>
+<td>CPU 메모리 사용 정도를 확인한다</td>
+</tr>
+<tr>
+<td><code>cmd</code></td>
+<td>전체 실행 명령</td>
+<td>어떤 프로그램과 파일을 실행 중인지 확인한다</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 다음과 같은 결과가 나올 수 있다.</p>
+<pre><code class="language-text">PID   PPID  STAT  ELAPSED  %CPU  CMD
+7624  7623  R     00:08    100   cicc ... sampling.cu
+7309  7124  Sl    00:19    131   VLLM::EngineCore
+7124  2878  Sl    00:32     47   python run_vllm.py
+</code></pre>
+<p>이 결과에서 <code>cicc</code>가 CPU를 <code>100%</code> 사용하고 있다.</p>
+<pre><code class="language-text">cicc ... sampling.cu
+</code></pre>
+<p><code>cicc</code>는 CUDA 코드를 GPU가 실행할 수 있는 형태로 변환하는 컴파일러다. <code>sampling.cu</code>는 vLLM이 Token을 선택할 때 사용하는 FlashInfer CUDA 코드다.</p>
+<p>따라서 다음과 같이 판단할 수 있다.</p>
+<pre><code class="language-text">cicc가 CPU 100%를 사용하고 있다.
+→ 프로그램이 멈춘 것이 아니다.
+→ Token Sampling용 CUDA Kernel을 컴파일하고 있다.
+</code></pre>
+<h3><code>--sort=-%cpu</code>: CPU를 많이 사용하는 순서로 정렬한다</h3>
+<pre><code class="language-bash">--sort=-%cpu
+</code></pre>
+<p><code>--sort</code>는 출력 순서를 정한다.</p>
+<pre><code class="language-text">%cpu   CPU 사용률을 기준으로 정렬
+-      큰 값부터 작은 값 순서로 정렬
+</code></pre>
+<p>따라서 <code>--sort=-%cpu</code>는 CPU를 가장 많이 사용하는 프로세스를 위에 표시한다.</p>
+<p>서버에는 수많은 프로세스가 있기 때문에 이 옵션이 없으면 현재 실제로 일하는 프로세스를 찾기 어렵다.</p>
+<h3><code>| head -30</code>: 앞의 30줄만 본다</h3>
+<pre><code class="language-bash">| head -30
+</code></pre>
+<p><code>|</code>는 왼쪽 명령의 출력을 오른쪽 명령으로 전달한다.</p>
+<pre><code class="language-text">ps가 전체 프로세스를 출력
+          ↓
+        파이프
+          ↓
+head가 앞의 30줄만 선택
+</code></pre>
+<p>앞에서 CPU 사용률이 높은 순서로 정렬했으므로, 앞의 30줄만 보면 현재 CPU를 많이 사용하는 주요 프로세스를 빠르게 찾을 수 있다.</p>
+<p>전체 명령의 의미를 한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>서버의 모든 프로세스를 CPU 사용률이 높은 순서로 정렬하고, PID·부모 PID·상태·실행 시간·CPU·메모리·명령을 앞의 30개까지만 보여준다.</p>
+</blockquote>
+
+</section>
+<section id="section-b418e4f71a1c" class="markdown-section">
+<h2>부모와 자식 프로세스로 작업의 흐름을 확인한다</h2>
+<p><code>PID</code>와 <code>PPID</code>를 비교하면 프로그램이 어떤 순서로 실행됐는지 알 수 있다.</p>
+<p>이번 실행에서는 다음과 같은 관계가 나타났다.</p>
+<pre><code class="language-text">Notebook Kernel
+└─ run_vllm.py
+   └─ VLLM::EngineCore
+      └─ ninja
+         └─ nvcc
+            └─ cicc
+</code></pre>
+<p>각 단계의 의미는 다음과 같다.</p>
+<pre><code class="language-text">Notebook Kernel
+→ 사용자가 실행한 Notebook 셀
+
+run_vllm.py
+→ Notebook이 실행한 vLLM 비교 프로그램
+
+VLLM::EngineCore
+→ 실제 모델 추론을 담당하는 vLLM Engine
+
+ninja
+→ 필요한 CUDA 파일의 컴파일 순서를 관리
+
+nvcc
+→ NVIDIA CUDA 컴파일러
+
+cicc
+→ GPU에서 실행할 CUDA 코드를 실제로 컴파일
+</code></pre>
+<p>따라서 <code>cicc</code>만 따로 실행된 것이 아니라, Notebook에서 시작한 vLLM 작업이 내부적으로 CUDA Kernel을 컴파일하고 있다는 것을 확인할 수 있다.</p>
+
+</section>
+<section id="nvidia-smi-gpu" class="markdown-section">
+<h2><code>nvidia-smi</code>로 GPU 상태를 확인한다</h2>
+<p>CPU 프로세스를 확인한 다음에는 GPU 상태를 확인한다.</p>
+<p>가장 기본적인 명령은 다음과 같다.</p>
+<pre><code class="language-bash">nvidia-smi
+</code></pre>
+<p>이 명령은 다음 정보를 한 번에 보여준다.</p>
+<pre><code class="language-text">GPU 이름
+전체 GPU 메모리
+사용 중인 GPU 메모리
+GPU 연산 사용률
+GPU를 사용하는 프로세스
+</code></pre>
+<p>필요한 정보만 간단히 보기 위해 다음 명령도 사용했다.</p>
+<pre><code class="language-bash">nvidia-smi \
+  --query-gpu=name,memory.used,memory.total,utilization.gpu \
+  --format=csv,noheader
+</code></pre>
+<h3><code>--query-gpu</code>: 확인할 GPU 정보를 선택한다</h3>
+<pre><code class="language-bash">--query-gpu=name,memory.used,memory.total,utilization.gpu
+</code></pre>
+<p>각 항목의 의미는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>name</code></td>
+<td>GPU 모델 이름</td>
+</tr>
+<tr>
+<td><code>memory.used</code></td>
+<td>현재 사용 중인 GPU 메모리</td>
+</tr>
+<tr>
+<td><code>memory.total</code></td>
+<td>GPU의 전체 메모리</td>
+</tr>
+<tr>
+<td><code>utilization.gpu</code></td>
+<td>현재 GPU 연산 사용률</td>
+</tr>
+</tbody></table>
+</div>
+<p>실제 확인한 결과는 다음과 비슷했다.</p>
+<pre><code class="language-text">NVIDIA RTX 4000 Ada Generation, 15710 MiB, 20475 MiB, 0 %
+</code></pre>
+<p>이를 해석하면 다음과 같다.</p>
+<pre><code class="language-text">GPU 전체 메모리: 약 20GB
+사용 중인 GPU 메모리: 약 15.7GB
+GPU 연산 사용률: 0%
+</code></pre>
+<p>GPU 메모리를 15.7GB 사용하고 있다는 것은 모델과 vLLM Engine이 GPU에 올라갔다는 의미다.</p>
+<p>GPU 사용률이 <code>0%</code>인 것은 현재 Token 생성 연산을 하는 것이 아니라 CPU의 <code>cicc</code>가 CUDA Kernel을 컴파일하고 있기 때문이다.</p>
+<p><code>ps</code> 결과와 함께 보면 다음과 같이 판단할 수 있다.</p>
+<pre><code class="language-text">GPU 메모리 15.7GB 사용
+→ 모델과 Engine이 GPU에 올라갔다.
+
+GPU 사용률 0%
+→ 현재 GPU 추론은 실행하지 않는다.
+
+cicc CPU 100%
+→ CPU에서 GPU용 Kernel을 컴파일한다.
+</code></pre>
+<h3><code>--format=csv,noheader</code>: 결과를 간단하게 출력한다</h3>
+<pre><code class="language-bash">--format=csv,noheader
+</code></pre>
+<p><code>csv</code>는 결과를 쉼표로 구분해 출력하라는 뜻이다.</p>
+<p><code>noheader</code>는 열 이름을 생략하라는 뜻이다.</p>
+<p>옵션이 없으면 다음처럼 항목 이름이 포함될 수 있다.</p>
+<pre><code class="language-text">name, memory.used, memory.total, utilization.gpu
+NVIDIA RTX 4000 Ada Generation, 15710 MiB, 20475 MiB, 0 %
+</code></pre>
+<p><code>noheader</code>를 적용하면 값만 출력된다.</p>
+<pre><code class="language-text">NVIDIA RTX 4000 Ada Generation, 15710 MiB, 20475 MiB, 0 %
+</code></pre>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>GPU를 사용하는 프로세스를 따로 확인한다</h2>
+<p>GPU 전체 상태가 아니라 어떤 프로세스가 GPU 메모리를 사용하는지 확인하려면 다음 명령을 사용한다.</p>
+<pre><code class="language-bash">nvidia-smi \
+  --query-compute-apps=pid,process_name,used_memory \
+  --format=csv,noheader
+</code></pre>
+<h3><code>--query-compute-apps</code></h3>
+<p><code>--query-compute-apps</code>는 GPU에 연산용 Context를 만든 프로세스를 조회한다.</p>
+<pre><code class="language-bash">pid,process_name,used_memory
+</code></pre>
+<p>각 항목은 다음 의미다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pid</code></td>
+<td>GPU를 사용하는 프로세스 번호</td>
+</tr>
+<tr>
+<td><code>process_name</code></td>
+<td>프로세스 이름</td>
+</tr>
+<tr>
+<td><code>used_memory</code></td>
+<td>해당 프로세스의 GPU 메모리 사용량</td>
+</tr>
+</tbody></table>
+</div>
+<p>실제 결과는 다음과 비슷했다.</p>
+<pre><code class="language-text">7309, VLLM::EngineCore, 15700 MiB
+</code></pre>
+<p>이 결과를 통해 GPU 메모리 15.7GB를 사용하는 주체가 다른 프로그램이 아니라 현재 실행한 vLLM Engine이라는 것을 확인할 수 있다.</p>
+
+</section>
+<section id="watch" class="markdown-section">
+<h2><code>watch</code>로 상태 변화를 계속 확인한다</h2>
+<p><code>ps</code>와 <code>nvidia-smi</code>는 명령을 실행한 순간의 상태만 보여준다.</p>
+<p>2초마다 GPU 상태를 새로 확인하려면 다음 명령을 사용한다.</p>
+<pre><code class="language-bash">watch -n 2 nvidia-smi
+</code></pre>
+<p>각 부분의 의미는 다음과 같다.</p>
+<pre><code class="language-text">watch
+→ 뒤에 있는 명령을 반복 실행한다.
+
+-n 2
+→ 2초마다 다시 실행한다.
+
+nvidia-smi
+→ 반복해서 실행할 명령이다.
+</code></pre>
+<p>실행을 끝내려면 <code>Ctrl+C</code>를 누른다.</p>
+<p><code>watch</code>를 사용하면 다음 변화를 눈으로 확인할 수 있다.</p>
+<pre><code class="language-text">GPU 메모리가 증가한다.
+GPU 사용률이 0%에서 높아진다.
+VLLM::EngineCore가 사라진다.
+새로운 GPU 프로세스가 나타난다.
+</code></pre>
+<p>프로세스 상태를 반복 확인하려면 다음처럼 사용할 수 있다.</p>
+<pre><code class="language-bash">watch -n 2 &#39;
+ps -eo pid,ppid,stat,etime,%cpu,%mem,cmd \
+--sort=-%cpu |
+head -20
+&#39;
+</code></pre>
+<p>이 명령은 CPU를 많이 사용하는 프로세스 20개를 2초마다 다시 보여준다.</p>
+
+</section>
+<section id="section-45ef52b11bcb" class="markdown-section">
+<h2>세 명령의 결과를 함께 해석한다</h2>
+<p>이번 상황에서 확인한 정보는 다음과 같았다.</p>
+<h3><code>ps</code> 결과</h3>
+<pre><code class="language-text">run_vllm.py 실행 중
+VLLM::EngineCore 실행 중
+cicc가 sampling.cu 컴파일
+cicc CPU 사용률 100%
+</code></pre>
+<h3><code>nvidia-smi</code> 결과</h3>
+<pre><code class="language-text">VLLM::EngineCore가 GPU 메모리 15.7GB 사용
+GPU 연산 사용률 0%
+</code></pre>
+<h3>최종 판단</h3>
+<pre><code class="language-text">vLLM Engine과 모델은 GPU에 올라갔다.
+아직 실제 Token 생성 단계에는 도달하지 않았다.
+CPU에서 FlashInfer Sampling Kernel을 컴파일하고 있다.
+CPU 사용률이 높으므로 멈춘 상태가 아니다.
+컴파일이 끝날 때까지 기다리면 된다.
+</code></pre>
+
+</section>
+<section id="section-6499a75f38a2" class="markdown-section">
+<h2>처음에는 이 세 명령만 기억하면 된다</h2>
+<p>현재 실행 중인 프로그램을 확인한다.</p>
+<pre><code class="language-bash">ps -eo \
+pid,ppid,stat,etime,%cpu,%mem,cmd \
+--sort=-%cpu |
+head -30
+</code></pre>
+<p>GPU와 GPU 사용 프로세스를 확인한다.</p>
+<pre><code class="language-bash">nvidia-smi
+</code></pre>
+<p>시간에 따른 변화를 확인한다.</p>
+<pre><code class="language-bash">watch -n 2 nvidia-smi
+</code></pre>
+<p>각 명령은 다음 질문에 답한다.</p>
+<pre><code class="language-text">ps
+→ 지금 어떤 프로그램이 CPU에서 무엇을 하고 있는가?
+
+nvidia-smi
+→ 어떤 프로그램이 GPU와 GPU 메모리를 사용하고 있는가?
+
+watch
+→ 그 상태가 시간에 따라 실제로 변하고 있는가?
+</code></pre>
+<p>이 세 결과를 함께 보면 vLLM이 정상적으로 준비 중인지, CUDA Kernel을 컴파일하고 있는지, 실제로 멈췄는지를 판단할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.md. Do not edit directly. source-sha256:ec66aae9c9c0ca6e7f8d4030e625a486f8a2c99a3984336146648771bb9daac1 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PyTorch와 vLLM을 공정하게 비교하기 위해 모델·입력·생성·측정·출력 검증 조건을 고정하는 단일 GPU Benchmark 계약을 정리합니다.">
+  <meta name="source-sha256" content="ec66aae9c9c0ca6e7f8d4030e625a486f8a2c99a3984336146648771bb9daac1">
+  <title>단일 GPU vLLM Benchmark에서 확인해야 할 기준</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260906-article-intro-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="단일 GPU vLLM Benchmark에서 확인해야 할 기준">
+  <meta property="og:description" content="PyTorch와 vLLM을 공정하게 비교하기 위해 모델·입력·생성·측정·출력 검증 조건을 고정하는 단일 GPU Benchmark 계약을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html","name":"단일 GPU vLLM Benchmark에서 확인해야 할 기준","description":"PyTorch와 vLLM을 공정하게 비교하기 위해 모델·입력·생성·측정·출력 검증 조건을 고정하는 단일 GPU Benchmark 계약을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html"},"headline":"단일 GPU vLLM Benchmark에서 확인해야 할 기준","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_benchmark_criteria.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"vLLM 전에 고정하는 Benchmark 계약 실습","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html"},{"@type":"ListItem","position":7,"name":"단일 GPU vLLM Benchmark에서 확인해야 할 기준"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pytorch_vllm_benchmark_contract_practice.html">vLLM 전에 고정하는 Benchmark 계약 실습</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">단일 GPU vLLM Benchmark에서 확인해야 할 기준</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>단일 GPU vLLM Benchmark에서 확인해야 할 기준</h1>
+      <p class="lead">PyTorch와 vLLM을 공정하게 비교하기 위해 모델·입력·생성·측정·출력 검증 조건을 고정하는 단일 GPU Benchmark 계약을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#tokenizer">같은 모델과 Tokenizer를 재현할 수 있어야 한다</a>
+        <a href="#chat-template">같은 Chat Template을 사용해야 한다</a>
+        <a href="#gpu">하나의 물리 GPU만 사용했음을 확인해야 한다</a>
+        <a href="#kv-cache-dtype">모델 가중치와 KV Cache의 dtype을 구분해야 한다</a>
+        <a href="#section-17a31e5dabd6">최대 문맥 길이를 고정해야 한다</a>
+        <a href="#gpu-2">GPU 메모리 사용 조건을 고정해야 한다</a>
+        <a href="#prompt-batch">Prompt 개수와 Batch 크기가 일치해야 한다</a>
+        <a href="#pytorch-vllm-greedy">PyTorch와 vLLM의 Greedy 조건을 맞춰야 한다</a>
+        <a href="#eos">EOS 종료 정책을 같게 해야 한다</a>
+        <a href="#warm-up">측정 전에 Warm-up 횟수를 정해야 한다</a>
+        <a href="#section-71ade0132e27">본 측정 반복 횟수를 정해야 한다</a>
+        <a href="#section-ec7cef31ed17">측정에 포함할 작업을 정해야 한다</a>
+        <a href="#prefill-kv-cache">Prefill의 KV Cache 생성 시간을 포함해야 한다</a>
+        <a href="#cuda">CUDA 작업 완료 후 시간을 읽어야 한다</a>
+        <a href="#client-server-timeout">Client와 Server의 Timeout을 구분해야 한다</a>
+        <a href="#ttft">TTFT의 시작과 끝을 정해야 한다</a>
+        <a href="#itl">ITL의 측정 단위를 명시해야 한다</a>
+        <a href="#tpot">TPOT의 계산 범위를 정해야 한다</a>
+        <a href="#e2e-latency">E2E Latency의 범위를 정해야 한다</a>
+        <a href="#throughput">Throughput의 측정 구간을 정해야 한다</a>
+        <a href="#peak-vram">Peak VRAM의 측정 방법을 기록해야 한다</a>
+        <a href="#section-e72dae4f9597">출력 수치가 유효한지 확인해야 한다</a>
+        <a href="#section-1358ba5f344d">수치 비교의 허용오차를 정해야 한다</a>
+        <a href="#token-id">생성 결과는 문자열보다 Token ID를 우선해야 한다</a>
+        <a href="#sequence">전체 생성 Sequence를 확인해야 한다</a>
+        <a href="#section-6cedd36f3838">최초 불일치 위치를 찾아야 한다</a>
+        <a href="#section-bdae5d807da4">불일치 원인을 정해진 순서로 확인해야 한다</a>
+        <a href="#section-26d6fc99da85">계약값이 실제 실행에 사용됐는지 확인해야 한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>PyTorch와 vLLM의 실행 결과를 비교하려면 단순히 같은 모델 이름을 입력하는 것만으로는 부족하다. 두 실행이 같은 모델 파일과 입력을 사용했는지, 생성 조건과 측정 범위가 같은지, 결과를 어떤 기준으로 비교할지 먼저 정해야 한다.</p>
+<p>이렇게 실행 전에 고정한 조건들의 모음을 Benchmark 계약이라고 한다. 이 계약이 있어야 측정 결과의 차이를 모델·입력·설정 차이가 아니라 PyTorch와 vLLM의 실행 방식 차이로 해석할 수 있다.</p>
+</div>
+        <section id="tokenizer" class="markdown-section">
+<h2>같은 모델과 Tokenizer를 재현할 수 있어야 한다</h2>
+<p>모델 이름만 같다고 해서 항상 같은 모델 파일을 사용하는 것은 아니다. 모델 저장소의 <code>main</code> Branch는 새로운 파일로 변경될 수 있기 때문이다.</p>
+<p>따라서 다음 정보를 함께 기록해야 한다.</p>
+<ul>
+<li>Model ID</li>
+<li>Tokenizer ID</li>
+<li>고정된 Revision</li>
+<li>실제로 사용한 Local Model Artifact 경로</li>
+</ul>
+<p>Revision은 특정 시점의 모델 파일을 가리키는 Commit Hash로 고정하는 것이 좋다. 이렇게 해야 나중에 실습을 다시 실행하더라도 같은 가중치와 설정 파일을 불러올 수 있다.</p>
+<p>PyTorch와 vLLM도 각각 모델을 다운로드하게 두기보다, 같은 Local Model Artifact를 읽도록 만들면 모델 파일 차이를 확실하게 제거할 수 있다.</p>
+
+</section>
+<section id="chat-template" class="markdown-section">
+<h2>같은 Chat Template을 사용해야 한다</h2>
+<p>Instruct 모델은 단순한 Prompt 문자열만 입력받는 것이 아니라 System·User·Assistant 역할이 포함된 대화 형식으로 학습되는 경우가 많다.</p>
+<p>Tokenizer의 Chat Template은 이런 대화를 모델이 학습한 문자열 형식으로 바꾸고, 다시 Token ID로 변환한다.</p>
+<p>같은 Prompt 문자열을 사용하더라도 Chat Template이 다르면 다음과 같은 요소가 달라질 수 있다.</p>
+<ul>
+<li>System Prompt</li>
+<li>역할 구분 Token</li>
+<li>문장 종료 Token</li>
+<li>Assistant 응답 시작 Token</li>
+<li>최종 Prompt Token ID</li>
+</ul>
+<p>따라서 Chat Template 사용 여부와 Template의 출처를 고정해야 한다. 이번 실습에서는 Tokenizer에 저장된 기본 Chat Template을 사용한다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>하나의 물리 GPU만 사용했음을 확인해야 한다</h2>
+<p>장치를 <code>cuda:0</code>으로 설정했다고 해서 물리 GPU 한 장을 사용했다는 사실이 완전히 증명되지는 않는다.</p>
+<p><code>cuda:0</code>은 현재 프로세스에 보이는 첫 번째 논리 GPU를 의미한다. 실행 환경에서 어떤 GPU를 노출했느냐에 따라 실제 물리 장치는 달라질 수 있다.</p>
+<p>따라서 다음 내용을 함께 확인해야 한다.</p>
+<ul>
+<li>프로세스에 노출된 GPU 목록</li>
+<li>PyTorch가 인식하는 GPU 개수</li>
+<li>Tensor Parallel 크기</li>
+<li>실제 GPU 이름</li>
+<li>실제 GPU UUID</li>
+<li>vLLM Server 프로세스가 사용하는 GPU</li>
+</ul>
+<p>Tensor Parallel 크기를 1로 고정하면 모델을 여러 GPU에 나누지 않고 GPU 한 장에서 실행한다. 재시작 전후에도 GPU UUID를 비교하면 같은 물리 GPU를 사용했는지 확인할 수 있다.</p>
+
+</section>
+<section id="kv-cache-dtype" class="markdown-section">
+<h2>모델 가중치와 KV Cache의 dtype을 구분해야 한다</h2>
+<p>Weight dtype은 모델의 가중치 Tensor를 어떤 자료형으로 저장하고 계산할지 결정한다.</p>
+<p>KV Cache dtype은 이전 Token의 Key와 Value를 어떤 자료형으로 저장할지 결정한다.</p>
+<p>두 dtype은 서로 다른 대상을 다룬다.</p>
+<ul>
+<li>Weight dtype: 모델 파라미터</li>
+<li>KV Cache dtype: 생성 중 누적되는 Key·Value</li>
+<li>중간 Tensor dtype: Attention과 FFN 계산 중 만들어지는 값</li>
+</ul>
+<p>dtype이 달라지면 GPU 메모리 사용량과 계산 결과가 달라질 수 있다. 따라서 PyTorch와 vLLM을 비교할 때 Weight dtype과 KV Cache dtype을 각각 기록해야 한다.</p>
+<p>계약에 dtype을 적는 것만으로는 충분하지 않다. 모델을 실제로 불러온 뒤 Parameter의 dtype을 확인하고, vLLM Server Log에서도 실제 적용된 dtype을 확인해야 한다.</p>
+
+</section>
+<section id="section-17a31e5dabd6" class="markdown-section">
+<h2>최대 문맥 길이를 고정해야 한다</h2>
+<p>최대 문맥 길이는 모델이 한 요청에서 처리할 수 있도록 허용한 전체 Token 수를 의미한다.</p>
+<p>여기에는 Prompt Token과 새로 생성할 Token이 모두 포함된다. 따라서 실제 요청은 다음 관계를 만족해야 한다.</p>
+<pre><code class="language-text">Prompt Token 수 + 최대 생성 Token 수
+≤ 최대 문맥 길이
+</code></pre>
+<p>Prompt가 4,000 Token인데 최대 문맥 길이가 4,096이고 새 Token을 128개 생성하도록 요청하면 전체 길이가 제한을 초과한다.</p>
+<p>Prompt 문자열의 글자 수만 봐서는 이 조건을 확인할 수 없다. Chat Template과 Tokenizer를 적용한 뒤 실제 Prompt Token 수를 확인해야 한다.</p>
+
+</section>
+<section id="gpu-2" class="markdown-section">
+<h2>GPU 메모리 사용 조건을 고정해야 한다</h2>
+<p>vLLM은 모델 가중치뿐 아니라 중간 계산과 KV Cache를 위해 GPU 메모리를 사용한다.</p>
+<p>GPU 메모리 사용 비율은 vLLM이 GPU 메모리 계획을 세울 때 사용하는 조건이다. 이 값이 달라지면 KV Cache에 사용할 수 있는 공간과 동시에 처리할 수 있는 요청 수가 달라질 수 있다.</p>
+<p>따라서 다음 값을 고정해야 한다.</p>
+<ul>
+<li>GPU 메모리 사용 비율</li>
+<li>최대 문맥 길이</li>
+<li>동시에 처리할 최대 Sequence 수</li>
+<li>Weight dtype</li>
+<li>KV Cache dtype</li>
+</ul>
+<p>이 조건들이 달라지면 같은 GPU와 같은 모델을 사용하더라도 처리 가능한 요청 수와 메모리 사용량이 달라진다.</p>
+
+</section>
+<section id="prompt-batch" class="markdown-section">
+<h2>Prompt 개수와 Batch 크기가 일치해야 한다</h2>
+<p>Prompt 하나는 일반적으로 Batch의 한 행에 해당한다.</p>
+<p>Prompt가 한 개인데 Batch 크기를 2라고 기록하거나, Prompt가 네 개인데 Batch 크기를 1이라고 기록하면 계약과 실제 입력 구조가 일치하지 않는다.</p>
+<p>따라서 Prompt 목록의 개수와 Batch 크기가 같은지 확인해야 한다.</p>
+<p>문자열이 같다는 사실만으로도 충분하지 않다. 두 엔진에 전달된 실제 Prompt Token ID가 같은지도 확인해야 한다.</p>
+
+</section>
+<section id="pytorch-vllm-greedy" class="markdown-section">
+<h2>PyTorch와 vLLM의 Greedy 조건을 맞춰야 한다</h2>
+<p>같은 모델과 Prompt를 사용하더라도 Sampling 조건이 다르면 서로 다른 Token이 생성될 수 있다.</p>
+<p>PyTorch에서는 Sampling을 사용하지 않도록 설정하여 가장 점수가 높은 Token을 선택한다. vLLM에서도 Temperature를 0으로 설정해 Greedy 생성을 사용한다.</p>
+<p><code>top_p</code>는 Token 후보를 제한하지 않는 중립적인 값으로 고정한다. 현재는 Greedy 생성이므로 결과에 직접적인 영향을 거의 주지 않지만, 실행마다 다른 Sampling 조건이 섞이는 것을 방지할 수 있다.</p>
+<p>이번 비교에서는 다음 생성 조건을 맞춰야 한다.</p>
+<ul>
+<li>Sampling 사용 여부</li>
+<li>Temperature</li>
+<li><code>top_p</code></li>
+<li>Seed</li>
+<li>최대 생성 Token 수</li>
+<li>EOS 종료 정책</li>
+</ul>
+<p>Greedy 생성을 사용하면 무작위성은 대부분 제거된다. 하지만 GPU 연산 순서와 dtype 차이로 수치 차이가 생길 가능성까지 사라지는 것은 아니다.</p>
+
+</section>
+<section id="eos" class="markdown-section">
+<h2>EOS 종료 정책을 같게 해야 한다</h2>
+<p>EOS는 모델이 응답을 끝냈다는 의미로 사용하는 특별한 Token이다.</p>
+<p>한쪽 엔진은 EOS가 나오면 즉시 종료하고, 다른 엔진은 EOS가 나와도 최대 생성 Token 수까지 계속 실행한다면 생성 Sequence의 길이가 달라진다.</p>
+<p>따라서 두 엔진 모두 EOS에서 종료할 것인지, 아니면 EOS를 무시하고 정해진 Token 수를 끝까지 생성할 것인지 고정해야 한다.</p>
+<p>일반적인 생성 결과를 비교할 때는 EOS가 나오면 종료하도록 설정할 수 있다. 생성 길이를 반드시 동일하게 유지하는 성능 실험에서는 EOS를 무시하는 조건을 별도로 사용할 수 있다.</p>
+<p>어떤 정책이 더 좋은지를 정하는 문제가 아니라, 두 엔진에 같은 정책을 적용하는 것이 핵심이다.</p>
+
+</section>
+<section id="warm-up" class="markdown-section">
+<h2>측정 전에 Warm-up 횟수를 정해야 한다</h2>
+<p>GPU의 첫 실행에는 반복 실행에서는 발생하지 않는 준비 작업이 포함될 수 있다.</p>
+<p>예를 들면 다음과 같다.</p>
+<ul>
+<li>CUDA Context 초기화</li>
+<li>Kernel 준비</li>
+<li>메모리 할당</li>
+<li>모델 실행 경로 준비</li>
+<li>라이브러리 내부 Cache 생성</li>
+</ul>
+<p>첫 실행 시간만 측정하면 이런 초기 비용이 일반적인 추론 시간에 포함될 수 있다.</p>
+<p>따라서 본 측정 전에 Warm-up을 몇 번 실행할지 정해야 한다. Warm-up 결과는 최종 평균이나 Percentile 계산에서 제외한다.</p>
+
+</section>
+<section id="section-71ade0132e27" class="markdown-section">
+<h2>본 측정 반복 횟수를 정해야 한다</h2>
+<p>GPU 실행 시간은 매번 완전히 같지 않다. 다른 프로세스의 영향, GPU 상태, 메모리 할당과 요청 처리 순서에 따라 작은 차이가 생길 수 있다.</p>
+<p>따라서 한 번의 결과만 사용하지 않고 같은 조건을 여러 번 측정해야 한다.</p>
+<p>반복 횟수는 결과를 본 뒤 유리한 방향으로 바꾸지 않도록 실행 전에 고정해야 한다. 이후에는 반복 결과를 사용해 평균이나 P50·P95·P99와 같은 통계를 계산할 수 있다.</p>
+
+</section>
+<section id="section-ec7cef31ed17" class="markdown-section">
+<h2>측정에 포함할 작업을 정해야 한다</h2>
+<p>하나의 추론 요청에는 모델 계산 외에도 여러 작업이 들어간다.</p>
+<ul>
+<li>Prompt 문자열 처리</li>
+<li>Chat Template 적용</li>
+<li>Tokenizer 실행</li>
+<li>입력 Tensor 생성</li>
+<li>CPU에서 GPU로 입력을 옮기는 H2D 전송</li>
+<li>Prefill과 KV Cache 생성</li>
+<li>Decode</li>
+<li>GPU 결과를 CPU로 옮기는 D2H 전송</li>
+<li>Token ID를 문자열로 변환하는 과정</li>
+<li>HTTP 요청과 응답 전송</li>
+</ul>
+<p>어디부터 어디까지 측정하느냐에 따라 결과의 의미가 달라진다.</p>
+<p>순수 모델 실행 시간을 측정한다면 입력 준비와 장치 전송을 측정 전에 끝낼 수 있다. 사용자가 실제로 경험하는 서비스 시간을 측정한다면 Queue·Tokenization·통신 시간까지 포함될 수 있다.</p>
+<p>중요한 것은 측정에 무엇이 포함됐는지를 명시하고, 비교하는 실행에 같은 의미의 경계를 적용하는 것이다.</p>
+
+</section>
+<section id="prefill-kv-cache" class="markdown-section">
+<h2>Prefill의 KV Cache 생성 시간을 포함해야 한다</h2>
+<p>Prefill은 Prompt 전체를 처리하면서 각 Transformer Layer의 K와 V를 계산하고 KV Cache를 만든다.</p>
+<p>KV Cache는 Prefill의 결과이므로 Prefill 시간을 측정할 때 Cache 생성 시간을 포함하는 것이 자연스럽다.</p>
+<p>Cache를 미리 만들어놓고 Attention 계산만 측정하면 실제 Prompt 처리 비용보다 작은 값이 나온다. 따라서 이번 계약에서는 Prefill이 KV Cache를 준비하는 과정까지 Prefill 실행에 포함한다.</p>
+
+</section>
+<section id="cuda" class="markdown-section">
+<h2>CUDA 작업 완료 후 시간을 읽어야 한다</h2>
+<p>PyTorch의 CUDA 연산은 CPU 코드와 비동기로 실행될 수 있다.</p>
+<p>CPU가 GPU에 작업을 요청한 뒤 실제 GPU 계산이 끝나기 전에 다음 Python 줄로 넘어갈 수 있다는 뜻이다. 이런 상태에서 종료 시간을 읽으면 실제 GPU 계산 시간보다 짧게 측정될 수 있다.</p>
+<p>현재 Python 프로세스 안에서 GPU 연산 시간을 측정할 때는 측정 시작 전과 종료 후에 CUDA 작업이 완료됐는지 확인해야 한다.</p>
+<p>별도 vLLM Server를 HTTP로 호출하는 경우에는 Client가 요청을 보낸 시점과 응답을 받은 시점을 기준으로 서비스 시간을 측정한다.</p>
+
+</section>
+<section id="client-server-timeout" class="markdown-section">
+<h2>Client와 Server의 Timeout을 구분해야 한다</h2>
+<p>Timeout은 모두 같은 의미가 아니다.</p>
+<p>Client 연결 Timeout은 Server와 연결을 맺을 때까지 기다리는 시간이다.</p>
+<p>Client 응답 Timeout은 연결이 만들어진 뒤 생성 결과를 기다리는 시간이다.</p>
+<p>Server 준비 Timeout은 모델을 로드하고 요청을 받을 준비가 될 때까지 기다리는 시간이다.</p>
+<p>긴 모델 로딩과 느린 Token 생성을 같은 Timeout으로 처리하면 어떤 단계에서 실패했는지 구분하기 어렵다. 따라서 각각의 제한 시간을 별도로 기록해야 한다.</p>
+<p>Server에 생성 요청 자체를 중단하는 제한이 없다면 그 사실도 기록해야 한다.</p>
+
+</section>
+<section id="ttft" class="markdown-section">
+<h2>TTFT의 시작과 끝을 정해야 한다</h2>
+<p>TTFT는 Time To First Token의 약자다. 사용자 요청이 시작된 뒤 첫 번째 생성 결과가 도착할 때까지의 시간을 의미한다.</p>
+<p>Streaming API에서는 첫 Chunk가 Assistant 역할과 같은 메타데이터만 포함할 수 있다. 따라서 단순히 첫 HTTP Chunk가 도착한 시점이 아니라, 첫 번째 실제 생성 내용이 도착한 시점을 사용해야 한다.</p>
+<p>서비스 TTFT에는 다음 비용이 포함될 수 있다.</p>
+<ul>
+<li>요청 전송</li>
+<li>Server Queue 대기</li>
+<li>Tokenization</li>
+<li>입력 준비</li>
+<li>Prefill</li>
+<li>첫 Token 선택</li>
+<li>응답 직렬화</li>
+<li>네트워크 전송</li>
+</ul>
+<p>따라서 서비스 TTFT와 모델 내부 Prefill 시간은 같은 값이 아니다.</p>
+
+</section>
+<section id="itl" class="markdown-section">
+<h2>ITL의 측정 단위를 명시해야 한다</h2>
+<p>ITL은 Inter-Token Latency의 약자다. 연속해서 생성되는 Token 사이의 시간 간격을 의미한다.</p>
+<p>하지만 Streaming API가 항상 Token 하나당 Chunk 하나를 보내는 것은 아니다. 하나의 Chunk에 여러 Token에 해당하는 문자열이 들어갈 수도 있다.</p>
+<p>실제 Token 도착을 구분할 수 있다면 Token 사이의 간격을 측정한다. Chunk만 관찰할 수 있다면 결과를 Token 간격이 아니라 Chunk 간격이라고 명확히 기록해야 한다.</p>
+
+</section>
+<section id="tpot" class="markdown-section">
+<h2>TPOT의 계산 범위를 정해야 한다</h2>
+<p>TPOT은 Time Per Output Token의 약자다. 첫 생성 결과가 나온 이후 추가 Token 하나를 생성하는 데 걸린 평균 시간을 의미한다.</p>
+<p>첫 Token은 Prompt 전체를 처리하는 Prefill의 영향을 크게 받는다. 따라서 일반적으로 첫 Token 이후의 생성 시간을 나머지 생성 Token 수로 나눈다.</p>
+<p>생성 Token이 하나뿐이라면 첫 Token 이후의 생성 구간이 없으므로 TPOT을 계산할 수 없다. 이 경우 값을 0으로 만들지 않고 측정 불가로 처리해야 한다.</p>
+
+</section>
+<section id="e2e-latency" class="markdown-section">
+<h2>E2E Latency의 범위를 정해야 한다</h2>
+<p>E2E Latency는 End-to-End Latency의 약자다. Client가 요청을 시작한 시점부터 전체 응답이 끝난 시점까지의 시간이다.</p>
+<p>Streaming 요청이라도 첫 Token만 받은 시점에서 끝나지 않는다. 마지막 생성 내용과 정상 종료 상태를 받을 때까지가 전체 요청 시간이다.</p>
+<p>E2E에는 일반적으로 TTFT와 이후 Decode 시간이 모두 포함된다.</p>
+
+</section>
+<section id="throughput" class="markdown-section">
+<h2>Throughput의 측정 구간을 정해야 한다</h2>
+<p>Throughput은 일정 시간 동안 처리한 작업량이다.</p>
+<p>LLM 생성 Benchmark에서는 측정 구간에서 생성한 새 Token 총수를 전체 시간으로 나누어 초당 생성 Token 수를 구할 수 있다.</p>
+<p>단일 요청과 여러 동시 요청의 Throughput은 의미가 다를 수 있다. 동시 요청에서는 개별 요청 시간을 더하는 것이 아니라, 전체 요청을 시작한 시점부터 모든 요청이 끝난 시점까지의 공동 측정 구간을 사용해야 한다.</p>
+<p>Prompt Token을 포함할지, 새로 생성한 Token만 셀지도 계약에 명시해야 한다. 이번 실습에서는 새로 생성된 Output Token을 기준으로 사용한다.</p>
+
+</section>
+<section id="peak-vram" class="markdown-section">
+<h2>Peak VRAM의 측정 방법을 기록해야 한다</h2>
+<p>vLLM Server는 Notebook과 다른 프로세스에서 실행될 수 있다. 이 경우 Notebook 프로세스에서 확인한 PyTorch 메모리만으로 Server 전체 GPU 메모리를 측정할 수 없다.</p>
+<p>따라서 GPU 전체 사용량을 외부에서 일정 간격으로 관찰해야 한다.</p>
+<p>관찰 주기가 0.1초라면 0.1초마다 GPU 메모리를 확인한다. 두 관찰 사이에 짧게 발생했다 사라진 Peak는 놓칠 수 있으므로 결과를 절대적인 최대값이 아니라 관찰된 Peak VRAM이라고 표현해야 한다.</p>
+<p>측정 결과와 함께 다음 정보도 기록해야 한다.</p>
+<ul>
+<li>사용한 측정 도구</li>
+<li>측정 시작과 종료 시점</li>
+<li>메모리 관찰 주기</li>
+<li>GPU에 다른 프로세스가 있었는지</li>
+</ul>
+
+</section>
+<section id="section-e72dae4f9597" class="markdown-section">
+<h2>출력 수치가 유효한지 확인해야 한다</h2>
+<p>모델이 Token을 반환했다고 해서 모든 수치가 정상이라는 보장은 없다.</p>
+<p>PyTorch가 반환한 Logit이나 vLLM이 반환한 Logprob처럼 실제로 얻은 수치에 <code>NaN</code>이나 <code>Inf</code>가 없는지 확인해야 한다.</p>
+<p>유한값 검사는 모델 계산이 수치적으로 무너진 상태가 아닌지 확인하는 기본 검사다.</p>
+<p>다만 PyTorch Logit과 vLLM Logprob는 의미가 서로 다르므로 두 값을 직접 비교하면 안 된다. 같은 위치에서 얻은 같은 종류의 수치만 비교해야 한다.</p>
+
+</section>
+<section id="section-1358ba5f344d" class="markdown-section">
+<h2>수치 비교의 허용오차를 정해야 한다</h2>
+<p>GPU Kernel과 연산 순서가 다르면 같은 모델에서도 부동소수점 결과에 작은 차이가 생길 수 있다.</p>
+<p>따라서 같은 종류의 수치를 비교할 때는 완전히 같은지만 확인하지 않고 절대 허용오차와 상대 허용오차를 적용한다.</p>
+<p>절대 허용오차는 두 값의 직접적인 차이를 제한한다. 상대 허용오차는 비교하는 값의 크기에 비례한 차이를 허용한다.</p>
+<p>허용오차는 결과를 본 뒤 정하지 않고 실행 전에 고정해야 한다.</p>
+
+</section>
+<section id="token-id" class="markdown-section">
+<h2>생성 결과는 문자열보다 Token ID를 우선해야 한다</h2>
+<p>Decode된 문자열은 공백과 줄바꿈, 특수 Token 처리 방식에 따라 다르게 보일 수 있다.</p>
+<p>따라서 생성 결과는 다음 순서로 비교해야 한다.</p>
+<ol>
+<li>실제 Prompt Token ID</li>
+<li>첫 번째 Greedy 생성 Token ID</li>
+<li>전체 생성 Token ID Sequence</li>
+<li>생성 Sequence 길이</li>
+<li>사람이 확인하기 위한 생성 문자열</li>
+</ol>
+<p>Prompt 문자열이 같더라도 실제 Prompt Token ID가 다르면 두 엔진은 같은 입력을 받은 것이 아니다.</p>
+
+</section>
+<section id="sequence" class="markdown-section">
+<h2>전체 생성 Sequence를 확인해야 한다</h2>
+<p>첫 번째 생성 Token이 같다고 해서 전체 결과가 같은 것은 아니다.</p>
+<p>첫 Token이 같더라도 이후 Decode 과정에서 작은 수치 차이가 다음 Token 선택에 영향을 줄 수 있다. 따라서 첫 Token과 전체 생성 Sequence를 모두 비교해야 한다.</p>
+<p>전체 Sequence 비교에서는 각 Batch의 Token ID 배열과 생성 길이를 함께 확인한다.</p>
+
+</section>
+<section id="section-6cedd36f3838" class="markdown-section">
+<h2>최초 불일치 위치를 찾아야 한다</h2>
+<p>두 생성 Sequence가 다르다는 결과만으로는 원인을 찾기 어렵다.</p>
+<p>처음으로 Token ID가 달라진 Batch와 생성 위치를 찾으면 어느 Decode 단계까지 결과가 같았고 어디서부터 달라졌는지 알 수 있다.</p>
+<p>두 Sequence의 길이가 다르면 먼저 공통 길이까지 비교한다. 공통 부분이 모두 같고 길이만 다르다면 짧은 Sequence가 끝난 위치를 최초 차이로 기록할 수 있다.</p>
+
+</section>
+<section id="section-bdae5d807da4" class="markdown-section">
+<h2>불일치 원인을 정해진 순서로 확인해야 한다</h2>
+<p>출력이 다르면 무작정 모델 계산부터 의심하기보다 입력에 가까운 부분부터 확인하는 것이 효율적이다.</p>
+<p>확인 순서는 다음과 같이 정할 수 있다.</p>
+<pre><code class="language-text">Tokenizer
+→ Chat Template
+→ Prompt Token ID
+→ Position
+→ dtype
+→ EOS 정책
+→ Sampling 설정
+→ Generation 설정
+</code></pre>
+<p>Tokenizer나 Chat Template이 다르면 모델은 처음부터 다른 입력을 받는다. 입력이 같다면 Position과 dtype을 확인하고, 그다음 EOS·Sampling·생성 길이 같은 Generation 설정을 확인한다.</p>
+<p>설정 차이를 모두 제거한 뒤에도 결과가 다르면 실행 엔진의 수치 차이와 그 차이가 Token 선택에 미친 영향을 분석해야 한다.</p>
+
+</section>
+<section id="section-26d6fc99da85" class="markdown-section">
+<h2>계약값이 실제 실행에 사용됐는지 확인해야 한다</h2>
+<p>계약 객체와 JSON 파일을 만들었다고 해서 Benchmark 계약이 완전히 지켜진 것은 아니다.</p>
+<p>PyTorch 모델 로드, vLLM Server 명령, API Request와 측정 함수가 실제로 계약에 저장된 값을 사용해야 한다.</p>
+<p>실행 결과에는 계약값과 실제 적용값을 함께 남겨야 한다. Server Log와 요청 Body, 모델 정보, GPU 정보가 계약과 일치하는지 확인해야 한다.</p>
+<p>이 과정까지 확인해야 Benchmark 계약이 단순한 메모가 아니라 실제 실험을 통제하는 기준으로 작동한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
