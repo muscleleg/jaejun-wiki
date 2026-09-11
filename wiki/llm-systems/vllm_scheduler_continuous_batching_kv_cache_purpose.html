@@ -1,0 +1,577 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.md. Do not edit directly. source-sha256:0b034e6f49972d1ef911e3bf0098fdb09736b6b8b0126b2b5b37af1b27ec55c1 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LLM 서빙에서 Scheduler·Continuous Batching·KV Cache가 여러 요청을 제한된 GPU에서 효율적이고 안정적으로 처리하기 위해 필요한 이유를 정리합니다.">
+  <meta name="source-sha256" content="0b034e6f49972d1ef911e3bf0098fdb09736b6b8b0126b2b5b37af1b27ec55c1">
+  <title>LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-project-spacing-4">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유">
+  <meta property="og:description" content="LLM 서빙에서 Scheduler·Continuous Batching·KV Cache가 여러 요청을 제한된 GPU에서 효율적이고 안정적으로 처리하기 위해 필요한 이유를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html","name":"LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유","description":"LLM 서빙에서 Scheduler·Continuous Batching·KV Cache가 여러 요청을 제한된 GPU에서 효율적이고 안정적으로 처리하기 위해 필요한 이유를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html"},"headline":"LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_continuous_batching_kv_cache_purpose.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>LLM 서빙에서 Scheduler·Continuous Batching·KV Cache를 배우는 이유</h1>
+      <p class="lead">LLM 서빙에서 Scheduler·Continuous Batching·KV Cache가 여러 요청을 제한된 GPU에서 효율적이고 안정적으로 처리하기 위해 필요한 이유를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#iteration-batch">vLLM은 요청 전체가 아니라 작업 Batch 단위로 실행한다</a>
+        <a href="#iteration-process">Iteration은 작업 Batch를 한 번 처리하는 전체 과정이다</a>
+        <a href="#multi-request-tokens">한 Iteration에서 여러 요청의 Token이 나올 수 있다</a>
+        <a href="#prefill-output">Prefill이 포함된 Iteration에서는 모든 요청이 Token을 출력하지 않는다</a>
+        <a href="#single-request-limit">단일 요청 실행만으로는 실제 서비스의 문제를 설명할 수 없다</a>
+        <a href="#scheduler">Scheduler는 매 Iteration의 실행 대상을 결정한다</a>
+        <a href="#request-states">Waiting·Running·Finished는 Scheduler 안의 요청 상태다</a>
+        <a href="#prefill-decode">Prefill과 Decode는 요청 상태가 아니라 계산 단계다</a>
+        <a href="#static-batching">Static Batching은 Batch 구성원을 고정한다</a>
+        <a href="#continuous-batching">Continuous Batching은 Iteration마다 Batch를 다시 구성한다</a>
+        <a href="#kv-cache">KV Cache는 Scheduler가 관리하는 핵심 GPU 자원이다</a>
+        <a href="#prefix-caching">Prefix Caching은 요청 사이의 중복 Prefill을 줄인다</a>
+        <a href="#chunked-prefill">Chunked Prefill은 긴 Prompt와 Decode를 함께 조율한다</a>
+        <a href="#server-metrics">이 영역은 Server 지표를 원인과 연결하기 위해 필요하다</a>
+        <a href="#serving-settings">서빙 설정값을 근거 있게 조정하기 위해 필요하다</a>
+        <a href="#gpu-capacity">단일 GPU의 수용 한계를 찾기 위해 필요하다</a>
+        <a href="#summary">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM을 한 번 실행하는 것과 여러 사용자에게 LLM을 서비스하는 것은 서로 다른 문제다.</p>
+<p>모델에 하나의 Prompt를 넣고 결과를 생성하는 데 성공했다면 모델 추론 자체는 구현한 것이다. 하지만 실제 서비스에서는 여러 사용자가 서로 다른 길이의 Prompt와 생성 요청을 동시에 보낸다.</p>
+<p>제한된 GPU에서 이러한 요청을 효율적이고 안정적으로 처리하려면 모델 구조뿐만 아니라 다음 내용도 알아야 한다.</p>
+<pre><code class="language-text">요청을 어떤 순서로 처리하는가
+여러 요청을 어떻게 하나의 Batch로 묶는가
+Batch 구성을 언제 변경하는가
+요청별 KV Cache를 어떻게 관리하는가
+GPU가 감당할 수 있는 요청 수를 어떻게 판단하는가
+</code></pre>
+<p>Scheduler, Continuous Batching, KV Cache 관리는 이러한 LLM 서빙 시스템의 핵심을 이룬다.</p>
+</div>
+        <section id="iteration-batch" class="markdown-section">
+<h2>vLLM은 요청 전체가 아니라 작업 Batch 단위로 실행한다</h2>
+<p>이 영역을 이해하려면 먼저 vLLM이 요청 하나를 처음부터 끝까지 처리한 뒤 다음 요청으로 넘어가는 시스템이 아니라는 것을 알아야 한다.</p>
+<p>vLLM은 매 실행 단계마다 현재 처리해야 할 Token 작업을 모아 하나의 작업 Batch를 만든다.</p>
+<p>예를 들어 세 요청이 실행 중이라고 가정한다.</p>
+<pre><code class="language-text">요청 A
+→ 다음 Token을 생성해야 함
+
+요청 B
+→ 다음 Token을 생성해야 함
+
+요청 C
+→ 새로 도착하여 Prompt를 읽어야 함
+</code></pre>
+<p>Scheduler는 이 요청들을 확인하고 이번에 실행할 작업을 선택한다.</p>
+<pre><code class="language-text">이번 작업 Batch
+
+요청 A → Decode Token 1개
+요청 B → Decode Token 1개
+요청 C → Prefill Token 128개
+</code></pre>
+<p>GPU는 이 작업 Batch를 한 번 처리한다. 실행이 끝나면 A와 B에는 새로운 Token이 생기고, C는 Prompt의 일부 또는 전체에 대한 KV Cache를 만들게 된다.</p>
+<p>따라서 vLLM의 Batch는 처음부터 끝까지 유지되는 고정된 요청 묶음이 아니다.</p>
+<pre><code class="language-text">이번 실행에서 함께 처리할
+요청별 Token 작업의 묶음
+</code></pre>
+<p>에 가깝다.</p>
+
+</section>
+<section id="iteration-process" class="markdown-section">
+<h2>Iteration은 작업 Batch를 한 번 처리하는 전체 과정이다</h2>
+<p>Iteration은 생성된 Token 자체를 의미하지 않는다.</p>
+<p>Scheduler가 실행할 작업을 선택하고, 작업 Batch를 구성하고, GPU가 연산하고, 결과와 요청 상태를 갱신하는 전체 사이클 한 번을 의미한다.</p>
+<pre><code class="language-text">1. Scheduler가 현재 요청 상태를 확인한다.
+2. 이번에 실행할 Token 작업을 선택한다.
+3. 선택한 작업으로 Batch를 구성한다.
+4. GPU에서 모델 연산을 수행한다.
+5. 생성 결과와 KV Cache를 갱신한다.
+6. 완료된 요청을 제거한다.
+7. 다음 Iteration으로 넘어간다.
+</code></pre>
+<p>즉, 다음 과정 전체가 하나의 Iteration이다.</p>
+<pre><code class="language-text">Scheduler의 작업 선택
+        ↓
+작업 Batch 구성
+        ↓
+GPU 모델 연산
+        ↓
+Token 결과와 KV Cache 갱신
+        ↓
+Iteration 1회 완료
+</code></pre>
+
+</section>
+<section id="multi-request-tokens" class="markdown-section">
+<h2>한 Iteration에서 여러 요청의 Token이 나올 수 있다</h2>
+<p>A, B, C가 모두 Decode 중이라면 각 요청에는 다음에 계산할 Query가 하나씩 존재한다.</p>
+<pre><code class="language-text">요청 A → A의 다음 Token 작업
+요청 B → B의 다음 Token 작업
+요청 C → C의 다음 Token 작업
+</code></pre>
+<p>Scheduler는 세 작업을 하나의 Batch로 묶을 수 있다.</p>
+<pre><code class="language-text">Iteration 1의 Decode Batch
+
+Batch 0 → 요청 A의 다음 Token
+Batch 1 → 요청 B의 다음 Token
+Batch 2 → 요청 C의 다음 Token
+</code></pre>
+<p>GPU가 이 Batch를 처리하면 각 요청에서 Token 하나씩이 생성될 수 있다.</p>
+<pre><code class="language-text">Iteration 1 실행 결과
+
+요청 A → Token 1개
+요청 B → Token 1개
+요청 C → Token 1개
+</code></pre>
+<p>총 세 개의 Token이 나왔지만 Iteration은 세 번이 아니라 한 번이다. 세 요청의 Decode 작업을 하나의 Batch로 묶어 한 번 실행했기 때문이다.</p>
+<p>다음 Token을 생성하려면 다음 Iteration을 실행한다.</p>
+<pre><code class="language-text">Iteration 2의 Decode Batch
+
+요청 A → 다음 Token 1개
+요청 B → 다음 Token 1개
+요청 C → 다음 Token 1개
+</code></pre>
+<p>따라서 요청 하나의 전체 생성은 여러 Iteration에 걸쳐 진행된다.</p>
+<pre><code class="language-text">요청 A에서 100 Token 생성
+→ 기본적인 Decode라면 약 100번의 Iteration에 참여
+</code></pre>
+<p>다만 하나의 Iteration에는 A만 들어갈 수도 있고, A·B·C가 함께 들어갈 수도 있다. Batch 구성은 당시 실행 중인 요청과 Scheduler의 판단에 따라 달라진다.</p>
+
+</section>
+<section id="prefill-output" class="markdown-section">
+<h2>Prefill이 포함된 Iteration에서는 모든 요청이 Token을 출력하지 않는다</h2>
+<p>한 Iteration에 Decode 요청과 Prefill 요청이 함께 포함될 수도 있다.</p>
+<pre><code class="language-text">Iteration N의 작업 Batch
+
+요청 A → Decode Token 1개
+요청 B → Decode Token 1개
+요청 C → Prompt Prefill 128 Token
+</code></pre>
+<p>이 경우 A와 B는 각각 새로운 Token을 생성한다. C는 Prompt를 읽고 KV Cache를 만드는 작업을 수행한다.</p>
+<p>C의 Prefill이 아직 끝나지 않았다면 C에서는 사용자에게 전달할 생성 Token이 나오지 않을 수도 있다.</p>
+<p>따라서 작업 Batch, Iteration, 출력 Token은 다음과 같이 구분해야 한다.</p>
+<pre><code class="language-text">작업 Batch
+→ 이번에 함께 처리할 요청별 Token 작업의 묶음
+
+Iteration
+→ 작업 Batch를 구성하고 GPU에서 처리한 한 번의 실행 사이클
+
+출력 Token
+→ 해당 Iteration의 Decode 결과로 생성된 Token
+</code></pre>
+<p>이 구분을 알아야 vLLM이 여러 요청을 동시에 처리하는 방식을 정확하게 이해할 수 있다.</p>
+
+</section>
+<section id="single-request-limit" class="markdown-section">
+<h2>단일 요청 실행만으로는 실제 서비스의 문제를 설명할 수 없다</h2>
+<p>요청이 하나뿐이라면 처리 흐름은 단순하다.</p>
+<pre><code class="language-text">요청 A 도착
+→ A Prefill
+→ A Decode 반복
+→ A 완료
+</code></pre>
+<p>하지만 실제 서비스에서는 요청마다 Prompt 길이와 생성 길이가 다르다.</p>
+<pre><code class="language-text">요청 A
+→ Prompt가 짧고 생성 길이가 김
+
+요청 B
+→ Prompt가 길고 생성 길이가 짧음
+
+요청 C
+→ A와 B가 실행되는 도중 도착
+</code></pre>
+<p>이때 서빙 시스템은 계속 판단해야 한다.</p>
+<ul>
+<li>어떤 요청을 먼저 실행할 것인가?</li>
+<li>몇 개의 요청을 같은 작업 Batch에 넣을 것인가?</li>
+<li>기다리는 요청은 언제 Batch에 넣을 것인가?</li>
+<li>먼저 끝난 요청의 실행 자리를 어떻게 재사용할 것인가?</li>
+<li>한 Iteration에 몇 개의 Token 작업을 허용할 것인가?</li>
+<li>요청별 KV Cache를 GPU 어디에 얼마나 보관할 것인가?</li>
+<li>KV Cache가 부족하면 어떤 요청을 기다리게 할 것인가?</li>
+</ul>
+<p>이 문제는 Transformer의 가중치나 Attention 수식만으로 해결되지 않는다. 여러 요청의 실행 순서와 GPU 자원을 관리하는 Runtime이 필요하다.</p>
+
+</section>
+<section id="scheduler" class="markdown-section">
+<h2>Scheduler는 매 Iteration의 실행 대상을 결정한다</h2>
+<p>LLM의 Decode는 새로운 Token을 한 단계씩 생성하는 반복 과정이다. 따라서 Scheduler는 요청 전체의 실행 순서를 한 번 결정하고 끝나는 것이 아니다.</p>
+<p>매 Iteration마다 현재 상태를 다시 확인한다.</p>
+<pre><code class="language-text">현재 Running 요청
+현재 Waiting 요청
+남아 있는 Sequence 자리
+남아 있는 Token Budget
+사용 가능한 KV Cache 공간
+각 요청의 Prefill·Decode 진행도
+각 요청의 종료 여부
+</code></pre>
+<p>이 정보를 바탕으로 다음 작업 Batch를 구성한다.</p>
+<pre><code class="language-text">Iteration 1
+→ [A Prefill, B Prefill]
+
+Iteration 2
+→ [A Decode, B Decode]
+
+Iteration 3
+→ [A Decode, B Decode]
+
+B 완료
+        ↓
+
+Iteration 4
+→ [A Decode, C Prefill]
+
+Iteration 5
+→ [A Decode, C Decode]
+</code></pre>
+<p>이처럼 Batch 구성은 Iteration마다 달라질 수 있다.</p>
+
+</section>
+<section id="request-states" class="markdown-section">
+<h2>Waiting·Running·Finished는 Scheduler 안의 요청 상태다</h2>
+<p>요청은 일반적으로 다음 상태를 거친다.</p>
+<pre><code class="language-text">Waiting
+→ Running
+→ Finished
+</code></pre>
+<h3>Waiting</h3>
+<p>요청이 Engine에 들어왔지만 현재 작업 Batch에는 아직 포함되지 않은 상태다.</p>
+<p>다음과 같은 이유로 기다릴 수 있다.</p>
+<ul>
+<li><code>max_num_seqs</code>만큼 다른 요청이 이미 실행 중이다.</li>
+<li>이번 Iteration의 Token Budget이 부족하다.</li>
+<li>요청에 필요한 KV Cache 공간이 부족하다.</li>
+<li>앞선 요청을 먼저 처리하는 Scheduling 정책의 영향을 받는다.</li>
+</ul>
+<p>Waiting은 요청이 유실되거나 멈췄다는 뜻이 아니다. 이후 Iteration에서 실행할 수 있는지 다시 판단할 대상이라는 뜻이다.</p>
+<h3>Running</h3>
+<p>Scheduler가 현재 실행 대상으로 관리하는 요청이다.</p>
+<p>Running 요청은 Prefill 중일 수도 있고 Decode 중일 수도 있다.</p>
+<pre><code class="language-text">Running A → Prefill 수행 중
+Running B → Decode 수행 중
+</code></pre>
+<p>따라서 <code>Running=2</code>라는 지표만으로 두 요청이 모두 Decode 중이라고 판단할 수는 없다.</p>
+<h3>Finished</h3>
+<p>더는 Scheduler가 Token 작업을 배정할 필요가 없는 상태다.</p>
+<p>대표적인 종료 원인은 다음과 같다.</p>
+<ul>
+<li>EOS Token 생성</li>
+<li>최대 생성 길이 도달</li>
+<li>Stop 문자열이나 Stop Token 도달</li>
+<li>Client 요청 취소</li>
+<li>오류 발생</li>
+</ul>
+<p>요청이 Finished가 되면 해당 요청이 사용하던 실행 자리와 KV Cache 공간을 다른 요청이 사용할 수 있다.</p>
+
+</section>
+<section id="prefill-decode" class="markdown-section">
+<h2>Prefill과 Decode는 요청 상태가 아니라 계산 단계다</h2>
+<p><code>Waiting·Running·Finished</code>와 <code>Prefill·Decode</code>는 서로 다른 기준이다.</p>
+<pre><code class="language-text">Waiting·Running·Finished
+→ Scheduler에서 요청이 어떤 상태인가
+
+Prefill·Decode
+→ Running 요청이 어떤 모델 계산을 하고 있는가
+</code></pre>
+<h3>Prefill</h3>
+<p>Prefill은 Prompt 전체를 처음 처리하고 각 Transformer Layer의 KV Cache를 만드는 단계다.</p>
+<p>Prompt가 길어질수록 처리해야 할 Token 수가 증가한다. 비교적 큰 행렬 연산을 수행하며 GPU 계산 자원을 많이 활용하는 경향이 있다.</p>
+<h3>Decode</h3>
+<p>Decode는 이미 만들어진 KV Cache를 이용해 새로운 Token을 순차적으로 생성하는 단계다.</p>
+<p>일반적인 생성에서는 한 요청이 한 Iteration마다 다음 Token 하나를 생성한다.</p>
+<pre><code class="language-text">Iteration 1 → 새 Token 1개
+Iteration 2 → 새 Token 1개
+Iteration 3 → 새 Token 1개
+</code></pre>
+<p>Decode 요청 하나만 실행하면 GPU에 전달되는 작업이 작을 수 있다. vLLM은 여러 요청의 Decode 작업을 하나의 Batch로 묶어 GPU 활용률을 높인다.</p>
+
+</section>
+<section id="static-batching" class="markdown-section">
+<h2>Static Batching은 Batch 구성원을 고정한다</h2>
+<p>Static Batching에서는 처음 선택한 요청들이 모두 끝날 때까지 Batch 구성이 유지된다.</p>
+<p>A와 B를 하나의 Batch로 시작했다고 가정한다.</p>
+<pre><code class="language-text">초기 Batch: [A, B]
+</code></pre>
+<p>B의 생성 길이가 짧다면 B가 먼저 끝난다.</p>
+<pre><code class="language-text">B 완료
+→ [A, 빈 자리]
+</code></pre>
+<p>하지만 Static Batching에서는 A가 끝날 때까지 C를 빈자리에 넣지 않는다.</p>
+<pre><code class="language-text">[A, 빈 자리]
+→ A 완료
+→ 그다음 Batch에서 C 실행
+</code></pre>
+<p>요청마다 생성 길이가 다르면 먼저 끝난 요청의 자리가 낭비된다. GPU가 처리할 수 있는 Batch 공간이 있어도 새로운 요청이 기다려야 한다.</p>
+
+</section>
+<section id="continuous-batching" class="markdown-section">
+<h2>Continuous Batching은 Iteration마다 Batch를 다시 구성한다</h2>
+<p>Continuous Batching에서는 Iteration이 끝날 때마다 요청 상태를 확인하고 다음 Batch를 다시 구성한다.</p>
+<pre><code class="language-text">Iteration 1
+→ [A, B]
+
+B 완료
+        ↓
+
+Iteration 2
+→ [A, C]
+</code></pre>
+<p>A가 계속 Decode 중이어도 B가 사용하던 자리에 Waiting 요청 C를 넣을 수 있다.</p>
+<p>이를 통해 다음 효과를 얻는다.</p>
+<ul>
+<li>먼저 끝난 요청의 빈자리를 빠르게 재사용한다.</li>
+<li>요청별 생성 길이가 달라도 GPU 활용률을 유지한다.</li>
+<li>Waiting 요청의 실행 시작을 앞당긴다.</li>
+<li>단위 시간당 처리하는 전체 Token 수를 늘릴 수 있다.</li>
+</ul>
+<p>Continuous Batching의 핵심은 여러 요청을 한 번 Batch로 묶는 데 있지 않다.</p>
+<pre><code class="language-text">매 Iteration마다 Batch 구성원을 다시 선택할 수 있다는 것
+</code></pre>
+<p>이 핵심이다.</p>
+
+</section>
+<section id="kv-cache" class="markdown-section">
+<h2>KV Cache는 Scheduler가 관리하는 핵심 GPU 자원이다</h2>
+<p>KV Cache는 과거 Token의 K·V Projection 결과를 저장하여 Decode에서 같은 계산을 반복하지 않도록 한다.</p>
+<p>단일 요청에서는 다음과 같이 동작한다.</p>
+<pre><code class="language-text">과거 Token의 K·V 저장
+→ 새 Token의 Q·K·V만 계산
+→ 새 Q와 전체 K·V Cache로 Attention
+</code></pre>
+<p>서빙 시스템에서는 요청마다 별도의 KV Cache가 필요하다.</p>
+<pre><code class="language-text">요청 A의 KV Cache
+요청 B의 KV Cache
+요청 C의 KV Cache
+</code></pre>
+<p>동시에 실행하는 요청이 많아질수록 필요한 KV Cache 공간도 증가한다.</p>
+<p>KV Cache 크기는 대략 다음 요소의 영향을 받는다.</p>
+<ul>
+<li>Transformer Layer 수</li>
+<li>동시 요청 또는 Batch 수</li>
+<li>Prompt와 생성 Token을 합친 문맥 길이</li>
+<li>KV Head 수</li>
+<li>Head Dimension</li>
+<li>KV Cache dtype</li>
+</ul>
+<p>Scheduler는 단순히 Sequence 자리가 남았는지만 확인해서는 안 된다. 새로운 요청을 실행하는 동안 필요한 KV Cache를 GPU에 저장할 수 있는지도 판단해야 한다.</p>
+<pre><code class="language-text">실행 Sequence 자리는 남아 있음
+하지만 KV Cache 공간이 부족함
+        ↓
+새 요청은 Waiting 상태로 남을 수 있음
+</code></pre>
+<p>요청이 Finished가 되면 해당 요청이 사용하던 KV Cache Block을 반환한다. 반환된 공간은 이후 Iteration에서 다른 요청이 사용할 수 있다.</p>
+<p>따라서 Request Lifecycle과 KV Cache Lifecycle은 서로 연결되어 있다.</p>
+<pre><code class="language-text">요청 Running
+→ KV Cache 할당·증가
+
+요청 Finished
+→ KV Cache 반환
+
+새 요청 Running
+→ 반환된 KV Cache 공간 재사용
+</code></pre>
+
+</section>
+<section id="prefix-caching" class="markdown-section">
+<h2>Prefix Caching은 요청 사이의 중복 Prefill을 줄인다</h2>
+<p>서로 다른 요청이 같은 Prompt Prefix를 가지고 있다면 앞부분의 K·V 계산도 중복된다.</p>
+<pre><code class="language-text">요청 A
+→ 공통 System Prompt + 사용자 질문 A
+
+요청 B
+→ 공통 System Prompt + 사용자 질문 B
+</code></pre>
+<p>Prefix Caching을 사용하면 요청 A에서 계산한 공통 Prefix의 KV Cache를 요청 B가 재사용할 수 있다.</p>
+<pre><code class="language-text">공통 Prefix의 KV Cache 재사용
+→ 중복 Prefill 감소
+→ TTFT 단축 가능
+</code></pre>
+<p>긴 System Prompt나 동일한 Few-shot 예시를 반복하는 서비스에서 특히 효과가 크다.</p>
+<p>반대로 요청 사이에 공통 Prefix가 거의 없다면 Prefix Caching의 이점도 작다. 따라서 Prefix Cache Hit Rate는 실제 요청 특성과 함께 해석해야 한다.</p>
+
+</section>
+<section id="chunked-prefill" class="markdown-section">
+<h2>Chunked Prefill은 긴 Prompt와 Decode를 함께 조율한다</h2>
+<p>긴 Prompt를 한 번에 Prefill하면 하나의 요청이 큰 Token Budget을 사용하게 된다. 그동안 이미 Decode 중인 다른 요청의 다음 Token 생성이 늦어질 수 있다.</p>
+<p>Chunked Prefill은 긴 Prompt를 작은 단위로 나누어 처리한다.</p>
+<pre><code class="language-text">긴 Prompt 전체 Prefill
+
+→ Prefill Chunk 1
+→ Prefill Chunk 2
+→ Prefill Chunk 3
+</code></pre>
+<p>한 Iteration의 작업 Batch를 다음처럼 구성할 수 있다.</p>
+<pre><code class="language-text">요청 A → Decode 1 Token
+요청 B → Decode 1 Token
+요청 C → Prefill 128 Token
+</code></pre>
+<p>이 경우 기존 요청의 Decode를 진행하면서 남은 Token Budget으로 새 요청의 Prefill 일부를 처리할 수 있다.</p>
+<p>Chunked Prefill은 Prefill과 Decode 사이의 자원 배분 문제다. 설정에 따라 TTFT, TPOT와 전체 Throughput의 균형이 달라질 수 있다.</p>
+
+</section>
+<section id="server-metrics" class="markdown-section">
+<h2>이 영역은 Server 지표를 원인과 연결하기 위해 필요하다</h2>
+<p>LLM Server에서는 다음과 같은 지표를 관찰한다.</p>
+<ul>
+<li>TTFT</li>
+<li>TPOT 또는 ITL</li>
+<li>End-to-End Latency</li>
+<li>Throughput</li>
+<li>Running 요청 수</li>
+<li>Waiting 요청 수</li>
+<li>Queue Time</li>
+<li>KV Cache 사용률</li>
+<li>Preemption 수</li>
+</ul>
+<p>지표의 정의만 알아서는 성능 문제의 원인을 판단하기 어렵다.</p>
+<p>TTFT가 증가한 경우 다음 원인이 모두 가능하다.</p>
+<ul>
+<li>Waiting Queue가 길어졌다.</li>
+<li>긴 Prompt의 Prefill이 앞서 실행되고 있다.</li>
+<li>Iteration Token Budget이 부족하다.</li>
+<li>KV Cache 공간이 부족하다.</li>
+<li>동시에 실행하는 Sequence가 너무 많다.</li>
+<li>Prefix Cache를 재사용하지 못했다.</li>
+</ul>
+<p>TPOT가 증가한 경우에도 단순히 모델 연산이 느려졌다고 판단할 수 없다.</p>
+<ul>
+<li>너무 많은 Decode 요청을 같은 Batch에 넣었을 수 있다.</li>
+<li>긴 Prefill 작업이 Decode와 함께 실행됐을 수 있다.</li>
+<li>KV Cache 압력으로 요청 재계산이 발생했을 수 있다.</li>
+<li>GPU가 감당할 수 있는 동시 요청 범위를 넘었을 수 있다.</li>
+</ul>
+<p>Scheduler와 KV Cache의 동작을 알아야 관찰된 지표를 실제 원인과 연결할 수 있다.</p>
+
+</section>
+<section id="serving-settings" class="markdown-section">
+<h2>서빙 설정값을 근거 있게 조정하기 위해 필요하다</h2>
+<p>vLLM에는 다음과 같은 설정이 존재한다.</p>
+<pre><code class="language-text">max_num_seqs
+max_num_batched_tokens
+max_model_len
+gpu_memory_utilization
+enable_prefix_caching
+enable_chunked_prefill
+</code></pre>
+<p>이 값을 크게 만든다고 항상 성능이 좋아지는 것은 아니다.</p>
+<pre><code class="language-text">max_num_seqs 증가
+→ 더 많은 요청을 함께 실행할 수 있음
+→ Throughput이 증가할 수 있음
+→ 요청별 TPOT와 KV Cache 사용량도 증가할 수 있음
+</code></pre>
+<pre><code class="language-text">max_num_batched_tokens 증가
+→ 큰 Prefill을 한 Iteration에서 많이 처리할 수 있음
+→ Decode 요청이 기다리는 시간이 증가할 수 있음
+</code></pre>
+<pre><code class="language-text">gpu_memory_utilization 증가
+→ 더 많은 KV Cache 공간 확보 가능
+→ 다른 Runtime 메모리가 사용할 여유 감소
+</code></pre>
+<p>Scheduler의 동작을 이해하면 이러한 설정을 단순한 숫자가 아니라 다음과 같은 자원 계약으로 볼 수 있다.</p>
+<pre><code class="language-text">한 Iteration에 몇 개의 Sequence를 처리할 것인가
+한 Iteration에 몇 개의 Token 작업을 허용할 것인가
+몇 개의 요청 문맥을 KV Cache에 보관할 것인가
+Prefill과 Decode 사이에서 GPU를 어떻게 나눌 것인가
+</code></pre>
+
+</section>
+<section id="gpu-capacity" class="markdown-section">
+<h2>단일 GPU의 수용 한계를 찾기 위해 필요하다</h2>
+<p>서비스를 운영하려면 모델이 정상적으로 실행되는지만 확인해서는 부족하다. 어느 정도의 부하까지 안정적으로 처리할 수 있는지도 알아야 한다.</p>
+<p>동시 요청을 늘리면 일반적으로 다음과 같은 변화가 발생한다.</p>
+<pre><code class="language-text">동시 요청 증가
+→ Batch 활용률 증가
+→ 전체 Throughput 증가 가능
+
+부하가 더 증가
+→ Waiting 요청 증가
+→ Queue Time 증가
+→ TTFT 증가
+
+KV Cache 한계 접근
+→ Preemption과 재계산 가능성 증가
+→ TPOT와 Latency 악화
+
+수용 범위 초과
+→ Timeout·요청 거절·OOM 가능
+</code></pre>
+<p>이 경계를 측정해야 단일 GPU가 감당할 수 있는 동시 요청 수, Prompt 길이, 생성 길이와 목표 Latency를 결정할 수 있다.</p>
+
+</section>
+<section id="summary" class="markdown-section">
+<h2>정리</h2>
+<p>Scheduler·Continuous Batching·KV Cache 영역은 Transformer가 Token을 생성하는 수식을 다시 배우기 위한 것이 아니다. 이미 만들어진 모델의 추론을 여러 사용자에게 효율적이고 안정적으로 제공하는 방법을 이해하기 위한 영역이다.</p>
+<p>가장 먼저 알아야 할 구조는 다음과 같다.</p>
+<pre><code class="language-text">vLLM은 매 Iteration마다
+현재 처리할 요청별 Token 작업을 선택한다.
+        ↓
+선택한 작업을 하나의 동적 Batch로 묶는다.
+        ↓
+GPU에서 Batch를 한 번 실행한다.
+        ↓
+Decode 요청에서는 새로운 Token이 생성되고
+Prefill 요청에서는 KV Cache가 만들어진다.
+        ↓
+요청 상태와 KV Cache를 갱신한다.
+        ↓
+완료된 요청을 빼고 Waiting 요청을 넣어
+다음 Iteration의 Batch를 다시 구성한다.
+</code></pre>
+<p>여기서 개념을 구분하면 다음과 같다.</p>
+<pre><code class="language-text">작업 Batch
+→ 이번에 함께 처리할 요청별 Token 작업
+
+Iteration
+→ 작업 Batch를 선택하고 실행한 한 번의 Engine 사이클
+
+출력 Token
+→ Iteration 실행 결과 중 Decode 요청에서 생성된 결과
+
+Continuous Batching
+→ Iteration마다 Batch 구성원을 다시 선택하는 방식
+
+KV Cache
+→ 각 요청의 과거 문맥을 보존하여
+  새 Token만으로 Decode할 수 있게 만드는 GPU 자원
+</code></pre>
+<p>이 영역을 학습하면 LLM Server의 성능을 단순한 속도 숫자로 보지 않고 요청 상태, Iteration, Batch 구성, Token Budget과 KV Cache 사용량의 관계로 해석할 수 있다.</p>
+<p>또한 제한된 GPU에서 Throughput을 높이면서 TTFT와 TPOT를 관리하고, 실제 서비스가 안정적으로 감당할 수 있는 부하의 경계를 설정할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
