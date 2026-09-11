@@ -1,0 +1,346 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.md. Do not edit directly. source-sha256:f52fbceb23cd2b5f086a00b279391ceb80f4df88a5d170df6960442562512a60 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Scheduler와 요청 수명주기, Continuous Batching의 전환을 시뮬레이션과 실제 vLLM Trace로 검증한 실습 결과입니다.">
+  <meta name="source-sha256" content="f52fbceb23cd2b5f086a00b279391ceb80f4df88a5d170df6960442562512a60">
+  <title>Scheduler Request Lifecycle 실습 결과</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Scheduler Request Lifecycle 실습 결과">
+  <meta property="og:description" content="Scheduler와 요청 수명주기, Continuous Batching의 전환을 시뮬레이션과 실제 vLLM Trace로 검증한 실습 결과입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html","name":"Scheduler Request Lifecycle 실습 결과","description":"Scheduler와 요청 수명주기, Continuous Batching의 전환을 시뮬레이션과 실제 vLLM Trace로 검증한 실습 결과입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},"headline":"Scheduler Request Lifecycle 실습 결과","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Scheduler Request Lifecycle 실습 결과</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Scheduler Request Lifecycle 실습 결과</h1>
+      <p class="lead">Scheduler와 요청 수명주기, Continuous Batching의 전환을 시뮬레이션과 실제 vLLM Trace로 검증한 실습 결과입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-f51d4a7fd086">이번 실습에서 확인하려던 것</a>
+        <a href="#section-85640dc110da">전체 실습 순서</a>
+        <a href="#section-40189a9a97c5">단계별로 무엇을 확인했는가</a>
+        <a href="#section-8e2f936e82e9">최종 결론</a>
+        <a href="#section-e013445fc754">이번 실습의 범위와 한계</a>
+        <a href="#section-a08b29f109b3">하위 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>학습일: 2026-09-11</p>
+<p>이 문서는 Scheduler Request Lifecycle 실습의 상위 문서다. 무엇을 확인하려 했고, 어떤 순서로 검증했으며, 실제 결과에서 무엇을 알게 됐는지를 처음부터 끝까지 연결한다. 코드 전문, 반복 질문, 세부 Trace 해석은 흐름을 끊지 않도록 하위 문서로 나눴다.</p>
+</div>
+        <section id="section-f51d4a7fd086" class="markdown-section">
+<h2>이번 실습에서 확인하려던 것</h2>
+<p>vLLM은 요청 하나를 끝낸 뒤 다음 요청을 처리하는 단순한 직렬 서버가 아니다. Scheduler는 매 Iteration마다 현재의 <code>waiting</code>·<code>running</code> 요청, Sequence 자리, Token Budget을 보고 이번 단계에서 실제로 계산할 요청과 토큰 수를 다시 고른다.</p>
+<p>이번 실습의 목표는 다음 흐름을 직접 확인하는 것이었다.</p>
+<pre><code class="language-text">요청 도착
+→ waiting 진입
+→ Scheduler가 running으로 수용
+→ Prompt Prefill
+→ Token 단위 Decode 반복
+→ 먼저 끝난 요청 제거
+→ 빈 자리에 waiting 요청 수용
+→ finished 처리
+</code></pre>
+<p>핵심 질문은 세 가지였다.</p>
+<ol>
+<li><code>waiting → running → finished</code> 상태 전이가 실제로 어떻게 일어나는가?</li>
+<li>실행 중인 Batch의 구성원이 Iteration 경계에서 교체되는가?</li>
+<li>같은 시점에 요청을 제출하는 방식이 뒤늦은 요청의 시작 시각과 전체 완료 시간에 어떤 차이를 만드는가?</li>
+</ol>
+
+</section>
+<section id="section-85640dc110da" class="markdown-section">
+<h2>전체 실습 순서</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>확인하려던 것</th>
+<th>수행한 활동</th>
+<th>확인한 결과</th>
+<th>상세 문서</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>비교 가능한 요청 조건</td>
+<td>A·B·C의 도착 시점, Prompt 길이, 생성 길이를 고정</td>
+<td>같은 작업량을 두 제출 방식에 재사용할 계약을 마련</td>
+<td><a href="vllm_scheduler_request_lifecycle_concepts.html">개념과 비교 계약</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Request Lifecycle의 최소 규칙</td>
+<td>가짜 Scheduler와 요청 상태 객체 구현</td>
+<td><code>waiting → running → finished</code>와 Iteration별 선택을 코드로 표현</td>
+<td><a href="vllm_scheduler_request_lifecycle_simulation.html">Scheduler 시뮬레이션</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Static 방식의 Batch 경계</td>
+<td>A·B를 한 그룹으로 끝까지 처리한 후 C 수용</td>
+<td>C는 Iteration 5에 시작하고 전체 9 Iteration 필요</td>
+<td><a href="vllm_scheduler_request_lifecycle_simulation.html">Scheduler 시뮬레이션</a></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Continuous Batching의 자리 교체</td>
+<td>B가 끝난 다음 Iteration에 C를 수용</td>
+<td>C는 Iteration 3에 시작하고 전체 7 Iteration 필요</td>
+<td><a href="vllm_scheduler_request_lifecycle_simulation.html">Scheduler 시뮬레이션</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td>실제 vLLM의 고정 실행 조건</td>
+<td>단일 GPU 서버, 모델 Revision, Sequence·Token 제한 고정</td>
+<td>시뮬레이션과 실제 서버를 비교할 실행 경계를 확정</td>
+<td><a href="vllm_scheduler_request_lifecycle_vllm_server.html">실제 서버와 확장 Scheduler</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td>실제 Scheduler 내부 상태</td>
+<td><code>AsyncScheduler</code>를 상속한 <code>TracingScheduler</code> 주입</td>
+<td>원래 Scheduling은 유지하면서 호출 전후 상태를 JSONL로 기록</td>
+<td><a href="vllm_scheduler_request_lifecycle_vllm_server.html">실제 서버와 확장 Scheduler</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td>실제 동시 요청의 상태 변화</td>
+<td>A·B·C Streaming 요청과 <code>/metrics</code> 반복 조회</td>
+<td><code>Running 2 / Waiting 1</code> 뒤 B 완료 시 C가 진입</td>
+<td><a href="vllm_scheduler_request_lifecycle_trace_analysis.html">Trace 해석</a></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Iteration별 실제 배정</td>
+<td>JSONL에서 최근 Session과 Run ID를 골라 분석</td>
+<td>A·B Decode 동시 배정과 B 종료 직후 C Prefill을 확인</td>
+<td><a href="vllm_scheduler_request_lifecycle_trace_analysis.html">Trace 해석</a></td>
+</tr>
+<tr>
+<td>9</td>
+<td>제출 방식에 따른 시간 차이</td>
+<td>Static-like <code>(A,B) → C</code>와 Continuous <code>(A,B,C)</code> 비교</td>
+<td>동일 서버에서도 C의 제출·시작 시각과 전체 Makespan이 달라짐</td>
+<td><a href="vllm_scheduler_request_lifecycle_submission_comparison.html">Static·Continuous 비교</a></td>
+</tr>
+<tr>
+<td>10</td>
+<td>결과 보존과 최종 정리</td>
+<td>Notebook·Trace·Log·JSON·Hash 보존</td>
+<td>실험 결과를 다시 확인할 수 있는 자료 묶음을 완성</td>
+<td><a href="vllm_scheduler_request_lifecycle_artifacts.html">결과와 보존 자료</a></td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-40189a9a97c5" class="markdown-section">
+<h2>단계별로 무엇을 확인했는가</h2>
+<h3>1단계: A·B·C 비교 계약</h3>
+<p>요청 ID는 Batch ID가 아니라 개별 요청의 ID다. A·B·C는 긴 실제 ID를 읽기 쉽게 붙인 이름표이며, 각 요청의 Prompt 길이와 생성 길이를 고정했다. 이렇게 해야 Scheduler 정책 또는 제출 시점만 바꾸고 같은 작업량을 비교할 수 있다.</p>
+<h3>2단계: 가짜 Scheduler</h3>
+<p>실제 vLLM 내부를 바로 읽기 전에 <code>waiting</code>, <code>running</code>, <code>finished</code>, <code>prefill_completed</code>, <code>generated_tokens</code>를 가진 작은 상태 기계를 만들었다. <code>max_num_sequences</code>는 동시에 running에 둘 수 있는 Sequence 자리 수이고, Token Budget은 한 Iteration에서 처리할 수 있는 토큰 작업량이라는 차이를 확인했다.</p>
+<h3>3~4단계: Static과 Continuous 시뮬레이션</h3>
+<p>두 방식 모두 요청 내부의 Prefill과 Decode는 동일하다. 다른 점은 실행 중인 Batch의 구성원을 언제 바꾸는가다.</p>
+<pre><code class="language-text">Static
+A·B 그룹이 모두 끝남 → C 수용
+
+Continuous
+B가 먼저 끝남 → 다음 Iteration의 빈 자리에 C 수용
+</code></pre>
+<p>시뮬레이션 결과 C는 Continuous에서 Iteration 3, Static에서 Iteration 5에 시작했다. 전체 Iteration 수도 각각 7과 9였다.</p>
+<h3>5단계: 실제 서버 조건 고정</h3>
+<p>같은 모델 Artifact와 Revision, 단일 GPU, <code>max_num_seqs</code>, <code>max_num_batched_tokens</code>, 생성 조건을 고정했다. 이 단계는 결과 차이를 모델·입력·샘플링 차이가 아니라 Scheduler와 요청 제출 방식의 차이로 해석하기 위한 전제다.</p>
+<h3>6단계: <code>TracingScheduler</code> 주입</h3>
+<p><code>AsyncScheduler.schedule()</code>을 재정의하되 내부에서 <code>super().schedule()</code>을 호출했다. 따라서 실제 선택은 원래 vLLM Scheduler가 수행하고, 확장 클래스는 호출 전후 상태와 원래 반환값을 관찰해 JSONL에 추가한다. <code>--scheduler-cls scheduler_trace.TracingScheduler</code>가 이 확장 클래스를 서버에 주입한다.</p>
+<h3>7단계: Streaming 요청과 Metrics</h3>
+<p>세 요청을 거의 동시에 제출했을 때 다음 변화가 관찰됐다.</p>
+<pre><code class="language-text">Running 0 / Waiting 0
+→ Running 2 / Waiting 1
+→ Running 2 / Waiting 0
+→ Running 1 / Waiting 0
+→ Running 0 / Waiting 0
+</code></pre>
+<p>B가 먼저 끝난 뒤 C가 <code>waiting</code>에서 <code>running</code>으로 들어왔고, A가 끝나기 전에 C도 완료됐다. Metrics는 상태 수를 보여주지만 어떤 요청이 선택됐는지는 알려주지 않으므로 JSONL Trace가 필요했다.</p>
+<h3>8단계: JSONL Trace 분석</h3>
+<p>Run <code>cee84c71</code>에서 확인한 핵심 기록은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Schedule</th>
+<th>호출 전 상태</th>
+<th>실제 배정</th>
+<th>호출 후 상태</th>
+<th>완료 보고</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>waiting A</td>
+<td>A Prefill 51</td>
+<td>running A</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>1</td>
+<td>waiting B·C, running A</td>
+<td>A Decode 1 + B Prefill 34</td>
+<td>waiting C, running A·B</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>2</td>
+<td>waiting C, running A·B</td>
+<td>A Decode 1 + B Decode 1</td>
+<td>동일</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>130</td>
+<td>waiting C, running A</td>
+<td>A Decode 1 + C Prefill 46</td>
+<td>running A·C</td>
+<td>B</td>
+</tr>
+<tr>
+<td>387</td>
+<td>running A</td>
+<td>A Decode 1</td>
+<td>running A</td>
+<td>C</td>
+</tr>
+<tr>
+<td>513</td>
+<td>없음</td>
+<td>배정 없음</td>
+<td>없음</td>
+<td>A</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>running</code>은 실행 자격을 가진 요청 집합이고, <code>scheduled_requests</code>는 그중 이번 호출에서 실제 Token Budget을 받은 요청이다. 따라서 두 목록은 같지 않을 수 있다.</p>
+<h3>9단계: 실제 제출 방식 비교</h3>
+<p>두 실험 모두 같은 Continuous Batching vLLM 서버를 사용했다. <code>static</code>은 서버 모드를 바꾼 것이 아니라 Client가 A·B의 완료를 기다린 뒤 C를 제출한 방식이다. <code>continuous</code>는 A·B·C를 한꺼번에 제출했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th align="right">C 전송</th>
+<th align="right">C 첫 내용</th>
+<th align="right">C 완료</th>
+<th align="right">C TTFT</th>
+<th align="right">전체 완료</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Static-like</td>
+<td align="right">6.783초</td>
+<td align="right">6.808초</td>
+<td align="right">10.177초</td>
+<td align="right">0.025초</td>
+<td align="right">10.177초</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td align="right">0.002초</td>
+<td align="right">1.756초</td>
+<td align="right">5.147초</td>
+<td align="right">1.754초</td>
+<td align="right">6.811초</td>
+</tr>
+</tbody></table>
+</div>
+<p>Continuous 방식의 C는 대기 시간이 TTFT에 포함됐지만 A가 끝나기 전에 실행을 시작해 전체 완료 시각은 더 빨랐다. 이 결과는 Continuous Batching이 요청 하나의 계산을 마법처럼 빠르게 만드는 기능이 아니라, 유휴 자리를 줄여 전체 GPU 활용과 완료 흐름을 개선하는 정책임을 보여준다.</p>
+<h3>10단계: 결과 보존과 정리</h3>
+<p>실행 Notebook, 실제 Scheduler 확장 코드, JSONL Trace, Server Terminal Log, Trace 분석 JSON, Notebook 출력과 Artifact Manifest를 함께 보존했다. 따라서 요약된 결론만 보는 데서 끝나지 않고 실제 실행 기록과 분석 과정을 다시 확인할 수 있다.</p>
+
+</section>
+<section id="section-8e2f936e82e9" class="markdown-section">
+<h2>최종 결론</h2>
+<p>이번 실습으로 확인한 핵심은 다음과 같다.</p>
+<ol>
+<li>Request Lifecycle은 요청 단위 상태 전이이고, Batch는 각 Iteration에서 Scheduler가 선택한 실행 묶음이다.</li>
+<li><code>running</code>에 있다는 사실과 이번 Iteration에서 실제 토큰을 배정받았다는 사실은 다르다.</li>
+<li>Continuous Batching에서는 먼저 끝난 요청의 자리를 다음 Iteration에 waiting 요청이 채울 수 있다.</li>
+<li>여러 요청의 Decode 1 Token이 같은 Scheduling 결과에 함께 들어갈 수 있다.</li>
+<li>실제 비교에서 Continuous 제출은 C를 A 완료 전에 처리하여 전체 완료 시간을 10.177초에서 6.811초로 줄였다.</li>
+<li>Client 시각, Metrics, Scheduler Trace는 서로 다른 경계를 관찰하므로 함께 해석해야 한다.</li>
+</ol>
+
+</section>
+<section id="section-e013445fc754" class="markdown-section">
+<h2>이번 실습의 범위와 한계</h2>
+<p>이번 실습에서는 Request Lifecycle, Iteration별 실제 토큰 배정, 완료된 요청의 자리 교체, Client 제출 방식에 따른 실행 흐름 차이를 확인했다. 다음 항목은 이번 실험에서 직접 검증하지 않았다.</p>
+<ul>
+<li>동시성 1·4·8·16에서 Throughput·TTFT·TPOT 비교</li>
+<li>KV Cache Block의 할당·회수·재사용</li>
+<li>Prefix Cache Hit와 Miss 비교</li>
+<li>Chunked Prefill 동작 검증</li>
+<li>KV Cache Pressure, Preemption, Overload 경계</li>
+</ul>
+<p>또한 Client 전송 시각은 정확한 서버 도착이나 GPU 커널 시작 시각이 아니며, <code>schedule()</code> 호출을 하드웨어 커널 하나와 동일시하지 않는다.</p>
+
+</section>
+<section id="section-a08b29f109b3" class="markdown-section">
+<h2>하위 문서</h2>
+<ol>
+<li><a href="vllm_scheduler_request_lifecycle_concepts.html">Scheduler와 Continuous Batching의 핵심 개념</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_simulation.html">가짜 Scheduler와 Static·Continuous 시뮬레이션</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_vllm_server.html">실제 vLLM 서버와 TracingScheduler</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_trace_analysis.html">Scheduler JSONL Trace 읽기</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_submission_comparison.html">Static-like 제출과 Continuous 제출 비교</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_artifacts.html">실행 결과와 보존 자료</a></li>
+</ol>
+<p>중복 질문, 전체 코드, 모든 Notebook 셀과 출력을 포함한 분할 전 원문은 전체 학습 원문 Archive에 그대로 보존했다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="vllm_scheduler_request_lifecycle_concepts.html">Scheduler와 Continuous Batching의 핵심 개념</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_simulation.html">가짜 Scheduler와 Static·Continuous 시뮬레이션</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_vllm_server.html">실제 vLLM 서버와 TracingScheduler</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_trace_analysis.html">Scheduler JSONL Trace 읽기</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_submission_comparison.html">Static-like 제출과 Continuous 제출 비교</a></li>
+<li><a href="vllm_scheduler_request_lifecycle_artifacts.html">실행 결과와 보존 자료</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
