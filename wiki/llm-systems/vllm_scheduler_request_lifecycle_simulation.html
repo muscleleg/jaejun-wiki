@@ -1,0 +1,186 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.md. Do not edit directly. source-sha256:dba1e507c4abd3b6da8b246fca30ddff57f999a0f40f0019b1b2f374069a2ac3 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="요청 상태와 Token Budget을 가진 가짜 Scheduler로 정적 처리와 Continuous Batching의 전환을 확인합니다.">
+  <meta name="source-sha256" content="dba1e507c4abd3b6da8b246fca30ddff57f999a0f40f0019b1b2f374069a2ac3">
+  <title>가짜 Scheduler와 Static·Continuous 시뮬레이션</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="가짜 Scheduler와 Static·Continuous 시뮬레이션">
+  <meta property="og:description" content="요청 상태와 Token Budget을 가진 가짜 Scheduler로 정적 처리와 Continuous Batching의 전환을 확인합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html","name":"가짜 Scheduler와 Static·Continuous 시뮬레이션","description":"요청 상태와 Token Budget을 가진 가짜 Scheduler로 정적 처리와 Continuous Batching의 전환을 확인합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html"},"headline":"가짜 Scheduler와 Static·Continuous 시뮬레이션","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_simulation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"가짜 Scheduler와 Static·Continuous 시뮬레이션"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">가짜 Scheduler와 Static·Continuous 시뮬레이션</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>가짜 Scheduler와 Static·Continuous 시뮬레이션</h1>
+      <p class="lead">요청 상태와 Token Budget을 가진 가짜 Scheduler로 정적 처리와 Continuous Batching의 전환을 확인합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-8a3c4246f883">시뮬레이션을 먼저 만든 이유</a>
+        <a href="#section-7efdfea10366">고정 명세와 변하는 상태</a>
+        <a href="#iteration">한 Iteration의 처리 순서</a>
+        <a href="#prefill-decode">Prefill과 Decode를 구분하는 이유</a>
+        <a href="#section-6b09bb6a8803">두 종류의 기록</a>
+        <a href="#a-b-c">A·B·C 조건</a>
+        <a href="#continuous">Continuous 시뮬레이션</a>
+        <a href="#static">Static 시뮬레이션</a>
+        <a href="#section-44a33beaad3a">시뮬레이션 결과가 뜻하는 것</a>
+        <a href="#section-82812ca00d72">코드와 전체 질문 기록</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이전: 핵심 개념 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: 실제 서버와 TracingScheduler</p>
+</div>
+        <section id="section-8a3c4246f883" class="markdown-section">
+<h2>시뮬레이션을 먼저 만든 이유</h2>
+<p>실제 vLLM은 요청 객체, KV Cache, GPU Worker, Scheduler Output이 함께 움직여 처음부터 내부 코드를 보면 개념과 구현 세부가 섞인다. 그래서 먼저 최소 상태만 가진 가짜 Scheduler를 만들어 Request Lifecycle과 Batch 교체 규칙을 확인했다.</p>
+<p>이 시뮬레이션은 vLLM의 성능이나 모든 내부 정책을 복제하지 않는다. <code>waiting</code>, <code>running</code>, Prefill, Decode, finished, Sequence 자리와 Token Budget의 관계를 눈으로 확인하기 위한 작은 상태 기계다.</p>
+
+</section>
+<section id="section-7efdfea10366" class="markdown-section">
+<h2>고정 명세와 변하는 상태</h2>
+<p><code>SimulationRequestSpec</code>은 요청이 처음부터 가진 고정 정보다.</p>
+<ul>
+<li><code>request_id</code>: 개별 요청 식별자</li>
+<li><code>arrival_iteration</code>: 요청이 도착하는 Iteration</li>
+<li><code>prompt_tokens</code>: Prefill에 필요한 Prompt 토큰 수</li>
+<li><code>max_new_tokens</code>: 생성할 토큰 수</li>
+</ul>
+<p><code>SimulationRequestState</code>는 실행 중 변하는 정보다.</p>
+<ul>
+<li>현재 <code>waiting</code>, <code>running</code>, <code>finished</code> 중 어디에 있는지</li>
+<li>Prefill을 끝냈는지</li>
+<li>생성 토큰을 몇 개 만들었는지</li>
+<li>언제 시작하고 완료했는지</li>
+</ul>
+<p>Request ID는 Batch ID가 아니다. A·B·C 각 생성 요청을 식별하며, Batch는 Scheduler가 그 순간 이 요청들 중 일부를 묶은 결과다.</p>
+
+</section>
+<section id="iteration" class="markdown-section">
+<h2>한 Iteration의 처리 순서</h2>
+<p>시뮬레이터는 매 Iteration마다 다음 순서를 반복한다.</p>
+<ol>
+<li><code>arrival_iteration</code>에 도달한 요청을 <code>waiting</code>에 넣는다.</li>
+<li>Sequence 자리가 있으면 정책에 따라 waiting 요청을 <code>running</code>으로 옮긴다.</li>
+<li>running 요청을 순회하며 Token Budget을 배정한다.</li>
+<li>Prefill이 끝나지 않은 요청은 Prompt 작업을 처리한다.</li>
+<li>Prefill이 끝난 요청은 Decode 1 Token을 처리한다.</li>
+<li>생성 길이를 채운 요청을 <code>finished</code>로 옮긴다.</li>
+<li>Iteration 기록과 상태 전이 기록을 남긴다.</li>
+</ol>
+<p><code>remaining_token_budget -= 1</code>은 Decode 요청 하나에 다음 토큰 한 개분의 작업을 배정했으므로 이번 Iteration의 남은 Budget을 1 줄인다는 뜻이다. Budget은 다음 Iteration에서 다시 최대값으로 시작한다.</p>
+
+</section>
+<section id="prefill-decode" class="markdown-section">
+<h2>Prefill과 Decode를 구분하는 이유</h2>
+<p>처음 들어온 요청은 Prompt를 아직 처리하지 않았으므로 <code>prompt_tokens</code>만큼의 작업이 필요하다. 그 뒤에는 KV Cache가 있다고 가정하고 매 Iteration마다 Decode 1 Token만 처리한다.</p>
+<p>이 차이는 Sequence 자리 수와는 별개다. Prefill 요청도 한 Sequence 자리만 차지하지만 한 번에 소비하는 Token Budget은 더 클 수 있다.</p>
+
+</section>
+<section id="section-6b09bb6a8803" class="markdown-section">
+<h2>두 종류의 기록</h2>
+<p><code>iteration_records</code>는 Iteration 전체의 스냅샷이다.</p>
+<ul>
+<li>waiting 목록</li>
+<li>running 목록</li>
+<li>이번에 처리한 요청과 작업 종류</li>
+<li>남은 Token Budget</li>
+<li>Iteration 종료 시점의 상태</li>
+</ul>
+<p><code>transition_records</code>는 개별 요청의 상태 변화 기록이다.</p>
+<ul>
+<li>A가 waiting에 들어온 시점</li>
+<li>A가 running으로 수용된 시점</li>
+<li>B가 finished가 된 시점</li>
+</ul>
+<p>전자는 Scheduler의 한 박자를 보고, 후자는 요청 하나의 생애를 따라갈 때 사용한다.</p>
+
+</section>
+<section id="a-b-c" class="markdown-section">
+<h2>A·B·C 조건</h2>
+<p>작은 예제에서는 동시에 실행할 Sequence 자리를 2개로 고정했다.</p>
+<pre><code class="language-text">A: 먼저 도착, 오래 생성
+B: A와 함께 도착, 먼저 완료
+C: A·B가 실행 중일 때 도착
+</code></pre>
+<p>이 조건은 B가 먼저 끝났을 때 C를 즉시 넣는지, A까지 끝날 때까지 기다리는지를 비교하기 좋다.</p>
+
+</section>
+<section id="continuous" class="markdown-section">
+<h2>Continuous 시뮬레이션</h2>
+<p>Continuous 모드에서는 매 Iteration의 시작에 빈 자리를 다시 채운다.</p>
+<pre><code class="language-text">Iteration 0: A·B Prefill
+Iteration 1: A·B Decode
+Iteration 2: B 완료
+Iteration 3: A·C 실행
+</code></pre>
+<p>C 시작 Iteration은 3, 전체 Iteration 수는 7이었다.</p>
+
+</section>
+<section id="static" class="markdown-section">
+<h2>Static 시뮬레이션</h2>
+<p>Static 모드에서는 running 그룹이 하나라도 남아 있으면 waiting 요청을 새로 수용하지 않는다.</p>
+<pre><code class="language-text">Iteration 0: A·B Prefill
+Iteration 1~4: A·B 그룹 처리
+Iteration 5: 그룹이 끝난 뒤 C 시작
+</code></pre>
+<p>C 시작 Iteration은 5, 전체 Iteration 수는 9였다.</p>
+
+</section>
+<section id="section-44a33beaad3a" class="markdown-section">
+<h2>시뮬레이션 결과가 뜻하는 것</h2>
+<p>두 모드 모두 A·B·C는 <code>waiting → running → finished</code>를 거쳤고 각 요청의 계산 내용도 같았다. 달라진 것은 C를 실행 Batch에 넣을 수 있는 시점이다.</p>
+<pre><code class="language-text">Continuous: 완료된 요청의 자리를 다음 Iteration에 재사용
+Static: 현재 그룹 전체가 끝난 뒤 다음 그룹 시작
+</code></pre>
+<p>이 결과는 실제 서버 Trace에서 확인할 예상 패턴을 만들었다. 실제 vLLM에서도 B 완료 직후 C가 running으로 들어오고, 같은 Scheduling 결과에서 A Decode와 C Prefill이 함께 선택되는지를 확인하면 된다.</p>
+
+</section>
+<section id="section-82812ca00d72" class="markdown-section">
+<h2>코드와 전체 질문 기록</h2>
+<ul>
+<li>가짜 Scheduler 전체 코드와 질문·답변</li>
+<li>A·B·C 실행과 Static·Continuous 이해 기록</li>
+<li>분할 전 전체 학습 원문</li>
+</ul>
+<p>이전: 핵심 개념 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: 실제 서버와 TracingScheduler</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

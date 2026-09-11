@@ -1,0 +1,235 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.md. Do not edit directly. source-sha256:2d7533f40587949d3d349100ee4700b5460c07400bfa846cc1144c6dcb858d08 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="동일한 vLLM 서버에서 요청 제출 시점을 달리해 정적 제출과 Continuous 제출의 차이를 비교합니다.">
+  <meta name="source-sha256" content="2d7533f40587949d3d349100ee4700b5460c07400bfa846cc1144c6dcb858d08">
+  <title>Static-like 제출과 Continuous 제출 비교</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Static-like 제출과 Continuous 제출 비교">
+  <meta property="og:description" content="동일한 vLLM 서버에서 요청 제출 시점을 달리해 정적 제출과 Continuous 제출의 차이를 비교합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html","name":"Static-like 제출과 Continuous 제출 비교","description":"동일한 vLLM 서버에서 요청 제출 시점을 달리해 정적 제출과 Continuous 제출의 차이를 비교합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html"},"headline":"Static-like 제출과 Continuous 제출 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_submission_comparison.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"Static-like 제출과 Continuous 제출 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Static-like 제출과 Continuous 제출 비교</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Static-like 제출과 Continuous 제출 비교</h1>
+      <p class="lead">동일한 vLLM 서버에서 요청 제출 시점을 달리해 정적 제출과 Continuous 제출의 차이를 비교합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-923a55d5510e">무엇을 비교했는가</a>
+        <a href="#tuple">Tuple로 그룹을 표현한 이유</a>
+        <a href="#threadpoolexecutor-future"><code>ThreadPoolExecutor</code>와 <code>Future</code></a>
+        <a href="#section-3732d05c32cd">측정값의 의미</a>
+        <a href="#section-59f139d2d3e6">실제 결과</a>
+        <a href="#ttft">TTFT가 짧다고 항상 더 좋은 결과는 아니다</a>
+        <a href="#trace">Trace로 다시 확인한 차이</a>
+        <a href="#section-b09fdbd13084">해석의 한계</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이전: Trace 해석 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: 결과와 완료 근거</p>
+</div>
+        <section id="section-923a55d5510e" class="markdown-section">
+<h2>무엇을 비교했는가</h2>
+<p>서버는 두 실험 모두 동일한 vLLM Continuous Batching 서버다. 비교한 것은 Server Scheduler 모드가 아니라 Client의 요청 제출 방식이다.</p>
+<pre><code class="language-python">submission_groups = {
+    &quot;static&quot;: ((&quot;A&quot;, &quot;B&quot;), (&quot;C&quot;,)),
+    &quot;continuous&quot;: ((&quot;A&quot;, &quot;B&quot;, &quot;C&quot;),),
+}
+</code></pre>
+<ul>
+<li>Static-like: A와 B를 동시에 보낸 뒤 둘 다 완료되면 C를 보낸다.</li>
+<li>Continuous: A, B, C를 거의 동시에 보낸다.</li>
+</ul>
+<p>따라서 이 실험은 “Static Scheduler 구현과 vLLM Scheduler 구현의 성능 비교”가 아니다. 요청을 늦게 제출해 고정 그룹 경계를 흉내 낸 경우와, waiting queue에 미리 넣어 vLLM이 빈 자리를 채울 수 있게 한 경우의 비교다.</p>
+
+</section>
+<section id="tuple" class="markdown-section">
+<h2>Tuple로 그룹을 표현한 이유</h2>
+<p>바깥 Tuple은 제출 순서를, 안쪽 Tuple은 동시에 제출할 요청들을 뜻한다.</p>
+<pre><code class="language-text">((A, B), (C,))
+→ 1그룹 A·B 동시 제출
+→ 두 요청 모두 완료 대기
+→ 2그룹 C 제출
+</code></pre>
+<p><code>(&quot;C&quot;,)</code>의 쉼표는 한 원소 Tuple을 만드는 Python 문법이다. 쉼표가 없으면 괄호로 감싼 문자열일 뿐이다.</p>
+
+</section>
+<section id="threadpoolexecutor-future" class="markdown-section">
+<h2><code>ThreadPoolExecutor</code>와 <code>Future</code></h2>
+<p>한 그룹 안의 요청은 <code>executor.submit()</code>으로 각각 별도 Thread에 제출한다.</p>
+<pre><code class="language-python">group_futures = {
+    label: executor.submit(send_request, label)
+    for label in group
+}
+</code></pre>
+<p><code>submit()</code>은 함수를 즉시 실행 예약하고, 완료 결과를 나중에 받을 <code>Future</code>를 반환한다. A를 제출한 뒤 A가 끝날 때까지 기다리지 않고 바로 B도 제출하므로 두 요청이 겹친다.</p>
+<p>그다음 그룹의 모든 <code>Future.result()</code>를 호출한다.</p>
+<pre><code class="language-python">for label, future in group_futures.items():
+    mode_results[label] = future.result()
+</code></pre>
+<p><code>result()</code>는 아직 실행 중이면 그 요청이 끝날 때까지 기다린다. 이 반복이 끝났다는 것은 현재 그룹의 모든 요청이 완료됐다는 뜻이므로, 바깥 반복이 다음 그룹 C를 제출할 수 있다.</p>
+
+</section>
+<section id="section-3732d05c32cd" class="markdown-section">
+<h2>측정값의 의미</h2>
+<ul>
+<li><code>sent_at</code>: Client 함수가 요청 전송을 시작한 시각</li>
+<li><code>first_content_at</code>: 첫 번째 비어 있지 않은 Streaming content를 받은 시각</li>
+<li><code>completed_at</code>: Streaming 응답이 끝난 시각</li>
+<li><code>TTFT</code>: <code>first_content_at - sent_at</code></li>
+<li><code>makespan</code>: 실험 시작부터 모든 요청이 완료될 때까지의 시간</li>
+</ul>
+<p>이 시간은 Client가 본 경계다. 정확한 서버 도착, Scheduler 수용, GPU 커널 시작 시각은 Trace와 함께 해석해야 한다.</p>
+
+</section>
+<section id="section-59f139d2d3e6" class="markdown-section">
+<h2>실제 결과</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>요청</th>
+<th align="right">전송</th>
+<th align="right">첫 내용</th>
+<th align="right">완료</th>
+<th align="right">TTFT</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Static-like</td>
+<td>A</td>
+<td align="right">0.000초</td>
+<td align="right">0.023초</td>
+<td align="right">6.782초</td>
+<td align="right">0.022초</td>
+</tr>
+<tr>
+<td>Static-like</td>
+<td>B</td>
+<td align="right">0.001초</td>
+<td align="right">0.037초</td>
+<td align="right">1.722초</td>
+<td align="right">0.036초</td>
+</tr>
+<tr>
+<td>Static-like</td>
+<td>C</td>
+<td align="right">6.783초</td>
+<td align="right">6.808초</td>
+<td align="right">10.177초</td>
+<td align="right">0.025초</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>A</td>
+<td align="right">0.000초</td>
+<td align="right">0.041초</td>
+<td align="right">6.811초</td>
+<td align="right">0.041초</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>B</td>
+<td align="right">0.001초</td>
+<td align="right">0.043초</td>
+<td align="right">1.729초</td>
+<td align="right">0.042초</td>
+</tr>
+<tr>
+<td>Continuous</td>
+<td>C</td>
+<td align="right">0.002초</td>
+<td align="right">1.756초</td>
+<td align="right">5.147초</td>
+<td align="right">1.754초</td>
+</tr>
+</tbody></table>
+</div>
+<p>Static-like에서는 C를 늦게 보냈기 때문에 TTFT 자체는 짧지만 전체 완료는 10.177초였다. Continuous에서는 C를 처음부터 제출해 waiting 시간이 TTFT에 포함되어 1.754초가 됐지만, B가 끝난 뒤 A와 겹쳐 처리되어 5.147초에 완료됐다. 전체 Makespan도 6.811초로 줄었다.</p>
+
+</section>
+<section id="ttft" class="markdown-section">
+<h2>TTFT가 짧다고 항상 더 좋은 결과는 아니다</h2>
+<p>Static-like C의 TTFT가 0.025초인 이유는 서버가 한가해질 때까지 Client가 요청 자체를 보내지 않았기 때문이다. 사용자 요청이 실제로 0초에 생겼다고 본다면 그 앞의 6.783초가 사라진 것이 아니라 Client 측 제출 지연으로 이동한 것이다.</p>
+<p>따라서 시스템 비교에서는 요청이 실제로 생긴 시점, 서버에 제출한 시점, Queue에서 기다린 시간, 첫 토큰 수신 시점, 모든 요청의 완료 시점을 함께 봐야 한다.</p>
+
+</section>
+<section id="trace" class="markdown-section">
+<h2>Trace로 다시 확인한 차이</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th align="right">Schedule 수</th>
+<th align="right">Trace 누적 끝 Index</th>
+<th>C 실행 방식</th>
+<th align="right">전체 완료</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>7e6bb79d-static</code></td>
+<td align="right">772</td>
+<td align="right">1028</td>
+<td>A·B 완료 뒤 C 제출</td>
+<td align="right">10.177초</td>
+</tr>
+<tr>
+<td><code>9978a6ea-continuous</code></td>
+<td align="right">514</td>
+<td align="right">1416</td>
+<td>B 완료 뒤 A와 C 중첩</td>
+<td align="right">6.811초</td>
+</tr>
+</tbody></table>
+</div>
+<p>Continuous Run에서 C는 처음부터 waiting에 있었고 B 완료 직후 running으로 들어갔다. Static-like Run에서는 C 요청이 그 전에 존재하지 않았으므로 Scheduler가 빈 자리에 넣을 수 없었다.</p>
+
+</section>
+<section id="section-b09fdbd13084" class="markdown-section">
+<h2>해석의 한계</h2>
+<p>이 수치는 한 모델, 한 GPU, 한 요청 조합, 한 실행의 결과다. 모든 부하에서 같은 비율의 성능 향상을 보장하지 않는다. 이번 실습에서 직접 확인한 것은 빈 Sequence 자리를 waiting 요청이 Iteration 경계에서 채우고, 요청을 미리 제출하면 뒤 요청이 앞의 긴 요청과 겹쳐 실행될 수 있다는 점이다.</p>
+<p>동시성별 처리량과 지연 분포를 일반화하려면 별도의 반복 측정이 필요하다.</p>
+<p>이전: Trace 해석 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: 결과와 완료 근거</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

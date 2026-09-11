@@ -1,0 +1,173 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.md. Do not edit directly. source-sha256:ab0291d4e8b0500b080f4c8a69efc07d55f8b90b39a7b043625767d1e69e3594 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="실제 단일 GPU vLLM 서버에 커스텀 Scheduler를 주입하고 요청 상태와 배정 결과를 기록합니다.">
+  <meta name="source-sha256" content="ab0291d4e8b0500b080f4c8a69efc07d55f8b90b39a7b043625767d1e69e3594">
+  <title>실제 vLLM 서버와 TracingScheduler</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="실제 vLLM 서버와 TracingScheduler">
+  <meta property="og:description" content="실제 단일 GPU vLLM 서버에 커스텀 Scheduler를 주입하고 요청 상태와 배정 결과를 기록합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html","name":"실제 vLLM 서버와 TracingScheduler","description":"실제 단일 GPU vLLM 서버에 커스텀 Scheduler를 주입하고 요청 상태와 배정 결과를 기록합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html"},"headline":"실제 vLLM 서버와 TracingScheduler","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_vllm_server.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"실제 vLLM 서버와 TracingScheduler"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">실제 vLLM 서버와 TracingScheduler</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>실제 vLLM 서버와 TracingScheduler</h1>
+      <p class="lead">실제 단일 GPU vLLM 서버에 커스텀 Scheduler를 주입하고 요청 상태와 배정 결과를 기록합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9b5ef950d977">실제 서버 조건을 고정한다</a>
+        <a href="#section-0900521edada">왜 기본 로그만으로 부족했는가</a>
+        <a href="#super">상속, 재정의와 <code>super()</code></a>
+        <a href="#writefile"><code>%%writefile</code>에서 서버 주입까지</a>
+        <a href="#section-953d07d0d7d8">파일 로그는 어디에 남는가</a>
+        <a href="#vllm">vLLM 버전 계약을 확인한다</a>
+        <a href="#docker-helm">Docker와 Helm에서는 어떻게 배포하는가</a>
+        <a href="#section-83992bbd5a15">객체 로컬 상태와 분산 실행</a>
+        <a href="#section-71ba981f7c39">구현 자료</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이전: Scheduler 시뮬레이션 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: Trace 해석</p>
+</div>
+        <section id="section-9b5ef950d977" class="markdown-section">
+<h2>실제 서버 조건을 고정한다</h2>
+<p>시뮬레이션 다음에는 실제 단일 GPU vLLM 서버를 같은 모델과 생성 조건으로 실행했다. 모델 Artifact와 Revision을 고정하고, GPU 수, <code>max_num_seqs</code>, <code>max_num_batched_tokens</code>, 생성 길이와 샘플링 조건을 명시했다.</p>
+<p>여기서 중요한 vLLM 옵션은 다음과 대응한다.</p>
+<ul>
+<li><code>max_num_seqs</code>: Scheduler가 동시에 실행 대상으로 둘 수 있는 최대 Sequence 수</li>
+<li><code>max_num_batched_tokens</code>: 한 Scheduling 단계에서 배정할 수 있는 최대 Token Budget</li>
+<li><code>gpu_memory_utilization</code>: 모델 가중치, KV Cache와 실행 공간을 포함한 GPU 메모리 계획의 상한 비율</li>
+<li><code>enable_chunked_prefill</code>: 긴 Prefill을 여러 Scheduling 단계로 나눌지 여부</li>
+<li><code>scheduler_cls</code>: 기본 Scheduler 대신 사용할 확장 Scheduler 클래스</li>
+</ul>
+<p>이번 실습은 기본 Lifecycle 관찰이 목적이므로 Pressure나 Preemption이 실험을 흐리지 않는 조건을 사용했다.</p>
+
+</section>
+<section id="section-0900521edada" class="markdown-section">
+<h2>왜 기본 로그만으로 부족했는가</h2>
+<p><code>/metrics</code>는 Running과 Waiting 요청 수를 제공하지만, 요청 ID별로 이번 Iteration에 실제 몇 토큰을 배정했는지는 보여주지 않는다. Server Terminal의 주기적 통계 로그도 같은 한계가 있다.</p>
+<p>따라서 기본 Scheduler의 결정을 바꾸지 않으면서 다음 값을 기록할 관찰 지점이 필요했다.</p>
+<ul>
+<li>Scheduling 직전의 waiting·running 요청 ID</li>
+<li>원래 Scheduler가 선택한 요청별 토큰 수</li>
+<li>Scheduling 직후의 waiting·running 요청 ID</li>
+<li>직전 단계 이후 완료된 요청</li>
+<li>Preempt된 요청</li>
+</ul>
+
+</section>
+<section id="super" class="markdown-section">
+<h2>상속, 재정의와 <code>super()</code></h2>
+<p><code>TracingScheduler</code>는 <code>AsyncScheduler</code>를 상속한다. <code>schedule()</code>은 부모에 원래 존재하는 메서드이며, 자식 클래스가 같은 이름으로 다시 정의해 동작을 확장했다.</p>
+<pre><code class="language-python">class TracingScheduler(AsyncScheduler):
+    def schedule(self) -&gt; SchedulerOutput:
+        waiting_before = ...
+        running_before = ...
+
+        scheduler_output = super().schedule()
+
+        record = ...
+        write_jsonl(record)
+
+        return scheduler_output
+</code></pre>
+<p><code>super().schedule()</code> 때문에 요청 선택은 부모 vLLM Scheduler의 실제 구현이 수행한다. 자식 클래스는 그 전후를 관찰하고 원래 <code>SchedulerOutput</code>을 그대로 반환한다. 따라서 필터처럼 요청 앞을 가로채는 별도 계층이라기보다, Scheduler 구현 자체를 관찰 기능이 있는 하위 클래스로 교체하는 구조다.</p>
+<p>Python에서는 Java의 <code>@Override</code> 같은 어노테이션이 필수가 아니다. 같은 이름의 메서드를 정의하면 런타임 다형성으로 재정의된다. 정적 검사를 강화하려면 별도 <code>@override</code> 도구를 사용할 수 있지만 동작 조건은 아니다.</p>
+
+</section>
+<section id="writefile" class="markdown-section">
+<h2><code>%%writefile</code>에서 서버 주입까지</h2>
+<p>Notebook의 다음 지시문은 셀 본문을 Python 파일로 저장한다.</p>
+<pre><code class="language-python">%%writefile scheduler_trace.py
+</code></pre>
+<p>그 뒤 서버 프로세스가 모듈을 찾을 수 있도록 파일의 상위 디렉터리를 <code>PYTHONPATH</code>에 넣고 클래스를 지정한다.</p>
+<pre><code class="language-bash">PYTHONPATH=&lt;scheduler-module-directory&gt; \
+vllm serve ... \
+  --scheduler-cls scheduler_trace.TracingScheduler
+</code></pre>
+<p><code>scheduler_trace</code>는 파일명, <code>TracingScheduler</code>는 그 파일 안의 클래스명이다. 현재 작업 디렉터리와 무관하게 <code>PYTHONPATH</code>가 올바르면 Import할 수 있다.</p>
+
+</section>
+<section id="section-953d07d0d7d8" class="markdown-section">
+<h2>파일 로그는 어디에 남는가</h2>
+<p>확장 Scheduler는 Terminal에 모든 기록을 출력하지 않고 JSONL 파일에 쓴다. 각 <code>schedule()</code> 호출마다 JSON 객체 하나가 한 줄로 추가된다. 따라서 Server Terminal에 특별한 출력이 없어도 Trace 파일이 늘었다면 확장 코드가 동작한 것이다.</p>
+<p>기록 파일: scheduler_request_lifecycle_trace.jsonl</p>
+
+</section>
+<section id="vllm" class="markdown-section">
+<h2>vLLM 버전 계약을 확인한다</h2>
+<p>내부 클래스는 공개 API보다 버전 변화에 민감하다. 실제 실행 중 부모 Scheduler의 필드·생성자 계약이 예상과 달라 오류가 발생했고, 설치된 vLLM 버전의 <code>AsyncScheduler</code> Signature와 실제 속성을 확인해 확장 코드를 맞췄다.</p>
+<p>이 경험이 보여준 원칙은 다음과 같다.</p>
+<ol>
+<li>내부 클래스를 상속하면 대상 vLLM 버전을 고정한다.</li>
+<li>실행 전에 부모 <code>__init__</code>과 <code>schedule()</code> Signature를 확인한다.</li>
+<li>Trace에서 읽는 필드가 그 버전에 존재하는지 확인한다.</li>
+<li>업그레이드 시 작은 호환성 테스트를 먼저 실행한다.</li>
+</ol>
+
+</section>
+<section id="docker-helm" class="markdown-section">
+<h2>Docker와 Helm에서는 어떻게 배포하는가</h2>
+<p><code>scheduler_trace.py</code>가 서버 컨테이너 안에 있어야 하므로 운영 배포에서는 두 방식 중 하나를 사용한다.</p>
+<ol>
+<li>vLLM 기반 이미지에 확장 모듈을 포함한 커스텀 이미지를 만든다.</li>
+<li>ConfigMap이나 Volume으로 모듈을 Mount하고 <code>PYTHONPATH</code>를 설정한다.</li>
+</ol>
+<p>Helm의 <code>command</code>와 <code>args</code>에는 <code>--scheduler-cls scheduler_trace.TracingScheduler</code>를 넣는다. 중요한 것은 vLLM 자체를 Fork하는 것이 아니라, 제공된 Scheduler 확장 지점에 호환되는 클래스를 배포 Artifact와 함께 넣는 것이다.</p>
+
+</section>
+<section id="section-83992bbd5a15" class="markdown-section">
+<h2>객체 로컬 상태와 분산 실행</h2>
+<p><code>trace_schedule_index</code>는 vLLM이 제공한 전역 메타데이터가 아니라 <code>TracingScheduler</code> 인스턴스에 직접 추가한 카운터다. <code>__init__</code>에서 0으로 만들고 <code>schedule()</code> 호출마다 1씩 증가시킨다.</p>
+<p>이 카운터가 객체 로컬이라는 사실은 vLLM이 다중 GPU를 지원하지 못한다는 뜻이 아니다. Tensor Parallel, Pipeline Parallel, Data Parallel은 모델 연산과 Replica 배치 구조의 문제다. 관찰 카운터는 해당 Scheduler 프로세스가 본 호출 순서를 기록할 뿐이며, 여러 Replica를 합쳐 분석하려면 Session ID, Replica ID와 시각을 함께 사용해야 한다.</p>
+
+</section>
+<section id="section-71ba981f7c39" class="markdown-section">
+<h2>구현 자료</h2>
+<ul>
+<li>실제 TracingScheduler 코드</li>
+<li>실행 Notebook</li>
+<li>Server Terminal Log</li>
+</ul>
+<p>이전: Scheduler 시뮬레이션 · <a href="vllm_scheduler_request_lifecycle_results.html">상위 문서</a> · 다음: Trace 해석</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
