@@ -1,0 +1,193 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/corpus_statistics.md. Do not edit directly. source-sha256:393793ddcb7cb066744b795ade5b65dd51fa33bc444eb0bfd4bd9f99ef5d65d4 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="텍스트 코퍼스의 크기·길이·빈도·분포를 분석하는 방법과 이를 LLM Serving의 요청 길이 분포 및 실제 workload 기반 vLLM benchmark에 연결하는 관점을 정리합니다.">
+  <meta name="source-sha256" content="393793ddcb7cb066744b795ade5b65dd51fa33bc444eb0bfd4bd9f99ef5d65d4">
+  <title>코퍼스 통계란 무엇인가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="코퍼스 통계란 무엇인가">
+  <meta property="og:description" content="텍스트 코퍼스의 크기·길이·빈도·분포를 분석하는 방법과 이를 LLM Serving의 요청 길이 분포 및 실제 workload 기반 vLLM benchmark에 연결하는 관점을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html","name":"코퍼스 통계란 무엇인가","description":"텍스트 코퍼스의 크기·길이·빈도·분포를 분석하는 방법과 이를 LLM Serving의 요청 길이 분포 및 실제 workload 기반 vLLM benchmark에 연결하는 관점을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html"},"headline":"코퍼스 통계란 무엇인가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/corpus_statistics.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"코퍼스 통계란 무엇인가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">코퍼스 통계란 무엇인가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>코퍼스 통계란 무엇인가</h1>
+      <p class="lead">텍스트 코퍼스의 크기·길이·빈도·분포를 분석하는 방법과 이를 LLM Serving의 요청 길이 분포 및 실제 workload 기반 vLLM benchmark에 연결하는 관점을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-22ed13cb0310">왜 코퍼스 통계를 확인하는가</a>
+        <a href="#llm">LLM에서는 어떻게 활용되는가</a>
+        <a href="#llm-serving">LLM Serving과의 관계</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>코퍼스(Corpus)는 자연어 처리나 LLM에서 사용하는 <strong>텍스트 데이터의 집합</strong>을 의미한다.</p>
+<p>예를 들어 다음과 같은 데이터가 있다면,</p>
+<pre><code class="language-text">문서 1: 나는 사과를 먹었다.
+문서 2: 나는 바나나를 먹었다.
+문서 3: 철수는 사과를 먹었다.
+</code></pre>
+<p>이 세 문서 전체가 하나의 코퍼스가 될 수 있다.</p>
+<p>코퍼스 통계(Corpus Statistics)는 이러한 텍스트 데이터가 <strong>어떤 형태와 분포를 가지고 있는지 숫자로 분석한 정보</strong>이다.</p>
+<p>대표적으로 다음과 같은 통계를 확인할 수 있다.</p>
+<ul>
+<li>전체 문서 수</li>
+<li>전체 문장 수</li>
+<li>전체 단어 또는 토큰 수</li>
+<li>고유 단어 또는 토큰 수</li>
+<li>단어별 등장 빈도</li>
+<li>평균 문서 길이</li>
+<li>문서 길이의 중앙값</li>
+<li>최대·최소 문서 길이</li>
+<li>문서 길이 분포</li>
+<li>언어별 데이터 비율</li>
+<li>주제별 데이터 비율</li>
+<li>중복 데이터 비율</li>
+</ul>
+<p>예를 들어 어떤 코퍼스를 분석했을 때 다음과 같은 결과가 나올 수 있다.</p>
+<pre><code class="language-text">전체 문서 수: 100,000개
+전체 토큰 수: 5,000만 개
+
+평균 문서 길이: 500 tokens
+문서 길이 중앙값: 320 tokens
+
+문서 길이 분포
+0~500 tokens: 60%
+500~1,000 tokens: 25%
+1,000~2,000 tokens: 10%
+2,000 tokens 이상: 5%
+</code></pre>
+<p>이 통계를 통해 단순히 &quot;데이터가 10만 개 있다&quot;는 것뿐만 아니라, <strong>실제 데이터가 짧은 문서 위주인지, 긴 문서가 많이 포함되어 있는지, 특정 형태에 편중되어 있는지</strong> 등을 파악할 수 있다.</p>
+</div>
+        <section id="section-22ed13cb0310" class="markdown-section">
+<h2>왜 코퍼스 통계를 확인하는가</h2>
+<p>코퍼스 통계의 핵심 목적은 데이터를 사용하기 전에 <strong>데이터의 전체적인 특성을 이해하는 것</strong>이다.</p>
+<p>예를 들어 평균 문서 길이만 보면 1,000 tokens라고 하더라도 실제 분포가 다음처럼 다를 수 있다.</p>
+<pre><code class="language-text">코퍼스 A
+대부분 800~1,200 tokens
+
+코퍼스 B
+대부분 100~300 tokens
+일부 문서는 10,000~20,000 tokens
+</code></pre>
+<p>두 코퍼스의 평균 길이는 비슷할 수 있지만 실제 데이터의 성격은 크게 다르다.</p>
+<p>따라서 평균뿐만 아니라 중앙값, p95, p99, 길이 분포 등을 함께 보는 것이 중요하다.</p>
+
+</section>
+<section id="llm" class="markdown-section">
+<h2>LLM에서는 어떻게 활용되는가</h2>
+<p>LLM 학습에서는 코퍼스 통계를 통해 학습 데이터의 구성을 확인할 수 있다.</p>
+<p>예를 들어 다음과 같은 질문에 답할 수 있다.</p>
+<pre><code class="language-text">학습 데이터는 얼마나 많은가?
+문서는 평균적으로 얼마나 긴가?
+매우 긴 문서는 얼마나 존재하는가?
+특정 언어나 주제에 데이터가 편중되어 있는가?
+중복 데이터가 얼마나 존재하는가?
+</code></pre>
+<p>이러한 정보는 데이터 전처리, sequence length 결정, 학습 데이터 구성 등에 활용될 수 있다.</p>
+
+</section>
+<section id="llm-serving" class="markdown-section">
+<h2>LLM Serving과의 관계</h2>
+<p>여기서 코퍼스 통계와 비슷한 개념을 실제 서비스 요청에도 적용할 수 있다.</p>
+<p>예를 들어 LLM 서비스의 요청 로그를 분석해서 다음과 같은 정보를 얻었다고 하자.</p>
+<pre><code class="language-text">Input Length
+
+p50: 500 tokens
+p95: 2,000 tokens
+p99: 8,000 tokens
+</code></pre>
+<p>그러면 실제 서비스에서는 대부분의 요청이 500~2,000 tokens 정도이고, 일부 요청만 8,000 tokens 정도까지 올라간다는 것을 알 수 있다.</p>
+<p>이러한 정보를 이용하면 vLLM 성능 테스트에서도 모든 요청을 임의로 8,000 tokens로 설정하는 대신 실제 서비스와 비슷한 길이 분포를 재현할 수 있다.</p>
+<pre><code class="language-text">실제 서비스 요청
+        ↓
+길이와 분포 분석
+        ↓
+실제 요청 특성 파악
+        ↓
+비슷한 Workload 생성
+        ↓
+vLLM Benchmark
+</code></pre>
+<p>이렇게 해야 실제 환경과 가까운 TTFT, TPOT, Throughput, KV Cache 사용량 등을 측정할 수 있다.</p>
+<p>다만 이 경우 엄밀한 용어로는 코퍼스 통계보다는 <strong>Workload Statistics</strong>, <strong>Request Statistics</strong>, <strong>Request Length Distribution</strong>이라고 표현하는 것이 더 정확하다.</p>
+<p>코퍼스 통계는 기본적으로 <strong>텍스트 데이터셋 자체를 분석하는 개념</strong>이고, 실제 서비스 요청을 분석하는 것은 그 아이디어를 workload 분석에 적용한 것이라고 이해하면 된다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>코퍼스 통계란</p>
+<blockquote>
+<p>텍스트 데이터 집합의 크기, 길이, 빈도, 비율, 분포 등을 숫자로 분석하여 데이터가 어떤 특성을 가지고 있는지 파악하는 것이다.</p>
+</blockquote>
+<p>쉽게 표현하면 다음과 같다.</p>
+<pre><code class="language-text">Corpus
+= 분석 대상이 되는 텍스트 데이터
+
+Corpus Statistics
+= 그 텍스트 데이터가 어떻게 구성되어 있는지 보여주는 숫자
+</code></pre>
+<p>LLM 관점에서는 다음과 같이 연결해서 생각할 수 있다.</p>
+<pre><code class="language-text">Corpus
+   ↓
+Corpus Statistics
+   ↓
+데이터의 길이·빈도·분포 파악
+   ↓
+학습 데이터 특성 이해
+</code></pre>
+<p>실제 LLM Serving에서는 비슷한 방식으로</p>
+<pre><code class="language-text">Request Log
+   ↓
+Workload Statistics
+   ↓
+Input / Output Length Distribution
+   ↓
+실제 Workload를 반영한 Benchmark
+   ↓
+TTFT / TPOT / Throughput / KV Cache 분석
+</code></pre>
+<p>으로 연결된다.</p>
+<p>따라서 핵심은 &quot;<strong>데이터를 그냥 가지고 있는 것이 아니라, 그 데이터가 실제로 어떤 모습인지 숫자로 파악하는 것</strong>&quot;이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
