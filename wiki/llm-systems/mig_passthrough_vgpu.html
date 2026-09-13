@@ -1,0 +1,208 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/mig_passthrough_vgpu.md. Do not edit directly. source-sha256:e59cf4a269ca4002ce61f907910ae7ba00da82479067424905c62814e1a14546 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MIG의 GPU 내부 분할, Full PCI Passthrough의 물리 장치 전달, MIG-backed vGPU의 VM 배분 차이를 설명합니다.">
+  <meta name="source-sha256" content="e59cf4a269ca4002ce61f907910ae7ba00da82479067424905c62814e1a14546">
+  <title>MIG·PCI Passthrough·vGPU는 무엇을 나누는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="MIG·PCI Passthrough·vGPU는 무엇을 나누는가">
+  <meta property="og:description" content="MIG의 GPU 내부 분할, Full PCI Passthrough의 물리 장치 전달, MIG-backed vGPU의 VM 배분 차이를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html","name":"MIG·PCI Passthrough·vGPU는 무엇을 나누는가","description":"MIG의 GPU 내부 분할, Full PCI Passthrough의 물리 장치 전달, MIG-backed vGPU의 VM 배분 차이를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html"},"headline":"MIG·PCI Passthrough·vGPU는 무엇을 나누는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/mig_passthrough_vgpu.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"MIG·PCI Passthrough·vGPU는 무엇을 나누는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">MIG·PCI Passthrough·vGPU는 무엇을 나누는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>MIG·PCI Passthrough·vGPU는 무엇을 나누는가</h1>
+      <p class="lead">MIG의 GPU 내부 분할, Full PCI Passthrough의 물리 장치 전달, MIG-backed vGPU의 VM 배분 차이를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#mig-gpu-hardware-resource">MIG는 한 물리 GPU 내부의 Hardware Resource를 나눈다</a>
+        <a href="#bare-metal-kubernetes-mig">Bare-metal Kubernetes에서의 일반적인 MIG 흐름</a>
+        <a href="#full-pci-passthrough-mig">Full PCI Passthrough와 MIG의 관계</a>
+        <a href="#pci-passthrough-mig-instance-vm">일반 PCI Passthrough로 MIG Instance 하나씩 여러 VM에 줄 수 없는 이유</a>
+        <a href="#vm-vgpu">여러 VM에 나누려면 vGPU 계층이 필요하다</a>
+        <a href="#section-0e66a32b772b">세 방식의 차이</a>
+        <a href="#section-f9dd421744cc">처음 가설을 다듬으면</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>MIG는 물리 GPU를 여러 GPU처럼 나누므로, 나뉜 MIG Instance를 서로 다른 VM에 PCI Passthrough할 수 있을 것처럼 느껴진다. 하지만 MIG의 분할 단위와 PCI Passthrough의 할당 단위는 다르다.</p>
+
+</section>
+<section id="mig-gpu-hardware-resource" class="markdown-section">
+<h2>MIG는 한 물리 GPU 내부의 Hardware Resource를 나눈다</h2>
+<p>MIG는 <code>Multi-Instance GPU</code>의 약자다. 지원되는 NVIDIA GPU 내부의 Compute와 Memory Resource를 격리된 Instance로 분할한다.</p>
+<pre><code class="language-text">Physical GPU 하나
+├─ MIG Instance 0
+├─ MIG Instance 1
+└─ MIG Instance 2
+</code></pre>
+<p>각 Instance는 독립적인 Compute와 Memory 자원을 제공하지만, 일반적인 의미에서 별도의 물리 PCI Card가 생기는 것은 아니다.</p>
+<pre><code class="language-text">공유하는 것
+→ 물리 GPU, Parent PCI Device, Host Driver
+
+분리되는 것
+→ 할당된 Compute·Memory Resource와 실행 격리 경계
+</code></pre>
+
+</section>
+<section id="bare-metal-kubernetes-mig" class="markdown-section">
+<h2>Bare-metal Kubernetes에서의 일반적인 MIG 흐름</h2>
+<p>Kubernetes Node가 물리 GPU를 직접 소유한 경우 다음 흐름을 사용한다.</p>
+<pre><code class="language-text">물리 GPU가 Node의 NVIDIA Driver에 연결
+→ MIG Manager가 GPU를 MIG Mode와 Profile로 구성
+→ NVIDIA Device Plugin이 MIG Instance를 Resource로 광고
+→ Scheduler가 Pod에 MIG Resource 할당
+</code></pre>
+<p>Kubernetes에는 MIG Instance가 여러 Resource처럼 보이지만, 이는 Scheduler용 Resource 표현이다. 각각이 독립 PCI Device가 되었다는 뜻은 아니다.</p>
+
+</section>
+<section id="full-pci-passthrough-mig" class="markdown-section">
+<h2>Full PCI Passthrough와 MIG의 관계</h2>
+<p>물리 GPU 전체를 VM 하나에 PCI Passthrough할 수 있다.</p>
+<pre><code class="language-text">Physical GPU 전체
+→ vfio-pci
+→ VM A
+→ Guest NVIDIA Driver
+→ Guest 안에서 MIG 구성
+</code></pre>
+<p>이 경우 생성된 MIG Instance는 모두 VM A 내부에 속한다. Host나 다른 VM이 그 MIG Instance를 하나씩 가져가는 구조가 아니다.</p>
+
+</section>
+<section id="pci-passthrough-mig-instance-vm" class="markdown-section">
+<h2>일반 PCI Passthrough로 MIG Instance 하나씩 여러 VM에 줄 수 없는 이유</h2>
+<p>Full PCI Passthrough의 단위는 Host가 소유권을 넘길 수 있는 PCI Function이다. MIG Instance는 일반적으로 각각 독립된 물리 PCI Function으로 나타나지 않으므로 다음 구조는 일반 Full Passthrough만으로 만들 수 없다.</p>
+<pre><code class="language-text">MIG Instance 0 → VM A
+MIG Instance 1 → VM B
+MIG Instance 2 → VM C
+</code></pre>
+
+</section>
+<section id="vm-vgpu" class="markdown-section">
+<h2>여러 VM에 나누려면 vGPU 계층이 필요하다</h2>
+<p>NVIDIA vGPU는 Hypervisor와 NVIDIA vGPU Manager를 통해 물리 GPU 자원을 여러 VM에 가상 장치로 제공한다. 지원되는 GPU·Hypervisor·License 조합에서는 MIG-backed vGPU를 만들어 개별 MIG Slice 기반 vGPU를 서로 다른 VM에 제공할 수 있다.</p>
+<pre><code class="language-text">Physical GPU
+→ MIG 분할
+→ NVIDIA vGPU Manager
+├─ MIG-backed vGPU → VM A
+├─ MIG-backed vGPU → VM B
+└─ MIG-backed vGPU → VM C
+</code></pre>
+<p>이는 일반 PCI Passthrough가 아니라 NVIDIA의 중재 및 가상화 Stack을 사용하는 별도 구조다.</p>
+
+</section>
+<section id="section-0e66a32b772b" class="markdown-section">
+<h2>세 방식의 차이</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>나누는 단위</th>
+<th>여러 사용자에게 배분</th>
+<th>Driver 경계</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Full PCI Passthrough</td>
+<td>물리 PCI GPU 전체</td>
+<td>GPU 하나당 보통 VM 하나</td>
+<td>Guest가 NVIDIA Driver 사용</td>
+</tr>
+<tr>
+<td>MIG on bare-metal Kubernetes</td>
+<td>GPU 내부 MIG Instance</td>
+<td>여러 Pod</td>
+<td>Node Driver 공유</td>
+</tr>
+<tr>
+<td>MIG-backed vGPU</td>
+<td>MIG 기반 가상 GPU</td>
+<td>여러 VM</td>
+<td>Host vGPU Manager와 Guest vGPU Driver</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-f9dd421744cc" class="markdown-section">
+<h2>처음 가설을 다듬으면</h2>
+<p>다음 이해는 맞다.</p>
+<blockquote>
+<p>일반적인 Bare-metal Kubernetes 환경에서는 GPU 전체가 Node에 연결되고, Node에서 MIG를 구성한 다음 Kubernetes가 MIG Resource를 Pod에 나누어 준다.</p>
+</blockquote>
+<p>다만 다음은 구분해야 한다.</p>
+<blockquote>
+<p>GPU 전체를 VM에 PCI Passthrough하면 MIG를 나누더라도 그 Instance들은 해당 VM 안에 머문다. MIG Instance를 여러 VM에 하나씩 주려면 일반 Passthrough가 아니라 지원되는 MIG-backed vGPU 구성이 필요하다.</p>
+</blockquote>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>MIG는 GPU 내부 자원 분할이고, PCI Passthrough는 물리 PCI 장치의 배타적 소유권 전달이며, vGPU는 GPU 자원을 여러 VM에 가상 장치로 제공하는 기술이다. 세 기술은 서로 대체 관계가 아니라 분할 위치와 할당 대상이 다른 기술이다.</p>
+</blockquote>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/virtualization.html" rel="noopener noreferrer">NVIDIA MIG Virtualization</a></li>
+<li><a href="https://docs.nvidia.com/vgpu/faq/latest/deployment.html" rel="noopener noreferrer">NVIDIA vGPU Deployment FAQ</a></li>
+</ul>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="pci_passthrough_vfio_pci.html">PCI Passthrough와 vfio-pci는 무엇을 하는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

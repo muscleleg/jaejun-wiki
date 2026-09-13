@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/container_kubernetes_driver_boundary.md. Do not edit directly. source-sha256:5bb0ffa7bcf5d93ee79426df3e303dca571ecc6d4d287c2c5ddee5e6ef715849 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Container와 Kubernetes Pod가 CUDA Runtime은 독립적으로 가질 수 있지만 Host 또는 Node의 NVIDIA Kernel Driver를 공유하는 이유를 설명합니다.">
+  <meta name="source-sha256" content="5bb0ffa7bcf5d93ee79426df3e303dca571ecc6d4d287c2c5ddee5e6ef715849">
+  <title>Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가">
+  <meta property="og:description" content="Container와 Kubernetes Pod가 CUDA Runtime은 독립적으로 가질 수 있지만 Host 또는 Node의 NVIDIA Kernel Driver를 공유하는 이유를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html","name":"Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가","description":"Container와 Kubernetes Pod가 CUDA Runtime은 독립적으로 가질 수 있지만 Host 또는 Node의 NVIDIA Kernel Driver를 공유하는 이유를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html"},"headline":"Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/container_kubernetes_driver_boundary.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가</h1>
+      <p class="lead">Container와 Kubernetes Pod가 CUDA Runtime은 독립적으로 가질 수 있지만 Host 또는 Node의 NVIDIA Kernel Driver를 공유하는 이유를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#gpu-software-stack">GPU Software Stack의 계층</a>
+        <a href="#container">Container가 독립적으로 가질 수 있는 것</a>
+        <a href="#kubernetes-pod">Kubernetes Pod도 같은 원리다</a>
+        <a href="#pod-driver-package">Pod 안에서 Driver Package가 보이는 이유</a>
+        <a href="#container-driver">Container 안에서 Driver 업데이트가 해결책이 아닌 이유</a>
+        <a href="#section-ed7b044d0ca5">올바른 배치 전략</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>PyTorch <code>cu130</code>과 Host R570이 맞지 않는다면 Container나 Kubernetes Pod 안에서 Driver를 업데이트하면 되는지 의문이 생긴다. 결론부터 말하면 일반적인 Container와 Pod는 독립 Kernel을 갖지 않으므로 Host NVIDIA Driver를 공유한다.</p>
+
+</section>
+<section id="gpu-software-stack" class="markdown-section">
+<h2>GPU Software Stack의 계층</h2>
+<pre><code class="language-text">GPU Hardware
+    ↑
+Host NVIDIA Kernel Driver
+    ↑
+NVIDIA Container Runtime이 연결한 Device와 Driver Library
+    ↑
+Container의 CUDA Runtime
+    ↑
+PyTorch·vLLM
+</code></pre>
+<p>PyTorch는 Container에 설치되지만 GPU Hardware에 직접 명령하지 않는다. PyTorch의 CUDA Runtime 호출은 Host NVIDIA Driver를 거쳐 GPU에 전달된다.</p>
+
+</section>
+<section id="container" class="markdown-section">
+<h2>Container가 독립적으로 가질 수 있는 것</h2>
+<p>Container마다 다음은 다르게 구성할 수 있다.</p>
+<ul>
+<li>Python Version</li>
+<li>PyTorch Version</li>
+<li>vLLM Version</li>
+<li>CUDA 사용자 공간 Runtime Library</li>
+<li>Application Source와 설정</li>
+</ul>
+<p>하지만 일반적인 Container는 Host와 다음을 공유한다.</p>
+<ul>
+<li>실행 중인 Linux Kernel</li>
+<li>그 Kernel에 Load된 NVIDIA Kernel Module</li>
+<li>물리 GPU Device</li>
+</ul>
+<p>따라서 Container A에는 PyTorch cu128, Container B에는 cu130을 설치할 수 있지만, 둘 다 같은 Host Driver와 호환되어야 한다.</p>
+
+</section>
+<section id="kubernetes-pod" class="markdown-section">
+<h2>Kubernetes Pod도 같은 원리다</h2>
+<p>Kubernetes Node 하나는 보통 하나의 Linux Kernel을 실행한다. 그 Node에 배치된 Pod들은 Namespace와 Cgroup으로 격리되지만 Kernel은 공유한다.</p>
+<pre><code class="language-text">Kubernetes Node
+├─ Linux Kernel
+├─ NVIDIA Driver R580
+├─ Pod A: PyTorch cu128
+├─ Pod B: PyTorch cu130
+└─ Pod C: vLLM
+</code></pre>
+<p>세 Pod는 사용자 공간 환경이 달라도 모두 Node의 R580 Driver를 사용한다. Pod Spec에서 R570이나 R580을 직접 골라 같은 Node 안에서 바꾸는 구조가 아니다.</p>
+
+</section>
+<section id="pod-driver-package" class="markdown-section">
+<h2>Pod 안에서 Driver Package가 보이는 이유</h2>
+<p>GPU Container 안에서 NVIDIA 관련 Library와 Device File이 보이기 때문에 Driver가 Container에 설치된 것처럼 느낄 수 있다. 실제로는 NVIDIA Container Toolkit이 다음 자원을 Container에 노출한다.</p>
+<ul>
+<li><code>/dev/nvidia*</code> Device</li>
+<li>필요한 Driver 사용자 공간 Library</li>
+<li>GPU 관련 환경 변수와 Runtime Hook</li>
+</ul>
+<p>그러나 GPU를 제어하는 Kernel Module은 여전히 Host Kernel에 있다.</p>
+
+</section>
+<section id="container-driver" class="markdown-section">
+<h2>Container 안에서 Driver 업데이트가 해결책이 아닌 이유</h2>
+<p>Container에서 Package를 설치해도 Host Kernel Module이 자동으로 교체되지 않는다. Driver 교체에는 보통 다음이 필요하다.</p>
+<ul>
+<li>Host Kernel과 맞는 Module 설치 또는 Build</li>
+<li>Kernel Module Load와 Unload</li>
+<li>GPU Workload 중단</li>
+<li>경우에 따라 Node 재부팅</li>
+</ul>
+<p>이는 일반 Application Container의 권한과 수명주기 밖의 작업이다.</p>
+
+</section>
+<section id="section-ed7b044d0ca5" class="markdown-section">
+<h2>올바른 배치 전략</h2>
+<p>CUDA 요구가 다른 Workload가 있다면 Node를 Driver Capability에 따라 분리하고 Label과 Scheduling 조건을 사용한다.</p>
+<pre><code class="language-text">Node Group A
+Driver R570
+→ CUDA 12 계열 Workload
+
+Node Group B
+Driver R580
+→ CUDA 13 계열 Workload
+</code></pre>
+<p>이 구조에서 GPU Operator는 Node별 Driver 배포를 자동화할 수 있지만, Pod마다 독립 Kernel Driver를 제공하는 것은 아니다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>Container와 Kubernetes Pod는 CUDA Runtime과 Application 환경을 각자 가질 수 있지만, NVIDIA Kernel Driver는 Host 또는 Node 단위로 공유한다. 따라서 Pod의 CUDA Build는 배치될 Node의 Driver와 호환되어야 한다.</p>
+</blockquote>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/arch-overview.html" rel="noopener noreferrer">NVIDIA Container Toolkit Architecture</a></li>
+<li><a href="https://docs.nvidia.com/deploy/cuda-compatibility/" rel="noopener noreferrer">NVIDIA CUDA Compatibility</a></li>
+</ul>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="cuda_driver_runtime_compatibility.html">R570·R580과 cu128·cu130은 무엇이 다른가?</a></li>
+<li><a href="gpu_operator_driver_management.html">GPU Operator는 Node Driver를 어떻게 관리하는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

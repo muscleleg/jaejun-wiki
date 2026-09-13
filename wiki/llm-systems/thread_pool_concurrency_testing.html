@@ -1,0 +1,591 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/thread_pool_concurrency_testing.md. Do not edit directly. source-sha256:a783ef3aaddb1d3915f7128dfea8246d16e4c707c9a0532300b862e0de630078 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="전체 작업 수를 고정하고 Thread Pool의 최대 동시 실행 수를 바꿔 처리량·지연·Queue를 비교하는 방법을 설명합니다.">
+  <meta name="source-sha256" content="a783ef3aaddb1d3915f7128dfea8246d16e4c707c9a0532300b862e0de630078">
+  <title>Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다">
+  <meta property="og:description" content="전체 작업 수를 고정하고 Thread Pool의 최대 동시 실행 수를 바꿔 처리량·지연·Queue를 비교하는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html","name":"Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다","description":"전체 작업 수를 고정하고 Thread Pool의 최대 동시 실행 수를 바꿔 처리량·지연·Queue를 비교하는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html"},"headline":"Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/thread_pool_concurrency_testing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Thread Pool을 이용해 동시성 수준별 성능을 비교할 수 있다</h1>
+      <p class="lead">전체 작업 수를 고정하고 Thread Pool의 최대 동시 실행 수를 바꿔 처리량·지연·Queue를 비교하는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-e10408172473">전체 작업 수와 최대 동시 실행 수는 다르다</a>
+        <a href="#thread-pool">Thread Pool로 최대 동시 요청 수를 제어한다</a>
+        <a href="#concurrency">동일한 전체 작업에서 Concurrency만 변경한다</a>
+        <a href="#ttft-tpot">최대 동시 요청을 유지하면서 요청별 TTFT와 TPOT를 구한다</a>
+        <a href="#section-c3b3407d01a5">전체 작업량을 고정하는 이유</a>
+        <a href="#burst">Burst 테스트와 지속 동시성 테스트는 다르다</a>
+        <a href="#client-queue-server-queue">Client Queue와 Server Queue를 구분한다</a>
+        <a href="#section-c41dbc00cc93">처리량이 증가하는 구간과 포화 지점을 찾는다</a>
+        <a href="#section-688b928d6c5d">개별 요청 지연을 함께 측정한다</a>
+        <a href="#timeout">오류와 Timeout도 측정한다</a>
+        <a href="#section-73f128918e92">공정한 비교를 위한 테스트 계약</a>
+        <a href="#section-11382c1ec947">동시성 테스트에서 확인할 질문</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>HTTP API나 작업 처리 시스템의 성능을 확인하려면 요청 하나의 실행시간만 측정해서는 부족하다.</p>
+<p>실제 환경에서는 여러 요청이 동시에 들어온다. 동시 요청이 증가하면 서버가 자원을 더 효율적으로 사용할 수 있지만, 처리 용량을 넘으면 Queue와 응답 지연이 증가할 수도 있다.</p>
+<p>동시성 테스트는 다음 질문에 답하기 위해 수행한다.</p>
+<pre><code class="language-text">동시 요청을 늘리면 전체 처리량은 얼마나 증가하는가?
+
+어느 지점부터 처리량 증가가 둔화되는가?
+
+동시 요청 증가가 개별 요청의 지연시간에 어떤 영향을 주는가?
+
+Client와 Server 중 어디에서 Queue가 발생하는가?
+
+시스템이 안정적으로 감당할 수 있는 동시 요청 수는 얼마인가?
+</code></pre>
+</div>
+        <section id="section-e10408172473" class="markdown-section">
+<h2>전체 작업 수와 최대 동시 실행 수는 다르다</h2>
+<p>동시성 테스트에서는 다음 두 값을 구분해야 한다.</p>
+<pre><code class="language-text">전체 작업 수
+→ 한 번의 테스트에서 최종적으로 처리할 작업의 총개수
+
+최대 동시 실행 수
+→ 같은 시점에 실행할 수 있는 작업의 최대 개수
+</code></pre>
+<p>예를 들어 처리할 HTTP 요청이 총 16개이고 최대 동시 실행 수가 4라면 다음 의미다.</p>
+<pre><code class="language-text">최종적으로 처리할 요청: 16개
+같은 시점에 진행할 요청: 최대 4개
+</code></pre>
+<p>요청 4개만 처리하는 것이 아니다. 전체 16개를 처리하되 동시에 진행되는 요청을 최대 4개로 제한한다.</p>
+
+</section>
+<section id="thread-pool" class="markdown-section">
+<h2>Thread Pool로 최대 동시 요청 수를 제어한다</h2>
+<p>Thread Pool에 전체 요청을 작업으로 등록하고 Worker 수를 제한하면 최대 동시 실행 수를 제어할 수 있다.</p>
+<pre><code class="language-python">from concurrent.futures import (
+    ThreadPoolExecutor,
+)
+
+with ThreadPoolExecutor(
+    max_workers=4,
+) as executor:
+    for request in requests:
+        executor.submit(
+            send_request,
+            request,
+        )
+</code></pre>
+<p>요청이 16개라면 <code>submit()</code>도 16번 호출된다. 그러나 Worker가 최대 4개이므로 동시에 실행되는 요청 함수는 최대 4개다.</p>
+<pre><code class="language-text">Thread Pool에 등록된 작업: 16개
+동시에 실행되는 작업: 최대 4개
+Thread Pool 내부 Queue에서 대기: 나머지 작업
+</code></pre>
+<p>실행 중인 작업 하나가 끝나면 Thread Pool은 내부 Queue에서 다음 작업을 꺼내 빈 Worker에 배정한다.</p>
+<pre><code class="language-text">요청 1·2·3·4 실행
+→ 요청 2 완료
+→ 요청 5 실행
+→ 요청 4 완료
+→ 요청 6 실행
+</code></pre>
+<p>따라서 고정된 네 개 묶음이 모두 끝난 뒤 다음 네 개를 실행하는 구조가 아니다. 실행 자리가 생길 때마다 다음 작업을 보충하는 Rolling Window 구조다.</p>
+<p>Thread Pool의 Worker, <code>max_workers</code>, <code>submit()</code>, <code>Future</code>와 내부 Queue가 어떻게 동작하는지는 이후 하위 문서에서 자세히 설명한다.</p>
+
+</section>
+<section id="concurrency" class="markdown-section">
+<h2>동일한 전체 작업에서 Concurrency만 변경한다</h2>
+<p>Concurrency가 성능에 미치는 영향만 비교하려면 전체 작업량은 동일하게 유지하는 것이 좋다.</p>
+<p>예를 들어 동일한 요청 16개를 모든 조건에서 사용하고 최대 동시 실행 수만 변경할 수 있다.</p>
+<pre><code class="language-text">전체 요청 수: 항상 16개
+
+테스트 1: Concurrency 1
+테스트 2: Concurrency 4
+테스트 3: Concurrency 8
+테스트 4: Concurrency 16
+</code></pre>
+<p>각 조건의 의미는 다음과 같다.</p>
+<pre><code class="language-text">Concurrency=1
+→ 작업 16개 등록
+→ HTTP 요청을 최대 1개씩 진행
+→ 최종적으로 16개 모두 처리
+
+Concurrency=4
+→ 작업 16개 등록
+→ HTTP 요청을 최대 4개씩 진행
+→ 완료된 자리에 다음 요청을 보충
+→ 최종적으로 16개 모두 처리
+
+Concurrency=8
+→ 작업 16개 등록
+→ HTTP 요청을 최대 8개씩 진행
+→ 최종적으로 16개 모두 처리
+
+Concurrency=16
+→ 작업 16개 등록
+→ HTTP 요청을 최대 16개까지 진행
+→ 최종적으로 16개 모두 처리
+</code></pre>
+<p>이처럼 같은 Workload에서 Concurrency를 여러 수준으로 변경하는 측정을 Concurrency Sweep이라고 할 수 있다.</p>
+<pre><code class="language-text">동일한 Workload
++
+서로 다른 Concurrency
++
+각 조건의 처리량과 지연시간 비교
+</code></pre>
+
+</section>
+<section id="ttft-tpot" class="markdown-section">
+<h2>최대 동시 요청을 유지하면서 요청별 TTFT와 TPOT를 구한다</h2>
+<p>전체 요청이 16개이고 Concurrency가 4라면 Thread Pool은 Worker를 최대 4개 사용한다.</p>
+<pre><code class="language-text">처음
+→ 최대 4개 Worker가 요청 함수 실행
+→ 최대 4개 HTTP 요청 진행
+
+요청 하나 완료
+→ 해당 Worker가 비어 있음
+→ Thread Pool Queue의 다음 작업 실행
+→ 새로운 HTTP 요청 하나 전송
+
+이 과정을 반복
+→ 최대 동시 요청 4개를 유지
+→ 최종적으로 요청 16개 전체 처리
+</code></pre>
+<p>요청 하나를 실행할 때마다 다음 시각을 각각 기록할 수 있다.</p>
+<pre><code class="language-text">sent_at_seconds
+→ 해당 Worker가 실제 HTTP 요청을 보내기 시작한 시각
+
+first_content_at_seconds
+→ 해당 요청의 첫 번째 내용이 도착한 시각
+
+completed_at_seconds
+→ 해당 요청의 전체 Streaming 응답이 끝난 시각
+</code></pre>
+<p>요청 하나의 TTFT는 실제 HTTP 요청을 보내기 시작한 뒤 첫 번째 내용이 도착할 때까지 걸린 시간이다.</p>
+<pre><code class="language-text">요청별 TTFT
+= first_content_at_seconds
+  - sent_at_seconds
+</code></pre>
+<p>요청 하나의 TPOT는 첫 번째 내용이 도착한 뒤 나머지 출력이 생성되는 평균 간격이다.</p>
+<pre><code class="language-text">요청별 TPOT
+= (completed_at_seconds - first_content_at_seconds)
+  / (generated_tokens - 1)
+</code></pre>
+<p>첫 번째 Token은 TTFT 구간의 끝에 해당하므로 TPOT의 분모에서는 제외한다. 생성 Token이 하나 이하라면 첫 Token 이후의 구간이 없으므로 TPOT를 계산할 수 없다.</p>
+<p>전체 요청 16개를 한 번 처리하면 정상적으로 완료된 요청마다 TTFT와 TPOT가 하나씩 만들어진다.</p>
+<pre><code class="language-text">실행 1회
+→ 요청 16개
+→ 요청별 TTFT 최대 16개
+→ 요청별 TPOT 최대 16개
+</code></pre>
+<p>같은 Concurrency 조건을 세 번 반복하면 요청별 표본은 다음과 같이 누적된다.</p>
+<pre><code class="language-text">요청 16개 × 반복 3회
+= TTFT 표본 최대 48개
+= TPOT 표본 최대 48개
+</code></pre>
+<p>Concurrency가 달라도 전체 요청 수와 반복 횟수가 같다면 각 조건에서 얻는 요청별 표본 수도 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Concurrency</th>
+<th align="right">최대 동시 Worker</th>
+<th align="right">실행당 요청</th>
+<th align="right">반복</th>
+<th align="right">TTFT·TPOT 표본</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">1개</td>
+<td align="right">16개</td>
+<td align="right">3회</td>
+<td align="right">각각 최대 48개</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">4개</td>
+<td align="right">16개</td>
+<td align="right">3회</td>
+<td align="right">각각 최대 48개</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">8개</td>
+<td align="right">16개</td>
+<td align="right">3회</td>
+<td align="right">각각 최대 48개</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">16개</td>
+<td align="right">16개</td>
+<td align="right">3회</td>
+<td align="right">각각 최대 48개</td>
+</tr>
+</tbody></table>
+</div>
+<p>이를 Worker가 사용할 수 있는 실행 자리의 크기로 표현하면 다음처럼 볼 수도 있다.</p>
+<pre><code class="language-text">Concurrency 1
+→ 최대 Worker 1개
+→ 1개 실행 자리로 요청 16개 처리
+→ 3회 반복
+→ 1 × 16 × 3 = 요청 결과 48개
+
+Concurrency 4
+→ 최대 Worker 4개
+→ 4개 실행 자리로 요청 16개 처리
+→ 3회 반복
+→ 4 × 4 × 3 = 요청 결과 48개
+
+Concurrency 8
+→ 최대 Worker 8개
+→ 8개 실행 자리로 요청 16개 처리
+→ 3회 반복
+→ 8 × 2 × 3 = 요청 결과 48개
+
+Concurrency 16
+→ 최대 Worker 16개
+→ 16개 실행 자리로 요청 16개 처리
+→ 3회 반복
+→ 16 × 1 × 3 = 요청 결과 48개
+</code></pre>
+<p>여기서 <code>4 × 4</code>와 <code>8 × 2</code>는 표본 수를 이해하기 위한 계산이다. 실제 실행이 고정된 네 묶음이나 두 묶음으로 분리된다는 뜻은 아니다. 요청별 처리시간이 다르므로 Worker가 비는 시점마다 다음 작업이 개별적으로 투입된다.</p>
+<p>각 Concurrency에서 얻은 요청별 TTFT와 TPOT를 모아 다음 통계를 계산할 수 있다.</p>
+<pre><code class="language-text">평균
+→ 전체적인 요청 지연 수준
+
+p50
+→ 요청 절반이 이 값 이하에서 완료된 중앙값
+
+p95
+→ 느린 요청을 포함한 상위 지연 경계
+</code></pre>
+<p>이 값을 Concurrency별로 비교하면 다음 질문에 답할 수 있다.</p>
+<pre><code class="language-text">최대 동시 요청을 늘렸을 때 첫 출력 대기시간인 TTFT는 얼마나 증가했는가?
+
+여러 요청이 함께 처리될 때 첫 출력 이후 생성 속도인 TPOT는 어떻게 달라졌는가?
+
+처리량 증가보다 요청별 지연 증가가 더 커지는 지점은 어디인가?
+</code></pre>
+<p>측정 경계도 분명히 해야 한다. <code>sent_at_seconds</code>를 Worker가 요청 함수를 실행하기 시작한 시점에 기록한다면 Thread Pool 내부 Queue에서 Worker를 기다린 시간은 TTFT에 포함되지 않는다.</p>
+<pre><code class="language-text">Thread Pool Queue 대기
+→ 아직 요청 함수가 실행되지 않음
+→ 이 측정 방식의 TTFT에서 제외
+
+Worker가 요청 함수 실행
+→ sent_at_seconds 기록
+→ 실제 HTTP 요청 시작
+
+첫 번째 내용 도착
+→ first_content_at_seconds 기록
+→ TTFT 구간 종료
+</code></pre>
+<p>따라서 이 TTFT는 Client 작업이 Thread Pool에 등록된 순간부터의 시간이 아니라, 실제 HTTP 요청이 시작된 순간부터 첫 번째 내용이 도착하기까지의 시간이다. Client Queue 대기까지 사용자 관점의 지연에 포함하려면 <code>submit()</code> 이전 시각을 별도로 기록해야 한다.</p>
+
+</section>
+<section id="section-c3b3407d01a5" class="markdown-section">
+<h2>전체 작업량을 고정하는 이유</h2>
+<p>조건마다 전체 요청 수까지 다르게 설정하면 작업량 자체가 달라진다.</p>
+<pre><code class="language-text">조건 A → 요청 총 1개 처리
+조건 B → 요청 총 4개 처리
+조건 C → 요청 총 8개 처리
+조건 D → 요청 총 16개 처리
+</code></pre>
+<p>이 경우 전체 실행시간의 차이가 Concurrency 때문인지, 전체 요청 수가 다르기 때문인지 구분하기 어렵다.</p>
+<p>반면 전체 요청 수와 내용을 고정하면 최대 동시 실행 수의 영향에 집중할 수 있다.</p>
+<pre><code class="language-text">고정 조건
+→ 전체 요청 수
+→ 요청 내용
+→ 입력과 출력 크기
+→ Server 설정
+→ Timeout과 측정 방법
+
+변경 조건
+→ 최대 동시 요청 수
+</code></pre>
+
+</section>
+<section id="burst" class="markdown-section">
+<h2>Burst 테스트와 지속 동시성 테스트는 다르다</h2>
+<p>동시 요청 테스트는 목적에 따라 Burst 테스트와 지속 동시성 테스트로 나눌 수 있다.</p>
+<h3>Burst 테스트</h3>
+<p>Burst 테스트는 측정하려는 Concurrency만큼의 요청을 거의 동시에 보내고 해당 요청들이 끝나면 종료한다.</p>
+<pre><code class="language-text">Concurrency=1
+→ 요청 총 1개 전송
+
+Concurrency=4
+→ 요청 총 4개 전송
+
+Concurrency=8
+→ 요청 총 8개 전송
+
+Concurrency=16
+→ 요청 총 16개 전송
+</code></pre>
+<p>이 방식은 특정 순간에 요청이 몰렸을 때 시스템이 어떻게 반응하는지 확인하는 데 적합하다.</p>
+<pre><code class="language-text">갑작스러운 요청 증가를 처리할 수 있는가?
+
+요청이 몰렸을 때 Server Queue는 얼마나 증가하는가?
+
+Timeout이나 오류가 발생하는가?
+
+부하가 사라진 뒤 정상 상태로 복구되는가?
+</code></pre>
+<h3>지속 동시성 테스트</h3>
+<p>지속 동시성 테스트는 전체 작업 수를 고정하고, 실행 중인 요청 수를 일정 수준까지 유지한다.</p>
+<pre><code class="language-text">전체 요청 수: 16개
+최대 동시 요청 수: 4개
+
+→ 처음 최대 4개 요청 실행
+→ 하나가 완료되면 다음 요청 하나 실행
+→ 전체 16개가 끝날 때까지 최대 4개의 동시 요청 유지
+</code></pre>
+<p>이 방식은 일정한 요청 압력이 유지될 때 시스템의 지속 처리 성능을 확인하는 데 적합하다.</p>
+<pre><code class="language-text">동시 요청을 유지하면 처리량이 얼마나 증가하는가?
+
+시스템이 포화된 뒤에도 처리량이 증가하는가?
+
+대기 요청과 Latency가 얼마나 증가하는가?
+
+안정적으로 유지할 수 있는 Concurrency는 얼마인가?
+</code></pre>
+<p>두 테스트는 우열의 관계가 아니라 관찰 목적이 다르다.</p>
+<pre><code class="language-text">Burst 테스트
+→ 순간적으로 몰린 요청에 대한 반응
+
+지속 동시성 테스트
+→ 일정한 동시 요청 압력에서의 지속 성능
+</code></pre>
+
+</section>
+<section id="client-queue-server-queue" class="markdown-section">
+<h2>Client Queue와 Server Queue를 구분한다</h2>
+<p>Thread Pool을 사용한 HTTP 테스트에서는 Client와 Server 양쪽에 서로 다른 Queue가 생길 수 있다.</p>
+<pre><code class="language-text">Client Thread Pool Queue
+→ Worker가 부족해 아직 HTTP 요청을 실행하지 못한 작업
+
+Server Waiting Queue
+→ HTTP 요청은 도착했지만 Server 실행 자리를 기다리는 요청
+</code></pre>
+<p>다음 조건을 가정한다.</p>
+<pre><code class="language-text">전체 Client 작업: 16개
+Client Concurrency: 4
+Server 최대 실행 요청 수: 2개
+</code></pre>
+<p>Client에서는 최대 네 개의 요청 함수가 실행되고 나머지 작업은 Thread Pool 내부에서 기다릴 수 있다.</p>
+<pre><code class="language-text">Client Thread Pool
+├── HTTP 요청 진행: 최대 4개
+└── Thread Pool Queue 대기: 12개
+</code></pre>
+<p>HTTP 요청 네 개가 Server에 도착했다면 Server에서는 두 요청을 실행하고 나머지를 기다리게 할 수 있다.</p>
+<pre><code class="language-text">Server
+├── Running: 최대 2개
+└── Waiting: 최대 2개
+</code></pre>
+<p>Client Queue에서 기다리는 작업은 아직 HTTP 요청 함수를 실행하지 않았으므로 Server의 Waiting 요청에도 포함되지 않는다.</p>
+<pre><code class="language-text">Client Queue 증가
+→ Client의 Worker 제한 때문에 아직 전송되지 않은 작업 증가
+
+Server Waiting 증가
+→ Server에 도착했지만 처리 용량이 부족한 요청 증가
+</code></pre>
+<p>두 Queue를 구분해야 병목이 Client에 있는지 Server에 있는지 판단할 수 있다.</p>
+
+</section>
+<section id="section-c41dbc00cc93" class="markdown-section">
+<h2>처리량이 증가하는 구간과 포화 지점을 찾는다</h2>
+<p>Concurrency를 높이면 Server가 여러 요청을 함께 처리하면서 전체 처리량이 증가할 수 있다.</p>
+<pre><code class="language-text">Request Throughput
+= 완료된 전체 요청 수 / 전체 경과시간
+</code></pre>
+<p>예를 들어 요청 16개를 처리한 시간이 다음과 같다고 가정한다.</p>
+<pre><code class="language-text">Concurrency 1  → 32초
+Concurrency 4  → 10초
+Concurrency 8  → 7초
+Concurrency 16 → 7초
+</code></pre>
+<p>처리량은 다음과 같다.</p>
+<pre><code class="language-text">Concurrency 1
+→ 16 / 32 = 초당 0.5개
+
+Concurrency 4
+→ 16 / 10 = 초당 1.6개
+
+Concurrency 8
+→ 16 / 7 ≈ 초당 2.29개
+
+Concurrency 16
+→ 16 / 7 ≈ 초당 2.29개
+</code></pre>
+<p>Concurrency 8에서 16으로 높였는데 처리량이 증가하지 않았다면 시스템이 이미 포화됐을 가능성이 있다.</p>
+<pre><code class="language-text">Concurrency 증가
+→ 처리량 증가
+→ 어느 지점부터 증가 폭 감소
+→ 더 높은 Concurrency에서는 Queue와 지연만 증가
+</code></pre>
+
+</section>
+<section id="section-688b928d6c5d" class="markdown-section">
+<h2>개별 요청 지연을 함께 측정한다</h2>
+<p>전체 Throughput이 증가하더라도 개별 요청의 응답시간은 나빠질 수 있다.</p>
+<p>일반적인 HTTP 요청에서는 다음 값을 측정할 수 있다.</p>
+<pre><code class="language-text">요청 Latency
+= 요청 전송부터 전체 응답 완료까지 걸린 시간
+</code></pre>
+<p>Streaming 응답이나 LLM Server에서는 다음 지표도 사용할 수 있다.</p>
+<pre><code class="language-text">TTFT
+= 요청 전송부터 첫 번째 출력이 도착할 때까지 걸린 시간
+
+TPOT
+= 첫 번째 출력 이후 후속 출력 하나를 생성하는 평균 시간
+</code></pre>
+<p>평균값만 보면 일부 요청의 긴 대기가 가려질 수 있으므로 분포를 함께 확인한다.</p>
+<pre><code class="language-text">p50
+→ 전체 요청의 중앙값
+
+p95
+→ 느린 요청 쪽 상위 5% 경계
+
+최댓값
+→ 가장 느린 요청의 지연시간
+</code></pre>
+<p>Concurrency가 증가할 때 다음 관계가 나타날 수 있다.</p>
+<pre><code class="language-text">Concurrency 증가
+→ Server 활용도 증가
+→ 전체 Throughput 증가
+→ Server Waiting 증가
+→ TTFT와 전체 Latency 증가
+</code></pre>
+<p>따라서 가장 높은 Throughput만으로 적절한 Concurrency를 결정해서는 안 된다.</p>
+
+</section>
+<section id="timeout" class="markdown-section">
+<h2>오류와 Timeout도 측정한다</h2>
+<p>Concurrency가 높아지면 성능뿐 아니라 안정성도 달라질 수 있다.</p>
+<pre><code class="language-text">HTTP Timeout
+Connection 오류
+Server Queue 초과
+Rate Limit
+메모리 부족
+응답 실패
+</code></pre>
+<p>각 조건에서 다음 값을 기록한다.</p>
+<pre><code class="language-text">전체 요청 수
+성공 요청 수
+실패 요청 수
+Timeout 수
+HTTP 상태 코드
+오류 메시지
+</code></pre>
+<p>처리량이 높더라도 오류가 증가한다면 안정적으로 사용할 수 있는 설정이라고 보기 어렵다.</p>
+
+</section>
+<section id="section-73f128918e92" class="markdown-section">
+<h2>공정한 비교를 위한 테스트 계약</h2>
+<p>Concurrency의 영향만 비교하려면 다음 조건을 고정해야 한다.</p>
+<pre><code class="language-text">전체 요청 수
+요청 내용
+입력 크기
+출력 크기 또는 생성 상한
+Server 설정
+모델 또는 작업 처리 로직
+Client Timeout
+측정 시작과 종료 지점
+Warm-up 횟수
+반복 측정 횟수
+</code></pre>
+<p>변경할 조건은 최대 동시 요청 수 하나로 제한한다.</p>
+<pre><code class="language-text">고정 조건
+→ Workload와 Server 환경
+
+변경 조건
+→ max_workers 또는 Client Concurrency
+
+관찰 결과
+→ Throughput·Latency·Queue·오류
+</code></pre>
+<p>같은 조건을 여러 번 실행하고 평균과 p50·p95를 함께 계산하면 일시적인 변동에 덜 영향을 받는 결과를 얻을 수 있다.</p>
+
+</section>
+<section id="section-11382c1ec947" class="markdown-section">
+<h2>동시성 테스트에서 확인할 질문</h2>
+<p>Thread Pool을 이용한 동시성 테스트가 끝나면 다음 질문에 답할 수 있어야 한다.</p>
+<pre><code class="language-text">Concurrency가 증가할수록 Throughput은 얼마나 증가했는가?
+
+어느 Concurrency부터 Throughput 증가가 둔화됐는가?
+
+Server Waiting은 어느 조건부터 발생했는가?
+
+Running 요청 수는 Server 한도까지 증가했는가?
+
+Concurrency 증가가 p50과 p95 Latency에 어떤 영향을 줬는가?
+
+Client Queue와 Server Queue 중 어디에서 대기가 발생했는가?
+
+어느 Concurrency부터 Timeout이나 오류가 증가했는가?
+
+처리량과 안정적인 지연시간을 함께 만족하는 조건은 무엇인가?
+</code></pre>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>Thread Pool을 이용하면 전체 작업 수와 최대 동시 실행 수를 분리해서 제어할 수 있다.</p>
+<pre><code class="language-text">전체 작업 수 M
+→ 최종적으로 처리할 작업의 총개수
+
+Worker 수 N
+→ 동시에 실행할 수 있는 작업의 최대 개수
+</code></pre>
+<p>전체 M개 작업을 모두 <code>submit()</code>하더라도 동시에 실행되는 작업은 최대 N개다. 나머지는 Thread Pool 내부 Queue에서 기다리며 Worker가 비는 순서대로 실행된다.</p>
+<p>이 구조를 이용하면 동일한 Workload에서 Concurrency만 변경하는 성능 테스트를 만들 수 있다.</p>
+<pre><code class="language-text">동일한 전체 작업
++
+서로 다른 최대 동시 실행 수
++
+처리량·지연시간·Queue·오류 비교
+</code></pre>
+<p>이를 통해 시스템의 처리량 증가 구간, 포화 지점, Queue 발생 조건, 사용자 지연과 안정성 한계를 측정할 수 있다.</p>
+<p>Thread Pool 자체의 실행 원리는 이후 하위 문서에서 별도로 다룬다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/one_nvidia_driver_stack_per_node.md. Do not edit directly. source-sha256:81633aef9422018307342a65f18ecb634685a5e097e17ebba1f708ad148262ca -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="여러 NVIDIA GPU가 하나의 NVIDIA Kernel Module Stack을 공유하는 이유와 R570·R580, AMD·NVIDIA Driver의 차이를 설명합니다.">
+  <meta name="source-sha256" content="81633aef9422018307342a65f18ecb634685a5e097e17ebba1f708ad148262ca">
+  <title>한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유">
+  <meta property="og:description" content="여러 NVIDIA GPU가 하나의 NVIDIA Kernel Module Stack을 공유하는 이유와 R570·R580, AMD·NVIDIA Driver의 차이를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html","name":"한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유","description":"여러 NVIDIA GPU가 하나의 NVIDIA Kernel Module Stack을 공유하는 이유와 R570·R580, AMD·NVIDIA Driver의 차이를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html"},"headline":"한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/one_nvidia_driver_stack_per_node.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>한 Node의 여러 NVIDIA GPU가 같은 Driver Version을 사용하는 이유</h1>
+      <p class="lead">여러 NVIDIA GPU가 하나의 NVIDIA Kernel Module Stack을 공유하는 이유와 R570·R580, AMD·NVIDIA Driver의 차이를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#driver">Driver는 각 장치마다 파일 하나씩 설치되는 구조가 아니다</a>
+        <a href="#r570-r580">R570과 R580이 동시에 어려운 이유</a>
+        <a href="#radeon-geforce">Radeon과 GeForce는 왜 함께 사용할 수 있는가</a>
+        <a href="#node-driver">같은 Node에서도 서로 다른 Driver 종류를 장치별로 결합할 수는 있다</a>
+        <a href="#driver-version">Driver Version을 나누는 실제 방법</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>하나의 Computer에는 Keyboard, Network Card, AMD GPU, NVIDIA GPU처럼 서로 다른 장치와 Driver가 함께 존재한다. 그렇다면 NVIDIA GPU가 두 장일 때도 한 장은 R570, 다른 한 장은 R580을 사용하면 되지 않는지 의문이 생긴다.</p>
+<p>서로 다른 종류의 Driver가 공존하는 것과, 같은 Driver Stack의 서로 다른 Version을 동시에 Load하는 것은 다른 문제다.</p>
+
+</section>
+<section id="driver" class="markdown-section">
+<h2>Driver는 각 장치마다 파일 하나씩 설치되는 구조가 아니다</h2>
+<p>Linux Driver는 Kernel Module이 자신이 지원하는 PCI 장치 ID에 결합하는 구조다. NVIDIA Driver를 설치하면 대표적으로 다음 Module 집합이 Kernel에 Load된다.</p>
+<pre><code class="language-text">nvidia
+nvidia_uvm
+nvidia_modeset
+nvidia_drm
+</code></pre>
+<p>이 하나의 Driver Stack이 여러 NVIDIA GPU를 발견하고, GPU마다 별도의 Device State와 Memory Context를 관리한다.</p>
+<pre><code class="language-text">Linux Kernel
+└─ NVIDIA Driver R580
+   ├─ GPU 0의 Device State
+   └─ GPU 1의 Device State
+</code></pre>
+<p>GPU별 상태는 나뉘지만 실행되는 Driver Module의 Code Version은 같다.</p>
+
+</section>
+<section id="r570-r580" class="markdown-section">
+<h2>R570과 R580이 동시에 어려운 이유</h2>
+<p>R570과 R580은 서로 다른 이름과 역할을 가진 Driver가 아니라 동일한 Module과 Interface의 서로 다른 Release다.</p>
+<pre><code class="language-text">원하는 상태
+GPU 0 → nvidia.ko R570
+GPU 1 → nvidia.ko R580
+</code></pre>
+<p>하지만 두 Version은 같은 Module 이름, 같은 Device Node 체계, 같은 사용자 공간 Library Interface를 차지하려 한다. 일반적인 Linux 환경에서는 동일한 활성 Kernel에 같은 이름의 Module 두 Version을 동시에 Load해 GPU별로 나누어 결합하지 않는다.</p>
+<p>사용자가 떠올린 비유로 바꾸면 다음과 같다.</p>
+<pre><code class="language-text">두 장치가 모두 nvidia라는 Driver Stack을 사용하도록 설계됨
+그런데 같은 Kernel 안에서 nvidia R570과 nvidia R580을
+동시에 활성화해 장치별로 나누고 싶어 하는 요구
+</code></pre>
+<p>구조적으로 Driver Stack의 Version 경계를 먼저 분리해야 한다.</p>
+
+</section>
+<section id="radeon-geforce" class="markdown-section">
+<h2>Radeon과 GeForce는 왜 함께 사용할 수 있는가</h2>
+<p>AMD와 NVIDIA는 별개의 Driver Stack이다.</p>
+<pre><code class="language-text">AMD GPU     → amdgpu Module
+NVIDIA GPU  → nvidia Module
+</code></pre>
+<p>Module 이름, 지원 PCI ID, Device Interface가 다르므로 한 Kernel에서 공존할 수 있다. 이것은 NVIDIA R570과 R580을 함께 Load하는 경우와 다르다.</p>
+
+</section>
+<section id="node-driver" class="markdown-section">
+<h2>같은 Node에서도 서로 다른 Driver 종류를 장치별로 결합할 수는 있다</h2>
+<p>예를 들어 GPU 0은 Host가 직접 쓰도록 <code>nvidia</code>에 결합하고, GPU 1은 VM에 넘기도록 <code>vfio-pci</code>에 결합할 수 있다.</p>
+<pre><code class="language-text">GPU 0 → nvidia
+GPU 1 → vfio-pci
+</code></pre>
+<p>이것이 가능한 이유는 <code>nvidia</code>와 <code>vfio-pci</code>가 서로 다른 역할과 이름을 가진 Driver이기 때문이다. 단, <code>vfio-pci</code>에 결합된 GPU는 Host의 CUDA 연산용 NVIDIA GPU로 사용할 수 없다.</p>
+
+</section>
+<section id="driver-version" class="markdown-section">
+<h2>Driver Version을 나누는 실제 방법</h2>
+<p>서로 다른 NVIDIA Driver Version이 꼭 필요하다면 경계를 Node 또는 VM 단위로 나눈다.</p>
+<pre><code class="language-text">Node A 또는 VM A
+Kernel A + NVIDIA Driver R570 + GPU A
+
+Node B 또는 VM B
+Kernel B + NVIDIA Driver R580 + GPU B
+</code></pre>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>하나의 Node에 NVIDIA GPU가 여러 장 있어도 각각의 상태만 분리될 뿐, 일반적으로 하나의 활성 NVIDIA Driver Stack이 모두를 관리한다. 서로 다른 NVIDIA Driver Version이 필요하면 Kernel 또는 OS Instance 경계를 나누어야 한다.</p>
+</blockquote>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.kernel.org/driver-api/driver-model/binding.html" rel="noopener noreferrer">Linux Kernel Driver Binding</a></li>
+<li><a href="https://download.nvidia.com/XFree86/Linux-x86_64/570.144/README/kernel_open.html" rel="noopener noreferrer">NVIDIA Kernel Modules</a></li>
+</ul>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="gpu_operator_driver_management.html">GPU Operator는 Node Driver를 어떻게 관리하는가?</a></li>
+<li><a href="linux_kernel_vm_driver_boundary.html">Linux Kernel과 VM은 어떻게 Driver 경계를 만드는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

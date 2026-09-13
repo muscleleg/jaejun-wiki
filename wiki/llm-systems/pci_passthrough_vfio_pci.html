@@ -1,0 +1,154 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/pci_passthrough_vfio_pci.md. Do not edit directly. source-sha256:d03f0b09fda5508a488586a42abeccfcf4904a5439f2549999336ef75f353192 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="물리 GPU를 VM에 넘기는 PCI Passthrough의 소유권 변화와 vfio-pci·VFIO·IOMMU의 역할을 설명합니다.">
+  <meta name="source-sha256" content="d03f0b09fda5508a488586a42abeccfcf4904a5439f2549999336ef75f353192">
+  <title>PCI Passthrough와 vfio-pci가 하는 일</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PCI Passthrough와 vfio-pci가 하는 일">
+  <meta property="og:description" content="물리 GPU를 VM에 넘기는 PCI Passthrough의 소유권 변화와 vfio-pci·VFIO·IOMMU의 역할을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html","name":"PCI Passthrough와 vfio-pci가 하는 일","description":"물리 GPU를 VM에 넘기는 PCI Passthrough의 소유권 변화와 vfio-pci·VFIO·IOMMU의 역할을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html"},"headline":"PCI Passthrough와 vfio-pci가 하는 일","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"PCI Passthrough와 vfio-pci가 하는 일"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">PCI Passthrough와 vfio-pci가 하는 일</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>PCI Passthrough와 vfio-pci가 하는 일</h1>
+      <p class="lead">물리 GPU를 VM에 넘기는 PCI Passthrough의 소유권 변화와 vfio-pci·VFIO·IOMMU의 역할을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#pci-passthrough">PCI Passthrough의 의미</a>
+        <a href="#host-gpu">Host가 GPU를 아예 볼 수 없는 것은 아니다</a>
+        <a href="#vfio-vfio-pci">VFIO와 vfio-pci의 의미</a>
+        <a href="#iommu">IOMMU가 필요한 이유</a>
+        <a href="#iommu-group">IOMMU Group의 의미</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>“GPU를 VM에 PCI Passthrough한다”는 말은 Host와 Guest 중 누가 GPU를 사용하는지, 그리고 <code>vfio-pci</code>가 무엇인지 알아야 명확해진다.</p>
+
+</section>
+<section id="pci-passthrough" class="markdown-section">
+<h2>PCI Passthrough의 의미</h2>
+<p>PCI Passthrough는 Host의 물리 PCI 장치 하나를 Guest VM 하나가 직접 사용하도록 넘기는 방식이다.</p>
+<pre><code class="language-text">Passthrough 이전
+GPU → Host의 nvidia Driver → Host CUDA Application
+
+Passthrough 이후
+GPU → Host의 vfio-pci → VM에 노출 → Guest의 nvidia Driver → Guest CUDA Application
+</code></pre>
+<p>일반적인 Full Passthrough에서는 장치 소유권이 한 VM에 배타적으로 넘어간다.</p>
+
+</section>
+<section id="host-gpu" class="markdown-section">
+<h2>Host가 GPU를 아예 볼 수 없는 것은 아니다</h2>
+<p>Host는 <code>lspci</code> 같은 도구로 PCI 장치가 존재한다는 사실을 볼 수 있다. 다만 GPU가 <code>vfio-pci</code>에 결합된 동안에는 Host의 <code>nvidia</code> Driver가 그 장치를 소유하지 않는다.</p>
+<p>따라서 해당 GPU에 대해서는 다음과 같이 이해한다.</p>
+<pre><code class="language-text">Host가 PCI 장치 존재를 확인   가능
+Host가 nvidia-smi로 관리      불가
+Host CUDA Application이 사용  불가
+Guest VM이 자체 Driver로 사용 가능
+</code></pre>
+<p>Host의 NVIDIA Driver 전체가 무의미해지는 것은 아니다. Host에 다른 GPU가 있고 그 GPU가 <code>nvidia</code> Driver에 결합되어 있다면 Host는 그 GPU를 계속 사용할 수 있다.</p>
+
+</section>
+<section id="vfio-vfio-pci" class="markdown-section">
+<h2>VFIO와 vfio-pci의 의미</h2>
+<p>VFIO는 <code>Virtual Function I/O</code>라는 이름에서 시작한 Linux Kernel Framework다. 장치를 QEMU 같은 사용자 공간 Virtual Machine Monitor에 안전하게 노출하기 위한 공통 틀을 제공한다.</p>
+<p><code>vfio-pci</code>는 그 Framework를 PCI 장치에 적용하는 범용 Driver다.</p>
+<pre><code class="language-text">VFIO
+→ 안전한 Device Passthrough Framework
+
+vfio-pci
+→ PCI 장치를 VFIO로 다루게 하는 Generic PCI Driver
+</code></pre>
+<p><code>vfio-pci</code>는 GPU 연산 Driver가 아니다. GPU를 Host에서 계산하는 대신 VM에 전달할 수 있는 상태로 붙잡는 역할을 한다. 실제 GPU 기능은 Guest VM의 NVIDIA Driver가 담당한다.</p>
+
+</section>
+<section id="iommu" class="markdown-section">
+<h2>IOMMU가 필요한 이유</h2>
+<p>GPU 같은 PCI 장치는 DMA를 통해 System Memory에 직접 접근할 수 있다. VM에 장치를 넘겼을 때 아무 제한이 없다면 그 장치가 다른 VM이나 Host Memory까지 접근할 위험이 있다.</p>
+<p>IOMMU는 장치가 접근할 수 있는 Memory 영역을 변환하고 제한한다.</p>
+<pre><code class="language-text">Guest가 장치에 DMA 주소 전달
+→ IOMMU가 허용된 Guest Memory로 변환
+→ 다른 Guest와 Host Memory 접근 차단
+</code></pre>
+
+</section>
+<section id="iommu-group" class="markdown-section">
+<h2>IOMMU Group의 의미</h2>
+<p>Hardware와 PCI Topology에 따라 완전히 독립적으로 격리할 수 없는 장치들이 하나의 IOMMU Group으로 묶일 수 있다. 안전한 Passthrough를 위해서는 보통 Group 전체의 소유권을 함께 고려해야 한다.</p>
+<pre><code class="language-text">IOMMU Group
+→ DMA 관점에서 안전하게 분리 가능한 최소 장치 묶음
+</code></pre>
+<p>GPU 본체와 GPU Audio Function이 같은 Group에 들어가는 사례가 대표적이다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>Full PCI Passthrough에서는 Host가 GPU를 <code>nvidia</code> 대신 <code>vfio-pci</code>에 결합하고 VM에 통째로 넘긴다. Host는 장치의 존재를 볼 수 있지만 CUDA로 사용할 수 없으며, Guest의 NVIDIA Driver가 GPU를 사용한다. VFIO와 IOMMU는 이 전달을 안전하게 만드는 기반이다.</p>
+</blockquote>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.kernel.org/driver-api/vfio.html" rel="noopener noreferrer">Linux Kernel VFIO 문서</a></li>
+</ul>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="linux_kernel_vm_driver_boundary.html">Linux Kernel과 VM은 어떻게 Driver 경계를 만드는가?</a></li>
+<li><a href="mig_passthrough_vgpu.html">MIG·PCI Passthrough·vGPU는 각각 무엇을 나누는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

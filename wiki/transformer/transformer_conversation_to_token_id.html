@@ -1,0 +1,521 @@
+<!doctype html>
+<!-- Generated from content/wiki/transformer/transformer_conversation_to_token_id.md. Do not edit directly. source-sha256:27c742290c0709da2c7b16315551c60c3d480f3ad2f17092c6c2b99529d92033 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="대화 객체를 Chat Template으로 모델 전용 Prompt로 바꾸고, &#96;tokenize=False&#96;·&#96;encode()&#96;와 &#96;tokenize=True&#96; 경로를 비교해 최종 Token ID가 만들어지는 과정을 정리합니다.">
+  <meta name="source-sha256" content="27c742290c0709da2c7b16315551c60c3d480f3ad2f17092c6c2b99529d92033">
+  <title>대화 객체가 모델 입력 Token ID로 변환되는 과정</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="대화 객체가 모델 입력 Token ID로 변환되는 과정">
+  <meta property="og:description" content="대화 객체를 Chat Template으로 모델 전용 Prompt로 바꾸고, &amp;#96;tokenize=False&amp;#96;·&amp;#96;encode()&amp;#96;와 &amp;#96;tokenize=True&amp;#96; 경로를 비교해 최종 Token ID가 만들어지는 과정을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html","name":"대화 객체가 모델 입력 Token ID로 변환되는 과정","description":"대화 객체를 Chat Template으로 모델 전용 Prompt로 바꾸고, &#96;tokenize=False&#96;·&#96;encode()&#96;와 &#96;tokenize=True&#96; 경로를 비교해 최종 Token ID가 만들어지는 과정을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html"},"headline":"대화 객체가 모델 입력 Token ID로 변환되는 과정"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_conversation_to_token_id.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Transformer","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-transformer"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Transformer에는 최종적으로 어떤 데이터가 들어가는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_input_tensor_flow_learning.html"},{"@type":"ListItem","position":6,"name":"Qwen Tokenizer와 Chat Template에서 헷갈렸던 부분","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/qwen_tokenizer_chat_template_confusions.html"},{"@type":"ListItem","position":7,"name":"대화 객체가 모델 입력 Token ID로 변환되는 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-transformer">Transformer</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_input_tensor_flow_learning.html">Transformer에는 최종적으로 어떤 데이터가 들어가는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/qwen_tokenizer_chat_template_confusions.html">Qwen Tokenizer와 Chat Template에서 헷갈렸던 부분</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">대화 객체가 모델 입력 Token ID로 변환되는 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Transformer</span>
+      <h1>대화 객체가 모델 입력 Token ID로 변환되는 과정</h1>
+      <p class="lead">대화 객체를 Chat Template으로 모델 전용 Prompt로 바꾸고, `tokenize=False`·`encode()`와 `tokenize=True` 경로를 비교해 최종 Token ID가 만들어지는 과정을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#tokenizer">모델과 함께 제공된 Tokenizer를 불러온다</a>
+        <a href="#section-d3811a5247e0">사용자 메시지를 대화 객체로 표현한다</a>
+        <a href="#chat-template">Chat Template을 적용한다</a>
+        <a href="#add-generation-prompt-true"><code>add_generation_prompt=True</code>는 생성 시작 위치를 추가한다</a>
+        <a href="#tokenize-false"><code>tokenize=False</code>라면 문자열만 반환한다</a>
+        <a href="#encode-token-id"><code>encode()</code>가 문자열을 Token ID로 변환한다</a>
+        <a href="#tokenize-true-encode"><code>tokenize=True</code>라면 별도의 <code>encode()</code>가 필요 없다</a>
+        <a href="#tokenize-false-tokenize-true"><code>tokenize=False</code>와 <code>tokenize=True</code> 비교</a>
+        <a href="#add-special-tokens-false">왜 <code>add_special_tokens=False</code>를 사용하는가</a>
+        <a href="#tokenizer-2">Tokenizer는 반드시 단어 단위로 나누지 않는다</a>
+        <a href="#section-aeadb246b904">두 방식을 비교하는 전체 코드</a>
+        <a href="#section-8d6c4f6249ea">전체 과정 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Chat 모델에 사용자 문장을 입력할 때는 일반 문자열을 그대로 모델에 전달하지 않는다. 대화 구조를 모델이 학습한 Prompt 형식으로 바꾼 뒤, 모델이 계산할 수 있는 Token ID 배열로 변환한다.</p>
+<p>전체 과정은 다음과 같다.</p>
+<pre><code class="language-text">Tokenizer 불러오기
+→ 대화 객체 작성
+→ Chat Template 적용
+→ 모델 전용 Prompt 구성
+→ Token ID 생성
+→ 모델 입력
+</code></pre>
+</div>
+        <section id="tokenizer" class="markdown-section">
+<h2>모델과 함께 제공된 Tokenizer를 불러온다</h2>
+<pre><code class="language-python">from transformers import (
+    AutoTokenizer,
+    PreTrainedTokenizerBase,
+)
+
+tokenizer: PreTrainedTokenizerBase = (
+    AutoTokenizer.from_pretrained(
+        &quot;/root/models/Qwen2.5-1.5B-Instruct&quot;,
+        local_files_only=True,
+    )
+)
+</code></pre>
+<p><code>AutoTokenizer.from_pretrained()</code>은 지정한 모델 Artifact에서 Tokenizer 설정과 Vocabulary를 불러온다.</p>
+<p>모델마다 다음 내용이 다를 수 있다.</p>
+<ul>
+<li>문자열을 Token으로 나누는 방법</li>
+<li>Token과 Token ID의 대응 관계</li>
+<li>BOS·EOS 등의 특수 토큰</li>
+<li>System·User·Assistant 대화를 표현하는 방법</li>
+<li>Chat Template의 구조</li>
+</ul>
+<p>따라서 모델에는 가능하면 해당 모델과 함께 제공된 Tokenizer를 사용해야 한다.</p>
+<p>다른 모델의 Tokenizer를 사용하면 같은 문자열이 다른 Token ID로 변환될 수 있고, 이는 모델이 학습한 입력 체계와 맞지 않을 수 있다.</p>
+<p><code>AutoTokenizer</code>는 설정 파일을 읽고 해당 모델에 맞는 구체적인 Tokenizer 클래스를 자동으로 선택한다.</p>
+
+</section>
+<section id="section-d3811a5247e0" class="markdown-section">
+<h2>사용자 메시지를 대화 객체로 표현한다</h2>
+<pre><code class="language-python">conversation = [
+    {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: &quot;Explain KV Cache in one sentence.&quot;,
+    }
+]
+</code></pre>
+<p>이 값은 아직 모델에 전달할 문자열도 아니고 Token ID도 아니다. 대화 구조를 Python의 <code>list</code>와 <code>dict</code>로 표현한 객체다.</p>
+<pre><code class="language-text">role
+→ 메시지를 작성한 주체
+
+content
+→ 실제 메시지 내용
+</code></pre>
+<p>Python 코드 안에서는 <code>list[dict]</code> 형태지만, OpenAI-compatible API를 통해 전송할 때는 같은 구조가 JSON으로 직렬화된다.</p>
+<pre><code class="language-json">[
+  {
+    &quot;role&quot;: &quot;user&quot;,
+    &quot;content&quot;: &quot;Explain KV Cache in one sentence.&quot;
+  }
+]
+</code></pre>
+<p>모델은 이 객체를 직접 처리하지 않는다. 먼저 해당 모델이 학습할 때 사용한 대화 형식의 Prompt로 변환해야 한다.</p>
+
+</section>
+<section id="chat-template" class="markdown-section">
+<h2>Chat Template을 적용한다</h2>
+<pre><code class="language-python">rendered_prompt: str = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+)
+</code></pre>
+<p><code>apply_chat_template()</code>은 대화 객체의 <code>role</code>과 <code>content</code>를 읽어 해당 모델이 사용하는 Prompt 형식으로 변환한다.</p>
+<p>Qwen 계열에서는 대략 다음과 같은 문자열이 만들어진다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;user
+Explain KV Cache in one sentence.&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+</code></pre>
+<p>다음과 같은 문자열은 일반적인 대화 내용이 아니라 모델이 사용하는 특수 토큰의 텍스트 표현이다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;
+&lt;|im_end|&gt;
+</code></pre>
+<p>이 특수 토큰들은 모델이 다음 경계를 구분할 수 있도록 돕는다.</p>
+<ul>
+<li>메시지의 시작</li>
+<li>메시지를 작성한 역할</li>
+<li>메시지의 종료</li>
+<li>Assistant 응답의 시작</li>
+</ul>
+<p>Chat Template은 모델마다 다르다. 따라서 Qwen의 Template이 다른 Chat 모델에서도 그대로 사용된다고 가정하면 안 된다.</p>
+
+</section>
+<section id="add-generation-prompt-true" class="markdown-section">
+<h2><code>add_generation_prompt=True</code>는 생성 시작 위치를 추가한다</h2>
+<pre><code class="language-python">add_generation_prompt=True
+</code></pre>
+<p>이 옵션은 Prompt 마지막에 Assistant가 답변을 시작한다는 표시를 추가한다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;assistant
+</code></pre>
+<p>Assistant의 실제 답변을 추가하는 것은 아니다. 다음 의미의 경계만 만든다.</p>
+<pre><code class="language-text">사용자 메시지가 끝났다.
+이제부터 Assistant의 답변을 생성하라.
+</code></pre>
+<p>옵션을 사용하지 않은 경우에는 Prompt가 사용자 메시지 종료 위치에서 끝날 수 있다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;user
+질문&lt;|im_end|&gt;
+</code></pre>
+<p>옵션을 활성화하면 Assistant의 생성 시작 지점까지 만들어진다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;user
+질문&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+</code></pre>
+
+</section>
+<section id="tokenize-false" class="markdown-section">
+<h2><code>tokenize=False</code>라면 문자열만 반환한다</h2>
+<pre><code class="language-python">rendered_prompt: str = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+)
+</code></pre>
+<p>여기서 다음 설정을 사용했다.</p>
+<pre><code class="language-python">tokenize=False
+</code></pre>
+<p>이 설정은 Chat Template만 적용하고 Token ID 변환은 하지 말라는 뜻이다.</p>
+<p>따라서 반환값은 다음과 같은 문자열이다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;user
+Explain KV Cache in one sentence.&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+</code></pre>
+<p>타입도 <code>str</code>이다.</p>
+<pre><code class="language-python">print(type(rendered_prompt))
+# &lt;class &#39;str&#39;&gt;
+</code></pre>
+<p>이 방식에서는 아직 Token ID가 만들어지지 않았으므로 별도로 <code>encode()</code>를 호출해야 한다.</p>
+<pre><code class="language-python">prompt_token_ids: list[int] = (
+    tokenizer.encode(
+        rendered_prompt,
+        add_special_tokens=False,
+    )
+)
+</code></pre>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">conversation
+    ↓ apply_chat_template(tokenize=False)
+rendered_prompt: str
+    ↓ tokenizer.encode()
+prompt_token_ids: list[int]
+</code></pre>
+<p>이렇게 두 단계로 나누면 중간에 만들어진 모델 전용 Prompt 문자열을 직접 출력해 확인할 수 있다.</p>
+
+</section>
+<section id="encode-token-id" class="markdown-section">
+<h2><code>encode()</code>가 문자열을 Token ID로 변환한다</h2>
+<pre><code class="language-python">prompt_token_ids: list[int] = (
+    tokenizer.encode(
+        rendered_prompt,
+        add_special_tokens=False,
+    )
+)
+</code></pre>
+<p><code>tokenizer.encode()</code>는 완성된 Prompt 문자열을 모델의 Tokenizer 규칙에 따라 Token 또는 Subword로 나누고, 각각을 Vocabulary에 등록된 정수 ID로 변환한다.</p>
+<pre><code class="language-text">Chat Template이 적용된 문자열
+        ↓
+Token 또는 Subword로 분리
+        ↓
+Vocabulary에서 각 Token의 ID 조회
+        ↓
+Token ID 배열
+</code></pre>
+<p>결과는 다음과 같은 정수 배열이다.</p>
+<pre><code class="language-python">[
+    151644,
+    872,
+    198,
+    840,
+    20772,
+    ...,
+    151645,
+    198,
+    151644,
+    77091,
+    198,
+]
+</code></pre>
+<p>Token ID로 변환되는 대상에는 사용자 문장만 있는 것이 아니다.</p>
+<ul>
+<li>System·User·Assistant 역할</li>
+<li>메시지 시작과 종료 표시</li>
+<li>공백과 줄바꿈</li>
+<li>사용자가 작성한 문장</li>
+<li>Assistant 생성 시작 표시</li>
+</ul>
+<p>이 모든 요소가 최종 Token ID 배열에 포함될 수 있다.</p>
+
+</section>
+<section id="tokenize-true-encode" class="markdown-section">
+<h2><code>tokenize=True</code>라면 별도의 <code>encode()</code>가 필요 없다</h2>
+<p>Chat Template을 적용하면서 Token ID까지 한 번에 만들 수도 있다.</p>
+<pre><code class="language-python">prompt_token_ids: list[int] = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=True,
+        add_generation_prompt=True,
+    )
+)
+</code></pre>
+<p>여기서는 다음 옵션을 사용했다.</p>
+<pre><code class="language-python">tokenize=True
+</code></pre>
+<p>이 설정은 다음 두 작업을 한 번에 실행하라는 뜻이다.</p>
+<pre><code class="language-text">대화 객체에 Chat Template 적용
++
+완성된 Prompt를 Token ID로 변환
+</code></pre>
+<p>따라서 반환값은 문자열이 아니라 이미 변환된 Token ID 배열이다.</p>
+<pre><code class="language-text">conversation
+    ↓ apply_chat_template(tokenize=True)
+prompt_token_ids: list[int]
+</code></pre>
+<p>이 경우에는 별도로 <code>tokenizer.encode()</code>를 호출할 필요가 없다.</p>
+<pre><code class="language-python"># 이미 Token ID가 만들어졌다.
+prompt_token_ids = tokenizer.apply_chat_template(
+    conversation,
+    tokenize=True,
+    add_generation_prompt=True,
+)
+
+# 다시 encode()하면 안 된다.
+# tokenizer.encode(prompt_token_ids)
+</code></pre>
+<p><code>encode()</code>는 문자열을 Token ID로 변환하는 함수다. 그런데 <code>prompt_token_ids</code>는 이미 정수 배열이므로 다시 Encoding할 대상이 아니다.</p>
+
+</section>
+<section id="tokenize-false-tokenize-true" class="markdown-section">
+<h2><code>tokenize=False</code>와 <code>tokenize=True</code> 비교</h2>
+<h3>문자열과 Token ID를 단계별로 확인하는 방식</h3>
+<pre><code class="language-python">rendered_prompt: str = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+)
+
+prompt_token_ids: list[int] = (
+    tokenizer.encode(
+        rendered_prompt,
+        add_special_tokens=False,
+    )
+)
+</code></pre>
+<pre><code class="language-text">대화 객체
+→ 모델 전용 Prompt 문자열
+→ Token ID 배열
+</code></pre>
+<p>장점은 중간 문자열을 직접 확인할 수 있다는 것이다.</p>
+<h3>Token ID까지 한 번에 만드는 방식</h3>
+<pre><code class="language-python">prompt_token_ids: list[int] = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=True,
+        add_generation_prompt=True,
+    )
+)
+</code></pre>
+<pre><code class="language-text">대화 객체
+→ Token ID 배열
+</code></pre>
+<p>중간 Prompt 문자열을 확인할 필요가 없다면 이 방식이 더 간단하다.</p>
+<p>차이를 정리하면 다음과 같다.</p>
+<pre><code class="language-text">tokenize=False
+→ Chat Template이 적용된 문자열 반환
+→ 별도로 encode() 필요
+
+tokenize=True
+→ Chat Template 적용과 Tokenization을 함께 수행
+→ 별도의 encode() 불필요
+</code></pre>
+<p>이번 실습에서 두 단계로 나눈 이유는 Qwen이 실제로 어떤 특수 토큰과 대화 형식을 사용하는지 <code>rendered_prompt</code>를 출력해 확인하기 위해서다.</p>
+
+</section>
+<section id="add-special-tokens-false" class="markdown-section">
+<h2>왜 <code>add_special_tokens=False</code>를 사용하는가</h2>
+<p>두 단계 방식에서는 다음과 같이 Encoding한다.</p>
+<pre><code class="language-python">tokenizer.encode(
+    rendered_prompt,
+    add_special_tokens=False,
+)
+</code></pre>
+<p>Chat Template을 적용한 <code>rendered_prompt</code>에는 이미 대화에 필요한 특수 토큰이 포함되어 있다.</p>
+<pre><code class="language-text">&lt;|im_start|&gt;
+&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+</code></pre>
+<p>따라서 <code>encode()</code>에서 특수 토큰을 자동으로 추가하면 일부 모델에서는 BOS나 EOS 등이 중복될 가능성이 있다.</p>
+<p>두 함수의 역할을 다음과 같이 분리한 것이다.</p>
+<pre><code class="language-text">apply_chat_template()
+→ 대화 역할과 경계를 나타내는 특수 토큰 배치
+
+encode(add_special_tokens=False)
+→ 완성된 문자열을 추가 변경 없이 Token ID로 변환
+</code></pre>
+
+</section>
+<section id="tokenizer-2" class="markdown-section">
+<h2>Tokenizer는 반드시 단어 단위로 나누지 않는다</h2>
+<p>Tokenizer는 문자열을 자연어의 단어 단위로만 나누지 않는다. 모델이 사용하는 Vocabulary에 따라 단어 전체 또는 더 작은 문자열 조각인 Subword로 나눌 수 있다.</p>
+<pre><code class="language-text">unbelievable
+→ un + believe + able
+</code></pre>
+<p>한국어도 어절 하나가 반드시 Token 하나가 되는 것은 아니다. 같은 문장이라도 Tokenizer에 따라 다음 결과가 달라질 수 있다.</p>
+<ul>
+<li>Token 분할 위치</li>
+<li>전체 Token 수</li>
+<li>각 Token의 ID</li>
+</ul>
+<p>세부 알고리즘에는 BPE, Byte-level BPE, WordPiece, Unigram, SentencePiece 등이 있다. 하지만 Tokenizer 자체를 분석하거나 구현하는 단계가 아니라면 다음 정도로 이해하면 충분하다.</p>
+<blockquote>
+<p>Tokenizer는 문자열을 모델 Vocabulary에 존재하는 문자열 조각으로 나누고, 각 조각을 정수 Token ID로 변환한다.</p>
+</blockquote>
+
+</section>
+<section id="section-aeadb246b904" class="markdown-section">
+<h2>두 방식을 비교하는 전체 코드</h2>
+<pre><code class="language-python">from transformers import (
+    AutoTokenizer,
+    PreTrainedTokenizerBase,
+)
+
+tokenizer: PreTrainedTokenizerBase = (
+    AutoTokenizer.from_pretrained(
+        &quot;/root/models/Qwen2.5-1.5B-Instruct&quot;,
+        local_files_only=True,
+    )
+)
+
+conversation = [
+    {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: &quot;Explain KV Cache in one sentence.&quot;,
+    }
+]
+
+
+# 방법 1: 문자열을 확인한 뒤 별도로 Encoding한다.
+
+rendered_prompt: str = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+)
+
+prompt_token_ids_from_encode: list[int] = (
+    tokenizer.encode(
+        rendered_prompt,
+        add_special_tokens=False,
+    )
+)
+
+
+# 방법 2: Chat Template 적용과 Tokenization을 한 번에 수행한다.
+
+prompt_token_ids_directly: list[int] = (
+    tokenizer.apply_chat_template(
+        conversation,
+        tokenize=True,
+        add_generation_prompt=True,
+    )
+)
+
+
+print(&quot;=== Chat Template 적용 결과 ===&quot;)
+print(rendered_prompt)
+print()
+
+print(&quot;=== 두 단계로 만든 Token ID ===&quot;)
+print(prompt_token_ids_from_encode)
+print()
+
+print(&quot;=== 한 번에 만든 Token ID ===&quot;)
+print(prompt_token_ids_directly)
+print()
+
+print(
+    &quot;결과가 같은가:&quot;,
+    (
+        prompt_token_ids_from_encode
+        == prompt_token_ids_directly
+    ),
+)
+</code></pre>
+<p>정상적인 조건이라면 두 방식이 같은 Token ID 배열을 만들어야 한다.</p>
+<pre><code class="language-text">대화 객체
+→ Chat Template 문자열
+→ encode()
+</code></pre>
+<p>와</p>
+<pre><code class="language-text">대화 객체
+→ apply_chat_template(tokenize=True)
+</code></pre>
+<p>가 같은 입력을 만드는지 직접 확인하는 코드다.</p>
+
+</section>
+<section id="section-8d6c4f6249ea" class="markdown-section">
+<h2>전체 과정 정리</h2>
+<pre><code class="language-text">1. AutoTokenizer.from_pretrained()
+   모델의 Tokenizer·Vocabulary·Chat Template을 불러온다.
+
+2. conversation
+   role과 content를 가진 대화 구조를 만든다.
+
+3. apply_chat_template()
+   대화 객체를 모델이 학습한 Prompt 형식으로 바꾼다.
+
+4. add_generation_prompt=True
+   Assistant가 답변 생성을 시작할 위치를 추가한다.
+
+5. tokenize=False
+   모델 전용 문자열까지만 반환한다.
+   이후 별도의 encode()가 필요하다.
+
+6. tokenizer.encode()
+   문자열을 Token 또는 Subword로 나누고 Token ID로 변환한다.
+
+7. add_special_tokens=False
+   Chat Template에 이미 포함된 특수 토큰의 중복 추가를 방지한다.
+
+8. tokenize=True
+   Chat Template 적용과 Token ID 변환을 한 번에 수행한다.
+   이후 별도의 encode()는 필요하지 않다.
+</code></pre>
+<p>최종적으로 이 과정은 사람이 사용하는 대화 구조와 Transformer 모델의 입력을 연결한다.</p>
+<pre><code class="language-text">사람이 작성한 대화
+→ role·content 객체
+→ 모델 전용 Chat Prompt
+→ Token ID 배열
+→ Embedding Vector
+→ Transformer 연산
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

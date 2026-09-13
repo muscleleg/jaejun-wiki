@@ -1,0 +1,290 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.md. Do not edit directly. source-sha256:4deaf3556145cb49d046d5a5fba95f449f725c4415a5a81978fcf6324adf08ce -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Continuous Batching 실험에서 고정한 Server 조건과 Workload, Client Concurrency와 max_num_seqs의 차이를 설명합니다.">
+  <meta name="source-sha256" content="4deaf3556145cb49d046d5a5fba95f449f725c4415a5a81978fcf6324adf08ce">
+  <title>1단계: Continuous Batching 실험 목적·계약·Workload 고정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="1단계: Continuous Batching 실험 목적·계약·Workload 고정">
+  <meta property="og:description" content="Continuous Batching 실험에서 고정한 Server 조건과 Workload, Client Concurrency와 max_num_seqs의 차이를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html","name":"1단계: Continuous Batching 실험 목적·계약·Workload 고정","description":"Continuous Batching 실험에서 고정한 Server 조건과 Workload, Client Concurrency와 max_num_seqs의 차이를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html"},"headline":"1단계: Continuous Batching 실험 목적·계약·Workload 고정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/01_purpose_contract_workload.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"1단계: Continuous Batching 실험 목적·계약·Workload 고정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">1단계: Continuous Batching 실험 목적·계약·Workload 고정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>1단계: Continuous Batching 실험 목적·계약·Workload 고정</h1>
+      <p class="lead">Continuous Batching 실험에서 고정한 Server 조건과 Workload, Client Concurrency와 max_num_seqs의 차이를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">이 단계를 먼저 수행한 이유</a>
+        <a href="#section-02">실험에서 고정한 Server 조건</a>
+        <a href="#section-03">실험에서 고정한 측정 조건</a>
+        <a href="#section-04">Client Concurrency와 <code>max_num_seqs</code>를 구분한다</a>
+        <a href="#section-05">Prompt와 생성 길이가 다른 Workload</a>
+        <a href="#section-06">Chat Template과 Tokenization 흐름</a>
+        <a href="#section-07">vLLM Server와 Served Model 이름</a>
+        <a href="#section-08">이 단계에서 확보한 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>상위 문서: <a href="../vllm_continuous_batching_performance.html">Continuous Batching 동작 검증</a></p>
+<p>다음 단계: <a href="02_delayed_arrival_observation.html">실행 중 도착한 요청의 Batch 편입 관찰</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>이 단계를 먼저 수행한 이유</h2>
+<p>Concurrency별 결과를 비교하려면 어떤 조건을 바꿨고 어떤 조건을 고정했는지가 분명해야 한다. GPU, 모델, 요청 내용, 생성 길이와 Server 설정이 함께 달라지면 Throughput이나 지연 변화가 Concurrency 때문인지 다른 조건 때문인지 판단할 수 없다.</p>
+<p>따라서 이번 실험에서는 다음 한 가지 질문만 검사하도록 계약을 만들었다.</p>
+<pre><code class="language-text">같은 GPU·모델·Server·Workload에서
+Client Concurrency만 1·4·8·16으로 높이면
+Running·Waiting·Throughput·TTFT·TPOT가 어떻게 변하는가?
+</code></pre>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>실험에서 고정한 Server 조건</h2>
+<p>실제 계약에 기록한 Server 조건은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">값</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Served Model</td>
+<td align="right"><code>qwen2.5-1.5b-instruct</code></td>
+<td>모든 요청이 지정하는 모델 이름</td>
+</tr>
+<tr>
+<td>Max Model Length</td>
+<td align="right">4,096 Token</td>
+<td>Prompt와 생성 Token을 합친 최대 Sequence 길이</td>
+</tr>
+<tr>
+<td><code>max_num_seqs</code></td>
+<td align="right">2</td>
+<td>동시에 Running 상태로 유지할 최대 Sequence 수</td>
+</tr>
+<tr>
+<td><code>max_num_batched_tokens</code></td>
+<td align="right">4,096</td>
+<td>한 Scheduler Iteration에 배정할 수 있는 Token 작업량 상한</td>
+</tr>
+<tr>
+<td>Scheduling Policy</td>
+<td align="right">FCFS</td>
+<td>Waiting 요청 중 먼저 도착한 요청을 우선 선택</td>
+</tr>
+<tr>
+<td>Prefix Caching</td>
+<td align="right">OFF</td>
+<td>요청 사이 공통 Prefix 재사용 효과를 제외</td>
+</tr>
+<tr>
+<td>Chunked Prefill</td>
+<td align="right">OFF</td>
+<td>긴 Prompt 분할 효과를 이번 비교에서 제외</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_num_seqs=2</code>는 설명을 위한 가정이 아니라 실제 Server 실행 조건이다. Client Concurrency가 4 이상이면 Server가 동시에 실행할 수 있는 Sequence 수보다 많은 요청이 도착하므로 Running과 Waiting을 함께 관찰하기 쉽다.</p>
+<p>만약 같은 실험에서 <code>max_num_seqs=10</code>을 사용했다면 Concurrency 4와 8의 요청은 모두 Running이 될 수 있다. 그러면 이번에 관찰한 Waiting과 TTFT 결과는 전혀 다른 의미가 된다. Server 용량과 Client 부하를 동시에 바꾸지 않은 이유가 여기에 있다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>실험에서 고정한 측정 조건</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">값</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Concurrency Levels</td>
+<td align="right"><code>1, 4, 8, 16</code></td>
+<td>부하 증가와 포화 구간 관찰</td>
+</tr>
+<tr>
+<td>Warm-up Request</td>
+<td align="right">1회</td>
+<td>첫 실행의 초기화 비용 완화</td>
+</tr>
+<tr>
+<td>Measurement Runs</td>
+<td align="right">조건별 3회</td>
+<td>일회성 변동 완화</td>
+</tr>
+<tr>
+<td>Metrics Poll Interval</td>
+<td align="right">0.1초</td>
+<td>Running·Waiting 시계열 수집</td>
+</tr>
+<tr>
+<td>Client Timeout</td>
+<td align="right">180초</td>
+<td>높은 Concurrency에서도 충분한 완료 시간 제공</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td align="right">0.0</td>
+<td>Sampling 변동 제거</td>
+</tr>
+<tr>
+<td>EOS 정책</td>
+<td align="right"><code>ignore_eos=True</code></td>
+<td>지정한 생성 길이를 실제로 채워 조건 고정</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_tokens</code>는 원래 생성 Token의 상한이므로 EOS가 먼저 선택되면 그보다 짧게 끝날 수 있다. 이번 실험에서는 <code>ignore_eos=True</code>를 사용했기 때문에 EOS가 나와도 종료하지 않고 각 요청의 생성 상한까지 진행한다. 이 조건 덕분에 요청 유형별 Decode 작업량을 고정할 수 있었다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Client Concurrency와 <code>max_num_seqs</code>를 구분한다</h2>
+<p>두 값은 모두 요청 수처럼 보이지만 적용 위치가 다르다.</p>
+<pre><code class="language-text">Client Concurrency
+→ Client가 동시에 HTTP 요청을 실행하고 응답을 기다릴 수 있는 최대 수
+
+Server max_num_seqs
+→ Server가 도착한 요청 중 동시에 Running 상태로 유지할 수 있는 최대 Sequence 수
+</code></pre>
+<p>예를 들어 Client Concurrency가 8이고 <code>max_num_seqs=2</code>이면 Client는 최대 8개의 HTTP 요청을 진행할 수 있지만 Server의 Running은 최대 2개다. 나머지는 Server Waiting Queue에 있거나 Client Thread Pool Queue에서 아직 전송 차례를 기다릴 수 있다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>Prompt와 생성 길이가 다른 Workload</h2>
+<p>동일한 요청 유형 A·B·C·D를 네 번씩 반복해 총 16개 요청을 만들었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th align="right">Prompt Token</th>
+<th align="right">생성 Token 상한</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">43</td>
+<td align="right">128</td>
+<td>짧게 입력하고 오래 Decode되는 요청</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">41</td>
+<td align="right">32</td>
+<td>짧게 입력하고 빨리 끝나 자리를 비우는 요청</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">342</td>
+<td align="right">64</td>
+<td>Prefill 비용이 상대적으로 큰 요청</td>
+</tr>
+<tr>
+<td>D</td>
+<td align="right">146</td>
+<td align="right">16</td>
+<td>중간 Prompt를 사용하지만 생성은 짧은 요청</td>
+</tr>
+</tbody></table>
+</div>
+<p>A를 “오래 Decode되는 요청”이라고 표현한 이유는 Prompt가 짧아서가 아니라 생성 상한이 128 Token으로 네 유형 중 가장 크기 때문이다. B는 입력과 생성이 모두 짧아 먼저 완료될 가능성이 높다. C는 많이 입력하고 중간 정도를 생성하며, D는 중간 길이를 입력하지만 적게 생성한다.</p>
+<p>문자 수는 참고값일 뿐 실제 모델 입력 길이는 Tokenizer가 만든 Prompt Token 수로 판단했다. Tokenizer는 문장을 반드시 단어 단위로 자르는 것이 아니라 모델이 학습할 때 사용한 Token 또는 Subword 단위로 나누고 Vocabulary의 정수 ID로 변환한다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>Chat Template과 Tokenization 흐름</h2>
+<p>요청 문장은 먼저 OpenAI Chat 형식의 대화 객체로 만든다.</p>
+<pre><code class="language-python">conversation = [
+    {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: request.prompt_text,
+    }
+]
+</code></pre>
+<p>이 객체 자체를 모델에 넣는 것은 아니다. <code>apply_chat_template()</code>이 모델의 Chat Template에 맞는 문자열로 렌더링한다.</p>
+<pre><code class="language-text">role·content 구조
+→ 모델 전용 System·User·Assistant 구분 문자열
+→ Special Token이 포함된 Prompt 문자열
+</code></pre>
+<p><code>tokenize=False</code>를 사용하면 이 단계에서는 문자열만 만든다. 이후 <code>tokenizer.encode()</code>가 렌더링된 문자열을 Token ID 목록으로 바꾼다.</p>
+<pre><code class="language-python">rendered_prompt = tokenizer.apply_chat_template(
+    conversation,
+    tokenize=False,
+    add_generation_prompt=True,
+)
+
+prompt_token_ids = tokenizer.encode(
+    rendered_prompt,
+    add_special_tokens=False,
+)
+</code></pre>
+<p><code>apply_chat_template(..., tokenize=True)</code>를 사용하면 Template 적용과 Tokenization을 한 번에 수행할 수 있으므로 별도의 <code>encode()</code>는 필요하지 않다. 이번 코드는 렌더링된 문자열과 Token ID 변환 단계를 각각 관찰하기 위해 두 단계로 나눴다.</p>
+<p><code>add_special_tokens=False</code>를 사용한 이유는 Chat Template이 이미 필요한 Special Token을 문자열에 포함했기 때문이다. 여기서 Tokenizer에 다시 Special Token을 추가하게 하면 중복될 가능성이 있다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>vLLM Server와 Served Model 이름</h2>
+<p>이번 Server는 하나의 Base Model을 로드한 하나의 추론 엔진으로 이해하면 된다. <code>/v1/models</code>가 목록 형태를 반환하는 것은 OpenAI-compatible API 규격을 따르기 때문이다. 한 Server에서 여러 Model ID나 Adapter를 노출하는 기능이 있을 수 있지만, Qwen과 Llama처럼 서로 다른 Base Model을 각각 운영하려면 일반적으로 모델마다 별도의 vLLM Engine 또는 Server를 실행하고 상위 Router에서 분기한다.</p>
+<p>따라서 이번 계약의 Served Model 이름은 “이 요청이 현재 Server에 올라간 모델을 가리키는가?”를 확인하기 위한 API 식별자다. Server 실행 용량과 Scheduler 설정도 현재 올라간 Base Model을 처리하는 Engine에 적용된다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>이 단계에서 확보한 것</h2>
+<ul>
+<li>Concurrency만 독립 변수로 바꿀 수 있는 비교 계약</li>
+<li>동일한 16개 요청과 요청 순서</li>
+<li>Prompt·생성 길이가 다른 Workload</li>
+<li>문자열 길이가 아닌 실제 Prompt Token 수</li>
+<li>Greedy와 고정 생성 길이 조건</li>
+<li>Client Concurrency와 Server Sequence 용량의 구분</li>
+<li>다음 단계에서 사용할 Server·Measurement 계약 객체</li>
+</ul>
+<p><a href="../vllm_continuous_batching_performance.html">상위 문서로 돌아가기</a> · <a href="02_delayed_arrival_observation.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

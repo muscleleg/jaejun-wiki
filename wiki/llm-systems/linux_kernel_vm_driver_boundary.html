@@ -1,0 +1,147 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/linux_kernel_vm_driver_boundary.md. Do not edit directly. source-sha256:439a71b2005c7c5b4216d8aaaee82f0402b043d3bb729fd489667e728f9b84c8 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Linux에서 여러 Kernel Image를 설치하는 것과 하나의 OS에서 실행되는 Kernel을 구분하고, VM이 서로 다른 GPU Driver 경계를 만드는 방식을 설명합니다.">
+  <meta name="source-sha256" content="439a71b2005c7c5b4216d8aaaee82f0402b043d3bb729fd489667e728f9b84c8">
+  <title>Linux Kernel과 VM이 Driver 경계를 만드는 방식</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Linux Kernel과 VM이 Driver 경계를 만드는 방식">
+  <meta property="og:description" content="Linux에서 여러 Kernel Image를 설치하는 것과 하나의 OS에서 실행되는 Kernel을 구분하고, VM이 서로 다른 GPU Driver 경계를 만드는 방식을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html","name":"Linux Kernel과 VM이 Driver 경계를 만드는 방식","description":"Linux에서 여러 Kernel Image를 설치하는 것과 하나의 OS에서 실행되는 Kernel을 구분하고, VM이 서로 다른 GPU Driver 경계를 만드는 방식을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html"},"headline":"Linux Kernel과 VM이 Driver 경계를 만드는 방식","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/linux_kernel_vm_driver_boundary.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"Linux Kernel과 VM이 Driver 경계를 만드는 방식"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Linux Kernel과 VM이 Driver 경계를 만드는 방식</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Linux Kernel과 VM이 Driver 경계를 만드는 방식</h1>
+      <p class="lead">Linux에서 여러 Kernel Image를 설치하는 것과 하나의 OS에서 실행되는 Kernel을 구분하고, VM이 서로 다른 GPU Driver 경계를 만드는 방식을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#kernel-os-instance">여러 Kernel을 설치할 수 있지만 한 OS Instance는 하나만 실행한다</a>
+        <a href="#container-kernel">Container는 Kernel을 분리하지 않는다</a>
+        <a href="#vm-kernel">VM은 독립 Kernel을 실행한다</a>
+        <a href="#kernel-gpu">Kernel을 나눈 것만으로 GPU가 자동 분배되지는 않는다</a>
+        <a href="#server-kubernetes-node">물리 Server와 Kubernetes Node의 관계</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>NVIDIA Driver Version이 하나의 실행 중인 Kernel에 종속된다면, Linux에서 Kernel을 두 개 실행해 Driver Version도 두 개로 나눌 수 있는지 의문이 생긴다.</p>
+
+</section>
+<section id="kernel-os-instance" class="markdown-section">
+<h2>여러 Kernel을 설치할 수 있지만 한 OS Instance는 하나만 실행한다</h2>
+<p>Linux System에는 여러 Kernel Image를 설치해 둘 수 있다.</p>
+<pre><code class="language-text">/boot/vmlinuz-6.8.x
+/boot/vmlinuz-6.11.x
+</code></pre>
+<p>부팅할 때 그중 하나를 선택할 수 있지만, 부팅된 하나의 OS Instance에서 실행 중인 Kernel은 하나다.</p>
+<pre><code class="language-text">설치된 Kernel Image 수  여러 개 가능
+현재 실행 중인 Kernel   하나
+</code></pre>
+<p>현재 Kernel은 다음으로 확인한다.</p>
+<pre><code class="language-bash">uname -r
+</code></pre>
+
+</section>
+<section id="container-kernel" class="markdown-section">
+<h2>Container는 Kernel을 분리하지 않는다</h2>
+<p>Container는 Process, Filesystem, Network 등을 격리하지만 Host Kernel을 공유한다.</p>
+<pre><code class="language-text">Host Kernel 하나
+├─ Container A
+├─ Container B
+└─ Container C
+</code></pre>
+<p>따라서 Container A에 R570 Package, Container B에 R580 Package를 넣는다고 두 Kernel Driver가 독립 실행되는 것은 아니다.</p>
+
+</section>
+<section id="vm-kernel" class="markdown-section">
+<h2>VM은 독립 Kernel을 실행한다</h2>
+<p>Hypervisor 위의 VM은 각자 Guest OS와 Kernel을 실행한다.</p>
+<pre><code class="language-text">Physical Server
+└─ Hypervisor Host
+   ├─ VM A: Kernel A + NVIDIA Driver R570
+   └─ VM B: Kernel B + NVIDIA Driver R580
+</code></pre>
+<p>GPU를 각 VM에 독립적으로 제공할 수 있다면, VM마다 서로 다른 Driver Version을 사용할 수 있다. 여기서 VM은 Kubernetes 관점에서도 별개의 Node가 될 수 있다.</p>
+
+</section>
+<section id="kernel-gpu" class="markdown-section">
+<h2>Kernel을 나눈 것만으로 GPU가 자동 분배되지는 않는다</h2>
+<p>VM마다 Kernel이 있어도 같은 물리 GPU를 아무 설정 없이 동시에 직접 사용할 수는 없다. Hardware를 Guest에 제공하는 방식이 추가로 필요하다.</p>
+<ul>
+<li>물리 GPU 전체를 한 VM에 넘기는 PCI Passthrough</li>
+<li>NVIDIA vGPU처럼 중재 계층을 통해 가상 GPU를 제공하는 방식</li>
+<li>지원되는 환경에서 MIG와 vGPU를 결합하는 방식</li>
+</ul>
+
+</section>
+<section id="server-kubernetes-node" class="markdown-section">
+<h2>물리 Server와 Kubernetes Node의 관계</h2>
+<p>Kubernetes Node가 항상 물리 Server인 것은 아니다.</p>
+<pre><code class="language-text">물리 Server 한 대
+├─ VM A → Kubernetes Node A
+└─ VM B → Kubernetes Node B
+</code></pre>
+<p>이 구조에서는 물리 Server는 하나지만 Node가 두 개이고, 각 VM이 서로 다른 Kernel과 Driver를 가질 수 있다. “Driver는 Node 종속”이라는 말과 모순되지 않는다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>Linux는 여러 Kernel Image를 보관할 수 있지만 한 OS Instance에서는 하나의 Kernel만 실행한다. 서로 다른 NVIDIA Driver Version을 동시에 운영하려면 보통 VM이나 별도 Host처럼 독립 Kernel 경계를 만들고 GPU 할당 경계도 함께 분리해야 한다.</p>
+</blockquote>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="one_nvidia_driver_stack_per_node.html">한 Node의 여러 NVIDIA GPU는 왜 같은 Driver Version을 사용하는가?</a></li>
+<li><a href="pci_passthrough_vfio_pci.html">PCI Passthrough와 vfio-pci는 무엇을 하는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
