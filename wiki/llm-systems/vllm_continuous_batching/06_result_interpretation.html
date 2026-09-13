@@ -1,0 +1,249 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.md. Do not edit directly. source-sha256:515bb91cab7011eb77ac72129f41c477b6e8d173b60ae8ca7ebfe6d0372e4b14 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Concurrency 증가에 따른 처리량 포화와 Queue 지연을 해석하고 고정 Batch와 Continuous Batching을 비교합니다.">
+  <meta name="source-sha256" content="515bb91cab7011eb77ac72129f41c477b6e8d173b60ae8ca7ebfe6d0372e4b14">
+  <title>6단계: Concurrency 포화 결과 해석과 고정 Batch 비교</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="6단계: Concurrency 포화 결과 해석과 고정 Batch 비교">
+  <meta property="og:description" content="Concurrency 증가에 따른 처리량 포화와 Queue 지연을 해석하고 고정 Batch와 Continuous Batching을 비교합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html","name":"6단계: Concurrency 포화 결과 해석과 고정 Batch 비교","description":"Concurrency 증가에 따른 처리량 포화와 Queue 지연을 해석하고 고정 Batch와 Continuous Batching을 비교합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html"},"headline":"6단계: Concurrency 포화 결과 해석과 고정 Batch 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/06_result_interpretation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"6단계: Concurrency 포화 결과 해석과 고정 Batch 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">6단계: Concurrency 포화 결과 해석과 고정 Batch 비교</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>6단계: Concurrency 포화 결과 해석과 고정 Batch 비교</h1>
+      <p class="lead">Concurrency 증가에 따른 처리량 포화와 Queue 지연을 해석하고 고정 Batch와 Continuous Batching을 비교합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">결과를 해석하는 기준</a>
+        <a href="#section-02">Concurrency 1은 Queue가 없는 기준선이었다</a>
+        <a href="#section-03">Concurrency 4에서 처리량이 크게 증가했다</a>
+        <a href="#section-04">Concurrency 8부터 처리량이 포화됐다</a>
+        <a href="#section-05">Concurrency 16에서는 Queue만 더 커졌다</a>
+        <a href="#section-06">TTFT와 TPOT가 다르게 변한 이유</a>
+        <a href="#section-07">Continuous Batching과 고정 Batch의 차이</a>
+        <a href="#section-08">현재 결과의 균형점 후보</a>
+        <a href="#section-09">측정 자료와 SLO의 역할</a>
+        <a href="#section-10">이 단계에서 확인한 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>상위 문서: <a href="../vllm_continuous_batching_performance.html">Continuous Batching 동작 검증</a></p>
+<p>이전 단계: <a href="05_metrics_aggregation.html">TTFT·TPOT·Latency·Throughput 집계</a></p>
+<p>다음 단계: <a href="07_artifacts_completion.html">결과 보존과 실험 완료 검증</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>결과를 해석하는 기준</h2>
+<p>이번 실험은 <code>max_num_seqs=2</code>인 같은 Server에서 Client Concurrency만 <code>1·4·8·16</code>으로 바꿨다. 따라서 다음 세 변화를 함께 봐야 한다.</p>
+<pre><code class="language-text">처리 효율
+→ Output Throughput이 얼마나 증가했는가?
+
+Queue 압력
+→ Max Running과 Max Waiting이 어떻게 변했는가?
+
+사용자 경험
+→ TTFT·TPOT·Latency의 p50·p95가 어떻게 변했는가?
+</code></pre>
+<p>가장 높은 Concurrency나 가장 높은 Throughput 하나만 보고 설정을 선택하면 안 된다. 처리량이 거의 늘지 않는데 Waiting과 Tail Latency만 증가할 수 있기 때문이다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>Concurrency 1은 Queue가 없는 기준선이었다</h2>
+<pre><code class="language-text">Throughput = 63.67 token/s
+TTFT p95 = 49.49ms
+TPOT p95 = 15.32ms/token
+Latency p95 = 1,979.99ms
+Max Running = 1
+Max Waiting = 0
+</code></pre>
+<p>Client가 요청 하나만 진행했기 때문에 Server의 Running 자리 두 개를 모두 활용하지 못했다. Waiting은 없고 첫 응답은 빨랐지만 전체 Output Throughput은 가장 낮았다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Concurrency 4에서 처리량이 크게 증가했다</h2>
+<pre><code class="language-text">Throughput = 124.27 token/s
+TTFT p95 = 1,581.20ms
+TPOT p95 = 15.82ms/token
+Latency p95 = 3,339.40ms
+Max Running = 2
+Max Waiting = 2
+</code></pre>
+<p>Concurrency 1에서 4로 높이자 Throughput은 약 95% 증가했다.</p>
+<pre><code class="language-text">(124.27 - 63.67) / 63.67 ≈ 0.95
+</code></pre>
+<p>Server는 Running 자리 두 개를 활용해 여러 요청의 Token 작업을 함께 처리했다. Continuous Batching으로 실행 자리가 비면 Waiting 요청을 편입할 수 있었기 때문에 GPU에 더 꾸준히 작업을 공급했다.</p>
+<p>다만 Server 용량을 넘는 요청이 Waiting에 들어가면서 TTFT와 Latency도 증가했다. 처리량 이득과 Queue 비용이 동시에 나타난 구간이다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Concurrency 8부터 처리량이 포화됐다</h2>
+<pre><code class="language-text">Concurrency 4 → 124.27 token/s
+Concurrency 8 → 124.17 token/s
+</code></pre>
+<p>Client가 동시에 진행할 수 있는 요청을 두 배로 늘렸지만 Throughput은 증가하지 않았다. 최대 Running은 여전히 2였고 최대 Waiting은 2에서 6으로 늘었다.</p>
+<pre><code class="language-text">더 많은 요청 도착
+→ Server Running 용량은 그대로 2
+→ 추가 요청은 Waiting
+→ TTFT와 Latency 증가
+→ Throughput은 거의 동일
+</code></pre>
+<p>TTFT p95는 <code>1,581.20ms</code>에서 <code>3,523.37ms</code>로 늘었고 Latency p95도 <code>3,339.40ms</code>에서 <code>5,026.58ms</code>로 증가했다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>Concurrency 16에서는 Queue만 더 커졌다</h2>
+<pre><code class="language-text">Throughput = 118.82 token/s
+TTFT p95 = 6,621.09ms
+TPOT p95 = 15.79ms/token
+Latency p95 = 7,687.59ms
+Max Running = 2
+Max Waiting = 14
+</code></pre>
+<p>Concurrency 16에서는 Throughput이 오히려 Concurrency 4와 8보다 낮아졌다. 최대 Waiting은 14까지 증가했고 TTFT p95는 6.62초가 됐다.</p>
+<p>이 결과는 더 많은 동시 요청이 항상 더 높은 처리량을 의미하지 않는다는 것을 보여준다. Server가 이미 포화된 뒤의 추가 Concurrency는 실행 능력을 늘리지 않고 Queue와 사용자 대기만 키웠다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>TTFT와 TPOT가 다르게 변한 이유</h2>
+<p>TPOT p95는 네 조건에서 약 <code>15.3~15.8ms/token</code> 범위에 머물렀다. 반면 TTFT와 Latency는 Concurrency 증가에 따라 크게 늘었다.</p>
+<pre><code class="language-text">TPOT 변화 작음
+→ Running에 들어간 뒤 후속 Token 생성 간격은 대체로 안정적
+
+TTFT·Latency 증가 큼
+→ Running에 들어가기 전 Server Waiting 시간이 증가
+</code></pre>
+<p>따라서 이번 실험에서 사용자 지연 증가의 주된 원인은 Decode Token 하나를 생성하는 시간이 크게 늘어난 것이 아니라, 요청이 실행 자리를 얻기 전에 기다린 시간이라고 추론할 수 있다.</p>
+<p>이 해석은 Metrics 표본과 지표 변화에 근거한 추론이다. 정확한 내부 Queue Time을 별도 Metric으로 직접 측정한 것과는 구분해야 한다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>Continuous Batching과 고정 Batch의 차이</h2>
+<p>고정 Batch에서는 처음 묶인 요청이 모두 끝날 때까지 다음 요청을 넣지 않는다.</p>
+<pre><code class="language-text">[A, B] 시작
+→ B가 먼저 끝나도 빈자리 유지
+→ A까지 끝남
+→ 그 뒤 C 시작
+</code></pre>
+<p>Continuous Batching에서는 B가 먼저 끝난 다음 Iteration부터 C를 넣을 수 있다.</p>
+<pre><code class="language-text">[A, B] 시작
+→ B 완료
+→ C 편입
+→ [A, C]로 실행 구성 변경
+</code></pre>
+<p>앞선 비교에서는 같은 Continuous Batching Server에 요청 제출 방식만 다르게 만들었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>제출 방식</th>
+<th align="right">C 첫 Content [s]</th>
+<th align="right">전체 완료 [s]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Static-like</td>
+<td align="right">6.808</td>
+<td align="right">10.177</td>
+</tr>
+<tr>
+<td>Continuous 제출</td>
+<td align="right">1.756</td>
+<td align="right">6.811</td>
+</tr>
+</tbody></table>
+</div>
+<p>Static-like 방식은 A·B가 모두 완료된 뒤 Client가 C를 전송했다. B가 먼저 끝나도 C가 아직 Server에 없으므로 빈자리를 사용할 수 없었다.</p>
+<p>Continuous 방식은 A·B·C를 미리 전송했다. C는 Waiting에 있다가 B가 끝난 자리에 들어갔다. 두 실험 모두 vLLM 내부 Scheduler는 Continuous Batching이었다. Static-like는 vLLM의 별도 Static 모드를 켠 것이 아니라 Client의 제출 시점을 늦춰 고정 Batch와 비슷한 시간축을 만든 비교군이다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>현재 결과의 균형점 후보</h2>
+<p>현재 조건만 보면 Concurrency 4가 균형점 후보로 보인다.</p>
+<pre><code class="language-text">Concurrency 1
+→ 사용자 지연 최소
+→ 처리량 낮음
+
+Concurrency 4
+→ 처리량 약 95% 증가
+→ Waiting과 TTFT 증가 시작
+
+Concurrency 8
+→ 처리량 추가 이득 없음
+→ Waiting·TTFT 크게 증가
+
+Concurrency 16
+→ 처리량 감소
+→ Waiting·Tail Latency 최대
+</code></pre>
+<p>하지만 “최대 4명까지만 허용한다”거나 “<code>max_num_seqs</code>를 4로 바꾼다”는 결론은 아니다. 이번 실험의 Concurrency는 동시 사용자 수와 정확히 같지 않으며 <code>max_num_seqs</code>는 2로 고정했다.</p>
+
+</section>
+<section id="section-09" class="markdown-section">
+<h2>측정 자료와 SLO의 역할</h2>
+<p>이번 결과는 운영 기준 그 자체가 아니라 운영 판단에 사용할 자료다. 어느 지점을 허용할지는 서비스 목표가 결정한다.</p>
+<pre><code class="language-text">측정
+→ Concurrency별 Throughput·TTFT·TPOT·Latency·오류·Queue
+
+SLO
+→ 예: TTFT p95, Latency p95, 오류율의 허용 기준
+
+판단
+→ SLO를 만족하면서 필요한 처리량을 내는 범위 선택
+</code></pre>
+<p>SLO를 위반한다면 원인에 따라 <code>max_num_seqs</code> 조정, 요청 Admission 제한, 모델 최적화, GPU 변경 또는 Replica 증설을 검토한 뒤 같은 Benchmark를 다시 실행한다.</p>
+<p>최적의 <code>max_num_seqs</code>를 찾으려면 Client Workload를 고정하고 <code>max_num_seqs</code> 자체를 별도의 독립 변수로 바꾸는 추가 실험이 필요하다. 이번 결과만으로 그 값을 확정할 수는 없다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>이 단계에서 확인한 결론</h2>
+<ol>
+<li>Continuous Batching은 완료된 요청의 자리를 Waiting 요청으로 채워 빈 실행 자리를 줄였다.</li>
+<li>Concurrency 1에서 4로 증가할 때 Throughput이 크게 증가했다.</li>
+<li>Concurrency 8부터 Throughput 증가가 멈추고 Waiting과 TTFT가 늘었다.</li>
+<li>Concurrency 16에서는 Throughput도 낮아져 포화 이후 과도한 Queue 압력이 나타났다.</li>
+<li>TPOT보다 TTFT와 Latency가 크게 변해 Waiting의 영향이 더 컸다고 해석했다.</li>
+<li>현재 조건의 균형점 후보는 Concurrency 4지만 운영 확정에는 SLO가 필요하다.</li>
+<li>GPU와 Server 설정이 달라지면 결과를 다시 측정해야 한다.</li>
+</ol>
+<p><a href="05_metrics_aggregation.html">← 이전 단계</a> · <a href="../vllm_continuous_batching_performance.html">상위 문서로 돌아가기</a> · <a href="07_artifacts_completion.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

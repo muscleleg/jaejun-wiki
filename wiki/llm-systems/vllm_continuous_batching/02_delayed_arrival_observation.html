@@ -1,0 +1,276 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.md. Do not edit directly. source-sha256:2d807829072af06b24bead25a4518eec28fa7a2ba0b59d295c26f7ca4b3876bd -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A·B 실행 중 늦게 도착한 C가 Waiting을 거쳐 빈 Running 자리에 편입되는 과정을 Metrics와 Scheduler Trace로 확인합니다.">
+  <meta name="source-sha256" content="2d807829072af06b24bead25a4518eec28fa7a2ba0b59d295c26f7ca4b3876bd">
+  <title>2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰">
+  <meta property="og:description" content="A·B 실행 중 늦게 도착한 C가 Waiting을 거쳐 빈 Running 자리에 편입되는 과정을 Metrics와 Scheduler Trace로 확인합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html","name":"2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰","description":"A·B 실행 중 늦게 도착한 C가 Waiting을 거쳐 빈 Running 자리에 편입되는 과정을 Metrics와 Scheduler Trace로 확인합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html"},"headline":"2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/02_delayed_arrival_observation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>2단계: 실행 중 도착한 요청의 Waiting과 Batch 편입 관찰</h1>
+      <p class="lead">A·B 실행 중 늦게 도착한 C가 Waiting을 거쳐 빈 Running 자리에 편입되는 과정을 Metrics와 Scheduler Trace로 확인합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">이 단계에서 확인하려는 현상</a>
+        <a href="#section-02">요청 역할</a>
+        <a href="#section-03">Server와 TracingScheduler 실행</a>
+        <a href="#section-04"><code>schedule_index</code>와 Iteration의 관계</a>
+        <a href="#section-05">Request ID를 연결한 방법</a>
+        <a href="#section-06">최종 Artifact 기준 Client 관찰 결과</a>
+        <a href="#section-07">Running·Waiting 시계열</a>
+        <a href="#section-08">확인된 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>상위 문서: <a href="../vllm_continuous_batching_performance.html">Continuous Batching 동작 검증</a></p>
+<p>이전 단계: <a href="01_purpose_contract_workload.html">실험 목적·계약·Workload 고정</a></p>
+<p>다음 단계: <a href="03_streaming_metrics_collection.html">Streaming 응답과 Server Metrics 수집</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>이 단계에서 확인하려는 현상</h2>
+<p>Concurrency Sweep 전에 Continuous Batching의 핵심 현상을 작은 실제 사례로 확인했다. <code>max_num_seqs=2</code>인 vLLM Server에 A와 B를 먼저 보내 Running 자리 두 개를 채운 뒤 C를 늦게 보냈다.</p>
+<pre><code class="language-text">A·B 먼저 전송
+→ Running=2
+
+C 지연 전송
+→ 실행 자리가 없으면 Waiting=1
+
+B 먼저 완료
+→ A는 계속 Running
+→ C가 빈자리에 들어감
+→ 실행 구성이 [A, B]에서 [A, C]로 변경
+
+모두 완료
+→ Running=0, Waiting=0
+</code></pre>
+<p>이 관찰은 단순히 요청 세 개를 동시에 보낸 것이 아니다. A·B가 실제로 Running 두 자리를 차지한 것을 <code>/metrics</code>에서 확인한 다음 C를 제출했다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>요청 역할</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th align="right">Prompt Token</th>
+<th align="right">생성 Token</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">51</td>
+<td align="right">512</td>
+<td>가장 오래 Decode되어 다른 요청이 교체되는 동안 계속 실행</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">34</td>
+<td align="right">128</td>
+<td>A보다 먼저 완료되어 Running 자리를 비움</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">46</td>
+<td align="right">256</td>
+<td>A·B 실행 중 늦게 도착해 Waiting과 후속 편입을 관찰</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>ignore_eos=True</code>를 사용해 A·B·C가 지정한 생성 Token 수까지 실행되도록 했다. Prompt가 짧더라도 생성 길이가 길면 Decode Iteration이 오래 이어질 수 있다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Server와 TracingScheduler 실행</h2>
+<p>실제 vLLM Scheduler의 선택을 기록하기 위해 기존 Scheduler를 확장한 <code>TracingScheduler</code>를 사용했다.</p>
+<pre><code class="language-text">Client 요청
+→ vLLM API Server
+→ TracingScheduler.schedule()
+→ super().schedule()로 원래 선택 로직 실행
+→ 선택 전후 상태와 배정 Token 수를 JSONL에 기록
+→ 원래 SchedulerOutput을 Engine에 반환
+</code></pre>
+<p>이는 요청 앞에서 별도의 Filter가 처리 결과를 바꾸는 구조가 아니다. vLLM이 사용할 Scheduler 클래스를 확장하고 원래 <code>schedule()</code>을 재정의한 것이다. Python은 Java처럼 <code>@Override</code>를 필수로 요구하지 않는다. 부모와 같은 이름의 메서드를 자식 클래스에 정의하면 Override되며, <code>super().schedule()</code>을 호출해 부모 동작을 그대로 실행할 수 있다.</p>
+<p>추가한 로그는 다음 정보를 남겼다.</p>
+<ul>
+<li>Scheduling 직전 Waiting·Running Request ID</li>
+<li>이번 호출에서 실제로 선택된 Request ID와 Token 작업 수</li>
+<li>요청의 Prompt 길이와 호출 전 계산 진행도</li>
+<li>Scheduling 이후 Waiting·Running Request ID</li>
+<li>직전 단계 이후 완료된 Request ID</li>
+<li>Preemption된 Request ID</li>
+<li>해당 Server 세션과 Scheduler 호출 순서</li>
+</ul>
+<p><code>running</code> 목록은 현재 실행 상태로 관리되는 요청 전체다. <code>scheduled_requests</code>는 그중 이번 Scheduler 호출에 Token 작업이 실제 배정된 요청이다. Running이라고 해서 Token Budget이나 다른 제약 때문에 모든 Iteration에 반드시 선택되는 것은 아니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2><code>schedule_index</code>와 Iteration의 관계</h2>
+<p><code>schedule_index</code>는 vLLM이 제공한 고정 메타데이터가 아니라 <code>TracingScheduler</code>의 <code>__init__()</code>에서 0으로 만들고 <code>schedule()</code>이 호출될 때마다 1씩 증가시킨 카운터다.</p>
+<pre><code class="language-python">self.trace_schedule_index = 0
+
+def schedule(self):
+    ...
+    self.trace_schedule_index += 1
+</code></pre>
+<p>따라서 분석에서는 Scheduler 호출 순서를 나타내는 관찰용 Iteration 번호처럼 사용할 수 있다. 다만 Token 작업이 없는 호출도 기록될 수 있으므로 GPU Kernel 실행 횟수나 Token 생성 횟수와 완전히 같은 값으로 해석하지 않는다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>Request ID를 연결한 방법</h2>
+<p>Client는 vLLM이 지원하는 Request ID Header에 A·B·C 표식을 포함한 ID를 전달했다. Scheduler 내부의 <code>request.request_id</code>에는 vLLM이 요청과 연결한 ID가 들어오므로 Trace에서도 같은 요청을 식별할 수 있었다.</p>
+<p>OpenAI API Body에 임의 최상위 Key를 추가하면 자동으로 Scheduler Request 필드가 되는 것은 아니다. 사용자 정의 Metadata가 필요하다면 API가 지원하는 <code>extra_body</code> 등의 확장 지점과 Server 쪽 처리 코드를 함께 설계해야 한다. 이번 실습은 vLLM이 지원하는 Request ID 경로를 사용했다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>최종 Artifact 기준 Client 관찰 결과</h2>
+<p>최종 보존 파일의 <code>run_id=9cadb6ea</code> 실행을 정본으로 삼았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th align="right">전송 [s]</th>
+<th align="right">첫 Content [s]</th>
+<th align="right">완료 [s]</th>
+<th align="right">Prompt [token]</th>
+<th align="right">생성 [token]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">0.013</td>
+<td align="right">0.090</td>
+<td align="right">7.982</td>
+<td align="right">51</td>
+<td align="right">512</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">0.014</td>
+<td align="right">0.092</td>
+<td align="right">2.063</td>
+<td align="right">34</td>
+<td align="right">128</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">0.152</td>
+<td align="right">2.094</td>
+<td align="right">6.055</td>
+<td align="right">46</td>
+<td align="right">256</td>
+</tr>
+</tbody></table>
+</div>
+<p>B는 약 2.06초에 먼저 끝났고 A는 계속 실행됐다. C는 약 0.15초에 전송됐지만 첫 Content는 약 2.09초에 도착했다. C가 Server 실행 자리를 기다린 구간이 TTFT에 포함된 것이다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>Running·Waiting 시계열</h2>
+<p>변화가 있었던 시점만 추리면 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">실험 시작 기준 [s]</th>
+<th align="right">Running [req]</th>
+<th align="right">Waiting [req]</th>
+<th>해석</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0.013</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td>요청 실행 전 Idle</td>
+</tr>
+<tr>
+<td align="right">0.151</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td>A·B가 Running 두 자리 사용</td>
+</tr>
+<tr>
+<td align="right">0.232</td>
+<td align="right">2</td>
+<td align="right">1</td>
+<td>C가 도착했지만 자리 부족으로 Waiting</td>
+</tr>
+<tr>
+<td align="right">2.118</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td>B 완료 후 C가 Running으로 편입</td>
+</tr>
+<tr>
+<td align="right">6.066</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td>C 완료 후 A만 남음</td>
+</tr>
+<tr>
+<td align="right">8.033</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td>모든 요청 완료 후 Idle 복귀</td>
+</tr>
+</tbody></table>
+</div>
+<p>Metrics Sampling은 일정 간격의 관찰이므로 정확한 내부 전이 순간과 조금 다를 수 있다. Client 시각, <code>/metrics</code> 표본 시각, Scheduler Trace 시각은 서로 다른 Clock이며 GPU 실행 완료 시각과도 동일하지 않다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>확인된 결론</h2>
+<pre><code class="language-text">A·B Running=2 관찰 = True
+C 제출 후 Waiting 관찰 = True
+모든 요청 완료 후 Idle 복귀 = True
+</code></pre>
+<p>먼저 완료된 B가 빠진 뒤 A가 실행 중인 상태에서 C가 편입됐다. 즉, vLLM은 처음 만든 <code>[A, B]</code> Batch 전체가 끝날 때까지 기다리지 않고 다음 Scheduler Iteration의 실행 구성을 <code>[A, C]</code>로 갱신했다.</p>
+<p><a href="01_purpose_contract_workload.html">← 이전 단계</a> · <a href="../vllm_continuous_batching_performance.html">상위 문서로 돌아가기</a> · <a href="03_streaming_metrics_collection.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

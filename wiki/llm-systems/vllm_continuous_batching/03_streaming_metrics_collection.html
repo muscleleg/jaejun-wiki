@@ -1,0 +1,244 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.md. Do not edit directly. source-sha256:7aa785376b22d6fa942c7f428e7a81ba524a8e29b97234ee2f422737590f183b -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SSE Streaming 응답에서 첫 Content와 완료 시각을 읽고 vLLM Metrics에서 Running·Waiting을 수집하는 방법을 설명합니다.">
+  <meta name="source-sha256" content="7aa785376b22d6fa942c7f428e7a81ba524a8e29b97234ee2f422737590f183b">
+  <title>3단계: Streaming 응답과 vLLM Server Metrics 수집</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="3단계: Streaming 응답과 vLLM Server Metrics 수집">
+  <meta property="og:description" content="SSE Streaming 응답에서 첫 Content와 완료 시각을 읽고 vLLM Metrics에서 Running·Waiting을 수집하는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html","name":"3단계: Streaming 응답과 vLLM Server Metrics 수집","description":"SSE Streaming 응답에서 첫 Content와 완료 시각을 읽고 vLLM Metrics에서 Running·Waiting을 수집하는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html"},"headline":"3단계: Streaming 응답과 vLLM Server Metrics 수집","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching/03_streaming_metrics_collection.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"3단계: Streaming 응답과 vLLM Server Metrics 수집"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">3단계: Streaming 응답과 vLLM Server Metrics 수집</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>3단계: Streaming 응답과 vLLM Server Metrics 수집</h1>
+      <p class="lead">SSE Streaming 응답에서 첫 Content와 완료 시각을 읽고 vLLM Metrics에서 Running·Waiting을 수집하는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">왜 Streaming으로 측정했는가</a>
+        <a href="#section-02">SSE 원본 구조</a>
+        <a href="#section-03">Streaming 요청 함수가 반환한 값</a>
+        <a href="#section-04"><code>/metrics</code>에서 Scheduler 상태 읽기</a>
+        <a href="#section-05"><code>assert metric_values</code>의 의미</a>
+        <a href="#section-06">Metric 표본의 상대 시간</a>
+        <a href="#section-07">Thread와 GIL</a>
+        <a href="#section-08">종료 조건과 안전장치</a>
+        <a href="#section-09">Server 로그를 Terminal과 파일에 동시에 남긴 <code>tee</code></a>
+        <a href="#section-10">이 단계에서 확보한 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>상위 문서: <a href="../vllm_continuous_batching_performance.html">Continuous Batching 동작 검증</a></p>
+<p>이전 단계: <a href="02_delayed_arrival_observation.html">실행 중 도착한 요청의 Batch 편입 관찰</a></p>
+<p>다음 단계: <a href="04_concurrency_sweep.html">Concurrency 1·4·8·16 Sweep</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>왜 Streaming으로 측정했는가</h2>
+<p>Non-streaming 응답은 전체 생성이 끝난 뒤 결과를 한 번에 받기 때문에 첫 Token이 언제 준비됐는지 Client에서 알 수 없다. TTFT를 측정하려면 Streaming 응답을 끝까지 읽으면서 첫 Content가 도착한 시각을 별도로 기록해야 한다.</p>
+<pre><code class="language-text">요청 전송 ───── 첫 Content ── 후속 Content ── [DONE]
+&lt;── TTFT ─────&gt;
+&lt;──────────────── 전체 Latency ───────────────&gt;
+                 &lt;──── TPOT 측정 구간 ───────&gt;
+</code></pre>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>SSE 원본 구조</h2>
+<p>OpenAI-compatible Streaming 응답은 Server-Sent Events 형식으로 전달된다. 한 Event는 일반적으로 <code>data:</code>로 시작하며 뒤에 JSON Payload가 온다.</p>
+<pre><code class="language-text">data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;content&quot;:&quot;Hello&quot;}}]}
+
+data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;content&quot;:&quot; world&quot;}}]}
+
+data: [DONE]
+</code></pre>
+<p><code>response.iter_lines()</code>는 네트워크에서 들어오는 줄을 순서대로 읽는다. 모든 줄이 Token 하나와 정확히 일치한다고 가정하지 않는다. 빈 줄이나 다른 SSE 필드가 있을 수 있으므로 <code>data:</code>로 시작하는 줄만 Payload로 처리한다.</p>
+<p><code>[DONE]</code>은 더 이상 읽을 Streaming Event가 없다는 종료 표식이다. JSON이 아니므로 <code>json.loads()</code>보다 먼저 검사한다.</p>
+<p>Content는 다음 계층에서 가져왔다.</p>
+<pre><code class="language-text">응답 Chunk
+└── choices
+    └── 첫 번째 Choice
+        └── delta
+            └── content
+</code></pre>
+<p>Python에서는 중간 Key가 없을 때 오류가 나지 않도록 <code>.get()</code>을 연속으로 사용했다.</p>
+<pre><code class="language-python">content = (
+    choice
+    .get(&quot;delta&quot;, {})
+    .get(&quot;content&quot;)
+)
+</code></pre>
+<p>첫 Content 시각은 <code>None</code>일 때만 저장한다. 이후 Chunk가 도착해도 이 값을 갱신하지 않아야 TTFT의 끝점이 유지된다.</p>
+<pre><code class="language-python">if content and first_content_at_seconds is None:
+    first_content_at_seconds = (
+        time.perf_counter()
+        - experiment_started_at
+    )
+</code></pre>
+<p>Stream을 끝까지 읽고 <code>[DONE]</code>을 확인한 뒤의 시각은 요청 완료 시각으로 기록했다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Streaming 요청 함수가 반환한 값</h2>
+<p>요청 하나를 처리하는 함수는 Token마다 별도 작업을 수행하기 위한 함수가 아니다. Streaming 응답 전체를 읽으면서 다음 통계를 모아 한 개의 Dictionary로 반환한다.</p>
+<ul>
+<li>Request ID와 Label</li>
+<li>실제 요청 전송 시각</li>
+<li>첫 Content 도착 시각</li>
+<li>전체 완료 시각</li>
+<li>Prompt Token 수</li>
+<li>생성 Token 수</li>
+<li>Finish Reason</li>
+<li>HTTP 상태와 오류</li>
+</ul>
+<p>Thread Pool에 제출한 직후에는 반환값이 바로 보이지 않고 <code>Future</code>에 연결된다. 이후 <code>future.result()</code>로 결과를 꺼내 <code>request_results</code>에 저장했다. 즉, 반환값을 사용하지 않은 것이 아니라 요청을 동시에 진행하기 위해 나중에 수집한 것이다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2><code>/metrics</code>에서 Scheduler 상태 읽기</h2>
+<p>이번 실습은 별도 Prometheus Server에 PromQL을 보낸 것이 아니다.</p>
+<pre><code class="language-text">Python Client
+→ vLLM의 /metrics Endpoint 요청
+→ Prometheus Text Exposition 원문 수신
+→ 필요한 Metric 이름의 줄을 직접 파싱
+→ 시점별 표본을 Dictionary로 저장
+</code></pre>
+<p>예를 들면 원문에는 다음과 같은 줄이 있다.</p>
+<pre><code class="language-text">vllm:num_requests_running{model_name=&quot;qwen&quot;} 2.0
+vllm:num_requests_waiting{model_name=&quot;qwen&quot;} 1.0
+</code></pre>
+<p>Metric 이름 뒤에 Label Block이 있는 경우와 없는 경우를 모두 찾고, 줄의 마지막 값을 <code>float</code>로 변환했다.</p>
+<pre><code class="language-python">metric_values = [
+    float(line.split()[-1])
+    for line in metrics_response.text.splitlines()
+    if (
+        line.startswith(metric_name + &quot;{&quot;)
+        or line.startswith(metric_name + &quot; &quot;)
+    )
+]
+</code></pre>
+<p>이 List Comprehension은 다음 순서로 읽으면 된다.</p>
+<pre><code class="language-text">Metrics 원문을 줄 단위로 나눔
+→ 원하는 Metric 이름으로 시작하는 줄만 선택
+→ 각 줄을 공백으로 나눔
+→ 마지막 값 추출
+→ float로 변환
+→ metric_values 리스트 생성
+</code></pre>
+<p><code>return sum(metric_values)</code>는 Metric 데이터 개수를 반환하는 것이 아니다. 같은 Metric 이름에 여러 Label 조합이 존재할 수 있으므로 찾아낸 Sample 값들을 합산해 현재 전체 Running 또는 Waiting 요청 수를 만든다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2><code>assert metric_values</code>의 의미</h2>
+<pre><code class="language-python">assert metric_values, (
+    f&quot;지표를 찾지 못했습니다: {metric_name}&quot;
+)
+</code></pre>
+<p>이 검사는 값이 0보다 큰지 확인하는 것이 아니다. Python에서 빈 List는 거짓이고 하나 이상의 항목이 있는 List는 참이므로, 요청한 Metric 이름이 응답에 실제로 존재했는지를 확인한다.</p>
+<p>Metric 값이 <code>0.0</code>이어도 리스트가 <code>[0.0]</code>이면 검사를 통과한다. 리스트가 비어 있으면 <code>AssertionError</code>가 발생하며 두 번째 표현식의 문자열이 오류 메시지가 된다.</p>
+<p>괄호는 Tuple을 만들기 위한 것이 아니라 긴 표현식을 여러 줄에 나눠 쓰기 위한 것이다. 쉼표가 없기 때문에 문자열 하나다.</p>
+<pre><code class="language-python">assert metric_values, (
+    &quot;오류 메시지&quot;
+)
+</code></pre>
+<p>한 줄이라면 다음과 같은 의미다.</p>
+<pre><code class="language-python">assert metric_values, &quot;오류 메시지&quot;
+</code></pre>
+<p>Python의 괄호 안에서는 줄바꿈을 허용하므로 긴 코드의 가독성을 위해 사용한다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>Metric 표본의 상대 시간</h2>
+<pre><code class="language-python">&quot;sampled_at_seconds&quot;: (
+    time.perf_counter()
+    - experiment_started_at
+)
+</code></pre>
+<p>이 값은 실제 현재 시각이나 Unix Timestamp가 아니라 실험 시작 후 몇 초가 지났는지를 나타낸다. <code>perf_counter()</code>는 경과시간 측정에 적합한 단조 증가 Clock이며 시스템 시간이 바뀌어도 측정 구간 계산에 영향을 덜 받는다.</p>
+<p><code>read_scheduler_sample()</code>은 실험 중 여러 Checkpoint에서 호출된다. A·B 제출 후, C 제출 전후, 요청 완료를 기다리는 동안 같은 함수를 반복 호출해 Running·Waiting 시계열을 만든다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>Thread와 GIL</h2>
+<p>Python에는 GIL이 있으므로 CPU에서 Python Bytecode를 여러 Thread가 동시에 계산하는 데 제약이 있다. 하지만 이번 작업은 HTTP 요청 전송과 Streaming 응답 대기 같은 I/O 중심 작업이다. 한 Thread가 네트워크 응답을 기다리는 동안 다른 Thread가 실행될 수 있으므로 <code>ThreadPoolExecutor</code>로 여러 HTTP 요청을 동시에 진행할 수 있다.</p>
+<p>GPU 추론은 vLLM Server Process가 수행한다. Client Thread는 모델 계산을 직접 병렬 실행하는 것이 아니라 여러 네트워크 요청과 응답 읽기를 겹쳐 놓는다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>종료 조건과 안전장치</h2>
+<p>A·B가 Running 두 자리를 채운 뒤 C를 보내기 위해 다음 조건을 사용했다.</p>
+<pre><code class="language-text">Deadline 전까지 반복
+→ /metrics 표본 수집
+→ Running=2이면 관찰 성공 후 반복 종료
+→ A 또는 B가 먼저 완료되면 실험 조건이 깨졌으므로 종료
+→ 너무 빠른 Polling을 막기 위해 짧게 대기
+</code></pre>
+<p>반복문 밖의 <code>assert running_pair_observed</code>는 Deadline 안에 Running=2를 실제로 관찰했는지 최종 확인한다. 성공해야 C를 제출한다.</p>
+<p>C까지 제출한 뒤에는 A·B·C의 HTTP 요청 함수가 모두 완료될 때까지 <code>/metrics</code>를 계속 수집했다. 여기서 <code>Future.done()</code>은 Server가 요청을 받았다는 뜻이 아니라 제출한 Client 함수가 반환했거나 예외로 끝났다는 뜻이다.</p>
+
+</section>
+<section id="section-09" class="markdown-section">
+<h2>Server 로그를 Terminal과 파일에 동시에 남긴 <code>tee</code></h2>
+<p>Server 실행 명령의 끝에는 다음 Pipeline을 사용했다.</p>
+<pre><code class="language-bash">2&gt;&amp;1 | tee continuous_batching_observation_server.log
+</code></pre>
+<p><code>2&gt;&amp;1</code>은 표준 오류를 표준 출력과 합친다. <code>|</code>는 합쳐진 출력을 다음 명령으로 전달한다. <code>tee</code>는 입력을 Terminal에 그대로 보여주면서 파일에도 복사한다.</p>
+<pre><code class="language-text">vLLM 표준 출력·오류
+→ Terminal에서 실시간 확인
++ Server Log 파일에 보존
+</code></pre>
+<p>단순한 <code>&gt;</code> Redirect는 화면 출력 대신 파일로 보내지만, <code>tee</code>를 사용하면 실행 상태를 보면서 같은 로그를 나중에 분석할 수 있다. 기본 <code>tee</code>는 파일을 덮어쓰며 <code>tee -a</code>는 기존 파일 뒤에 추가한다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>이 단계에서 확보한 것</h2>
+<ul>
+<li>TTFT를 계산할 첫 Content 시각</li>
+<li>전체 Latency를 계산할 요청 완료 시각</li>
+<li>TPOT를 계산할 생성 Token 수와 Decode 구간</li>
+<li>Running·Waiting의 시점별 표본</li>
+<li>Request ID로 Client 결과와 Scheduler Trace를 연결할 기반</li>
+<li>오류·Timeout·Finish Reason을 포함한 요청별 원본 결과</li>
+<li>Server 실행을 재검토할 원본 로그</li>
+</ul>
+<p><a href="02_delayed_arrival_observation.html">← 이전 단계</a> · <a href="../vllm_continuous_batching_performance.html">상위 문서로 돌아가기</a> · <a href="04_concurrency_sweep.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

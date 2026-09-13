@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/gpu_operator_driver_management.md. Do not edit directly. source-sha256:87f3eb2562a1a88c8aa0425ef2dd2ff6515f474c312bcfbea9333f5377d8c186 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPU Operator의 Driver Pod·DaemonSet·NVIDIADriver CRD·Device Plugin·DCGM·MIG Manager가 Node의 GPU Stack을 관리하는 방식을 설명합니다.">
+  <meta name="source-sha256" content="87f3eb2562a1a88c8aa0425ef2dd2ff6515f474c312bcfbea9333f5377d8c186">
+  <title>GPU Operator는 Node Driver를 어떻게 관리하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU Operator는 Node Driver를 어떻게 관리하는가">
+  <meta property="og:description" content="GPU Operator의 Driver Pod·DaemonSet·NVIDIADriver CRD·Device Plugin·DCGM·MIG Manager가 Node의 GPU Stack을 관리하는 방식을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html","name":"GPU Operator는 Node Driver를 어떻게 관리하는가","description":"GPU Operator의 Driver Pod·DaemonSet·NVIDIADriver CRD·Device Plugin·DCGM·MIG Manager가 Node의 GPU Stack을 관리하는 방식을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html"},"headline":"GPU Operator는 Node Driver를 어떻게 관리하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu_operator_driver_management.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"GPU Operator는 Node Driver를 어떻게 관리하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU Operator는 Node Driver를 어떻게 관리하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>GPU Operator는 Node Driver를 어떻게 관리하는가</h1>
+      <p class="lead">GPU Operator의 Driver Pod·DaemonSet·NVIDIADriver CRD·Device Plugin·DCGM·MIG Manager가 Node의 GPU Stack을 관리하는 방식을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-cc1bb4b18e1b">핵심 질문</a>
+        <a href="#driver-pod">왜 Driver가 Pod 형태로 보이는가</a>
+        <a href="#gpu-operator">GPU Operator가 함께 관리하는 구성요소</a>
+        <a href="#driver-version-node-group">여러 Driver Version은 Node Group별로 나눈다</a>
+        <a href="#driver-update-workload">Driver Update 때 Workload 조정이 필요한 이유</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+        <a href="#section-5269b02d2741">관련 문서</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></p>
+</div>
+        <section id="section-cc1bb4b18e1b" class="markdown-section">
+<h2>핵심 질문</h2>
+<p>NVIDIA Driver가 Host 또는 Node에 종속된다면, Kubernetes에서 Driver Pod를 실행하는 GPU Operator는 무엇을 하는지 의문이 생긴다.</p>
+<p>핵심은 다음과 같다.</p>
+<blockquote>
+<p>GPU Operator는 Driver를 Pod 전용으로 격리하는 도구가 아니라, 권한 있는 Pod와 Controller를 이용해 Node의 GPU Software Stack을 설치하고 유지하는 Operator다.</p>
+</blockquote>
+
+</section>
+<section id="driver-pod" class="markdown-section">
+<h2>왜 Driver가 Pod 형태로 보이는가</h2>
+<p>GPU Operator는 Kubernetes의 선언형 관리 방식을 이용한다. 사용자가 원하는 Driver Version과 설정을 Custom Resource로 선언하면, Operator가 해당 Node에 Driver DaemonSet Pod를 배치한다.</p>
+<pre><code class="language-text">NVIDIADriver 또는 ClusterPolicy 선언
+        ↓
+GPU Operator Controller가 감시
+        ↓
+Driver DaemonSet Pod를 대상 Node에 배치
+        ↓
+권한 있는 Pod가 Node용 Driver Module 준비
+        ↓
+Node Kernel에 NVIDIA Module Load
+</code></pre>
+<p>Driver Pod라는 실행 형태를 사용하지만 최종 대상은 Node Kernel이다. Driver Pod가 삭제되고 다시 만들어져도 관리하는 Driver의 효력 범위는 해당 Node다.</p>
+
+</section>
+<section id="gpu-operator" class="markdown-section">
+<h2>GPU Operator가 함께 관리하는 구성요소</h2>
+<p>GPU Operator는 배포 설정에 따라 다음 구성요소를 관리한다.</p>
+<ul>
+<li>NVIDIA GPU Driver</li>
+<li>NVIDIA Container Toolkit</li>
+<li>Kubernetes Device Plugin</li>
+<li>GPU Feature Discovery</li>
+<li>DCGM 및 DCGM Exporter</li>
+<li>MIG Manager</li>
+</ul>
+<p>각 역할은 다르다.</p>
+<pre><code class="language-text">GPU Driver
+→ Kernel과 GPU Hardware 연결
+
+Container Toolkit
+→ GPU Device와 Driver Library를 Container에 노출
+
+Device Plugin
+→ Kubernetes Scheduler가 요청할 GPU Resource를 광고
+
+DCGM Exporter
+→ GPU 상태와 성능 Metric을 관측 시스템에 노출
+
+MIG Manager
+→ 지원 GPU의 MIG 분할 상태를 구성
+</code></pre>
+<p>DCGM은 관측과 진단을 담당하고, GPU Operator는 이 구성요소들을 설치하고 원하는 상태로 유지하는 상위 자동화 계층이다.</p>
+
+</section>
+<section id="driver-version-node-group" class="markdown-section">
+<h2>여러 Driver Version은 Node Group별로 나눈다</h2>
+<p>NVIDIA의 <code>NVIDIADriver</code> Custom Resource는 <code>nodeSelector</code>로 서로 다른 Node 집합에 다른 Driver Version을 적용할 수 있다.</p>
+<pre><code class="language-text">driver.config=legacy 인 Node
+→ R570 Driver
+
+driver.config=modern 인 Node
+→ R580 Driver
+</code></pre>
+<p>이것은 Cluster 안에 여러 Driver Version이 존재할 수 있다는 뜻이지, 같은 Node의 GPU 0에는 R570, GPU 1에는 R580을 적용한다는 뜻이 아니다.</p>
+<pre><code class="language-text">가능
+Node A 전체 → R570
+Node B 전체 → R580
+
+일반적으로 불가능
+Node A의 GPU 0 → R570
+Node A의 GPU 1 → R580
+</code></pre>
+
+</section>
+<section id="driver-update-workload" class="markdown-section">
+<h2>Driver Update 때 Workload 조정이 필요한 이유</h2>
+<p>Driver를 교체하면 해당 Node의 GPU를 사용 중인 Process가 영향을 받는다. GPU Operator의 Driver Upgrade Controller는 설정에 따라 Node를 Cordon하고, GPU Pod를 Drain하거나 종료하고, Driver Pod를 교체한 뒤 Node를 다시 사용 가능 상태로 돌리는 과정을 자동화한다.</p>
+<p>이 역시 Driver가 Node 단위 자원이라는 사실을 보여준다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>GPU Operator는 Kubernetes Pod 안에 독립 Driver를 제공하는 것이 아니다. Controller와 권한 있는 DaemonSet을 통해 각 Node의 NVIDIA Driver와 GPU 운영 구성요소를 선언적으로 설치·업데이트·관찰한다.</p>
+</blockquote>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/overview.html" rel="noopener noreferrer">NVIDIA GPU Operator Overview</a></li>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-driver-configuration.html" rel="noopener noreferrer">NVIDIA GPU Driver Custom Resource</a></li>
+</ul>
+
+</section>
+<section id="section-5269b02d2741" class="markdown-section">
+<h2>관련 문서</h2>
+<ul>
+<li><a href="container_kubernetes_driver_boundary.html">Container와 Kubernetes Pod는 왜 Host GPU Driver를 따르는가?</a></li>
+<li><a href="one_nvidia_driver_stack_per_node.html">한 Node의 여러 NVIDIA GPU는 왜 같은 Driver Version을 사용하는가?</a></li>
+<li><a href="cuda_driver_gpu_compatibility_investigation.html">전체 질문 지도</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
