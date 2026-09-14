@@ -1,0 +1,302 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.md. Do not edit directly. source-sha256:b2476b6f1198925f7a50d58e4938937efe45f440e98b770efe5a8a02832941ba -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="요청 상태, Iteration별 Token 작업, KV Cache Block 할당·반환과 기록 연결을 위해 필요한 Scheduler Trace 필드를 정리합니다.">
+  <meta name="source-sha256" content="b2476b6f1198925f7a50d58e4938937efe45f440e98b770efe5a8a02832941ba">
+  <title>vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가">
+  <meta property="og:description" content="요청 상태, Iteration별 Token 작업, KV Cache Block 할당·반환과 기록 연결을 위해 필요한 Scheduler Trace 필드를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html","name":"vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가","description":"요청 상태, Iteration별 Token 작업, KV Cache Block 할당·반환과 기록 연결을 위해 필요한 Scheduler Trace 필드를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html"},"headline":"vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/01_trace_collection_design.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</h1>
+      <p class="lead">요청 상태, Iteration별 Token 작업, KV Cache Block 할당·반환과 기록 연결을 위해 필요한 Scheduler Trace 필드를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#vllm-kv-cache-trace-collection-design-section-1">먼저 질문을 정한다</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-2">요청의 상태 변화를 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-3">이번 Iteration의 작업을 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-4">Prefill과 Decode를 구분하는 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-5">요청별 Block을 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-6">새로 할당된 Block을 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-7">반환과 공간 복구를 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-8">기록을 연결하기 위한 데이터</a>
+        <a href="#vllm-kv-cache-trace-collection-design-section-9">수집 설계 요약</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>상위 문서: <a href="index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a></p>
+</div>
+        <section id="vllm-kv-cache-trace-collection-design-section-1" class="markdown-section">
+<h2>먼저 질문을 정한다</h2>
+<p>Trace에는 수집 가능한 값을 전부 넣는 것이 아니라, 확인하려는 질문에 필요한 상태와 전후 차이를 기록해야 한다.</p>
+<pre><code class="language-text">요청 상태가 어떻게 변했는가?
+이번 Iteration에 어떤 요청이 선택됐는가?
+선택된 작업은 Prefill인가 Decode인가?
+요청이 어떤 Block을 새로 받았는가?
+요청 종료 후 어떤 Block을 반환했는가?
+반환 후 Free Block이 증가했는가?
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-2" class="markdown-section">
+<h2>요청의 상태 변화를 위한 데이터</h2>
+<pre><code class="language-text">waiting_before
+running_before
+waiting_after
+running_after
+</code></pre>
+<p>예를 들어 다음 기록은 요청 A가 Waiting에서 Running으로 이동했다는 뜻이다.</p>
+<pre><code class="language-text">Scheduling 전
+Waiting = [A]
+Running = []
+
+Scheduling 후
+Waiting = []
+Running = [A]
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-3" class="markdown-section">
+<h2>이번 Iteration의 작업을 위한 데이터</h2>
+<p><code>scheduled_requests</code>에는 이번 Iteration에 실제 Token 작업을 배정받은 요청을 기록한다.</p>
+<pre><code class="language-json">{
+  &quot;request_id&quot;: &quot;request-A&quot;,
+  &quot;work_phase&quot;: &quot;prefill&quot;,
+  &quot;scheduled_tokens&quot;: 37,
+  &quot;computed_tokens_before&quot;: 0,
+  &quot;prompt_tokens&quot;: 37
+}
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>request_id</code></td>
+<td>작업을 배정받은 요청</td>
+</tr>
+<tr>
+<td><code>work_phase</code></td>
+<td>Prefill 또는 Decode</td>
+</tr>
+<tr>
+<td><code>scheduled_tokens</code></td>
+<td>이번 Iteration에 배정된 Token 작업 수</td>
+</tr>
+<tr>
+<td><code>computed_tokens_before</code></td>
+<td>Scheduling 전에 계산된 Token 수</td>
+</tr>
+<tr>
+<td><code>prompt_tokens</code></td>
+<td>전체 Prompt Token 수</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-4" class="markdown-section">
+<h2>Prefill과 Decode를 구분하는 데이터</h2>
+<p>Scheduling 전의 계산 완료 Token과 Prompt Token을 비교한다.</p>
+<pre><code class="language-python">if computed_tokens_before &lt; prompt_tokens:
+    work_phase = &quot;prefill&quot;
+else:
+    work_phase = &quot;decode&quot;
+</code></pre>
+<pre><code class="language-text">계산 완료 Token &lt; Prompt Token
+→ Prompt를 처리하는 중
+→ Prefill
+
+계산 완료 Token ≥ Prompt Token
+→ Prompt 처리가 끝남
+→ Decode
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-5" class="markdown-section">
+<h2>요청별 Block을 위한 데이터</h2>
+<p>요청에 연결된 Block은 KV Cache Manager에서 읽는다.</p>
+<pre><code class="language-python">self.kv_cache_manager.get_block_ids(
+    request_id
+)
+</code></pre>
+<p>Snapshot에는 다음 값을 보존한다.</p>
+<pre><code class="language-text">block_ids_by_group
+block_count
+</code></pre>
+<p>예:</p>
+<pre><code class="language-json">{
+  &quot;block_ids_by_group&quot;: [[1, 2, 3]],
+  &quot;block_count&quot;: 3
+}
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-6" class="markdown-section">
+<h2>새로 할당된 Block을 위한 데이터</h2>
+<p>Scheduling 전후 Block 집합의 차이를 구한다.</p>
+<pre><code class="language-python">newly_allocated_block_ids = sorted(
+    after_block_ids
+    - before_block_ids
+)
+</code></pre>
+<pre><code class="language-text">Scheduling 전 Block = []
+Scheduling 후 Block = [1, 2, 3]
+
+새로 할당된 Block = [1, 2, 3]
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-7" class="markdown-section">
+<h2>반환과 공간 복구를 위한 데이터</h2>
+<p>요청의 Block을 반환하기 직전에 다음 값을 기록한다.</p>
+<pre><code class="language-text">request_id
+released_block_ids
+released_block_count
+free_blocks_before
+</code></pre>
+<p>기존 vLLM의 실제 반환이 끝난 뒤 다음 값을 기록한다.</p>
+<pre><code class="language-text">free_blocks_after
+free_block_increase
+</code></pre>
+<pre><code class="language-text">free_block_increase
+= free_blocks_after - free_blocks_before
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-8" class="markdown-section">
+<h2>기록을 연결하기 위한 데이터</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>session_id</code></td>
+<td>한 번의 Server 실행과 Trace Session</td>
+</tr>
+<tr>
+<td><code>request_id</code></td>
+<td>요청 식별자</td>
+</tr>
+<tr>
+<td><code>schedule_index</code></td>
+<td>현재 Session에서 몇 번째 <code>schedule()</code> 호출인지 나타내는 번호</td>
+</tr>
+<tr>
+<td><code>recorded_at_unix_seconds</code></td>
+<td>이벤트가 기록된 시각</td>
+</tr>
+<tr>
+<td><code>event_type</code></td>
+<td>기록의 종류</td>
+</tr>
+</tbody></table>
+</div>
+<p>같은 Request ID를 다시 사용하거나 Server를 재시작할 수 있으므로 <code>request_id</code> 하나만으로 모든 기록을 연결하면 안 된다. Session과 요청 실행 이후의 기록 범위를 함께 사용해야 한다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-collection-design-section-9" class="markdown-section">
+<h2>수집 설계 요약</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>알고 싶은 것</th>
+<th>수집할 데이터</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>요청 상태 변화</td>
+<td>Waiting·Running 전후 목록</td>
+</tr>
+<tr>
+<td>이번에 선택된 요청</td>
+<td><code>scheduled_requests</code></td>
+</tr>
+<tr>
+<td>Prefill·Decode</td>
+<td><code>work_phase</code></td>
+</tr>
+<tr>
+<td>배정된 Token 작업</td>
+<td><code>scheduled_tokens</code></td>
+</tr>
+<tr>
+<td>요청 진행 상태</td>
+<td><code>computed_tokens</code></td>
+</tr>
+<tr>
+<td>현재 Block</td>
+<td><code>block_ids_by_group</code></td>
+</tr>
+<tr>
+<td>새로 받은 Block</td>
+<td><code>newly_allocated_block_ids</code></td>
+</tr>
+<tr>
+<td>반환한 Block</td>
+<td><code>released_block_ids</code></td>
+</tr>
+<tr>
+<td>공간 복구</td>
+<td>반환 전후 Free Block 수</td>
+</tr>
+<tr>
+<td>기록 연결</td>
+<td>Session·Request ID·Schedule Index</td>
+</tr>
+</tbody></table>
+</div>
+<p>다음 문서: <a href="02_async_scheduler_trace_implementation.html">AsyncScheduler를 확장해 내부 상태를 기록하는 방법</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.md. Do not edit directly. source-sha256:84702e9be51c08b02f949aa5dac5c99f7b545ce351f2d70be60b8fc0f0374ee6 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM의 KV Cache Block을 이론적으로 계산하고 실제 할당·증가·반환·재사용 과정과 비교한 종합 실습 기록입니다.">
+  <meta name="source-sha256" content="84702e9be51c08b02f949aa5dac5c99f7b545ce351f2d70be60b8fc0f0374ee6">
+  <title>vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가">
+  <meta property="og:description" content="vLLM의 KV Cache Block을 이론적으로 계산하고 실제 할당·증가·반환·재사용 과정과 비교한 종합 실습 기록입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html","name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","description":"vLLM의 KV Cache Block을 이론적으로 계산하고 실제 할당·증가·반환·재사용 과정과 비교한 종합 실습 기록입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},"headline":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</h1>
+      <p class="lead">vLLM의 KV Cache Block을 이론적으로 계산하고 실제 할당·증가·반환·재사용 과정과 비교한 종합 실습 기록입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kv-cache-block">KV Cache는 왜 Block으로 나누어 관리하는가</a>
+        <a href="#block-vllm-block">계산한 Block과 실제 vLLM의 Block을 어떻게 연결했는가</a>
+        <a href="#block-7">Block의 생명주기를 7단계로 확인했다</a>
+        <a href="#section-3e526148389f">이 실습으로 무엇을 확인했는가</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM은 언어 모델에 들어온 여러 생성 요청을 GPU에서 처리하는 추론 엔진이다. Scheduler는 이 요청들 가운데 어떤 요청의 Token을 다음 연산에서 처리할지 정한다. 실행을 기다리는 요청은 Waiting, 실행 대상으로 관리되는 요청은 Running 상태에 놓인다.</p>
+<p>Scheduler의 요청 처리 방식을 관찰하는 실습에서는 긴 요청 A와 짧은 요청 B를 함께 실행하고, C를 대기시켰다. B가 먼저 끝나자 A가 계속 실행 중이어도 C가 빈자리에 들어왔다. 이처럼 요청이 완료될 때마다 실행 구성을 바꾸는 방식을 Continuous Batching이라고 한다. Running·Waiting 상태와 실행 구성이 바뀌는 기록으로 이 동작을 확인할 수 있었다.</p>
+<p>여기서 한 가지를 더 확인할 필요가 있었다. B가 쓰던 실행 자리에 C가 들어왔다는 사실은 알지만, B가 GPU에서 사용하던 저장 공간도 반환되어 C가 다시 쓸 수 있게 됐는지는 요청 상태만으로 알 수 없다.</p>
+<p>이 글에서는 요청 하나가 생성하는 Token의 흐름을 Sequence라고 부르며, 요청마다 결과 하나를 생성하는 조건을 사용한다. 실행 중인 Sequence는 이미 처리한 Token의 Key와 Value, 즉 K·V를 KV Cache에 보관한다. Prompt가 길어지고 출력 Token이 추가될수록 저장할 K·V도 늘어난다. 여러 Sequence가 함께 실행되면 각자의 Cache가 동시에 공간을 사용하고, 완료된 Sequence의 공간은 다음 Sequence가 쓸 수 있도록 반환되어야 한다.</p>
+<p>이번 실습은 이 과정을 다음 순서로 직접 확인한 기록이다.</p>
+<pre><code class="language-text">KV Cache Block의 의미 이해
+→ 모델 구조로 필요한 Block 수 계산
+→ 실제 vLLM 요청에서 할당된 Block 관찰
+→ 계산한 값과 실제 값 비교
+→ 완료 후 Block 반환 확인
+→ 반환된 Block의 재사용 확인
+</code></pre>
+</div>
+        <section id="kv-cache-block" class="markdown-section">
+<h2>KV Cache는 왜 Block으로 나누어 관리하는가</h2>
+<p>언어 모델은 다음 Token을 생성할 때 이전 Token에서 계산한 Attention의 Key와 Value를 다시 사용한다. 이 K·V를 GPU 메모리에 보관한 것이 KV Cache다.</p>
+<p>Prompt를 처리하는 Prefill에서는 Prompt Token들의 K·V가 만들어진다. 이후 Decode가 반복될 때마다 새 Token의 K·V가 하나씩 추가된다. 따라서 Sequence가 길어질수록 필요한 KV Cache 공간도 커진다.</p>
+<p>입력 Prompt와 생성한 출력 Token을 합친 길이를 Context 길이라고 한다. Sequence마다 허용된 최대 Context 길이만큼의 거대한 연속 공간을 처음부터 따로 확보하면 실제로 사용하지 않는 Token 자리까지 메모리를 차지한다. 그렇다고 현재 길이에 꼭 맞는 연속 공간을 매번 늘리면 메모리 이동과 단편화 문제가 생길 수 있다.</p>
+<p>vLLM은 공용 KV Cache Pool을 일정한 Token 수를 담는 물리 Block으로 나눈다. 각 Sequence는 현재 필요한 만큼의 Block만 빌린다. 물리적으로 떨어진 Block도 Block Table을 통해 자신의 논리적인 Token 순서로 연결할 수 있다.</p>
+<pre><code class="language-text">공용 KV Cache Pool
+├─ Block 1 → Sequence A의 앞부분
+├─ Block 2 → Sequence B의 앞부분
+├─ Block 3 → Sequence A의 뒷부분
+└─ 아직 사용하지 않는 Free Block
+</code></pre>
+<p>이번 환경에서는 Block 하나가 16Token의 K·V를 저장했다. Sequence의 계산 Token이 기존 Block의 빈자리를 모두 채우고 16Token 경계를 넘으면 새 Block이 하나 추가된다.</p>
+<p>Scheduler는 Token 작업을 선택하는 일을 반복한다. 이 글에서 Scheduler Iteration은 Scheduler가 작업을 한 번 선택하는 단계를 뜻한다. 이때 실행 대상인 Sequence, 선택된 작업량, 결과를 저장하는 Block은 구분해야 한다.</p>
+<pre><code class="language-text">Sequence
+→ 입력 Prompt에 출력 Token이 이어지는 하나의 생성 흐름
+
+Scheduled Token
+→ 이번 Scheduler Iteration에서 실제로 처리하기로 선택한 Token 작업량
+
+KV Cache Block
+→ 처리가 끝난 Token의 K·V를 보관하는 저장 공간
+</code></pre>
+<p>이 실험에서는 Running Sequence 하나가 실행 자리 하나를 차지한다. 그 Sequence에서 Prefill 때는 Prompt Token 여러 개를 처리하고, Decode 때는 일반적으로 새 Token 하나를 처리한다. 이렇게 계산한 K·V가 Sequence에 연결된 Block에 차례대로 쌓인다.</p>
+
+</section>
+<section id="block-vllm-block" class="markdown-section">
+<h2>계산한 Block과 실제 vLLM의 Block을 어떻게 연결했는가</h2>
+<p>먼저 모델의 Layer 수, K·V를 저장하는 Head 수와 Head 하나의 폭을 확인했다. 여기에 K·V 원소의 자료형인 dtype이 차지하는 Byte를 곱하면 Token 하나의 KV Cache 크기를 계산할 수 있다. 사용한 float16은 원소 하나당 2Byte다.</p>
+<pre><code class="language-text">Token당 KV Cache
+= Layer 28
+  × KV Head 2
+  × Head Dimension 128
+  × 2(K와 V)
+  × 2Byte(float16)
+= 28,672Byte
+</code></pre>
+<p>Block 하나에는 16Token이 들어가므로 Block 하나의 이론적인 크기는 458,752Byte, 즉 0.4375MiB였다. Sequence에 저장된 계산 Token 수를 알면 필요한 Block 수도 다음처럼 예상할 수 있다.</p>
+<pre><code class="language-text">예상 Block 수
+= ceil(계산 Token 수 / 16)
+</code></pre>
+<p><code>ceil</code>은 소수점이 있으면 위쪽 정수로 올리는 계산이다. 예를 들어 17Token은 <code>17 / 16 = 1.0625</code>이므로 2Block이 필요하다.</p>
+<p>하지만 계산만으로는 실제 vLLM이 정말 같은 개수의 Block을 사용하는지 알 수 없다. vLLM이 <code>/metrics</code>로 제공하는 상태 지표에서는 전체 KV Cache 사용률을 볼 수 있지만, 특정 요청이 어떤 Block을 받았고 언제 반환했는지는 알 수 없다.</p>
+<p>그래서 vLLM Scheduler의 동작은 그대로 유지하면서, Scheduling과 Block 반환 전후의 상태를 남기는 Trace를 만들었다. Trace는 내부에서 어떤 일이 일어났는지 순서대로 남긴 기록이며, 여기서는 요청을 구별하는 Request ID와 물리 Block을 구별하는 Block ID를 함께 저장했다.</p>
+<pre><code class="language-text">Scheduling 직전 상태 기록
+→ 원래 vLLM의 schedule() 실행
+→ Scheduling 직후 상태 기록
+→ 요청별 Scheduled Token과 Block ID 저장
+
+요청 종료 직전 상태 기록
+→ 원래 vLLM의 Block 반환 실행
+→ 반환한 Block ID와 Free Block 증가 기록
+</code></pre>
+<p>이 기록을 사용하면 계산과 실제 동작을 Request ID 단위로 연결할 수 있다.</p>
+<pre><code class="language-text">Prompt와 Decode 길이
+→ 저장되어야 할 계산 Token 수
+→ 계산으로 예상한 Block 수
+→ Trace에서 관찰한 실제 Block 수
+→ 종료할 때 반환한 Block
+→ 이후 다른 Sequence에 할당된 Block
+</code></pre>
+<p>관찰 목적에 따라 두 가지 Server 환경을 사용했다. Prompt와 Decode 길이에 따른 Block 증가를 볼 때는 Block이 충분히 많은 일반 환경을 사용했다. 반환된 동일 물리 Block이 후속 Sequence에 다시 할당되는 모습을 볼 때는, 새 Free Block만 계속 사용하는 상황을 피하기 위해 Pool을 60Block으로 제한했다.</p>
+<p>Prefix Caching도 껐다. Prefix Caching이 켜져 있으면 같은 시작 Token을 가진 요청이 기존 Prefix Block을 공유하거나 재사용할 수 있다. 이번에는 Prefix 공유가 섞이지 않은 기본적인 할당·증가·반환 생명주기를 확인하려 했기 때문이다.</p>
+
+</section>
+<section id="block-7" class="markdown-section">
+<h2>Block의 생명주기를 7단계로 확인했다</h2>
+<h3>1. <a href="kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html">먼저 Block과 실행 단위를 구분했다</a></h3>
+<p>Sequence, Scheduler Iteration, Scheduled Token과 KV Cache Block의 차이를 정리했다. 이어지는 모든 계산과 실행이 같은 기준을 사용하도록 모델 Revision, 모델 구조, dtype, Block 크기와 Server 설정도 고정했다.</p>
+<h3>2. <a href="kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html">이론적인 Block 크기를 계산하고 관찰 도구를 만들었다</a></h3>
+<p>모델 구조로 Token 하나와 16Token Block 하나의 KV Cache 크기를 계산했다. 이어 실제 vLLM의 요청별 Block 할당과 반환을 기록하는 Trace를 만들고, 작은 요청을 보내 정상적으로 기록되는지 확인했다.</p>
+<h3>3. <a href="kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html">Prompt가 길어질 때 최초 Block이 늘어나는지 확인했다</a></h3>
+<p>실제 Prompt 길이가 74·266·1,034Token인 요청을 보냈다. 계산으로 예상한 Block은 5·17·65개였고, 최초 Prefill에서 실제로 관찰한 Block도 5·17·65개였다.</p>
+<p>이 단계에서 Prompt가 길수록 Prefill 직후 더 많은 Block이 필요하다는 것과, 그 수가 계산식으로 예상한 값과 일치한다는 것을 확인했다.</p>
+<h3>4. <a href="kv_cache_lifecycle_memory_validation/04_decode_growth.html">Decode가 진행될 때 Block이 늘어나는 방식을 확인했다</a></h3>
+<p>입력 Prompt는 세 조건 모두 74Token으로 고정하고, 요청별 <code>max_tokens</code>를 32·128·512로 바꿨다. <code>max_tokens</code>는 출력 Token 수의 상한이므로 이 설정만으로는 실제로 그 개수까지 생성될지 알 수 없다. 모델이 그 전에 종료 Token인 EOS를 생성하면 요청이 끝날 수 있기 때문이다.</p>
+<p>그래서 이 실험에서는 <code>ignore_eos=True</code>도 함께 지정했다. EOS가 나와도 생성을 계속하도록 해서, 정상 실행 시 지정한 최대 출력 길이에 도달해 종료되도록 했다. 실행 전에는 이 조건으로 필요한 Block 수를 예상했고, 실행 후에는 실제 출력도 각각 32·128·512Token이었는지 확인했다.</p>
+<p>출력 32Token 조건에서는 Prefill 결과로 첫 출력 Token 하나가 나오고, Decode 31번으로 나머지 31개가 생성된다. 마지막 출력 Token은 다음 연산의 입력으로 사용되지 않고 요청이 종료되므로, 그 Token의 K·V는 추가로 저장되지 않는다.</p>
+<pre><code class="language-text">입력 Prompt: 74Token
+출력 설정: max_tokens=32, ignore_eos=True
+
+Prefill 결과로 출력 1개 + Decode로 출력 31개
+→ 실제 출력 32개
+
+최대 KV Cache 저장 대상
+→ Prompt 74개 + 다음 연산에 입력된 출력 Token 31개
+→ 105Token
+
+예상 최대 Block
+→ ceil(105 / 16) = 7Block
+</code></pre>
+<p>같은 방식으로 출력 128Token은 <code>ceil((74 + 128 - 1) / 16) = 13Block</code>, 출력 512Token은 <code>ceil((74 + 512 - 1) / 16) = 37Block</code>을 예상했다. 이 Block 수는 Prompt와 Decode의 K·V를 함께 저장하는 Sequence 전체의 최대 사용량이다. 실제 Trace에서 관찰한 최대 Block도 각각 7·13·37개로 계산값과 일치했다.</p>
+<p>Decode에서는 Token이 하나씩 추가되지만 Block이 매 Token마다 새로 생기지는 않았다. 기존 Block의 16자리를 채우다가 다음 경계를 넘는 Iteration에서 새 Block이 추가됐다.</p>
+<h3>5. <a href="kv_cache_lifecycle_memory_validation/05_concurrent_occupancy_release_reuse.html">완료된 Sequence의 Block이 반환되고 재사용되는지 확인했다</a></h3>
+<p>전체 60Block 중 내부 예약 1개를 제외한 59Block을 사용할 수 있는 환경에서 긴 출력 요청 A와 짧은 출력 요청 B를 먼저 실행했다. 동시에 실행할 수 있는 Sequence를 2개로 제한했으므로, 뒤늦게 보낸 요청 C는 Waiting에서 기다렸다. B가 먼저 끝나 13Block을 반환하자 C가 Running으로 이동했다.</p>
+<p>B가 반환한 Block과 그 이후 C가 새로 받은 Block을 비교한 결과, 동일한 물리 Block ID 9개가 발견됐다. 이는 두 Sequence가 같은 Block을 동시에 사용했다는 뜻이 아니라, B가 반환한 공간을 C가 나중에 다시 할당받았다는 뜻이다. 모든 요청이 끝난 뒤 Free Block도 시작값 59개로 돌아왔다.</p>
+<h3>6. <a href="kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html">모든 조건에서 계산값과 실제 Block을 비교했다</a></h3>
+<p>Prefill, Decode와 동시 실행 조건의 결과를 한데 모았다. 모든 조건에서 Token 수로 계산한 예상 Block 수와 Trace에서 관찰한 실제 Block 수가 일치했다.</p>
+<p>이 비교를 통해 마지막 Block에는 빈 Token 자리가 남을 수 있고, 여러 Sequence가 동시에 실행될 때는 각 Sequence에 필요한 Block을 따로 올림한 뒤 합해야 한다는 점도 확인했다.</p>
+<h3>7. <a href="kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html">할당부터 반환·재사용까지의 결과를 종합 검증했다</a></h3>
+<p>마지막으로 Prefill과 Decode의 Block 수 일치, A·B의 동시 실행, C의 Waiting, Block 반환과 재사용, Free Block 복구를 종합 검사했다. 자원 부족으로 실행 중인 요청을 중단하고 뒤로 미루는 Preemption도 발생하지 않았다. 따라서 관찰한 Block 반환은 정상적으로 완료된 요청의 반환이라는 점까지 확인했다.</p>
+
+</section>
+<section id="section-3e526148389f" class="markdown-section">
+<h2>이 실습으로 무엇을 확인했는가</h2>
+<p>개념으로 배운 KV Cache Block은 실제 vLLM에서 다음과 같이 동작했다.</p>
+<pre><code class="language-text">Sequence가 공용 Pool에서 필요한 Block을 할당받음
+→ Prefill에서 Prompt의 K·V 저장
+→ Decode가 진행되며 16Token 경계마다 Block 추가
+→ Sequence 완료
+→ 사용하던 Block을 공용 Pool에 반환
+→ 후속 Sequence가 반환된 물리 Block을 다시 사용
+</code></pre>
+<p>모델 구조와 Token 수로 계산한 Block 수는 실제 vLLM Trace에서 관찰한 Block 수와 모두 일치했다. 또한 먼저 끝난 B가 반환한 Block이 뒤이어 실행된 C에 다시 할당됐고, 모든 요청이 끝난 뒤 Free Block이 원래 값으로 복구됐다.</p>
+<p>따라서 vLLM의 KV Cache Block은 단순한 설명상의 개념이 아니다. 실제 요청 처리 과정에서 Sequence별로 할당되고, Prefill과 Decode에 따라 증가하며, 완료 후 반환되어 다른 Sequence가 다시 사용하는 메모리 관리 단위다.</p>
+<p>다만 KV Cache Usage와 GPU 전체 메모리 사용량은 구분해야 한다. KV Cache Usage는 vLLM이 미리 확보한 Pool 중 현재 Sequence에 배정된 Block의 비율이다. 요청이 끝나 Usage가 0%로 돌아와도 모델 Weight와 KV Cache Pool을 포함한 vLLM의 GPU 메모리는 계속 확보된 상태일 수 있다.</p>
+<p>이 실험은 Prefix Caching과 Chunked Prefill을 끈 조건에서 진행했다. Prefix Caching은 공통 입력 Prefix의 K·V를 재사용하는 기능이고, Chunked Prefill은 긴 Prompt 처리를 여러 Scheduler Iteration으로 나누는 기능이다. 이 기능들을 켰을 때의 Block 관리나, KV Cache 공간이 부족해 요청이 중단·거절되거나 시간 초과·메모리 부족 오류가 발생하는 조건까지 확인한 것은 아니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html">1단계: vLLM KV Cache Block의 의미와 실행 계약</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html">2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html">3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/04_decode_growth.html">4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/05_concurrent_occupancy_release_reuse.html">5단계: 동시 요청의 KV Cache 점유와 Block 반환·재사용</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html">6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교</a></li>
+<li><a href="kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html">7단계: 결과 파일 보존과 전체 실험 완료 검증</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

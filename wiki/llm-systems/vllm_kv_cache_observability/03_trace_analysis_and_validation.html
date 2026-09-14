@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.md. Do not edit directly. source-sha256:57c900f73264258668c38bddbbf3b7556f5714119f7a329794a9470e3cc3cd22 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HTTP 응답의 Token 수와 Scheduler JSONL을 Session ID·Request ID로 연결해 Block 할당과 반환을 검증하는 방법을 설명합니다.">
+  <meta name="source-sha256" content="57c900f73264258668c38bddbbf3b7556f5714119f7a329794a9470e3cc3cd22">
+  <title>HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법">
+  <meta property="og:description" content="HTTP 응답의 Token 수와 Scheduler JSONL을 Session ID·Request ID로 연결해 Block 할당과 반환을 검증하는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html","name":"HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법","description":"HTTP 응답의 Token 수와 Scheduler JSONL을 Session ID·Request ID로 연결해 Block 할당과 반환을 검증하는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html"},"headline":"HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/03_trace_analysis_and_validation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</h1>
+      <p class="lead">HTTP 응답의 Token 수와 Scheduler JSONL을 Session ID·Request ID로 연결해 Block 할당과 반환을 검증하는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#vllm-kv-cache-trace-analysis-section-1">저장과 분석은 서로 다른 과정이다</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-2">Request ID를 연결한다</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-3">HTTP 응답에서 Token 수를 읽는다</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-4"><code>schedule</code> 이벤트를 읽는다</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-5"><code>free_request_blocks</code> 이벤트를 읽는다</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-6">실제 결과의 구성</a>
+        <a href="#vllm-kv-cache-trace-analysis-section-7">Block 할당과 반환 검증</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이전 문서: <a href="02_async_scheduler_trace_implementation.html">AsyncScheduler를 확장해 내부 상태를 기록하는 방법</a></p>
+<p>상위 문서: <a href="index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a></p>
+</div>
+        <section id="vllm-kv-cache-trace-analysis-section-1" class="markdown-section">
+<h2>저장과 분석은 서로 다른 과정이다</h2>
+<p>Server가 실행되는 동안 커스텀 Scheduler가 이벤트를 만든다.</p>
+<pre><code class="language-text">schedule()
+→ schedule 이벤트 생성
+→ JSONL 저장
+
+_free_request_blocks()
+→ free_request_blocks 이벤트 생성
+→ JSONL 저장
+</code></pre>
+<p>요청이 끝난 뒤 Notebook은 JSONL을 다시 읽고 필요한 이벤트와 필드를 선택한다.</p>
+<pre><code class="language-text">vLLM 실행
+→ 이벤트 저장
+→ Notebook에서 JSONL 읽기
+→ Session·Request ID로 기록 선택
+→ event_type으로 기록 분리
+→ 필요한 필드 추출
+→ HTTP 응답과 비교
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-2" class="markdown-section">
+<h2>Request ID를 연결한다</h2>
+<p>외부 요청에는 다음 Header를 넣었다.</p>
+<pre><code class="language-text">X-Request-Id: kv-cache-smoke-001
+</code></pre>
+<p>현재 vLLM은 내부 ID에 Chat Completion Prefix와 충돌 방지용 임의 문자열을 추가한다.</p>
+<pre><code class="language-text">외부 ID
+kv-cache-smoke-001
+
+내부 ID
+chatcmpl-kv-cache-smoke-001-85a15f2e
+</code></pre>
+<p>따라서 처음 실행했을 때처럼 다음 값과 완전히 같은 ID만 찾으면 실제 Trace를 놓친다.</p>
+<pre><code class="language-text">chatcmpl-kv-cache-smoke-001
+</code></pre>
+<p>요청 전 JSONL 줄 수를 기록하고, 요청 후 추가된 현재 Session의 기록에서 다음 Prefix로 실제 내부 ID를 찾았다.</p>
+<pre><code class="language-text">chatcmpl-kv-cache-smoke-001-
+</code></pre>
+<p>이렇게 하면 같은 외부 Header로 셀을 다시 실행해도 과거 요청 기록과 섞이지 않는다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-3" class="markdown-section">
+<h2>HTTP 응답에서 Token 수를 읽는다</h2>
+<p>HTTP 응답의 <code>usage</code>는 다음과 같다.</p>
+<pre><code class="language-json">{
+  &quot;usage&quot;: {
+    &quot;prompt_tokens&quot;: 37,
+    &quot;completion_tokens&quot;: 8,
+    &quot;total_tokens&quot;: 45
+  }
+}
+</code></pre>
+<pre><code class="language-text">usage.prompt_tokens
+→ Prompt Token = 37
+
+usage.completion_tokens
+→ 생성 Token = 8
+</code></pre>
+<p>생성 Token 수는 Decode 기록 수로 추측하지 않고 HTTP 응답의 <code>completion_tokens</code>를 기준으로 확인한다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-4" class="markdown-section">
+<h2><code>schedule</code> 이벤트를 읽는다</h2>
+<p>실제 Schedule 기록은 다음 구조를 가진다.</p>
+<pre><code class="language-json">{
+  &quot;event_type&quot;: &quot;schedule&quot;,
+  &quot;schedule_index&quot;: 0,
+
+  &quot;scheduled_requests&quot;: [
+    {
+      &quot;request_id&quot;: &quot;chatcmpl-kv-cache-smoke-001-85a15f2e&quot;,
+      &quot;work_phase&quot;: &quot;prefill&quot;,
+      &quot;scheduled_tokens&quot;: 37,
+      &quot;computed_tokens_before&quot;: 0,
+      &quot;prompt_tokens&quot;: 37
+    }
+  ],
+
+  &quot;block_changes&quot;: {
+    &quot;chatcmpl-kv-cache-smoke-001-85a15f2e&quot;: {
+      &quot;newly_allocated_block_ids&quot;: [1, 2, 3],
+      &quot;removed_block_ids&quot;: []
+    }
+  }
+}
+</code></pre>
+<p>먼저 <code>event_type</code>으로 Schedule 기록만 선택한다.</p>
+<pre><code class="language-python">schedule_records = [
+    record
+    for record in request_trace_records
+    if record[&quot;event_type&quot;] == &quot;schedule&quot;
+]
+</code></pre>
+<p>그 안의 <code>scheduled_requests</code>에서 <code>work_phase</code>를 읽는다.</p>
+<pre><code class="language-text">work_phase == &quot;prefill&quot;
+→ Prefill 기록
+
+work_phase == &quot;decode&quot;
+→ Decode 기록
+</code></pre>
+<p><code>block_changes</code>에서는 새로 할당된 Block을 읽는다.</p>
+<pre><code class="language-text">newly_allocated_block_ids
+→ 할당 Block = [1, 2, 3]
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-5" class="markdown-section">
+<h2><code>free_request_blocks</code> 이벤트를 읽는다</h2>
+<p>요청 종료 시 다음 기록이 생성됐다.</p>
+<pre><code class="language-json">{
+  &quot;event_type&quot;: &quot;free_request_blocks&quot;,
+  &quot;request_id&quot;: &quot;chatcmpl-kv-cache-smoke-001-85a15f2e&quot;,
+  &quot;released_block_ids&quot;: [1, 2, 3],
+  &quot;released_block_count&quot;: 3,
+  &quot;free_blocks_before&quot;: 21252,
+  &quot;free_blocks_after&quot;: 21255,
+  &quot;free_block_increase&quot;: 3
+}
+</code></pre>
+<pre><code class="language-text">released_block_ids
+→ 반환 Block = [1, 2, 3]
+
+free_block_increase
+→ Free Block 증가 = 3
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-6" class="markdown-section">
+<h2>실제 결과의 구성</h2>
+<pre><code class="language-text">HTTP 응답
+├─ Prompt Token = 37
+└─ 생성 Token = 8
+
+schedule Trace
+├─ Schedule 기록 = 9
+├─ Prefill 기록 = 1
+├─ Decode 기록 = 7
+└─ 할당 Block = [1, 2, 3]
+
+free_request_blocks Trace
+├─ 반환 Block = [1, 2, 3]
+└─ Free Block 증가 = 3
+</code></pre>
+<p>Schedule 기록 9개는 다음과 같이 구성됐다.</p>
+<pre><code class="language-text">Prefill 작업 기록           1개
+Decode 작업 기록            7개
+Token 배정이 없는 완료 기록  1개
+─────────────────────────────
+전체 Schedule 기록          9개
+</code></pre>
+<p>따라서 Schedule 기록 수는 생성 Token 수가 아니다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-analysis-section-7" class="markdown-section">
+<h2>Block 할당과 반환 검증</h2>
+<p>Block 하나가 16 Token 자리를 저장하고 Prompt가 37 Token이므로 필요한 Block 수는 다음과 같다.</p>
+<pre><code class="language-text">ceil(37 / 16) = 3 Block
+</code></pre>
+<p>실제 Trace에서도 Block 세 개가 할당됐다.</p>
+<pre><code class="language-text">이론적 필요 Block = 3
+실제 할당 Block   = [1, 2, 3]
+</code></pre>
+<p>요청 종료 후 동일한 Block이 반환됐다.</p>
+<pre><code class="language-text">할당 Block = [1, 2, 3]
+반환 Block = [1, 2, 3]
+</code></pre>
+<p>Free Block 수도 세 개 증가했다.</p>
+<pre><code class="language-text">반환 전 Free Block = 21,252
+반환 후 Free Block = 21,255
+Free Block 증가    = 3
+</code></pre>
+<p>다음 두 조건이 모두 성립했다.</p>
+<pre><code class="language-text">할당 Block 집합 == 반환 Block 집합
+반환 Block 수 == Free Block 증가량
+</code></pre>
+<p>이 결과로 요청에 할당된 KV Cache Block이 요청 종료 후 공용 Pool로 반환됐다는 사실을 확인했다.</p>
+<p>다음 문서: <a href="04_standard_observability_and_custom_trace_boundary.html">표준 관측으로 충분한 범위와 Custom Trace가 필요한 경우</a></p>
+<p><a href="index.html">상위 문서로 돌아가기</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

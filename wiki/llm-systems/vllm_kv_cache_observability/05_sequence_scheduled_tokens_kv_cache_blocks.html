@@ -1,0 +1,303 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.md. Do not edit directly. source-sha256:f0f85867aa6c296c7332fb3a59886dc56989bee1085376bee814b3efde6fa77a -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sequence 실행 자리, Iteration별 scheduled_tokens, Prefill·Decode 계산과 KV Cache Block 저장이 하나의 요청에서 어떻게 연결되는지 설명합니다.">
+  <meta name="source-sha256" content="f0f85867aa6c296c7332fb3a59886dc56989bee1085376bee814b3efde6fa77a">
+  <title>vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정">
+  <meta property="og:description" content="Sequence 실행 자리, Iteration별 scheduled_tokens, Prefill·Decode 계산과 KV Cache Block 저장이 하나의 요청에서 어떻게 연결되는지 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html","name":"vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정","description":"Sequence 실행 자리, Iteration별 scheduled_tokens, Prefill·Decode 계산과 KV Cache Block 저장이 하나의 요청에서 어떻게 연결되는지 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html"},"headline":"vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/05_sequence_scheduled_tokens_kv_cache_blocks.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정</h1>
+      <p class="lead">Sequence 실행 자리, Iteration별 scheduled_tokens, Prefill·Decode 계산과 KV Cache Block 저장이 하나의 요청에서 어떻게 연결되는지 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#sequence">Sequence는 실행 자리를 차지하는 생성 단위다</a>
+        <a href="#scheduler-iteration-token">Scheduler는 Iteration마다 처리할 Token을 선택한다</a>
+        <a href="#prefill-prompt-token">Prefill에서는 Prompt Token 여러 개를 함께 처리한다</a>
+        <a href="#decode-token">Decode에서는 일반적으로 새 Token 하나를 처리한다</a>
+        <a href="#k-v-block">계산된 K·V는 Block 단위 저장 공간에 보관된다</a>
+        <a href="#decode-token-block">Decode Token은 기존 Block의 빈자리를 채운다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+        <a href="#section-6132ad6a0e6a">세 개념의 차이</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM의 동작을 이해할 때는 <code>Sequence</code>, <code>scheduled_tokens</code>, <code>KV Cache Block</code>을 구분해야 한다. 세 개념은 모두 하나의 요청을 처리하는 과정에 등장하지만, 각각 나타내는 대상이 다르다.</p>
+<pre><code class="language-text">Sequence
+→ 실행 중인 생성 작업
+
+scheduled_tokens
+→ 이번 Scheduler Iteration에서 계산할 Token 수
+
+KV Cache Block
+→ 계산된 Token의 K·V를 저장하는 공간
+</code></pre>
+<p>이 세 가지를 하나의 요청이 처리되는 순서에 맞춰 살펴보자.</p>
+</div>
+        <section id="sequence" class="markdown-section">
+<h2>Sequence는 실행 자리를 차지하는 생성 단위다</h2>
+<p>사용자가 텍스트 생성 요청을 보내면 vLLM은 해당 요청의 생성 상태를 Sequence로 관리한다.</p>
+<p>Scheduler의 용량 관점에서는 Sequence 하나가 실행 자리 하나를 차지한다고 이해할 수 있다.</p>
+<p>예를 들어 Server가 다음과 같이 설정됐다고 가정해 보자.</p>
+<pre><code class="language-text">max_num_seqs = 2
+</code></pre>
+<p>그러면 동시에 Running 상태로 유지할 수 있는 Sequence는 최대 두 개다.</p>
+<pre><code class="language-text">실행 자리 1 → Sequence A
+실행 자리 2 → Sequence B
+
+나머지 요청 → Waiting
+</code></pre>
+<p>Sequence A의 Prompt가 64Token이고 Sequence B의 Prompt가 1024Token이어도 각각 차지하는 Sequence 자리는 하나다.</p>
+<pre><code class="language-text">Sequence A → 자리 1개
+Sequence B → 자리 1개
+</code></pre>
+<p>Prompt가 길다고 Sequence 자리를 여러 개 차지하는 것은 아니다. Prompt 길이는 Sequence 자리 수가 아니라, 해당 자리에서 처리해야 할 Token 작업량과 필요한 KV Cache 공간에 영향을 준다.</p>
+
+</section>
+<section id="scheduler-iteration-token" class="markdown-section">
+<h2>Scheduler는 Iteration마다 처리할 Token을 선택한다</h2>
+<p>Sequence가 Running 상태라고 해서 그 Sequence의 모든 Token이 항상 계산되는 것은 아니다.</p>
+<p>vLLM Scheduler는 매 Iteration마다 다음 내용을 결정한다.</p>
+<pre><code class="language-text">이번 Iteration에 어떤 Sequence를 처리할 것인가?
+각 Sequence에서 Token을 몇 개 처리할 것인가?
+</code></pre>
+<p>이때 특정 Sequence에 배정된 Token 수가 <code>scheduled_tokens</code>다.</p>
+<pre><code class="language-text">scheduled_tokens
+= 해당 Sequence가 이번 Iteration에서 처리하도록 선택된 Token 수
+</code></pre>
+<p>Sequence는 실행 단위이고, <code>scheduled_tokens</code>는 그 실행 단위에서 이번에 처리할 계산량인 셈이다.</p>
+
+</section>
+<section id="prefill-prompt-token" class="markdown-section">
+<h2>Prefill에서는 Prompt Token 여러 개를 함께 처리한다</h2>
+<p>새로운 요청이 들어오면 먼저 Prefill을 수행한다.</p>
+<p>Prefill은 Prompt 전체를 처음 처리하면서 각 Transformer Layer에서 Prompt Token의 Key와 Value를 계산하는 단계다.</p>
+<p>Prompt가 1024Token이고 Scheduler의 Token Budget이 충분하며 Chunked Prefill을 사용하지 않는다면 다음과 같이 배정될 수 있다.</p>
+<pre><code class="language-text">Sequence A
+상태: Running
+작업 단계: Prefill
+scheduled_tokens: 1024
+</code></pre>
+<p>Sequence A가 실행 자리 하나만 차지하지만, 그 자리에서 Prompt Token 1024개를 함께 처리하는 것이다.</p>
+<pre><code class="language-text">Sequence 자리 수
+→ 1개
+
+이번 Iteration의 Token 계산량
+→ 1024Token
+</code></pre>
+<p>따라서 <code>max_num_seqs</code>와 <code>scheduled_tokens</code>는 서로 다른 제한이다.</p>
+<pre><code class="language-text">max_num_seqs
+→ 동시에 실행 상태로 둘 수 있는 Sequence 수
+
+max_num_batched_tokens
+→ 한 Iteration에서 처리할 수 있는 전체 Token 작업량
+</code></pre>
+
+</section>
+<section id="decode-token" class="markdown-section">
+<h2>Decode에서는 일반적으로 새 Token 하나를 처리한다</h2>
+<p>Prefill이 끝나면 모델은 Prompt 다음에 올 첫 Token을 선택할 수 있다.</p>
+<p>이후에는 직전에 생성한 Token과 기존 KV Cache를 사용해 다음 Token을 하나씩 생성한다. 이 과정이 Decode다.</p>
+<pre><code class="language-text">Sequence A
+상태: Running
+작업 단계: Decode
+scheduled_tokens: 1
+</code></pre>
+<p>다음 Iteration에서도 같은 과정이 반복된다.</p>
+<pre><code class="language-text">Iteration 1 → 새 Token 1개 처리
+Iteration 2 → 새 Token 1개 처리
+Iteration 3 → 새 Token 1개 처리
+</code></pre>
+<p>여러 Sequence가 함께 Running 상태라면 한 Iteration에서 각 Sequence의 Decode Token 하나씩을 함께 처리할 수 있다.</p>
+<pre><code class="language-text">Sequence A → Decode 1Token
+Sequence B → Decode 1Token
+
+이번 Iteration의 전체 scheduled_tokens
+→ 2Token
+</code></pre>
+<p>즉, Decode에서는 Sequence마다 일반적으로 새 Token 하나가 배정되지만, 여러 Sequence의 Token을 하나의 실행 Batch로 묶을 수 있다.</p>
+
+</section>
+<section id="k-v-block" class="markdown-section">
+<h2>계산된 K·V는 Block 단위 저장 공간에 보관된다</h2>
+<p>Prefill과 Decode에서 Token을 처리하면 각 Token에 해당하는 Key와 Value가 만들어진다. vLLM은 이 K·V를 KV Cache에 저장한다.</p>
+<p>이때 KV Cache는 Token마다 별도의 작은 메모리를 요청하는 대신, 여러 Token 자리를 가진 Block 단위로 공간을 관리한다.</p>
+<p>Block 크기가 16Token이라고 가정해 보자.</p>
+<pre><code class="language-text">Block 하나
+→ 연속된 16Token 위치의 K·V 저장 가능
+</code></pre>
+<p>Prompt가 35Token이라면 Prefill에서는 35Token을 함께 계산하지만, 결과로 생성된 K·V는 다음과 같이 저장된다.</p>
+<pre><code class="language-text">Block 1 → Token 1~16의 K·V
+Block 2 → Token 17~32의 K·V
+Block 3 → Token 33~35의 K·V
+           나머지 13자리는 비어 있음
+</code></pre>
+<p>필요한 Block 수는 다음과 같다.</p>
+<pre><code class="language-text">ceil(35 / 16)
+= 3Block
+</code></pre>
+<p>중요한 점은 Block이 계산을 나누는 단위가 아니라는 것이다.</p>
+<pre><code class="language-text">35Token을 16Token씩 나누어 Prefill한다
+→ 아님
+
+35Token을 Prefill하고 생성된 K·V를
+16Token 크기의 저장 공간에 나누어 보관한다
+→ 맞음
+</code></pre>
+
+</section>
+<section id="decode-token-block" class="markdown-section">
+<h2>Decode Token은 기존 Block의 빈자리를 채운다</h2>
+<p>35Token의 K·V를 저장한 뒤에는 세 번째 Block에 13개의 빈 Token 자리가 남아 있다.</p>
+<p>Decode에서 새로운 Token 하나가 처리될 때마다 그 Token의 K·V가 다음 빈자리에 추가된다.</p>
+<pre><code class="language-text">기존 Cache
+→ 35Token
+
+Decode 1회
+→ 36번째 Token의 K·V 저장
+
+Decode 2회
+→ 37번째 Token의 K·V 저장
+</code></pre>
+<p>이 과정에서는 아직 새로운 Block이 필요하지 않다.</p>
+<pre><code class="language-text">현재 Block 수: 3개
+저장된 Token 수: 37개
+전체 Token 자리: 48개
+</code></pre>
+<p>하지만 Cache에 저장해야 할 Token이 48개를 넘어가면 기존 세 Block에 빈자리가 없다. 이때 네 번째 Block이 추가로 할당된다.</p>
+<pre><code class="language-text">Cache Token 48개
+→ 3Block
+
+Cache Token 49개
+→ 4Block
+</code></pre>
+<p>따라서 논리적인 Cache 길이는 Decode마다 한 Token씩 증가하지만, 물리적인 Block 수는 Block 경계를 넘을 때 증가한다.</p>
+<pre><code class="language-text">Cache Token 수
+35 → 36 → 37 → ... → 48 → 49
+
+Block 수
+ 3 →  3 →  3 → ... →  3 →  4
+</code></pre>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<p>Prompt가 35Token인 요청 하나를 처리하는 전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">1. 요청 도착
+
+2. Sequence 생성
+   → Scheduler 실행 자리 하나 차지
+
+3. Prefill 배정
+   → scheduled_tokens = 35
+
+4. Prompt 35Token 처리
+   → 각 Token의 K·V 생성
+
+5. KV Cache 저장
+   → 16Token 크기 Block 3개 사용
+
+6. Decode Iteration 반복
+   → 매 Iteration scheduled_tokens = 1
+   → 새 Token의 K·V를 현재 Block의 빈자리에 저장
+
+7. 기존 Block이 가득 참
+   → 다음 Block 추가 할당
+
+8. 생성 완료
+   → Sequence가 사용하던 Block을 공용 Pool에 반환
+</code></pre>
+<p>이를 한 줄로 연결하면 다음과 같다.</p>
+<blockquote>
+<p>Scheduler 관점에서 Sequence는 실행 자리 하나를 차지하는 생성 단위다. 그 Sequence에서 Prefill 때는 Prompt Token 여러 개를 함께 처리하고, Decode 때는 일반적으로 새 Token 하나를 처리한다. 각 Token을 계산해 나온 K·V는 Sequence에 연결된 Block 단위 저장 공간에 차례로 보관되며, 기존 Block이 가득 차면 새로운 Block이 추가된다.</p>
+</blockquote>
+
+</section>
+<section id="section-6132ad6a0e6a" class="markdown-section">
+<h2>세 개념의 차이</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>개념</th>
+<th>나타내는 것</th>
+<th align="right">예시</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sequence</td>
+<td>실행 중인 생성 작업</td>
+<td align="right">요청 A 하나</td>
+</tr>
+<tr>
+<td><code>scheduled_tokens</code></td>
+<td>이번 Iteration에서 계산할 Token 수</td>
+<td align="right">Prefill 35, Decode 1</td>
+</tr>
+<tr>
+<td>KV Cache Block</td>
+<td>계산된 K·V를 저장하는 공간</td>
+<td align="right">16Token당 1Block</td>
+</tr>
+</tbody></table>
+</div>
+<p>따라서 Prompt 1024Token을 처리한다면 다음처럼 해석할 수 있다.</p>
+<pre><code class="language-text">Sequence 자리
+→ 1개
+
+Prefill scheduled_tokens
+→ 1024Token
+
+Block 크기
+→ 16Token
+
+초기 KV Cache Block
+→ ceil(1024 / 16)
+→ 64Block
+</code></pre>
+<p><strong>Sequence 자리 하나에서 Prompt 1024Token을 함께 계산하고, 계산 결과인 K·V를 64개의 Block에 나누어 저장하는 구조</strong>다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

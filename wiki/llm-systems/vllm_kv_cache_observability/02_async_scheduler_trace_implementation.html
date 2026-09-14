@@ -1,0 +1,294 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.md. Do not edit directly. source-sha256:a2538098bca8987ae2c9b2009db6bd2b23cc0793db3733679ff4ac0e2d95ee19 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM AsyncScheduler의 기존 동작을 유지하면서 schedule과 Block 반환 전후 상태를 JSONL에 기록하는 확장 구조를 설명합니다.">
+  <meta name="source-sha256" content="a2538098bca8987ae2c9b2009db6bd2b23cc0793db3733679ff4ac0e2d95ee19">
+  <title>AsyncScheduler를 확장해 내부 상태를 기록하는 방법</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="AsyncScheduler를 확장해 내부 상태를 기록하는 방법">
+  <meta property="og:description" content="vLLM AsyncScheduler의 기존 동작을 유지하면서 schedule과 Block 반환 전후 상태를 JSONL에 기록하는 확장 구조를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html","name":"AsyncScheduler를 확장해 내부 상태를 기록하는 방법","description":"vLLM AsyncScheduler의 기존 동작을 유지하면서 schedule과 Block 반환 전후 상태를 JSONL에 기록하는 확장 구조를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html"},"headline":"AsyncScheduler를 확장해 내부 상태를 기록하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/02_async_scheduler_trace_implementation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"AsyncScheduler를 확장해 내부 상태를 기록하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">AsyncScheduler를 확장해 내부 상태를 기록하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>AsyncScheduler를 확장해 내부 상태를 기록하는 방법</h1>
+      <p class="lead">vLLM AsyncScheduler의 기존 동작을 유지하면서 schedule과 Block 반환 전후 상태를 JSONL에 기록하는 확장 구조를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#vllm-kv-cache-trace-implementation-section-1">상속 구조</a>
+        <a href="#vllm-kv-cache-trace-implementation-section-2">재정의한 메서드와 새로 추가한 메서드</a>
+        <a href="#vllm-kv-cache-trace-implementation-section-3"><code>__init__()</code>에서 하는 일</a>
+        <a href="#vllm-kv-cache-trace-implementation-section-4"><code>_snapshot_requests()</code></a>
+        <a href="#vllm-kv-cache-trace-implementation-section-5"><code>schedule()</code>에서 기록하는 과정</a>
+        <a href="#vllm-kv-cache-trace-implementation-section-6"><code>_free_request_blocks()</code>에서 기록하는 과정</a>
+        <a href="#vllm-kv-cache-trace-implementation-section-7"><code>_write_trace_record()</code></a>
+        <a href="#vllm-kv-cache-trace-implementation-section-8">기존 동작과 추가한 동작</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이전 문서: <a href="01_trace_collection_design.html">vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</a></p>
+<p>상위 문서: <a href="index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a></p>
+</div>
+        <section id="vllm-kv-cache-trace-implementation-section-1" class="markdown-section">
+<h2>상속 구조</h2>
+<p>커스텀 Scheduler는 vLLM의 <code>AsyncScheduler</code>를 상속한다.</p>
+<pre><code class="language-python">from vllm.v1.core.sched.async_scheduler import (
+    AsyncScheduler,
+)
+
+
+class KvCacheTracingScheduler(
+    AsyncScheduler
+):
+    ...
+</code></pre>
+<p>이 상속을 통해 부모 Scheduler의 상태와 기능을 사용할 수 있다.</p>
+<pre><code class="language-text">self.requests
+self.waiting
+self.running
+self.kv_cache_manager
+self.kv_cache_manager.block_pool
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-2" class="markdown-section">
+<h2>재정의한 메서드와 새로 추가한 메서드</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>메서드</th>
+<th>종류</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>__init__()</code></td>
+<td>부모 메서드 재정의</td>
+<td>부모 초기화 후 Trace Session 준비</td>
+</tr>
+<tr>
+<td><code>schedule()</code></td>
+<td>부모 메서드 재정의</td>
+<td>Scheduling 전후 상태와 Block 할당 기록</td>
+</tr>
+<tr>
+<td><code>_free_request_blocks()</code></td>
+<td>부모 메서드 재정의</td>
+<td>요청 종료 시 Block 반환 기록</td>
+</tr>
+<tr>
+<td><code>_snapshot_requests()</code></td>
+<td>새로 추가</td>
+<td>요청별 Token·Block 상태 복사</td>
+</tr>
+<tr>
+<td><code>_write_trace_record()</code></td>
+<td>새로 추가</td>
+<td>Dictionary를 JSONL 한 줄로 저장</td>
+</tr>
+</tbody></table>
+</div>
+<p>Python에서는 메서드 이름과 호출 구조로 오버라이딩이 성립하며 별도의 <code>@Override</code> Annotation이 반드시 필요한 것은 아니다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-3" class="markdown-section">
+<h2><code>__init__()</code>에서 하는 일</h2>
+<p>먼저 부모 Scheduler를 그대로 초기화한다.</p>
+<pre><code class="language-python">super().__init__(*args, **kwargs)
+</code></pre>
+<p>그다음 Trace 파일 경로, Session ID와 Schedule 호출 번호를 준비한다.</p>
+<pre><code class="language-text">trace_path
+trace_session_id
+trace_schedule_index = 0
+</code></pre>
+<p>Server 시작 시 <code>trace_started</code> 이벤트를 한 줄 기록한다.</p>
+<pre><code class="language-json">{
+  &quot;event_type&quot;: &quot;trace_started&quot;,
+  &quot;session_id&quot;: &quot;...&quot;,
+  &quot;number_of_gpu_blocks&quot;: 21256,
+  &quot;number_of_free_blocks&quot;: 21255
+}
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-4" class="markdown-section">
+<h2><code>_snapshot_requests()</code></h2>
+<p><code>_snapshot_requests()</code>는 우리가 추가한 보조 메서드다. 현재 Scheduler가 관리하는 모든 요청에 대해 다음 상태를 복사한다.</p>
+<pre><code class="language-text">요청 ID
+요청 상태
+Prompt Token
+계산 완료 Token
+현재 전체 Token
+Block ID
+Block 수
+</code></pre>
+<p>Block ID는 다음 메서드로 읽는다.</p>
+<pre><code class="language-python">self.kv_cache_manager.get_block_ids(
+    request_id
+)
+</code></pre>
+<p>복사본을 만드는 이유는 <code>super().schedule()</code>이 실행되면 Scheduler 내부 상태가 바뀌기 때문이다. 실행 전 상태를 별도 값으로 보존해야 실행 후 상태와 비교할 수 있다.</p>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-5" class="markdown-section">
+<h2><code>schedule()</code>에서 기록하는 과정</h2>
+<pre><code class="language-python">def schedule(
+    self,
+    throttle_prefills: bool = False,
+) -&gt; SchedulerOutput:
+</code></pre>
+<p>이 메서드는 부모 <code>AsyncScheduler.schedule()</code>을 재정의한다.</p>
+<pre><code class="language-text">1. Scheduling 전 요청·Block 상태 복사
+2. 부모의 schedule() 실행
+3. Scheduling 후 요청·Block 상태 복사
+4. Prefill·Decode 판단
+5. 새로 할당된 Block 계산
+6. schedule 이벤트 저장
+7. 부모가 만든 SchedulerOutput 반환
+</code></pre>
+<p>실제 요청 선택과 Token 배정은 부모 메서드가 수행한다.</p>
+<pre><code class="language-python">scheduler_output = super().schedule(
+    throttle_prefills=throttle_prefills,
+)
+</code></pre>
+<p>부모가 반환한 결과에서 이번 Iteration의 요청별 Token 배정량을 읽는다.</p>
+<pre><code class="language-python">scheduler_output.num_scheduled_tokens
+</code></pre>
+<p>Scheduling 전후의 Block 집합도 비교한다.</p>
+<pre><code class="language-python">newly_allocated_block_ids = sorted(
+    after_block_ids
+    - before_block_ids
+)
+</code></pre>
+<p>마지막에는 <code>schedule</code> 이벤트를 저장하고 원래 결과를 반환한다.</p>
+<pre><code class="language-python">self._write_trace_record({
+    &quot;event_type&quot;: &quot;schedule&quot;,
+    &quot;scheduled_requests&quot;: (
+        scheduled_requests
+    ),
+    &quot;block_changes&quot;: block_changes,
+})
+
+return scheduler_output
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-6" class="markdown-section">
+<h2><code>_free_request_blocks()</code>에서 기록하는 과정</h2>
+<pre><code class="language-python">def _free_request_blocks(
+    self,
+    request: Request,
+) -&gt; None:
+</code></pre>
+<p>이 메서드는 부모 <code>AsyncScheduler._free_request_blocks()</code>를 재정의한다.</p>
+<pre><code class="language-text">1. 반환 직전 요청의 Block ID 확인
+2. 반환 전 Free Block 수 확인
+3. 부모의 Block 반환 메서드 실행
+4. 반환 후 Free Block 수 확인
+5. free_request_blocks 이벤트 저장
+</code></pre>
+<p>실제 Block 반환은 부모 메서드가 수행한다.</p>
+<pre><code class="language-python">super()._free_request_blocks(
+    request
+)
+</code></pre>
+<p>반환 전후의 Free Block 차이를 계산한다.</p>
+<pre><code class="language-python">free_block_increase = (
+    free_blocks_after
+    - free_blocks_before
+)
+</code></pre>
+<p>최종적으로 다음 이벤트를 저장한다.</p>
+<pre><code class="language-python">self._write_trace_record({
+    &quot;event_type&quot;: (
+        &quot;free_request_blocks&quot;
+    ),
+    &quot;request_id&quot;: request_id,
+    &quot;released_block_ids&quot;: (
+        released_block_ids
+    ),
+    &quot;free_blocks_before&quot;: (
+        free_blocks_before
+    ),
+    &quot;free_blocks_after&quot;: (
+        free_blocks_after
+    ),
+    &quot;free_block_increase&quot;: (
+        free_blocks_after
+        - free_blocks_before
+    ),
+})
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-7" class="markdown-section">
+<h2><code>_write_trace_record()</code></h2>
+<p>이 메서드도 우리가 추가한 보조 기능이다. 전달받은 Dictionary를 JSON 문자열로 바꾸고 파일 끝에 한 줄로 추가한다.</p>
+<pre><code class="language-python">with self.trace_path.open(
+    &quot;a&quot;,
+    encoding=&quot;utf-8&quot;,
+) as trace_file:
+    trace_file.write(
+        json.dumps(record)
+        + &quot;\n&quot;
+    )
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-trace-implementation-section-8" class="markdown-section">
+<h2>기존 동작과 추가한 동작</h2>
+<pre><code class="language-text">기존 vLLM
+├─ 어떤 요청을 처리할지 결정
+├─ Token 작업 배정
+├─ KV Cache Block 할당
+└─ 요청 종료 후 Block 반환
+
+커스텀 Scheduler
+├─ 실행 전 상태 복사
+├─ 기존 vLLM 메서드 호출
+├─ 실행 후 상태 복사
+└─ 차이를 JSONL에 기록
+</code></pre>
+<p>다음 문서: <a href="03_trace_analysis_and_validation.html">HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

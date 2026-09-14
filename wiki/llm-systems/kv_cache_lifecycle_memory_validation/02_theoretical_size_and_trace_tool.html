@@ -1,0 +1,2751 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.md. Do not edit directly. source-sha256:8acbf622272f302eded4e266dd593891e1987ac8ab1e3d70021d359f1901a570 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="모델 구조로 KV Cache의 이론 크기를 계산하고 요청별 Block 할당·반환을 기록하는 Trace를 검증한 과정입니다.">
+  <meta name="source-sha256" content="8acbf622272f302eded4e266dd593891e1987ac8ab1e3d70021d359f1901a570">
+  <title>2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증">
+  <meta property="og:description" content="모델 구조로 KV Cache의 이론 크기를 계산하고 요청별 Block 할당·반환을 기록하는 Trace를 검증한 과정입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html","name":"2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증","description":"모델 구조로 KV Cache의 이론 크기를 계산하고 요청별 Block 할당·반환을 기록하는 Trace를 검증한 과정입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html"},"headline":"2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/02_theoretical_size_and_trace_tool.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증</h1>
+      <p class="lead">모델 구조로 KV Cache의 이론 크기를 계산하고 요청별 Block 할당·반환을 기록하는 Trace를 검증한 과정입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1d34984efec5">이 단계에서 확인하려는 것</a>
+        <a href="#token-kv-cache">Token 하나의 KV Cache 크기</a>
+        <a href="#torch-empty-dtype-element-size"><code>torch.empty((), dtype=...).element_size()</code>가 구하는 것</a>
+        <a href="#block-kv-cache">Block 하나의 이론적 KV Cache 크기</a>
+        <a href="#server-kv-cache-pool-idle">실제 Server의 KV Cache Pool과 Idle 기준</a>
+        <a href="#block-pool">Block Pool은 무엇에 속하는가</a>
+        <a href="#metrics-block"><code>/metrics</code>만으로는 요청별 Block을 알 수 없다</a>
+        <a href="#trace">Trace에 기록한 내용</a>
+        <a href="#scheduler">추적 Scheduler 연결</a>
+        <a href="#section-70c6b0bba3e0">작은 요청으로 추적 기능을 검증한 방법</a>
+        <a href="#request-id">Request ID 오류와 수정</a>
+        <a href="#smoke-test">Smoke Test 결과</a>
+        <a href="#section-b56f08d6b778">보존한 자료</a>
+        <a href="#section-2">2단계 완료 판단</a>
+        <a href="#runpod-2">부록: RunPod에서 실제 실행한 2단계 코드와 출력</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>전체 실습 안내: <a href="../03_kv_cache_lifecycle_memory_validation.html">vLLM KV Cache Block을 계산하고 실제 할당·반환·재사용까지 확인한 실습</a></p>
+<p>학습일: 2026-09-14</p>
+<p>실습 Notebook: <code>vllm_scheduler_kv_cache.ipynb</code></p>
+</div>
+        <section id="section-1d34984efec5" class="markdown-section">
+<h2>이 단계에서 확인하려는 것</h2>
+<p>KV Cache의 생명주기를 측정하려면 먼저 두 가지가 필요하다.</p>
+<p>첫째, Token과 Block이 이론적으로 얼마만큼의 K·V 메모리를 요구하는지 계산할 수 있어야 한다. 둘째, 실제 vLLM 요청이 어떤 Block을 할당받고 종료 시 무엇을 반환했는지 요청 ID별로 관찰할 수 있어야 한다.</p>
+<pre><code class="language-text">모델 구조와 dtype
+→ Token당 KV Cache Byte 계산
+→ Block당 KV Cache Byte 계산
+
+실제 vLLM Server
+→ 전체 Block Pool과 Idle 기준 확인
+→ 요청별 Block 할당·반환 Trace 추가
+→ 작은 요청으로 추적 기능 검증
+</code></pre>
+<p>이 단계는 아직 Prompt 길이별·Decode 길이별 본 실험이 아니다. 이후 실험에 사용할 이론 기준과 관찰 도구가 올바르게 작동하는지를 먼저 증명한 단계다.</p>
+
+</section>
+<section id="token-kv-cache" class="markdown-section">
+<h2>Token 하나의 KV Cache 크기</h2>
+<p>현재 모델은 Qwen2.5-1.5B-Instruct이며 확인한 구조와 저장 조건은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">값</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Transformer Layer</td>
+<td align="right">28</td>
+</tr>
+<tr>
+<td>Query Head</td>
+<td align="right">12</td>
+</tr>
+<tr>
+<td>KV Head</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td>Head Dimension</td>
+<td align="right">128</td>
+</tr>
+<tr>
+<td>저장 Tensor</td>
+<td align="right">K와 V, 2개</td>
+</tr>
+<tr>
+<td>KV Cache dtype</td>
+<td align="right"><code>float16</code></td>
+</tr>
+<tr>
+<td>원소당 크기</td>
+<td align="right">2Byte</td>
+</tr>
+</tbody></table>
+</div>
+<p>GQA 모델의 KV Cache 크기를 계산할 때는 Query Head 12개가 아니라 실제 K·V를 저장하는 KV Head 2개를 사용한다.</p>
+<pre><code class="language-text">Token당 KV Cache Byte
+= Layer 수
+× KV Head 수
+× Head Dimension
+× 2(K와 V)
+× dtype 원소당 Byte
+
+= 28 × 2 × 128 × 2 × 2
+= 28,672Byte
+= 28KiB
+= 0.02734375MiB
+</code></pre>
+<p>이 값은 Token 하나에 대해 모든 Transformer Layer의 K와 V 원소가 차지하는 순수 이론 크기다.</p>
+
+</section>
+<section id="torch-empty-dtype-element-size" class="markdown-section">
+<h2><code>torch.empty((), dtype=...).element_size()</code>가 구하는 것</h2>
+<p>원소당 Byte는 다음 코드로 확인했다.</p>
+<pre><code class="language-python">bytes_per_element = torch.empty(
+    (),
+    dtype=torch.float16,
+).element_size()
+</code></pre>
+<p>여기서 <code>()</code>는 원소가 없는 Shape가 아니라 축이 없는 0차원 Scalar Tensor의 Shape다.</p>
+<pre><code class="language-text">Tensor Shape = []
+차원 수       = 0
+원소 수       = 1
+dtype         = float16
+</code></pre>
+<p><code>element_size()</code>는 Tensor 전체 크기가 아니라 원소 하나의 Byte 수를 반환한다. 따라서 위 Tensor의 값이 무엇인지는 중요하지 않으며 결과는 <code>float16</code> 원소 하나의 크기인 2Byte다.</p>
+<p>0차원과 원소가 없는 1차원 Tensor는 다르다.</p>
+<pre><code class="language-text">torch.empty(())
+→ Shape []
+→ 0차원
+→ 원소 1개
+
+torch.empty((0,))
+→ Shape [0]
+→ 1차원
+→ 원소 0개
+</code></pre>
+<p>두 Tensor가 모두 <code>float16</code>이라면 <code>element_size()</code>는 2를 반환한다. 그러나 전체 데이터 크기는 다음처럼 다르다.</p>
+<pre><code class="language-text">전체 데이터 Byte = numel() × element_size()
+
+0차원 Scalar Tensor = 1 × 2 = 2Byte
+빈 1차원 Tensor     = 0 × 2 = 0Byte
+</code></pre>
+<p>이번 계산은 Tensor 전체 크기가 아니라 dtype의 원소당 크기만 필요하므로 0차원 임시 Tensor를 사용했다.</p>
+<h3>0차원·1차원·2차원으로 다시 읽기</h3>
+<p>축이 없다는 말은 값이 없다는 뜻이 아니다. 숫자 하나인 Scalar를 Tensor로 표현하면 원소는 하나지만 방향을 나타낼 축은 없다.</p>
+<pre><code class="language-python">scalar = torch.tensor(3, dtype=torch.float16)        # shape: [],    ndim: 0, numel: 1
+vector = torch.tensor([3], dtype=torch.float16)      # shape: [1],   ndim: 1, numel: 1
+matrix = torch.tensor([[3]], dtype=torch.float16)    # shape: [1,1], ndim: 2, numel: 1
+empty = torch.empty((0,), dtype=torch.float16)       # shape: [0],   ndim: 1, numel: 0
+</code></pre>
+<p>네 Tensor의 원소 배치 형태는 다르지만 dtype이 모두 <code>float16</code>이므로 <code>element_size()</code>는 모두 2Byte다. <code>torch.empty(())</code>를 사용한 이유는 0차원 크기를 구하려는 것이 아니라, 값이 필요 없는 가장 작은 임시 Tensor를 만들어 그 dtype의 원소 하나 크기만 묻기 위해서다.</p>
+
+</section>
+<section id="block-kv-cache" class="markdown-section">
+<h2>Block 하나의 이론적 KV Cache 크기</h2>
+<p>현재 Server의 Block 크기는 16 Token이다.</p>
+<pre><code class="language-text">Block당 KV Cache Byte
+= Token당 KV Cache Byte × Block Size
+= 28,672 × 16
+= 458,752Byte
+= 448KiB
+= 0.4375MiB
+</code></pre>
+<p>논리적 Token 수는 한 개씩 증가하지만, 실제 Block 할당량은 16 Token 경계에서 계단식으로 증가한다.</p>
+<pre><code class="language-text">필요 Block 수
+= ceil(Cache Token 수 / 16)
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Cache Token</th>
+<th align="right">논리적 KV Cache [MiB]</th>
+<th align="right">필요 Block</th>
+<th align="right">Block 할당량 [MiB]</th>
+<th align="right">마지막 Block의 빈 자리</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">16</td>
+<td align="right">0.4375</td>
+<td align="right">1</td>
+<td align="right">0.4375</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">17</td>
+<td align="right">0.4648</td>
+<td align="right">2</td>
+<td align="right">0.8750</td>
+<td align="right">15</td>
+</tr>
+<tr>
+<td align="right">64</td>
+<td align="right">1.7500</td>
+<td align="right">4</td>
+<td align="right">1.7500</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">256</td>
+<td align="right">7.0000</td>
+<td align="right">16</td>
+<td align="right">7.0000</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">1024</td>
+<td align="right">28.0000</td>
+<td align="right">64</td>
+<td align="right">28.0000</td>
+<td align="right">0</td>
+</tr>
+</tbody></table>
+</div>
+<p>17번째 Token이 추가되면 두 번째 Block을 배정받는다. 두 번째 Block에는 1 Token만 들어 있고 15자리가 비어 있지만, 다른 Sequence의 전용 K·V를 그 빈자리에 섞어 넣지는 않는다. 이것이 논리적 KV Byte와 Block 단위 할당량이 달라지는 기본 원인이다.</p>
+
+</section>
+<section id="server-kv-cache-pool-idle" class="markdown-section">
+<h2>실제 Server의 KV Cache Pool과 Idle 기준</h2>
+<p>동일한 모델·dtype·Block 크기·Scheduler 조건으로 vLLM Server를 실행하고 <code>/metrics</code>의 Cache 설정과 사용률을 확인했다.</p>
+<p>추적 Scheduler를 적용한 최종 Server의 시작 상태는 다음과 같다.</p>
+<pre><code class="language-text">전체 GPU Block          = 21,256
+예약 Null Block         = 1
+사용 가능한 Block       = 21,255
+Block Size              = 16 token/block
+표시된 전체 Token 용량   = 340,096
+실제 사용 가능 Token 자리 = 340,080
+Idle KV Cache Usage     = 0.0%
+</code></pre>
+<p>vLLM은 Null Block 하나를 예약하므로 Free Block 수는 전체 Block 수보다 하나 작았다.</p>
+<pre><code class="language-text">21,256 전체 Block - 1 Null Block = 21,255 Free Block
+</code></pre>
+<p><code>kv_cache_usage_perc=0.0</code>은 GPU 메모리가 비어 있다는 뜻이 아니다. Server가 미리 확보한 KV Cache Pool 중 현재 요청이 사용하는 Block 비율이 0이라는 뜻이다. Weight·CUDA Runtime·미리 확보한 Pool을 포함한 GPU 전체 사용량과는 측정 범위가 다르다.</p>
+<p>기본 Scheduler로 먼저 시작한 Server에서는 19,789 Block이 관찰됐고, 추적 Scheduler로 재시작한 최종 Server에서는 21,256 Block이 관찰됐다. 전체 Block 수는 <code>gpu_memory_utilization=0.8</code>만으로 고정되는 상수가 아니다. Server 시작 시점의 GPU 가용 메모리와 vLLM의 메모리 프로파일링 결과에 따라 달라질 수 있다. 따라서 서로 다른 재시작에서 얻은 Pool 수치를 한 실험의 전후 변화로 비교해서는 안 되며, Usage를 계산할 때는 반드시 요청 Trace와 같은 Server Session의 전체 Block 수를 분모로 사용해야 한다. 3단계 최초 출력은 이전 Idle 요약의 19,789Block을 분모로 사용한 한계가 있어, Block 수 일치만 핵심 증거로 채택했다.</p>
+
+</section>
+<section id="block-pool" class="markdown-section">
+<h2>Block Pool은 무엇에 속하는가</h2>
+<p>Block Pool은 모든 vLLM 배포가 전역으로 하나를 공유하는 객체가 아니다. Scheduler와 KV Cache Manager가 관리하는 해당 Engine 실행 범위의 자원이다.</p>
+<p>현재처럼 단일 vLLM Engine, 단일 GPU, 동일 Attention 구조를 가진 모델에서는 다음처럼 이해하면 된다.</p>
+<pre><code class="language-text">vLLM Engine 한 개
+└─ Scheduler
+   └─ KV Cache Manager
+      └─ 논리적 Block Pool 한 개
+</code></pre>
+<p>서로 다른 vLLM Server 프로세스를 두 개 실행하면 각 Engine이 자신의 Cache 관리 상태와 Pool을 가진다. Tensor Parallel이나 Hybrid Attention처럼 실행 구조가 복잡해지면 GPU별 Cache Tensor와 KV Cache Group이 여러 개가 될 수 있으므로 모든 환경에서 단순히 “vLLM 하나당 물리 Pool 하나”라고 일반화하면 안 된다. 이번 단일 GPU Qwen 실험에서는 KV Cache Group 하나와 하나의 논리적 Block ID 공간을 관찰한다.</p>
+<p>이 문서에서 중요한 결론은 복잡한 Hybrid 모델 구조가 아니다. 현재 실행 범위만 놓고 보면 다음 한 줄이면 충분하다.</p>
+<pre><code class="language-text">현재 단일 GPU·단일 Engine·Qwen 실행
+→ Scheduler가 관리하는 공용 논리 Block Pool 하나
+→ 여러 요청의 Sequence들이 여기서 Block을 빌리고 반환
+</code></pre>
+<p>“vLLM 하나당 Pool 하나인가?”라는 표현은 이번 조건에서는 유용한 근사다. 다만 vLLM이라는 라이브러리 전체가 전역 Pool 하나를 가진다는 뜻은 아니며, Server/Engine 프로세스가 달라지면 관리 상태도 달라진다.</p>
+
+</section>
+<section id="metrics-block" class="markdown-section">
+<h2><code>/metrics</code>만으로는 요청별 Block을 알 수 없다</h2>
+<p><code>/metrics</code>에서는 전체 Pool 용량과 사용률을 읽을 수 있지만 다음 질문에는 답하기 어렵다.</p>
+<pre><code class="language-text">요청 A가 어떤 Block을 받았는가?
+Prefill에서 몇 개가 새로 할당됐는가?
+Decode 중 어느 Block 경계에서 추가 할당됐는가?
+요청 종료 시 정확히 어떤 Block이 반환됐는가?
+</code></pre>
+<p>일반 운영에서는 전체 KV Cache 사용률, Running·Waiting, Preemption, 오류, TTFT·TPOT·Latency와 Throughput을 Metrics와 Client 측정으로 보는 것으로 충분한 경우가 많다. 요청별 Block ID Trace는 상시 운영 필수 지표가 아니라, vLLM 내부 생명주기를 직접 증명하거나 Block 반환·재사용 문제를 진단할 때 쓰는 상세 관찰 도구다.</p>
+<p>이를 확인하기 위해 설치된 vLLM 0.29.0의 <code>AsyncScheduler</code>를 상속한 <code>KvCacheTracingScheduler</code>를 만들었다.</p>
+<p>새 Scheduler를 처음부터 구현한 것이 아니다. 다음 두 메서드만 재정의했다.</p>
+<pre><code class="language-text">schedule()
+→ 원래 Scheduling 전 상태 Snapshot
+→ super().schedule()로 실제 vLLM Scheduling 실행
+→ 실행 후 상태 Snapshot
+→ 전후 차이를 JSONL에 기록
+→ 원래 SchedulerOutput 반환
+
+_free_request_blocks()
+→ 반환 전 Block ID와 Free Block 수 기록
+→ super()._free_request_blocks(request)로 실제 반환 실행
+→ 반환 후 Free Block 수 기록
+→ 반환 결과를 JSONL에 기록
+</code></pre>
+<p><code>_snapshot_requests()</code>와 <code>_write_trace_record()</code>는 관찰을 위해 새로 추가한 보조 메서드다. 실제 요청 선택, Token 작업 배정, Block 할당과 반환은 기존 vLLM 구현이 수행한다. 커스텀 코드가 추가한 동작은 그 전후의 상태를 복사하고 로그로 남기는 것이다.</p>
+<h3>상속과 재정의를 정확히 구분하기</h3>
+<p><code>KvCacheTracingScheduler(AsyncScheduler)</code>라고 선언한 것이 상속이고, 자식 Class 안에 같은 이름의 <code>schedule()</code>과 <code>_free_request_blocks()</code>를 다시 작성한 것이 재정의다. Python에서는 Java의 <code>@Override</code> 같은 Annotation이 필수가 아니다. 같은 이름의 메서드를 자식 Class에 정의하면 Method Resolution에 따라 자식 메서드가 호출된다.</p>
+<pre><code class="language-text">KvCacheTracingScheduler 생성
+→ AsyncScheduler의 나머지 기능을 그대로 상속
+
+schedule() 호출
+→ 우리가 재정의한 schedule() 진입
+→ 전 상태 Snapshot
+→ super().schedule()로 원래 Scheduling 전부 수행
+→ 후 상태 Snapshot과 로그 기록
+→ 원래 SchedulerOutput 반환
+</code></pre>
+<p>따라서 실제 행동을 바꾼 필터라기보다는, 기존 Class를 확장하고 Server의 <code>--scheduler-cls</code>에 주입한 Decorator에 가까운 구조다. 핵심 Scheduling을 복제하거나 대체하지 않고 전후 관찰만 덧붙였다.</p>
+<p>모듈을 Server에 연결하기 전에 다음을 검사했다.</p>
+<pre><code class="language-text">Python 문법 검사 통과
+KvCacheTracingScheduler가 AsyncScheduler의 Subclass임
+현재 버전 schedule()의 throttle_prefills 인자와 호환됨
+현재 버전 _free_request_blocks()의 request 인자와 호환됨
+</code></pre>
+<p>내부 메서드를 재정의하는 코드는 vLLM 버전에 영향을 받는다. 이전 버전의 Signature를 가정하지 않고 설치된 0.29.0에서 실제 Signature를 검사한 이유다.</p>
+
+</section>
+<section id="trace" class="markdown-section">
+<h2>Trace에 기록한 내용</h2>
+<p><code>schedule</code> 기록에는 Scheduler Iteration 전후의 상태가 들어간다.</p>
+<ul>
+<li><code>schedule_index</code>: 커스텀 Scheduler가 <code>schedule()</code> 호출마다 하나씩 증가시킨 번호</li>
+<li><code>waiting_before</code>·<code>running_before</code>: Scheduling 직전 요청 목록</li>
+<li><code>requests_before</code>: 요청별 상태, Prompt Token, 계산 완료 Token, Block ID</li>
+<li><code>scheduled_requests</code>: 이번 Iteration에 실제 작업을 배정받은 요청과 Token 수</li>
+<li><code>requests_after</code>: Scheduling 직후 요청별 상태와 Block ID</li>
+<li><code>block_changes</code>: 이번 호출에서 새로 할당되거나 제거된 Block ID</li>
+<li><code>free_blocks_before</code>·<code>free_blocks_after</code>: 전체 Free Block 수 변화</li>
+<li><code>finished_since_previous_step</code>: 직전 실행 이후 완료가 전달된 요청</li>
+<li><code>preempted_request_ids</code>: 이번 단계에서 밀려난 요청</li>
+</ul>
+<p><code>free_request_blocks</code> 기록에는 다음 값이 들어간다.</p>
+<ul>
+<li>종료 요청 ID</li>
+<li>반환한 Block ID와 개수</li>
+<li>반환 전후 Free Block 수</li>
+<li>Free Block 증가량</li>
+</ul>
+<p>어떤 값이 어느 메서드에서 나왔는지 연결하면 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>알고 싶은 값</th>
+<th>JSONL 위치</th>
+<th>값을 만든 메서드</th>
+<th>원래 vLLM 상태의 출처</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Iteration 번호</td>
+<td><code>schedule.schedule_index</code></td>
+<td>재정의한 <code>schedule()</code></td>
+<td>커스텀 카운터를 호출마다 1 증가</td>
+</tr>
+<tr>
+<td>Scheduling 전후 Waiting·Running</td>
+<td><code>waiting_before/after</code>, <code>running_before/after</code></td>
+<td>재정의한 <code>schedule()</code></td>
+<td><code>self.waiting</code>, <code>self.running</code></td>
+</tr>
+<tr>
+<td>요청별 계산 Token·Block ID</td>
+<td><code>requests_before/after</code></td>
+<td>새 보조 메서드 <code>_snapshot_requests()</code></td>
+<td><code>self.requests</code>, <code>kv_cache_manager.get_block_ids()</code></td>
+</tr>
+<tr>
+<td>이번 Iteration의 Prefill·Decode Token</td>
+<td><code>scheduled_requests</code></td>
+<td>재정의한 <code>schedule()</code></td>
+<td><code>super().schedule()</code>이 반환한 <code>SchedulerOutput.num_scheduled_tokens</code></td>
+</tr>
+<tr>
+<td>새로 할당된 Block</td>
+<td><code>block_changes.newly_allocated_block_ids</code></td>
+<td>재정의한 <code>schedule()</code></td>
+<td>전후 Snapshot의 Block 집합 차이</td>
+</tr>
+<tr>
+<td>반환된 Block</td>
+<td><code>free_request_blocks.released_block_ids</code></td>
+<td>재정의한 <code>_free_request_blocks()</code></td>
+<td>원래 반환 직전 <code>get_block_ids()</code></td>
+</tr>
+<tr>
+<td>반환 전후 Free Block</td>
+<td><code>free_blocks_before/after</code></td>
+<td>재정의한 <code>_free_request_blocks()</code></td>
+<td><code>block_pool.get_num_free_blocks()</code></td>
+</tr>
+</tbody></table>
+</div>
+<p><code>_write_trace_record()</code>는 이 값들을 새로 계산하는 Scheduler 기능이 아니라, 이미 만든 <code>dict</code>를 JSONL 한 줄로 직렬화해 저장하는 보조 메서드다. 실제 Block 반환은 그 전에 호출한 <code>super()._free_request_blocks(request)</code>가 수행한다.</p>
+<p>기록 한 줄의 전체 모양을 축약하면 다음과 같다.</p>
+<pre><code class="language-json">{
+  &quot;event_type&quot;: &quot;schedule&quot;,
+  &quot;session_id&quot;: &quot;...&quot;,
+  &quot;schedule_index&quot;: 0,
+  &quot;waiting_before&quot;: [&quot;request-B&quot;],
+  &quot;running_before&quot;: [&quot;request-A&quot;],
+  &quot;requests_before&quot;: {
+    &quot;request-A&quot;: {
+      &quot;prompt_tokens&quot;: 37,
+      &quot;computed_tokens&quot;: 37,
+      &quot;block_ids_by_group&quot;: [[1, 2, 3]],
+      &quot;block_count&quot;: 3
+    }
+  },
+  &quot;scheduled_requests&quot;: [
+    {
+      &quot;request_id&quot;: &quot;request-A&quot;,
+      &quot;work_phase&quot;: &quot;decode&quot;,
+      &quot;scheduled_tokens&quot;: 1
+    }
+  ],
+  &quot;requests_after&quot;: {&quot;...&quot;: &quot;...&quot;},
+  &quot;block_changes&quot;: {&quot;...&quot;: &quot;...&quot;},
+  &quot;finished_since_previous_step&quot;: [],
+  &quot;preempted_request_ids&quot;: []
+}
+</code></pre>
+<pre><code class="language-json">{
+  &quot;event_type&quot;: &quot;free_request_blocks&quot;,
+  &quot;session_id&quot;: &quot;...&quot;,
+  &quot;request_id&quot;: &quot;request-A&quot;,
+  &quot;released_block_ids&quot;: [1, 2, 3],
+  &quot;released_block_count&quot;: 3,
+  &quot;free_blocks_before&quot;: 21252,
+  &quot;free_blocks_after&quot;: 21255,
+  &quot;free_block_increase&quot;: 3
+}
+</code></pre>
+<p>첫 JSON의 <code>event_type</code>은 각 <code>scheduled_requests</code> 안에 반복되는 값이 아니라 기록 최상위에 있다. <code>work_phase</code>는 <code>schedule</code> 이벤트 내부에서 각 요청의 작업 단계만 구분한다.</p>
+<p><code>trace_started</code>는 실제 생성 요청 때문에 생기는 기록이 아니다. Scheduler 객체의 <code>__init__</code>이 실행될 때 Session ID, 전체 GPU Block 수, 시작 Free Block 수를 한 번 기록한다. 따라서 추적 Server 적용 확인 셀은 다음 두 정보를 합쳐 본 것이다.</p>
+<pre><code class="language-text">JSONL의 trace_started
+→ 커스텀 Scheduler가 실제로 생성됨
+→ number_of_gpu_blocks와 시작 Free Block 확인
+
+GET /metrics
+→ 같은 Server가 보고하는 Pool 설정과 Usage 확인
+
+둘의 Block 수가 같은지 assert
+→ Trace와 Metrics가 같은 Engine Pool을 관찰함을 확인
+</code></pre>
+<p>이 시점에는 아직 Chat Completion 요청을 보내지 않았다. 실제 요청은 뒤의 Smoke Test에서 처음 보냈다.</p>
+<h3>Running Sequence와 Scheduled Token은 다르다</h3>
+<p><code>running</code>은 현재 실행 상태로 관리되는 Sequence 목록이다. <code>scheduled_tokens</code>는 그 Running Sequence 전체 길이가 아니라, 이번 Scheduler Iteration에서 실제로 처리하기로 선택한 Token 작업 수다.</p>
+<pre><code class="language-text">Running
+→ 현재 실행 상태인 Sequence
+
+Scheduled Token
+→ 그 Sequence에서 이번 Iteration에 처리하도록 배정한 Token 수
+</code></pre>
+<p>Prefill에서는 Prompt의 여러 Token이 한 Iteration에 배정될 수 있다. 이때 요청은 Sequence 자리 하나를 사용하지만 <code>scheduled_tokens</code>는 Prompt 길이만큼 여러 개가 될 수 있다. Decode에서는 일반적으로 각 Running Sequence에 다음 Token 작업 하나가 배정된다.</p>
+<pre><code class="language-text">Sequence A가 Running
+
+Prefill Iteration
+→ A scheduled_tokens = 37
+
+후속 Decode Iteration
+→ A scheduled_tokens = 1
+</code></pre>
+<p><code>max_num_seqs</code>는 Sequence 자리 수의 상한이고, <code>max_num_batched_tokens</code>는 한 Iteration에 배정할 전체 Token 작업량의 상한이다. Prefill 37 Token이 배정됐다고 Sequence 자리 37개를 사용하는 것은 아니다.</p>
+<p>Running 목록과 <code>scheduled_requests</code>도 같은 뜻이 아니다. Running은 실행 가능한 상태로 관리 중인 Sequence 목록이고, <code>scheduled_requests</code>는 그중 이번 Iteration에 실제 Token 작업을 받은 요청 목록이다. Running 상태여도 Token Budget이나 다른 Scheduler 조건 때문에 특정 Iteration의 실제 작업 대상에서 빠질 수 있다.</p>
+
+</section>
+<section id="scheduler" class="markdown-section">
+<h2>추적 Scheduler 연결</h2>
+<p>Server가 커스텀 모듈을 Import할 수 있도록 모듈 디렉터리를 <code>PYTHONPATH</code>에 넣고, Trace 경로는 환경변수로 전달했다.</p>
+<pre><code class="language-text">PYTHONPATH
+→ kv_cache_trace.py를 Import할 위치
+
+KV_CACHE_TRACE_PATH
+→ JSONL Trace를 기록할 경로
+
+--scheduler-cls kv_cache_trace.KvCacheTracingScheduler
+→ 기본 Scheduler 대신 확장한 Scheduler Class 사용
+</code></pre>
+<p>Scheduler 객체는 vLLM 내부에서 생성되므로 Notebook 코드가 생성자에 임의 경로를 직접 넘기지 않는다. 대신 Server 시작 전에 환경변수로 경로를 제공하고 <code>__init__</code>에서 읽었다. 함수나 메서드가 Notebook의 Python 전역 상태에 의존하지 않도록 했다.</p>
+
+</section>
+<section id="section-70c6b0bba3e0" class="markdown-section">
+<h2>작은 요청으로 추적 기능을 검증한 방법</h2>
+<p>추적 Scheduler가 시작됐다는 로그만으로 실제 요청의 Block 할당·반환까지 기록된다고 단정할 수 없다. 따라서 다음 조건의 실제 Chat Completion 요청 하나를 보냈다.</p>
+<pre><code class="language-text">Prompt Token = 37
+생성 Token   = 8
+temperature  = 0.0
+top_p        = 1.0
+ignore_eos   = True
+stream       = False
+</code></pre>
+<p><code>stream=False</code>이므로 <code>client.post()</code>는 전체 응답이 끝날 때까지 기다렸다가 반환한다. 이후의 <code>while</code>은 생성 중에 Metrics를 수집하는 반복문이 아니다.</p>
+<pre><code class="language-text">HTTP 요청 전송
+→ Server가 Prefill·Decode 수행
+→ 전체 응답 완료
+→ client.post() 반환
+→ JSONL에 Block 반환 기록이 보이는지 최대 10초 확인
+→ 모은 기록을 한 번 출력하고 요약 JSON 저장
+</code></pre>
+<p>Scheduler와 API 처리 사이의 기록 반영 시점이 아주 조금 다를 수 있으므로 응답 직후 Trace를 한 번만 읽지 않고, <code>free_request_blocks</code>가 보일 때까지 짧게 확인했다.</p>
+<p>즉 코드 실행 순서는 다음과 같다.</p>
+<pre><code class="language-text">client.post() 진입
+→ 실제 요청 전송
+→ vLLM이 응답 전체 생성
+→ HTTP 응답 완료
+→ client.post() 반환
+→ 그 다음 while 진입
+→ 이미 끝난 요청의 반환 Trace가 파일에 반영됐는지 반복 확인
+</code></pre>
+<p>Streaming 요청과 병렬로 Trace를 수집한 코드가 아니다. <code>while</code>은 완료 이후 파일 기록 도착을 기다리는 짧은 동기화 장치다.</p>
+
+</section>
+<section id="request-id" class="markdown-section">
+<h2>Request ID 오류와 수정</h2>
+<p>첫 실행에서는 실제 요청과 Trace가 모두 정상인데도 다음 검사가 실패했다.</p>
+<pre><code class="language-text">AssertionError: 요청의 schedule 로그가 없습니다.
+</code></pre>
+<p>원인은 현재 vLLM의 내부 Request ID 형식을 완전 일치로 비교한 것이었다.</p>
+<pre><code class="language-text">외부 X-Request-Id
+kv-cache-smoke-001
+
+코드가 처음 예상한 내부 ID
+chatcmpl-kv-cache-smoke-001
+
+실제 vLLM 0.29.0 내부 ID
+chatcmpl-kv-cache-smoke-001-b8234cea
+</code></pre>
+<p>vLLM은 외부 요청 ID를 <code>external_req_id</code>로 보존하고 내부 충돌을 방지하기 위해 8자리 임의 문자열을 덧붙인다. 따라서 요청 전 JSONL 줄 수를 먼저 저장하고, 그 뒤에 추가된 현재 Session의 기록만 대상으로 <code>chatcmpl-kv-cache-smoke-001-</code> Prefix와 일치하는 실제 내부 ID를 찾도록 수정했다.</p>
+<p>이 수정은 같은 셀을 같은 Header로 반복 실행해도 과거 요청의 Trace와 섞이지 않게 한다. 두 번째 실행에서 실제 내부 ID는 다음과 같았다.</p>
+<pre><code class="language-text">chatcmpl-kv-cache-smoke-001-85a15f2e
+</code></pre>
+
+</section>
+<section id="smoke-test" class="markdown-section">
+<h2>Smoke Test 결과</h2>
+<p>수정 후 실제 결과는 다음과 같다.</p>
+<pre><code class="language-text">Prompt Token       = 37
+생성 Token         = 8
+Schedule 기록      = 9
+Prefill 작업 기록  = 1
+Decode 작업 기록   = 7
+할당 Block         = [1, 2, 3]
+반환 Block         = [1, 2, 3]
+Free Block 증가    = 3
+</code></pre>
+<p>Block 크기가 16 Token이므로 Prompt 37 Token의 최초 Prefill에는 세 Block이 필요하다.</p>
+<pre><code class="language-text">ceil(37 / 16) = 3 Block
+</code></pre>
+<p>최초 Prefill이 다음 Token을 선택하고, 그 뒤의 Decode 작업 7회가 추가되어 총 8개의 출력 Token이 만들어졌다. 이 과정에서 전체 Cache 길이는 추가 Block 경계를 넘지 않았으므로 <code>[1, 2, 3]</code>을 계속 사용했다.</p>
+<p>Schedule 기록이 9개라고 해서 출력 Token이 9개라는 뜻은 아니다. Token 작업이 있었던 기록은 Prefill 1개와 Decode 7개이며, 나머지 1개는 요청 완료를 반영하는 과정에서 <code>scheduled_requests</code>가 비어 있던 Scheduler 호출이다.</p>
+<pre><code class="language-text">전체 Schedule 기록 9개
+= Prefill 작업 기록 1개
++ Decode 작업 기록 7개
++ Token 배정이 없는 완료 처리 기록 1개
+</code></pre>
+<p>요청 종료 시 할당됐던 <code>[1, 2, 3]</code>이 그대로 반환됐고 Free Block 수도 3개 증가했다.</p>
+<pre><code class="language-text">할당 Block 집합 == 반환 Block 집합
+Free Block 증가량 == 반환 Block 수
+</code></pre>
+<p>이 결과로 추적 코드가 다음을 실제 요청에서 기록할 수 있음을 확인했다.</p>
+<ul>
+<li>Prefill과 Decode의 Iteration별 작업 배정</li>
+<li>요청별 Block ID와 최초 할당</li>
+<li>요청 종료 시 Block 반환</li>
+<li>반환 전후 Free Block 수 변화</li>
+</ul>
+
+</section>
+<section id="section-b56f08d6b778" class="markdown-section">
+<h2>보존한 자료</h2>
+<ul>
+<li>기본 Server Idle 요약: <code>kv_cache_idle_summary.json</code></li>
+<li>기본 Server Metrics 원문: <code>metrics_idle.prom</code></li>
+<li>추적 Server Idle 요약: <code>traced_server_idle_summary.json</code></li>
+<li>Smoke Test 요약: <code>kv_cache_trace_smoke_summary.json</code></li>
+<li>요청별 Block Trace: <code>kv_cache_trace.jsonl</code></li>
+<li>추적 Scheduler 코드: <code>kv_cache_trace.py</code></li>
+</ul>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>2단계 완료 판단</h2>
+<h3>확인 완료</h3>
+<ul>
+<li>실제 모델 구조와 <code>float16</code>을 사용해 Token당 28,672Byte를 계산했다.</li>
+<li>16 Token Block 하나가 458,752Byte임을 계산했다.</li>
+<li>논리적 Token Byte와 Block 단위 할당량의 차이를 계산했다.</li>
+<li>실제 Server의 전체 Block 수, Null Block과 Idle KV Cache Usage를 확인했다.</li>
+<li><code>/metrics</code>와 요청별 Block Trace의 측정 범위를 구분했다.</li>
+<li>현재 vLLM 버전에 맞는 Scheduler 확장을 만들고 호환성을 검사했다.</li>
+<li>실제 요청에서 Prefill·Decode·Block 할당·반환 로그를 확보했다.</li>
+<li>외부 Request ID와 임의 문자열이 붙은 내부 Request ID를 연결했다.</li>
+<li>할당 Block과 반환 Block이 같고 Free Block 수가 복구됨을 검증했다.</li>
+</ul>
+<p>따라서 이론 비교 기준과 요청별 Block 관찰 도구 준비가 모두 끝났다.</p>
+<h3>아직 확인하지 않은 범위</h3>
+<ul>
+<li>Prompt 길이 3종에 따른 Prefill 초기 Block 증가</li>
+<li>Decode 진행 중 Block 경계를 넘는 계단식 추가 할당</li>
+<li>동시 요청별 Block 점유</li>
+<li>완료 요청이 반환한 공간의 후속 요청 재사용</li>
+<li>여러 조건에서 이론값과 실제 KV Cache Usage의 정량 비교</li>
+</ul>
+<p>다음 단계에서는 짧은·중간·긴 Prompt를 한 번에 하나씩 보내 Prefill 직후의 실제 Block 수를 비교한다.</p>
+
+</section>
+<section id="runpod-2" class="markdown-section">
+<h2>부록: RunPod에서 실제 실행한 2단계 코드와 출력</h2>
+<p>아래 원문은 이론 계산, 두 Server 실행 명령, 추적 Class 작성·검사, Pool 확인, 실제 Smoke Test 순서다. Server 명령은 Notebook Markdown에 보존한 뒤 별도 Terminal에서 실행했다.</p>
+<h3>Token·Block 이론 크기 계산</h3>
+<pre><code class="language-python">from pathlib import Path
+
+import torch
+from transformers import (
+    AutoConfig,
+    PretrainedConfig,
+)
+
+
+# --------------------------------------------------
+# 1. 모델 구조를 독립적으로 다시 확인
+# --------------------------------------------------
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+assert model_artifact_path.is_dir()
+
+model_config: PretrainedConfig = (
+    AutoConfig.from_pretrained(
+        model_artifact_path,
+        local_files_only=True,
+        trust_remote_code=False,
+    )
+)
+
+number_of_hidden_layers: int = int(
+    model_config.num_hidden_layers
+)
+
+number_of_key_value_heads: int = int(
+    model_config.num_key_value_heads
+)
+
+number_of_attention_heads: int = int(
+    model_config.num_attention_heads
+)
+
+hidden_size: int = int(
+    model_config.hidden_size
+)
+
+configured_head_dimension = getattr(
+    model_config,
+    &quot;head_dim&quot;,
+    None,
+)
+
+if configured_head_dimension is None:
+    head_dimension: int = (
+        hidden_size
+        // number_of_attention_heads
+    )
+else:
+    head_dimension = int(
+        configured_head_dimension
+    )
+
+
+# --------------------------------------------------
+# 2. KV Cache 저장 조건을 명시
+# --------------------------------------------------
+
+# Key와 Value 두 종류를 저장한다.
+number_of_key_value_tensors: int = 2
+
+# 앞에서 고정한 Server 계약과 같은 dtype이다.
+kv_cache_dtype = torch.float16
+
+# Block 하나가 저장하는 Token 자리 수다.
+block_size_tokens: int = 16
+
+# torch.empty는 원소가 없는 Tensor를 만든다는 뜻이 아니라
+# 값만 초기화하지 않은 Tensor를 만든다는 뜻이다.
+# Shape으로 전달한 ()는 0차원 Scalar Tensor이며 원소 수는 1개다.
+# 이 임시 Tensor의 실제 값은 사용하지 않는다.
+#
+# element_size()는 Tensor 전체 크기가 아니라
+# dtype 원소 하나가 사용하는 Byte 수를 반환한다.
+# 현재 kv_cache_dtype은 float16이므로 결과는 2Byte다.
+# 이 값은 이후 Token당 KV Cache Byte 계산에 사용한다.
+bytes_per_element: int = (
+    torch.empty(
+        (),
+        dtype=kv_cache_dtype,
+    ).element_size()
+)
+
+
+# --------------------------------------------------
+# 3. Token 하나의 KV Cache 크기 계산
+# --------------------------------------------------
+
+kv_cache_bytes_per_token: int = (
+    number_of_hidden_layers
+    * number_of_key_value_heads
+    * head_dimension
+    * number_of_key_value_tensors
+    * bytes_per_element
+)
+
+kv_cache_kib_per_token: float = (
+    kv_cache_bytes_per_token
+    / 1024
+)
+
+kv_cache_mib_per_token: float = (
+    kv_cache_bytes_per_token
+    / (1024 ** 2)
+)
+
+
+# --------------------------------------------------
+# 4. Block 하나의 KV Cache 크기 계산
+# --------------------------------------------------
+
+kv_cache_bytes_per_block: int = (
+    kv_cache_bytes_per_token
+    * block_size_tokens
+)
+
+kv_cache_kib_per_block: float = (
+    kv_cache_bytes_per_block
+    / 1024
+)
+
+kv_cache_mib_per_block: float = (
+    kv_cache_bytes_per_block
+    / (1024 ** 2)
+)
+
+
+# --------------------------------------------------
+# 5. 현재 모델의 예상값 검증
+# --------------------------------------------------
+
+assert number_of_hidden_layers == 28
+assert number_of_key_value_heads == 2
+assert head_dimension == 128
+assert bytes_per_element == 2
+assert block_size_tokens == 16
+
+assert kv_cache_bytes_per_token == 28672
+assert kv_cache_bytes_per_block == 458752
+
+
+# --------------------------------------------------
+# 6. Token 수별 논리값과 Block 할당값 비교
+# --------------------------------------------------
+
+cached_token_counts: tuple[int, ...] = (
+    16,
+    17,
+    64,
+    256,
+    1024,
+)
+
+print(&quot;=== KV Cache 이론 계산 기준 ===&quot;)
+print(
+    &quot;Transformer Layer:&quot;,
+    number_of_hidden_layers,
+)
+print(
+    &quot;KV Head:&quot;,
+    number_of_key_value_heads,
+)
+print(
+    &quot;Head Dimension:&quot;,
+    head_dimension,
+)
+print(
+    &quot;K·V Tensor 종류:&quot;,
+    number_of_key_value_tensors,
+)
+print(
+    &quot;dtype:&quot;,
+    kv_cache_dtype,
+)
+print(
+    &quot;원소당 Byte:&quot;,
+    bytes_per_element,
+)
+print(
+    &quot;Block Size [token]:&quot;,
+    block_size_tokens,
+)
+print()
+
+print(&quot;=== Token 하나의 KV Cache ===&quot;)
+print(
+    &quot;Byte:&quot;,
+    kv_cache_bytes_per_token,
+)
+print(
+    &quot;KiB:&quot;,
+    kv_cache_kib_per_token,
+)
+print(
+    &quot;MiB:&quot;,
+    kv_cache_mib_per_token,
+)
+print()
+
+print(&quot;=== Block 하나의 KV Cache ===&quot;)
+print(
+    &quot;Byte:&quot;,
+    kv_cache_bytes_per_block,
+)
+print(
+    &quot;KiB:&quot;,
+    kv_cache_kib_per_block,
+)
+print(
+    &quot;MiB:&quot;,
+    kv_cache_mib_per_block,
+)
+print()
+
+print(
+    &quot;Cached Token | 논리 MiB | &quot;
+    &quot;필요 Block | 할당 MiB | 빈 Token 자리&quot;
+)
+print(&quot;-&quot; * 68)
+
+for cached_token_count in cached_token_counts:
+    logical_cache_mib: float = (
+        cached_token_count
+        * kv_cache_bytes_per_token
+        / (1024 ** 2)
+    )
+
+    required_block_count: int = (
+        cached_token_count
+        + block_size_tokens
+        - 1
+    ) // block_size_tokens
+
+    allocated_cache_mib: float = (
+        required_block_count
+        * kv_cache_bytes_per_block
+        / (1024 ** 2)
+    )
+
+    unused_token_slots: int = (
+        required_block_count
+        * block_size_tokens
+        - cached_token_count
+    )
+
+    print(
+        f&quot;{cached_token_count:&gt;12} | &quot;
+        f&quot;{logical_cache_mib:&gt;8.4f} | &quot;
+        f&quot;{required_block_count:&gt;10} | &quot;
+        f&quot;{allocated_cache_mib:&gt;8.4f} | &quot;
+        f&quot;{unused_token_slots:&gt;13}&quot;
+    )
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== KV Cache 이론 계산 기준 ===
+Transformer Layer: 28
+KV Head: 2
+Head Dimension: 128
+K·V Tensor 종류: 2
+dtype: torch.float16
+원소당 Byte: 2
+Block Size [token]: 16
+
+=== Token 하나의 KV Cache ===
+Byte: 28672
+KiB: 28.0
+MiB: 0.02734375
+
+=== Block 하나의 KV Cache ===
+Byte: 458752
+KiB: 448.0
+MiB: 0.4375
+
+Cached Token | 논리 MiB | 필요 Block | 할당 MiB | 빈 Token 자리
+--------------------------------------------------------------------
+          16 |   0.4375 |          1 |   0.4375 |             0
+          17 |   0.4648 |          2 |   0.8750 |            15
+          64 |   1.7500 |          4 |   1.7500 |             0
+         256 |   7.0000 |         16 |   7.0000 |             0
+        1024 |  28.0000 |         64 |  28.0000 |             0
+</code></pre>
+<h3>기본 vLLM Server 실행 명령</h3>
+<pre><code class="language-bash">mkdir -p /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/server
+
+source /root/transformer-practice/transformer/.venv-vllm/bin/activate
+
+vllm serve /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 4096 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 4096 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --seed 0 \
+  2&gt;&amp;1 | tee /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/server/vllm_server.log
+</code></pre>
+<h3>기본 Server Pool·Idle Metrics 확인</h3>
+<pre><code class="language-python">import json
+from pathlib import Path
+
+import httpx
+from prometheus_client.parser import (
+    text_string_to_metric_families,
+)
+
+
+# --------------------------------------------------
+# 1. 이번 셀에서 사용할 조건을 명시
+# --------------------------------------------------
+
+server_base_url: str = (
+    &quot;http://127.0.0.1:8000&quot;
+)
+
+expected_model_name: str = (
+    &quot;qwen2.5-1.5b-instruct&quot;
+)
+
+expected_block_size_tokens: int = 16
+expected_kv_cache_dtype: str = &quot;float16&quot;
+
+# 앞의 이론 계산과 같은 모델 구조다.
+number_of_hidden_layers: int = 28
+number_of_key_value_heads: int = 2
+head_dimension: int = 128
+number_of_key_value_tensors: int = 2
+bytes_per_element: int = 2
+
+
+# --------------------------------------------------
+# 2. 현재 vLLM Server의 Metrics 원문 조회
+# --------------------------------------------------
+
+with httpx.Client(
+    base_url=server_base_url,
+    timeout=10.0,
+    trust_env=False,
+) as client:
+    models_response = client.get(
+        &quot;/v1/models&quot;
+    )
+
+    metrics_response = client.get(
+        &quot;/metrics&quot;
+    )
+
+models_response.raise_for_status()
+metrics_response.raise_for_status()
+
+models_payload = models_response.json()
+
+served_model_names: list[str] = [
+    model_information[&quot;id&quot;]
+    for model_information
+    in models_payload[&quot;data&quot;]
+]
+
+assert expected_model_name in served_model_names
+
+
+# --------------------------------------------------
+# 3. 필요한 Prometheus Metric 추출
+# --------------------------------------------------
+
+cache_config_labels: dict[str, str] | None = None
+
+kv_cache_usage_ratio: float | None = None
+running_requests: int | None = None
+waiting_requests: int | None = None
+
+for metric_family in (
+    text_string_to_metric_families(
+        metrics_response.text
+    )
+):
+    for metric_sample in metric_family.samples:
+        sample_name: str = (
+            metric_sample.name
+        )
+
+        sample_labels: dict[str, str] = (
+            metric_sample.labels
+        )
+
+        # 다른 Model 또는 Engine의 Metric이 섞여 있다면
+        # 이번 Server의 Model만 선택한다.
+        if (
+            sample_labels.get(&quot;model_name&quot;)
+            not in (
+                None,
+                expected_model_name,
+            )
+        ):
+            continue
+
+        if sample_name == &quot;vllm:cache_config_info&quot;:
+            cache_config_labels = dict(
+                sample_labels
+            )
+
+        elif (
+            sample_name
+            == &quot;vllm:kv_cache_usage_perc&quot;
+        ):
+            # 이름에 perc가 있지만 0~100 숫자가 아니라
+            # 0.0~1.0 비율이다.
+            #
+            # 0.25 = 25%
+            # 1.00 = 100%
+            kv_cache_usage_ratio = float(
+                metric_sample.value
+            )
+
+        elif (
+            sample_name
+            == &quot;vllm:num_requests_running&quot;
+        ):
+            running_requests = int(
+                metric_sample.value
+            )
+
+        elif (
+            sample_name
+            == &quot;vllm:num_requests_waiting&quot;
+        ):
+            waiting_requests = int(
+                metric_sample.value
+            )
+
+
+# 필요한 Metric이 실제로 존재했는지 확인한다.
+assert cache_config_labels is not None
+assert kv_cache_usage_ratio is not None
+assert running_requests is not None
+assert waiting_requests is not None
+
+
+# --------------------------------------------------
+# 4. 실제 Cache 설정과 계약 비교
+# --------------------------------------------------
+
+actual_block_size_tokens: int = int(
+    cache_config_labels[&quot;block_size&quot;]
+)
+
+actual_kv_cache_dtype: str = (
+    cache_config_labels[&quot;cache_dtype&quot;]
+)
+
+number_of_gpu_blocks: int = int(
+    cache_config_labels[&quot;num_gpu_blocks&quot;]
+)
+
+kv_cache_capacity_tokens: int = int(
+    cache_config_labels[
+        &quot;kv_cache_size_tokens&quot;
+    ]
+)
+
+prefix_caching_enabled: bool = (
+    cache_config_labels[
+        &quot;enable_prefix_caching&quot;
+    ]
+    == &quot;True&quot;
+)
+
+assert (
+    actual_block_size_tokens
+    == expected_block_size_tokens
+)
+
+assert (
+    actual_kv_cache_dtype
+    == expected_kv_cache_dtype
+)
+
+assert prefix_caching_enabled is False
+
+# 전체 Block 수 × Block당 Token 자리가
+# Server가 보고한 전체 Token 수용량과 같아야 한다.
+assert (
+    number_of_gpu_blocks
+    * actual_block_size_tokens
+    == kv_cache_capacity_tokens
+)
+
+
+# --------------------------------------------------
+# 5. 전체 Cache Pool의 이론적 K·V 용량 계산
+# --------------------------------------------------
+
+theoretical_bytes_per_token: int = (
+    number_of_hidden_layers
+    * number_of_key_value_heads
+    * head_dimension
+    * number_of_key_value_tensors
+    * bytes_per_element
+)
+
+theoretical_bytes_per_block: int = (
+    theoretical_bytes_per_token
+    * actual_block_size_tokens
+)
+
+theoretical_pool_bytes: int = (
+    theoretical_bytes_per_block
+    * number_of_gpu_blocks
+)
+
+theoretical_pool_gib: float = (
+    theoretical_pool_bytes
+    / (2 ** 30)
+)
+
+
+# --------------------------------------------------
+# 6. Idle 기준값 검증
+# --------------------------------------------------
+
+assert running_requests == 0
+assert waiting_requests == 0
+assert kv_cache_usage_ratio == 0.0
+
+
+# --------------------------------------------------
+# 7. 원본 Metrics와 요약 결과 보존
+# --------------------------------------------------
+
+result_directory = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;idle-baseline&quot;
+)
+
+result_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+metrics_path = (
+    result_directory
+    / &quot;metrics_idle.prom&quot;
+)
+
+summary_path = (
+    result_directory
+    / &quot;kv_cache_idle_summary.json&quot;
+)
+
+metrics_path.write_text(
+    metrics_response.text,
+    encoding=&quot;utf-8&quot;,
+)
+
+idle_summary = {
+    &quot;served_model_name&quot;: expected_model_name,
+    &quot;block_size_tokens&quot;: (
+        actual_block_size_tokens
+    ),
+    &quot;number_of_gpu_blocks&quot;: (
+        number_of_gpu_blocks
+    ),
+    &quot;kv_cache_capacity_tokens&quot;: (
+        kv_cache_capacity_tokens
+    ),
+    &quot;kv_cache_dtype&quot;: actual_kv_cache_dtype,
+    &quot;prefix_caching_enabled&quot;: (
+        prefix_caching_enabled
+    ),
+    &quot;kv_cache_usage_ratio&quot;: (
+        kv_cache_usage_ratio
+    ),
+    &quot;running_requests&quot;: running_requests,
+    &quot;waiting_requests&quot;: waiting_requests,
+    &quot;theoretical_bytes_per_token&quot;: (
+        theoretical_bytes_per_token
+    ),
+    &quot;theoretical_bytes_per_block&quot;: (
+        theoretical_bytes_per_block
+    ),
+    &quot;theoretical_pool_gib&quot;: (
+        theoretical_pool_gib
+    ),
+}
+
+summary_path.write_text(
+    json.dumps(
+        idle_summary,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 8. 사람이 읽을 수 있는 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== 실제 KV Cache Pool ===&quot;)
+print(
+    &quot;Block Size:&quot;,
+    actual_block_size_tokens,
+    &quot;token/block&quot;,
+)
+print(
+    &quot;GPU Block 수:&quot;,
+    number_of_gpu_blocks,
+    &quot;block&quot;,
+)
+print(
+    &quot;전체 Token 수용량:&quot;,
+    kv_cache_capacity_tokens,
+    &quot;token&quot;,
+)
+print(
+    &quot;KV Cache dtype:&quot;,
+    actual_kv_cache_dtype,
+)
+print()
+
+print(&quot;=== 이론적 순수 K·V 용량 ===&quot;)
+print(
+    &quot;Token당:&quot;,
+    theoretical_bytes_per_token,
+    &quot;Byte&quot;,
+)
+print(
+    &quot;Block당:&quot;,
+    theoretical_bytes_per_block,
+    &quot;Byte&quot;,
+)
+print(
+    &quot;전체 Pool:&quot;,
+    round(theoretical_pool_gib, 4),
+    &quot;GiB&quot;,
+)
+print()
+
+print(&quot;=== Idle 기준값 ===&quot;)
+print(
+    &quot;KV Cache Usage:&quot;,
+    kv_cache_usage_ratio * 100,
+    &quot;%&quot;,
+)
+print(&quot;Running:&quot;, running_requests)
+print(&quot;Waiting:&quot;, waiting_requests)
+print()
+
+print(&quot;Metrics 원본:&quot;, metrics_path)
+print(&quot;요약 결과:&quot;, summary_path)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== 실제 KV Cache Pool ===
+Block Size: 16 token/block
+GPU Block 수: 19789 block
+전체 Token 수용량: 316624 token
+KV Cache dtype: float16
+
+=== 이론적 순수 K·V 용량 ===
+Token당: 28672 Byte
+Block당: 458752 Byte
+전체 Pool: 8.4548 GiB
+
+=== Idle 기준값 ===
+KV Cache Usage: 0.0 %
+Running: 0
+Waiting: 0
+
+Metrics 원본: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/idle-baseline/metrics_idle.prom
+요약 결과: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/idle-baseline/kv_cache_idle_summary.json
+</code></pre>
+<h3>요청별 Block 추적 Scheduler 모듈 작성</h3>
+<pre><code class="language-python">%%writefile /root/transformer-practice/transformer/notebooks/transformer/kv_cache_trace.py
+
+import json
+import os
+import time
+
+from pathlib import Path
+from uuid import uuid4
+
+from vllm.v1.core.sched.async_scheduler import (
+    AsyncScheduler,
+)
+from vllm.v1.core.sched.output import (
+    SchedulerOutput,
+)
+from vllm.v1.request import Request
+
+
+# AsyncScheduler 전체 기능을 상속한다.
+#
+# 새 Scheduler를 처음부터 다시 만드는 것이 아니다.
+# 기존 기능 대부분은 그대로 사용하고 다음 두 메서드만 재정의한다.
+#
+# 1. schedule()
+#    → Scheduling 전후 Snapshot과 차이를 기록한다.
+#
+# 2. _free_request_blocks()
+#    → Block 반환 전후 상태를 기록한다.
+#
+# 실제 Scheduling과 Block 반환은 각 메서드 안에서
+# super()를 호출하여 기존 vLLM 구현에 맡긴다.
+class KvCacheTracingScheduler(AsyncScheduler):
+    &quot;&quot;&quot;
+    기존 vLLM Scheduler의 실행 결과는 바꾸지 않고,
+    요청별 KV Cache Block 상태를 관찰해 JSONL로 기록한다.
+    &quot;&quot;&quot;
+
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ) -&gt; None:
+        # vLLM이 전달한 원래 초기화 인자를
+        # 기존 AsyncScheduler에 그대로 전달한다.
+        super().__init__(*args, **kwargs)
+
+        # 이 Scheduler 객체는 vLLM이 내부에서 생성하므로
+        # 우리가 __init__을 직접 호출하며 경로를 전달할 수 없다.
+        #
+        # 대신 Server 실행 명령에서 환경변수로
+        # Trace 저장 위치를 명시한다.
+        trace_path_text: str | None = (
+            os.environ.get(
+                &quot;KV_CACHE_TRACE_PATH&quot;
+            )
+        )
+
+        if trace_path_text is None:
+            raise RuntimeError(
+                &quot;KV_CACHE_TRACE_PATH 환경변수가 &quot;
+                &quot;설정되지 않았습니다.&quot;
+            )
+
+        self.trace_path = Path(
+            trace_path_text
+        ).resolve()
+
+        self.trace_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        # Server를 재시작하면 새로운 Session ID가 생성된다.
+        self.trace_session_id: str = (
+            uuid4().hex
+        )
+
+        # schedule() 호출 횟수를 나타내는
+        # 직접 만든 증가형 번호다.
+        self.trace_schedule_index: int = 0
+
+        self._write_trace_record({
+            &quot;event_type&quot;: &quot;trace_started&quot;,
+            &quot;session_id&quot;: (
+                self.trace_session_id
+            ),
+            &quot;recorded_at_unix_seconds&quot;: (
+                time.time()
+            ),
+            &quot;number_of_gpu_blocks&quot;: (
+                self.kv_cache_manager
+                .block_pool
+                .num_gpu_blocks
+            ),
+            &quot;number_of_free_blocks&quot;: (
+                self.kv_cache_manager
+                .block_pool
+                .get_num_free_blocks()
+            ),
+        })
+
+    # 우리가 추가한 로그 기록용 보조 메서드다.
+    # vLLM 원본 AsyncScheduler에는 없는 기능이다.
+    def _write_trace_record(
+        self,
+        record: dict,
+    ) -&gt; None:
+        &quot;&quot;&quot;
+        JSON 객체 하나를 JSONL 파일의 한 줄로 추가한다.
+
+        필요한 값은 전역변수에서 가져오지 않고
+        Scheduler 객체의 self.trace_path를 사용한다.
+        &quot;&quot;&quot;
+
+        with self.trace_path.open(
+            &quot;a&quot;,
+            encoding=&quot;utf-8&quot;,
+        ) as trace_file:
+            trace_file.write(
+                json.dumps(
+                    record,
+                    ensure_ascii=False,
+                )
+                + &quot;\n&quot;
+            )
+
+    # 우리가 추가한 Snapshot 생성용 보조 메서드다.
+    # schedule() 전과 후에 각각 호출해 상태 차이를 비교한다.
+    def _snapshot_requests(
+        self,
+    ) -&gt; dict[str, dict]:
+        &quot;&quot;&quot;
+        현재 Scheduler가 관리하는 모든 요청의
+        진행 상태와 Block ID를 복사해 반환한다.
+        &quot;&quot;&quot;
+
+        request_snapshots: dict[
+            str,
+            dict,
+        ] = {}
+
+        for (
+            request_id,
+            request,
+        ) in self.requests.items():
+            # 반환 형태:
+            #
+            # (
+            #     [group_0의 Block ID들],
+            #     [group_1의 Block ID들],
+            # )
+            #
+            # 현재 Qwen 모델에서는 일반적으로
+            # KV Cache Group 하나가 들어 있다.
+            block_ids_by_group = (
+                self.kv_cache_manager
+                .get_block_ids(request_id)
+            )
+
+            copied_block_ids_by_group = [
+                list(group_block_ids)
+                for group_block_ids
+                in block_ids_by_group
+            ]
+
+            block_count: int = sum(
+                len(group_block_ids)
+                for group_block_ids
+                in copied_block_ids_by_group
+            )
+
+            request_snapshots[request_id] = {
+                &quot;request_id&quot;: request_id,
+                &quot;status&quot;: str(request.status),
+                &quot;prompt_tokens&quot;: (
+                    request.num_prompt_tokens
+                ),
+                &quot;computed_tokens&quot;: (
+                    request.num_computed_tokens
+                ),
+                &quot;current_total_tokens&quot;: (
+                    request.num_tokens
+                ),
+                &quot;block_ids_by_group&quot;: (
+                    copied_block_ids_by_group
+                ),
+                &quot;block_count&quot;: block_count,
+            }
+
+        return request_snapshots
+
+    def schedule(
+        self,
+        throttle_prefills: bool = False,
+    ) -&gt; SchedulerOutput:
+        &quot;&quot;&quot;
+        Scheduling 전후의 요청·Block 상태를 기록한다.
+
+        실제로 어떤 요청을 실행할지는
+        super().schedule()이 결정한다.
+        &quot;&quot;&quot;
+
+        # ----------------------------------------------
+        # 1. Scheduling 직전 상태
+        # ----------------------------------------------
+
+        # [우리 코드]
+        # 기존 Scheduling이 실행되기 전의 Snapshot이다.
+        # 현재 요청별 진행 Token과 Block ID를 복사해 둔다.
+        requests_before = (
+            self._snapshot_requests()
+        )
+
+        waiting_before = [
+            request.request_id
+            for request in self.waiting
+        ]
+
+        running_before = [
+            request.request_id
+            for request in self.running
+        ]
+
+        free_blocks_before: int = (
+            self.kv_cache_manager
+            .block_pool
+            .get_num_free_blocks()
+        )
+
+        # ----------------------------------------------
+        # 2. 원래 vLLM Scheduling 실행
+        # ----------------------------------------------
+
+        # [기존 vLLM 코드 실행]
+        # 실제 요청 선택, Token 작업 배정과 Block 할당은
+        # 우리가 구현하지 않고 원래 Scheduler에 맡긴다.
+        scheduler_output = super().schedule(
+            throttle_prefills=throttle_prefills,
+        )
+
+        # 이 호출 안에서 실제 요청 선택과
+        # 필요한 KV Cache Block 할당이 일어난다.
+
+        # ----------------------------------------------
+        # 3. Scheduling 직후 상태
+        # ----------------------------------------------
+
+        # [우리 코드]
+        # 기존 Scheduling이 끝난 뒤의 Snapshot이다.
+        # 앞의 requests_before와 비교하면 이번 Iteration에서
+        # 어떤 Block이 추가되거나 제거됐는지 알 수 있다.
+        requests_after = (
+            self._snapshot_requests()
+        )
+
+        waiting_after = [
+            request.request_id
+            for request in self.waiting
+        ]
+
+        running_after = [
+            request.request_id
+            for request in self.running
+        ]
+
+        free_blocks_after: int = (
+            self.kv_cache_manager
+            .block_pool
+            .get_num_free_blocks()
+        )
+
+        # ----------------------------------------------
+        # 4. 요청별 새 Block과 제거된 Block 계산
+        # ----------------------------------------------
+
+        block_changes: dict[
+            str,
+            dict,
+        ] = {}
+
+        all_request_ids = (
+            set(requests_before)
+            | set(requests_after)
+        )
+
+        for request_id in sorted(
+            all_request_ids
+        ):
+            before_information = (
+                requests_before.get(
+                    request_id,
+                    {},
+                )
+            )
+
+            after_information = (
+                requests_after.get(
+                    request_id,
+                    {},
+                )
+            )
+
+            before_block_ids = {
+                block_id
+                for group_block_ids
+                in before_information.get(
+                    &quot;block_ids_by_group&quot;,
+                    [],
+                )
+                for block_id in group_block_ids
+            }
+
+            after_block_ids = {
+                block_id
+                for group_block_ids
+                in after_information.get(
+                    &quot;block_ids_by_group&quot;,
+                    [],
+                )
+                for block_id in group_block_ids
+            }
+
+            newly_allocated_block_ids = sorted(
+                after_block_ids
+                - before_block_ids
+            )
+
+            removed_block_ids = sorted(
+                before_block_ids
+                - after_block_ids
+            )
+
+            if (
+                newly_allocated_block_ids
+                or removed_block_ids
+            ):
+                block_changes[request_id] = {
+                    &quot;newly_allocated_block_ids&quot;: (
+                        newly_allocated_block_ids
+                    ),
+                    &quot;removed_block_ids&quot;: (
+                        removed_block_ids
+                    ),
+                }
+
+        # ----------------------------------------------
+        # 5. 이번 Iteration에 선택된 Token 작업
+        # ----------------------------------------------
+
+        scheduled_requests: list[dict] = []
+
+        for (
+            request_id,
+            scheduled_token_count,
+        ) in (
+            scheduler_output
+            .num_scheduled_tokens
+            .items()
+        ):
+            before_information = (
+                requests_before.get(
+                    request_id,
+                    {},
+                )
+            )
+
+            computed_tokens_before: int = int(
+                before_information.get(
+                    &quot;computed_tokens&quot;,
+                    0,
+                )
+            )
+
+            prompt_tokens: int = int(
+                before_information.get(
+                    &quot;prompt_tokens&quot;,
+                    0,
+                )
+            )
+
+            if (
+                computed_tokens_before
+                &lt; prompt_tokens
+            ):
+                work_phase: str = &quot;prefill&quot;
+            else:
+                work_phase = &quot;decode&quot;
+
+            scheduled_requests.append({
+                &quot;request_id&quot;: request_id,
+                &quot;work_phase&quot;: work_phase,
+                &quot;scheduled_tokens&quot;: (
+                    scheduled_token_count
+                ),
+                &quot;computed_tokens_before&quot;: (
+                    computed_tokens_before
+                ),
+                &quot;prompt_tokens&quot;: (
+                    prompt_tokens
+                ),
+            })
+
+        # ----------------------------------------------
+        # 6. JSONL 한 줄 기록
+        # ----------------------------------------------
+
+        # [우리 코드]
+        # Scheduling 전후 Snapshot과 계산한 차이를
+        # JSONL 파일의 한 줄로 저장한다.
+        self._write_trace_record({
+            &quot;event_type&quot;: &quot;schedule&quot;,
+            &quot;session_id&quot;: (
+                self.trace_session_id
+            ),
+            &quot;schedule_index&quot;: (
+                self.trace_schedule_index
+            ),
+            &quot;recorded_at_unix_seconds&quot;: (
+                time.time()
+            ),
+            &quot;waiting_before&quot;: waiting_before,
+            &quot;running_before&quot;: running_before,
+            &quot;free_blocks_before&quot;: (
+                free_blocks_before
+            ),
+            &quot;requests_before&quot;: (
+                requests_before
+            ),
+            &quot;scheduled_requests&quot;: (
+                scheduled_requests
+            ),
+            &quot;waiting_after&quot;: waiting_after,
+            &quot;running_after&quot;: running_after,
+            &quot;free_blocks_after&quot;: (
+                free_blocks_after
+            ),
+            &quot;requests_after&quot;: (
+                requests_after
+            ),
+            &quot;block_changes&quot;: block_changes,
+            &quot;finished_since_previous_step&quot;: (
+                sorted(
+                    scheduler_output
+                    .finished_req_ids
+                )
+            ),
+            &quot;preempted_request_ids&quot;: (
+                sorted(
+                    scheduler_output
+                    .preempted_req_ids
+                    or []
+                )
+            ),
+        })
+
+        self.trace_schedule_index += 1
+
+        # 원래 vLLM Engine이 기대하는
+        # SchedulerOutput을 그대로 돌려준다.
+        return scheduler_output
+
+    def _free_request_blocks(
+        self,
+        request: Request,
+    ) -&gt; None:
+        &quot;&quot;&quot;
+        요청 종료 시 Block이 요청에서 분리되고
+        공용 Pool로 반환되는 순간을 기록한다.
+        &quot;&quot;&quot;
+
+        request_id: str = (
+            request.request_id
+        )
+
+        # [우리 코드]
+        # 기존 vLLM이 Block을 반환하기 전에
+        # 이 요청이 가지고 있던 Block ID를 기록한다.
+        block_ids_by_group_before = (
+            self.kv_cache_manager
+            .get_block_ids(request_id)
+        )
+
+        copied_block_ids_by_group = [
+            list(group_block_ids)
+            for group_block_ids
+            in block_ids_by_group_before
+        ]
+
+        released_block_ids = sorted({
+            block_id
+            for group_block_ids
+            in copied_block_ids_by_group
+            for block_id in group_block_ids
+        })
+
+        # [우리 코드]
+        # 반환 직전 공용 Pool의 Free Block 수를 읽는다.
+        free_blocks_before: int = (
+            self.kv_cache_manager
+            .block_pool
+            .get_num_free_blocks()
+        )
+
+        # [기존 vLLM 코드 실행]
+        # 실제 Block 반환 방법은 수정하지 않는다.
+        # 원래 vLLM 구현이 요청의 Block을 공용 Pool로 반환한다.
+        super()._free_request_blocks(
+            request
+        )
+
+        # [우리 코드]
+        # 반환 후 Free Block 수를 다시 읽어 전후 차이를 구한다.
+        free_blocks_after: int = (
+            self.kv_cache_manager
+            .block_pool
+            .get_num_free_blocks()
+        )
+
+        # [우리 코드]
+        # 반환 전 Block ID와 Free Block 증가량을
+        # JSONL 파일의 한 줄로 저장한다.
+        self._write_trace_record({
+            &quot;event_type&quot;: (
+                &quot;free_request_blocks&quot;
+            ),
+            &quot;session_id&quot;: (
+                self.trace_session_id
+            ),
+            &quot;recorded_at_unix_seconds&quot;: (
+                time.time()
+            ),
+            &quot;request_id&quot;: request_id,
+            &quot;released_block_ids&quot;: (
+                released_block_ids
+            ),
+            &quot;released_block_count&quot;: (
+                len(released_block_ids)
+            ),
+            &quot;free_blocks_before&quot;: (
+                free_blocks_before
+            ),
+            &quot;free_blocks_after&quot;: (
+                free_blocks_after
+            ),
+            &quot;free_block_increase&quot;: (
+                free_blocks_after
+                - free_blocks_before
+            ),
+        })
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">Writing /root/transformer-practice/transformer/notebooks/transformer/kv_cache_trace.py
+</code></pre>
+<h3>추적 모듈 문법·Signature 호환성 검사</h3>
+<pre><code class="language-python">from pathlib import Path
+import subprocess
+import sys
+
+
+# --------------------------------------------------
+# 1. 검사할 추적 모듈
+# --------------------------------------------------
+
+trace_module_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;notebooks/transformer/&quot;
+    &quot;kv_cache_trace.py&quot;
+).resolve()
+
+assert trace_module_path.is_file()
+
+
+# --------------------------------------------------
+# 2. Python 문법 검사
+# --------------------------------------------------
+
+compile_result = subprocess.run(
+    [
+        sys.executable,
+        &quot;-m&quot;,
+        &quot;py_compile&quot;,
+        str(trace_module_path),
+    ],
+    check=True,
+    capture_output=True,
+    text=True,
+)
+
+
+# --------------------------------------------------
+# 3. 현재 vLLM과 상속·메서드 호환성 검사
+# --------------------------------------------------
+
+# 별도의 Python 프로세스에서 모듈을 Import한다.
+#
+# 현재 Notebook에 남아 있는 Import Cache의 영향을 받지 않고,
+# vLLM Server가 모듈을 새로 Import하는 것과 가까운 조건으로
+# 검사하기 위해서다.
+validation_code: str = &quot;&quot;&quot;
+import inspect
+
+from vllm.v1.core.sched.async_scheduler import (
+    AsyncScheduler,
+)
+from kv_cache_trace import (
+    KvCacheTracingScheduler,
+)
+
+assert issubclass(
+    KvCacheTracingScheduler,
+    AsyncScheduler,
+)
+
+schedule_signature = inspect.signature(
+    KvCacheTracingScheduler.schedule
+)
+
+free_signature = inspect.signature(
+    KvCacheTracingScheduler
+    ._free_request_blocks
+)
+
+assert &quot;throttle_prefills&quot; in (
+    schedule_signature.parameters
+)
+
+assert &quot;request&quot; in (
+    free_signature.parameters
+)
+
+print(
+    &quot;AsyncScheduler 상속:&quot;,
+    issubclass(
+        KvCacheTracingScheduler,
+        AsyncScheduler,
+    ),
+)
+print(
+    &quot;schedule Signature:&quot;,
+    schedule_signature,
+)
+print(
+    &quot;_free_request_blocks Signature:&quot;,
+    free_signature,
+)
+&quot;&quot;&quot;
+
+validation_result = subprocess.run(
+    [
+        sys.executable,
+        &quot;-c&quot;,
+        validation_code,
+    ],
+    cwd=trace_module_path.parent,
+    check=True,
+    capture_output=True,
+    text=True,
+)
+
+
+# --------------------------------------------------
+# 4. 검사 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== 추적 모듈 검사 완료 ===&quot;)
+print(&quot;Module:&quot;, trace_module_path)
+print(&quot;Python 문법 검사: True&quot;)
+print(validation_result.stdout.strip())
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== 추적 모듈 검사 완료 ===
+Module: /root/transformer-practice/transformer/notebooks/transformer/kv_cache_trace.py
+Python 문법 검사: True
+AsyncScheduler 상속: True
+schedule Signature: (self, throttle_prefills: bool = False) -&gt; vllm.v1.core.sched.output.SchedulerOutput
+_free_request_blocks Signature: (self, request: vllm.v1.request.Request) -&gt; None
+</code></pre>
+<h3>추적 Scheduler를 적용한 Server 실행 명령</h3>
+<pre><code class="language-bash">mkdir -p /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace
+
+source /root/transformer-practice/transformer/.venv-vllm/bin/activate
+
+KV_CACHE_TRACE_PATH=/root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace/kv_cache_trace.jsonl \
+PYTHONPATH=/root/transformer-practice/transformer/notebooks/transformer \
+vllm serve /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 4096 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 4096 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --seed 0 \
+  --scheduler-cls kv_cache_trace.KvCacheTracingScheduler \
+  2&gt;&amp;1 | tee /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace/vllm_server.log
+</code></pre>
+<h3>Trace 시작 기록과 Metrics의 Pool 일치 확인</h3>
+<pre><code class="language-python">import json
+from pathlib import Path
+
+import httpx
+from prometheus_client.parser import (
+    text_string_to_metric_families,
+)
+
+
+# --------------------------------------------------
+# 1. 추적 파일과 Server 주소
+# --------------------------------------------------
+
+trace_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;block-trace/kv_cache_trace.jsonl&quot;
+)
+
+server_base_url: str = (
+    &quot;http://127.0.0.1:8000&quot;
+)
+
+assert trace_path.is_file()
+
+
+# --------------------------------------------------
+# 2. 가장 최근 Trace 시작 기록 확인
+# --------------------------------------------------
+
+trace_records: list[dict] = [
+    json.loads(line)
+    for line in trace_path.read_text(
+        encoding=&quot;utf-8&quot;
+    ).splitlines()
+    if line.strip()
+]
+
+trace_started_records: list[dict] = [
+    record
+    for record in trace_records
+    if record[&quot;event_type&quot;] == &quot;trace_started&quot;
+]
+
+assert trace_started_records
+
+trace_started: dict = (
+    trace_started_records[-1]
+)
+
+trace_session_id: str = (
+    trace_started[&quot;session_id&quot;]
+)
+
+number_of_gpu_blocks: int = int(
+    trace_started[&quot;number_of_gpu_blocks&quot;]
+)
+
+number_of_free_blocks: int = int(
+    trace_started[&quot;number_of_free_blocks&quot;]
+)
+
+
+# --------------------------------------------------
+# 3. 현재 /metrics 조회
+# --------------------------------------------------
+
+with httpx.Client(
+    base_url=server_base_url,
+    timeout=10.0,
+    trust_env=False,
+) as client:
+    metrics_response = client.get(
+        &quot;/metrics&quot;
+    )
+
+metrics_response.raise_for_status()
+
+cache_config_labels: dict[str, str] | None = None
+kv_cache_usage_ratio: float | None = None
+
+for metric_family in (
+    text_string_to_metric_families(
+        metrics_response.text
+    )
+):
+    for metric_sample in metric_family.samples:
+        if (
+            metric_sample.name
+            == &quot;vllm:cache_config_info&quot;
+        ):
+            cache_config_labels = dict(
+                metric_sample.labels
+            )
+
+        elif (
+            metric_sample.name
+            == &quot;vllm:kv_cache_usage_perc&quot;
+        ):
+            kv_cache_usage_ratio = float(
+                metric_sample.value
+            )
+
+
+assert cache_config_labels is not None
+assert kv_cache_usage_ratio is not None
+
+
+# --------------------------------------------------
+# 4. Trace와 Metrics가 같은 Pool을 보는지 확인
+# --------------------------------------------------
+
+metric_gpu_blocks: int = int(
+    cache_config_labels[&quot;num_gpu_blocks&quot;]
+)
+
+block_size_tokens: int = int(
+    cache_config_labels[&quot;block_size&quot;]
+)
+
+kv_cache_capacity_tokens: int = int(
+    cache_config_labels[
+        &quot;kv_cache_size_tokens&quot;
+    ]
+)
+
+assert (
+    metric_gpu_blocks
+    == number_of_gpu_blocks
+)
+
+assert (
+    kv_cache_capacity_tokens
+    == number_of_gpu_blocks
+    * block_size_tokens
+)
+
+# vLLM은 Null Block 하나를 Free Queue에서 제외한다.
+assert (
+    number_of_free_blocks
+    == number_of_gpu_blocks - 1
+)
+
+# 아직 실제 요청이 없으므로 사용률은 0이다.
+assert kv_cache_usage_ratio == 0.0
+
+
+# --------------------------------------------------
+# 5. 현재 추적 Server 기준값 보존
+# --------------------------------------------------
+
+summary_path = (
+    trace_path.parent
+    / &quot;traced_server_idle_summary.json&quot;
+)
+
+summary = {
+    &quot;trace_session_id&quot;: trace_session_id,
+    &quot;number_of_gpu_blocks&quot;: (
+        number_of_gpu_blocks
+    ),
+    &quot;reserved_null_blocks&quot;: 1,
+    &quot;number_of_usable_blocks&quot;: (
+        number_of_free_blocks
+    ),
+    &quot;block_size_tokens&quot;: (
+        block_size_tokens
+    ),
+    &quot;reported_capacity_tokens&quot;: (
+        kv_cache_capacity_tokens
+    ),
+    &quot;usable_capacity_tokens&quot;: (
+        number_of_free_blocks
+        * block_size_tokens
+    ),
+    &quot;kv_cache_usage_ratio&quot;: (
+        kv_cache_usage_ratio
+    ),
+}
+
+summary_path.write_text(
+    json.dumps(
+        summary,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 6. 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== 추적 Scheduler 적용 확인 ===&quot;)
+print(&quot;Trace Session:&quot;, trace_session_id)
+print(&quot;전체 Block:&quot;, number_of_gpu_blocks)
+print(&quot;Null Block:&quot;, 1)
+print(&quot;사용 가능 Block:&quot;, number_of_free_blocks)
+print(
+    &quot;Block Size:&quot;,
+    block_size_tokens,
+    &quot;token/block&quot;,
+)
+print(
+    &quot;사용 가능 Token 자리:&quot;,
+    number_of_free_blocks
+    * block_size_tokens,
+)
+print(
+    &quot;Idle KV Cache Usage:&quot;,
+    kv_cache_usage_ratio * 100,
+    &quot;%&quot;,
+)
+print(&quot;요약 결과:&quot;, summary_path)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== 추적 Scheduler 적용 확인 ===
+Trace Session: b3ef63c6a41448d1b51ecc29b234c996
+전체 Block: 21256
+Null Block: 1
+사용 가능 Block: 21255
+Block Size: 16 token/block
+사용 가능 Token 자리: 340080
+Idle KV Cache Usage: 0.0 %
+요약 결과: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace/traced_server_idle_summary.json
+</code></pre>
+<h3>실제 요청으로 할당·반환 Smoke Test</h3>
+<pre><code class="language-python">import json
+import time
+
+from pathlib import Path
+
+import httpx
+
+
+# --------------------------------------------------
+# 1. Smoke Test 입력
+# --------------------------------------------------
+
+server_base_url: str = (
+    &quot;http://127.0.0.1:8000&quot;
+)
+
+served_model_name: str = (
+    &quot;qwen2.5-1.5b-instruct&quot;
+)
+
+request_id_header: str = (
+    &quot;kv-cache-smoke-001&quot;
+)
+
+# 외부 X-Request-Id에는 Chat Completion Prefix가 붙고,
+# 현재 vLLM Engine 내부에서는 중복 ID 충돌을 막기 위해
+# 뒤에 8자리 임의 문자열도 추가한다.
+#
+# 외부 Header: kv-cache-smoke-001
+# 내부 ID 예: chatcmpl-kv-cache-smoke-001-b8234cea
+expected_internal_request_id_prefix: str = (
+    f&quot;chatcmpl-{request_id_header}&quot;
+)
+
+trace_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;block-trace/kv_cache_trace.jsonl&quot;
+)
+
+assert trace_path.is_file()
+
+
+# --------------------------------------------------
+# 2. 현재 Trace Session 확인
+# --------------------------------------------------
+
+records_before_request: list[dict] = [
+    json.loads(line)
+    for line in trace_path.read_text(
+        encoding=&quot;utf-8&quot;
+    ).splitlines()
+    if line.strip()
+]
+
+trace_started_records: list[dict] = [
+    record
+    for record in records_before_request
+    if record[&quot;event_type&quot;] == &quot;trace_started&quot;
+]
+
+assert trace_started_records
+
+trace_session_id: str = (
+    trace_started_records[-1][
+        &quot;session_id&quot;
+    ]
+)
+
+trace_line_count_before: int = len(
+    records_before_request
+)
+
+
+# --------------------------------------------------
+# 3. 실제 생성 요청 하나 전송
+# --------------------------------------------------
+
+request_payload = {
+    &quot;model&quot;: served_model_name,
+    &quot;messages&quot;: [
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: (
+                &quot;Explain KV Cache in one sentence.&quot;
+            ),
+        }
+    ],
+
+    # Greedy 생성
+    &quot;temperature&quot;: 0.0,
+    &quot;top_p&quot;: 1.0,
+
+    # 정확히 8 Token을 생성하도록 EOS 종료를 무시한다.
+    &quot;max_tokens&quot;: 8,
+    &quot;ignore_eos&quot;: True,
+
+    &quot;stream&quot;: False,
+}
+
+with httpx.Client(
+    base_url=server_base_url,
+    timeout=60.0,
+    trust_env=False,
+) as client:
+    response = client.post(
+        &quot;/v1/chat/completions&quot;,
+        headers={
+            &quot;X-Request-Id&quot;: (
+                request_id_header
+            )
+        },
+        json=request_payload,
+    )
+
+response.raise_for_status()
+
+response_payload: dict = response.json()
+
+
+# --------------------------------------------------
+# 4. Block 반환 로그가 기록될 때까지 잠시 확인
+# --------------------------------------------------
+
+trace_deadline: float = (
+    time.perf_counter() + 10.0
+)
+
+request_trace_records: list[dict] = []
+actual_internal_request_id: str | None = None
+
+while time.perf_counter() &lt; trace_deadline:
+    all_trace_records: list[dict] = [
+        json.loads(line)
+        for line in trace_path.read_text(
+            encoding=&quot;utf-8&quot;
+        ).splitlines()
+        if line.strip()
+    ]
+
+    # 요청 전 기록 수를 기준으로 이번 실행에서 새로 추가된
+    # JSONL 기록만 선택한다. 같은 Header로 셀을 다시 실행해도
+    # 과거 요청의 Trace와 섞이지 않게 하기 위한 경계다.
+    new_trace_records: list[dict] = (
+        all_trace_records[
+            trace_line_count_before:
+        ]
+    )
+
+    # 이번 Server Session에서 생성된 기록만 선택한다.
+    current_session_records: list[dict] = [
+        record
+        for record in new_trace_records
+        if (
+            record.get(&quot;session_id&quot;)
+            == trace_session_id
+        )
+    ]
+
+    # schedule 기록의 requests_before·requests_after와
+    # scheduled_requests, 반환 기록의 request_id에서
+    # 이번 외부 Header로 시작하는 실제 내부 Request ID를 찾는다.
+    # 현재 vLLM은 끝에 임의의 8자리 문자열을 붙이므로
+    # 완전 일치가 아니라 Prefix로 연결해야 한다.
+    candidate_internal_request_ids: set[str] = set()
+
+    for record in current_session_records:
+        top_level_request_id = record.get(
+            &quot;request_id&quot;
+        )
+
+        if top_level_request_id is not None:
+            candidate_internal_request_ids.add(
+                top_level_request_id
+            )
+
+        candidate_internal_request_ids.update(
+            record.get(&quot;requests_before&quot;, {}).keys()
+        )
+        candidate_internal_request_ids.update(
+            record.get(&quot;requests_after&quot;, {}).keys()
+        )
+        candidate_internal_request_ids.update(
+            scheduled_request[&quot;request_id&quot;]
+            for scheduled_request
+            in record.get(&quot;scheduled_requests&quot;, [])
+        )
+
+    matching_internal_request_ids: list[str] = sorted(
+        request_id
+        for request_id
+        in candidate_internal_request_ids
+        if (
+            request_id
+            == expected_internal_request_id_prefix
+            or request_id.startswith(
+                expected_internal_request_id_prefix
+                + &quot;-&quot;
+            )
+        )
+    )
+
+    if not matching_internal_request_ids:
+        time.sleep(0.1)
+        continue
+
+    # 이번 요청 이후에 생긴 기록만 보므로 같은 Prefix의
+    # 실제 내부 ID는 정확히 하나여야 한다.
+    assert len(matching_internal_request_ids) == 1
+
+    actual_internal_request_id: str = (
+        matching_internal_request_ids[0]
+    )
+
+    request_trace_records = [
+        record
+        for record in current_session_records
+        if (
+            record.get(&quot;request_id&quot;)
+            == actual_internal_request_id
+            or actual_internal_request_id
+            in record.get(
+                &quot;requests_before&quot;,
+                {},
+            )
+            or actual_internal_request_id
+            in record.get(
+                &quot;requests_after&quot;,
+                {},
+            )
+            or any(
+                scheduled_request[&quot;request_id&quot;]
+                == actual_internal_request_id
+                for scheduled_request
+                in record.get(
+                    &quot;scheduled_requests&quot;,
+                    [],
+                )
+            )
+        )
+    ]
+
+    free_records: list[dict] = [
+        record
+        for record in request_trace_records
+        if (
+            record[&quot;event_type&quot;]
+            == &quot;free_request_blocks&quot;
+        )
+    ]
+
+    if free_records:
+        break
+
+    time.sleep(0.1)
+
+
+# --------------------------------------------------
+# 5. Scheduling과 반환 기록 분리
+# --------------------------------------------------
+
+schedule_records: list[dict] = [
+    record
+    for record in request_trace_records
+    if record[&quot;event_type&quot;] == &quot;schedule&quot;
+]
+
+free_records = [
+    record
+    for record in request_trace_records
+    if (
+        record[&quot;event_type&quot;]
+        == &quot;free_request_blocks&quot;
+    )
+]
+
+assert actual_internal_request_id is not None, (
+    &quot;이번 요청의 실제 내부 Request ID를 찾지 못했습니다.&quot;
+)
+
+assert schedule_records, (
+    &quot;요청의 schedule 로그가 없습니다.&quot;
+)
+
+assert free_records, (
+    &quot;요청의 Block 반환 로그가 없습니다.&quot;
+)
+
+
+# --------------------------------------------------
+# 6. Prefill과 Decode 기록 확인
+# --------------------------------------------------
+
+scheduled_work_records: list[dict] = [
+    scheduled_request
+    for record in schedule_records
+    for scheduled_request
+    in record[&quot;scheduled_requests&quot;]
+    if (
+        scheduled_request[&quot;request_id&quot;]
+        == actual_internal_request_id
+    )
+]
+
+assert scheduled_work_records
+
+prefill_work_records: list[dict] = [
+    record
+    for record in scheduled_work_records
+    if record[&quot;work_phase&quot;] == &quot;prefill&quot;
+]
+
+decode_work_records: list[dict] = [
+    record
+    for record in scheduled_work_records
+    if record[&quot;work_phase&quot;] == &quot;decode&quot;
+]
+
+assert prefill_work_records
+assert decode_work_records
+
+
+# --------------------------------------------------
+# 7. 할당·반환 Block ID 수집
+# --------------------------------------------------
+
+allocated_block_ids: set[int] = set()
+
+for record in schedule_records:
+    request_block_change = (
+        record[&quot;block_changes&quot;].get(
+            actual_internal_request_id
+        )
+    )
+
+    if request_block_change is None:
+        continue
+
+    allocated_block_ids.update(
+        request_block_change[
+            &quot;newly_allocated_block_ids&quot;
+        ]
+    )
+
+latest_free_record: dict = (
+    free_records[-1]
+)
+
+released_block_ids: set[int] = set(
+    latest_free_record[
+        &quot;released_block_ids&quot;
+    ]
+)
+
+assert allocated_block_ids
+assert released_block_ids
+
+# Prefix Caching을 끈 단일 요청이므로
+# 요청에 할당된 Block들이 종료 시 반환돼야 한다.
+assert (
+    allocated_block_ids
+    == released_block_ids
+)
+
+assert (
+    latest_free_record[
+        &quot;free_block_increase&quot;
+    ]
+    == len(released_block_ids)
+)
+
+
+# --------------------------------------------------
+# 8. Smoke Test 결과 보존
+# --------------------------------------------------
+
+usage_information: dict = (
+    response_payload[&quot;usage&quot;]
+)
+
+generated_token_count: int = int(
+    usage_information[&quot;completion_tokens&quot;]
+)
+
+assert generated_token_count == 8
+
+summary_path = (
+    trace_path.parent
+    / &quot;kv_cache_trace_smoke_summary.json&quot;
+)
+
+smoke_summary = {
+    &quot;trace_session_id&quot;: trace_session_id,
+    &quot;request_id&quot;: (
+        actual_internal_request_id
+    ),
+    &quot;prompt_tokens&quot;: int(
+        usage_information[&quot;prompt_tokens&quot;]
+    ),
+    &quot;generated_tokens&quot;: (
+        generated_token_count
+    ),
+    &quot;schedule_record_count&quot;: len(
+        schedule_records
+    ),
+    &quot;prefill_record_count&quot;: len(
+        prefill_work_records
+    ),
+    &quot;decode_record_count&quot;: len(
+        decode_work_records
+    ),
+    &quot;allocated_block_ids&quot;: sorted(
+        allocated_block_ids
+    ),
+    &quot;released_block_ids&quot;: sorted(
+        released_block_ids
+    ),
+    &quot;free_block_increase&quot;: (
+        latest_free_record[
+            &quot;free_block_increase&quot;
+        ]
+    ),
+}
+
+summary_path.write_text(
+    json.dumps(
+        smoke_summary,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 9. 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== KV Cache Trace Smoke Test ===&quot;)
+print(
+    &quot;Request ID:&quot;,
+    actual_internal_request_id,
+)
+print(
+    &quot;Prompt Token:&quot;,
+    usage_information[&quot;prompt_tokens&quot;],
+)
+print(
+    &quot;생성 Token:&quot;,
+    generated_token_count,
+)
+print(
+    &quot;Schedule 기록:&quot;,
+    len(schedule_records),
+)
+print(
+    &quot;Prefill 기록:&quot;,
+    len(prefill_work_records),
+)
+print(
+    &quot;Decode 기록:&quot;,
+    len(decode_work_records),
+)
+print(
+    &quot;할당 Block:&quot;,
+    sorted(allocated_block_ids),
+)
+print(
+    &quot;반환 Block:&quot;,
+    sorted(released_block_ids),
+)
+print(
+    &quot;Free Block 증가:&quot;,
+    latest_free_record[
+        &quot;free_block_increase&quot;
+    ],
+)
+print(&quot;요약 결과:&quot;, summary_path)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== KV Cache Trace Smoke Test ===
+Request ID: chatcmpl-kv-cache-smoke-001-85a15f2e
+Prompt Token: 37
+생성 Token: 8
+Schedule 기록: 9
+Prefill 기록: 1
+Decode 기록: 7
+할당 Block: [1, 2, 3]
+반환 Block: [1, 2, 3]
+Free Block 증가: 3
+요약 결과: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace/kv_cache_trace_smoke_summary.json
+</code></pre>
+<p><a href="01_cache_blocks_and_execution_contract.html">← 이전 단계</a> · <a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a> · <a href="03_prompt_length_prefill_comparison.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
