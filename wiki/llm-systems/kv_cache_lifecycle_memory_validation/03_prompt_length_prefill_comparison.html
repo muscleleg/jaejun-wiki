@@ -1,0 +1,1776 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.md. Do not edit directly. source-sha256:32f00f67a64030f91a27fb94e033ec00127dbc37e189de62c019a2e38f7c27f7 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prompt 길이를 바꾸며 Prefill에서 예상한 KV Cache Block과 실제 최초 할당 Block을 비교한 실험입니다.">
+  <meta name="source-sha256" content="32f00f67a64030f91a27fb94e033ec00127dbc37e189de62c019a2e38f7c27f7">
+  <title>3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교">
+  <meta property="og:description" content="Prompt 길이를 바꾸며 Prefill에서 예상한 KV Cache Block과 실제 최초 할당 Block을 비교한 실험입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html","name":"3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교","description":"Prompt 길이를 바꾸며 Prefill에서 예상한 KV Cache Block과 실제 최초 할당 Block을 비교한 실험입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html"},"headline":"3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/03_prompt_length_prefill_comparison.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>3단계: Prompt 길이에 따른 Prefill 초기 KV Cache Block 비교</h1>
+      <p class="lead">Prompt 길이를 바꾸며 Prefill에서 예상한 KV Cache Block과 실제 최초 할당 Block을 비교한 실험입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1d34984efec5">이 단계에서 확인하려는 것</a>
+        <a href="#sequence-scheduled-token-block">Sequence·Scheduled Token·Block의 구분</a>
+        <a href="#section-e65adc25047c">비교 입력을 만든 방법</a>
+        <a href="#transformers-v5">Transformers v5 반환 형식 오류와 수정</a>
+        <a href="#trace">실제 요청과 Trace 분리 방식</a>
+        <a href="#section-baa914cf283d">실행 결과</a>
+        <a href="#section-0afc14c2ef14">확인한 결론</a>
+        <a href="#runpod-3">부록: RunPod에서 실제 실행한 3단계 코드와 출력</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>학습일: 2026-09-14</p>
+<p>전체 실습 안내: <a href="../03_kv_cache_lifecycle_memory_validation.html">vLLM KV Cache Block을 계산하고 실제 할당·반환·재사용까지 확인한 실습</a></p>
+<p>실습 Notebook: <code>vllm_scheduler_kv_cache.ipynb</code></p>
+</div>
+        <section id="section-1d34984efec5" class="markdown-section">
+<h2>이 단계에서 확인하려는 것</h2>
+<p>입력 Prompt가 길어지면 Prefill에서 계산해야 하는 Token 수와 저장해야 하는 K·V가 함께 증가한다. vLLM이 KV Cache를 16Token 단위 Block으로 관리한다면 최초 Prefill에서 필요한 Block 수는 다음과 같아야 한다.</p>
+<pre><code class="language-text">예상 초기 Block 수
+= ceil(실제 Prompt Token 수 / 16)
+</code></pre>
+<p>이 단계에서는 길이가 다른 Prompt를 한 번에 하나씩 실행하고, 이론적으로 계산한 Block 수와 Scheduler Trace의 실제 최초 할당 Block 수를 비교했다.</p>
+
+</section>
+<section id="sequence-scheduled-token-block" class="markdown-section">
+<h2>Sequence·Scheduled Token·Block의 구분</h2>
+<p>Scheduler 관점에서 Sequence는 실행 자리 하나를 차지하는 생성 단위다. 한 Sequence가 차지하는 자리는 하나지만, 그 자리에서 이번 Iteration에 처리할 Token 수는 작업 단계에 따라 달라질 수 있다.</p>
+<pre><code class="language-text">Prefill
+→ Sequence 자리 1개
+→ Prompt Token 여러 개를 함께 처리
+→ scheduled_tokens는 Prompt 작업량
+
+Decode
+→ 같은 Sequence 자리 1개
+→ 일반적으로 새 Token 1개 처리
+→ scheduled_tokens는 보통 1
+</code></pre>
+<p>Block은 Token 계산을 나누는 단위가 아니다. Prefill과 Decode에서 계산한 각 Token의 K·V를 저장하는 물리적 할당 단위다.</p>
+<pre><code class="language-text">Prompt 74Token을 Prefill에서 함께 계산
+→ 74Token의 K·V 생성
+→ 16Token 크기 Block 5개에 저장
+</code></pre>
+
+</section>
+<section id="section-e65adc25047c" class="markdown-section">
+<h2>비교 입력을 만든 방법</h2>
+<p>문자 수만으로는 실제 Prompt Token 수를 알 수 없다. 같은 문자열에도 모델별 Chat Template의 Special Token이 추가되고, Tokenizer가 단어나 글자와 반드시 일치하지 않는 Subword 단위로 나누기 때문이다.</p>
+<p>따라서 기본 문장에 설명 문장을 반복해서 붙이고, 매번 Qwen Tokenizer로 Chat Template까지 적용한 Token 수를 측정했다.</p>
+<pre><code class="language-text">기본 문장 준비
+→ 설명 문장 추가
+→ Chat Template 적용
+→ Token ID 수 측정
+→ 목표 길이 이상이면 중단
+→ 부족하면 문장을 더 추가하고 다시 측정
+</code></pre>
+<p>목표값 64·256·1024는 생성 중단 길이가 아니라 입력 Prompt를 만들기 위한 근삿값이다. 실제 생성 길이의 제한은 별도 <code>max_tokens=128</code>이다.</p>
+<p>긴 문장을 한 번에 추가하기 때문에 목표값을 조금 넘을 수 있다. 이것은 측정 오차가 아니다. 실제 Token 수를 다시 정확히 세고 그 실제값으로 예상 Block 수를 계산했다.</p>
+<h3>입력 Prompt 목표와 출력 생성 상한은 다른 값이다</h3>
+<p><code>target_prompt_tokens=64·256·1024</code>는 입력 문자열을 얼마나 길게 만들지 정하는 최소 목표다. 모델이 답변을 몇 Token까지 생성할지를 제한하는 값이 아니다.</p>
+<p><code>max_tokens=128</code>은 각 HTTP 요청에서 새로 생성할 출력 Token의 최대 개수다. 이번에는 <code>ignore_eos=True</code>도 함께 사용했기 때문에 세 조건 모두 실제로 128Token을 생성했다.</p>
+<pre><code class="language-text">short
+입력 Prompt: 74Token
+생성 설정: 최대 128Token
+
+medium
+입력 Prompt: 266Token
+생성 설정: 최대 128Token
+
+long
+입력 Prompt: 1034Token
+생성 설정: 최대 128Token
+</code></pre>
+<p>즉 이 단계에서 바꾼 것은 입력 길이 하나이고 출력 길이는 통제 변수로 고정했다. 일반 요청에서는 EOS가 먼저 나오면 <code>max_tokens</code>보다 적게 생성될 수 있지만, 이번 측정은 <code>ignore_eos=True</code>로 그 변수를 제거했다.</p>
+<h3>문자열을 늘리고 Token 수를 재는 과정</h3>
+<p>다음 코드는 문자열을 Token 단위로 잘라 붙이는 코드가 아니다.</p>
+<pre><code class="language-python">prompt_text = &quot; &quot;.join(prompt_parts)
+</code></pre>
+<p><code>prompt_parts</code>에 들어 있는 여러 문자열을 공백 하나로 연결해 하나의 긴 문자열을 만든다. 그 문자열을 <code>encode_chat_prompt()</code>에 넘겨야 비로소 Chat Template 적용과 Tokenization이 일어난다.</p>
+<pre><code class="language-text">문장 조각 list[str]
+→ &quot; &quot;.join으로 일반 문자열 하나 생성
+→ apply_chat_template로 Qwen 대화 형식 적용
+→ Tokenizer가 list[int] Token ID 생성
+→ len으로 실제 Prompt Token 수 측정
+</code></pre>
+<p><code>if actual_prompt_tokens &gt;= target_prompt_tokens: break</code>는 생성 Token을 제한하는 코드가 아니라, 입력 Prompt가 목표 길이에 도달했으니 문자열을 더 붙이지 말라는 반복 종료 조건이다. 문장 하나를 추가할 때 여러 Token이 함께 늘어나므로 64가 정확히 74, 256이 266, 1024가 1034에서 멈췄다.</p>
+<p>실제로 만들어진 조건은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th align="right">목표 Prompt Token</th>
+<th align="right">실제 Prompt Token</th>
+<th align="right">예상 초기 Block</th>
+<th align="right">마지막 Block의 빈 Token 자리</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>short</td>
+<td align="right">64</td>
+<td align="right">74</td>
+<td align="right">5</td>
+<td align="right">6</td>
+</tr>
+<tr>
+<td>medium</td>
+<td align="right">256</td>
+<td align="right">266</td>
+<td align="right">17</td>
+<td align="right">6</td>
+</tr>
+<tr>
+<td>long</td>
+<td align="right">1024</td>
+<td align="right">1034</td>
+<td align="right">65</td>
+<td align="right">6</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 74Token에서는 다음 계산을 사용한다.</p>
+<pre><code class="language-text">ceil(74 / 16)
+= ceil(4.625)
+= 5Block
+
+전체 자리
+= 5 × 16
+= 80Token
+
+빈자리
+= 80 - 74
+= 6Token
+</code></pre>
+<p><code>math.ceil()</code>은 나눗셈 결과에 소수 부분이 있으면 다음 정수로 올린다. 한 Token이라도 기존 Block에 들어가지 않으면 새 Block 하나가 더 필요하므로 일반적인 반올림이 아니라 올림을 사용한다.</p>
+
+</section>
+<section id="transformers-v5" class="markdown-section">
+<h2>Transformers v5 반환 형식 오류와 수정</h2>
+<p>최초 코드에서는 <code>apply_chat_template(tokenize=True)</code>가 <code>list[int]</code>를 반환한다고 가정했다.</p>
+<pre><code class="language-python">assert isinstance(prompt_token_ids, list)
+</code></pre>
+<p>그러나 실제 RunPod의 Transformers 5.17.0에서는 기본 반환값이 <code>BatchEncoding</code>이었다.</p>
+<pre><code class="language-text">BatchEncoding
+├─ input_ids
+└─ attention_mask
+</code></pre>
+<p>이번 함수는 Token ID 목록만 필요하므로 반환 형식을 기본값에 맡기지 않고 다음 옵션을 명시했다.</p>
+<pre><code class="language-python">prompt_token_ids = tokenizer.apply_chat_template(
+    conversation,
+    tokenize=True,
+    add_generation_prompt=True,
+    return_dict=False,
+)
+</code></pre>
+<p>이후 <code>prompt_token_ids</code>가 <code>list</code>이고 내부 모든 원소가 <code>int</code>인지 검사했다. 반환 형식을 명시한 뒤 세 Prompt 준비 셀이 정상 실행됐다.</p>
+<p><code>isinstance(value, Type)</code>은 값이 기대한 자료형의 객체인지 확인한다. 따라서 두 <code>assert</code>는 다음을 각각 검증한다.</p>
+<pre><code class="language-python">assert isinstance(prompt_token_ids, list)
+# 바깥 객체가 list인가?
+
+assert all(
+    isinstance(token_id, int)
+    for token_id in prompt_token_ids
+)
+# list 안의 모든 항목이 정수 Token ID인가?
+</code></pre>
+<p>원래 <code>BatchEncoding</code>이 들어왔을 때 첫 번째 검사가 실패한 이유도 이 때문이다. Tokenization이 실패한 것이 아니라, 설치된 Transformers 버전의 기본 반환 컨테이너가 코드가 기대한 <code>list[int]</code>와 달랐다.</p>
+<h3>Chat Template과 Tokenizer를 한 번에 적용한 것</h3>
+<p>대화 입력은 먼저 Python 객체로 만든다.</p>
+<pre><code class="language-python">conversation = [
+    {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: prompt_text,
+    }
+]
+</code></pre>
+<p><code>apply_chat_template(..., tokenize=True, add_generation_prompt=True)</code>는 이 객체를 Qwen이 학습한 대화 형식으로 렌더링하고, 그 결과를 Token ID까지 변환한다. <code>tokenize=False</code>였다면 모델용 문자열만 반환하므로 이후 별도의 <code>tokenizer.encode()</code>가 필요하다. 이번 코드는 <code>tokenize=True</code>이므로 별도 <code>encode()</code>를 다시 호출하지 않는다.</p>
+<p>Tokenizer는 문자열을 반드시 단어 하나씩 나누는 것이 아니라 모델 Vocabulary의 Token·Subword 규칙으로 분할하고 각각을 정수 ID로 바꾼다. 이 단계의 목적은 Tokenizer 알고리즘 자체를 깊게 분석하는 것이 아니라, 실제 Server에 들어갈 Chat Template의 Special Token까지 포함한 입력 길이를 정확히 맞추는 것이다.</p>
+
+</section>
+<section id="trace" class="markdown-section">
+<h2>실제 요청과 Trace 분리 방식</h2>
+<p>세 Prompt는 동시에 보내지 않고 한 번에 하나씩 실행했다. 각 조건은 Warm-up 1회 뒤 측정 3회를 수행했다. 최종 비교에 사용한 측정 요청은 총 9개다.</p>
+<p>요청별 Trace는 다음 순서로 분리했다.</p>
+<pre><code class="language-text">요청 전 JSONL 줄 수 기록
+→ 고유한 X-Request-Id를 붙여 HTTP 요청 전송
+→ 요청 후 새로 추가된 JSONL 기록만 선택
+→ 실제 내부 Request ID 확인
+→ 해당 Request ID가 포함된 schedule 기록 선택
+→ work_phase가 prefill인 기록 선택
+→ newly_allocated_block_ids의 개수 확인
+</code></pre>
+<p>이 긴 처리 코드는 실험의 핵심 원리가 아니라, 과거 요청의 Trace와 현재 요청의 Trace를 섞지 않고 결과를 재현 가능하게 보존하기 위한 측정 도구다.</p>
+<h3>긴 측정 코드에서 알아야 할 함수의 입·출력</h3>
+<p>내부 JSON 파싱을 모두 외울 필요는 없다. 전체 코드는 다음 세 기능을 조합한다.</p>
+<pre><code class="language-text">read_trace_records(trace_path)
+입력: JSONL 파일 경로
+출력: Trace 한 줄씩 파싱한 list[dict]
+
+trace_record_contains_request(trace_record, request_id)
+입력: Trace 한 줄, 찾을 Request ID
+출력: 그 줄이 요청을 포함하면 True
+
+collect_request_ids(trace_records)
+입력: 여러 Trace 기록
+출력: 기록에 등장한 Request ID set
+
+run_prefill_measurement(...)
+입력: Prompt·예상 Token/Block·생성 조건·Trace 경로
+동작: 실제 HTTP 요청 하나 전송 후 그 요청의 Trace 분석
+출력: 실제 Prompt Token, 최초 Block, 반환 Block, 지연 등이 담긴 dict
+</code></pre>
+<p>최종 반복문은 Prompt 세 조건에 대해 Warm-up 1회와 측정 3회를 순차 실행한다. 요청을 동시에 보내는 실험이 아니다.</p>
+<h3>Warm-up을 어떻게 해석할 것인가</h3>
+<p>실제로 실행된 셀에는 각 Prompt 조건마다 Warm-up 1회가 포함됐다. Warm-up 결과는 <code>measurement_results</code>에 넣지 않았고 최종 9개 표본에서도 제외했다.</p>
+<p>Warm-up은 일반적으로 벤치마크에서 최초 메모리 할당, GPU Clock 상승, 특정 실행 크기의 Kernel 선택·컴파일 같은 일회성 비용이 본 측정에 섞이는 것을 줄이는 용도다. 서버의 Cold Start 자체를 측정하는 특별한 실험이라면 Warm-up을 하면 안 된다.</p>
+<p>다만 이번 단계의 핵심 판정은 Latency 비교가 아니라 <code>예상 Block 수 == 실제 Block 수</code>라는 구조적 정확성이다. 이 판정 자체에는 Warm-up이 필수는 아니다. 여기서는 처음 작성한 측정 계약대로 실행했고 결과에서 제외했으며, 뒤의 Decode 구조 검증에서는 불필요한 Warm-up을 제거했다. 따라서 Warm-up 실행 사실과 그 필요성을 구분해 기록한다.</p>
+
+</section>
+<section id="section-baa914cf283d" class="markdown-section">
+<h2>실행 결과</h2>
+<pre><code class="language-text">=== Prompt 길이별 Prefill Block 비교 ===
+Label  | Prompt Token | 예상 Block | 실제 Block | Trace 기준 초기 사용률
+short  |           74 |          5 |          5 | 0.025267%
+medium |          266 |         17 |         17 | 0.085906%
+long   |         1034 |         65 |         65 | 0.328465%
+
+측정 요청 수: 9
+오류: 0
+</code></pre>
+<p>모든 조건에서 예상값과 실제 최초 Prefill 할당 Block 수가 일치했다.</p>
+<pre><code class="language-text">74Token
+→ ceil(74 / 16) = 5
+→ 실제 5Block
+
+266Token
+→ ceil(266 / 16) = 17
+→ 실제 17Block
+
+1034Token
+→ ceil(1034 / 16) = 65
+→ 실제 65Block
+</code></pre>
+<p><code>Trace 기준 초기 사용률</code>은 Prefill Trace에서 관찰한 실제 초기 Block 수를 현재 Server의 전체 GPU Block 수로 나눈 값이다. 순간적인 <code>/metrics</code> 표본을 Prefill 직후 값이라고 추정한 것이 아니다.</p>
+<p>이 비율의 분모는 코드가 <code>idle-baseline/kv_cache_idle_summary.json</code>에서 읽은 기본 Server의 19,789Block이다.</p>
+<pre><code class="language-text">short  = 5 / 19,789 × 100 = 0.025267%
+medium = 17 / 19,789 × 100 = 0.085906%
+long   = 65 / 19,789 × 100 = 0.328465%
+</code></pre>
+<p>그러나 실제 요청 Trace는 추적 Scheduler로 재시작한 21,256Block Session에서 생성됐다. 따라서 출력 이름 <code>Trace 기준 초기 사용률</code>은 엄밀하지 않으며, 위 세 비율을 해당 Session의 실제 사용률로 사용하면 안 된다. 요청에 사용 가능한 21,255Block을 같은 Session의 분모로 썼다면 각각 약 <code>0.023524%</code>, <code>0.079981%</code>, <code>0.305810%</code>다.</p>
+<p>이 분모 혼용은 이번 단계의 핵심 판정인 <code>예상 Block 수 == 실제 Block 수</code>에는 영향을 주지 않는다. 하지만 서로 다른 Server Session의 Pool 사용률을 직접 비교할 수 없다는 측정 한계는 남긴다. 최종 해석에서는 Block 수 일치를 증거로 사용하고, 사용률은 동일 Session의 전체 Block 수로 다시 계산해야 한다.</p>
+<h3>9개 측정 요청의 원본 요약</h3>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th align="right">Run</th>
+<th align="right">Prompt Token</th>
+<th align="right">생성 Token</th>
+<th align="right">최초 예상/실제 Block</th>
+<th align="right">실행 전체 할당/반환 Block</th>
+<th align="right">Prefill/Decode 작업 기록</th>
+<th align="right">Latency [s]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>short</td>
+<td align="right">1</td>
+<td align="right">74</td>
+<td align="right">128</td>
+<td align="right">5 / 5</td>
+<td align="right">13 / 13</td>
+<td align="right">1 / 127</td>
+<td align="right">1.981314</td>
+</tr>
+<tr>
+<td>short</td>
+<td align="right">2</td>
+<td align="right">74</td>
+<td align="right">128</td>
+<td align="right">5 / 5</td>
+<td align="right">13 / 13</td>
+<td align="right">1 / 127</td>
+<td align="right">1.981642</td>
+</tr>
+<tr>
+<td>short</td>
+<td align="right">3</td>
+<td align="right">74</td>
+<td align="right">128</td>
+<td align="right">5 / 5</td>
+<td align="right">13 / 13</td>
+<td align="right">1 / 127</td>
+<td align="right">1.981609</td>
+</tr>
+<tr>
+<td>medium</td>
+<td align="right">1</td>
+<td align="right">266</td>
+<td align="right">128</td>
+<td align="right">17 / 17</td>
+<td align="right">25 / 25</td>
+<td align="right">1 / 127</td>
+<td align="right">2.002349</td>
+</tr>
+<tr>
+<td>medium</td>
+<td align="right">2</td>
+<td align="right">266</td>
+<td align="right">128</td>
+<td align="right">17 / 17</td>
+<td align="right">25 / 25</td>
+<td align="right">1 / 127</td>
+<td align="right">1.998152</td>
+</tr>
+<tr>
+<td>medium</td>
+<td align="right">3</td>
+<td align="right">266</td>
+<td align="right">128</td>
+<td align="right">17 / 17</td>
+<td align="right">25 / 25</td>
+<td align="right">1 / 127</td>
+<td align="right">1.997692</td>
+</tr>
+<tr>
+<td>long</td>
+<td align="right">1</td>
+<td align="right">1034</td>
+<td align="right">128</td>
+<td align="right">65 / 65</td>
+<td align="right">73 / 73</td>
+<td align="right">1 / 127</td>
+<td align="right">2.084166</td>
+</tr>
+<tr>
+<td>long</td>
+<td align="right">2</td>
+<td align="right">1034</td>
+<td align="right">128</td>
+<td align="right">65 / 65</td>
+<td align="right">73 / 73</td>
+<td align="right">1 / 127</td>
+<td align="right">2.083668</td>
+</tr>
+<tr>
+<td>long</td>
+<td align="right">3</td>
+<td align="right">1034</td>
+<td align="right">128</td>
+<td align="right">65 / 65</td>
+<td align="right">73 / 73</td>
+<td align="right">1 / 127</td>
+<td align="right">2.091699</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>최초 Block</code>은 Prefill 직후의 할당만 뜻하고, <code>실행 전체 할당 Block</code>은 이어진 128Token 생성 중 추가로 받은 Block까지 포함한다. 최초 Prefill 자체가 첫 출력 Token을 선택하므로 생성 128Token에서는 별도 Decode 작업 기록이 128개가 아니라 127개였다. 모든 실행에서 전체 할당 Block 수와 종료 시 반환 Block 수가 같았다.</p>
+<p>보존 자료:</p>
+<ul>
+<li>Prompt 길이별 Workload: <code>prompt_length_workload.json</code></li>
+<li>Prompt 길이별 Prefill 측정 결과: <code>prompt_length_prefill_results.json</code></li>
+</ul>
+
+</section>
+<section id="section-0afc14c2ef14" class="markdown-section">
+<h2>확인한 결론</h2>
+<p>입력 Prompt가 길어지면 Prefill에서 생성되는 K·V가 증가하고, 필요한 초기 KV Cache Block 수도 증가했다. Block 수는 실제 Prompt Token 수를 Block 크기 16으로 나눈 뒤 올림한 값과 정확히 일치했다.</p>
+<pre><code class="language-text">Prompt Token 증가
+→ Prefill에서 생성할 K·V 증가
+→ 최초 할당 Block 증가
+</code></pre>
+<p>이 결과로 Prompt 길이에 따른 Prefill 초기 할당은 확인했다. 아직 확인하지 않은 범위는 다음과 같다.</p>
+<ul>
+<li>같은 요청의 Decode 진행에 따른 추가 Block 할당</li>
+<li>여러 요청이 동시에 Running일 때의 요청별 점유</li>
+<li>요청 종료 후 Block 회수와 후속 요청의 공간 재사용</li>
+<li>Prompt·동시 요청별 이론적 KV Byte와 실제 Usage의 종합 비교</li>
+</ul>
+<p>다음 단계에서는 동일한 Prompt에서 생성 길이만 32·128·512Token으로 바꾸고, Decode 중 Cache Token 수와 Block 수가 시간에 따라 어떻게 증가하는지 확인한다.</p>
+
+</section>
+<section id="runpod-3" class="markdown-section">
+<h2>부록: RunPod에서 실제 실행한 3단계 코드와 출력</h2>
+<p>아래 두 셀은 Prompt Workload를 만든 코드와, 실제 요청을 보내 Trace에서 최초 Prefill Block을 찾은 코드의 원문이다. 긴 파싱 부분은 측정 도구이지만 재현을 위해 생략하지 않았다.</p>
+<h3>Prompt 길이별 Workload 생성·보존</h3>
+<pre><code class="language-python">
+from dataclasses import asdict, dataclass
+import json
+import math
+
+from pathlib import Path
+
+from transformers import (
+    AutoTokenizer,
+    PreTrainedTokenizerBase,
+)
+
+
+# --------------------------------------------------
+# 1. 3단계 측정 계약
+# --------------------------------------------------
+
+@dataclass(frozen=True)
+class PrefillMeasurementContract:
+    target_prompt_token_counts: tuple[int, ...]
+    max_tokens: int
+    temperature: float
+    top_p: float
+    ignore_eos: bool
+    warmup_runs: int
+    measurement_runs: int
+    block_size_tokens: int
+    metrics_poll_interval_seconds: float
+    client_timeout_seconds: float
+
+
+prefill_measurement_contract = (
+    PrefillMeasurementContract(
+        # Chat Template을 포함한 Prompt 길이 목표다.
+        target_prompt_token_counts=(
+            64,
+            256,
+            1024,
+        ),
+
+        # 모든 조건에서 생성 길이는 동일하게 고정한다.
+        max_tokens=128,
+
+        # Greedy 생성 조건
+        temperature=0.0,
+        top_p=1.0,
+
+        # 정확히 128 Token을 생성하도록 EOS 종료를 무시한다.
+        ignore_eos=True,
+
+        warmup_runs=1,
+        measurement_runs=3,
+
+        # 현재 vLLM Server의 Block 크기와 같아야 한다.
+        block_size_tokens=16,
+
+        metrics_poll_interval_seconds=0.1,
+        client_timeout_seconds=180.0,
+    )
+)
+
+
+# --------------------------------------------------
+# 2. Prompt 조건 구조
+# --------------------------------------------------
+
+@dataclass(frozen=True)
+class PromptLengthCase:
+    label: str
+    target_prompt_tokens: int
+    prompt_text: str
+    actual_prompt_tokens: int
+    expected_initial_blocks: int
+    unused_token_slots: int
+
+
+# --------------------------------------------------
+# 3. 로컬 Tokenizer 로드
+# --------------------------------------------------
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+assert model_artifact_path.is_dir()
+
+tokenizer: PreTrainedTokenizerBase = (
+    AutoTokenizer.from_pretrained(
+        model_artifact_path,
+        local_files_only=True,
+        trust_remote_code=False,
+    )
+)
+
+
+# --------------------------------------------------
+# 4. Chat Template 적용 후 Token 수 계산
+# --------------------------------------------------
+
+def encode_chat_prompt(
+    *,
+    tokenizer: PreTrainedTokenizerBase,
+    prompt_text: str,
+) -&gt; list[int]:
+    conversation = [
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: prompt_text,
+        }
+    ]
+
+    # tokenize=True이므로 Chat Template 문자열을 만든 뒤
+    # Token ID 변환까지 한 번에 수행한다.
+    prompt_token_ids = (
+        tokenizer.apply_chat_template(
+            conversation,
+            tokenize=True,
+            add_generation_prompt=True,
+
+            # Transformers v5에서는 기본 반환값이
+            # BatchEncoding이므로, 이번 함수가 기대하는
+            # list[int]를 받도록 반환 형태를 명시한다.
+            return_dict=False,
+        )
+    )
+
+    assert isinstance(prompt_token_ids, list)
+    assert all(
+        isinstance(token_id, int)
+        for token_id in prompt_token_ids
+    )
+
+    return prompt_token_ids
+
+
+# --------------------------------------------------
+# 5. 목표 Token 길이에 가까운 Prompt 생성
+# --------------------------------------------------
+
+def build_prompt_length_case(
+    *,
+    tokenizer: PreTrainedTokenizerBase,
+    label: str,
+    target_prompt_tokens: int,
+    block_size_tokens: int,
+) -&gt; PromptLengthCase:
+    prompt_parts: list[str] = [
+        (
+            &quot;Explain how a language model uses KV Cache &quot;
+            &quot;during token generation.&quot;
+        )
+    ]
+
+    repeated_detail: str = (
+        &quot;Describe the relationship between Prefill, &quot;
+        &quot;Decode, cached tokens, and memory blocks.&quot;
+    )
+
+    while True:
+        prompt_text: str = &quot; &quot;.join(
+            prompt_parts
+        )
+
+        prompt_token_ids: list[int] = (
+            encode_chat_prompt(
+                tokenizer=tokenizer,
+                prompt_text=prompt_text,
+            )
+        )
+
+        actual_prompt_tokens: int = len(
+            prompt_token_ids
+        )
+
+        if (
+            actual_prompt_tokens
+            &gt;= target_prompt_tokens
+        ):
+            break
+
+        prompt_parts.append(
+            repeated_detail
+        )
+
+    expected_initial_blocks: int = (
+        math.ceil(
+            actual_prompt_tokens
+            / block_size_tokens
+        )
+    )
+
+    unused_token_slots: int = (
+        expected_initial_blocks
+        * block_size_tokens
+        - actual_prompt_tokens
+    )
+
+    return PromptLengthCase(
+        label=label,
+        target_prompt_tokens=(
+            target_prompt_tokens
+        ),
+        prompt_text=prompt_text,
+        actual_prompt_tokens=(
+            actual_prompt_tokens
+        ),
+        expected_initial_blocks=(
+            expected_initial_blocks
+        ),
+        unused_token_slots=(
+            unused_token_slots
+        ),
+    )
+
+
+# 함수 호출부에서 각 실험값이 보이도록
+# 세 조건을 명시적으로 작성한다.
+short_prompt_case = build_prompt_length_case(
+    tokenizer=tokenizer,
+    label=&quot;short&quot;,
+    target_prompt_tokens=64,
+    block_size_tokens=16,
+)
+
+medium_prompt_case = build_prompt_length_case(
+    tokenizer=tokenizer,
+    label=&quot;medium&quot;,
+    target_prompt_tokens=256,
+    block_size_tokens=16,
+)
+
+long_prompt_case = build_prompt_length_case(
+    tokenizer=tokenizer,
+    label=&quot;long&quot;,
+    target_prompt_tokens=1024,
+    block_size_tokens=16,
+)
+
+prompt_length_cases: tuple[
+    PromptLengthCase,
+    ...,
+] = (
+    short_prompt_case,
+    medium_prompt_case,
+    long_prompt_case,
+)
+
+
+# --------------------------------------------------
+# 6. 조건 검증
+# --------------------------------------------------
+
+assert (
+    prefill_measurement_contract
+    .block_size_tokens
+    == 16
+)
+
+assert (
+    prefill_measurement_contract
+    .max_tokens
+    == 128
+)
+
+assert (
+    prefill_measurement_contract
+    .temperature
+    == 0.0
+)
+
+assert (
+    prefill_measurement_contract
+    .top_p
+    == 1.0
+)
+
+assert (
+    prefill_measurement_contract
+    .ignore_eos
+    is True
+)
+
+actual_prompt_token_counts: list[int] = [
+    prompt_case.actual_prompt_tokens
+    for prompt_case in prompt_length_cases
+]
+
+assert (
+    actual_prompt_token_counts
+    == sorted(actual_prompt_token_counts)
+)
+
+assert len(
+    set(actual_prompt_token_counts)
+) == len(actual_prompt_token_counts)
+
+assert (
+    max(actual_prompt_token_counts)
+    + prefill_measurement_contract.max_tokens
+    &lt;= 4096
+)
+
+
+# --------------------------------------------------
+# 7. 실험 입력 보존
+# --------------------------------------------------
+
+result_directory = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;prompt-length-prefill&quot;
+)
+
+result_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+workload_path = (
+    result_directory
+    / &quot;prompt_length_workload.json&quot;
+)
+
+workload_payload = {
+    &quot;measurement_contract&quot;: asdict(
+        prefill_measurement_contract
+    ),
+    &quot;prompt_cases&quot;: [
+        asdict(prompt_case)
+        for prompt_case in prompt_length_cases
+    ],
+}
+
+workload_path.write_text(
+    json.dumps(
+        workload_payload,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 8. 사람이 확인할 비교표
+# --------------------------------------------------
+
+print(
+    &quot;Label  | 목표 Token | 실제 Token | &quot;
+    &quot;예상 초기 Block | 빈 Token 자리&quot;
+)
+print(&quot;-&quot; * 70)
+
+for prompt_case in prompt_length_cases:
+    print(
+        f&quot;{prompt_case.label:&lt;6} | &quot;
+        f&quot;{prompt_case.target_prompt_tokens:&gt;10} | &quot;
+        f&quot;{prompt_case.actual_prompt_tokens:&gt;10} | &quot;
+        f&quot;{prompt_case.expected_initial_blocks:&gt;15} | &quot;
+        f&quot;{prompt_case.unused_token_slots:&gt;13}&quot;
+    )
+
+print()
+print(&quot;생성 길이:&quot;, 128, &quot;Token&quot;)
+print(&quot;Workload 저장:&quot;, workload_path)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">Label  | 목표 Token | 실제 Token | 예상 초기 Block | 빈 Token 자리
+----------------------------------------------------------------------
+short  |         64 |         74 |               5 |             6
+medium |        256 |        266 |              17 |             6
+long   |       1024 |       1034 |              65 |             6
+
+생성 길이: 128 Token
+Workload 저장: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/prompt-length-prefill/prompt_length_workload.json
+</code></pre>
+<h3>조건별 실제 요청·Trace 분석·결과 보존</h3>
+<pre><code class="language-python">from __future__ import annotations
+
+import json
+import math
+import time
+
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+import httpx
+
+
+# --------------------------------------------------
+# 1. 이전 셀이 저장한 Workload와 Pool 정보 로드
+# --------------------------------------------------
+
+server_base_url: str = (
+    &quot;http://127.0.0.1:8000&quot;
+)
+
+served_model_name: str = (
+    &quot;qwen2.5-1.5b-instruct&quot;
+)
+
+result_directory = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+)
+
+workload_path = (
+    result_directory
+    / &quot;prompt-length-prefill&quot;
+    / &quot;prompt_length_workload.json&quot;
+)
+
+idle_summary_path = (
+    result_directory
+    / &quot;idle-baseline&quot;
+    / &quot;kv_cache_idle_summary.json&quot;
+)
+
+trace_path = (
+    result_directory
+    / &quot;block-trace&quot;
+    / &quot;kv_cache_trace.jsonl&quot;
+)
+
+assert workload_path.is_file()
+assert idle_summary_path.is_file()
+assert trace_path.is_file()
+
+workload_payload: dict[str, Any] = (
+    json.loads(
+        workload_path.read_text(
+            encoding=&quot;utf-8&quot;,
+        )
+    )
+)
+
+idle_summary: dict[str, Any] = (
+    json.loads(
+        idle_summary_path.read_text(
+            encoding=&quot;utf-8&quot;,
+        )
+    )
+)
+
+measurement_contract: dict[str, Any] = (
+    workload_payload[&quot;measurement_contract&quot;]
+)
+
+prompt_cases: list[dict[str, Any]] = (
+    workload_payload[&quot;prompt_cases&quot;]
+)
+
+
+# 함수 호출부에서 사용할 실제 계약값을 꺼낸다.
+max_tokens: int = int(
+    measurement_contract[&quot;max_tokens&quot;]
+)
+
+temperature: float = float(
+    measurement_contract[&quot;temperature&quot;]
+)
+
+top_p: float = float(
+    measurement_contract[&quot;top_p&quot;]
+)
+
+ignore_eos: bool = bool(
+    measurement_contract[&quot;ignore_eos&quot;]
+)
+
+warmup_runs: int = int(
+    measurement_contract[&quot;warmup_runs&quot;]
+)
+
+measurement_runs: int = int(
+    measurement_contract[&quot;measurement_runs&quot;]
+)
+
+block_size_tokens: int = int(
+    measurement_contract[&quot;block_size_tokens&quot;]
+)
+
+client_timeout_seconds: float = float(
+    measurement_contract[
+        &quot;client_timeout_seconds&quot;
+    ]
+)
+
+number_of_gpu_blocks: int = int(
+    idle_summary[&quot;number_of_gpu_blocks&quot;]
+)
+
+assert max_tokens == 128
+assert warmup_runs == 1
+assert measurement_runs == 3
+assert block_size_tokens == 16
+
+
+# --------------------------------------------------
+# 2. JSONL Trace 전체를 읽는 함수
+# --------------------------------------------------
+
+def read_trace_records(
+    *,
+    trace_path: Path,
+) -&gt; list[dict[str, Any]]:
+    return [
+        json.loads(line)
+        for line in trace_path.read_text(
+            encoding=&quot;utf-8&quot;,
+        ).splitlines()
+        if line.strip()
+    ]
+
+
+# --------------------------------------------------
+# 3. Trace 한 줄이 특정 요청을 포함하는지 확인
+# --------------------------------------------------
+
+def trace_record_contains_request(
+    *,
+    trace_record: dict[str, Any],
+    request_id: str,
+) -&gt; bool:
+    # free_request_blocks 이벤트에는
+    # request_id가 최상위 필드로 들어 있다.
+    if (
+        trace_record.get(&quot;request_id&quot;)
+        == request_id
+    ):
+        return True
+
+    # schedule 이벤트의 전후 Snapshot에
+    # 요청이 들어 있는지 확인한다.
+    if request_id in trace_record.get(
+        &quot;requests_before&quot;,
+        {},
+    ):
+        return True
+
+    if request_id in trace_record.get(
+        &quot;requests_after&quot;,
+        {},
+    ):
+        return True
+
+    # 이번 Iteration에 배정된 Token 작업에
+    # 요청이 들어 있는지 확인한다.
+    return any(
+        scheduled_request[&quot;request_id&quot;]
+        == request_id
+        for scheduled_request
+        in trace_record.get(
+            &quot;scheduled_requests&quot;,
+            [],
+        )
+    )
+
+
+# --------------------------------------------------
+# 4. Trace에 등장한 Request ID 수집
+# --------------------------------------------------
+
+def collect_request_ids(
+    *,
+    trace_records: list[dict[str, Any]],
+) -&gt; set[str]:
+    request_ids: set[str] = set()
+
+    for trace_record in trace_records:
+        top_level_request_id = (
+            trace_record.get(&quot;request_id&quot;)
+        )
+
+        if top_level_request_id is not None:
+            request_ids.add(
+                top_level_request_id
+            )
+
+        request_ids.update(
+            trace_record.get(
+                &quot;requests_before&quot;,
+                {},
+            ).keys()
+        )
+
+        request_ids.update(
+            trace_record.get(
+                &quot;requests_after&quot;,
+                {},
+            ).keys()
+        )
+
+        request_ids.update(
+            scheduled_request[&quot;request_id&quot;]
+            for scheduled_request
+            in trace_record.get(
+                &quot;scheduled_requests&quot;,
+                [],
+            )
+        )
+
+    return request_ids
+
+
+# --------------------------------------------------
+# 5. 요청 하나를 보내고 해당 Trace 분석
+# --------------------------------------------------
+
+def run_prefill_measurement(
+    *,
+    server_base_url: str,
+    served_model_name: str,
+    trace_path: Path,
+    trace_session_id: str,
+    request_label: str,
+    run_kind: str,
+    run_index: int,
+    prompt_text: str,
+    expected_prompt_tokens: int,
+    expected_initial_blocks: int,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    ignore_eos: bool,
+    block_size_tokens: int,
+    number_of_gpu_blocks: int,
+    client_timeout_seconds: float,
+) -&gt; dict[str, Any]:
+    # 요청 전까지 존재하던 Trace 줄을 보관한다.
+    trace_records_before = (
+        read_trace_records(
+            trace_path=trace_path,
+        )
+    )
+
+    trace_line_count_before: int = len(
+        trace_records_before
+    )
+
+    # 셀을 다시 실행해도 ID가 겹치지 않도록
+    # 짧은 임의 문자열을 붙인다.
+    request_id_header: str = (
+        f&quot;kv-prefill-{request_label}-&quot;
+        f&quot;{run_kind}-{run_index}-&quot;
+        f&quot;{uuid4().hex[:8]}&quot;
+    )
+
+    expected_internal_id_prefix: str = (
+        f&quot;chatcmpl-{request_id_header}&quot;
+    )
+
+    request_payload = {
+        &quot;model&quot;: served_model_name,
+        &quot;messages&quot;: [
+            {
+                &quot;role&quot;: &quot;user&quot;,
+                &quot;content&quot;: prompt_text,
+            }
+        ],
+        &quot;temperature&quot;: temperature,
+        &quot;top_p&quot;: top_p,
+        &quot;max_tokens&quot;: max_tokens,
+        &quot;ignore_eos&quot;: ignore_eos,
+        &quot;stream&quot;: False,
+    }
+
+    started_at: float = (
+        time.perf_counter()
+    )
+
+    # 실제 vLLM 요청을 하나 전송한다.
+    with httpx.Client(
+        base_url=server_base_url,
+        timeout=client_timeout_seconds,
+        trust_env=False,
+    ) as client:
+        response = client.post(
+            &quot;/v1/chat/completions&quot;,
+            headers={
+                &quot;X-Request-Id&quot;: (
+                    request_id_header
+                )
+            },
+            json=request_payload,
+        )
+
+    response.raise_for_status()
+
+    completed_at: float = (
+        time.perf_counter()
+    )
+
+    response_payload: dict[str, Any] = (
+        response.json()
+    )
+
+    # HTTP 응답이 끝난 뒤 Block 반환 Trace가
+    # 파일에 기록될 때까지 최대 10초 확인한다.
+    trace_deadline: float = (
+        time.perf_counter() + 10.0
+    )
+
+    actual_internal_request_id: str | None = None
+    request_trace_records: list[
+        dict[str, Any]
+    ] = []
+
+    while time.perf_counter() &lt; trace_deadline:
+        all_trace_records = (
+            read_trace_records(
+                trace_path=trace_path,
+            )
+        )
+
+        # 요청 전 줄 수 이후에 추가된 기록만 선택한다.
+        new_trace_records = all_trace_records[
+            trace_line_count_before:
+        ]
+
+        # 현재 Server Session의 기록만 선택한다.
+        current_session_records = [
+            trace_record
+            for trace_record in new_trace_records
+            if (
+                trace_record.get(&quot;session_id&quot;)
+                == trace_session_id
+            )
+        ]
+
+        candidate_request_ids = (
+            collect_request_ids(
+                trace_records=(
+                    current_session_records
+                ),
+            )
+        )
+
+        matching_request_ids = sorted(
+            request_id
+            for request_id
+            in candidate_request_ids
+            if (
+                request_id
+                == expected_internal_id_prefix
+                or request_id.startswith(
+                    expected_internal_id_prefix
+                    + &quot;-&quot;
+                )
+            )
+        )
+
+        if not matching_request_ids:
+            time.sleep(0.1)
+            continue
+
+        assert len(matching_request_ids) == 1
+
+        actual_internal_request_id = (
+            matching_request_ids[0]
+        )
+
+        request_trace_records = [
+            trace_record
+            for trace_record
+            in current_session_records
+            if trace_record_contains_request(
+                trace_record=trace_record,
+                request_id=(
+                    actual_internal_request_id
+                ),
+            )
+        ]
+
+        free_records = [
+            trace_record
+            for trace_record
+            in request_trace_records
+            if (
+                trace_record[&quot;event_type&quot;]
+                == &quot;free_request_blocks&quot;
+            )
+        ]
+
+        if free_records:
+            break
+
+        time.sleep(0.1)
+
+    assert actual_internal_request_id is not None
+    assert request_trace_records
+
+
+    # --------------------------------------------------
+    # 6. Prefill·Decode·반환 이벤트 분리
+    # --------------------------------------------------
+
+    schedule_records = [
+        trace_record
+        for trace_record
+        in request_trace_records
+        if (
+            trace_record[&quot;event_type&quot;]
+            == &quot;schedule&quot;
+        )
+    ]
+
+    free_records = [
+        trace_record
+        for trace_record
+        in request_trace_records
+        if (
+            trace_record[&quot;event_type&quot;]
+            == &quot;free_request_blocks&quot;
+        )
+    ]
+
+    prefill_schedule_records: list[
+        dict[str, Any]
+    ] = []
+
+    prefill_work_records: list[
+        dict[str, Any]
+    ] = []
+
+    decode_work_records: list[
+        dict[str, Any]
+    ] = []
+
+    for schedule_record in schedule_records:
+        for scheduled_request in (
+            schedule_record[
+                &quot;scheduled_requests&quot;
+            ]
+        ):
+            if (
+                scheduled_request[&quot;request_id&quot;]
+                != actual_internal_request_id
+            ):
+                continue
+
+            if (
+                scheduled_request[&quot;work_phase&quot;]
+                == &quot;prefill&quot;
+            ):
+                prefill_schedule_records.append(
+                    schedule_record
+                )
+
+                prefill_work_records.append(
+                    scheduled_request
+                )
+
+            elif (
+                scheduled_request[&quot;work_phase&quot;]
+                == &quot;decode&quot;
+            ):
+                decode_work_records.append(
+                    scheduled_request
+                )
+
+    assert prefill_schedule_records
+    assert prefill_work_records
+    assert decode_work_records
+    assert free_records
+
+
+    # --------------------------------------------------
+    # 7. Prefill에서 최초 할당된 Block 수집
+    # --------------------------------------------------
+
+    initial_block_ids: set[int] = set()
+
+    for prefill_record in (
+        prefill_schedule_records
+    ):
+        request_block_change = (
+            prefill_record[
+                &quot;block_changes&quot;
+            ].get(
+                actual_internal_request_id
+            )
+        )
+
+        if request_block_change is None:
+            continue
+
+        initial_block_ids.update(
+            request_block_change[
+                &quot;newly_allocated_block_ids&quot;
+            ]
+        )
+
+    actual_initial_blocks: int = len(
+        initial_block_ids
+    )
+
+    assert actual_initial_blocks &gt; 0
+
+
+    # --------------------------------------------------
+    # 8. 전체 실행 중 할당·반환된 Block 확인
+    # --------------------------------------------------
+
+    all_allocated_block_ids: set[int] = set()
+
+    for schedule_record in schedule_records:
+        request_block_change = (
+            schedule_record[
+                &quot;block_changes&quot;
+            ].get(
+                actual_internal_request_id
+            )
+        )
+
+        if request_block_change is None:
+            continue
+
+        all_allocated_block_ids.update(
+            request_block_change[
+                &quot;newly_allocated_block_ids&quot;
+            ]
+        )
+
+    latest_free_record = free_records[-1]
+
+    released_block_ids: set[int] = set(
+        latest_free_record[
+            &quot;released_block_ids&quot;
+        ]
+    )
+
+    # Prefix Caching이 꺼져 있고 요청이 순차 실행되므로
+    # 실행 중 할당된 Block은 종료 후 모두 반환돼야 한다.
+    assert (
+        all_allocated_block_ids
+        == released_block_ids
+    )
+
+    assert (
+        latest_free_record[
+            &quot;free_block_increase&quot;
+        ]
+        == len(released_block_ids)
+    )
+
+
+    # --------------------------------------------------
+    # 9. API가 보고한 실제 Token 수와 예상값 비교
+    # --------------------------------------------------
+
+    usage_information = (
+        response_payload[&quot;usage&quot;]
+    )
+
+    actual_prompt_tokens: int = int(
+        usage_information[&quot;prompt_tokens&quot;]
+    )
+
+    generated_tokens: int = int(
+        usage_information[
+            &quot;completion_tokens&quot;
+        ]
+    )
+
+    assert (
+        actual_prompt_tokens
+        == expected_prompt_tokens
+    )
+
+    assert generated_tokens == max_tokens
+
+    calculated_expected_blocks: int = (
+        math.ceil(
+            actual_prompt_tokens
+            / block_size_tokens
+        )
+    )
+
+    assert (
+        calculated_expected_blocks
+        == expected_initial_blocks
+    )
+
+    assert (
+        actual_initial_blocks
+        == expected_initial_blocks
+    )
+
+    initial_usage_ratio_from_trace: float = (
+        actual_initial_blocks
+        / number_of_gpu_blocks
+    )
+
+    return {
+        &quot;request_label&quot;: request_label,
+        &quot;run_kind&quot;: run_kind,
+        &quot;run_index&quot;: run_index,
+        &quot;request_id&quot;: (
+            actual_internal_request_id
+        ),
+        &quot;prompt_tokens&quot;: (
+            actual_prompt_tokens
+        ),
+        &quot;generated_tokens&quot;: generated_tokens,
+        &quot;expected_initial_blocks&quot;: (
+            expected_initial_blocks
+        ),
+        &quot;actual_initial_blocks&quot;: (
+            actual_initial_blocks
+        ),
+        &quot;initial_block_ids&quot;: sorted(
+            initial_block_ids
+        ),
+        &quot;initial_usage_ratio_from_trace&quot;: (
+            initial_usage_ratio_from_trace
+        ),
+        &quot;total_allocated_blocks&quot;: len(
+            all_allocated_block_ids
+        ),
+        &quot;released_blocks&quot;: len(
+            released_block_ids
+        ),
+        &quot;prefill_record_count&quot;: len(
+            prefill_work_records
+        ),
+        &quot;decode_record_count&quot;: len(
+            decode_work_records
+        ),
+        &quot;latency_seconds&quot;: (
+            completed_at - started_at
+        ),
+    }
+
+
+# --------------------------------------------------
+# 10. 현재 Trace Session 확인
+# --------------------------------------------------
+
+trace_records = read_trace_records(
+    trace_path=trace_path,
+)
+
+trace_started_records = [
+    trace_record
+    for trace_record in trace_records
+    if (
+        trace_record[&quot;event_type&quot;]
+        == &quot;trace_started&quot;
+    )
+]
+
+assert trace_started_records
+
+trace_session_id: str = (
+    trace_started_records[-1][
+        &quot;session_id&quot;
+    ]
+)
+
+
+# --------------------------------------------------
+# 11. 조건별 Warm-up 1회와 측정 3회 실행
+# --------------------------------------------------
+
+measurement_results: list[
+    dict[str, Any]
+] = []
+
+for prompt_case in prompt_cases:
+    request_label: str = str(
+        prompt_case[&quot;label&quot;]
+    )
+
+    prompt_text: str = str(
+        prompt_case[&quot;prompt_text&quot;]
+    )
+
+    actual_prompt_tokens: int = int(
+        prompt_case[
+            &quot;actual_prompt_tokens&quot;
+        ]
+    )
+
+    expected_initial_blocks: int = int(
+        prompt_case[
+            &quot;expected_initial_blocks&quot;
+        ]
+    )
+
+    # Warm-up 결과는 최종 측정 표본에 포함하지 않는다.
+    for warmup_index in range(
+        1,
+        warmup_runs + 1,
+    ):
+        print(
+            f&quot;Warm-up 시작: {request_label} &quot;
+            f&quot;{warmup_index}/{warmup_runs}&quot;
+        )
+
+        run_prefill_measurement(
+            server_base_url=server_base_url,
+            served_model_name=served_model_name,
+            trace_path=trace_path,
+            trace_session_id=trace_session_id,
+            request_label=request_label,
+            run_kind=&quot;warmup&quot;,
+            run_index=warmup_index,
+            prompt_text=prompt_text,
+            expected_prompt_tokens=(
+                actual_prompt_tokens
+            ),
+            expected_initial_blocks=(
+                expected_initial_blocks
+            ),
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            ignore_eos=ignore_eos,
+            block_size_tokens=(
+                block_size_tokens
+            ),
+            number_of_gpu_blocks=(
+                number_of_gpu_blocks
+            ),
+            client_timeout_seconds=(
+                client_timeout_seconds
+            ),
+        )
+
+    for run_index in range(
+        1,
+        measurement_runs + 1,
+    ):
+        print(
+            f&quot;측정 시작: {request_label} &quot;
+            f&quot;{run_index}/{measurement_runs}&quot;
+        )
+
+        measurement_result = (
+            run_prefill_measurement(
+                server_base_url=(
+                    server_base_url
+                ),
+                served_model_name=(
+                    served_model_name
+                ),
+                trace_path=trace_path,
+                trace_session_id=(
+                    trace_session_id
+                ),
+                request_label=request_label,
+                run_kind=&quot;measurement&quot;,
+                run_index=run_index,
+                prompt_text=prompt_text,
+                expected_prompt_tokens=(
+                    actual_prompt_tokens
+                ),
+                expected_initial_blocks=(
+                    expected_initial_blocks
+                ),
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                ignore_eos=ignore_eos,
+                block_size_tokens=(
+                    block_size_tokens
+                ),
+                number_of_gpu_blocks=(
+                    number_of_gpu_blocks
+                ),
+                client_timeout_seconds=(
+                    client_timeout_seconds
+                ),
+            )
+        )
+
+        measurement_results.append(
+            measurement_result
+        )
+
+
+# --------------------------------------------------
+# 12. 결과 검증 및 보존
+# --------------------------------------------------
+
+expected_measurement_count: int = (
+    len(prompt_cases)
+    * measurement_runs
+)
+
+assert (
+    len(measurement_results)
+    == expected_measurement_count
+)
+
+assert all(
+    measurement_result[
+        &quot;actual_initial_blocks&quot;
+    ]
+    == measurement_result[
+        &quot;expected_initial_blocks&quot;
+    ]
+    for measurement_result
+    in measurement_results
+)
+
+results_path = (
+    result_directory
+    / &quot;prompt-length-prefill&quot;
+    / &quot;prompt_length_prefill_results.json&quot;
+)
+
+results_payload = {
+    &quot;trace_session_id&quot;: trace_session_id,
+    &quot;server_base_url&quot;: server_base_url,
+    &quot;served_model_name&quot;: served_model_name,
+    &quot;measurement_contract&quot;: (
+        measurement_contract
+    ),
+    &quot;results&quot;: measurement_results,
+}
+
+results_path.write_text(
+    json.dumps(
+        results_payload,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 13. 조건별 결과 출력
+# --------------------------------------------------
+
+print()
+print(&quot;=== Prompt 길이별 Prefill Block 비교 ===&quot;)
+print(
+    &quot;Label  | Prompt Token | 예상 Block | &quot;
+    &quot;실제 Block | Trace 기준 초기 사용률&quot;
+)
+print(&quot;-&quot; * 78)
+
+for prompt_case in prompt_cases:
+    request_label = str(
+        prompt_case[&quot;label&quot;]
+    )
+
+    case_results = [
+        result
+        for result in measurement_results
+        if (
+            result[&quot;request_label&quot;]
+            == request_label
+        )
+    ]
+
+    observed_block_counts = sorted({
+        int(result[&quot;actual_initial_blocks&quot;])
+        for result in case_results
+    })
+
+    assert len(observed_block_counts) == 1
+
+    prompt_tokens = int(
+        prompt_case[&quot;actual_prompt_tokens&quot;]
+    )
+
+    expected_blocks = int(
+        prompt_case[
+            &quot;expected_initial_blocks&quot;
+        ]
+    )
+
+    actual_blocks = (
+        observed_block_counts[0]
+    )
+
+    initial_usage_percent = (
+        actual_blocks
+        / number_of_gpu_blocks
+        * 100
+    )
+
+    print(
+        f&quot;{request_label:&lt;6} | &quot;
+        f&quot;{prompt_tokens:&gt;12} | &quot;
+        f&quot;{expected_blocks:&gt;10} | &quot;
+        f&quot;{actual_blocks:&gt;10} | &quot;
+        f&quot;{initial_usage_percent:&gt;20.6f}%&quot;
+    )
+
+print()
+print(
+    &quot;측정 요청 수:&quot;,
+    len(measurement_results),
+)
+print(&quot;오류: 0&quot;)
+print(&quot;결과 저장:&quot;, results_path)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">Warm-up 시작: short 1/1
+측정 시작: short 1/3
+측정 시작: short 2/3
+측정 시작: short 3/3
+Warm-up 시작: medium 1/1
+측정 시작: medium 1/3
+측정 시작: medium 2/3
+측정 시작: medium 3/3
+Warm-up 시작: long 1/1
+측정 시작: long 1/3
+측정 시작: long 2/3
+측정 시작: long 3/3
+
+=== Prompt 길이별 Prefill Block 비교 ===
+Label  | Prompt Token | 예상 Block | 실제 Block | Trace 기준 초기 사용률
+------------------------------------------------------------------------------
+short  |           74 |          5 |          5 |             0.025267%
+medium |          266 |         17 |         17 |             0.085906%
+long   |         1034 |         65 |         65 |             0.328465%
+
+측정 요청 수: 9
+오류: 0
+결과 저장: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/prompt-length-prefill/prompt_length_prefill_results.json
+</code></pre>
+<p><a href="02_theoretical_size_and_trace_tool.html">← 이전 단계</a> · <a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a> · <a href="04_decode_growth.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

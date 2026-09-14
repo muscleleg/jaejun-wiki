@@ -1,0 +1,361 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.md. Do not edit directly. source-sha256:9877307740964d2108fe46cce3bcbc8cff58a92648bee2a46093b2b2716b6190 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="성능 측정에서 초기화 오버헤드를 분리하기 위한 Warm-up의 원리와 조건별 적용·Cold Start 예외를 설명합니다.">
+  <meta name="source-sha256" content="9877307740964d2108fe46cce3bcbc8cff58a92648bee2a46093b2b2716b6190">
+  <title>성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유">
+  <meta property="og:description" content="성능 측정에서 초기화 오버헤드를 분리하기 위한 Warm-up의 원리와 조건별 적용·Cold Start 예외를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html","name":"성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유","description":"성능 측정에서 초기화 오버헤드를 분리하기 위한 Warm-up의 원리와 조건별 적용·Cold Start 예외를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html"},"headline":"성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pytorch_vllm_benchmark_contract.html"},{"@type":"ListItem","position":6,"name":"성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/pytorch_vllm_benchmark_contract.html">PyTorch와 vLLM의 비교 조건을 고정하는 Benchmark 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유</h1>
+      <p class="lead">성능 측정에서 초기화 오버헤드를 분리하기 위한 Warm-up의 원리와 조건별 적용·Cold Start 예외를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#warm-up">Warm-up은 초기화 비용을 없애는 작업이 아니다</a>
+        <a href="#section-64c773af9d03">첫 실행에는 예상하지 못한 비용이 섞일 수 있다</a>
+        <a href="#warm-up-benchmark">Warm-up이 없는 Benchmark가 왜곡되는 예</a>
+        <a href="#benchmark">일반적인 Benchmark 실행 순서</a>
+        <a href="#warm-up-2">조건이 다르면 조건별로 Warm-up한다</a>
+        <a href="#warm-up-3">Warm-up 횟수는 계약으로 고정한다</a>
+        <a href="#warm-up-4">Warm-up 이후 측정 상태를 다시 초기화해야 한다</a>
+        <a href="#warm-up-benchmark-2">Warm-up을 하면 안 되는 특별한 Benchmark</a>
+        <a href="#cold-warm">Cold 성능과 Warm 성능은 따로 측정한다</a>
+        <a href="#benchmark-warm-up">성능 Benchmark가 아니라면 Warm-up이 필요하지 않다</a>
+        <a href="#section-944a556231cf">판단 기준</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>성능 Benchmark에서는 특별한 이유가 없다면 본 측정 전에 Warm-up을 수행하는 것이 기본이다.</p>
+<p>프로그램의 첫 실행에는 측정 대상의 본래 처리 비용 외에도 한 번만 발생하는 초기화 작업이 포함될 수 있다. 어떤 초기화가 언제 발생하는지 모두 사전에 파악하기 어려우므로, 본 측정과 같은 작업을 먼저 실행하고 그 결과를 통계에서 제외한다.</p>
+</div>
+        <section id="warm-up" class="markdown-section">
+<h2>Warm-up은 초기화 비용을 없애는 작업이 아니다</h2>
+<p>Warm-up은 초기화 비용 자체를 제거하지 않는다. 측정을 시작하기 전에 동일한 작업을 먼저 실행해 초기화 비용을 미리 지불하는 것이다.</p>
+<pre><code class="language-text">프로그램 또는 서버 준비
+→ 본 측정과 같은 작업 실행
+→ 초기화 비용 발생
+→ 해당 결과는 통계에서 제외
+→ 동일한 작업으로 본 측정 시작
+</code></pre>
+<p>따라서 다음 표현이 정확하다.</p>
+<pre><code class="language-text">Warm-up으로 초기화 비용을 제거한다
+</code></pre>
+<p>보다는:</p>
+<pre><code class="language-text">Warm-up에서 초기화 비용을 먼저 지불하고,
+그 비용이 포함된 실행 결과를 본 측정에서 제외한다
+</code></pre>
+
+</section>
+<section id="section-64c773af9d03" class="markdown-section">
+<h2>첫 실행에는 예상하지 못한 비용이 섞일 수 있다</h2>
+<p>첫 실행에는 환경에 따라 다음과 같은 작업이 추가될 수 있다.</p>
+<pre><code class="language-text">Runtime 초기화
+CUDA Context 생성
+GPU Kernel 로드
+JIT 컴파일
+Memory Pool 최초 확보
+내부 라이브러리 초기화
+CPU·GPU Clock 상승
+연결 Pool 생성
+</code></pre>
+<p>Benchmark를 작성하는 사람이 이 모든 내부 동작을 정확히 알고 있기는 어렵다. 사용 중인 Framework, Driver, Hardware, Library 버전에 따라 최초 실행 시점에 준비되는 내용도 달라질 수 있다.</p>
+<p>따라서 일반적인 Benchmark에서는 특정 초기화 작업의 존재를 하나씩 증명한 뒤 Warm-up을 결정하기보다, Warm-up을 기본 절차로 두어 최초 실행 효과를 본 측정에서 분리한다.</p>
+
+</section>
+<section id="warm-up-benchmark" class="markdown-section">
+<h2>Warm-up이 없는 Benchmark가 왜곡되는 예</h2>
+<p>어떤 GPU 연산의 실행 시간을 세 번 측정했다고 하자.</p>
+<pre><code class="language-text">첫 번째 실행 = 120ms
+두 번째 실행 = 10ms
+세 번째 실행 = 10ms
+</code></pre>
+<p>첫 실행에는 다음 비용이 포함됐을 수 있다.</p>
+<pre><code class="language-text">초기 준비 비용 = 110ms
+실제 반복 연산 = 10ms
+</code></pre>
+<p>Warm-up 없이 평균을 구하면:</p>
+<pre><code class="language-text">(120 + 10 + 10) ÷ 3
+= 약 46.7ms
+</code></pre>
+<p>실제로 반복되는 연산은 약 10ms인데 Benchmark 결과는 약 46.7ms가 된다.</p>
+<p>Warm-up으로 첫 실행을 분리하면:</p>
+<pre><code class="language-text">Warm-up
+120ms → 통계에서 제외
+
+본 측정
+10ms
+10ms
+10ms
+
+평균
+10ms
+</code></pre>
+<p>이제 측정값이 반복 실행의 실제 성능을 나타낸다.</p>
+
+</section>
+<section id="benchmark" class="markdown-section">
+<h2>일반적인 Benchmark 실행 순서</h2>
+<pre><code class="language-text">1. 측정 환경과 입력 조건을 고정한다.
+2. 본 측정과 같은 작업으로 Warm-up을 수행한다.
+3. Warm-up 작업이 완전히 끝날 때까지 기다린다.
+4. Warm-up 결과를 통계에서 제외한다.
+5. 필요한 측정 상태를 초기화한다.
+6. 같은 작업을 여러 번 반복 측정한다.
+7. 평균·p50·p95 등으로 결과를 정리한다.
+</code></pre>
+<p>GPU 연산은 CPU와 비동기로 실행될 수 있으므로, 시간을 측정한다면 Warm-up뿐 아니라 GPU 동기화도 필요하다.</p>
+<pre><code class="language-python">import time
+
+import torch
+
+
+# ----------------------------------------------
+# 1. Warm-up
+# ----------------------------------------------
+
+for _ in range(3):
+    warmup_result = operation()
+
+del warmup_result
+
+# Warm-up GPU 작업이 끝날 때까지 기다린다.
+torch.cuda.synchronize()
+
+
+# ----------------------------------------------
+# 2. 본 측정
+# ----------------------------------------------
+
+elapsed_times_ms: list[float] = []
+
+for _ in range(20):
+    torch.cuda.synchronize()
+
+    started_at = time.perf_counter()
+
+    result = operation()
+
+    torch.cuda.synchronize()
+
+    finished_at = time.perf_counter()
+
+    elapsed_times_ms.append(
+        (finished_at - started_at) * 1000
+    )
+
+    del result
+</code></pre>
+<p>이 코드에서 Warm-up과 본 측정은 같은 <code>operation()</code>을 실행한다.</p>
+<pre><code class="language-text">Warm-up
+→ operation() 실행
+→ 결과 제외
+
+본 측정
+→ operation() 실행
+→ 실행 시간 기록
+</code></pre>
+
+</section>
+<section id="warm-up-2" class="markdown-section">
+<h2>조건이 다르면 조건별로 Warm-up한다</h2>
+<p>Benchmark에서 Batch 크기나 입력 Shape 같은 조건을 바꾼다면 각 조건에 동일한 Warm-up 절차를 적용한다.</p>
+<pre><code class="language-text">Batch 1
+→ Warm-up 3회
+→ 측정 20회
+
+Batch 4
+→ Warm-up 3회
+→ 측정 20회
+
+Batch 8
+→ Warm-up 3회
+→ 측정 20회
+</code></pre>
+<p>Batch 1에서만 Warm-up한 뒤 Batch 4와 8을 바로 측정하면 각 조건의 시작 상태가 달라질 수 있다.</p>
+<p>Warm-up 입력은 본 측정 데이터와 내용까지 완전히 같을 필요는 없다. 하지만 측정하려는 것과 같은 코드 경로, 입력 Shape, 자원 사용 형태를 실행할 수 있어야 한다.</p>
+
+</section>
+<section id="warm-up-3" class="markdown-section">
+<h2>Warm-up 횟수는 계약으로 고정한다</h2>
+<p>결과를 확인한 뒤 Warm-up 횟수를 임의로 바꾸면 유리한 결과를 선택하게 될 수 있다.</p>
+<p>따라서 측정 전에 다음 조건을 정한다.</p>
+<pre><code class="language-text">Warm-up 횟수
+본 측정 반복 횟수
+입력 크기
+Batch 크기
+측정 시작과 종료 경계
+동기화 방법
+통계 계산 방법
+</code></pre>
+<p>예를 들면 다음과 같다.</p>
+<pre><code class="language-text">Warm-up = 3회
+본 측정 = 20회
+통계 = p50·p95·평균
+</code></pre>
+<p>Warm-up 횟수는 많을수록 좋은 것이 아니다. 초기 실행 효과가 본 측정에 섞이지 않을 정도면 충분하다. 필요하다면 실행 순서를 먼저 관찰해 값이 안정되는 시점을 확인한 뒤 횟수를 고정한다.</p>
+
+</section>
+<section id="warm-up-4" class="markdown-section">
+<h2>Warm-up 이후 측정 상태를 다시 초기화해야 한다</h2>
+<p>Warm-up을 실행하면 시간뿐 아니라 메모리와 Cache 상태도 변할 수 있다.</p>
+<p>예를 들어 Peak GPU Memory를 측정한다면 Warm-up에서 기록된 Peak를 초기화해야 한다.</p>
+<pre><code class="language-python">for _ in range(3):
+    warmup_result = operation()
+
+del warmup_result
+
+torch.cuda.synchronize()
+
+# Warm-up에서 기록된 Peak 제거
+torch.cuda.reset_peak_memory_stats()
+
+# 본 측정
+result = operation()
+
+torch.cuda.synchronize()
+
+peak_memory_bytes = (
+    torch.cuda.max_memory_allocated()
+)
+</code></pre>
+<p>순서는 다음과 같다.</p>
+<pre><code class="language-text">Warm-up 실행
+→ Warm-up 작업 완료 대기
+→ Warm-up Peak 기록 초기화
+→ 본 연산 실행
+→ 본 연산의 Peak 조회
+</code></pre>
+<p>Warm-up을 했다는 사실만으로 올바른 Benchmark가 되는 것은 아니다. 측정하려는 통계를 Warm-up 이후 올바른 기준점으로 다시 설정해야 한다.</p>
+
+</section>
+<section id="warm-up-benchmark-2" class="markdown-section">
+<h2>Warm-up을 하면 안 되는 특별한 Benchmark</h2>
+<p>Warm-up은 일반적인 성능 Benchmark의 기본 절차지만, <strong>최초 실행 상태 자체가 측정 대상이라면 사용하면 안 된다.</strong></p>
+<p>대표적인 예는 다음과 같다.</p>
+<pre><code class="language-text">프로그램 Cold Start 시간
+서버 시작 시간
+서버 시작 후 첫 요청 시간
+모델 최초 Load 시간
+오랫동안 Idle 상태였던 서버의 첫 요청 시간
+초기 Cache가 비어 있는 상태의 성능
+</code></pre>
+<p>이러한 Benchmark에서는 초기화 비용이 오류나 노이즈가 아니라 측정 대상이다.</p>
+<p>예를 들어 질문이 다음과 같다면:</p>
+<blockquote>
+<p>서버를 시작한 뒤 첫 사용자가 첫 응답을 받기까지 얼마나 걸리는가?</p>
+</blockquote>
+<p>측정은 다음처럼 해야 한다.</p>
+<pre><code class="language-text">서버 시작
+→ Warm-up 없이 첫 요청 전송
+→ 첫 응답 시간 측정
+</code></pre>
+<p>Warm-up 요청을 먼저 보내면 실제 첫 사용자가 부담할 초기화 비용을 미리 지불해 버리므로 결과가 달라진다.</p>
+
+</section>
+<section id="cold-warm" class="markdown-section">
+<h2>Cold 성능과 Warm 성능은 따로 측정한다</h2>
+<p>운영 성능을 자세히 확인하려면 두 상황을 분리하는 것이 좋다.</p>
+<pre><code class="language-text">Cold 성능
+→ Warm-up 없이 최초 실행 측정
+
+Warm 성능
+→ Warm-up 이후 반복 실행 측정
+</code></pre>
+<p>결과도 별도로 기록한다.</p>
+<pre><code class="language-text">Cold Start Latency = 850ms
+Warm Latency p50   = 42ms
+Warm Latency p95   = 55ms
+</code></pre>
+<p>이렇게 하면 최초 사용자 경험과 안정 상태의 반복 성능을 서로 섞지 않고 설명할 수 있다.</p>
+
+</section>
+<section id="benchmark-warm-up" class="markdown-section">
+<h2>성능 Benchmark가 아니라면 Warm-up이 필요하지 않다</h2>
+<p>Warm-up은 성능 측정을 위한 조건 통제 방법이다. 다음처럼 결과의 구조나 정확성만 확인한다면 일반적으로 필요하지 않다.</p>
+<pre><code class="language-text">반환값이 맞는가?
+Token ID가 같은가?
+출력 Shape이 맞는가?
+Block이 예상 개수만큼 할당됐는가?
+요청 종료 후 자원이 반환됐는가?
+API 응답 구조가 올바른가?
+</code></pre>
+<p>이 경우 첫 실행이 느리더라도 검증 결과는 달라지지 않는다.</p>
+<pre><code class="language-text">첫 실행 100ms → Block 7개
+다음 실행 10ms → Block 7개
+</code></pre>
+<p>따라서 성능 통계를 만들지 않는 검증에 Warm-up을 습관적으로 추가하면 요청과 기록만 늘어날 수 있다.</p>
+
+</section>
+<section id="section-944a556231cf" class="markdown-section">
+<h2>판단 기준</h2>
+<pre><code class="language-text">성능 Benchmark인가?
+</code></pre>
+<pre><code class="language-text">아니오
+→ 일반적으로 Warm-up 불필요
+
+예
+→ 다음 질문
+</code></pre>
+<pre><code class="language-text">최초 실행 비용 자체가 측정 대상인가?
+</code></pre>
+<pre><code class="language-text">예
+→ Warm-up하지 않음
+
+아니오
+→ Warm-up 수행
+</code></pre>
+<p>이를 가장 간단하게 정리하면 다음과 같다.</p>
+<blockquote>
+<p>일반적인 성능 Benchmark에서는 어디에서 발생할지 모르는 초기화 오버헤드를 본 측정에서 분리하기 위해 Warm-up을 기본적으로 수행한다.</p>
+</blockquote>
+<blockquote>
+<p>다만 Cold Start처럼 최초 실행부터 발생하는 전체 비용이 측정 대상인 특별한 Benchmark에서는 Warm-up을 하지 않는다.</p>
+</blockquote>
+<blockquote>
+<p>성능이 아니라 기능·구조·정확성을 확인하는 검증에서도 Warm-up은 필요하지 않다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.md. Do not edit directly. source-sha256:f61b873c2845e7dfdec20fdf83affa92885aae1a2bbe95f0261d496f5d0d956a -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="요청별 max_tokens와 서버의 max_model_len을 구분하고 출력 길이가 Decode 횟수와 KV Cache Block에 미치는 영향을 설명합니다.">
+  <meta name="source-sha256" content="f61b873c2845e7dfdec20fdf83affa92885aae1a2bbe95f0261d496f5d0d956a">
+  <title>vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법">
+  <meta property="og:description" content="요청별 max_tokens와 서버의 max_model_len을 구분하고 출력 길이가 Decode 횟수와 KV Cache Block에 미치는 영향을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html","name":"vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법","description":"요청별 max_tokens와 서버의 max_model_len을 구분하고 출력 길이가 Decode 횟수와 KV Cache Block에 미치는 영향을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html"},"headline":"vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/07_per_request_output_length.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법</h1>
+      <p class="lead">요청별 max_tokens와 서버의 max_model_len을 구분하고 출력 길이가 Decode 횟수와 KV Cache Block에 미치는 영향을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#max-tokens"><code>max_tokens</code>는 출력 길이의 상한이다</a>
+        <a href="#section-466319cbfa07">요청마다 서로 다른 값을 지정할 수 있다</a>
+        <a href="#max-tokens-2"><code>max_tokens</code>만큼 항상 생성되는 것은 아니다</a>
+        <a href="#max-tokens-max-model-len"><code>max_tokens</code>와 <code>max_model_len</code>은 다르다</a>
+        <a href="#token-decode">출력 Token 수와 Decode 횟수는 하나 차이 날 수 있다</a>
+        <a href="#token-kv-cache">마지막 출력 Token은 KV Cache에 들어가지 않을 수 있다</a>
+        <a href="#section-afaa2e4f9024">요청별 출력 길이 설정은 무엇에 활용하는가</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM 서버에 여러 요청을 보낼 때 모든 요청이 같은 길이의 답변을 생성할 필요는 없다. Client는 각 요청에 <code>max_tokens</code>를 지정해 해당 요청이 새로 생성할 출력 Token의 최대 개수를 정할 수 있다. vLLM의 OpenAI-compatible Server는 이런 생성 설정을 요청별로 받아 처리한다. <a href="https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/" rel="noopener noreferrer">vLLM OpenAI-Compatible Server</a></p>
+</div>
+        <section id="max-tokens" class="markdown-section">
+<h2><code>max_tokens</code>는 출력 길이의 상한이다</h2>
+<p>다음 요청은 모델에 최대 32개의 출력 Token을 생성하도록 지시한다.</p>
+<pre><code class="language-makefile">request_payload = {
+    &quot;model&quot;: &quot;qwen2.5-1.5b-instruct&quot;,
+    &quot;messages&quot;: [
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: &quot;KV Cache를 설명해 줘.&quot;,
+        }
+    ],
+    &quot;max_tokens&quot;: 32,
+}
+</code></pre>
+<p>여기서 <code>max_tokens=32</code>는 Prompt를 포함한 전체 길이가 아니다.</p>
+<pre><code class="language-text">입력 Prompt Token
+→ 사용자가 보낸 입력의 길이
+
+max_tokens
+→ 모델이 새로 생성할 출력 Token의 최대 개수
+</code></pre>
+<p>예를 들어 Prompt가 74Token이라면:</p>
+<pre><code class="language-text">입력 Prompt = 74Token
+최대 출력 = 32Token
+최종 전체 Sequence 길이 = 최대 106Token
+</code></pre>
+
+</section>
+<section id="section-466319cbfa07" class="markdown-section">
+<h2>요청마다 서로 다른 값을 지정할 수 있다</h2>
+<p>같은 vLLM 서버에 다음 세 요청을 보낼 수 있다.</p>
+<pre><code class="language-bash"># 요청 A
+{
+    &quot;messages&quot;: [...],
+    &quot;max_tokens&quot;: 32,
+}
+</code></pre>
+<pre><code class="language-bash"># 요청 B
+{
+    &quot;messages&quot;: [...],
+    &quot;max_tokens&quot;: 128,
+}
+</code></pre>
+<pre><code class="language-bash"># 요청 C
+{
+    &quot;messages&quot;: [...],
+    &quot;max_tokens&quot;: 512,
+}
+</code></pre>
+<p>서버는 요청별로 출력 길이 제한을 따로 관리한다.</p>
+<pre><code class="language-css">요청 A → 최대 32Token 생성
+요청 B → 최대 128Token 생성
+요청 C → 최대 512Token 생성
+</code></pre>
+<p>이때 세 요청이 사용하는 모델과 Prompt가 같더라도, 생성해야 할 Token 수가 다르므로 완료 시점과 KV Cache 사용량도 달라질 수 있다.</p>
+
+</section>
+<section id="max-tokens-2" class="markdown-section">
+<h2><code>max_tokens</code>만큼 항상 생성되는 것은 아니다</h2>
+<p><code>max_tokens</code>는 기본적으로 출력 길이의 상한이다. 모델이 그전에 EOS Token을 생성하거나 별도의 중지 조건을 만나면 더 일찍 끝날 수 있다.</p>
+<pre><code class="language-text">max_tokens = 128
+
+실제 생성
+→ EOS를 40번째에 만남
+→ 40Token에서 종료 가능
+</code></pre>
+<p>vLLM이 제공하는 <code>ignore_eos=True</code>를 사용하면 EOS를 만나도 생성을 계속하도록 요청할 수 있다. 이 값은 OpenAI 표준 외에 vLLM이 지원하는 추가 요청 설정이다. <a href="https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/" rel="noopener noreferrer">vLLM 추가 요청 파라미터</a></p>
+<pre><code class="language-graphql">request_payload = {
+    &quot;model&quot;: &quot;qwen2.5-1.5b-instruct&quot;,
+    &quot;messages&quot;: [...],
+    &quot;max_tokens&quot;: 128,
+    &quot;ignore_eos&quot;: True,
+}
+</code></pre>
+<p>이렇게 설정하면 특별한 오류나 전체 길이 제한 충돌이 없는 한, 지정한 128Token까지 생성을 계속하게 만들 수 있다. 출력 길이를 고정해야 하는 성능 실험에서 유용하다.</p>
+
+</section>
+<section id="max-tokens-max-model-len" class="markdown-section">
+<h2><code>max_tokens</code>와 <code>max_model_len</code>은 다르다</h2>
+<p><code>max_tokens</code>는 요청마다 바꿀 수 있는 출력 길이 설정이다. 반면 <code>max_model_len</code>은 서버가 모델을 실행할 때 허용하는 전체 Sequence 길이의 한계다.</p>
+<pre><code class="language-text">max_tokens
+→ 요청별 최대 출력 Token 수
+
+max_model_len
+→ Prompt와 출력을 합친 전체 길이의 서버 한계
+</code></pre>
+<p>예를 들어 서버 설정이 다음과 같다고 하자.</p>
+<pre><code class="language-ini">max_model_len = 4096Token
+</code></pre>
+<p>Prompt가 1000Token이라면 전체 길이가 4096Token을 넘지 않아야 한다.</p>
+<pre><code class="language-text">Prompt 1000Token
++ 출력 최대 3096Token
+= 전체 4096Token
+</code></pre>
+<p>따라서 <code>max_tokens=5000</code>처럼 전체 길이 한계를 초과하는 출력을 무조건 생성할 수 있는 것은 아니다. vLLM은 요청의 입력 길이와 모델의 최대 길이를 함께 고려해 허용 가능한 생성 길이를 처리한다. <a href="https://docs.vllm.ai/en/latest/api/vllm/entrypoints/scale_out/token_in_token_out/serving/" rel="noopener noreferrer">vLLM 요청 길이 처리</a></p>
+
+</section>
+<section id="token-decode" class="markdown-section">
+<h2>출력 Token 수와 Decode 횟수는 하나 차이 날 수 있다</h2>
+<p>출력 32Token을 생성한다고 해서 Decode가 반드시 32번 실행되는 것은 아니다.</p>
+<p>Prefill 단계에서 Prompt 전체를 처리한 뒤 첫 번째 출력 Token이 만들어지기 때문이다.</p>
+<pre><code class="language-python-repl">Prefill
+→ Prompt 처리
+→ 출력 Token 1 생성
+
+Decode 1
+→ 출력 Token 2 생성
+
+Decode 2
+→ 출력 Token 3 생성
+
+...
+
+Decode 31
+→ 출력 Token 32 생성
+</code></pre>
+<p>따라서 이 구조에서는:</p>
+<pre><code class="language-text">실제 출력 Token 수 = 32
+Decode Iteration 수 = 31
+</code></pre>
+<p>로 관찰될 수 있다.</p>
+
+</section>
+<section id="token-kv-cache" class="markdown-section">
+<h2>마지막 출력 Token은 KV Cache에 들어가지 않을 수 있다</h2>
+<p>Decode에서는 직전에 생성한 Token을 다음 입력으로 사용하면서 그 Token의 K·V를 Cache에 기록한다.</p>
+<p>하지만 마지막 출력 Token을 생성한 직후 요청이 끝나면, 그 Token을 다음 Decode 입력으로 사용할 일이 없다.</p>
+<pre><code class="language-text">Prompt 74Token
+출력 32Token
+
+최종 전체 Sequence
+→ 74 + 32
+→ 106Token
+
+실제로 계산되어 KV Cache에 들어간 Token
+→ 74 + 31
+→ 105Token
+</code></pre>
+<p>그러므로 KV Cache Trace에서 확인되는 최대 계산 Token 수는 다음과 같이 나타날 수 있다.</p>
+<pre><code class="language-diff">최대 Cache Token
+= Prompt Token
++ 실제 생성 Token
+- 1
+</code></pre>
+<p>출력 길이별로 계산하면 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">입력 Prompt</th>
+<th align="right">최대 출력</th>
+<th align="right">최대 Cache Token</th>
+<th align="right">16Token Block 기준</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">74</td>
+<td align="right">32</td>
+<td align="right">105</td>
+<td align="right">7Block</td>
+</tr>
+<tr>
+<td align="right">74</td>
+<td align="right">128</td>
+<td align="right">201</td>
+<td align="right">13Block</td>
+</tr>
+<tr>
+<td align="right">74</td>
+<td align="right">512</td>
+<td align="right">585</td>
+<td align="right">37Block</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-afaa2e4f9024" class="markdown-section">
+<h2>요청별 출력 길이 설정은 무엇에 활용하는가</h2>
+<p>요청마다 다른 <code>max_tokens</code>를 지정하면 다양한 실제 사용 패턴을 재현할 수 있다.</p>
+<pre><code class="language-text">짧은 분류 응답
+→ max_tokens=16
+
+간단한 질의응답
+→ max_tokens=128
+
+긴 문서 생성
+→ max_tokens=1024
+</code></pre>
+<p>이를 통해 다음을 비교할 수 있다.</p>
+<ul>
+<li>출력 길이에 따른 응답 시간 변화</li>
+<li>Decode Iteration 증가</li>
+<li>KV Cache Block 증가</li>
+<li>짧은 요청과 긴 요청의 완료 순서</li>
+<li>동시 요청에서 Cache 점유와 Scheduler 동작</li>
+<li>출력 길이에 따른 처리량 변화</li>
+</ul>
+<p>정리하면, <code>max_tokens</code>는 서버 전체에 고정하는 값이 아니라 <strong>각 요청이 생성할 출력 길이의 상한을 정하는 요청별 설정</strong>이다. 같은 Prompt에 서로 다른 <code>max_tokens</code>를 적용하면 생성 길이가 KV Cache, Decode 횟수, 응답 시간에 미치는 영향을 분리해서 관찰할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_block_pool_scope.md. Do not edit directly. source-sha256:ddb2b488b9e283f8948e8c7b64bda161820c623dee5c2c1d15ea8d10342c5b90 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM Engine과 Server의 관계를 기준으로 KV Cache Block Pool의 공유·반환·멀티 GPU 범위를 설명합니다.">
+  <meta name="source-sha256" content="ddb2b488b9e283f8948e8c7b64bda161820c623dee5c2c1d15ea8d10342c5b90">
+  <title>KV Cache Block Pool은 vLLM 하나당 하나인가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KV Cache Block Pool은 vLLM 하나당 하나인가">
+  <meta property="og:description" content="vLLM Engine과 Server의 관계를 기준으로 KV Cache Block Pool의 공유·반환·멀티 GPU 범위를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html","name":"KV Cache Block Pool은 vLLM 하나당 하나인가","description":"vLLM Engine과 Server의 관계를 기준으로 KV Cache Block Pool의 공유·반환·멀티 GPU 범위를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html"},"headline":"KV Cache Block Pool은 vLLM 하나당 하나인가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_block_pool_scope.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"KV Cache Block Pool은 vLLM 하나당 하나인가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV Cache Block Pool은 vLLM 하나당 하나인가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>KV Cache Block Pool은 vLLM 하나당 하나인가</h1>
+      <p class="lead">vLLM Engine과 Server의 관계를 기준으로 KV Cache Block Pool의 공유·반환·멀티 GPU 범위를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#request-not-pool">요청마다 Block Pool이 생기지는 않는다</a>
+        <a href="#request-end-pool">요청이 끝나도 Block Pool은 사라지지 않는다</a>
+        <a href="#requests-share-pool">여러 요청은 하나의 Block Pool을 공유한다</a>
+        <a href="#server-engine">vLLM Server와 Engine을 구분해야 한다</a>
+        <a href="#multiple-servers-pools">vLLM Server를 여러 개 실행하면 Pool도 여러 개다</a>
+        <a href="#multi-gpu-cache">여러 GPU를 사용하면 물리적 Cache는 나뉠 수 있다</a>
+        <a href="#conclusion">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>일반적인 단일 모델 vLLM 구성에서는 다음과 같이 이해할 수 있다.</p>
+<pre><code class="language-text">vLLM Engine 하나
+↔ 논리적인 KV Cache Block Pool 하나
+</code></pre>
+<p>다만 정확하게는 <code>vLLM 프로그램 하나</code>가 아니라 <strong>모델 추론을 수행하는 Engine 하나를 기준으로 Block Pool 하나가 관리된다</strong>고 표현해야 한다.</p>
+</div>
+        <section id="request-not-pool" class="markdown-section">
+<h2>요청마다 Block Pool이 생기지는 않는다</h2>
+<p>vLLM에 요청 A·B·C가 들어와도 요청마다 새로운 Block Pool을 만들지 않는다.</p>
+<pre><code class="language-css">잘못된 구조
+
+A 요청 → A 전용 Block Pool
+B 요청 → B 전용 Block Pool
+C 요청 → C 전용 Block Pool
+</code></pre>
+<p>대신 하나의 Engine이 공용 Block Pool을 관리한다.</p>
+<pre><code class="language-scss">vLLM Engine
+└─ 공용 KV Cache Block Pool
+   ├─ A 요청이 사용하는 Block
+   ├─ B 요청이 사용하는 Block
+   ├─ C 요청이 사용하는 Block
+   └─ 아직 사용하지 않는 Free Block
+</code></pre>
+<p>각 요청은 공용 Pool 전체를 소유하는 것이 아니라, 자신에게 필요한 수만큼의 Block을 할당받는다.</p>
+
+</section>
+<section id="request-end-pool" class="markdown-section">
+<h2>요청이 끝나도 Block Pool은 사라지지 않는다</h2>
+<p>요청의 생명주기와 Block Pool의 생명주기는 다르다.</p>
+<pre><code class="language-scss">Engine 시작
+→ KV Cache Block Pool 준비
+
+A 요청 도착
+→ Pool에서 Block 할당
+
+A 요청 실행
+→ 할당받은 Block에 K·V 저장
+
+A 요청 종료
+→ 사용한 Block을 Pool에 반환
+
+B 요청 도착
+→ 반환된 공간을 포함한 Free Block 할당
+
+Engine 종료
+→ Block Pool도 함께 제거
+</code></pre>
+<p>요청이 끝날 때 없어지는 것은 요청이 사용하던 KV Cache 내용과 할당 관계다. 공용 Block Pool 자체는 Engine이 살아 있는 동안 계속 유지된다.</p>
+
+</section>
+<section id="requests-share-pool" class="markdown-section">
+<h2>여러 요청은 하나의 Block Pool을 공유한다</h2>
+<p>예를 들어 Pool에 Block이 10개 있다고 가정해 보자.</p>
+<pre><code class="language-yaml">전체 Block: 10개
+
+A 요청: 3개 사용
+B 요청: 2개 사용
+Free:    5개
+</code></pre>
+<p>A 요청이 종료되면 다음처럼 바뀐다.</p>
+<pre><code class="language-yaml">전체 Block: 10개
+
+A 요청: 0개 사용
+B 요청: 2개 사용
+Free:    8개
+</code></pre>
+<p>전체 Pool 크기는 그대로지만, A가 사용하던 3개 Block이 다시 할당 가능한 상태가 된다.</p>
+<p>따라서 요청이 종료돼도 <code>nvidia-smi</code>의 GPU 메모리 사용량이 크게 내려가지 않을 수 있다. vLLM이 확보한 Pool 자체는 유지되고, 내부 Block의 상태만 사용 중에서 재사용 가능 상태로 바뀌기 때문이다.</p>
+
+</section>
+<section id="server-engine" class="markdown-section">
+<h2>vLLM Server와 Engine을 구분해야 한다</h2>
+<p>일반적으로 다음 명령으로 모델 하나를 실행하면:</p>
+<pre><code>vllm serve /models/qwen
+</code></pre>
+<p>구조를 다음처럼 볼 수 있다.</p>
+<pre><code>vLLM API Server
+└─ Qwen 추론 Engine
+   └─ Qwen용 KV Cache Block Pool
+</code></pre>
+<p>이런 일반적인 구성에서는 편하게 다음처럼 말해도 된다.</p>
+<blockquote>
+<p>vLLM Server 하나에 KV Cache Block Pool 하나가 있다.</p>
+</blockquote>
+<p>하지만 더 정확한 표현은 다음과 같다.</p>
+<blockquote>
+<p>vLLM Engine 하나가 논리적인 KV Cache Block Pool 하나를 관리한다.</p>
+</blockquote>
+<p>API Server는 HTTP 요청을 받는 입구이고, 실제 모델 실행과 KV Cache 관리는 내부 Engine이 담당하기 때문이다.</p>
+
+</section>
+<section id="multiple-servers-pools" class="markdown-section">
+<h2>vLLM Server를 여러 개 실행하면 Pool도 여러 개다</h2>
+<p>서로 독립적인 vLLM Server를 두 개 실행하면 각 Server의 Engine이 자신만의 Block Pool을 가진다.</p>
+<pre><code class="language-css">vLLM Server A
+└─ Engine A
+   └─ Block Pool A
+
+vLLM Server B
+└─ Engine B
+   └─ Block Pool B
+</code></pre>
+<p>두 Pool은 서로 독립적이다.</p>
+<p>Server A의 요청이 끝나서 Block이 반환돼도 Server B가 그 Block을 사용할 수는 없다. 각 Engine이 자신의 GPU 메모리와 KV Cache 할당 상태를 따로 관리하기 때문이다.</p>
+
+</section>
+<section id="multi-gpu-cache" class="markdown-section">
+<h2>여러 GPU를 사용하면 물리적 Cache는 나뉠 수 있다</h2>
+<p>Tensor Parallel로 하나의 Engine이 여러 GPU를 사용하면 물리적인 KV Cache Tensor는 GPU별로 나뉘어 저장된다.</p>
+<pre><code>하나의 분산 vLLM Engine
+├─ GPU 0의 KV Cache 조각
+└─ GPU 1의 KV Cache 조각
+</code></pre>
+<p>하지만 Scheduler는 GPU들의 Block 번호와 할당 상태를 맞춰 관리한다. 따라서 Scheduler 관점에서는 하나의 논리적인 Block Pool처럼 다룰 수 있다.</p>
+<pre><code>논리적 관점
+→ Engine당 Block Pool 하나
+
+물리적 관점
+→ 여러 GPU에 KV Cache 조각이 분산됨
+</code></pre>
+<p>따라서 멀티 GPU에서는 “물리적으로 메모리 공간 하나”라는 뜻까지는 아니다.</p>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>결론</h2>
+<p>일반적인 단일 GPU·단일 모델 vLLM 구성에서는 다음처럼 기억하면 된다.</p>
+<pre><code class="language-scss">vLLM Engine 1개
+→ 논리적인 KV Cache Block Pool 1개
+
+요청 N개
+→ 새로운 Pool N개를 만드는 것이 아님
+→ 하나의 공용 Pool에서 필요한 Block을 나누어 사용
+
+요청 종료
+→ 사용한 Block을 공용 Pool에 반환
+
+Engine 종료
+→ Block Pool도 함께 제거
+</code></pre>
+<p>가장 정확한 한 문장은 다음과 같다.</p>
+<blockquote>
+<p>일반적인 vLLM 구성에서 KV Cache Block Pool은 요청마다 만들어지는 것이 아니라, 모델을 실행하는 Engine 하나가 공용 Pool 하나를 관리한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

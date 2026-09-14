@@ -1,0 +1,1361 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.md. Do not edit directly. source-sha256:68a950ae5b5be07e2a909f2ee0e5d3a8c3a64b3fb7b5f370c4704a783ac5e7b3 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sequence·Scheduled Token·KV Cache Block을 구분하고 모델과 vLLM Server의 실행 조건을 고정한 과정입니다.">
+  <meta name="source-sha256" content="68a950ae5b5be07e2a909f2ee0e5d3a8c3a64b3fb7b5f370c4704a783ac5e7b3">
+  <title>1단계: vLLM KV Cache Block의 의미와 실행 계약</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="1단계: vLLM KV Cache Block의 의미와 실행 계약">
+  <meta property="og:description" content="Sequence·Scheduled Token·KV Cache Block을 구분하고 모델과 vLLM Server의 실행 조건을 고정한 과정입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html","name":"1단계: vLLM KV Cache Block의 의미와 실행 계약","description":"Sequence·Scheduled Token·KV Cache Block을 구분하고 모델과 vLLM Server의 실행 조건을 고정한 과정입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html"},"headline":"1단계: vLLM KV Cache Block의 의미와 실행 계약","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/01_cache_blocks_and_execution_contract.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"1단계: vLLM KV Cache Block의 의미와 실행 계약"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">1단계: vLLM KV Cache Block의 의미와 실행 계약</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>1단계: vLLM KV Cache Block의 의미와 실행 계약</h1>
+      <p class="lead">Sequence·Scheduled Token·KV Cache Block을 구분하고 모델과 vLLM Server의 실행 조건을 고정한 과정입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-afd6d816bb3b">이 단계에서 하려는 일</a>
+        <a href="#section-18f78468b4bb">먼저 잡아야 할 전체 그림</a>
+        <a href="#kv-cache">KV Cache가 필요한 이유</a>
+        <a href="#vllm-kv-cache-pool-block">vLLM은 공용 KV Cache Pool을 Block으로 나눈다</a>
+        <a href="#sequence-block-table">Sequence는 자신의 Block Table을 가진다</a>
+        <a href="#sequence">요청과 Sequence는 항상 일대일이 아니다</a>
+        <a href="#sequence-k-v-block">서로 다른 Sequence의 전용 K·V를 한 Block에 섞지 않는다</a>
+        <a href="#block-iteration-sequence">Block은 Iteration 단위가 아니라 Sequence 생명주기로 유지된다</a>
+        <a href="#prefill-decode-block">Prefill과 Decode에서 Block이 변하는 방식</a>
+        <a href="#iteration-sequence-block">같은 Iteration에서 여러 Sequence를 처리해도 Block은 분리된다</a>
+        <a href="#sequence-block">Sequence 종료 후 Block 반환과 후속 재사용</a>
+        <a href="#prefix-caching-block">Prefix Caching에서의 Block 공유</a>
+        <a href="#kv-cache-2">논리적 KV Cache와 실제 메모리를 구분한다</a>
+        <a href="#artifact">모델 Artifact 복구</a>
+        <a href="#gpu">실제 GPU·라이브러리·모델 구조 확인</a>
+        <a href="#config">모델 Config 필드의 의미</a>
+        <a href="#kv-cache-server">KV Cache Server 실행 계약</a>
+        <a href="#section-1cfa816779e9">현재까지 확인한 것과 후속 단계에서 확인할 것</a>
+        <a href="#runpod-1">부록: RunPod에서 실제 실행한 1단계 코드와 출력</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>전체 실습 안내: <a href="../03_kv_cache_lifecycle_memory_validation.html">vLLM KV Cache Block을 계산하고 실제 할당·반환·재사용까지 확인한 실습</a></p>
+<p>학습일: 2026-09-14</p>
+<p>실습 Notebook: <code>vllm_scheduler_kv_cache.ipynb</code></p>
+</div>
+        <section id="section-afd6d816bb3b" class="markdown-section">
+<h2>이 단계에서 하려는 일</h2>
+<p>앞선 실습에서는 vLLM Scheduler가 요청을 Waiting·Running·Finished 상태로 관리하고, Continuous Batching으로 실행 Batch를 Iteration마다 바꾸는 과정을 확인했다. 이번 단계에서는 그 Sequence들이 실제로 사용하는 KV Cache 공간을 이해하고 이후 측정에서 사용할 환경·모델·Server 조건을 고정했다.</p>
+<p>KV Cache의 실제 사용량을 비교하려면 다음 값을 먼저 알아야 한다.</p>
+<pre><code class="language-text">어떤 GPU를 사용하는가
+어떤 모델과 Revision을 사용하는가
+모델에는 Transformer Layer와 KV Head가 몇 개 있는가
+Head 하나의 Dimension은 얼마인가
+K·V를 어떤 dtype으로 저장하는가
+Block 하나에는 몇 Token을 저장하는가
+Scheduler와 GPU 메모리 조건은 무엇인가
+</code></pre>
+<p>이 단계에서는 설명만 읽고 넘어가지 않고, RunPod에서 고정 Revision의 모델을 내려받고 실제 모델 Config와 GPU 환경을 출력했다. 이어서 다음 실험이 사용할 Server 계약을 코드로 선언하고 내부 일관성을 검사했다.</p>
+
+</section>
+<section id="section-18f78468b4bb" class="markdown-section">
+<h2>먼저 잡아야 할 전체 그림</h2>
+<p>이 단계에서 가장 자주 섞였던 개념은 Sequence, Scheduler Iteration, Scheduled Token, KV Cache Block이었다. 네 개는 같은 단위가 아니다.</p>
+<pre><code class="language-text">요청이 들어옴
+→ 생성 경로인 Sequence가 만들어짐
+→ Sequence가 Running 자리 하나를 차지함
+→ Scheduler가 Iteration마다 그 Sequence에서 처리할 Token 수를 정함
+→ 계산된 각 Token의 K·V는 Sequence에 연결된 Block에 저장됨
+</code></pre>
+<p>일반적인 결과 하나 생성 조건에서는 다음처럼 기억하면 된다.</p>
+<pre><code class="language-text">Sequence
+→ 실행 자리의 단위
+
+Scheduled Token
+→ 이번 Iteration에 그 자리에서 처리할 Token 작업량
+
+Block
+→ 계산이 끝난 Token의 K·V를 여러 Iteration 동안 보존하는 저장 단위
+</code></pre>
+<p>Prefill에서는 Sequence 자리 하나에서 Prompt Token 여러 개를 한꺼번에 처리할 수 있고, Decode에서는 일반적으로 같은 자리에서 다음 Token 하나를 처리한다. Block은 이 계산을 16Token씩 잘라 실행하라는 뜻이 아니라, 계산 결과인 K·V를 16Token 자리씩 묶어 보관한다는 뜻이다.</p>
+
+</section>
+<section id="kv-cache" class="markdown-section">
+<h2>KV Cache가 필요한 이유</h2>
+<p>Decoder-only 언어 모델은 새로운 Token을 생성할 때 지금까지 처리한 Token을 참고한다. KV Cache를 사용하지 않으면 다음 Token을 만들 때마다 과거 Token의 Key와 Value를 다시 계산해야 한다.</p>
+<p>KV Cache는 이전 Token에서 계산한 K·V를 GPU 메모리에 보관한다. Decode에서는 과거 K·V를 Cache에서 읽고 새 Token의 K·V만 계산해서 추가한다.</p>
+<pre><code class="language-text">이전 Token의 K·V
+→ KV Cache에서 재사용
+
+새 Token의 K·V
+→ 새로 계산하여 KV Cache에 추가
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-pool-block" class="markdown-section">
+<h2>vLLM은 공용 KV Cache Pool을 Block으로 나눈다</h2>
+<p>vLLM은 각 Sequence에 최대 문맥 길이만큼의 거대한 연속 메모리를 처음부터 할당하지 않는다. GPU에 공용 KV Cache Pool을 확보하고, 이를 일정한 Token 수를 저장할 수 있는 Block으로 나눈다.</p>
+<pre><code class="language-text">GPU KV Cache Pool
+├─ Block 0
+├─ Block 1
+├─ Block 2
+├─ Block 3
+└─ ...
+</code></pre>
+<p>Sequence가 시작되면 공용 Pool에서 필요한 Block을 배정받는다. Token이 늘어나 기존 Block이 가득 차면 새 Block을 추가로 받고, Sequence가 끝나면 사용하던 Block을 Pool에 반환한다.</p>
+<pre><code class="language-text">Sequence 시작
+→ Block 배정
+
+Prefill
+→ Prompt Token의 K·V 저장
+
+Decode
+→ 새 Token의 K·V 추가
+→ Block 경계를 넘으면 새 Block 배정
+
+Sequence 완료
+→ 사용하던 Block 반환
+
+후속 Sequence
+→ 반환된 공간을 재사용
+</code></pre>
+
+</section>
+<section id="sequence-block-table" class="markdown-section">
+<h2>Sequence는 자신의 Block Table을 가진다</h2>
+<p>Sequence는 논리적인 Token 구간이 어떤 물리 Block에 들어 있는지를 나타내는 Block Table을 가진다고 이해할 수 있다.</p>
+<p>Block 하나가 16 Token을 저장할 때 다음과 같은 대응 관계를 만들 수 있다.</p>
+<pre><code class="language-text">Sequence A의 Block Table
+
+Token 0~15  → 물리 Block 10
+Token 16~31 → 물리 Block 21
+Token 32~47 → 물리 Block 35
+</code></pre>
+<p>물리 Block 10·21·35가 GPU 메모리에서 서로 붙어 있을 필요는 없다. Block Table이 흩어진 물리 Block을 Sequence의 논리적인 Token 순서로 연결한다. 따라서 Sequence가 길어져도 거대한 연속 공간을 다시 할당하지 않고 필요한 Block만 추가할 수 있다.</p>
+
+</section>
+<section id="sequence" class="markdown-section">
+<h2>요청과 Sequence는 항상 일대일이 아니다</h2>
+<p>Greedy 생성처럼 결과 하나만 생성하면 다음처럼 요청 하나와 Sequence 하나가 대응한다.</p>
+<pre><code class="language-text">HTTP 요청 1개
+→ 출력 결과 1개
+→ Sequence 1개
+→ Block Table 1개
+</code></pre>
+<p>하나의 요청에서 결과를 <code>n</code>개 만들도록 지정하면 요청 하나에 여러 출력 Sequence가 생길 수 있다.</p>
+<pre><code class="language-python">sampling_params = SamplingParams(
+    n=3,
+    temperature=0.8,
+    max_tokens=32,
+)
+</code></pre>
+<pre><code class="language-text">HTTP 요청 1개
+├─ 출력 Sequence 1
+├─ 출력 Sequence 2
+└─ 출력 Sequence 3
+</code></pre>
+<p>세 Sequence는 같은 Prompt에서 출발하지만 서로 다른 Token을 선택하면 이후 과거 Token과 K·V도 달라진다. 공통 Prompt 구간은 공유할 수 있지만, 분기된 생성 Token의 KV Cache는 Sequence별로 관리해야 한다. 따라서 정확한 KV Cache 관리 단위는 HTTP 요청보다 Sequence에 가깝다.</p>
+<p><code>n=3</code>은 Client가 요청 하나만 전송했더라도 Server가 세 생성 경로를 유지하는 조건이다. 그러므로 <code>n=1</code>보다 더 많은 Decode 작업과 KV Cache 공간을 사용할 수 있다.</p>
+<p>Beam Search도 여러 후보 Sequence를 유지하면서 점수가 높은 후보를 선택하는 생성 방법이다. 후보마다 생성된 과거 Token이 달라질 수 있으므로 KV Cache 역시 후보 Sequence별로 구분된다. 구체적인 후보 확장 방식과 지원 API는 vLLM 버전에 따라 다르며, 이번 생명주기 측정은 결과 하나를 생성하는 <code>n=1</code> 조건으로 제한한다.</p>
+
+</section>
+<section id="sequence-k-v-block" class="markdown-section">
+<h2>서로 다른 Sequence의 전용 K·V를 한 Block에 섞지 않는다</h2>
+<p>Prefix Caching을 사용하지 않는 일반적인 조건에서는 한 물리 Block이 한 시점에 한 Sequence에 배정된다.</p>
+<p>Block 크기가 16 Token이고 Sequence A가 10자리만 사용해도 남은 6자리에 Sequence B의 전용 K·V를 넣지 않는다.</p>
+<pre><code class="language-text">Block 7
+├─ Sequence A의 Token 0~9
+└─ 비어 있는 자리 6개
+</code></pre>
+<p>Sequence B는 별도의 Block을 받는다.</p>
+<pre><code class="language-text">Block 7 → Sequence A
+Block 8 → Sequence B
+</code></pre>
+<p>이렇게 할당된 Block의 마지막에 빈자리가 남는 현상을 내부 단편화라고 한다. Block이 작으면 내부 단편화는 줄어들 수 있지만 관리해야 할 Block과 Block Table 항목이 많아진다. Block이 크면 관리 단위는 줄지만 마지막 Block에서 낭비되는 자리가 커질 수 있다.</p>
+<p>따라서 “Block 하나는 요청 단위인가, Iteration 단위인가?”라는 질문에는 다음처럼 답할 수 있다.</p>
+<pre><code class="language-text">Block은 요청 객체 자체를 저장하지 않는다.
+Block은 Sequence의 연속된 Token 위치에 대한 K·V를 저장한다.
+같은 Block에 A와 B의 서로 다른 전용 K·V를 함께 채우지 않는다.
+Block은 Iteration마다 새로 만들어지는 것도 아니다.
+</code></pre>
+<p>이번 실험처럼 요청 하나가 결과 하나를 만드는 조건에서는 요청과 Sequence가 사실상 일대일이어서 “요청 A의 Block”이라고 줄여 말할 수 있다. 정확한 소유 단위는 Sequence다.</p>
+
+</section>
+<section id="block-iteration-sequence" class="markdown-section">
+<h2>Block은 Iteration 단위가 아니라 Sequence 생명주기로 유지된다</h2>
+<p>Scheduler Iteration은 vLLM이 이번 GPU 연산에서 처리할 Sequence와 Token 수를 선택하는 실행 단위다. KV Cache Block은 Iteration이 끝날 때마다 사라지지 않고, Sequence가 여러 Iteration에 걸쳐 Prefill과 Decode를 수행하는 동안 유지된다.</p>
+<pre><code class="language-text">Sequence A 시작
+→ Block 배정
+
+Iteration 1
+→ A Prefill
+→ Prompt의 K·V 저장
+
+Iteration 2
+→ A Decode 1 Token
+→ 기존 Cache 사용
+→ 새 K·V 추가
+
+Iteration 3
+→ A Decode 1 Token
+→ 기존 Cache 사용
+→ 새 K·V 추가
+
+Sequence A 완료
+→ Block 반환
+</code></pre>
+<p>두 단위의 역할은 다음과 같다.</p>
+<pre><code class="language-text">Sequence
+→ 여러 Iteration 동안 자신의 KV Cache Block을 유지한다.
+
+Scheduler Iteration
+→ 이번에 처리할 Sequence와 Token 수를 선택한다.
+→ 필요한 경우 Sequence에 새 Block을 배정한다.
+→ 계산한 K·V를 해당 Block에 기록한다.
+</code></pre>
+
+</section>
+<section id="prefill-decode-block" class="markdown-section">
+<h2>Prefill과 Decode에서 Block이 변하는 방식</h2>
+<p>Prefill은 Prompt 전체를 처음 처리한다. Block 크기가 16 Token이고 Prompt가 40 Token이라면 세 Block이 필요하다.</p>
+<pre><code class="language-text">Prompt Token 0~15  → Block 1
+Prompt Token 16~31 → Block 2
+Prompt Token 32~39 → Block 3
+</code></pre>
+<p>세 번째 Block에는 8 Token만 저장되지만 Sequence는 Block 전체를 배정받는다. 따라서 Prompt가 길수록 Prefill에서 처음 필요한 Block 수도 증가한다.</p>
+<p>Decode에서는 새 Token의 K·V를 마지막 Block의 빈자리에 추가한다. 마지막 Block이 가득 찬 뒤 Token이 추가될 때 새 Block을 받는다.</p>
+<pre><code class="language-text">Block 크기 = 16 Token
+
+Cache Token 15개 → Block 1개
+Cache Token 16개 → Block 1개
+Cache Token 17개 → Block 2개
+</code></pre>
+<p>논리적인 Cache 길이는 Token마다 증가하지만 물리적인 Block 수는 Block 경계를 넘을 때 계단식으로 증가한다.</p>
+<pre><code class="language-text">Cache Token 수  14 → 15 → 16 → 17 → 18
+할당 Block 수    1 →  1 →  1 →  2 →  2
+</code></pre>
+
+</section>
+<section id="iteration-sequence-block" class="markdown-section">
+<h2>같은 Iteration에서 여러 Sequence를 처리해도 Block은 분리된다</h2>
+<p>Continuous Batching에서는 한 Scheduler Iteration에 여러 Sequence가 함께 선택될 수 있다.</p>
+<pre><code class="language-text">Scheduler Iteration
+
+Sequence A → Decode 1 Token → A의 Block에 추가
+Sequence B → Decode 1 Token → B의 Block에 추가
+Sequence C → Prefill 40 Token → C에 여러 Block 배정
+</code></pre>
+<p>여러 Sequence가 같은 실행 Batch에서 계산되더라도 전용 KV Cache를 한 Block에 합쳐 저장하지 않는다. 실행 Batch는 이번 Iteration에 함께 계산할 작업의 묶음이고, KV Cache Block은 각 Sequence의 과거 Token을 여러 Iteration 동안 보존하는 공간이다.</p>
+
+</section>
+<section id="sequence-block" class="markdown-section">
+<h2>Sequence 종료 후 Block 반환과 후속 재사용</h2>
+<p>Sequence가 완료되면 사용하던 Block은 공용 Free Block Pool로 돌아간다.</p>
+<pre><code class="language-text">Sequence B 실행 중
+→ Block 7, 18 사용
+
+Sequence B 완료
+→ Block 7, 18 반환
+
+후속 Sequence C
+→ 반환된 공간을 사용할 수 있음
+</code></pre>
+<p>Block 반환은 GPU에 미리 확보한 KV Cache Pool 자체를 제거한다는 뜻이 아니다. Pool은 Server가 실행되는 동안 GPU에 남아 있을 수 있고, 내부 Block의 상태만 사용 중에서 사용 가능으로 바뀐다. 따라서 요청이 끝나도 <code>nvidia-smi</code>의 GPU 전체 사용 메모리가 바로 감소하지 않을 수 있다.</p>
+<p>회수와 재사용을 확인하려면 다음 값을 함께 봐야 한다.</p>
+<ul>
+<li>완료된 Sequence가 사용하던 Block 목록</li>
+<li>완료 전후의 사용 가능한 Block 수</li>
+<li>후속 Sequence가 새로 배정받은 Block 목록</li>
+</ul>
+<p>반환된 Block이 바로 다음 Sequence에 배정된다는 보장은 없다. Free Pool에 여유 Block이 많으면 다른 ID가 먼저 선택될 수 있다. 같은 Block ID의 재사용까지 직접 확인하려면 충분한 후속 요청을 실행하고 반환 Block의 재할당을 추적해야 한다.</p>
+
+</section>
+<section id="prefix-caching-block" class="markdown-section">
+<h2>Prefix Caching에서의 Block 공유</h2>
+<p>Prefix Caching은 서로 다른 요청이 동일한 Prompt 앞부분을 가질 때 이미 계산한 Prefix의 KV Cache를 재사용하는 기능이다.</p>
+<pre><code class="language-text">요청 A:
+&quot;당신은 한국어 번역가입니다. 다음 문장을 번역하세요. Hello.&quot;
+
+요청 B:
+&quot;당신은 한국어 번역가입니다. 다음 문장을 번역하세요. Good morning.&quot;
+</code></pre>
+<p>공통 Prefix를 각각 Prefill하는 대신, 먼저 계산한 공통 Prefix Block을 여러 Sequence가 참조할 수 있다.</p>
+<pre><code class="language-text">공통 Prefix Block
+├─ Sequence A가 참조
+└─ Sequence B가 참조
+
+A만의 후속 Token → A 전용 Block
+B만의 후속 Token → B 전용 Block
+</code></pre>
+<p>이는 한 Block에 A와 B의 서로 다른 전용 K·V를 섞은 구조가 아니다. 두 Sequence에서 Token 내용과 위치가 동일한 Prefix의 같은 K·V를 공유하는 구조다. 여러 Sequence가 참조 중인 공유 Block은 한 Sequence가 끝났다는 이유만으로 바로 덮어쓸 수 없다.</p>
+<p>Prefix Caching을 켜면 완료 요청의 Prefix Block 보존 정책이 생명주기 관찰에 섞인다. 이번 실험에서는 요청별 생성·증가·반환을 먼저 분명하게 보기 위해 Prefix Caching을 끈다.</p>
+
+</section>
+<section id="kv-cache-2" class="markdown-section">
+<h2>논리적 KV Cache와 실제 메모리를 구분한다</h2>
+<p>이후 측정에서는 다음 세 범위를 구분해야 한다.</p>
+<pre><code class="language-text">논리적 KV Cache Byte
+→ 실제 Token의 K·V Tensor 원소가 이론적으로 차지하는 크기
+
+Block 단위 할당량
+→ 마지막 Block의 빈자리까지 포함한 할당 공간
+
+GPU 전체 사용 메모리
+→ 모델 Weight, 활성값, KV Cache, CUDA Runtime 등을 포함
+</code></pre>
+<p>요청이 끝나도 vLLM이 미리 확보한 KV Cache Pool은 유지될 수 있다. 그러므로 GPU 전체 메모리가 감소하지 않았다는 사실만으로 Cache Block이 반환되지 않았다고 판단하지 않는다.</p>
+
+</section>
+<section id="artifact" class="markdown-section">
+<h2>모델 Artifact 복구</h2>
+<p>새 RunPod에는 이전에 사용한 로컬 모델 폴더가 없었다. 첫 환경 확인 셀을 그대로 실행하면 다음 검사에서 실패할 상태였다.</p>
+<pre><code class="language-python">assert model_artifact_path.is_dir()
+</code></pre>
+<p>실제로 첫 환경 확인 셀은 여기서 <code>AssertionError</code>가 발생했다. 코드를 잘못 작성한 것이 아니라, 새 Pod에 <code>/root/models/Qwen2.5-1.5B-Instruct-989aa798</code> 디렉터리와 모델 파일이 아직 없었기 때문이다. 따라서 실패한 검사를 지우거나 통과시키지 않고, 먼저 모델 Artifact를 복구한 뒤 같은 검사를 다시 실행했다.</p>
+<p>비교 조건을 유지하기 위해 다음 모델과 Commit Revision을 다시 고정했다.</p>
+<pre><code class="language-text">Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Local Path: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+</code></pre>
+<p><code>mkdir(parents=True, exist_ok=True)</code>는 모델을 만드는 함수가 아니라 모델 파일을 받을 폴더만 준비한다. 실제 파일은 <code>snapshot_download()</code>가 고정 Revision에서 내려받았다. 폴더 이름에 Commit 일부를 적는 것만으로 버전이 고정되는 것은 아니므로 <code>revision</code> 인자에 전체 Commit SHA를 전달했다.</p>
+<p>실행 순서는 다음과 같다.</p>
+<pre><code class="language-text">Path로 모델이 들어갈 최종 디렉터리 지정
+→ mkdir로 디렉터리만 준비
+→ HfApi.model_info로 Revision을 실제 Commit SHA로 해석
+→ 요청한 SHA와 해석된 SHA가 같은지 검증
+→ snapshot_download로 그 Commit의 파일을 디렉터리에 저장
+→ resolve로 다운로드 반환 경로와 지정 경로를 절대경로 기준 비교
+→ config·tokenizer 설정·Weight 파일 존재 확인
+</code></pre>
+<p><code>Path.resolve()</code>는 모델을 다운로드하거나 파일을 만드는 함수가 아니다. 상대 경로, <code>.</code>과 <code>..</code>, 심볼릭 링크 등을 정리해 비교 가능한 절대경로를 만드는 함수다. 여기서는 Hugging Face가 돌려준 다운로드 경로와 우리가 정한 Artifact 경로가 실제로 같은 위치인지 확인하는 데 사용했다.</p>
+<p>다운로드 후 다음 항목을 검사했다.</p>
+<pre><code class="language-text">resolved Revision == 계약 Revision
+다운로드 반환 경로 == 지정한 로컬 경로
+config.json 존재
+tokenizer_config.json 존재
+safetensors Weight가 한 개 이상 존재
+</code></pre>
+<p>실행 결과는 다음과 같다.</p>
+<pre><code class="language-text">=== 모델 Artifact 복구 완료 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+저장 경로: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Weight 파일 수: 1
+
+=== 주요 파일 ===
+Config: config.json
+Tokenizer Config: tokenizer_config.json
+Weight: model.safetensors
+</code></pre>
+<p><code>IProgress not found</code> 경고는 Jupyter용 그래픽 진행 막대가 없어 텍스트 진행 막대를 사용한다는 뜻이며 다운로드 결과에는 영향을 주지 않았다. Hugging Face의 비인증 요청 경고는 공개 모델을 로그인 없이 내려받아 속도와 Rate Limit이 제한될 수 있다는 뜻이다. 이번 다운로드는 10개 파일을 모두 받았고 정상 완료됐다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>실제 GPU·라이브러리·모델 구조 확인</h2>
+<p>환경과 모델 Config를 독립 실행 가능한 셀에서 읽었다. 주요 검사는 다음과 같다.</p>
+<pre><code class="language-text">CUDA 사용 가능
+PyTorch에서 보이는 GPU 수 == 1
+hidden_size가 Query Head 수로 나누어짐
+hidden_size == Query Head 수 × Head Dimension
+Query Head 수가 KV Head 수로 나누어짐
+</code></pre>
+<p>RunPod 실행 결과는 다음과 같다.</p>
+<pre><code class="language-text">=== Python·라이브러리 환경 ===
+Python: /root/transformer-practice/transformer/.venv-vllm/bin/python
+PyTorch: 2.13.0
+Transformers: 5.17.0
+vLLM: 0.29.0
+PyTorch CUDA: 13.0
+
+=== 물리 GPU ===
+GPU: NVIDIA RTX 2000 Ada Generation
+nvidia-smi Memory Total: 16380 MiB
+PyTorch에서 접근 가능한 VRAM: 15947.31 MiB
+
+=== 모델 Artifact ===
+경로: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Model Type: qwen2
+
+=== Attention·KV Cache 구조 ===
+Transformer Layer 수: 28
+Hidden Size: 1536
+Query Head 수: 12
+KV Head 수: 2
+Head Dimension: 128
+KV Head 하나를 공유하는 Query Head 수: 6
+</code></pre>
+<p><code>nvidia-smi</code>의 전체 물리 메모리와 PyTorch가 CUDA 작업에서 접근 가능한 메모리는 시스템·GPU 예약 영역 때문에 다를 수 있다. 두 값을 동일한 측정 범위로 취급하지 않는다.</p>
+
+</section>
+<section id="config" class="markdown-section">
+<h2>모델 Config 필드의 의미</h2>
+<h3><code>num_hidden_layers</code></h3>
+<p>반복해서 쌓은 Transformer Decoder Layer 수다. 각 Decoder Layer의 Attention에서 별도의 K·V가 만들어지므로 Token당 KV Cache 크기에 Layer 수를 곱한다. Token Embedding과 마지막 LM Head는 이 Layer 수에 포함되지 않는다.</p>
+<p>질문에서 말한 “Transformer Layer 개수”가 맞다. 이번 모델에서는 Decoder Layer가 28개이고, 각 Layer에 K·V가 따로 존재하므로 Token당 KV Cache 계산에도 28을 곱한다.</p>
+<h3><code>hidden_size</code></h3>
+<p>Transformer에서 사용한 <code>d_model</code>과 같은 값이다. Token 하나를 표현하는 전체 Hidden State Vector의 크기다.</p>
+<pre><code class="language-text">Hidden States Shape
+= [batch, token, hidden_size]
+= [batch, token, 1536]
+</code></pre>
+<p>이는 흔히 <code>d_model</code>이라고 부르는 값과 같은 뜻이다. Head 하나의 크기가 아니라 모든 Query Head를 합친 Token 표현 전체의 폭이다.</p>
+<h3><code>num_attention_heads</code></h3>
+<p>Query를 몇 개의 Attention Head로 나눌지 나타낸다. 이번 모델에서는 Query Head가 12개다.</p>
+<h3><code>head_dimension</code></h3>
+<p>Attention Head 하나가 사용하는 Vector 크기다. Config에 <code>head_dim</code>이 있으면 직접 읽고, 없다면 <code>hidden_size / Query Head 수</code>로 계산한다.</p>
+<pre><code class="language-text">1536 Hidden Size
+÷ 12 Query Heads
+= 128 Head Dimension
+</code></pre>
+<p>따라서 <code>hidden_size=1536</code>과 <code>head_dimension=128</code>은 겹치는 값이 아니다. 앞의 값은 Token 전체 Vector 폭이고 뒤의 값은 Multi-Head Attention으로 나눴을 때 Head 하나가 쓰는 Vector 폭이다.</p>
+<h3><code>num_key_value_heads</code></h3>
+<p>실제로 K·V를 구성하는 Head 수다. Qwen2는 GQA를 사용하므로 Query Head 12개가 KV Head 2개를 공유한다.</p>
+<pre><code class="language-text">Query Head 12개
+÷ KV Head 2개
+= KV Head 하나당 Query Head 6개
+</code></pre>
+<p>KV Cache에는 Q를 저장하지 않고 K와 V를 저장하므로 KV Cache Byte 계산에는 Query Head 12가 아니라 KV Head 2를 사용한다.</p>
+<pre><code class="language-text">Token당 KV Cache Byte
+= Layer 수
+× KV Head 수
+× Head Dimension
+× 2(K와 V)
+× dtype의 원소당 Byte
+</code></pre>
+
+</section>
+<section id="kv-cache-server" class="markdown-section">
+<h2>KV Cache Server 실행 계약</h2>
+<p>앞선 Continuous Batching 결과와 연결하기 위해 기존 Server 조건을 유지하고 Block 크기를 16 Token으로 명시했다. 계약은 <code>KvCacheServerContract</code>라는 불변 Dataclass로 선언했으며 실제 값은 생성 위치에 모두 드러나도록 작성했다. 이후 함수가 이 값을 사용한다면 계약 객체 전체를 숨겨 전달하지 않고 필요한 값을 호출부의 인자로 명시한다.</p>
+<p>고정한 값은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">값</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Model</td>
+<td align="right"><code>Qwen/Qwen2.5-1.5B-Instruct</code></td>
+<td>모델 저장소</td>
+</tr>
+<tr>
+<td>Revision</td>
+<td align="right"><code>989aa798...aa306</code></td>
+<td>고정된 모델 Commit</td>
+</tr>
+<tr>
+<td>Checkpoint dtype</td>
+<td align="right"><code>bfloat16</code></td>
+<td>저장된 원본 Weight dtype</td>
+</tr>
+<tr>
+<td>실행 Weight dtype</td>
+<td align="right"><code>float16</code></td>
+<td>앞선 Server 실험과 같은 실행 dtype</td>
+</tr>
+<tr>
+<td>KV Cache dtype</td>
+<td align="right"><code>float16</code></td>
+<td>K·V 원소당 2Byte</td>
+</tr>
+<tr>
+<td>Block Size</td>
+<td align="right"><code>16 token/block</code></td>
+<td>Block 하나가 저장할 Token 자리 수</td>
+</tr>
+<tr>
+<td>Tensor Parallel</td>
+<td align="right"><code>1</code></td>
+<td>단일 GPU 실행</td>
+</tr>
+<tr>
+<td>Max Model Length</td>
+<td align="right"><code>4096 token/sequence</code></td>
+<td>Prompt와 생성 Token을 합친 상한</td>
+</tr>
+<tr>
+<td>GPU Memory Utilization</td>
+<td align="right"><code>0.8</code></td>
+<td>Model Executor의 GPU 메모리 예산 비율</td>
+</tr>
+<tr>
+<td>Max Sequences</td>
+<td align="right"><code>2 sequence/iteration</code></td>
+<td>한 Iteration에 처리할 Sequence 수 상한</td>
+</tr>
+<tr>
+<td>Max Batched Tokens</td>
+<td align="right"><code>4096 token/iteration</code></td>
+<td>한 Iteration의 전체 Token 작업량 상한</td>
+</tr>
+<tr>
+<td>Scheduling Policy</td>
+<td align="right"><code>fcfs</code></td>
+<td>먼저 도착한 요청 우선</td>
+</tr>
+<tr>
+<td>Prefix Caching</td>
+<td align="right"><code>False</code></td>
+<td>공통 Prefix 재사용 효과 제외</td>
+</tr>
+<tr>
+<td>Chunked Prefill</td>
+<td align="right"><code>False</code></td>
+<td>Prompt 분할 효과 제외</td>
+</tr>
+<tr>
+<td>Seed</td>
+<td align="right"><code>0</code></td>
+<td>재현성 기준</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>block_size=16</code>은 Block 하나가 16Byte라는 뜻이 아니다. Sequence의 연속된 16 Token 위치에 대한 K·V를 저장할 수 있다는 뜻이다. 실제 Block Byte는 모델의 Layer·KV Head·Head Dimension·KV Cache dtype을 함께 사용해 다음 단계에서 계산한다.</p>
+<p>Checkpoint는 <code>bfloat16</code>으로 저장되어 있지만 Server 실행 dtype은 앞선 결과와 같은 <code>float16</code>으로 고정했다. 두 dtype은 모두 원소당 2Byte를 사용한다. 원본과 실행 dtype의 차이는 의도한 계약값이며, 계약 셀에서 두 값을 함께 출력했다.</p>
+<p><code>gpu_memory_utilization=0.8</code>은 KV Cache만 80%를 쓴다는 의미가 아니다. vLLM Model Executor가 모델과 실행에 사용할 GPU 메모리 예산의 비율이다.</p>
+<p><code>max_num_seqs=2</code>와 <code>max_num_batched_tokens=4096</code>은 다른 제한이다.</p>
+<pre><code class="language-text">max_num_seqs=2
+→ 한 Scheduler Iteration에서 처리할 Sequence 수 상한
+
+max_num_batched_tokens=4096
+→ 한 Scheduler Iteration에서 처리할 전체 Token 작업량 상한
+</code></pre>
+<p>Chunked Prefill을 끈 조건에서는 긴 Prompt 하나를 여러 Iteration으로 잘라 처리하는 효과를 제외한다. Prefix Caching도 꺼서 서로 다른 요청 사이의 공통 Prefix Block 공유 효과를 제외한다.</p>
+<p>계약 셀의 실행 결과는 다음과 같다.</p>
+<pre><code class="language-text">=== 모델 기준 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Local Path: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Checkpoint dtype: bfloat16
+
+=== KV Cache 저장 조건 ===
+Weight dtype: float16
+KV Cache dtype: float16
+Block Size [token/block]: 16
+
+=== Scheduler·메모리 조건 ===
+Tensor Parallel: 1
+Max Model Length [token/sequence]: 4096
+GPU Memory Utilization: 0.8
+Max Sequences [sequence/iteration]: 2
+Max Batched Tokens [token/iteration]: 4096
+Scheduling Policy: fcfs
+Prefix Caching: False
+Chunked Prefill: False
+</code></pre>
+<p>모든 계약 검사가 통과했다. 이 시점에 확인한 것은 코드에 선언한 계약의 내부 일관성이다. 아직 vLLM Server를 이 옵션으로 시작해 실제 적용값과 전체 KV Cache Block 수를 확인한 것은 아니다.</p>
+<h3>계약 셀이 하는 일과 하지 않는 일</h3>
+<p><code>@dataclass(frozen=True)</code>로 만든 계약은 실험 조건을 한 객체에 묶고, 실행 중 실수로 값을 바꾸지 못하게 한다. 하지만 계약 객체를 선언했다고 vLLM Server 설정이 자동으로 변경되는 것은 아니다.</p>
+<pre><code class="language-text">계약 셀
+→ 앞으로 사용할 값을 명시하고 값 사이의 관계를 assert로 검사
+
+vllm serve 명령
+→ 실제 Server 프로세스에 옵션을 전달
+
+/metrics와 Trace
+→ Server가 실제로 적용한 값과 동작을 관찰
+</code></pre>
+<p>따라서 1단계는 “무엇을 같은 조건이라고 부를 것인가”를 확정한 단계이고, 실제 Pool 생성과 요청별 Block 동작은 다음 단계에서 확인했다.</p>
+
+</section>
+<section id="section-1cfa816779e9" class="markdown-section">
+<h2>현재까지 확인한 것과 후속 단계에서 확인할 것</h2>
+<h3>확인 완료</h3>
+<ul>
+<li>KV Cache가 필요한 이유를 설명했다.</li>
+<li>공용 KV Cache Pool·물리 Block·Sequence별 Block Table의 관계를 설명했다.</li>
+<li>Block이 Iteration마다 사라지는 것이 아니라 Sequence 생명주기 동안 유지됨을 구분했다.</li>
+<li>서로 다른 Sequence의 전용 K·V를 한 Block 빈자리에 섞지 않는 이유를 설명했다.</li>
+<li><code>n&gt;1</code>과 Beam Search에서 요청 하나가 여러 Sequence를 만들 수 있음을 설명했다.</li>
+<li>Prefix Caching에서 동일한 Prefix Block을 공유하는 예외를 설명했다.</li>
+<li>Prefill의 초기 Block 할당과 Decode 중 Block 증가를 개념적으로 설명했다.</li>
+<li>요청 완료 후 Pool은 유지될 수 있고 Block 상태가 Free로 바뀐다는 차이를 설명했다.</li>
+<li>새 RunPod에 고정 Revision의 모델 Artifact를 복구하고 필수 파일을 검증했다.</li>
+<li>실제 GPU·라이브러리·모델 구조를 출력했다.</li>
+<li>Qwen2의 <code>28 Layer</code>, <code>12 Query Head</code>, <code>2 KV Head</code>, <code>128 Head Dimension</code>을 확인했다.</li>
+<li>이후 실험이 사용할 Weight·KV Cache dtype, Block 크기, Scheduler 조건을 코드로 고정했다.</li>
+</ul>
+<h3>이 문서를 작성한 뒤 2단계에서 추가로 확인한 것</h3>
+<ul>
+<li>선언한 조건으로 실제 vLLM Server와 추적 Scheduler를 실행했다.</li>
+<li>최종 Trace Session에서 전체 GPU Block 21,256개와 예약 Null Block 1개를 확인했다.</li>
+<li>Idle KV Cache Usage가 0이고 Running·Waiting 요청이 없음을 확인했다.</li>
+<li>Token당·Block당 이론 크기와 요청별 Block 추적 도구를 검증했다.</li>
+</ul>
+<p>상세 과정과 결과는 <a href="02_theoretical_size_and_trace_tool.html">2단계: KV Cache 이론 크기 계산과 Block 추적 도구 검증</a>에 정리했다. 이 후속 검증으로 1단계의 실행 조건도 실제 Server와 연결됐다.</p>
+<h3>후속 본 실험에서 확인할 것</h3>
+<ul>
+<li>작은 추적 요청에서는 Greedy·<code>ignore_eos=True</code>·생성 길이를 적용했지만, Prompt 길이별 본 실험의 공통 측정 계약은 3단계 시작 전에 별도로 고정한다.</li>
+<li>Warm-up 횟수, 조건별 반복 횟수, Metrics Poll 간격과 Timeout도 3단계 시작 전에 코드로 고정한다.</li>
+<li>Prefill의 실제 초기 Block 할당, Decode 증가, 동시 요청별 점유를 아직 관찰하지 않았다.</li>
+<li>완료 Sequence의 Block 반환과 후속 Sequence의 재할당을 아직 관찰하지 않았다.</li>
+<li>이론적 KV Cache Byte와 실제 KV Cache Usage를 아직 비교하지 않았다.</li>
+</ul>
+<p>다음 활동은 Prompt 길이가 다른 요청을 한 번에 하나씩 실행해 Prefill의 최초 Block 할당과 이론값을 비교하는 것이다.</p>
+
+</section>
+<section id="runpod-1" class="markdown-section">
+<h2>부록: RunPod에서 실제 실행한 1단계 코드와 출력</h2>
+<p>아래 코드는 Notebook에서 최종적으로 성공한 셀의 원문이다. 처음 실행한 환경 확인 셀은 모델 디렉터리가 없어 실패했고, 첫 번째 셀로 Artifact를 복구한 뒤 두 번째 셀을 다시 실행했다.</p>
+<h3>모델 Artifact 복구 셀</h3>
+<pre><code class="language-python">from pathlib import Path
+
+from huggingface_hub import (
+    HfApi,
+    snapshot_download,
+)
+
+
+# --------------------------------------------------
+# 1. 이전 실습과 같은 모델·Revision 고정
+# --------------------------------------------------
+
+model_id: str = (
+    &quot;Qwen/Qwen2.5-1.5B-Instruct&quot;
+)
+
+model_revision: str = (
+    &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+)
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+
+# --------------------------------------------------
+# 2. 지정한 Revision이 실제 Commit인지 확인
+# --------------------------------------------------
+
+model_information = HfApi().model_info(
+    repo_id=model_id,
+    revision=model_revision,
+)
+
+resolved_revision: str = (
+    model_information.sha
+)
+
+assert resolved_revision == model_revision
+
+
+# --------------------------------------------------
+# 3. 모델을 저장할 폴더 생성
+# --------------------------------------------------
+
+# mkdir()은 모델 파일을 만드는 함수가 아니다.
+# 모델 파일이 들어갈 디렉터리만 먼저 준비한다.
+model_artifact_path.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+assert model_artifact_path.is_dir()
+
+
+# --------------------------------------------------
+# 4. 고정한 Revision의 전체 Snapshot 다운로드
+# --------------------------------------------------
+
+downloaded_model_path: str = (
+    snapshot_download(
+        repo_id=model_id,
+        revision=model_revision,
+        local_dir=model_artifact_path,
+    )
+)
+
+resolved_downloaded_path = Path(
+    downloaded_model_path
+).resolve()
+
+assert (
+    resolved_downloaded_path
+    == model_artifact_path
+)
+
+
+# --------------------------------------------------
+# 5. 모델 실행에 필요한 주요 파일 확인
+# --------------------------------------------------
+
+config_path = (
+    model_artifact_path
+    / &quot;config.json&quot;
+)
+
+tokenizer_config_path = (
+    model_artifact_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+weight_paths: list[Path] = sorted(
+    model_artifact_path.glob(
+        &quot;*.safetensors&quot;
+    )
+)
+
+assert config_path.is_file()
+assert tokenizer_config_path.is_file()
+assert len(weight_paths) &gt;= 1
+
+
+# --------------------------------------------------
+# 6. 다운로드 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== 모델 Artifact 복구 완료 ===&quot;)
+print(&quot;Model ID:&quot;, model_id)
+print(&quot;Revision:&quot;, resolved_revision)
+print(&quot;저장 경로:&quot;, model_artifact_path)
+print(&quot;Weight 파일 수:&quot;, len(weight_paths))
+print()
+
+print(&quot;=== 주요 파일 ===&quot;)
+print(&quot;Config:&quot;, config_path.name)
+print(
+    &quot;Tokenizer Config:&quot;,
+    tokenizer_config_path.name,
+)
+
+for weight_path in weight_paths:
+    print(
+        &quot;Weight:&quot;,
+        weight_path.name,
+    )
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">/root/transformer-practice/transformer/.venv-vllm/lib/python3.12/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+  from .autonotebook import tqdm as notebook_tqdm
+Fetching 10 files:   0%|          | 0/10 [00:00&lt;?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 10 files: 100%|██████████| 10/10 [00:04&lt;00:00,  2.04it/s]=== 모델 Artifact 복구 완료 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+저장 경로: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Weight 파일 수: 1
+
+=== 주요 파일 ===
+Config: config.json
+Tokenizer Config: tokenizer_config.json
+Weight: model.safetensors
+</code></pre>
+<h3>환경·모델 구조 재확인 셀</h3>
+<pre><code class="language-python">from importlib.metadata import version
+from pathlib import Path
+import subprocess
+import sys
+
+import torch
+from transformers import (
+    AutoConfig,
+    PretrainedConfig,
+)
+
+
+# --------------------------------------------------
+# 1. 모델 Artifact 확인
+# --------------------------------------------------
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+assert model_artifact_path.is_dir(), (
+    f&quot;모델 폴더를 찾지 못했습니다: &quot;
+    f&quot;{model_artifact_path}&quot;
+)
+
+assert (
+    model_artifact_path
+    / &quot;config.json&quot;
+).is_file()
+
+
+# --------------------------------------------------
+# 2. 단일 GPU 환경 확인
+# --------------------------------------------------
+
+assert torch.cuda.is_available()
+assert torch.cuda.device_count() == 1
+
+gpu_properties = (
+    torch.cuda.get_device_properties(0)
+)
+
+gpu_information = subprocess.run(
+    [
+        &quot;nvidia-smi&quot;,
+        &quot;--query-gpu=&quot;
+        &quot;index,name,uuid,memory.total,driver_version&quot;,
+        &quot;--format=csv,noheader&quot;,
+    ],
+    check=True,
+    capture_output=True,
+    text=True,
+)
+
+
+# --------------------------------------------------
+# 3. 모델 Config 불러오기
+# --------------------------------------------------
+
+model_config: PretrainedConfig = (
+    AutoConfig.from_pretrained(
+        model_artifact_path,
+        local_files_only=True,
+        trust_remote_code=False,
+    )
+)
+
+
+# num_hidden_layers는 반복해서 쌓인
+# Transformer Decoder Layer 수다.
+#
+# 각 Decoder Layer마다 별도의 K·V가 존재하므로
+# Token당 KV Cache 크기를 계산할 때
+# 이 Layer 수를 곱한다.
+#
+# Token Embedding과 마지막 LM Head는
+# 이 개수에 포함하지 않는다.
+number_of_hidden_layers: int = int(
+    model_config.num_hidden_layers
+)
+
+
+# hidden_size는 Transformer에서 사용한
+# d_model과 같은 값이다.
+#
+# Token 하나를 표현하는 전체
+# Hidden State Vector의 크기다.
+#
+# 예:
+# hidden_size = 1536
+# Hidden States Shape = [batch, token, 1536]
+hidden_size: int = int(
+    model_config.hidden_size
+)
+
+
+# Query를 몇 개의 Attention Head로
+# 나누는지를 나타낸다.
+#
+# 일반적인 관계:
+# hidden_size
+# = Query Head 수 × Head Dimension
+number_of_attention_heads: int = int(
+    model_config.num_attention_heads
+)
+
+
+# 실제로 Cache에 저장하는
+# Key·Value Head의 개수다.
+#
+# GQA 모델에서는 여러 Query Head가
+# 하나의 KV Head를 공유할 수 있으므로
+# Query Head 수보다 작을 수 있다.
+#
+# KV Cache Byte 계산에는
+# Query Head 수가 아니라 KV Head 수를 사용한다.
+number_of_key_value_heads: int = int(
+    model_config.num_key_value_heads
+)
+
+
+# head_dimension은 Attention Head 하나가
+# 사용하는 Vector 크기다.
+#
+# hidden_size가 Token 전체 Vector 크기라면
+# head_dimension은 이를 Multi-Head Attention으로
+# 나눴을 때 Head 하나가 사용하는 크기다.
+configured_head_dimension = getattr(
+    model_config,
+    &quot;head_dim&quot;,
+    None,
+)
+
+
+# 모델 Config에 head_dim이 직접 들어 있으면
+# 해당 값을 사용한다.
+#
+# head_dim이 없다면:
+#
+# head_dimension
+# = hidden_size / Query Head 수
+if configured_head_dimension is None:
+    head_dimension: int = (
+        hidden_size
+        // number_of_attention_heads
+    )
+else:
+    head_dimension = int(
+        configured_head_dimension
+    )
+
+
+# --------------------------------------------------
+# 4. 모델 구조의 관계 검증
+# --------------------------------------------------
+
+assert (
+    hidden_size
+    % number_of_attention_heads
+    == 0
+)
+
+assert (
+    hidden_size
+    == number_of_attention_heads
+    * head_dimension
+)
+
+assert (
+    number_of_attention_heads
+    &gt;= number_of_key_value_heads
+)
+
+assert (
+    number_of_attention_heads
+    % number_of_key_value_heads
+    == 0
+)
+
+
+# KV Head 하나를 몇 개의 Query Head가
+# 공유하는지 계산한다.
+query_heads_per_key_value_head: int = (
+    number_of_attention_heads
+    // number_of_key_value_heads
+)
+
+
+# --------------------------------------------------
+# 5. 환경과 모델 구조 출력
+# --------------------------------------------------
+
+print(&quot;=== Python·라이브러리 환경 ===&quot;)
+print(&quot;Python:&quot;, sys.executable)
+print(&quot;PyTorch:&quot;, version(&quot;torch&quot;))
+print(&quot;Transformers:&quot;, version(&quot;transformers&quot;))
+print(&quot;vLLM:&quot;, version(&quot;vllm&quot;))
+print(&quot;PyTorch CUDA:&quot;, torch.version.cuda)
+print()
+
+print(&quot;=== 물리 GPU ===&quot;)
+print(gpu_information.stdout.strip())
+print(
+    &quot;PyTorch에서 보이는 GPU:&quot;,
+    torch.cuda.get_device_name(0),
+)
+print(
+    &quot;GPU 전체 VRAM [MiB]:&quot;,
+    round(
+        gpu_properties.total_memory
+        / (1024 ** 2),
+        2,
+    ),
+)
+print()
+
+print(&quot;=== 모델 Artifact ===&quot;)
+print(&quot;경로:&quot;, model_artifact_path)
+print(&quot;Model Type:&quot;, model_config.model_type)
+print()
+
+print(&quot;=== Attention·KV Cache 구조 ===&quot;)
+print(
+    &quot;Transformer Layer 수:&quot;,
+    number_of_hidden_layers,
+)
+print(
+    &quot;Hidden Size:&quot;,
+    hidden_size,
+)
+print(
+    &quot;Query Head 수:&quot;,
+    number_of_attention_heads,
+)
+print(
+    &quot;KV Head 수:&quot;,
+    number_of_key_value_heads,
+)
+print(
+    &quot;Head Dimension:&quot;,
+    head_dimension,
+)
+print(
+    &quot;KV Head 하나를 공유하는 Query Head 수:&quot;,
+    query_heads_per_key_value_head,
+)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== Python·라이브러리 환경 ===
+Python: /root/transformer-practice/transformer/.venv-vllm/bin/python
+PyTorch: 2.13.0
+Transformers: 5.17.0
+vLLM: 0.29.0
+PyTorch CUDA: 13.0
+
+=== 물리 GPU ===
+0, NVIDIA RTX 2000 Ada Generation, GPU-403b89c2-6647-b30b-8727-1a4ab1966ecb, 16380 MiB, 580.159.04
+PyTorch에서 보이는 GPU: NVIDIA RTX 2000 Ada Generation
+GPU 전체 VRAM [MiB]: 15947.31
+
+=== 모델 Artifact ===
+경로: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Model Type: qwen2
+
+=== Attention·KV Cache 구조 ===
+Transformer Layer 수: 28
+Hidden Size: 1536
+Query Head 수: 12
+KV Head 수: 2
+Head Dimension: 128
+KV Head 하나를 공유하는 Query Head 수: 6
+</code></pre>
+<h3>Server 실행 계약 선언·검증 셀</h3>
+<pre><code class="language-python">from dataclasses import dataclass
+import json
+from pathlib import Path
+
+import torch
+
+
+# --------------------------------------------------
+# 1. KV Cache 실험의 Server 계약 구조
+# --------------------------------------------------
+
+@dataclass(frozen=True)
+class KvCacheServerContract:
+    model_id: str
+    model_revision: str
+    local_model_path: str
+    served_model_name: str
+
+    # 모델 가중치와 주요 연산에 사용할 dtype
+    weight_dtype: str
+
+    # KV Cache의 K·V 원소를 저장할 dtype
+    kv_cache_dtype: str
+
+    # KV Cache Block 하나가 저장할 Token 자리 수
+    #
+    # 16Byte가 아니라 16 Token이다.
+    block_size: int
+
+    tensor_parallel_size: int
+
+    # Prompt Token과 생성 Token을 합친
+    # Sequence의 최대 길이
+    max_model_len: int
+
+    # vLLM Model Executor가 사용할 수 있는
+    # GPU 메모리 비율
+    #
+    # KV Cache만의 비율이 아니라
+    # 모델과 실행에 필요한 영역을 포함한 예산이다.
+    gpu_memory_utilization: float
+
+    # 한 Scheduler Iteration에서 처리할
+    # 최대 Sequence 수
+    max_num_seqs: int
+
+    # 한 Scheduler Iteration에서 처리할
+    # 전체 Token 작업량의 상한
+    max_num_batched_tokens: int
+
+    scheduling_policy: str
+    enable_prefix_caching: bool
+    enable_chunked_prefill: bool
+    seed: int
+
+
+# --------------------------------------------------
+# 2. 실제 사용할 값을 코드에 명시
+# --------------------------------------------------
+
+kv_cache_server_contract = KvCacheServerContract(
+    model_id=(
+        &quot;Qwen/Qwen2.5-1.5B-Instruct&quot;
+    ),
+    model_revision=(
+        &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+    ),
+    local_model_path=(
+        &quot;/root/models/&quot;
+        &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+    ),
+    served_model_name=(
+        &quot;qwen2.5-1.5b-instruct&quot;
+    ),
+
+    # Checkpoint는 bfloat16이지만
+    # 앞선 Server 실험과 같은 float16으로 실행한다.
+    weight_dtype=&quot;float16&quot;,
+
+    # KV Cache도 원소당 2Byte인 float16으로 고정한다.
+    kv_cache_dtype=&quot;float16&quot;,
+
+    # 물리 Block 하나에 연속된 16 Token 자리를 둔다.
+    block_size=16,
+
+    tensor_parallel_size=1,
+    max_model_len=4096,
+    gpu_memory_utilization=0.8,
+    max_num_seqs=2,
+    max_num_batched_tokens=4096,
+    scheduling_policy=&quot;fcfs&quot;,
+
+    # 요청 사이의 공통 Prefix 재사용 효과를 제외한다.
+    enable_prefix_caching=False,
+
+    # 긴 Prompt를 여러 Iteration으로 나누지 않는다.
+    enable_chunked_prefill=False,
+
+    seed=0,
+)
+
+
+# --------------------------------------------------
+# 3. 모델 Artifact와 Checkpoint dtype 확인
+# --------------------------------------------------
+
+model_artifact_path = Path(
+    kv_cache_server_contract.local_model_path
+).resolve()
+
+config_path = (
+    model_artifact_path
+    / &quot;config.json&quot;
+)
+
+assert model_artifact_path.is_dir()
+assert config_path.is_file()
+
+config_data: dict = json.loads(
+    config_path.read_text(
+        encoding=&quot;utf-8&quot;
+    )
+)
+
+checkpoint_dtype: str | None = (
+    config_data.get(&quot;torch_dtype&quot;)
+    or config_data.get(&quot;dtype&quot;)
+)
+
+assert checkpoint_dtype == &quot;bfloat16&quot;
+
+
+# --------------------------------------------------
+# 4. 계약값 내부 일관성 검증
+# --------------------------------------------------
+
+assert torch.cuda.is_available()
+assert torch.cuda.device_count() == 1
+
+assert (
+    kv_cache_server_contract
+    .tensor_parallel_size
+    == 1
+)
+
+assert (
+    kv_cache_server_contract
+    .weight_dtype
+    == &quot;float16&quot;
+)
+
+assert (
+    kv_cache_server_contract
+    .kv_cache_dtype
+    == &quot;float16&quot;
+)
+
+assert (
+    kv_cache_server_contract
+    .block_size
+    == 16
+)
+
+assert (
+    kv_cache_server_contract
+    .max_model_len
+    % kv_cache_server_contract.block_size
+    == 0
+)
+
+assert (
+    kv_cache_server_contract
+    .max_num_batched_tokens
+    &gt;= kv_cache_server_contract.max_model_len
+)
+
+assert (
+    0.0
+    &lt; kv_cache_server_contract
+      .gpu_memory_utilization
+    &lt;= 1.0
+)
+
+assert (
+    kv_cache_server_contract
+    .scheduling_policy
+    == &quot;fcfs&quot;
+)
+
+assert (
+    kv_cache_server_contract
+    .enable_prefix_caching
+    is False
+)
+
+assert (
+    kv_cache_server_contract
+    .enable_chunked_prefill
+    is False
+)
+
+
+# --------------------------------------------------
+# 5. 고정한 Server 계약 출력
+# --------------------------------------------------
+
+print(&quot;=== 모델 기준 ===&quot;)
+print(
+    &quot;Model ID:&quot;,
+    kv_cache_server_contract.model_id,
+)
+print(
+    &quot;Revision:&quot;,
+    kv_cache_server_contract.model_revision,
+)
+print(
+    &quot;Local Path:&quot;,
+    model_artifact_path,
+)
+print(
+    &quot;Checkpoint dtype:&quot;,
+    checkpoint_dtype,
+)
+print()
+
+print(&quot;=== KV Cache 저장 조건 ===&quot;)
+print(
+    &quot;Weight dtype:&quot;,
+    kv_cache_server_contract.weight_dtype,
+)
+print(
+    &quot;KV Cache dtype:&quot;,
+    kv_cache_server_contract.kv_cache_dtype,
+)
+print(
+    &quot;Block Size [token/block]:&quot;,
+    kv_cache_server_contract.block_size,
+)
+print()
+
+print(&quot;=== Scheduler·메모리 조건 ===&quot;)
+print(
+    &quot;Tensor Parallel:&quot;,
+    kv_cache_server_contract.tensor_parallel_size,
+)
+print(
+    &quot;Max Model Length [token/sequence]:&quot;,
+    kv_cache_server_contract.max_model_len,
+)
+print(
+    &quot;GPU Memory Utilization:&quot;,
+    kv_cache_server_contract
+    .gpu_memory_utilization,
+)
+print(
+    &quot;Max Sequences [sequence/iteration]:&quot;,
+    kv_cache_server_contract.max_num_seqs,
+)
+print(
+    &quot;Max Batched Tokens [token/iteration]:&quot;,
+    kv_cache_server_contract
+    .max_num_batched_tokens,
+)
+print(
+    &quot;Scheduling Policy:&quot;,
+    kv_cache_server_contract.scheduling_policy,
+)
+print(
+    &quot;Prefix Caching:&quot;,
+    kv_cache_server_contract
+    .enable_prefix_caching,
+)
+print(
+    &quot;Chunked Prefill:&quot;,
+    kv_cache_server_contract
+    .enable_chunked_prefill,
+)
+</code></pre>
+<p>실제 출력:</p>
+<pre><code class="language-text">=== 모델 기준 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Local Path: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Checkpoint dtype: bfloat16
+
+=== KV Cache 저장 조건 ===
+Weight dtype: float16
+KV Cache dtype: float16
+Block Size [token/block]: 16
+
+=== Scheduler·메모리 조건 ===
+Tensor Parallel: 1
+Max Model Length [token/sequence]: 4096
+GPU Memory Utilization: 0.8
+Max Sequences [sequence/iteration]: 2
+Max Batched Tokens [token/iteration]: 4096
+Scheduling Policy: fcfs
+Prefix Caching: False
+Chunked Prefill: False
+</code></pre>
+<p><a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a> · <a href="02_theoretical_size_and_trace_tool.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

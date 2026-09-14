@@ -1,0 +1,1026 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.md. Do not edit directly. source-sha256:ca0925ffa9f52105726e06e43928cd923b46d5b67f39806296a4d61db2974e1d -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Cache 생명주기 실험의 결과와 Trace를 다시 검사하고 전체 완료 조건을 검증한 기록입니다.">
+  <meta name="source-sha256" content="ca0925ffa9f52105726e06e43928cd923b46d5b67f39806296a4d61db2974e1d">
+  <title>7단계: 결과 파일 보존과 전체 실험 완료 검증</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="7단계: 결과 파일 보존과 전체 실험 완료 검증">
+  <meta property="og:description" content="KV Cache 생명주기 실험의 결과와 Trace를 다시 검사하고 전체 완료 조건을 검증한 기록입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html","name":"7단계: 결과 파일 보존과 전체 실험 완료 검증","description":"KV Cache 생명주기 실험의 결과와 Trace를 다시 검사하고 전체 완료 조건을 검증한 기록입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html"},"headline":"7단계: 결과 파일 보존과 전체 실험 완료 검증","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/07_artifacts_and_completion.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"7단계: 결과 파일 보존과 전체 실험 완료 검증"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">7단계: 결과 파일 보존과 전체 실험 완료 검증</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>7단계: 결과 파일 보존과 전체 실험 완료 검증</h1>
+      <p class="lead">KV Cache 생명주기 실험의 결과와 Trace를 다시 검사하고 전체 완료 조건을 검증한 기록입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1d34984efec5">이 단계에서 확인하려는 것</a>
+        <a href="#section-6a8e57399bed">보존 코드의 첫 실행에서 발견한 누락</a>
+        <a href="#trace">Trace 모듈을 결과 폴더에 보존한 수정 셀</a>
+        <a href="#section-f55171c06f09">실행한 최종 검증 코드</a>
+        <a href="#section-13">13개 완료 조건</a>
+        <a href="#section-bc07d255b576">실제 최종 출력</a>
+        <a href="#section-16">보존한 16개 자료</a>
+        <a href="#sha-256">SHA-256은 무엇을 증명하는가</a>
+        <a href="#section-9ea32972efc2">이번 전체 실험에서 직접 확인한 것</a>
+        <a href="#section-f0438cb7f2f3">완료 판정과 남은 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>학습일: 2026-09-14</p>
+<p>상위 실습: <a href="../03_kv_cache_lifecycle_memory_validation.html">KV Cache가 생성되고 늘어나며 회수·재사용되는 과정</a></p>
+<p>이전 단계: <a href="06_theory_actual_comparison.html">계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교</a></p>
+</div>
+        <section id="section-1d34984efec5" class="markdown-section">
+<h2>이 단계에서 확인하려는 것</h2>
+<p>실험 화면에 <code>True</code>가 한 번 출력됐다고 해서 실험이 재검토 가능한 상태가 되는 것은 아니다. 어떤 코드와 조건으로 실행했는지, 원본 Trace와 결과가 어디에 있는지, 나중에 파일이 바뀌지 않았는지를 함께 확인할 수 있어야 한다.</p>
+<p>마지막 단계에서는 새로운 요청을 보내지 않았다. 앞선 단계에서 만든 파일의 존재와 주요 불변조건을 다시 검사하고, 완료 요약과 SHA-256 Manifest를 저장했다.</p>
+<pre><code class="language-text">실험 자료 경로 고정
+→ 필수 파일 존재 확인
+→ 주요 JSON 다시 읽기
+→ 13개 완료 조건 assert
+→ 완료 요약 JSON 저장
+→ 16개 파일의 크기·SHA-256 기록
+→ 전체 검증 통과 여부 출력
+</code></pre>
+<p>이렇게 하면 최종 표만 남기는 것보다 다음 질문에 답하기 쉬워진다.</p>
+<pre><code class="language-text">어떤 입력과 Server 조건으로 실행했는가?
+Prompt·Decode 실험은 각각 몇 회였는가?
+예상 Block과 실제 Block은 정말 모두 일치했는가?
+B가 반환한 Block을 C가 실제로 다시 받았는가?
+Preemption 없이 정상 완료된 실험인가?
+요청 종료 후 Free Block이 원래 수로 돌아왔는가?
+결론을 만든 원본 파일이 나중에도 같은 내용인가?
+</code></pre>
+
+</section>
+<section id="section-6a8e57399bed" class="markdown-section">
+<h2>보존 코드의 첫 실행에서 발견한 누락</h2>
+<p>최종 검사 코드는 추적 Scheduler 구현 파일도 결과 자료에 포함하려고 다음 경로를 검사했다.</p>
+<pre><code class="language-python">&quot;trace_module&quot;: (
+    result_root
+    / &quot;block-trace/kv_cache_trace.py&quot;
+),
+</code></pre>
+<p>그러나 실제 vLLM Server가 import한 파일은 Notebook 디렉터리에 있었고, 결과 디렉터리에는 아직 복사하지 않은 상태였다.</p>
+<pre><code class="language-text">실제 실행 원본
+→ /root/transformer-practice/transformer/
+  notebooks/transformer/kv_cache_trace.py
+
+최종 검사가 기대한 보존본
+→ /root/transformer-practice/transformer/
+  research/vllm_scheduler_kv_cache_criteria/results/
+  2026-09-14-kv-cache-lifecycle/block-trace/kv_cache_trace.py
+</code></pre>
+<p>따라서 첫 실행은 파일 존재 검사에서 정확히 다음 오류로 중단됐다.</p>
+<pre><code class="language-text">AssertionError: 자료가 없습니다: trace_module →
+/root/transformer-practice/transformer/research/
+vllm_scheduler_kv_cache_criteria/results/
+2026-09-14-kv-cache-lifecycle/block-trace/kv_cache_trace.py
+</code></pre>
+<p>이 오류는 실험 Trace가 없다는 뜻이 아니다. <strong>Trace를 만든 코드 원본은 존재하지만, 실행 결과와 함께 보존할 복사본이 빠졌다는 뜻</strong>이다. 최종 검사를 느슨하게 바꾸지 않고, 실제 실행 원본을 결과 폴더에 복사한 뒤 동일한 검사를 다시 실행했다.</p>
+
+</section>
+<section id="trace" class="markdown-section">
+<h2>Trace 모듈을 결과 폴더에 보존한 수정 셀</h2>
+<p>다음 셀은 실제 Server가 import한 파일의 존재를 먼저 확인하고, 메타데이터를 가능한 한 유지하는 <code>shutil.copy2()</code>로 보존 위치에 복사했다.</p>
+<pre><code class="language-python">import shutil
+
+from pathlib import Path
+
+
+# 실제 vLLM Server가 import해서 사용한 Trace 모듈
+trace_module_source = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;notebooks/transformer/&quot;
+    &quot;kv_cache_trace.py&quot;
+)
+
+# 실험 결과와 함께 보존할 위치
+trace_module_destination = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;block-trace/&quot;
+    &quot;kv_cache_trace.py&quot;
+)
+
+assert trace_module_source.is_file(), (
+    f&quot;Trace 모듈 원본이 없습니다: &quot;
+    f&quot;{trace_module_source}&quot;
+)
+
+trace_module_destination.parent.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+shutil.copy2(
+    trace_module_source,
+    trace_module_destination,
+)
+
+assert trace_module_destination.is_file()
+
+print(
+    &quot;=== Trace 모듈 보존 완료 ===&quot;
+)
+
+print(
+    &quot;실제 사용 원본:&quot;,
+    trace_module_source,
+)
+
+print(
+    &quot;결과 보존 위치:&quot;,
+    trace_module_destination,
+)
+</code></pre>
+<p>실제 출력은 다음과 같았다.</p>
+<pre><code class="language-text">=== Trace 모듈 보존 완료 ===
+실제 사용 원본: /root/transformer-practice/transformer/notebooks/transformer/kv_cache_trace.py
+결과 보존 위치: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/block-trace/kv_cache_trace.py
+</code></pre>
+
+</section>
+<section id="section-f55171c06f09" class="markdown-section">
+<h2>실행한 최종 검증 코드</h2>
+<p>수정 후 첫 시도와 같은 최종 검증 셀을 다시 실행했다. 이 셀은 Notebook의 현재 메모리에만 있는 중간 변수를 신뢰하지 않고, 앞서 저장한 JSON 파일을 다시 읽어 검사한다.</p>
+<pre><code class="language-python">import hashlib
+import json
+
+from datetime import (
+    datetime,
+    timezone,
+)
+from pathlib import Path
+from typing import Any
+
+
+# --------------------------------------------------
+# 1. 실습 자료 경로
+# --------------------------------------------------
+
+transformer_root = Path(
+    &quot;/root/transformer-practice/transformer&quot;
+)
+
+notebook_path = (
+    transformer_root
+    / &quot;notebooks/transformer/&quot;
+    &quot;vllm_scheduler_kv_cache.ipynb&quot;
+)
+
+result_root = (
+    transformer_root
+    / &quot;research/&quot;
+    &quot;vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/&quot;
+    &quot;2026-09-14-kv-cache-lifecycle&quot;
+)
+
+final_directory = (
+    result_root
+    / &quot;final-validation&quot;
+)
+
+completion_summary_path = (
+    final_directory
+    / &quot;completion_summary.json&quot;
+)
+
+artifact_manifest_path = (
+    final_directory
+    / &quot;artifact_manifest.json&quot;
+)
+
+final_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+
+# --------------------------------------------------
+# 2. 반드시 존재해야 하는 실습 자료
+# --------------------------------------------------
+
+artifact_paths: dict[str, Path] = {
+    &quot;idle_metrics&quot;: (
+        result_root
+        / &quot;idle-baseline/metrics_idle.prom&quot;
+    ),
+    &quot;idle_summary&quot;: (
+        result_root
+        / &quot;idle-baseline/&quot;
+        &quot;kv_cache_idle_summary.json&quot;
+    ),
+    &quot;trace_module&quot;: (
+        result_root
+        / &quot;block-trace/kv_cache_trace.py&quot;
+    ),
+    &quot;single_request_trace&quot;: (
+        result_root
+        / &quot;block-trace/kv_cache_trace.jsonl&quot;
+    ),
+    &quot;single_request_summary&quot;: (
+        result_root
+        / &quot;block-trace/&quot;
+        &quot;kv_cache_trace_smoke_summary.json&quot;
+    ),
+    &quot;prompt_workload&quot;: (
+        result_root
+        / &quot;prompt-length-prefill/&quot;
+        &quot;prompt_length_workload.json&quot;
+    ),
+    &quot;prompt_results&quot;: (
+        result_root
+        / &quot;prompt-length-prefill/&quot;
+        &quot;prompt_length_prefill_results.json&quot;
+    ),
+    &quot;decode_workload&quot;: (
+        result_root
+        / &quot;decode-growth/&quot;
+        &quot;decode_growth_workload.json&quot;
+    ),
+    &quot;decode_results&quot;: (
+        result_root
+        / &quot;decode-growth/&quot;
+        &quot;decode_growth_results.json&quot;
+    ),
+    &quot;constrained_server_log&quot;: (
+        result_root
+        / &quot;constrained-block-pool/server.log&quot;
+    ),
+    &quot;constrained_trace&quot;: (
+        result_root
+        / &quot;constrained-block-pool/&quot;
+        &quot;kv_cache_trace.jsonl&quot;
+    ),
+    &quot;constrained_baseline&quot;: (
+        result_root
+        / &quot;constrained-block-pool/&quot;
+        &quot;constrained_pool_baseline.json&quot;
+    ),
+    &quot;abc_observation&quot;: (
+        result_root
+        / &quot;constrained-block-pool/&quot;
+        &quot;abc_request_observation.json&quot;
+    ),
+    &quot;block_reuse_analysis&quot;: (
+        result_root
+        / &quot;constrained-block-pool/&quot;
+        &quot;block_reuse_analysis.json&quot;
+    ),
+    &quot;theory_actual_comparison&quot;: (
+        result_root
+        / &quot;theory-actual-comparison/&quot;
+        &quot;kv_cache_theory_actual_comparison.json&quot;
+    ),
+}
+
+
+assert notebook_path.is_file(), (
+    f&quot;Notebook이 없습니다: {notebook_path}&quot;
+)
+
+for artifact_name, artifact_path in (
+    artifact_paths.items()
+):
+    assert artifact_path.is_file(), (
+        f&quot;자료가 없습니다: &quot;
+        f&quot;{artifact_name} → {artifact_path}&quot;
+    )
+
+
+# --------------------------------------------------
+# 3. 주요 JSON 결과 불러오기
+# --------------------------------------------------
+
+def load_json(
+    path: Path,
+) -&gt; dict[str, Any]:
+    return json.loads(
+        path.read_text(
+            encoding=&quot;utf-8&quot;,
+        )
+    )
+
+
+prefill_payload = load_json(
+    artifact_paths[&quot;prompt_results&quot;]
+)
+
+decode_payload = load_json(
+    artifact_paths[&quot;decode_results&quot;]
+)
+
+abc_observation = load_json(
+    artifact_paths[&quot;abc_observation&quot;]
+)
+
+block_reuse = load_json(
+    artifact_paths[&quot;block_reuse_analysis&quot;]
+)
+
+comparison_payload = load_json(
+    artifact_paths[
+        &quot;theory_actual_comparison&quot;
+    ]
+)
+
+
+# --------------------------------------------------
+# 4. 실험 횟수와 결과 검증
+# --------------------------------------------------
+
+prefill_measurements = [
+    result
+    for result in prefill_payload[&quot;results&quot;]
+    if result[&quot;run_kind&quot;] == &quot;measurement&quot;
+]
+
+decode_measurements = [
+    result
+    for result in decode_payload[&quot;results&quot;]
+    if result[&quot;run_kind&quot;] == &quot;measurement&quot;
+]
+
+comparison_rows = (
+    comparison_payload[
+        &quot;comparison_rows&quot;
+    ]
+)
+
+request_results = (
+    abc_observation[
+        &quot;request_results&quot;
+    ]
+)
+
+
+checks: dict[str, bool] = {
+    # Prompt 3조건 × 3회
+    &quot;prefill_measurement_count_is_9&quot;: (
+        len(prefill_measurements) == 9
+    ),
+
+    # 생성 길이 3조건 × 3회
+    &quot;decode_measurement_count_is_9&quot;: (
+        len(decode_measurements) == 9
+    ),
+
+    # Prompt 길이별 예상·실제 Block 일치
+    &quot;prefill_blocks_match&quot;: all(
+        result[&quot;expected_initial_blocks&quot;]
+        == result[&quot;actual_initial_blocks&quot;]
+        for result in prefill_measurements
+    ),
+
+    # Decode 길이별 예상·실제 Block 일치
+    &quot;decode_blocks_match&quot;: all(
+        result[&quot;expected_maximum_blocks&quot;]
+        == result[&quot;maximum_block_count&quot;]
+        for result in decode_measurements
+    ),
+
+    # 최종 비교표의 모든 예상·실제 Block 일치
+    &quot;comparison_blocks_match&quot;: all(
+        row[&quot;expected_blocks&quot;]
+        == row[&quot;actual_blocks&quot;]
+        for row in comparison_rows
+    ),
+
+    # A·B가 함께 Running 상태였음
+    &quot;running_pair_observed&quot;: (
+        abc_observation[
+            &quot;running_pair_observed&quot;
+        ]
+    ),
+
+    # A·B 실행 중 C의 Waiting 관찰
+    &quot;c_waiting_observed&quot;: (
+        abc_observation[
+            &quot;c_waiting_observed&quot;
+        ]
+    ),
+
+    # A·B·C 요청이 모두 정상 완료
+    &quot;abc_request_count_is_3&quot;: (
+        len(request_results) == 3
+    ),
+
+    &quot;abc_all_finished_by_length&quot;: all(
+        result[&quot;finish_reason&quot;] == &quot;length&quot;
+        for result in request_results.values()
+    ),
+
+    # B가 반환한 Block을 C가 재사용
+    &quot;same_block_id_reuse_observed&quot;: (
+        block_reuse[
+            &quot;same_block_id_reuse_observed&quot;
+        ]
+    ),
+
+    &quot;reused_block_exists&quot;: (
+        block_reuse[
+            &quot;reused_block_count&quot;
+        ]
+        &gt; 0
+    ),
+
+    # 정상적인 완료·반환 과정인지 확인
+    &quot;no_preemption&quot;: (
+        block_reuse[
+            &quot;preempted_request_ids&quot;
+        ]
+        == []
+    ),
+
+    # 요청 종료 후 Free Block 원상 복구
+    &quot;free_blocks_restored&quot;: (
+        block_reuse[
+            &quot;initial_free_blocks&quot;
+        ]
+        == block_reuse[
+            &quot;final_free_blocks&quot;
+        ]
+    ),
+}
+
+
+assert all(checks.values()), {
+    check_name: passed
+    for check_name, passed in checks.items()
+    if not passed
+}
+
+
+# --------------------------------------------------
+# 5. 완료 요약 저장
+# --------------------------------------------------
+
+completion_summary = {
+    &quot;validated_at_utc&quot;: (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    ),
+    &quot;criterion&quot;: (
+        &quot;KV Cache Lifecycle과 메모리 검증&quot;
+    ),
+    &quot;checks&quot;: checks,
+    &quot;counts&quot;: {
+        &quot;prefill_measurements&quot;: (
+            len(prefill_measurements)
+        ),
+        &quot;decode_measurements&quot;: (
+            len(decode_measurements)
+        ),
+        &quot;abc_requests&quot;: (
+            len(request_results)
+        ),
+        &quot;comparison_rows&quot;: (
+            len(comparison_rows)
+        ),
+        &quot;reused_blocks&quot;: (
+            block_reuse[
+                &quot;reused_block_count&quot;
+            ]
+        ),
+    },
+    &quot;observed_results&quot;: {
+        &quot;reused_block_ids&quot;: (
+            block_reuse[
+                &quot;reused_block_ids&quot;
+            ]
+        ),
+        &quot;preempted_request_ids&quot;: (
+            block_reuse[
+                &quot;preempted_request_ids&quot;
+            ]
+        ),
+        &quot;initial_free_blocks&quot;: (
+            block_reuse[
+                &quot;initial_free_blocks&quot;
+            ]
+        ),
+        &quot;final_free_blocks&quot;: (
+            block_reuse[
+                &quot;final_free_blocks&quot;
+            ]
+        ),
+    },
+    &quot;all_checks_passed&quot;: all(
+        checks.values()
+    ),
+}
+
+completion_summary_path.write_text(
+    json.dumps(
+        completion_summary,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 6. 파일별 SHA-256 Hash 계산
+# --------------------------------------------------
+
+def calculate_sha256(
+    path: Path,
+) -&gt; str:
+    sha256 = hashlib.sha256()
+
+    with path.open(&quot;rb&quot;) as artifact_file:
+        while True:
+            data = artifact_file.read(
+                1024 * 1024
+            )
+
+            if not data:
+                break
+
+            sha256.update(data)
+
+    return sha256.hexdigest()
+
+
+# 방금 만든 완료 요약도 Manifest에 포함한다.
+artifact_paths[
+    &quot;completion_summary&quot;
+] = completion_summary_path
+
+
+manifest_files = []
+
+for artifact_name, artifact_path in sorted(
+    artifact_paths.items()
+):
+    manifest_files.append({
+        &quot;name&quot;: artifact_name,
+        &quot;path&quot;: str(
+            artifact_path.relative_to(
+                transformer_root
+            )
+        ),
+        &quot;size_bytes&quot;: (
+            artifact_path.stat().st_size
+        ),
+        &quot;sha256&quot;: calculate_sha256(
+            artifact_path
+        ),
+    })
+
+
+artifact_manifest = {
+    &quot;created_at_utc&quot;: (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    ),
+    &quot;criterion&quot;: (
+        &quot;KV Cache Lifecycle과 메모리 검증&quot;
+    ),
+    &quot;notebook_path&quot;: str(
+        notebook_path.relative_to(
+            transformer_root
+        )
+    ),
+    &quot;artifact_count&quot;: len(
+        manifest_files
+    ),
+    &quot;files&quot;: manifest_files,
+}
+
+artifact_manifest_path.write_text(
+    json.dumps(
+        artifact_manifest,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 7. 최종 결과 출력
+# --------------------------------------------------
+
+print(
+    &quot;=== KV Cache Lifecycle 최종 검증 ===&quot;
+)
+
+for check_name, passed in checks.items():
+    print(
+        f&quot;{check_name}: {passed}&quot;
+    )
+
+print()
+print(
+    &quot;Prefill 측정:&quot;,
+    len(prefill_measurements),
+)
+
+print(
+    &quot;Decode 측정:&quot;,
+    len(decode_measurements),
+)
+
+print(
+    &quot;A·B·C 요청:&quot;,
+    len(request_results),
+)
+
+print(
+    &quot;재사용 Block:&quot;,
+    block_reuse[
+        &quot;reused_block_ids&quot;
+    ],
+)
+
+print(
+    &quot;보존 자료:&quot;,
+    len(manifest_files),
+)
+
+print(
+    &quot;전체 검증 통과:&quot;,
+    all(checks.values()),
+)
+
+print()
+print(
+    &quot;완료 요약:&quot;,
+    completion_summary_path,
+)
+
+print(
+    &quot;Artifact Manifest:&quot;,
+    artifact_manifest_path,
+)
+</code></pre>
+
+</section>
+<section id="section-13" class="markdown-section">
+<h2>13개 완료 조건</h2>
+<p>최종 셀은 다음 13개 조건을 다시 검사했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>검사 키</th>
+<th>사람이 읽는 의미</th>
+<th align="right">결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>prefill_measurement_count_is_9</code></td>
+<td>Prompt 3조건을 각각 3회 측정했는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>decode_measurement_count_is_9</code></td>
+<td>생성 길이 3조건을 각각 3회 측정했는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>prefill_blocks_match</code></td>
+<td>9개 Prefill 측정 모두 예상·실제 Block이 일치하는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>decode_blocks_match</code></td>
+<td>9개 Decode 측정 모두 예상·실제 최대 Block이 일치하는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>comparison_blocks_match</code></td>
+<td>최종 비교표 8행 모두 예상·실제 Block이 일치하는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>running_pair_observed</code></td>
+<td>A·B가 동시에 Running인 시점을 관찰했는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>c_waiting_observed</code></td>
+<td>A·B 실행 중 C가 Waiting인 시점을 관찰했는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>abc_request_count_is_3</code></td>
+<td>A·B·C 세 요청 결과가 모두 존재하는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>abc_all_finished_by_length</code></td>
+<td>세 요청 모두 지정한 생성 상한에 도달해 종료됐는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>same_block_id_reuse_observed</code></td>
+<td>B가 반환한 Block ID를 C가 다시 배정받았는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>reused_block_exists</code></td>
+<td>실제 재사용 Block이 한 개 이상 존재하는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>no_preemption</code></td>
+<td>이 정상 회수·재사용 실험에서 Preemption이 없었는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+<tr>
+<td><code>free_blocks_restored</code></td>
+<td>전체 요청 종료 후 Free Block이 59개로 복구됐는가</td>
+<td align="right"><code>True</code></td>
+</tr>
+</tbody></table>
+</div>
+<p><code>abc_all_finished_by_length=True</code>는 모델이 자연스럽게 EOS를 생성했다는 뜻이 아니다. 이번 요청은 <code>ignore_eos=True</code>와 요청별 <code>max_tokens</code>를 사용했기 때문에 지정한 최대 생성 Token 수에 도달하여 <code>finish_reason=&quot;length&quot;</code>로 끝났음을 뜻한다.</p>
+<h3>최종 검사가 확인하지 못한 Pool 분모의 세션 일치</h3>
+<p>13개 조건이 모두 <code>True</code>였어도 모든 파생 지표의 계산 기준까지 검증한 것은 아니다. 특히 <code>comparison_blocks_match</code>는 다음 두 필드만 비교했다.</p>
+<pre><code class="language-python">row[&quot;expected_blocks&quot;] == row[&quot;actual_blocks&quot;]
+</code></pre>
+<p>이 검사는 <code>trace_derived_pool_usage_percent</code>를 계산할 때 사용한 <code>pool_denominator_blocks</code>가 해당 행과 같은 Trace Session의 값인지 확인하지 않는다.</p>
+<p>후속 교차 검토에서 다음 불일치가 발견됐다.</p>
+<pre><code class="language-text">Prefill·Decode가 실행된 Trace Session
+→ 전체 21,256Block
+→ 사용 가능 21,255Block
+
+Stage 6 코드가 Prefill·Decode 비율에 사용한 분모
+→ 다른 Idle Server 실행의 19,789Block
+</code></pre>
+<p>따라서 다음 구분이 필요하다.</p>
+<pre><code class="language-text">13개 최종 검사 True
+→ 측정 횟수, 예상·실제 Block 일치, A·B·C 상태,
+  반환·재사용·Preemption 없음·Free Block 복구 확인
+
+검사하지 않은 것
+→ 각 Pool 사용률 행과 분모가 같은 Trace Session인지
+</code></pre>
+<p>이 불일치는 Block 개수와 논리적 KV MiB 대 Block 저장 용량 결론을 무효화하지 않는다. 다만 원본 비교 JSON의 Prefill·Decode Pool 사용률은 같은 세션의 실제 Usage로 사용하면 안 된다. Trace의 사용 가능 Block <code>21,255</code>를 사용한 수정 비율은 <a href="06_theory_actual_comparison.html">6단계 문서</a>에 별도로 기록했다. 원본 Notebook과 결과 JSON은 실행 기록 보존을 위해 바꾸지 않았다.</p>
+
+</section>
+<section id="section-bc07d255b576" class="markdown-section">
+<h2>실제 최종 출력</h2>
+<pre><code class="language-text">=== KV Cache Lifecycle 최종 검증 ===
+prefill_measurement_count_is_9: True
+decode_measurement_count_is_9: True
+prefill_blocks_match: True
+decode_blocks_match: True
+comparison_blocks_match: True
+running_pair_observed: True
+c_waiting_observed: True
+abc_request_count_is_3: True
+abc_all_finished_by_length: True
+same_block_id_reuse_observed: True
+reused_block_exists: True
+no_preemption: True
+free_blocks_restored: True
+
+Prefill 측정: 9
+Decode 측정: 9
+A·B·C 요청: 3
+재사용 Block: [6, 8, 10, 14, 18, 20, 22, 24, 26]
+보존 자료: 16
+전체 검증 통과: True
+
+완료 요약: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/final-validation/completion_summary.json
+Artifact Manifest: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/final-validation/artifact_manifest.json
+</code></pre>
+
+</section>
+<section id="section-16" class="markdown-section">
+<h2>보존한 16개 자료</h2>
+<p>Manifest에는 다음 16개 파일의 상대 경로, Byte 크기와 SHA-256이 기록됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>이름</th>
+<th>파일</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>idle_metrics</code></td>
+<td><code>idle-baseline/metrics_idle.prom</code></td>
+<td>요청이 없는 상태의 <code>/metrics</code> 원문</td>
+</tr>
+<tr>
+<td><code>idle_summary</code></td>
+<td><code>idle-baseline/kv_cache_idle_summary.json</code></td>
+<td>일반 Pool, dtype와 이론값 기준</td>
+</tr>
+<tr>
+<td><code>trace_module</code></td>
+<td><code>block-trace/kv_cache_trace.py</code></td>
+<td>실제 Server에 주입한 추적 Scheduler 코드의 보존본</td>
+</tr>
+<tr>
+<td><code>single_request_trace</code></td>
+<td><code>block-trace/kv_cache_trace.jsonl</code></td>
+<td>단일 요청과 이후 실행의 Scheduler·Block Trace</td>
+</tr>
+<tr>
+<td><code>single_request_summary</code></td>
+<td><code>block-trace/kv_cache_trace_smoke_summary.json</code></td>
+<td>작은 요청으로 추적 도구를 검증한 요약</td>
+</tr>
+<tr>
+<td><code>prompt_workload</code></td>
+<td><code>prompt-length-prefill/prompt_length_workload.json</code></td>
+<td>Prompt 길이별 입력과 계약</td>
+</tr>
+<tr>
+<td><code>prompt_results</code></td>
+<td><code>prompt-length-prefill/prompt_length_prefill_results.json</code></td>
+<td>Prefill 9회 측정 원본</td>
+</tr>
+<tr>
+<td><code>decode_workload</code></td>
+<td><code>decode-growth/decode_growth_workload.json</code></td>
+<td>생성 길이별 입력과 계약</td>
+</tr>
+<tr>
+<td><code>decode_results</code></td>
+<td><code>decode-growth/decode_growth_results.json</code></td>
+<td>Decode 9회 측정과 Block 증가 기록</td>
+</tr>
+<tr>
+<td><code>constrained_server_log</code></td>
+<td><code>constrained-block-pool/server.log</code></td>
+<td>60Block 제한 Server의 기동·요청 로그</td>
+</tr>
+<tr>
+<td><code>constrained_trace</code></td>
+<td><code>constrained-block-pool/kv_cache_trace.jsonl</code></td>
+<td>A·B·C 실행의 Scheduler·할당·반환 Trace</td>
+</tr>
+<tr>
+<td><code>constrained_baseline</code></td>
+<td><code>constrained-block-pool/constrained_pool_baseline.json</code></td>
+<td>전체 60Block·사용 가능 59Block인 시작 상태</td>
+</tr>
+<tr>
+<td><code>abc_observation</code></td>
+<td><code>constrained-block-pool/abc_request_observation.json</code></td>
+<td>A·B Running, C Waiting과 요청별 완료 결과</td>
+</tr>
+<tr>
+<td><code>block_reuse_analysis</code></td>
+<td><code>constrained-block-pool/block_reuse_analysis.json</code></td>
+<td>B 반환 Block과 C 할당 Block의 교집합 분석</td>
+</tr>
+<tr>
+<td><code>theory_actual_comparison</code></td>
+<td><code>theory-actual-comparison/kv_cache_theory_actual_comparison.json</code></td>
+<td>8개 이론·실제 비교 행</td>
+</tr>
+<tr>
+<td><code>completion_summary</code></td>
+<td><code>final-validation/completion_summary.json</code></td>
+<td>13개 완료 조건과 최종 관찰 요약</td>
+</tr>
+</tbody></table>
+</div>
+<p>모든 경로는 다음 결과 루트를 기준으로 한다.</p>
+<pre><code class="language-text">research/vllm_scheduler_kv_cache_criteria/results/
+2026-09-14-kv-cache-lifecycle/
+</code></pre>
+<p><code>artifact_manifest.json</code>은 위 16개 파일에 대한 목록이다. Manifest 자신의 Hash를 자기 안에 넣을 수는 없으므로 <code>artifact_count=16</code>에는 Manifest 파일 자체가 포함되지 않는다. Notebook도 존재 여부와 상대 경로는 기록했지만 16개 Hash 목록에는 포함하지 않았다.</p>
+
+</section>
+<section id="sha-256" class="markdown-section">
+<h2>SHA-256은 무엇을 증명하는가</h2>
+<p>SHA-256은 파일 내용을 Byte 단위로 읽어 만든 고정 길이 식별값이다.</p>
+<pre><code class="language-text">현재 파일 내용
+→ SHA-256 계산
+→ Manifest에 경로·크기·Hash 저장
+
+나중에 같은 파일의 Hash를 다시 계산
+→ Manifest 값과 같음
+→ Manifest 생성 당시와 Byte 내용이 같다는 강한 근거
+</code></pre>
+<p>Hash는 실험 결론이 과학적으로 옳다는 사실을 대신 증명하지 않는다. 다음 두 역할을 구분한다.</p>
+<pre><code class="language-text">assert와 결과 해석
+→ 실험 조건과 관찰 결과가 기대한 관계를 만족했는지 검증
+
+SHA-256 Manifest
+→ 검증할 때 사용한 파일이 이후 바뀌었는지 확인
+</code></pre>
+<p>Server가 계속 실행되면서 <code>server.log</code>나 JSONL Trace에 내용이 추가되면 현재 Hash와 달라지는 것이 정상이다. 이 Manifest는 생성 시점의 스냅샷을 가리키므로, 최종 보존 전에 Server를 종료하거나 파일 기록이 끝난 상태를 확인하고 필요하면 Manifest를 다시 생성해야 한다.</p>
+
+</section>
+<section id="section-9ea32972efc2" class="markdown-section">
+<h2>이번 전체 실험에서 직접 확인한 것</h2>
+<p>최종 검증이 통과하면서 다음 흐름이 하나의 자료 묶음으로 연결됐다.</p>
+<pre><code class="language-text">모델 구조 확인
+→ Token당 28,672Byte 계산
+→ 16Token Block당 458,752Byte 계산
+
+Prompt 길이 변경
+→ 74·266·1034Token
+→ 예상 5·17·65Block
+→ 실제 5·17·65Block
+
+생성 길이 변경
+→ 실제 최대 계산 105·201·585Token
+→ 예상 7·13·37Block
+→ 실제 7·13·37Block
+
+동시 요청
+→ A·B Running=2
+→ C Waiting
+→ 요청별 Block 점유 확인
+
+B 완료
+→ B의 Block 13개 반환
+
+C 실행
+→ B가 반환한 Block 중 9개 재사용
+
+전체 완료
+→ Preemption 없음
+→ Free Block 59개로 복구
+
+최종 검증
+→ 13개 조건 모두 True
+→ 16개 자료의 경로·크기·Hash 보존
+</code></pre>
+
+</section>
+<section id="section-f0438cb7f2f3" class="markdown-section">
+<h2>완료 판정과 남은 범위</h2>
+<p>이 실험은 단일 GPU의 Qwen2.5-1.5B-Instruct, <code>float16</code> KV Cache, 16Token Block, Prefix Caching·Chunked Prefill 비활성화 조건에서 다음 내용을 실제 Trace로 확인했다.</p>
+<ul>
+<li>Prefill에서 Prompt 길이에 따라 최초 KV Cache Block이 증가한다.</li>
+<li>Decode에서 계산 Token이 늘고 Block 경계를 넘을 때 Block이 추가된다.</li>
+<li>동시 Running Sequence는 각자의 Block을 점유한다.</li>
+<li>요청이 정상 완료되면 그 요청의 Block이 Free Pool로 반환된다.</li>
+<li>반환된 동일 Block ID가 후속 요청에 다시 할당될 수 있다.</li>
+<li>요청이 모두 끝난 뒤 사용 가능한 Block 수가 시작값으로 복구됐다.</li>
+<li>모델 구조로 계산한 예상 Block 수가 관찰한 실제 Block 수와 일치했다.</li>
+</ul>
+<p>다음 항목은 이번 완료 판정의 범위 밖이다.</p>
+<ul>
+<li>Prefix Caching을 켰을 때 완료된 Prefix Block의 보존과 공유</li>
+<li>Chunked Prefill의 Iteration별 Token Budget 경쟁</li>
+<li>실제 Cache Pressure에서 Preemption·Recomputation이 발생하는 임계점</li>
+<li>Reject·Timeout·OOM까지 포함한 과부하 경계</li>
+<li>다른 GPU·모델·vLLM 버전에서 같은 수치가 재현되는지</li>
+<li>KV Cache 이외의 GPU 메모리 구성 요소를 분리한 물리 메모리 측정</li>
+<li>Manifest 생성 뒤에도 계속 변경되는 로그 파일의 영구적인 동일성</li>
+<li>Prefill·Decode Pool 사용률 계산에서 결과 행과 분모가 같은 Trace Session인지</li>
+</ul>
+<p>따라서 “모든 vLLM 환경에서 KV Cache가 항상 이 수치로 동작한다”가 아니라, <strong>기록된 환경과 조건에서 KV Cache의 생성·증가·동시 점유·반환·동일 Block 재사용이라는 전체 생명주기를 직접 관찰하고 보존했다</strong>고 결론 내린다.</p>
+<p><a href="06_theory_actual_comparison.html">← 이전 단계</a> · <a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

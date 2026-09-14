@@ -1,0 +1,669 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_request_admission_queue_execution.md. Do not edit directly. source-sha256:dcb56330f3bbf8da560073430c4c95f2c3383cd13e4f5dfc8e3296e1ffe26c03 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="요청 검증과 Admission Control부터 Waiting·Running·Preemption, Token Budget·KV Cache까지 vLLM 요청 실행 흐름과 주요 제한 옵션을 설명합니다.">
+  <meta name="source-sha256" content="dcb56330f3bbf8da560073430c4c95f2c3383cd13e4f5dfc8e3296e1ffe26c03">
+  <title>vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가">
+  <meta property="og:description" content="요청 검증과 Admission Control부터 Waiting·Running·Preemption, Token Budget·KV Cache까지 vLLM 요청 실행 흐름과 주요 제한 옵션을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html","name":"vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가","description":"요청 검증과 Admission Control부터 Waiting·Running·Preemption, Token Budget·KV Cache까지 vLLM 요청 실행 흐름과 주요 제한 옵션을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html"},"headline":"vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_request_admission_queue_execution.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"Scheduler와 Continuous Batching의 핵심 개념","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts.html"},{"@type":"ListItem","position":8,"name":"vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts.html">Scheduler와 Continuous Batching의 핵심 개념</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM은 요청을 어떻게 제한하고 대기시키며 실행하는가</h1>
+      <p class="lead">요청 검증과 Admission Control부터 Waiting·Running·Preemption, Token Budget·KV Cache까지 vLLM 요청 실행 흐름과 주요 제한 옵션을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#scheduler">요청은 Scheduler에 들어가기 전에 거절될 수 있다</a>
+        <a href="#admission-control">Admission Control은 요청을 받아도 되는지 판단한다</a>
+        <a href="#max-num-queued-reqs"><code>max_num_queued_reqs</code>는 전체 미완료 요청 수를 제한한다</a>
+        <a href="#max-num-queued-tokens-prefill"><code>max_num_queued_tokens</code>는 Prefill 입력 작업량을 제한한다</a>
+        <a href="#prefill-token">Prefill Token 제한은 엄격한 절대 상한이 아닐 수 있다</a>
+        <a href="#waiting">Waiting은 수락됐지만 아직 실행되지 않는 상태다</a>
+        <a href="#max-num-seqs"><code>max_num_seqs</code>는 최대 요청 수가 아니라 실행 자리 수다</a>
+        <a href="#running-iteration">Running이라고 매 Iteration마다 처리되는 것은 아니다</a>
+        <a href="#max-num-batched-tokens-iteration-token"><code>max_num_batched_tokens</code>는 Iteration당 Token 작업량을 제한한다</a>
+        <a href="#preemption-running">Preemption은 Running 요청이 실행 도중 밀려나는 것이다</a>
+        <a href="#waiting-preemption">Waiting과 Preemption의 차이</a>
+        <a href="#token-admission">출력 Token 총합을 제한하는 Admission 옵션은 없다</a>
+        <a href="#token">출력 Token 총합을 제한하지 않아도 되는 이유</a>
+        <a href="#queue">Queue에 들어가면 출력이 가능한가</a>
+        <a href="#section-ace800384233">주요 설정 비교</a>
+        <a href="#section-a8924ec96a95">전체 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM 서버에 HTTP 요청을 보냈다고 해서 모든 요청이 곧바로 GPU에서 실행되는 것은 아니다.</p>
+<p>요청은 먼저 형식과 길이를 검증받는다. 그다음 서버가 받아 둘 수 있는 요청 수와 Prefill 작업량을 확인한다. 수락된 요청도 실행 자리가 부족하면 Waiting 상태로 기다리고, 이미 실행되던 요청도 KV Cache가 부족하면 Preemption될 수 있다.</p>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">Client가 요청 전송
+        │
+        ▼
+요청 형식·길이 검증
+        │
+        ├─ 검증 실패
+        │  → HTTP 4xx
+        │  → Scheduler에 등록되지 않음
+        │
+        ▼
+Admission Control
+        │
+        ├─ 최대 요청 수 초과
+        │  → HTTP 503
+        │
+        ├─ Prefill Token 한도 도달
+        │  → HTTP 503
+        │
+        ▼
+요청 수락
+        │
+        ▼
+Waiting
+        │
+        ▼
+Running
+        │
+        ├─ 정상 완료
+        │  → Finished
+        │
+        └─ 실행 중 자원 부족
+           → Preemption
+           → 다시 Waiting
+           → 나중에 Running
+</code></pre>
+</div>
+        <section id="scheduler" class="markdown-section">
+<h2>요청은 Scheduler에 들어가기 전에 거절될 수 있다</h2>
+<p>vLLM은 요청을 받으면 먼저 요청 자체가 유효한지 검사한다.</p>
+<pre><code class="language-text">요청한 모델 이름이 올바른가?
+요청 JSON 형식이 올바른가?
+Sampling 설정이 유효한가?
+입력 Prompt와 최대 출력 길이가 Context 제한 안에 있는가?
+</code></pre>
+<p>예를 들어:</p>
+<pre><code class="language-text">입력 Prompt = 700Token
+최대 출력 설정 = 200Token
+max_model_len = 768Token
+
+최대 전체 길이
+= 700 + 200
+= 900Token
+
+900 &gt; 768
+→ 요청 길이 제한 초과
+</code></pre>
+<p>이 요청은 HTTP <code>4xx</code> 응답을 받고 Scheduler에 들어가지 못한다.</p>
+<pre><code class="language-text">검증 실패 요청
+→ Waiting 아님
+→ Running 아님
+→ 처리 대상으로 등록되지 않음
+</code></pre>
+
+</section>
+<section id="admission-control" class="markdown-section">
+<h2>Admission Control은 요청을 받아도 되는지 판단한다</h2>
+<p>요청 자체가 유효하더라도 서버에 이미 너무 많은 작업이 쌓여 있다면 새 요청을 거절할 수 있다.</p>
+<p>이 입장 판단을 <code>Admission Control</code>이라고 한다.</p>
+<pre><code class="language-text">Admission 허용
+→ Scheduler에 요청 등록
+→ Waiting 또는 Running
+
+Admission 거절
+→ HTTP 503
+→ Scheduler에 등록되지 않음
+</code></pre>
+<p>HTTP <code>503 Service Unavailable</code>은 현재 서버가 새 요청을 받아 처리할 여유가 없다는 뜻이다. Client나 Load Balancer는 이 응답을 받고 잠시 후 재시도하거나 다른 vLLM 인스턴스로 요청을 보낼 수 있다.</p>
+
+</section>
+<section id="max-num-queued-reqs" class="markdown-section">
+<h2><code>max_num_queued_reqs</code>는 전체 미완료 요청 수를 제한한다</h2>
+<p>서버가 받아 둘 최대 요청 수는 다음 옵션으로 제한할 수 있다.</p>
+<pre><code class="language-bash">--max-num-queued-reqs 10
+</code></pre>
+<p>이름에는 <code>queued</code>가 들어 있지만 Waiting 요청만 세는 것이 아니다.</p>
+<pre><code class="language-text">전체 미완료 요청 수
+= Running 요청 수
++ Waiting 요청 수
+</code></pre>
+<p>예를 들어 다음과 같이 설정했다고 하자.</p>
+<pre><code class="language-text">max_num_queued_reqs = 10
+max_num_seqs = 2
+</code></pre>
+<p>현재 상태가 다음과 같다면:</p>
+<pre><code class="language-text">Running = 2
+Waiting = 8
+
+전체 미완료 요청
+= 2 + 8
+= 10
+</code></pre>
+<p>새로운 11번째 요청은 들어오지 못한다.</p>
+<pre><code class="language-text">11번째 요청 도착
+→ 전체 미완료 요청 한도 초과
+→ Scheduler에 등록하지 않음
+→ Waiting Queue에도 들어가지 못함
+→ HTTP 503 반환
+</code></pre>
+<p>따라서 <code>max_num_queued_reqs</code>는 다음 질문에 답하는 설정이다.</p>
+<blockquote>
+<p>이 vLLM 서버가 동시에 책임질 미완료 요청을 최대 몇 개까지 받아 둘 것인가?</p>
+</blockquote>
+<p>이 값을 지정하지 않으면 기본값은 <code>None</code>일 수 있다.</p>
+<pre><code class="language-text">max_num_queued_reqs = None
+→ vLLM 자체의 명시적인 요청 개수 제한 없음
+</code></pre>
+<p>그렇다고 무한한 요청을 안전하게 처리할 수 있다는 뜻은 아니다. Waiting이 계속 늘어나면 TTFT와 전체 Latency가 증가하고 Client Timeout이 발생할 수 있다.</p>
+
+</section>
+<section id="max-num-queued-tokens-prefill" class="markdown-section">
+<h2><code>max_num_queued_tokens</code>는 Prefill 입력 작업량을 제한한다</h2>
+<p>요청 개수만으로 실제 작업량을 판단하기는 어렵다.</p>
+<pre><code class="language-text">100Token Prompt 요청 10개
+→ 총 Prompt 작업량 1,000Token
+
+10,000Token Prompt 요청 10개
+→ 총 Prompt 작업량 100,000Token
+</code></pre>
+<p>요청 개수는 같지만 Prefill 부담은 완전히 다르다.</p>
+<p>다음 설정은 아직 Prefill을 끝내지 않은 요청들의 Prompt Token 총량을 기준으로 새 요청의 입장을 제한한다.</p>
+<pre><code class="language-bash">--max-num-queued-tokens 10000
+</code></pre>
+<p>포함되는 요청은 다음과 같다.</p>
+<pre><code class="language-text">Waiting 상태에서 Prefill 시작을 기다리는 요청
+Running 상태에서 Prefill을 처리 중인 요청
+</code></pre>
+<p>제외되는 요청은 다음과 같다.</p>
+<pre><code class="language-text">Prefill을 끝내고 Decode 중인 요청
+완료된 요청
+Admission에서 거절된 요청
+</code></pre>
+<p>예를 들어:</p>
+<pre><code class="language-text">A: Waiting, Prompt 4,000Token
+B: Running·Prefill, Prompt 3,000Token
+C: Running·Decode, Prompt 2,000Token
+</code></pre>
+<p><code>max_num_queued_tokens</code>가 보는 값은 다음과 같다.</p>
+<pre><code class="language-text">A 4,000
++ B 3,000
+= 7,000Token
+</code></pre>
+<p>C는 Running이지만 Prefill을 이미 끝냈으므로 포함하지 않는다.</p>
+<p>B가 Prompt 3,000Token 중 2,000Token을 이미 처리했더라도 Prefill이 완전히 끝나기 전까지는 전체 <code>3,000Token</code>을 센다.</p>
+<pre><code class="language-text">실제 남은 Prefill = 1,000Token
+Admission 계산값 = 3,000Token
+</code></pre>
+<p>이는 대기량을 작게 계산해서 요청을 과도하게 받지 않도록 하는 보수적인 방식이다.</p>
+
+</section>
+<section id="prefill-token" class="markdown-section">
+<h2>Prefill Token 제한은 엄격한 절대 상한이 아닐 수 있다</h2>
+<p>현재 확인한 vLLM 구현에서는 새 요청을 포함한 총합이 한도 이하인지 검사하는 것이 아니라, 새 요청을 받기 전 현재 총량이 이미 한도에 도달했는지 검사한다.</p>
+<p>예를 들어:</p>
+<pre><code class="language-text">max_num_queued_tokens = 10,000
+현재 Prefill Token = 9,000
+새 요청 Prompt = 2,000
+</code></pre>
+<p>요청을 받기 전에는 아직 한도보다 작다.</p>
+<pre><code class="language-text">9,000 &lt; 10,000
+→ 새 요청 수락 가능
+→ 수락 후 11,000Token
+</code></pre>
+<p>그다음 요청부터는 거절된다.</p>
+<pre><code class="language-text">현재 11,000 &gt;= 10,000
+→ 새 요청 HTTP 503
+</code></pre>
+<p>따라서 이 값은 절대로 <code>10,000Token</code>을 넘지 못하게 만드는 메모리 Hard Cap이라기보다 다음 의미에 가깝다.</p>
+<blockquote>
+<p>Prefill 대기 작업량이 기준에 도달했을 때 이후 요청의 입장을 막는 Admission 기준</p>
+</blockquote>
+<p>세부 동작은 vLLM 버전에 따라 달라질 수 있으므로 실제 설치 버전의 도움말과 구현을 확인해야 한다.</p>
+
+</section>
+<section id="waiting" class="markdown-section">
+<h2>Waiting은 수락됐지만 아직 실행되지 않는 상태다</h2>
+<p>Admission을 통과한 요청도 바로 GPU에서 실행된다는 보장은 없다.</p>
+<p>다음과 같이 실행 자리가 두 개라고 하자.</p>
+<pre><code class="language-text">max_num_seqs = 2
+</code></pre>
+<p>이미 A와 B가 Running이면 새 요청 C는 Waiting 상태가 된다.</p>
+<pre><code class="language-text">Running = [A, B]
+Waiting = [C]
+</code></pre>
+<p>C는 실패하거나 거절된 요청이 아니다.</p>
+<pre><code class="language-text">Admission 허용됨
+Scheduler에 등록됨
+실행 자리가 생기기를 기다리는 중
+</code></pre>
+<p>B가 완료되면 다음 변화가 일어난다.</p>
+<pre><code class="language-text">B 완료
+→ B의 실행 자리 반환
+→ C가 Waiting에서 빠짐
+→ C가 Running으로 이동
+→ C의 Prefill 시작
+</code></pre>
+<p>Waiting의 핵심 의미는 다음과 같다.</p>
+<blockquote>
+<p>서버가 요청을 처리 대상으로 받아들였지만 아직 GPU 실행 자리를 배정하지 않은 상태</p>
+</blockquote>
+<p>Waiting 시간이 길어지면 사용자가 첫 Token을 받기까지의 TTFT가 증가한다.</p>
+<pre><code class="language-text">요청 전송 ───────────── 첫 Token 도착
+          &lt;── TTFT ───&gt;
+
+TTFT
+≈ Waiting 시간
+ + Prefill 처리 시간
+ + 첫 Token 전달 시간
+</code></pre>
+
+</section>
+<section id="max-num-seqs" class="markdown-section">
+<h2><code>max_num_seqs</code>는 최대 요청 수가 아니라 실행 자리 수다</h2>
+<p><code>max_num_seqs</code>는 서버가 총 몇 개의 요청을 받아 둘 수 있는지를 정하지 않는다.</p>
+<pre><code class="language-text">max_num_seqs
+→ 한 Scheduler Iteration에서 처리할 수 있는
+  최대 Sequence 수
+</code></pre>
+<p>예를 들어:</p>
+<pre><code class="language-text">max_num_queued_reqs = 100
+max_num_seqs = 2
+</code></pre>
+<p>라면 다음 상태가 가능하다.</p>
+<pre><code class="language-text">Running = 2
+Waiting = 98
+
+전체 미완료 요청 = 100
+</code></pre>
+<p>101번째 요청은 <code>max_num_queued_reqs</code> 때문에 HTTP <code>503</code>을 받는다.</p>
+<p>즉 두 설정의 역할은 다르다.</p>
+<pre><code class="language-text">max_num_queued_reqs
+→ 서버가 책임지고 받아 둘 전체 미완료 요청 수
+
+max_num_seqs
+→ 받아들인 요청 중 동시에 처리할 Sequence 수
+</code></pre>
+
+</section>
+<section id="running-iteration" class="markdown-section">
+<h2>Running이라고 매 Iteration마다 처리되는 것은 아니다</h2>
+<p>Running은 요청이 Scheduler의 실행 대상으로 관리되고 있다는 뜻이다.</p>
+<p>하지만 Running 목록에 있다고 해서 모든 Scheduler Iteration에서 반드시 Token이 처리되는 것은 아니다.</p>
+<p>Scheduler는 매 Iteration마다 다음 조건을 확인한다.</p>
+<pre><code class="language-text">이번 Iteration의 Token Budget
+KV Cache Block 여유
+max_num_seqs
+Scheduling Policy
+Prefill·Decode 작업 구성
+</code></pre>
+<p>따라서 다음을 구분해야 한다.</p>
+<pre><code class="language-text">Running Sequence
+→ 현재 실행 대상으로 관리되는 Sequence
+
+Scheduled Token
+→ Running 요청 중 이번 Iteration에서
+  실제 처리하기로 선택된 Token 작업
+</code></pre>
+<p>요청이 Running이어도 현재 Iteration의 Token Budget이나 KV Cache 상황에 따라 Token 작업을 배정받지 못할 수 있다.</p>
+
+</section>
+<section id="max-num-batched-tokens-iteration-token" class="markdown-section">
+<h2><code>max_num_batched_tokens</code>는 Iteration당 Token 작업량을 제한한다</h2>
+<p>다음 설정은 한 Scheduler Iteration에서 처리할 최대 Token 수를 제한한다.</p>
+<pre><code class="language-bash">--max-num-batched-tokens 4096
+</code></pre>
+<p>Prefill과 Decode는 이 Token Budget을 다르게 사용한다.</p>
+<pre><code class="language-text">Prefill
+→ Prompt Token 여러 개를 한 Iteration에서 처리 가능
+
+Decode
+→ 일반적으로 Sequence마다 새 Token 하나를 처리
+</code></pre>
+<p>예를 들어 한 Iteration에 다음 작업이 선택될 수 있다.</p>
+<pre><code class="language-text">A Prefill = 100Token
+B Decode = 1Token
+C Decode = 1Token
+
+전체 Scheduled Token
+= 102Token
+</code></pre>
+<p><code>max_num_batched_tokens</code>는 요청 하나의 전체 출력 길이나 Queue 전체의 출력량을 제한하는 설정이 아니다.</p>
+<pre><code class="language-text">max_num_batched_tokens
+→ 이번 Iteration의 작업량 제한
+</code></pre>
+
+</section>
+<section id="preemption-running" class="markdown-section">
+<h2>Preemption은 Running 요청이 실행 도중 밀려나는 것이다</h2>
+<p>Waiting과 Preemption은 모두 현재 GPU에서 처리되지 않는 상태처럼 보일 수 있지만, 실행한 적이 있는지가 다르다.</p>
+<pre><code class="language-text">Waiting
+→ 아직 실행 자리를 받지 못함
+
+Preemption
+→ 실행 중이었지만 도중에 밀려남
+</code></pre>
+<p>예를 들어:</p>
+<pre><code class="language-text">Running = [A, B]
+Free KV Cache Block = 0
+
+A의 다음 Decode
+→ 새 KV Cache Block 필요
+→ 사용 가능한 Block 없음
+</code></pre>
+<p>Scheduler는 메모리 부족을 해결하기 위해 실행 중인 B를 일시적으로 밀어낼 수 있다.</p>
+<pre><code class="language-text">B Running
+→ B Preempted
+→ B가 사용하던 자원 일부 회수
+→ 나중에 B 재실행
+</code></pre>
+<p>Preemption된 요청은 반드시 실패한 것은 아니다. 자원이 생기면 다시 실행되어 정상 응답을 반환할 수 있다.</p>
+<p>하지만 KV Cache를 버리고 기존 Token을 다시 계산해야 한다면 비용이 발생한다.</p>
+<pre><code class="language-text">기존 계산 일부 낭비
+후속 Token 전달 지연
+전체 Latency 증가
+Throughput 감소
+</code></pre>
+
+</section>
+<section id="waiting-preemption" class="markdown-section">
+<h2>Waiting과 Preemption의 차이</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>Waiting</th>
+<th>Preemption</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>실행을 시작했는가</td>
+<td>아직 시작하지 않았을 수 있음</td>
+<td>이미 실행 중이었음</td>
+</tr>
+<tr>
+<td>KV Cache를 사용했는가</td>
+<td>아직 없을 수 있음</td>
+<td>이미 사용 중이었음</td>
+</tr>
+<tr>
+<td>발생 이유</td>
+<td>실행 자리나 순서를 기다림</td>
+<td>실행 중 자원 부족 등</td>
+</tr>
+<tr>
+<td>기존 계산 손실</td>
+<td>일반적으로 없음</td>
+<td>재계산이 필요하면 발생</td>
+</tr>
+<tr>
+<td>요청 실패인가</td>
+<td>아님</td>
+<td>아님</td>
+</tr>
+</tbody></table>
+</div>
+<p>Preemption된 요청이 다시 Waiting으로 이동하면 외부에서 보이는 Waiting 수만으로는 처음부터 기다리던 요청과 구분하기 어렵다.</p>
+<p>정확한 원인을 알려면 다음을 함께 확인해야 한다.</p>
+<pre><code class="language-text">Running·Waiting 시계열
+Preemption 누적 지표
+Scheduler Trace의 preempted_request_ids
+KV Cache 사용률
+요청별 계산 Token
+</code></pre>
+
+</section>
+<section id="token-admission" class="markdown-section">
+<h2>출력 Token 총합을 제한하는 Admission 옵션은 없다</h2>
+<p><code>max_num_queued_tokens</code>는 여러 요청의 최대 출력 Token을 합산하지 않는다.</p>
+<p>예를 들어:</p>
+<pre><code class="language-text">A: Prompt 1,000Token, 최대 출력 100Token
+B: Prompt 1,000Token, 최대 출력 10,000Token
+</code></pre>
+<p>Admission에서 계산하는 값은 다음뿐이다.</p>
+<pre><code class="language-text">Prompt Token
+= 1,000 + 1,000
+= 2,000Token
+</code></pre>
+<p>다음 값은 합산하지 않는다.</p>
+<pre><code class="language-text">A의 최대 출력 = 100Token
+B의 최대 출력 = 10,000Token
+</code></pre>
+<p>현재 vLLM에는 다음과 같은 형태의 Admission 옵션은 없다.</p>
+<pre><code class="language-text">현재 요청들의 최대 출력 Token 총합이
+50,000Token을 넘으면 새 요청 거절
+</code></pre>
+<p>출력 길이는 요청별로 제한한다.</p>
+<pre><code class="language-text">max_tokens
+→ 요청 하나가 생성할 최대 출력 Token
+
+max_model_len
+→ 요청 하나의 입력+출력 최대 길이
+</code></pre>
+
+</section>
+<section id="token" class="markdown-section">
+<h2>출력 Token 총합을 제한하지 않아도 되는 이유</h2>
+<p>vLLM은 수락한 모든 요청의 최대 출력에 필요한 KV Cache를 미리 한꺼번에 예약하지 않는다.</p>
+<p>현재 Running인 요청만 실제 KV Cache Block을 사용하고, 요청이 완료되면 그 Block을 다음 요청이 재사용한다.</p>
+<pre><code class="language-text">A 실행
+→ KV Cache Block 사용
+→ A 완료
+→ Block 반환
+
+B 실행
+→ 반환된 Block 사용
+→ B 완료
+→ Block 반환
+
+C 실행
+→ 반환된 Block 사용
+</code></pre>
+<p>따라서 모든 요청의 최대 Block 사용량 합이 전체 Pool보다 커도 시간에 나누어 처리할 수 있다.</p>
+<pre><code class="language-text">전체 Block Pool = 60Block
+
+A 최대 사용 = 37Block
+B 최대 사용 = 13Block
+C 최대 사용 = 21Block
+
+모든 요청의 최대 사용량 합
+= 71Block
+</code></pre>
+<p>vLLM은 <code>71Block</code>을 동시에 확보하지 않는다.</p>
+<pre><code class="language-text">A·B 실행
+→ B 완료
+→ B의 13Block 반환
+→ C가 반환된 공간 사용
+→ C 완료 후 다시 반환
+</code></pre>
+<p>그러므로 여러 요청의 최대 출력 Token 총합이 크다는 이유만으로 바로 실행 불가능해지는 것은 아니다.</p>
+<p>일반적으로 발생하는 문제는 출력 불가능보다 대기시간 증가다.</p>
+<pre><code class="language-text">Waiting 증가
+TTFT 증가
+전체 Latency 증가
+Client Timeout 가능성 증가
+</code></pre>
+
+</section>
+<section id="queue" class="markdown-section">
+<h2>Queue에 들어가면 출력이 가능한가</h2>
+<p>Queue에 들어갔다는 것은 다음 조건을 통과했다는 뜻이다.</p>
+<pre><code class="language-text">요청 형식이 유효함
+요청 길이가 Context 제한 안에 있음
+현재 Admission 한도를 넘지 않음
+→ 처리 대상으로 등록
+</code></pre>
+<p>서버가 정상적으로 계속 실행되고 Timeout이나 취소가 없다면, 자원이 생기는 순서대로 처리되어 결과가 나오는 것이 정상 흐름이다.</p>
+<pre><code class="language-text">Waiting
+→ Running
+→ Prefill
+→ Decode
+→ Finished
+</code></pre>
+<p>수락한 모든 요청의 출력 공간을 미리 확보하지 않아도 Scheduler가 동시 실행 수를 조절하고 완료된 요청의 KV Cache Block을 재사용하기 때문에 순서대로 처리할 수 있다.</p>
+<p>다만 Queue 수락은 성공 응답의 절대적인 보증은 아니다.</p>
+<pre><code class="language-text">Queue에 들어갔다
+→ 유효한 처리 대상으로 등록됐다.
+
+Queue에 들어갔다
+≠ 출력 전체에 필요한 자원을 미리 예약했다.
+≠ 어떤 장애가 있어도 반드시 성공한다.
+</code></pre>
+<p>수락 후에도 다음 이유로 완료되지 않을 수 있다.</p>
+<pre><code class="language-text">Client Timeout
+요청 취소
+Client 연결 종료
+Server 재시작이나 장애
+GPU OOM
+내부 실행 오류
+반복적인 Preemption
+</code></pre>
+<p>정상적인 상태에서는 출력 Token 총합이 크다는 이유만으로 실패하기보다 처리 완료까지 더 오래 걸리는 쪽으로 나타난다.</p>
+
+</section>
+<section id="section-ace800384233" class="markdown-section">
+<h2>주요 설정 비교</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>제한 대상</th>
+<th>한도에 도달했을 때</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>max_num_queued_reqs</code></td>
+<td>Running+Waiting 전체 미완료 요청 수</td>
+<td>새 요청 HTTP 503</td>
+</tr>
+<tr>
+<td><code>max_num_queued_tokens</code></td>
+<td>Prefill 미완료 Prompt Token 총량</td>
+<td>새 요청 HTTP 503</td>
+</tr>
+<tr>
+<td><code>max_num_seqs</code></td>
+<td>한 Iteration에서 처리할 Sequence 수</td>
+<td>남은 요청 Waiting</td>
+</tr>
+<tr>
+<td><code>max_num_batched_tokens</code></td>
+<td>한 Iteration의 Token 작업량</td>
+<td>작업을 다음 Iteration으로 분산</td>
+</tr>
+<tr>
+<td><code>max_tokens</code></td>
+<td>요청 하나의 최대 출력 길이</td>
+<td>최대 길이에서 생성 종료</td>
+</tr>
+<tr>
+<td><code>max_model_len</code></td>
+<td>요청 하나의 입력+출력 전체 길이</td>
+<td>초과 요청 실행 불가</td>
+</tr>
+<tr>
+<td>KV Cache Block 수</td>
+<td>동시에 유지할 수 있는 Cache 공간</td>
+<td>Waiting·Preemption 가능</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-a8924ec96a95" class="markdown-section">
+<h2>전체 정리</h2>
+<p>요청이 vLLM에 도착하면 다음 질문을 차례대로 통과한다.</p>
+<pre><code class="language-text">1. 요청 자체가 유효한가?
+   → 요청 검증
+
+2. 서버가 미완료 요청을 하나 더 받아도 되는가?
+   → max_num_queued_reqs
+
+3. Prefill 작업량을 더 받아도 되는가?
+   → max_num_queued_tokens
+
+4. 지금 실행 자리가 있는가?
+   → max_num_seqs
+
+5. 이번 Iteration에서 몇 Token을 처리할 수 있는가?
+   → max_num_batched_tokens
+
+6. 실행 중 KV Cache 공간이 충분한가?
+   → 부족하면 Waiting 또는 Preemption
+</code></pre>
+<p>각 상태를 한 문장으로 정리하면 다음과 같다.</p>
+<pre><code class="language-text">Admission 거절
+→ Scheduler에 등록되지 못한 요청
+
+Waiting
+→ 수락됐지만 아직 실행 자리를 받지 못한 요청
+
+Running
+→ 현재 실행 대상으로 관리되는 요청
+
+Scheduled Token
+→ Running 요청 중 이번 Iteration에 실제 처리할 Token
+
+Preemption
+→ 실행 중이었지만 자원 부족으로 일시적으로 밀려난 요청
+
+Finished
+→ 생성과 응답을 정상적으로 완료한 요청
+</code></pre>
+<p>vLLM은 모든 요청을 무조건 동시에 실행하는 시스템이 아니다.</p>
+<pre><code class="language-text">받을 수 있는 요청을 제한하고
+→ 수락한 요청을 Waiting에 보관하고
+→ 실행 가능한 수만 Running으로 처리하고
+→ Iteration마다 Token 작업을 선택하고
+→ 완료된 요청의 KV Cache를 반환하고
+→ 필요하면 실행 중인 요청을 Preemption한다.
+</code></pre>
+<p>따라서 운영에서 중요한 질문은 단순히 요청을 받을 수 있는가만이 아니다.</p>
+<pre><code class="language-text">최대 몇 요청을 받아 둘 것인가?
+Waiting은 얼마나 길어지는가?
+Prefill 작업량은 얼마나 쌓였는가?
+Preemption이 발생하는가?
+TTFT와 전체 Latency가 허용 범위 안인가?
+Client Timeout 전에 응답을 완료하는가?
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,1008 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.md. Do not edit directly. source-sha256:8eb30bb7febf4db8641f9534b87b53d87abe1e32e22c329c4acf0fbb627de333 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="출력 길이를 바꾸며 Decode Token 증가가 KV Cache Block의 계단식 증가로 이어지는 과정을 검증한 실험입니다.">
+  <meta name="source-sha256" content="8eb30bb7febf4db8641f9534b87b53d87abe1e32e22c329c4acf0fbb627de333">
+  <title>4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정">
+  <meta property="og:description" content="출력 길이를 바꾸며 Decode Token 증가가 KV Cache Block의 계단식 증가로 이어지는 과정을 검증한 실험입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html","name":"4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정","description":"출력 길이를 바꾸며 Decode Token 증가가 KV Cache Block의 계단식 증가로 이어지는 과정을 검증한 실험입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html"},"headline":"4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/04_decode_growth.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>4단계: Decode가 진행될 때 KV Cache Block이 늘어나는 과정</h1>
+      <p class="lead">출력 길이를 바꾸며 Decode Token 증가가 KV Cache Block의 계단식 증가로 이어지는 과정을 검증한 실험입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-df0b4fd859cc">이 실습에서 확인하려는 것</a>
+        <a href="#sequence-scheduled-token-block">Sequence·Scheduled Token·Block을 먼저 구분한다</a>
+        <a href="#max-tokens"><code>max_tokens</code>는 요청마다 지정하는 출력 상한이다</a>
+        <a href="#token-trace-token-1">출력 Token 수와 Trace의 계산 Token 수가 1개 다른 이유</a>
+        <a href="#warm-up">왜 별도 Warm-up을 실행하지 않았는가</a>
+        <a href="#section-1-block">실습 코드 1: 입력과 예상 Block 수 만들기</a>
+        <a href="#section-2-decode-trace">실습 코드 2: 실제 요청과 Decode Trace 분석</a>
+        <a href="#section-59f139d2d3e6">실제 결과</a>
+        <a href="#section-0afc14c2ef14">확인한 결론</a>
+        <a href="#section-652f9d3826b3">이 결과가 증명하지 않는 것</a>
+        <a href="#section-f1347648e507">보존된 자료</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>전체 실습 안내: <a href="../03_kv_cache_lifecycle_memory_validation.html">vLLM KV Cache Block을 계산하고 실제 할당·반환·재사용까지 확인한 실습</a></p>
+<p>학습일: 2026-09-14</p>
+<p>실습 Notebook: <code>vllm_scheduler_kv_cache.ipynb</code></p>
+</div>
+        <section id="section-df0b4fd859cc" class="markdown-section">
+<h2>이 실습에서 확인하려는 것</h2>
+<p>Prompt를 처리한 뒤 모델은 출력 Token을 하나씩 이어서 만든다. 출력이 길어질수록 이미 계산한 Token의 K·V도 더 많이 보관해야 하므로, 한 요청이 사용하는 KV Cache Block 수가 늘어나야 한다.</p>
+<p>이 실습에서는 입력 Prompt를 74Token으로 고정하고 요청별 <code>max_tokens</code>만 <code>32·128·512</code>로 바꿨다. 각 조건을 3회 실행해 다음 흐름을 실제 Scheduler Trace로 확인했다.</p>
+<pre><code class="language-text">동일한 74Token Prompt를 Prefill
+→ 최초 5Block 할당
+→ Decode에서 후속 Token을 하나씩 계산
+→ 계산된 Token의 K·V가 기존 Block에 쌓임
+→ 16Token 저장 경계를 넘을 때 새 Block 할당
+→ 요청 완료 후 사용한 Block 전부 반환
+</code></pre>
+<p>이 단계는 속도를 재는 Benchmark가 아니다. <code>TTFT</code>, <code>TPOT</code>, <code>Latency</code>를 비교하지 않고, <strong>Token 수와 Block 수의 구조적인 관계가 예상과 일치하는지</strong> 확인했다.</p>
+
+</section>
+<section id="sequence-scheduled-token-block" class="markdown-section">
+<h2>Sequence·Scheduled Token·Block을 먼저 구분한다</h2>
+<p>세 용어는 서로 다른 대상을 가리킨다.</p>
+<pre><code class="language-text">Sequence
+→ Scheduler의 실행 자리 하나를 차지하는 생성 단위
+
+Scheduled Token
+→ 그 Sequence에서 이번 Scheduler Iteration에 처리하기로 선택한 Token 작업 수
+
+KV Cache Block
+→ 계산이 끝난 Token의 K·V를 저장하는 16Token 단위 공간
+</code></pre>
+<p>Prefill에서는 Sequence 자리 하나에서 Prompt Token 여러 개를 한꺼번에 처리할 수 있다. Decode에서는 일반적인 단일 후보 생성에서 같은 Sequence가 한 Iteration에 후속 Token 하나를 처리한다.</p>
+<pre><code class="language-text">Prefill
+→ Sequence 1개
+→ scheduled_tokens = 74
+→ 계산한 74Token의 K·V를 5Block에 저장
+
+Decode
+→ 같은 Sequence 1개
+→ scheduled_tokens = 1
+→ Cache에 기록된 Token 수가 하나씩 증가
+</code></pre>
+<p>따라서 <code>max_num_seqs</code>의 자리 하나를 사용한다고 해서 Token도 하나만 처리하는 것은 아니다. Sequence 수는 동시에 실행 상태로 둘 수 있는 생성 단위의 수이고, Scheduled Token 수는 그중 이번 Iteration에 실제 처리할 작업량이다.</p>
+
+</section>
+<section id="max-tokens" class="markdown-section">
+<h2><code>max_tokens</code>는 요청마다 지정하는 출력 상한이다</h2>
+<p>OpenAI-compatible API 요청의 <code>max_tokens</code>는 Server 전체 설정이 아니라 <strong>각 요청에서 새로 생성할 출력 Token의 최대 개수</strong>다.</p>
+<pre><code class="language-python">request_payload = {
+    &quot;model&quot;: served_model_name,
+    &quot;messages&quot;: [...],
+    &quot;max_tokens&quot;: 128,
+}
+</code></pre>
+<p>이 요청은 “입력 Prompt를 제외하고 출력은 최대 128Token까지 생성하라”는 뜻이다. 일반적으로 EOS나 Stop 조건을 먼저 만나면 128Token보다 짧게 끝날 수 있다. 이번 실험은 다음 조건을 사용해 설정한 길이까지 생성하도록 했다.</p>
+<pre><code class="language-text">temperature = 0.0
+top_p = 1.0
+ignore_eos = True
+별도 Stop 조건 없음
+</code></pre>
+<p>실제 결과에서도 요청별 출력은 각각 정확히 <code>32·128·512Token</code>이었고, Decode Iteration 수는 <code>31·127·511회</code>였다.</p>
+
+</section>
+<section id="token-trace-token-1" class="markdown-section">
+<h2>출력 Token 수와 Trace의 계산 Token 수가 1개 다른 이유</h2>
+<p>처음 예상표에서는 최대 Context를 단순히 다음처럼 계산했다.</p>
+<pre><code class="language-text">입력 Prompt 74Token + 최대 출력 32Token = 최대 전체 길이 106Token
+입력 Prompt 74Token + 최대 출력 128Token = 최대 전체 길이 202Token
+입력 Prompt 74Token + 최대 출력 512Token = 최대 전체 길이 586Token
+</code></pre>
+<p>이 값은 요청이 가질 수 있는 입력과 출력의 총 길이다. 그러나 Trace에서 관찰하는 <code>computed_tokens</code>는 마지막 출력 Token까지 모두 KV Cache에 기록했다는 뜻이 아니다.</p>
+<p>Prefill은 74개 Prompt Token을 Forward해 첫 출력 Token을 만든다. 그 뒤 출력 Token을 하나씩 다음 Decode 입력으로 사용한다. 마지막으로 만들어진 출력 Token은 응답으로 전달된 뒤 다시 다음 Forward 입력으로 쓰이지 않으므로, 그 Token의 K·V는 추가로 계산되지 않는다.</p>
+<pre><code class="language-text">실제 계산 완료 Token
+= Prompt Token + 생성 Token - 1
+
+32Token 출력  → 74 + 32 - 1 = 105Token
+128Token 출력 → 74 + 128 - 1 = 201Token
+512Token 출력 → 74 + 512 - 1 = 585Token
+</code></pre>
+<p>따라서 Block 예상값도 Trace와 비교할 때는 이 실제 계산 Token 수를 사용했다.</p>
+<pre><code class="language-text">ceil(105 / 16) = 7Block
+ceil(201 / 16) = 13Block
+ceil(585 / 16) = 37Block
+</code></pre>
+<p>처음의 <code>106·202·586Token</code> 표와 실제 <code>105·201·585Token</code>은 서로 모순되는 숫자가 아니다. 전자는 요청의 최대 입력+출력 길이이고, 후자는 Scheduler Trace에서 K·V 계산이 끝난 Token 수다. 이번 세 조건에서는 둘 중 어느 값을 사용해도 올림한 Block 수는 우연히 같았지만, 정확한 Trace 검증에는 후자를 사용해야 한다.</p>
+
+</section>
+<section id="warm-up" class="markdown-section">
+<h2>왜 별도 Warm-up을 실행하지 않았는가</h2>
+<p>일반적인 성능 Benchmark에서는 최초 메모리 할당, GPU Clock 상태, 실행 경로 초기화처럼 본래 비교하려는 정상 상태의 성능과 무관한 초기 비용을 제거하기 위해 Warm-up을 먼저 실행하는 편이 안전하다.</p>
+<pre><code class="language-text">Warm-up이 필요한 대표 상황
+→ 정상 상태의 TTFT·TPOT·Latency·Throughput을 비교할 때
+
+Cold start 자체를 측정하는 상황
+→ Warm-up을 결과에서 제거하면 안 됨
+</code></pre>
+<p>이번 단계의 판정값은 실행 시간이 아니라 다음 정수 관계다.</p>
+<pre><code class="language-text">생성 Token 수
+Decode Iteration 수
+최대 계산 Token 수
+최대 Block 수
+반환 Block 수
+</code></pre>
+<p>초기 실행이 조금 느려져도 이 값들은 달라지지 않으므로 최종 측정 셀에서는 별도 Warm-up 요청을 보내지 않고 측정 요청 9개만 실행했다.</p>
+<p>다만 보존된 <code>decode_growth_workload.json</code>의 <code>contract</code>에는 이전 초안에서 사용하던 <code>warmup_runs: 1</code> 필드가 남아 있다. 최종 측정 코드는 이 필드를 읽거나 사용하지 않았고, <code>decode_growth_results.json</code>에는 <code>run_kind=&quot;measurement&quot;</code>인 결과 9개만 있다. 따라서 실제 실행에 Warm-up이 포함됐다는 뜻은 아니다. 재실행용 Artifact를 더 엄격히 정리할 때는 이 사용하지 않는 필드를 제거하고 Workload JSON을 다시 생성해야 한다.</p>
+
+</section>
+<section id="section-1-block" class="markdown-section">
+<h2>실습 코드 1: 입력과 예상 Block 수 만들기</h2>
+<p>이 셀은 이전 단계의 <code>short</code> Prompt를 가져와 생성 길이 조건을 만들고 <code>decode_growth_workload.json</code>으로 저장한다.</p>
+<pre><code class="language-python">from dataclasses import asdict, dataclass
+import json
+import math
+from pathlib import Path
+
+
+# --------------------------------------------------
+# 1. 이전 단계에서 만든 동일한 short Prompt 불러오기
+# --------------------------------------------------
+
+prefill_workload_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;prompt-length-prefill/&quot;
+    &quot;prompt_length_workload.json&quot;
+)
+
+assert prefill_workload_path.is_file()
+
+prefill_workload: dict = json.loads(
+    prefill_workload_path.read_text(
+        encoding=&quot;utf-8&quot;,
+    )
+)
+
+short_prompt_case: dict = next(
+    prompt_case
+    for prompt_case in prefill_workload[&quot;prompt_cases&quot;]
+    if prompt_case[&quot;label&quot;] == &quot;short&quot;
+)
+
+fixed_prompt_text: str = short_prompt_case[&quot;prompt_text&quot;]
+fixed_prompt_tokens: int = short_prompt_case[
+    &quot;actual_prompt_tokens&quot;
+]
+
+
+# --------------------------------------------------
+# 2. Decode 증가 실험 계약
+# --------------------------------------------------
+
+@dataclass(frozen=True)
+class DecodeGrowthContract:
+    generation_lengths: tuple[int, ...]
+    block_size_tokens: int
+    temperature: float
+    top_p: float
+    ignore_eos: bool
+    measurement_runs: int
+
+
+decode_growth_contract = DecodeGrowthContract(
+    # Prompt는 같고 생성 길이만 변경한다.
+    generation_lengths=(
+        32,
+        128,
+        512,
+    ),
+    block_size_tokens=16,
+    # Greedy에 가까운 고정 생성 조건
+    temperature=0.0,
+    top_p=1.0,
+    # 지정한 길이까지 생성하도록 EOS 종료를 무시한다.
+    ignore_eos=True,
+    measurement_runs=3,
+)
+
+
+# --------------------------------------------------
+# 3. 생성 길이별 예상 최대 Block 수 계산
+# --------------------------------------------------
+
+decode_growth_cases: list[dict] = []
+
+for generation_tokens in (
+    decode_growth_contract.generation_lengths
+):
+    maximum_context_tokens: int = (
+        fixed_prompt_tokens
+        + generation_tokens
+    )
+
+    expected_maximum_blocks: int = math.ceil(
+        maximum_context_tokens
+        / decode_growth_contract.block_size_tokens
+    )
+
+    decode_growth_cases.append({
+        &quot;generation_tokens&quot;: generation_tokens,
+        &quot;fixed_prompt_tokens&quot;: fixed_prompt_tokens,
+        &quot;maximum_context_tokens&quot;: maximum_context_tokens,
+        &quot;expected_maximum_blocks&quot;: expected_maximum_blocks,
+    })
+
+
+# --------------------------------------------------
+# 4. 실험 입력 저장
+# --------------------------------------------------
+
+decode_growth_result_directory = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;decode-growth&quot;
+)
+
+decode_growth_result_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+decode_growth_workload_path = (
+    decode_growth_result_directory
+    / &quot;decode_growth_workload.json&quot;
+)
+
+decode_growth_workload_path.write_text(
+    json.dumps(
+        {
+            &quot;contract&quot;: asdict(decode_growth_contract),
+            &quot;fixed_prompt_text&quot;: fixed_prompt_text,
+            &quot;fixed_prompt_tokens&quot;: fixed_prompt_tokens,
+            &quot;cases&quot;: decode_growth_cases,
+        },
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 5. 사람이 확인할 실험 조건 출력
+# --------------------------------------------------
+
+print(
+    &quot;생성 Token | 고정 Prompt | 최대 Context | &quot;
+    &quot;예상 최대 Block&quot;
+)
+print(&quot;-&quot; * 65)
+
+for decode_case in decode_growth_cases:
+    print(
+        f&quot;{decode_case[&#39;generation_tokens&#39;]:&gt;10} | &quot;
+        f&quot;{decode_case[&#39;fixed_prompt_tokens&#39;]:&gt;11} | &quot;
+        f&quot;{decode_case[&#39;maximum_context_tokens&#39;]:&gt;12} | &quot;
+        f&quot;{decode_case[&#39;expected_maximum_blocks&#39;]:&gt;15}&quot;
+    )
+
+print()
+print(
+    &quot;Block 크기:&quot;,
+    decode_growth_contract.block_size_tokens,
+    &quot;Token&quot;,
+)
+print(
+    &quot;Workload 저장:&quot;,
+    decode_growth_workload_path,
+)
+</code></pre>
+<p>실행 출력은 다음과 같았다.</p>
+<pre><code class="language-text">생성 Token | 고정 Prompt | 최대 Context | 예상 최대 Block
+-----------------------------------------------------------------
+        32 |          74 |          106 |               7
+       128 |          74 |          202 |              13
+       512 |          74 |          586 |              37
+
+Block 크기: 16 Token
+Workload 저장: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-14-kv-cache-lifecycle/decode-growth/decode_growth_workload.json
+</code></pre>
+
+</section>
+<section id="section-2-decode-trace" class="markdown-section">
+<h2>실습 코드 2: 실제 요청과 Decode Trace 분석</h2>
+<p>이 셀은 3단계에서 정의한 다음 함수를 재사용한다.</p>
+<pre><code class="language-text">read_trace_records()
+→ JSONL Trace 전체를 Python dict 목록으로 읽는다.
+
+trace_record_contains_request()
+→ Trace 기록 하나가 특정 내부 Request ID를 포함하는지 검사한다.
+
+run_prefill_measurement()
+→ 실제 HTTP 요청 하나를 보내고 Prompt Token, 최초 할당,
+  전체 할당, 반환 Block과 응답 정보를 묶어 반환한다.
+</code></pre>
+<p>4단계에서 새로 만든 핵심 함수는 두 개다.</p>
+<pre><code class="language-text">summarize_decode_growth(...)
+입력  → Trace 경로, Session ID, 내부 Request ID
+출력  → Decode Iteration 수, 최대 계산 Token, 최대 Block,
+        Block 수가 바뀐 시점 목록
+
+run_decode_growth_measurement(...)
+입력  → 요청할 최대 출력 Token, 실행 종류, 반복 번호
+동작  → 실제 요청 전송 → 해당 Trace 분석 → 예상값 검증
+출력  → HTTP 결과와 Decode·Block 요약을 합친 dict
+</code></pre>
+<p>실제로 실행한 전체 코드는 다음과 같다.</p>
+<pre><code class="language-python">from typing import Any
+import json
+import math
+from pathlib import Path
+
+
+# --------------------------------------------------
+# 1. 앞 단계에서 만든 함수가 실행되어 있어야 한다.
+# --------------------------------------------------
+
+assert callable(read_trace_records)
+assert callable(trace_record_contains_request)
+assert callable(run_prefill_measurement)
+
+
+# --------------------------------------------------
+# 2. 실험 입력과 Trace 경로
+# --------------------------------------------------
+
+decode_growth_workload_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;decode-growth/&quot;
+    &quot;decode_growth_workload.json&quot;
+)
+
+trace_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;block-trace/&quot;
+    &quot;kv_cache_trace.jsonl&quot;
+)
+
+idle_summary_path = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle/&quot;
+    &quot;idle-baseline/&quot;
+    &quot;kv_cache_idle_summary.json&quot;
+)
+
+assert decode_growth_workload_path.is_file()
+assert trace_path.is_file()
+assert idle_summary_path.is_file()
+
+decode_growth_workload: dict[str, Any] = json.loads(
+    decode_growth_workload_path.read_text(
+        encoding=&quot;utf-8&quot;,
+    )
+)
+
+idle_summary: dict[str, Any] = json.loads(
+    idle_summary_path.read_text(
+        encoding=&quot;utf-8&quot;,
+    )
+)
+
+decode_contract: dict[str, Any] = (
+    decode_growth_workload[&quot;contract&quot;]
+)
+fixed_prompt_text: str = (
+    decode_growth_workload[&quot;fixed_prompt_text&quot;]
+)
+fixed_prompt_tokens: int = int(
+    decode_growth_workload[&quot;fixed_prompt_tokens&quot;]
+)
+decode_growth_cases: list[dict[str, Any]] = (
+    decode_growth_workload[&quot;cases&quot;]
+)
+block_size_tokens: int = int(
+    decode_contract[&quot;block_size_tokens&quot;]
+)
+number_of_gpu_blocks: int = int(
+    idle_summary[&quot;number_of_gpu_blocks&quot;]
+)
+server_base_url: str = &quot;http://127.0.0.1:8000&quot;
+served_model_name: str = &quot;qwen2.5-1.5b-instruct&quot;
+
+assert fixed_prompt_tokens == 74
+assert block_size_tokens == 16
+
+
+# --------------------------------------------------
+# 3. 현재 Trace Session 확인
+# --------------------------------------------------
+
+all_trace_records = read_trace_records(
+    trace_path=trace_path,
+)
+
+trace_started_records = [
+    trace_record
+    for trace_record in all_trace_records
+    if trace_record[&quot;event_type&quot;] == &quot;trace_started&quot;
+]
+
+assert trace_started_records
+
+trace_session_id: str = (
+    trace_started_records[-1][&quot;session_id&quot;]
+)
+
+
+# --------------------------------------------------
+# 4. 요청 하나의 Decode 증가 과정 요약
+# --------------------------------------------------
+
+def summarize_decode_growth(
+    *,
+    trace_path: Path,
+    trace_session_id: str,
+    request_id: str,
+) -&gt; dict[str, Any]:
+    &quot;&quot;&quot;
+    요청 하나의 Trace에서 다음을 반환한다.
+
+    - Decode Iteration 수
+    - 가장 많이 계산된 Token 수
+    - 가장 많이 사용한 Block 수
+    - Block 수가 변한 시점
+    &quot;&quot;&quot;
+
+    request_trace_records = [
+        trace_record
+        for trace_record in read_trace_records(
+            trace_path=trace_path,
+        )
+        if (
+            trace_record.get(&quot;session_id&quot;)
+            == trace_session_id
+        )
+        and trace_record_contains_request(
+            trace_record=trace_record,
+            request_id=request_id,
+        )
+    ]
+
+    schedule_records = [
+        trace_record
+        for trace_record in request_trace_records
+        if trace_record[&quot;event_type&quot;] == &quot;schedule&quot;
+    ]
+
+    assert schedule_records
+
+    block_growth_points: list[dict[str, Any]] = []
+    previous_block_count: int | None = None
+    decode_record_count: int = 0
+    maximum_computed_tokens: int = 0
+    maximum_block_count: int = 0
+
+    for schedule_record in schedule_records:
+        scheduled_work: dict[str, Any] | None = None
+
+        # 이번 Scheduler Iteration에서 현재 요청에
+        # 배정된 Token 작업을 찾는다.
+        for candidate_work in (
+            schedule_record[&quot;scheduled_requests&quot;]
+        ):
+            if candidate_work[&quot;request_id&quot;] == request_id:
+                scheduled_work = candidate_work
+                break
+
+        if scheduled_work is None:
+            continue
+
+        work_phase: str = scheduled_work[&quot;work_phase&quot;]
+        scheduled_tokens: int = int(
+            scheduled_work[&quot;scheduled_tokens&quot;]
+        )
+
+        if work_phase == &quot;decode&quot;:
+            decode_record_count += 1
+            # 이번 실험에서는 Decode마다 새 Token 하나를 처리한다.
+            assert scheduled_tokens == 1
+
+        # Scheduling 이후 요청 상태를 읽는다.
+        request_state_after = schedule_record[
+            &quot;requests_after&quot;
+        ].get(request_id)
+
+        if request_state_after is None:
+            continue
+
+        computed_tokens: int = int(
+            request_state_after[&quot;computed_tokens&quot;]
+        )
+        block_count: int = int(
+            request_state_after[&quot;block_count&quot;]
+        )
+
+        maximum_computed_tokens = max(
+            maximum_computed_tokens,
+            computed_tokens,
+        )
+        maximum_block_count = max(
+            maximum_block_count,
+            block_count,
+        )
+
+        block_change = schedule_record[
+            &quot;block_changes&quot;
+        ].get(
+            request_id,
+            {&quot;newly_allocated_block_ids&quot;: []},
+        )
+        newly_allocated_block_ids = block_change[
+            &quot;newly_allocated_block_ids&quot;
+        ]
+
+        # 모든 Decode 줄을 저장하지 않고
+        # 최초 상태와 Block 수가 변한 시점만 저장한다.
+        if (
+            previous_block_count is None
+            or block_count != previous_block_count
+        ):
+            block_growth_points.append({
+                &quot;schedule_index&quot;: schedule_record[
+                    &quot;schedule_index&quot;
+                ],
+                &quot;work_phase&quot;: work_phase,
+                &quot;scheduled_tokens&quot;: scheduled_tokens,
+                &quot;computed_tokens&quot;: computed_tokens,
+                &quot;block_count&quot;: block_count,
+                &quot;newly_allocated_block_ids&quot;: (
+                    newly_allocated_block_ids
+                ),
+            })
+
+        previous_block_count = block_count
+
+    return {
+        &quot;decode_record_count&quot;: decode_record_count,
+        &quot;maximum_computed_tokens&quot;: maximum_computed_tokens,
+        &quot;maximum_block_count&quot;: maximum_block_count,
+        &quot;block_growth_points&quot;: block_growth_points,
+    }
+
+
+# --------------------------------------------------
+# 5. 실제 요청 전송과 Trace 분석 연결
+# --------------------------------------------------
+
+def run_decode_growth_measurement(
+    *,
+    generation_tokens: int,
+    run_kind: str,
+    run_index: int,
+) -&gt; dict[str, Any]:
+    &quot;&quot;&quot;
+    실제 요청 하나를 vLLM Server에 보내고,
+    그 요청의 Decode·Block 증가 Trace를 분석한다.
+    &quot;&quot;&quot;
+
+    expected_initial_blocks: int = math.ceil(
+        fixed_prompt_tokens / block_size_tokens
+    )
+
+    # 실제 HTTP 요청을 하나 보내고 다음을 확인한다.
+    # Prefill 최초 Block, 전체 할당 Block, 종료 후 반환 Block
+    base_result = run_prefill_measurement(
+        server_base_url=server_base_url,
+        served_model_name=served_model_name,
+        trace_path=trace_path,
+        trace_session_id=trace_session_id,
+        request_label=f&quot;decode-{generation_tokens}&quot;,
+        run_kind=run_kind,
+        run_index=run_index,
+        prompt_text=fixed_prompt_text,
+        expected_prompt_tokens=fixed_prompt_tokens,
+        expected_initial_blocks=expected_initial_blocks,
+        max_tokens=generation_tokens,
+        temperature=float(decode_contract[&quot;temperature&quot;]),
+        top_p=float(decode_contract[&quot;top_p&quot;]),
+        ignore_eos=bool(decode_contract[&quot;ignore_eos&quot;]),
+        block_size_tokens=block_size_tokens,
+        number_of_gpu_blocks=number_of_gpu_blocks,
+        client_timeout_seconds=180.0,
+    )
+
+    # 방금 보낸 요청의 Decode 과정을 분석한다.
+    trace_summary = summarize_decode_growth(
+        trace_path=trace_path,
+        trace_session_id=trace_session_id,
+        request_id=base_result[&quot;request_id&quot;],
+    )
+
+    # 첫 번째 출력 Token은 Prefill의 결과로 만들어진다.
+    # 이후 출력 Token들이 Decode 입력으로 사용된다.
+    expected_computed_tokens: int = (
+        fixed_prompt_tokens
+        + generation_tokens
+        - 1
+    )
+
+    expected_maximum_blocks: int = math.ceil(
+        expected_computed_tokens / block_size_tokens
+    )
+
+    assert (
+        trace_summary[&quot;maximum_computed_tokens&quot;]
+        == expected_computed_tokens
+    )
+    assert (
+        trace_summary[&quot;maximum_block_count&quot;]
+        == expected_maximum_blocks
+    )
+    # 출력 32Token이라면 Prefill에서 첫 Token 생성 + Decode 31회
+    assert (
+        trace_summary[&quot;decode_record_count&quot;]
+        == generation_tokens - 1
+    )
+    assert (
+        base_result[&quot;total_allocated_blocks&quot;]
+        == expected_maximum_blocks
+    )
+    assert (
+        base_result[&quot;released_blocks&quot;]
+        == expected_maximum_blocks
+    )
+
+    return {
+        **base_result,
+        **trace_summary,
+        &quot;requested_generation_tokens&quot;: generation_tokens,
+        &quot;expected_computed_tokens&quot;: expected_computed_tokens,
+        &quot;expected_maximum_blocks&quot;: expected_maximum_blocks,
+    }
+
+
+# --------------------------------------------------
+# 6. 생성 길이별 측정 3회
+# --------------------------------------------------
+
+# 이번 단계는 성능 Benchmark가 아니다.
+# Token·Block 수와 증가·반환 관계의 정확성을 검증한다.
+# 최초 실행 시간은 검증값에 영향을 주지 않으므로
+# 별도의 Warm-up 요청 없이 측정 요청만 실행한다.
+
+measurement_runs: int = int(
+    decode_contract[&quot;measurement_runs&quot;]
+)
+decode_growth_results: list[dict[str, Any]] = []
+
+for decode_case in decode_growth_cases:
+    generation_tokens: int = int(
+        decode_case[&quot;generation_tokens&quot;]
+    )
+
+    for run_index in range(
+        1,
+        measurement_runs + 1,
+    ):
+        print(
+            &quot;측정 시작:&quot;,
+            f&quot;생성 {generation_tokens}Token&quot;,
+            f&quot;{run_index}/{measurement_runs}&quot;,
+        )
+
+        measurement_result = run_decode_growth_measurement(
+            generation_tokens=generation_tokens,
+            run_kind=&quot;measurement&quot;,
+            run_index=run_index,
+        )
+        decode_growth_results.append(measurement_result)
+
+
+# --------------------------------------------------
+# 7. 전체 결과 검증
+# --------------------------------------------------
+
+expected_result_count: int = (
+    len(decode_growth_cases)
+    * measurement_runs
+)
+
+assert len(decode_growth_results) == expected_result_count
+assert all(
+    result[&quot;generated_tokens&quot;]
+    == result[&quot;requested_generation_tokens&quot;]
+    for result in decode_growth_results
+)
+assert all(
+    result[&quot;maximum_block_count&quot;]
+    == result[&quot;expected_maximum_blocks&quot;]
+    for result in decode_growth_results
+)
+assert all(
+    result[&quot;released_blocks&quot;]
+    == result[&quot;maximum_block_count&quot;]
+    for result in decode_growth_results
+)
+
+
+# --------------------------------------------------
+# 8. 측정 결과 JSON 저장
+# --------------------------------------------------
+
+decode_growth_results_path = (
+    decode_growth_workload_path.parent
+    / &quot;decode_growth_results.json&quot;
+)
+
+decode_growth_results_path.write_text(
+    json.dumps(
+        {
+            &quot;trace_session_id&quot;: trace_session_id,
+            &quot;server_base_url&quot;: server_base_url,
+            &quot;served_model_name&quot;: served_model_name,
+            &quot;workload&quot;: decode_growth_workload,
+            &quot;results&quot;: decode_growth_results,
+        },
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 9. 조건별 대표 결과 출력
+# --------------------------------------------------
+
+print()
+print(&quot;=== 생성 길이별 Decode·Block 증가 결과 ===&quot;)
+
+for decode_case in decode_growth_cases:
+    generation_tokens: int = int(
+        decode_case[&quot;generation_tokens&quot;]
+    )
+
+    representative_result = next(
+        result
+        for result in decode_growth_results
+        if (
+            result[&quot;requested_generation_tokens&quot;]
+            == generation_tokens
+            and result[&quot;run_index&quot;] == 1
+        )
+    )
+
+    growth_points = representative_result[
+        &quot;block_growth_points&quot;
+    ]
+
+    # 출력이 너무 길어지면 앞 5개와 뒤 3개만 보여준다.
+    # 전체 변화는 결과 JSON에 모두 저장된다.
+    if len(growth_points) &gt; 9:
+        displayed_growth_points = (
+            growth_points[:5]
+            + [{&quot;omitted&quot;: True}]
+            + growth_points[-3:]
+        )
+    else:
+        displayed_growth_points = growth_points
+
+    print()
+    print(
+        &quot;요청한 최대 출력:&quot;,
+        generation_tokens,
+        &quot;Token&quot;,
+    )
+    print(
+        &quot;실제 출력:&quot;,
+        representative_result[&quot;generated_tokens&quot;],
+        &quot;Token&quot;,
+    )
+    print(
+        &quot;Trace 최대 계산 Token:&quot;,
+        representative_result[&quot;maximum_computed_tokens&quot;],
+    )
+    print(
+        &quot;예상/실제 최대 Block:&quot;,
+        representative_result[&quot;expected_maximum_blocks&quot;],
+        &quot;/&quot;,
+        representative_result[&quot;maximum_block_count&quot;],
+    )
+    print(
+        &quot;Decode Iteration:&quot;,
+        representative_result[&quot;decode_record_count&quot;],
+    )
+    print(
+        &quot;종료 후 반환 Block:&quot;,
+        representative_result[&quot;released_blocks&quot;],
+    )
+    print(&quot;Block 변화:&quot;)
+
+    for growth_point in displayed_growth_points:
+        if growth_point.get(&quot;omitted&quot;):
+            print(&quot;  ... 중간 변화 생략 ...&quot;)
+            continue
+
+        print(
+            &quot; &quot;,
+            f&quot;{growth_point[&#39;work_phase&#39;]:&lt;7}&quot;,
+            f&quot;계산 Token=&quot;
+            f&quot;{growth_point[&#39;computed_tokens&#39;]:&lt;4}&quot;,
+            f&quot;Block=&quot;
+            f&quot;{growth_point[&#39;block_count&#39;]:&lt;3}&quot;,
+            f&quot;신규=&quot;
+            f&quot;{growth_point[&#39;newly_allocated_block_ids&#39;]}&quot;,
+        )
+
+print()
+print(&quot;측정 결과 수:&quot;, len(decode_growth_results))
+print(&quot;결과 저장:&quot;, decode_growth_results_path)
+</code></pre>
+
+</section>
+<section id="section-59f139d2d3e6" class="markdown-section">
+<h2>실제 결과</h2>
+<p>세 조건을 각각 3회 실행해 총 9개 요청을 측정했다. 세 번 모두 같은 구조적 결과가 나왔다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">요청별 최대 출력 설정</th>
+<th align="right">실제 출력</th>
+<th align="right">Trace 최대 계산 Token</th>
+<th align="right">Decode Iteration</th>
+<th align="right">예상 Block</th>
+<th align="right">실제 최대 Block</th>
+<th align="right">종료 후 반환 Block</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">32</td>
+<td align="right">32</td>
+<td align="right">105</td>
+<td align="right">31</td>
+<td align="right">7</td>
+<td align="right">7</td>
+<td align="right">7</td>
+</tr>
+<tr>
+<td align="right">128</td>
+<td align="right">128</td>
+<td align="right">201</td>
+<td align="right">127</td>
+<td align="right">13</td>
+<td align="right">13</td>
+<td align="right">13</td>
+</tr>
+<tr>
+<td align="right">512</td>
+<td align="right">512</td>
+<td align="right">585</td>
+<td align="right">511</td>
+<td align="right">37</td>
+<td align="right">37</td>
+<td align="right">37</td>
+</tr>
+</tbody></table>
+</div>
+<p>Block 수가 변한 대표 시점은 다음과 같았다.</p>
+<pre><code class="language-text">출력 최대 32Token
+prefill 계산 Token=74  Block=5  신규=[33, 34, 35, 36, 37]
+decode  계산 Token=81  Block=6  신규=[32]
+decode  계산 Token=97  Block=7  신규=[31]
+
+출력 최대 128Token
+prefill 계산 Token=74   Block=5
+decode  계산 Token=81   Block=6
+decode  계산 Token=97   Block=7
+decode  계산 Token=113  Block=8
+decode  계산 Token=129  Block=9
+decode  계산 Token=145  Block=10
+decode  계산 Token=161  Block=11
+decode  계산 Token=177  Block=12
+decode  계산 Token=193  Block=13
+
+출력 최대 512Token
+prefill 계산 Token=74   Block=5
+decode  계산 Token=81   Block=6
+decode  계산 Token=97   Block=7
+decode  계산 Token=113  Block=8
+decode  계산 Token=129  Block=9
+...
+decode  계산 Token=545  Block=35
+decode  계산 Token=561  Block=36
+decode  계산 Token=577  Block=37
+</code></pre>
+<p>74Token은 처음부터 5Block을 사용한다. 5Block은 최대 80Token을 담으므로 계산 Token이 80 이하일 때는 새 Block이 필요 없다. 81번째 계산 Token에서 6번째 Block이 추가되고, 이후 <code>97·113·129...</code>처럼 16Token 경계를 하나 넘을 때마다 Block이 하나씩 늘었다.</p>
+
+</section>
+<section id="section-0afc14c2ef14" class="markdown-section">
+<h2>확인한 결론</h2>
+<p>실행 결과는 다음 관계를 모두 만족했다.</p>
+<pre><code class="language-text">Decode에서 계산 Token
+→ Iteration마다 1개씩 증가
+
+KV Cache Block
+→ 매 Token마다 증가하지 않음
+→ 기존 Block의 자리를 모두 쓴 뒤 16Token 경계에서 1개 증가
+
+요청 완료
+→ 최대 사용 Block과 같은 수의 Block 반환
+</code></pre>
+<p>따라서 출력이 길어질수록 KV Cache가 증가한다는 사실뿐 아니라, 그 증가가 Token마다 새로운 Block을 하나씩 만드는 방식이 아니라 <strong>고정 크기 Block을 채우다가 경계를 넘을 때 추가 할당하는 계단식 구조</strong>라는 점을 확인했다.</p>
+
+</section>
+<section id="section-652f9d3826b3" class="markdown-section">
+<h2>이 결과가 증명하지 않는 것</h2>
+<ul>
+<li>이 실험은 동시 요청이 없는 순차 실행이므로 여러 요청 사이의 Cache 경쟁을 증명하지 않는다.</li>
+<li>속도를 측정하지 않았으므로 생성 길이에 따른 TTFT·TPOT·Latency 변화를 말할 수 없다.</li>
+<li>Trace의 Block 수는 실제 vLLM 할당 기록이지만, Block당 MiB는 모델 구조와 dtype으로 계산한 이론값이다. GPU 메모리에서 KV Cache Byte를 직접 분리 측정한 값은 아니다.</li>
+<li>Prefix Caching과 Chunked Prefill을 끈 조건이므로 해당 기능을 켰을 때의 생명주기로 일반화하지 않는다.</li>
+</ul>
+
+</section>
+<section id="section-f1347648e507" class="markdown-section">
+<h2>보존된 자료</h2>
+<pre><code class="language-text">실험 입력
+→ results/2026-09-14-kv-cache-lifecycle/
+  decode-growth/decode_growth_workload.json
+
+요청별 전체 측정 결과와 Block 변화 시점
+→ results/2026-09-14-kv-cache-lifecycle/
+  decode-growth/decode_growth_results.json
+
+원본 Scheduler Trace
+→ results/2026-09-14-kv-cache-lifecycle/
+  block-trace/kv_cache_trace.jsonl
+</code></pre>
+<p>다음 단계에서는 작은 Block Pool을 가진 별도 Server에서 A·B를 실행하고 C를 늦게 보내, 동시 점유와 Waiting, B의 Block 반환, C의 동일 Block ID 재사용을 한 흐름으로 연결한다.</p>
+<p><a href="03_prompt_length_prefill_comparison.html">← 이전 단계</a> · <a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a> · <a href="05_concurrent_occupancy_release_reuse.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

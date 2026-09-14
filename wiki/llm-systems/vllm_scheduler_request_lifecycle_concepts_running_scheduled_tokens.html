@@ -1,0 +1,280 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.md. Do not edit directly. source-sha256:e5c402233d5795e25e7c92a3a13fd59499d5df22bb04c8021d8df9d4848eadcf -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM에서 Running Sequence의 상태와 Scheduler Iteration마다 배정되는 &#96;scheduled_tokens&#96;, &#96;computed_tokens&#96;, Sequence 자리와 Token Budget의 차이를 Prefill·Decode 흐름으로 설명합니다.">
+  <meta name="source-sha256" content="e5c402233d5795e25e7c92a3a13fd59499d5df22bb04c8021d8df9d4848eadcf">
+  <title>Running Sequence와 `scheduled_tokens`의 차이</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Running Sequence와 `scheduled_tokens`의 차이">
+  <meta property="og:description" content="vLLM에서 Running Sequence의 상태와 Scheduler Iteration마다 배정되는 &amp;#96;scheduled_tokens&amp;#96;, &amp;#96;computed_tokens&amp;#96;, Sequence 자리와 Token Budget의 차이를 Prefill·Decode 흐름으로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html","name":"Running Sequence와 `scheduled_tokens`의 차이","description":"vLLM에서 Running Sequence의 상태와 Scheduler Iteration마다 배정되는 &#96;scheduled_tokens&#96;, &#96;computed_tokens&#96;, Sequence 자리와 Token Budget의 차이를 Prefill·Decode 흐름으로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html"},"headline":"Running Sequence와 `scheduled_tokens`의 차이","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts_running_scheduled_tokens.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Scheduler Request Lifecycle 실습 결과","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html"},{"@type":"ListItem","position":7,"name":"Scheduler와 Continuous Batching의 핵심 개념","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts.html"},{"@type":"ListItem","position":8,"name":"Running Sequence와 `scheduled_tokens`의 차이"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_results.html">Scheduler Request Lifecycle 실습 결과</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_scheduler_request_lifecycle_concepts.html">Scheduler와 Continuous Batching의 핵심 개념</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Running Sequence와 `scheduled_tokens`의 차이</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Running Sequence와 `scheduled_tokens`의 차이</h1>
+      <p class="lead">vLLM에서 Running Sequence의 상태와 Scheduler Iteration마다 배정되는 `scheduled_tokens`, `computed_tokens`, Sequence 자리와 Token Budget의 차이를 Prefill·Decode 흐름으로 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#running-sequence">Running은 Sequence의 상태다</a>
+        <a href="#scheduled-tokens-token"><code>scheduled_tokens</code>는 Token 작업량이다</a>
+        <a href="#prefill-decode">Prefill과 Decode에서는 값이 다를 수 있다</a>
+        <a href="#sequence-token-budget">Sequence 자리와 Token Budget은 서로 다른 제한이다</a>
+        <a href="#running-scheduled">Running이라고 항상 Scheduled되는 것은 아니다</a>
+        <a href="#scheduled-tokens-computed-tokens"><code>scheduled_tokens</code>와 <code>computed_tokens</code>도 다르다</a>
+        <a href="#section-5f983e43adf9">전체 관계</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM은 여러 요청을 처리할 때 요청 또는 Sequence의 상태와, 이번 Scheduler Iteration에 처리할 Token 작업량을 구분해서 관리한다.</p>
+<p>핵심은 다음과 같다.</p>
+<pre><code class="language-python">Running
+→ 현재 실행 중인 Sequence
+
+scheduled_tokens
+→ Running Sequence 중 이번 Iteration에서
+  처리하기로 선택된 Sequence에 배정한 Token 수
+</code></pre>
+</div>
+        <section id="running-sequence" class="markdown-section">
+<h2>Running은 Sequence의 상태다</h2>
+<p>요청이 들어오면 바로 실행되지 못하고 기다릴 수 있다.</p>
+<pre><code>요청 도착
+→ Waiting
+→ 실행 자리 확보
+→ Running
+→ 생성 완료
+→ Finished
+</code></pre>
+<p>이번처럼 요청 하나가 출력 Sequence 하나를 만드는 조건에서는 요청과 Sequence를 거의 같은 대상으로 이해해도 된다.</p>
+<pre><code class="language-css">요청 A
+→ Sequence A
+→ Running 자리 하나 사용
+</code></pre>
+<p><code>max_num_seqs</code>는 동시에 Running 상태로 유지할 수 있는 Sequence 자리의 최대 개수다.</p>
+<p>예를 들어:</p>
+<pre><code class="language-ini">max_num_seqs = 2
+</code></pre>
+<p>라면 다음처럼 최대 두 Sequence가 Running 상태에 들어갈 수 있다.</p>
+<pre><code class="language-python">Running 자리 1 → Sequence A
+Running 자리 2 → Sequence B
+
+Waiting          → Sequence C
+</code></pre>
+<p>A의 Prompt가 길어도 A는 Sequence 자리 하나만 사용한다. Prompt Token 수만큼 여러 자리를 사용하는 것은 아니다.</p>
+
+</section>
+<section id="scheduled-tokens-token" class="markdown-section">
+<h2><code>scheduled_tokens</code>는 Token 작업량이다</h2>
+<p>Running 상태에 들어온 Sequence가 이번 Iteration에서 몇 Token을 처리할지는 별도로 결정된다.</p>
+<pre><code>Running Sequence
+→ Scheduler가 이번 Iteration의 작업량 결정
+→ scheduled_tokens 배정
+→ GPU 연산 수행
+</code></pre>
+<p>따라서 <code>scheduled_tokens</code>는 Sequence 수가 아니라 Token 작업 수다.</p>
+<pre><code class="language-makefile">Running
+단위: Sequence 또는 요청
+
+scheduled_tokens
+단위: Token
+</code></pre>
+
+</section>
+<section id="prefill-decode" class="markdown-section">
+<h2>Prefill과 Decode에서는 값이 다를 수 있다</h2>
+<p>Sequence A의 Prompt가 64 Token이라고 가정해 보자.</p>
+<p>Prefill에서는 입력 Token 64개를 처리하도록 한꺼번에 배정할 수 있다.</p>
+<pre><code class="language-yaml">Running Sequence: A
+작업 단계: Prefill
+scheduled_tokens: 64
+</code></pre>
+<p>여기서 <code>64</code>는 출력 Token을 64개 생성한다는 뜻이 아니다. 이미 입력으로 들어온 Prompt Token 64개를 읽고 KV Cache를 만드는 작업량이다.</p>
+<p>Prefill이 끝난 뒤 Decode에서는 일반적으로 다음 Token 하나를 위한 작업이 배정된다.</p>
+<pre><code class="language-yaml">Running Sequence: A
+작업 단계: Decode
+scheduled_tokens: 1
+</code></pre>
+<p>어느 경우든 의미는 같다.</p>
+<blockquote>
+<p>이번 Scheduler Iteration에서 A Sequence에 대해 처리하기로 배정한 Token 수다.</p>
+</blockquote>
+
+</section>
+<section id="sequence-token-budget" class="markdown-section">
+<h2>Sequence 자리와 Token Budget은 서로 다른 제한이다</h2>
+<p>vLLM은 다음 두 가지 제한을 별도로 관리한다.</p>
+<pre><code>max_num_seqs
+→ 동시에 Running으로 유지할 Sequence 수의 상한
+
+max_num_batched_tokens
+→ 한 Iteration에 배정할 전체 Token 작업 수의 상한
+</code></pre>
+<p>다음과 같은 설정을 예로 들 수 있다.</p>
+<pre><code class="language-ini">max_num_seqs = 2
+max_num_batched_tokens = 4096
+</code></pre>
+<p>이번 Iteration에 A는 Prefill 1,024 Token, B는 Decode 1 Token을 배정받았다고 가정해 보자.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Running Sequence</th>
+<th>작업</th>
+<th align="right">Sequence 자리</th>
+<th align="right"><code>scheduled_tokens</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>Prefill</td>
+<td align="right">1</td>
+<td align="right">1,024</td>
+</tr>
+<tr>
+<td>B</td>
+<td>Decode</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td>합계</td>
+<td></td>
+<td align="right">2</td>
+<td align="right">1,025</td>
+</tr>
+</tbody></table>
+</div>
+<p>이때 사용한 자원은 다음과 같다.</p>
+<pre><code>Running Sequence 자리
+= A 1개 + B 1개
+= 2개
+
+이번 Iteration의 Token 작업
+= A 1,024 + B 1
+= 1,025 Token
+</code></pre>
+<p>A가 1,024 Token을 처리하더라도 <code>max_num_seqs</code> 자리 1,024개를 사용하는 것이 아니다.</p>
+<pre><code class="language-python">A Sequence
+→ Sequence 자리 1개 사용
+→ Token Budget 1,024개 사용
+</code></pre>
+
+</section>
+<section id="running-scheduled" class="markdown-section">
+<h2>Running이라고 항상 Scheduled되는 것은 아니다</h2>
+<p>Running은 계속 실행할 수 있는 Sequence라는 뜻이지만, 모든 Running Sequence가 매 Iteration마다 반드시 Token을 배정받는 것은 아니다.</p>
+<pre><code class="language-css">현재 Running
+A, B, C
+
+이번 Iteration의 배정
+A → 1 Token
+B → 1 Token
+C → 배정 없음
+</code></pre>
+<p>이 경우 C는 Running 상태지만 이번 Iteration에서는 처리 대상으로 선택되지 않았다.</p>
+<p>따라서 다음은 서로 다르다.</p>
+<pre><code class="language-python">Running Sequence 목록
+≠ 이번 Iteration에 Scheduled된 Sequence 목록
+</code></pre>
+
+</section>
+<section id="scheduled-tokens-computed-tokens" class="markdown-section">
+<h2><code>scheduled_tokens</code>와 <code>computed_tokens</code>도 다르다</h2>
+<p><code>scheduled_tokens</code>는 이미 처리가 끝난 Token 수가 아니다.</p>
+<pre><code>scheduled_tokens
+→ 이번 Iteration에서 처리하기로 배정한 Token 수
+
+computed_tokens
+→ GPU 연산까지 실제로 완료된 Token 수
+</code></pre>
+<p>시간순으로 보면 다음과 같다.</p>
+<pre><code>A의 computed_tokens = 64
+
+Scheduler가 Decode 1 Token 배정
+→ scheduled_tokens = 1
+
+GPU가 연산 수행
+
+연산 결과 반영
+→ computed_tokens = 65
+</code></pre>
+<p>따라서 Scheduling 직후 <code>scheduled_tokens=1</code>이라고 기록돼도 해당 Token의 실제 계산이 이미 끝났다는 뜻은 아니다.</p>
+
+</section>
+<section id="section-5f983e43adf9" class="markdown-section">
+<h2>전체 관계</h2>
+<pre><code class="language-python">요청 도착
+→ Sequence가 Waiting
+
+실행 자리 확보
+→ Sequence가 Running
+→ max_num_seqs 자리 하나 사용
+
+Scheduler Iteration 시작
+→ Running Sequence 중 처리 대상 선택
+→ 각 Sequence에 scheduled_tokens 배정
+→ 전체 배정량은 max_num_batched_tokens의 제한을 받음
+
+GPU 연산 완료
+→ computed_tokens 증가
+</code></pre>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<pre><code class="language-python">Running
+→ 현재 실행 중인 Sequence의 상태
+
+scheduled_tokens
+→ Running Sequence 중 이번 Iteration에 선택된
+  Sequence마다 처리하기로 배정한 Token 수
+
+computed_tokens
+→ 실제 계산을 완료한 누적 Token 수
+</code></pre>
+<p>한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>Running은 현재 실행 중인 Sequence를 나타내고, <code>scheduled_tokens</code>는 그 Running Sequence들 중 이번 Scheduler Iteration에 실제로 처리하기로 선택된 Sequence마다 배정된 Token 작업 수를 나타낸다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

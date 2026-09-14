@@ -1,0 +1,1166 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.md. Do not edit directly. source-sha256:133197f8418ec56e7902f0ae0a38b4a01e6f0e4e8c3e8a73196b9e2db06ee316 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prefill·Decode·동시 실행에서 계산한 KV Cache Block 수와 실제 vLLM Trace 결과를 종합 비교합니다.">
+  <meta name="source-sha256" content="133197f8418ec56e7902f0ae0a38b4a01e6f0e4e8c3e8a73196b9e2db06ee316">
+  <title>6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교">
+  <meta property="og:description" content="Prefill·Decode·동시 실행에서 계산한 KV Cache Block 수와 실제 vLLM Trace 결과를 종합 비교합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html","name":"6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교","description":"Prefill·Decode·동시 실행에서 계산한 KV Cache Block 수와 실제 vLLM Trace 결과를 종합 비교합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html"},"headline":"6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kv_cache_lifecycle_memory_validation/06_theory_actual_comparison.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html"},{"@type":"ListItem","position":8,"name":"6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_kv_cache_lifecycle_memory_validation.html">vLLM은 KV Cache Block을 어떻게 할당하고 다시 사용하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>6단계: 계산으로 예상한 KV Cache와 vLLM이 실제 할당한 Block 비교</h1>
+      <p class="lead">Prefill·Decode·동시 실행에서 계산한 KV Cache Block 수와 실제 vLLM Trace 결과를 종합 비교합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1d34984efec5">이 단계에서 확인하려는 것</a>
+        <a href="#section-efe0be53e704">비교에 사용한 공통 기준</a>
+        <a href="#kv-block">논리적 KV 크기와 Block 저장 용량은 왜 조금 다른가</a>
+        <a href="#block">동시 요청에서 “전체 Block 수”가 뜻하는 것</a>
+        <a href="#decode-32-token-106-105"><code>decode-32</code>에서 계산 Token이 106이 아니라 105인 이유</a>
+        <a href="#pool">Pool 사용률 계산에서 발견한 세션 분모 불일치</a>
+        <a href="#kv-cache-usage-gpu">KV Cache Usage와 GPU 전체 메모리는 무엇이 다른가</a>
+        <a href="#section-5261bbba493c">실행한 비교 코드</a>
+        <a href="#section-7868f7af282b">실제 비교 결과</a>
+        <a href="#section-3045c5b62487">결과 해석</a>
+        <a href="#section-e9df41fdbfd8">이 단계에서 확인하지 않은 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>학습일: 2026-09-14</p>
+<p>상위 실습: <a href="../03_kv_cache_lifecycle_memory_validation.html">KV Cache가 생성되고 늘어나며 회수·재사용되는 과정</a></p>
+<p>이전 단계: <a href="05_concurrent_occupancy_release_reuse.html">동시 요청별 점유와 완료 후 Block 회수·재사용</a></p>
+<p>다음 단계: <a href="07_artifacts_and_completion.html">결과 파일 보존과 전체 실험 완료 검증</a></p>
+</div>
+        <section id="section-1d34984efec5" class="markdown-section">
+<h2>이 단계에서 확인하려는 것</h2>
+<p>앞선 실험에서는 서로 떨어져 있던 다음 결과를 각각 얻었다.</p>
+<pre><code class="language-text">Prompt 길이 증가
+→ 최초 Prefill Block 증가
+
+생성 길이 증가
+→ Decode 중 Block이 16Token 경계마다 증가
+
+동시 요청 실행
+→ 각 요청이 공용 Block Pool에서 자신의 Block을 배정받음
+
+요청 완료
+→ 사용하던 Block 반환
+
+후속 요청 실행
+→ 반환된 Block을 다시 배정받아 사용
+</code></pre>
+<p>이 단계에서는 새로운 요청을 보내지 않았다. 저장된 Prefill·Decode·동시 요청 결과와 Scheduler Trace를 한곳에 모아 다음 질문에 답했다.</p>
+<pre><code class="language-text">계산된 Token 수로 예상한 Block 수
+==
+Trace에서 실제로 관찰한 Block 수인가?
+</code></pre>
+<p>그다음 실제 Token의 K·V가 차지하는 논리적 크기와, Block 단위로 확보한 저장 용량 사이의 차이를 마지막 Block의 빈자리로 설명했다.</p>
+
+</section>
+<section id="section-efe0be53e704" class="markdown-section">
+<h2>비교에 사용한 공통 기준</h2>
+<p>모델 구조와 실행 계약에서 계산한 값은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">값</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Token당 KV Cache</td>
+<td align="right">28,672Byte</td>
+</tr>
+<tr>
+<td>Block 크기</td>
+<td align="right">16Token</td>
+</tr>
+<tr>
+<td>Block당 KV Cache 저장 용량</td>
+<td align="right">458,752Byte = 0.4375MiB</td>
+</tr>
+</tbody></table>
+</div>
+<p>각 값은 다음 식으로 계산했다.</p>
+<pre><code class="language-text">논리적 KV Cache Byte
+= 실제 K·V가 계산된 Token 수 × 28,672Byte
+
+요청 하나의 예상 Block 수
+= ceil(계산된 Token 수 / 16)
+
+Block 단위 저장 용량
+= 실제 할당 Block 수 × 458,752Byte
+</code></pre>
+
+</section>
+<section id="kv-block" class="markdown-section">
+<h2>논리적 KV 크기와 Block 저장 용량은 왜 조금 다른가</h2>
+<p><code>논리적 KV MiB</code>는 실제로 K·V가 계산된 Token만 저장하는 데 필요한 이론적 크기다. <code>Block 용량 MiB</code>는 Trace에서 관찰한 실제 Block 수가 최대로 담을 수 있는 저장 용량이다.</p>
+<p>예를 들어 Prompt 74Token은 다음과 같다.</p>
+<pre><code class="language-text">논리적으로 저장할 Token = 74개
+필요 Block              = ceil(74 / 16) = 5개
+5Block의 전체 자리      = 80Token
+마지막 Block의 빈자리   = 80 - 74 = 6Token
+
+논리적 KV 크기          = 74 × 28,672Byte = 2.0234MiB
+할당 Block 저장 용량    = 5 × 458,752Byte = 2.1875MiB
+</code></pre>
+<p>두 MiB 값의 차이는 측정 오차가 아니다. Block을 16Token 단위로 배정하기 때문에 마지막 Block에서 사용하지 않은 6Token 자리가 함께 확보된 결과다.</p>
+<p><code>Block 용량 MiB</code>도 GPU 메모리를 별도로 직접 측정한 값은 아니다. <strong>Trace에서 직접 관찰한 Block 개수에 이론적으로 계산한 Block당 크기를 곱한 값</strong>이다. 이 실험이 직접 관찰한 값과 계산한 값의 경계는 다음과 같다.</p>
+<pre><code class="language-text">직접 관찰
+→ 실제 계산 Token 수
+→ 실제 할당 Block 수
+
+모델 구조로 계산
+→ Token당 KV Byte
+→ 논리적 KV MiB
+→ 실제 Block 수가 제공하는 저장 용량 MiB
+</code></pre>
+
+</section>
+<section id="block" class="markdown-section">
+<h2>동시 요청에서 “전체 Block 수”가 뜻하는 것</h2>
+<p>동시에 실행되는 요청이 둘이면 각 요청은 자신에게 할당된 Block을 가진다. 이때 현재 요청들이 사용하는 전체 Block 수는 각 요청의 Block 수를 더해서 구한다.</p>
+<pre><code class="language-text">A: 계산 Token 75개 → 5Block
+B: 계산 Token 74개 → 5Block
+
+A·B가 동시에 사용하는 전체 Block
+→ 5 + 5 = 10Block
+</code></pre>
+<p>여러 요청에서는 Token 수를 먼저 모두 합친 뒤 한 번만 올림하면 안 된다. 각 Sequence의 마지막 Block에는 별도의 빈자리가 생길 수 있기 때문이다.</p>
+<pre><code class="language-text">올바른 계산
+→ ceil(A Token / 16) + ceil(B Token / 16)
+
+이번 관찰
+→ ceil(75 / 16) + ceil(74 / 16)
+→ 5 + 5
+→ 10Block
+</code></pre>
+<p>이번 <code>running-2</code> 시점에는 전체 160Token 자리를 확보했고 149Token의 K·V를 저장했다. 따라서 두 요청의 마지막 Block에 남은 빈자리를 합하면 11Token이다.</p>
+
+</section>
+<section id="decode-32-token-106-105" class="markdown-section">
+<h2><code>decode-32</code>에서 계산 Token이 106이 아니라 105인 이유</h2>
+<p><code>max_tokens=32</code>는 입력 Prompt와 합친 전체 길이가 아니라, 이 요청이 새로 생성할 수 있는 출력 Token의 상한이다.</p>
+<pre><code class="language-text">입력 Prompt       = 74Token
+생성 설정         = 최대 32Token
+응답의 최대 전체 길이 = 74 + 32 = 106Token
+</code></pre>
+<p>하지만 응답에 포함된 마지막 출력 Token까지 모두 KV Cache에 들어갔다고 계산하면 안 된다. 한 Decode 단계에서는 현재까지의 Token을 Forward하여 다음 Token의 Logit을 얻고, 그 Logit에서 새 Token을 선택한다. 마지막으로 선택된 Token은 응답에는 들어가지만 요청이 그 즉시 길이 상한으로 끝나면 다음 Forward 입력으로 다시 사용되지 않는다. 따라서 이 Trace에서 실제 K·V 계산 완료 상태는 다음과 같았다.</p>
+<pre><code class="language-text">Prompt 74Token
++ 다음 Forward에 실제로 사용된 출력 Token 31개
+= 최대 계산 Token 105개
+
+응답으로 생성된 출력 Token
+= 32개
+</code></pre>
+<p>그래서 <code>decode-32</code>의 Block 예상값은 응답의 최대 전체 길이 106이 아니라 Trace에서 관찰한 실제 계산 Token 105를 사용해 <code>ceil(105 / 16) = 7Block</code>으로 구했다. <code>decode-128</code>과 <code>decode-512</code>도 같은 이유로 각각 201Token과 585Token을 비교 기준으로 사용했다.</p>
+
+</section>
+<section id="pool" class="markdown-section">
+<h2>Pool 사용률 계산에서 발견한 세션 분모 불일치</h2>
+<p>최종 비교 코드는 Prefill·Decode 결과의 Pool 사용률을 계산할 때 <code>idle-baseline/kv_cache_idle_summary.json</code>에 저장된 <code>19,789Block</code>을 분모로 사용했다. 그러나 Prefill·Decode 결과가 기록된 실제 Trace Session은 이 Idle 기준을 만든 Server와 다른 재시작 세션이었다.</p>
+<p>RunPod 보존 자료에서 확인한 실제 관계는 다음과 같다.</p>
+<p>Prefill·Decode 결과 JSON의 최상위 <code>trace_session_id</code>와 <code>block-trace/traced_server_idle_summary.json</code>, <code>block-trace/kv_cache_trace.jsonl</code>의 <code>session_id</code>가 모두 <code>b3ef63c6a41448d1b51ecc29b234c996</code>로 같음을 먼저 확인했다. 같은 JSONL Trace에도 <code>number_of_gpu_blocks=21,256</code>, <code>number_of_free_blocks=21,255</code>가 기록돼 있다. 따라서 이 두 수치는 해당 결과와 같은 Trace Session에 근거한 값이다.</p>
+<pre><code class="language-text">Stage 6 코드가 읽은 Idle 기준
+→ number_of_gpu_blocks = 19,789
+
+Prefill·Decode Trace Session
+→ session_id = b3ef63c6a41448d1b51ecc29b234c996
+→ 전체 GPU Block = 21,256
+→ 예약 Null Block = 1
+→ 요청이 사용할 수 있는 Block = 21,255
+
+동시 요청·재사용 Trace Session
+→ 전체 GPU Block = 60
+→ 예약 Block = 1
+→ 요청이 사용할 수 있는 Block = 59
+</code></pre>
+<p>따라서 Stage 6이 출력한 Prefill·Decode 비율 <code>0.0253%</code>, <code>0.0859%</code>, <code>0.3285%</code>, <code>0.0354%</code>, <code>0.0657%</code>, <code>0.1870%</code>는 <strong>실제 Block 수를 19,789로 나눈 파생값일 뿐, 해당 Trace Session의 실제 Pool 사용률로 인용할 수 없다.</strong></p>
+<p>Trace Session에 저장된 사용 가능 Block 수 <code>21,255</code>를 동일한 기준으로 사용하면 다음처럼 다시 계산된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th align="right">실제 Block</th>
+<th align="right">원래 출력: 19,789 기준</th>
+<th align="right">같은 Trace Session: 21,255 기준</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>short</td>
+<td align="right">5</td>
+<td align="right">0.0253%</td>
+<td align="right">0.023524%</td>
+</tr>
+<tr>
+<td>medium</td>
+<td align="right">17</td>
+<td align="right">0.0859%</td>
+<td align="right">0.079981%</td>
+</tr>
+<tr>
+<td>long</td>
+<td align="right">65</td>
+<td align="right">0.3285%</td>
+<td align="right">0.305810%</td>
+</tr>
+<tr>
+<td>decode-32</td>
+<td align="right">7</td>
+<td align="right">0.0354%</td>
+<td align="right">0.032933%</td>
+</tr>
+<tr>
+<td>decode-128</td>
+<td align="right">13</td>
+<td align="right">0.0657%</td>
+<td align="right">0.061162%</td>
+</tr>
+<tr>
+<td>decode-512</td>
+<td align="right">37</td>
+<td align="right">0.1870%</td>
+<td align="right">0.174077%</td>
+</tr>
+</tbody></table>
+</div>
+<p>동시 요청 행은 코드가 해당 제한 Pool의 사용 가능 Block <code>59</code>를 읽어 계산했으므로 세션 분모가 맞는다.</p>
+<pre><code class="language-text">running-1
+→ 5 / 59 × 100
+→ 8.4746%
+
+running-2
+→ 10 / 59 × 100
+→ 16.9492%
+</code></pre>
+<p>이 분모 오류는 예상 Block과 실제 Block의 일치, 논리적 KV MiB, 실제 Block 수로 계산한 저장 용량과 빈 Token 자리에는 영향을 주지 않는다. 영향을 받는 것은 Prefill·Decode 행의 <code>trace_derived_pool_usage_percent</code>뿐이다.</p>
+<pre><code class="language-text">유효한 결론
+→ 계산 Token으로 예상한 Block 수 = Trace의 실제 Block 수
+→ 논리 KV MiB와 Block 저장 용량의 차이 = 마지막 Block의 빈자리
+
+수정이 필요한 값
+→ Prefill·Decode 행의 Pool 사용률
+</code></pre>
+<p>원본 Notebook과 JSON은 실행 당시 기록을 보존하기 위해 수정하지 않았다. 이 문서에서 세션 불일치를 명시하고 Trace에 근거한 재계산 값을 별도로 제시한다.</p>
+
+</section>
+<section id="kv-cache-usage-gpu" class="markdown-section">
+<h2>KV Cache Usage와 GPU 전체 메모리는 무엇이 다른가</h2>
+<p><code>KV Cache Usage</code>는 GPU 전체 메모리 사용률이 아니다. vLLM이 Engine 시작 시 미리 확보해 둔 KV Cache Block Pool 중 현재 요청에 배정된 Block의 비율이다.</p>
+<pre><code class="language-text">Engine 시작
+→ KV Cache Pool용 GPU 메모리를 미리 확보
+→ Pool을 여러 Block으로 관리
+
+요청 시작
+→ Free Block을 요청에 배정
+→ KV Cache Usage 증가
+
+요청 완료
+→ Block을 Free 상태로 반환
+→ KV Cache Usage 감소
+</code></pre>
+<p>요청 완료 후 달라지는 것은 이미 준비된 Block의 상태다.</p>
+<pre><code class="language-text">사용 중 Block
+→ Free Block으로 전환
+</code></pre>
+<p>Pool을 위해 미리 확보한 GPU 메모리 자체는 vLLM Engine이 계속 유지한다. 따라서 KV Cache Usage가 0%로 돌아와도 <code>nvidia-smi</code>의 GPU 메모리가 같은 폭으로 감소해야 하는 것은 아니다. GPU 전체 메모리에는 모델 가중치, KV Cache Pool 전체, CUDA Runtime, 활성값과 임시 연산 공간 등도 포함된다.</p>
+<p>이번 단계는 GPU 메모리 할당량이 요청마다 줄었다 늘었다는 것을 검증한 실험이 아니다. <strong>미리 확보된 Pool 안에서 실제 Block 배정과 반환 상태가 예상대로 바뀌는지</strong>를 검증했다.</p>
+
+</section>
+<section id="section-5261bbba493c" class="markdown-section">
+<h2>실행한 비교 코드</h2>
+<p>아래 셀은 기존 결과 파일을 읽고 세 종류의 행을 만들었다.</p>
+<ol>
+<li>Prompt 74·266·1034Token의 최초 Prefill</li>
+<li>최대 출력 32·128·512Token 조건의 Decode 최대 점유</li>
+<li>제한된 Pool에서 Running 요청 1개·2개인 시점</li>
+</ol>
+<p>동시 요청 행은 요청별 예상 Block을 각각 올림한 뒤 합산했다. 마지막에는 모든 행의 예상 Block과 실제 Block이 같은지 <code>assert</code>로 확인하고 결과를 JSON으로 저장했다.</p>
+<pre><code class="language-python">import json
+import math
+
+from collections import defaultdict
+from pathlib import Path
+from typing import Any
+
+
+# --------------------------------------------------
+# 1. 기존 실험 결과가 저장된 위치
+# --------------------------------------------------
+
+result_root = Path(
+    &quot;/root/transformer-practice/transformer/&quot;
+    &quot;research/vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/2026-09-14-kv-cache-lifecycle&quot;
+)
+
+idle_summary_path = (
+    result_root
+    / &quot;idle-baseline&quot;
+    / &quot;kv_cache_idle_summary.json&quot;
+)
+
+prefill_results_path = (
+    result_root
+    / &quot;prompt-length-prefill&quot;
+    / &quot;prompt_length_prefill_results.json&quot;
+)
+
+decode_results_path = (
+    result_root
+    / &quot;decode-growth&quot;
+    / &quot;decode_growth_results.json&quot;
+)
+
+constrained_baseline_path = (
+    result_root
+    / &quot;constrained-block-pool&quot;
+    / &quot;constrained_pool_baseline.json&quot;
+)
+
+block_reuse_path = (
+    result_root
+    / &quot;constrained-block-pool&quot;
+    / &quot;block_reuse_analysis.json&quot;
+)
+
+constrained_trace_path = (
+    result_root
+    / &quot;constrained-block-pool&quot;
+    / &quot;kv_cache_trace.jsonl&quot;
+)
+
+output_directory = (
+    result_root
+    / &quot;theory-actual-comparison&quot;
+)
+
+output_path = (
+    output_directory
+    / &quot;kv_cache_theory_actual_comparison.json&quot;
+)
+
+output_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+
+# --------------------------------------------------
+# 2. JSON 파일 하나를 Python dict로 읽는 함수
+# --------------------------------------------------
+
+def load_json(
+    path: Path,
+) -&gt; dict[str, Any]:
+    assert path.is_file(), (
+        f&quot;결과 파일이 없습니다: {path}&quot;
+    )
+
+    return json.loads(
+        path.read_text(
+            encoding=&quot;utf-8&quot;,
+        )
+    )
+
+
+idle_summary = load_json(
+    idle_summary_path
+)
+
+prefill_payload = load_json(
+    prefill_results_path
+)
+
+decode_payload = load_json(
+    decode_results_path
+)
+
+constrained_baseline = load_json(
+    constrained_baseline_path
+)
+
+block_reuse_analysis = load_json(
+    block_reuse_path
+)
+
+
+# JSONL은 한 줄마다 JSON 하나가 들어 있다.
+trace_records: list[dict[str, Any]] = [
+    json.loads(line)
+    for line in constrained_trace_path.read_text(
+        encoding=&quot;utf-8&quot;,
+    ).splitlines()
+    if line.strip()
+]
+
+
+# --------------------------------------------------
+# 3. 앞에서 계산한 공통 기준
+# --------------------------------------------------
+
+bytes_per_token: int = int(
+    idle_summary[
+        &quot;theoretical_bytes_per_token&quot;
+    ]
+)
+
+bytes_per_block: int = int(
+    idle_summary[
+        &quot;theoretical_bytes_per_block&quot;
+    ]
+)
+
+block_size_tokens: int = int(
+    idle_summary[
+        &quot;block_size_tokens&quot;
+    ]
+)
+
+normal_pool_blocks: int = int(
+    idle_summary[
+        &quot;number_of_gpu_blocks&quot;
+    ]
+)
+
+# 제한된 Server는 전체 60Block 중
+# 1Block을 내부 용도로 예약하므로
+# 요청이 사용할 수 있는 Block은 59개다.
+constrained_usable_blocks: int = int(
+    constrained_baseline[
+        &quot;number_of_free_blocks&quot;
+    ]
+)
+
+bytes_per_mib: int = 2**20
+
+
+# --------------------------------------------------
+# 4. 하나의 비교 행을 만드는 함수
+# --------------------------------------------------
+
+def build_comparison_row(
+    *,
+    category: str,
+    condition: str,
+    request_count: int,
+    computed_tokens: int,
+    actual_blocks: int,
+    pool_denominator_blocks: int,
+    measurement_runs: int,
+) -&gt; dict[str, Any]:
+    expected_blocks: int = math.ceil(
+        computed_tokens
+        / block_size_tokens
+    )
+
+    logical_kv_mib: float = (
+        computed_tokens
+        * bytes_per_token
+        / bytes_per_mib
+    )
+
+    assigned_block_capacity_mib: float = (
+        actual_blocks
+        * bytes_per_block
+        / bytes_per_mib
+    )
+
+    unused_token_slots: int = (
+        actual_blocks
+        * block_size_tokens
+        - computed_tokens
+    )
+
+    pool_usage_percent: float = (
+        actual_blocks
+        / pool_denominator_blocks
+        * 100
+    )
+
+    return {
+        &quot;category&quot;: category,
+        &quot;condition&quot;: condition,
+        &quot;request_count&quot;: request_count,
+        &quot;computed_tokens&quot;: computed_tokens,
+        &quot;logical_kv_mib&quot;: logical_kv_mib,
+        &quot;expected_blocks&quot;: expected_blocks,
+        &quot;actual_blocks&quot;: actual_blocks,
+        &quot;assigned_block_capacity_mib&quot;: (
+            assigned_block_capacity_mib
+        ),
+        &quot;unused_token_slots&quot;: (
+            unused_token_slots
+        ),
+        &quot;trace_derived_pool_usage_percent&quot;: (
+            pool_usage_percent
+        ),
+        &quot;pool_denominator_blocks&quot;: (
+            pool_denominator_blocks
+        ),
+        &quot;measurement_runs&quot;: measurement_runs,
+    }
+
+
+comparison_rows: list[
+    dict[str, Any]
+] = []
+
+
+# --------------------------------------------------
+# 5. Prompt 길이별 Prefill 결과
+# --------------------------------------------------
+
+prefill_results_by_label: dict[
+    str,
+    list[dict[str, Any]],
+] = defaultdict(list)
+
+for result in prefill_payload[&quot;results&quot;]:
+    if result[&quot;run_kind&quot;] == &quot;measurement&quot;:
+        prefill_results_by_label[
+            result[&quot;request_label&quot;]
+        ].append(result)
+
+
+for label in (
+    &quot;short&quot;,
+    &quot;medium&quot;,
+    &quot;long&quot;,
+):
+    measurements = (
+        prefill_results_by_label[label]
+    )
+
+    assert len(measurements) == 3
+
+    prompt_token_values = {
+        int(result[&quot;prompt_tokens&quot;])
+        for result in measurements
+    }
+
+    actual_block_values = {
+        int(result[&quot;actual_initial_blocks&quot;])
+        for result in measurements
+    }
+
+    # 3회 모두 같은 Token·Block 결과인지 확인한다.
+    assert len(prompt_token_values) == 1
+    assert len(actual_block_values) == 1
+
+    comparison_rows.append(
+        build_comparison_row(
+            category=&quot;prefill&quot;,
+            condition=label,
+            request_count=1,
+            computed_tokens=(
+                prompt_token_values.pop()
+            ),
+            actual_blocks=(
+                actual_block_values.pop()
+            ),
+            pool_denominator_blocks=(
+                normal_pool_blocks
+            ),
+            measurement_runs=3,
+        )
+    )
+
+
+# --------------------------------------------------
+# 6. 생성 길이별 Decode 최대 점유 결과
+# --------------------------------------------------
+
+decode_results_by_label: dict[
+    str,
+    list[dict[str, Any]],
+] = defaultdict(list)
+
+for result in decode_payload[&quot;results&quot;]:
+    if result[&quot;run_kind&quot;] == &quot;measurement&quot;:
+        decode_results_by_label[
+            result[&quot;request_label&quot;]
+        ].append(result)
+
+
+for label in (
+    &quot;decode-32&quot;,
+    &quot;decode-128&quot;,
+    &quot;decode-512&quot;,
+):
+    measurements = (
+        decode_results_by_label[label]
+    )
+
+    assert len(measurements) == 3
+
+    computed_token_values = {
+        int(result[&quot;maximum_computed_tokens&quot;])
+        for result in measurements
+    }
+
+    actual_block_values = {
+        int(result[&quot;maximum_block_count&quot;])
+        for result in measurements
+    }
+
+    assert len(computed_token_values) == 1
+    assert len(actual_block_values) == 1
+
+    comparison_rows.append(
+        build_comparison_row(
+            category=&quot;decode&quot;,
+            condition=label,
+            request_count=1,
+            computed_tokens=(
+                computed_token_values.pop()
+            ),
+            actual_blocks=(
+                actual_block_values.pop()
+            ),
+            pool_denominator_blocks=(
+                normal_pool_blocks
+            ),
+            measurement_runs=3,
+        )
+    )
+
+
+# --------------------------------------------------
+# 7. Running 요청 1개·2개 시점 찾기
+# --------------------------------------------------
+
+trace_session_id: str = (
+    block_reuse_analysis[
+        &quot;trace_session_id&quot;
+    ]
+)
+
+actual_request_ids: dict[
+    str,
+    str,
+] = block_reuse_analysis[
+    &quot;actual_request_ids&quot;
+]
+
+request_a_id: str = (
+    actual_request_ids[&quot;A&quot;]
+)
+
+request_b_id: str = (
+    actual_request_ids[&quot;B&quot;]
+)
+
+schedule_records = [
+    record
+    for record in trace_records
+    if (
+        record.get(&quot;event_type&quot;)
+        == &quot;schedule&quot;
+        and record.get(&quot;session_id&quot;)
+        == trace_session_id
+    )
+]
+
+
+# A의 최초 Prefill이 끝난 시점:
+# Running 요청 1개, 계산 Token 74개, Block 5개
+running_one_record = next(
+    record
+    for record in schedule_records
+    if (
+        set(record[&quot;running_after&quot;])
+        == {request_a_id}
+        and record[&quot;requests_after&quot;][
+            request_a_id
+        ][&quot;computed_tokens&quot;]
+        == 74
+    )
+)
+
+
+# B가 들어와 A·B가 함께 Running이 된 최초 시점:
+# A는 75Token, B는 74Token을 계산한 상태다.
+running_two_record = next(
+    record
+    for record in schedule_records
+    if set(record[&quot;running_after&quot;]) == {
+        request_a_id,
+        request_b_id,
+    }
+)
+
+
+def build_concurrent_row(
+    *,
+    condition: str,
+    schedule_record: dict[str, Any],
+) -&gt; dict[str, Any]:
+    running_request_states = [
+        schedule_record[&quot;requests_after&quot;][
+            request_id
+        ]
+        for request_id
+        in schedule_record[&quot;running_after&quot;]
+    ]
+
+    computed_tokens: int = sum(
+        int(state[&quot;computed_tokens&quot;])
+        for state in running_request_states
+    )
+
+    actual_blocks: int = sum(
+        int(state[&quot;block_count&quot;])
+        for state in running_request_states
+    )
+
+    # 동시 요청에서는 요청마다 마지막 Block의
+    # 빈자리가 따로 생길 수 있으므로,
+    # 예상 Block도 요청별로 계산한 뒤 더한다.
+    expected_blocks: int = sum(
+        math.ceil(
+            int(state[&quot;computed_tokens&quot;])
+            / block_size_tokens
+        )
+        for state in running_request_states
+    )
+
+    row = build_comparison_row(
+        category=&quot;concurrent&quot;,
+        condition=condition,
+        request_count=len(
+            running_request_states
+        ),
+        computed_tokens=computed_tokens,
+        actual_blocks=actual_blocks,
+        pool_denominator_blocks=(
+            constrained_usable_blocks
+        ),
+        measurement_runs=1,
+    )
+
+    # 여러 요청에서는 전체 Token을 한 번에
+    # 올림하면 안 되므로 요청별 합으로 교체한다.
+    row[&quot;expected_blocks&quot;] = expected_blocks
+
+    row[&quot;running_requests&quot;] = [
+        {
+            &quot;request_id&quot;: state[&quot;request_id&quot;],
+            &quot;computed_tokens&quot;: int(
+                state[&quot;computed_tokens&quot;]
+            ),
+            &quot;block_count&quot;: int(
+                state[&quot;block_count&quot;]
+            ),
+        }
+        for state in running_request_states
+    ]
+
+    return row
+
+
+comparison_rows.append(
+    build_concurrent_row(
+        condition=&quot;running-1&quot;,
+        schedule_record=running_one_record,
+    )
+)
+
+comparison_rows.append(
+    build_concurrent_row(
+        condition=&quot;running-2&quot;,
+        schedule_record=running_two_record,
+    )
+)
+
+
+# --------------------------------------------------
+# 8. 이론값과 실제 Block 수 검증
+# --------------------------------------------------
+
+for row in comparison_rows:
+    assert (
+        row[&quot;expected_blocks&quot;]
+        == row[&quot;actual_blocks&quot;]
+    ), (
+        f&quot;예상 Block과 실제 Block 불일치: &quot;
+        f&quot;{row[&#39;condition&#39;]}&quot;
+    )
+
+assert block_reuse_analysis[
+    &quot;same_block_id_reuse_observed&quot;
+]
+
+assert (
+    block_reuse_analysis[
+        &quot;initial_free_blocks&quot;
+    ]
+    == block_reuse_analysis[
+        &quot;final_free_blocks&quot;
+    ]
+)
+
+
+# --------------------------------------------------
+# 9. 비교 결과 저장
+# --------------------------------------------------
+
+comparison_payload = {
+    &quot;contract&quot;: {
+        &quot;bytes_per_token&quot;: bytes_per_token,
+        &quot;bytes_per_block&quot;: bytes_per_block,
+        &quot;block_size_tokens&quot;: (
+            block_size_tokens
+        ),
+        &quot;normal_pool_blocks&quot;: (
+            normal_pool_blocks
+        ),
+        &quot;constrained_usable_blocks&quot;: (
+            constrained_usable_blocks
+        ),
+    },
+    &quot;comparison_rows&quot;: comparison_rows,
+    &quot;block_reuse&quot;: {
+        &quot;reused_block_ids&quot;: (
+            block_reuse_analysis[
+                &quot;reused_block_ids&quot;
+            ]
+        ),
+        &quot;reused_block_count&quot;: (
+            block_reuse_analysis[
+                &quot;reused_block_count&quot;
+            ]
+        ),
+        &quot;preempted_request_ids&quot;: (
+            block_reuse_analysis[
+                &quot;preempted_request_ids&quot;
+            ]
+        ),
+        &quot;final_free_blocks_restored&quot;: (
+            block_reuse_analysis[
+                &quot;initial_free_blocks&quot;
+            ]
+            == block_reuse_analysis[
+                &quot;final_free_blocks&quot;
+            ]
+        ),
+    },
+    &quot;interpretation&quot;: {
+        &quot;kv_cache_usage&quot;: (
+            &quot;미리 확보된 Block Pool 중 &quot;
+            &quot;현재 요청에 배정된 Block의 비율&quot;
+        ),
+        &quot;gpu_memory_boundary&quot;: (
+            &quot;Block이 반환되어도 KV Cache Pool용 &quot;
+            &quot;GPU 메모리 자체는 Engine이 유지한다.&quot;
+        ),
+    },
+}
+
+output_path.write_text(
+    json.dumps(
+        comparison_payload,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 10. 사람이 확인할 비교표 출력
+# --------------------------------------------------
+
+print(
+    &quot;=== 이론적 KV Cache와 실제 Block 비교 ===&quot;
+)
+
+print(
+    &quot;분류       | 조건        | 요청 | 계산 Token | &quot;
+    &quot;논리 KV MiB | 예상 Block | 실제 Block | &quot;
+    &quot;Block 용량 MiB | 빈 Token 칸 | Pool 사용률&quot;
+)
+
+print(&quot;-&quot; * 125)
+
+for row in comparison_rows:
+    print(
+        f&quot;{row[&#39;category&#39;]:&lt;10} | &quot;
+        f&quot;{row[&#39;condition&#39;]:&lt;11} | &quot;
+        f&quot;{row[&#39;request_count&#39;]:&gt;4} | &quot;
+        f&quot;{row[&#39;computed_tokens&#39;]:&gt;10} | &quot;
+        f&quot;{row[&#39;logical_kv_mib&#39;]:&gt;10.4f} | &quot;
+        f&quot;{row[&#39;expected_blocks&#39;]:&gt;10} | &quot;
+        f&quot;{row[&#39;actual_blocks&#39;]:&gt;10} | &quot;
+        f&quot;{row[&#39;assigned_block_capacity_mib&#39;]:&gt;14.4f} | &quot;
+        f&quot;{row[&#39;unused_token_slots&#39;]:&gt;11} | &quot;
+        f&quot;{row[&#39;trace_derived_pool_usage_percent&#39;]:&gt;9.4f}%&quot;
+    )
+
+print()
+print(
+    &quot;B → C 재사용 Block:&quot;,
+    block_reuse_analysis[
+        &quot;reused_block_ids&quot;
+    ],
+)
+
+print(
+    &quot;재사용 Block 수:&quot;,
+    block_reuse_analysis[
+        &quot;reused_block_count&quot;
+    ],
+)
+
+print(
+    &quot;Preemption:&quot;,
+    block_reuse_analysis[
+        &quot;preempted_request_ids&quot;
+    ],
+)
+
+print(
+    &quot;Free Block 원상 복구:&quot;,
+    (
+        block_reuse_analysis[
+            &quot;initial_free_blocks&quot;
+        ]
+        == block_reuse_analysis[
+            &quot;final_free_blocks&quot;
+        ]
+    ),
+)
+
+print()
+print(
+    &quot;비교 결과 저장:&quot;,
+    output_path,
+)
+</code></pre>
+
+</section>
+<section id="section-7868f7af282b" class="markdown-section">
+<h2>실제 비교 결과</h2>
+<p>다음 표는 Notebook이 실제로 출력하고 JSON에 저장한 값을 그대로 보존한 것이다. <code>원본 출력 Pool 사용률</code> 중 Prefill·Decode 여섯 행에는 앞에서 설명한 세션 분모 불일치가 있으며, 같은 세션 기준 수정값은 위의 별도 표를 사용해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>분류</th>
+<th>조건</th>
+<th align="right">요청 수</th>
+<th align="right">계산 Token</th>
+<th align="right">논리 KV MiB</th>
+<th align="right">예상 Block</th>
+<th align="right">실제 Block</th>
+<th align="right">Block 용량 MiB</th>
+<th align="right">빈 Token 칸</th>
+<th align="right">원본 출력 Pool 사용률</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Prefill</td>
+<td>short</td>
+<td align="right">1</td>
+<td align="right">74</td>
+<td align="right">2.0234</td>
+<td align="right">5</td>
+<td align="right">5</td>
+<td align="right">2.1875</td>
+<td align="right">6</td>
+<td align="right">0.0253%</td>
+</tr>
+<tr>
+<td>Prefill</td>
+<td>medium</td>
+<td align="right">1</td>
+<td align="right">266</td>
+<td align="right">7.2734</td>
+<td align="right">17</td>
+<td align="right">17</td>
+<td align="right">7.4375</td>
+<td align="right">6</td>
+<td align="right">0.0859%</td>
+</tr>
+<tr>
+<td>Prefill</td>
+<td>long</td>
+<td align="right">1</td>
+<td align="right">1,034</td>
+<td align="right">28.2734</td>
+<td align="right">65</td>
+<td align="right">65</td>
+<td align="right">28.4375</td>
+<td align="right">6</td>
+<td align="right">0.3285%</td>
+</tr>
+<tr>
+<td>Decode</td>
+<td>decode-32</td>
+<td align="right">1</td>
+<td align="right">105</td>
+<td align="right">2.8711</td>
+<td align="right">7</td>
+<td align="right">7</td>
+<td align="right">3.0625</td>
+<td align="right">7</td>
+<td align="right">0.0354%</td>
+</tr>
+<tr>
+<td>Decode</td>
+<td>decode-128</td>
+<td align="right">1</td>
+<td align="right">201</td>
+<td align="right">5.4961</td>
+<td align="right">13</td>
+<td align="right">13</td>
+<td align="right">5.6875</td>
+<td align="right">7</td>
+<td align="right">0.0657%</td>
+</tr>
+<tr>
+<td>Decode</td>
+<td>decode-512</td>
+<td align="right">1</td>
+<td align="right">585</td>
+<td align="right">15.9961</td>
+<td align="right">37</td>
+<td align="right">37</td>
+<td align="right">16.1875</td>
+<td align="right">7</td>
+<td align="right">0.1870%</td>
+</tr>
+<tr>
+<td>동시 실행</td>
+<td>running-1</td>
+<td align="right">1</td>
+<td align="right">74</td>
+<td align="right">2.0234</td>
+<td align="right">5</td>
+<td align="right">5</td>
+<td align="right">2.1875</td>
+<td align="right">6</td>
+<td align="right">8.4746%</td>
+</tr>
+<tr>
+<td>동시 실행</td>
+<td>running-2</td>
+<td align="right">2</td>
+<td align="right">149</td>
+<td align="right">4.0742</td>
+<td align="right">10</td>
+<td align="right">10</td>
+<td align="right">4.3750</td>
+<td align="right">11</td>
+<td align="right">16.9492%</td>
+</tr>
+</tbody></table>
+</div>
+<pre><code class="language-text">Prefill·Decode Pool 사용률
+→ 원본 출력은 세션 분모 불일치
+→ 위의 21,255Block 기준 수정표 참조
+
+동시 실행 Pool 사용률
+→ 해당 세션의 사용 가능 59Block 기준
+→ 원본 출력값 유효
+</code></pre>
+<p>추가 출력은 다음과 같았다.</p>
+<pre><code class="language-text">B → C 재사용 Block: [6, 8, 10, 14, 18, 20, 22, 24, 26]
+재사용 Block 수: 9
+Preemption: []
+Free Block 원상 복구: True
+</code></pre>
+<p>비교 결과는 다음 파일에 저장했다.</p>
+<pre><code class="language-text">research/vllm_scheduler_kv_cache_criteria/results/
+2026-09-14-kv-cache-lifecycle/theory-actual-comparison/
+kv_cache_theory_actual_comparison.json
+</code></pre>
+
+</section>
+<section id="section-3045c5b62487" class="markdown-section">
+<h2>결과 해석</h2>
+<p>모든 조건에서 계산 Token 수로 예상한 Block 수와 Trace의 실제 Block 수가 일치했다. 이 결론은 Pool 사용률의 분모와 무관하게 각 행의 Token 수와 Block 수를 직접 비교한 결과다.</p>
+<pre><code class="language-text">Prefill
+74Token   → 예상 5Block  → 실제 5Block
+266Token  → 예상 17Block → 실제 17Block
+1034Token → 예상 65Block → 실제 65Block
+
+Decode 최대 점유
+105Token → 예상 7Block  → 실제 7Block
+201Token → 예상 13Block → 실제 13Block
+585Token → 예상 37Block → 실제 37Block
+
+동시 실행
+Running 1개, 74Token  → 예상 5Block  → 실제 5Block
+Running 2개, 149Token → 예상 10Block → 실제 10Block
+</code></pre>
+<p>이 결과는 다음 연결을 실제 Trace와 계산으로 확인한 것이다.</p>
+<pre><code class="language-text">실제 계산 Token 수
+→ Token당 KV Cache 크기로 논리적 사용량 계산
+→ Sequence별로 16Token 단위 Block 수 올림
+→ Trace의 실제 할당 Block 수와 일치
+</code></pre>
+<p>또한 마지막 Block의 빈자리 때문에 논리적 KV MiB보다 할당 Block의 저장 용량이 조금 더 컸다. B가 반환한 Block 중 9개를 C가 다시 받았고, Preemption 없이 모든 요청이 끝난 후 Free Block 수도 시작값 59로 복구됐다.</p>
+
+</section>
+<section id="section-e9df41fdbfd8" class="markdown-section">
+<h2>이 단계에서 확인하지 않은 것</h2>
+<p>이번 결과가 직접 증명한 것은 이번 모델·dtype·Block 크기와 두 Server 실행에서 예상 Block 수와 Trace의 실제 Block 수가 일치했다는 사실이다. 다음 내용까지 증명한 것은 아니다.</p>
+<ul>
+<li><code>nvidia-smi</code>로 분리 측정한 KV Cache 전용 물리 메모리 Byte</li>
+<li>다른 모델 구조·KV dtype·Block 크기에서도 같은 수치가 나온다는 것</li>
+<li>Prefix Caching을 켰을 때의 공유 Block과 완료 후 보존 정책</li>
+<li>Chunked Prefill에서 한 Prompt가 여러 Iteration으로 나뉠 때의 할당 변화</li>
+<li>Cache Pressure에서 Preemption·Recomputation이 발생하는 경계</li>
+<li>Pool 사용률 분모가 다른 두 Server 행 사이의 절대적인 성능·효율 비교</li>
+<li>원본 비교 JSON의 Prefill·Decode Pool 사용률을 같은 Trace Session의 실제 Usage라고 간주하는 것</li>
+</ul>
+<p>이번 단계는 “실제 Block 개수와 이론적 Block당 크기를 연결한 계산 검증”이다. GPU 물리 메모리의 모든 구성 요소를 직접 분해해서 측정한 실험으로 확대 해석하지 않는다.</p>
+<p><a href="05_concurrent_occupancy_release_reuse.html">← 이전 단계</a> · <a href="../03_kv_cache_lifecycle_memory_validation.html">상위 실습으로 돌아가기</a> · <a href="07_artifacts_and_completion.html">다음 단계 →</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

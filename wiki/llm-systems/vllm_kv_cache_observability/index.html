@@ -1,0 +1,242 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/index.md. Do not edit directly. source-sha256:419bb3816808e70a5b47363e3b8af33050b159a1643017e2dfc7259dce8826ea -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HTTP 응답과 표준 Metrics의 관찰 범위를 구분하고, 요청별 KV Cache Block 생명주기를 확인하기 위해 Custom Scheduler Trace를 선택·분석한 과정을 설명합니다.">
+  <meta name="source-sha256" content="419bb3816808e70a5b47363e3b8af33050b159a1643017e2dfc7259dce8826ea">
+  <title>vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가">
+  <meta property="og:description" content="HTTP 응답과 표준 Metrics의 관찰 범위를 구분하고, 요청별 KV Cache Block 생명주기를 확인하기 위해 Custom Scheduler Trace를 선택·분석한 과정을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html","name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","description":"HTTP 응답과 표준 Metrics의 관찰 범위를 구분하고, 요청별 KV Cache Block 생명주기를 확인하기 위해 Custom Scheduler Trace를 선택·분석한 과정을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},"about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</h1>
+      <p class="lead">HTTP 응답과 표준 Metrics의 관찰 범위를 구분하고, 요청별 KV Cache Block 생명주기를 확인하기 위해 Custom Scheduler Trace를 선택·분석한 과정을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#vllm-kv-cache-observability-section-1">vLLM을 운영할 때 먼저 보게 되는 자료</a>
+        <a href="#vllm-kv-cache-observability-section-2">이번에는 무엇을 더 알고 싶었는가</a>
+        <a href="#vllm-kv-cache-observability-section-3">이번에는 왜 Custom Trace를 사용했는가</a>
+        <a href="#vllm-kv-cache-observability-section-4">무엇을 어떻게 관찰했는가</a>
+        <a href="#vllm-kv-cache-observability-section-5">실제 요청에서 무엇을 확인했는가</a>
+        <a href="#vllm-kv-cache-observability-section-6">결과를 해석할 때 구분해야 하는 값</a>
+        <a href="#vllm-kv-cache-observability-section-7">이 관찰이 의미하는 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><blockquote>
+<p>표준 지표로 시작해 필요한 경우 내부 Trace까지 내려가는 관찰 방법</p>
+</blockquote>
+</div>
+        <section id="vllm-kv-cache-observability-section-1" class="markdown-section">
+<h2>vLLM을 운영할 때 먼저 보게 되는 자료</h2>
+<p>vLLM Server에 요청을 보내면 Client는 생성된 결과와 Token 사용량을 응답으로 받는다. Server의 <code>/metrics</code>와 Log에서는 실행 중인 요청 수, Waiting 요청 수와 전체 KV Cache 사용률 등을 확인할 수 있다.</p>
+<pre><code class="language-text">HTTP 응답과 Client 측정
+→ 생성 결과와 Token 수
+→ 사용자가 체감한 TTFT·TPOT·Latency
+
+Server Metrics와 Log
+→ Running·Waiting 요청 수
+→ 전체 KV Cache 사용률
+→ 처리량·Preemption·오류
+</code></pre>
+<p>평상시 운영에서는 이 자료들로 Cache 압력, Queue 증가, 지연, 처리량과 오류를 관찰할 수 있다. 따라서 vLLM을 사용한다고 해서 처음부터 Custom Trace를 만들어야 하는 것은 아니다.</p>
+
+</section>
+<section id="vllm-kv-cache-observability-section-2" class="markdown-section">
+<h2>이번에는 무엇을 더 알고 싶었는가</h2>
+<ul>
+<li><a href="05_sequence_scheduled_tokens_kv_cache_blocks.html">vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정</a></li>
+</ul>
+<p>이번에 확인하려던 것은 Server 전체 상태가 아니라 요청 하나의 KV Cache 생명주기였다.</p>
+<pre><code class="language-text">Prompt를 처리할 때 몇 개의 Block을 할당받는가?
+Decode가 진행되는 동안 그 Block은 어떻게 유지되는가?
+요청이 끝나면 사용하던 Block이 실제로 반환되는가?
+</code></pre>
+<p>HTTP 응답은 실제 Prompt와 생성 Token 수를 알려주지만, Scheduler가 어떤 작업을 선택하고 어떤 Block을 할당했는지는 알려주지 않는다.</p>
+<p><code>/metrics</code>는 전체 KV Cache 사용률을 보여주지만, 특정 요청이 어떤 Block을 사용하고 반환했는지는 알려주지 않는다.</p>
+<pre><code class="language-text">HTTP 응답
+→ 요청의 최종 결과는 보임
+→ 요청 내부의 Block 상태는 보이지 않음
+
+Metrics
+→ Engine 전체 상태는 보임
+→ 요청별 Block 상태는 보이지 않음
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-observability-section-3" class="markdown-section">
+<h2>이번에는 왜 Custom Trace를 사용했는가</h2>
+<p>요청별 Block 생명주기는 표준 관측 자료만으로 직접 연결할 수 없었다. 그래서 이번 검증에서는 vLLM Scheduler의 실행 전후 상태를 기록하는 Custom Trace를 일시적으로 추가했다.</p>
+<p>이 Trace의 목적은 vLLM의 Scheduling이나 Block 반환 정책을 바꾸는 것이 아니다. 기존 동작은 그대로 실행하고, 그 앞뒤의 요청·Token·Block 상태만 JSONL에 기록했다.</p>
+<pre><code class="language-text">기존 vLLM 동작
+→ 요청 선택
+→ Token 작업 배정
+→ KV Cache Block 할당
+→ 요청 종료 후 Block 반환
+
+추가한 관찰 동작
+→ 기존 동작 전 상태 기록
+→ 기존 vLLM 메서드 실행
+→ 기존 동작 후 상태 기록
+→ 전후 차이를 JSONL에 저장
+</code></pre>
+<p>이것은 일반적인 운영 필수 기능이 아니라 내부 생명주기를 직접 확인하기 위해 선택한 검증 도구다. 평상시 관측과 Custom Trace의 경계는 <a href="04_standard_observability_and_custom_trace_boundary.html">표준 관측으로 충분한 범위와 Custom Trace가 필요한 경우</a>에서 자세히 설명한다.</p>
+
+</section>
+<section id="vllm-kv-cache-observability-section-4" class="markdown-section">
+<h2>무엇을 어떻게 관찰했는가</h2>
+<ul>
+<li><p><a href="07_per_request_output_length.html">vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법</a></p>
+</li>
+<li><p><a href="06_request_id_block_lifecycle.html">X-Request-Id로 vLLM 요청과 KV Cache Block 생명주기를 연결하는 방법</a></p>
+</li>
+</ul>
+<p>먼저 질문에 필요한 자료를 세 관측 지점으로 나눴다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>알고 싶은 것</th>
+<th>확인한 자료</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>실제 Prompt·생성 Token 수</td>
+<td>HTTP 응답</td>
+</tr>
+<tr>
+<td>Server 전체 Running·Waiting·Cache 상태</td>
+<td>Metrics</td>
+</tr>
+<tr>
+<td>Iteration별 작업과 요청별 Block 할당·반환</td>
+<td>Scheduler Trace</td>
+</tr>
+</tbody></table>
+</div>
+<p>Trace에는 수집 가능한 내부 값을 모두 넣지 않았다. 요청 상태, 이번 Iteration에 배정된 Token 작업, 현재 Block, 새로 할당된 Block과 종료 시 반환된 Block처럼 이번 질문에 필요한 값만 선택했다. 각 필드를 왜 수집했는지는 <a href="01_trace_collection_design.html">vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</a>에서 확인할 수 있다.</p>
+<p>내부 상태를 기록하기 위해 vLLM의 <code>AsyncScheduler</code>를 상속한 <code>KvCacheTracingScheduler</code>를 만들었다. 기존 <code>schedule()</code>과 <code>_free_request_blocks()</code>를 재정의하되 <code>super()</code>로 원래 동작을 수행한 뒤 관찰 기록만 추가했다. 상속 구조와 메서드별 역할은 <a href="02_async_scheduler_trace_implementation.html">AsyncScheduler를 확장해 내부 상태를 기록하는 방법</a>에서 자세히 설명한다.</p>
+<p>요청이 끝난 뒤에는 HTTP 응답과 JSONL을 따로 해석하지 않았다. Session ID와 Request ID로 같은 요청의 기록을 연결하고, 이벤트 종류에 따라 Scheduling 기록과 Block 반환 기록을 분리했다. 이 분석 과정은 <a href="03_trace_analysis_and_validation.html">HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</a>에 정리했다.</p>
+<p>전체 관찰 흐름은 다음과 같다.</p>
+<pre><code class="language-text">요청 전송
+   ↓
+HTTP 응답에서 실제 Token 수 확인
+   ↓
+Scheduler 실행 전후의 요청·Block 상태 기록
+   ↓
+요청 종료 시 Block 반환 상태 기록
+   ↓
+Session ID와 Request ID로 기록 연결
+   ↓
+응답의 Token 수와 Trace의 Block 변화를 함께 검증
+</code></pre>
+
+</section>
+<section id="vllm-kv-cache-observability-section-5" class="markdown-section">
+<h2>실제 요청에서 무엇을 확인했는가</h2>
+<p>기본 동작을 확인하기 위한 짧은 요청 하나에서 다음 결과를 얻었다.</p>
+<pre><code class="language-text">HTTP 응답
+├─ Prompt Token = 37
+└─ 생성 Token = 8
+
+schedule Trace
+├─ Schedule 기록 = 9
+├─ Prefill 기록 = 1
+├─ Decode 기록 = 7
+└─ 할당 Block = [1, 2, 3]
+
+free_request_blocks Trace
+├─ 반환 Block = [1, 2, 3]
+└─ Free Block 증가 = 3
+</code></pre>
+<p>Block 하나에는 16 Token 자리가 있으므로 37개의 Prompt Token을 저장하려면 세 Block이 필요하다.</p>
+<pre><code class="language-text">ceil(37 / 16) = 3 Block
+</code></pre>
+<p>실제로 세 Block이 할당됐고, 8개의 Token을 생성하는 동안 전체 Sequence 길이는 세 Block의 48개 Token 자리 안에 머물렀다. 따라서 추가 Block 없이 기존 세 Block을 사용했다.</p>
+<p>요청이 끝난 뒤에는 할당됐던 <code>[1, 2, 3]</code>이 그대로 반환됐으며 Free Block 수도 세 개 증가했다.</p>
+<pre><code class="language-text">할당 Block 집합 == 반환 Block 집합
+반환 Block 수 == Free Block 증가량
+</code></pre>
+<p>이 결과로 해당 요청에 KV Cache Block이 할당되고, 요청 처리 중 유지되며, 종료 후 공용 Block Pool로 반환되는 흐름을 확인했다.</p>
+<p>이번 짧은 요청은 네 번째 Block이 필요한 경계를 넘지 않았으므로 Decode 중 추가 Block이 할당되는 순간까지 증명한 것은 아니다. 그 변화는 Sequence 길이가 Block 경계를 넘는 별도의 요청으로 확인해야 한다.</p>
+
+</section>
+<section id="vllm-kv-cache-observability-section-6" class="markdown-section">
+<h2>결과를 해석할 때 구분해야 하는 값</h2>
+<p>Trace에 등장하는 Token 관련 값은 서로 의미가 다르다.</p>
+<pre><code class="language-text">scheduled_tokens
+→ 이번 Scheduler Iteration에서 처리하기로 선택한 Token 작업 수
+
+computed_tokens
+→ 해당 시점까지 계산 완료로 기록된 Token 수
+
+completion_tokens
+→ HTTP 응답이 보고한 실제 생성 Token 수
+</code></pre>
+<p>따라서 Schedule 기록 수를 생성 Token 수로 해석하면 안 된다. Running 상태인 요청도 Token Budget과 Scheduler 결정에 따라 특정 Iteration에는 Token 작업을 배정받지 않을 수 있다.</p>
+<p>또한 이 Trace는 Scheduler의 결정과 논리적인 Block 상태를 보여준다. CUDA Kernel이 실제로 완료된 시각이나 GPU 물리 메모리의 세부 배치까지 보여주는 자료는 아니다.</p>
+
+</section>
+<section id="vllm-kv-cache-observability-section-7" class="markdown-section">
+<h2>이 관찰이 의미하는 것</h2>
+<p>이번 Custom Trace를 통해 KV Cache Block이 요청과 연결되어 할당되고 종료 후 반환되는 과정을 직접 확인했다. 덕분에 전체 KV Cache 사용률이라는 집계 값이 내부적으로 어떤 생명주기의 결과인지 이해할 수 있었다.</p>
+<p>하지만 이 결과가 모든 운영 환경에서 요청별 Block ID를 계속 기록해야 한다는 뜻은 아니다.</p>
+<pre><code class="language-text">평상시 운영
+→ HTTP 응답 + Client 측정 + Metrics + Server Log
+
+내부 구현 검증이나 심층 장애 분석
+→ 필요한 기간에만 Custom Scheduler Trace
+</code></pre>
+<p>먼저 표준 관측 자료로 상태를 확인하고, 그 자료만으로 답할 수 없는 내부 질문이 생겼을 때 필요한 Trace를 추가하는 것이 현실적인 접근이다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="01_trace_collection_design.html">vLLM 내부 관찰을 위해 어떤 데이터를 수집해야 하는가</a></li>
+<li><a href="02_async_scheduler_trace_implementation.html">AsyncScheduler를 확장해 내부 상태를 기록하는 방법</a></li>
+<li><a href="03_trace_analysis_and_validation.html">HTTP 응답과 JSONL Trace를 연결해 요청을 검증하는 방법</a></li>
+<li><a href="04_standard_observability_and_custom_trace_boundary.html">표준 관측으로 충분한 범위와 Custom Trace가 필요한 경우</a></li>
+<li><a href="05_sequence_scheduled_tokens_kv_cache_blocks.html">vLLM에서 Sequence·Scheduled Token·KV Cache Block이 연결되는 과정</a></li>
+<li><a href="06_request_id_block_lifecycle.html">X-Request-Id로 vLLM 요청과 KV Cache Block 생명주기를 연결하는 방법</a></li>
+<li><a href="07_per_request_output_length.html">vLLM에서 요청마다 출력 길이를 다르게 지정하는 방법</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
