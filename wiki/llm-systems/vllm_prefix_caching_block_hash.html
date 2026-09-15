@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_prefix_caching_block_hash.md. Do not edit directly. source-sha256:0501f581d48380276740c71b5936209c6d69f3a42d8152a997666466d98f0859 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="프롬프트를 토큰 블록으로 나누고 Parent Hash를 연결해 공통 KV Cache를 재사용하는 Prefix Block의 식별과 조회 흐름을 설명합니다.">
+  <meta name="source-sha256" content="0501f581d48380276740c71b5936209c6d69f3a42d8152a997666466d98f0859">
+  <title>프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리">
+  <meta property="og:description" content="프롬프트를 토큰 블록으로 나누고 Parent Hash를 연결해 공통 KV Cache를 재사용하는 Prefix Block의 식별과 조회 흐름을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html","name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","description":"프롬프트를 토큰 블록으로 나누고 Parent Hash를 연결해 공통 KV Cache를 재사용하는 Prefix Block의 식별과 조회 흐름을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},"headline":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</h1>
+      <p class="lead">프롬프트를 토큰 블록으로 나누고 Parent Hash를 연결해 공통 KV Cache를 재사용하는 Prefix Block의 식별과 조회 흐름을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#prefix-block-flow">입력을 Prefix Block으로 만들고 재사용하는 전체 흐름</a>
+        <a href="#prefix-block">프리픽스 캐싱에서 Prefix Block이란</a>
+        <a href="#parent-hash">Parent Hash와 현재 블록 토큰으로 만드는 식별자</a>
+        <a href="#section-d525254d05ad">왜 현재 블록 토큰만 해싱하면 안 되는가</a>
+        <a href="#section-dbdb5e843dda">새 요청에서 캐시를 찾고 재사용하는 과정</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>프리픽스 캐싱(Prefix Caching)은 새로운 요청의 입력이 이전 요청과 같은 토큰 시퀀스로 시작할 때, 이미 계산한 Key·Value(KV) 캐시를 재사용해 중복 계산을 줄이는 기술이다. 여러 요청이 동일한 시스템 프롬프트나 긴 문서로 시작한다면, 공통 부분의 KV를 매번 다시 계산할 필요가 없다.</p>
+</div>
+        <section id="prefix-block-flow" class="markdown-section">
+<h2>입력을 Prefix Block으로 만들고 재사용하는 전체 흐름</h2>
+<p>요청 문장은 토크나이저를 거쳐 Token ID 시퀀스로 바뀌고, Token ID들은 vLLM의 Block 크기에 맞춰 나뉜다. 프리픽스 캐싱은 이렇게 만들어진 완성 Block을 단위로 기존 KV Cache를 찾는다.</p>
+<pre><code class="language-text">입력 문장
+→ Tokenizer
+→ Token ID 시퀀스
+→ Block 크기에 맞춰 Token ID 분할
+→ 완성 Block마다 Hash 계산
+→ Cache Index 조회
+</code></pre>
+<p>Block에 미리 Hash가 들어 있는 것은 아니다. 시스템이 이전 Block의 Hash와 현재 Block의 Token ID 목록을 사용해 현재 Block Hash를 계산한다.</p>
+<pre><code class="language-text">현재 Block Hash
+= Hash(
+    이전 Block Hash,
+    현재 Block의 Token ID 목록
+)
+</code></pre>
+<p>Hash가 Cache Index에 있으면 Cache Hit다. Hash가 가리키는 기존 물리 Block ID를 가져와 새 Sequence의 Block Table에 연결하고, 그 Block에 저장된 K·V를 재사용한다.</p>
+<pre><code class="language-text">Cache Index에 Block Hash가 있음
+→ Cache Hit
+→ 기존 물리 Block ID 조회
+→ 새 Sequence의 Block Table에 연결
+→ 기존 K·V 재사용
+</code></pre>
+<p>Hash가 없다면 Cache Miss다. Free Block Pool에서 사용할 수 있는 물리 Block을 할당받고, 모델이 현재 Token 구간의 K·V를 새로 계산해 그 Block에 저장한다. 해당 물리 Block을 Sequence의 Block Table에 연결하고, Block이 완성되면 Hash와 물리 Block의 관계를 Cache Index에 등록한다.</p>
+<pre><code class="language-text">Cache Index에 Block Hash가 없음
+→ Cache Miss
+→ Free Block Pool에서 물리 Block 할당
+→ 현재 Token 구간의 K·V 계산 및 저장
+→ 새 Sequence의 Block Table에 연결
+→ 완성 Block이면 Cache Index에 등록
+</code></pre>
+<p>예를 들어 Cache Index가 다음 물리 Block을 가리키고 있다고 하자.</p>
+<pre><code class="language-text">Cache Index
+
+H0 → 물리 Block 7
+H1 → 물리 Block 2
+</code></pre>
+<p>새 요청 B의 첫 두 Block Hash가 <code>H0</code>, <code>H1</code>과 일치하고 세 번째 Block은 일치하지 않는다면 Block Table은 다음과 같이 구성된다.</p>
+<pre><code class="language-text">B의 Block Table
+
+논리 Block 0 → 물리 Block 7  # Cache Hit
+논리 Block 1 → 물리 Block 2  # Cache Hit
+논리 Block 2 → 물리 Block 5  # Free Block Pool에서 신규 할당
+</code></pre>
+<blockquote>
+<p>완성된 Prefix Block의 Hash가 Cache Index에 있으면 기존 물리 Block을 새 Sequence의 Block Table에 연결한다. Hash가 없으면 Free Block Pool에서 물리 Block을 할당해 K·V를 새로 계산하고 저장한다.</p>
+</blockquote>
+<p>Cache Hit는 입력 중간에서 임의로 찾지 않는다. 첫 번째 Block부터 순서대로 조회해 연속으로 일치하는 가장 긴 완성 Prefix까지만 재사용한다. 중간 Block에서 Cache Miss가 발생하면 그 지점부터 새로 계산하며, 마지막 미완성 Block은 완성 Block 단위의 Cache Hit 대상에서 제외된다.</p>
+
+</section>
+<section id="prefix-block" class="markdown-section">
+<h2>프리픽스 캐싱에서 Prefix Block이란</h2>
+<p>입력 프롬프트는 먼저 토크나이저를 거쳐 토큰 ID 시퀀스로 바뀐다. vLLM은 이 토큰들을 정해진 개수씩 묶어 블록으로 관리한다. 블록의 경계는 문장이나 단어가 아니라 토큰 수로 정해지므로, 하나의 블록에는 문장의 일부만 들어갈 수도 있다.</p>
+<p>각 블록은 모델이 해당 토큰 구간을 처리한 결과인 KV를 담는다. 따라서 Prefix Block은 단순히 토큰 목록을 저장하는 단위가 아니라, 특정 앞 문맥에서 계산된 KV를 다시 찾고 재사용하기 위한 관리 단위다. 보통 완전히 채워진 블록부터 캐시 대상으로 삼으며, 요청의 끝에 남은 부분 블록은 구현과 설정에 따라 재사용 대상에서 제외될 수 있다.</p>
+
+</section>
+<section id="parent-hash" class="markdown-section">
+<h2>Parent Hash와 현재 블록 토큰으로 만드는 식별자</h2>
+<p>블록을 캐시에서 찾으려면 각 블록을 안정적으로 식별할 키가 필요하다. 해시 기반 구현에서는 개념적으로 다음처럼 현재 블록의 해시를 계산한다.</p>
+<pre><code class="language-text">현재 블록 해시 = Hash(Parent Hash, 현재 블록의 토큰 ID들)
+</code></pre>
+<p>여기서 <code>Parent Hash</code>는 바로 앞 블록의 해시다. 첫 블록은 미리 정한 초기값을 부모 해시처럼 사용하고, 그다음 블록부터는 앞 블록의 해시를 입력으로 받는다. 따라서 현재 블록의 해시에는 현재 토큰뿐 아니라 그 앞에 놓인 모든 블록의 문맥이 연결된 형태로 반영된다.</p>
+<p>실제 시스템에서는 토큰 외에도 LoRA 어댑터나 멀티모달 입력처럼 서로 다른 요청을 구분해야 하는 정보가 해시에 추가될 수 있다. 해시가 같다는 것은 같은 토큰 블록이 같은 앞 문맥과 실행 조건에서 계산되었다는 뜻이어야 한다.</p>
+
+</section>
+<section id="section-d525254d05ad" class="markdown-section">
+<h2>왜 현재 블록 토큰만 해싱하면 안 되는가</h2>
+<p>같은 토큰으로 이루어진 블록이라도 앞 문맥이 다르면 모델이 계산한 KV가 달라질 수 있다. 블록 크기가 2토큰이라고 가정해 보자.</p>
+<pre><code class="language-text">요청 A: [11, 22] → [33, 44]
+요청 B: [55, 66] → [33, 44]
+</code></pre>
+<p>두 요청의 두 번째 블록은 모두 <code>[33, 44]</code>지만 첫 번째 블록이 다르다. 현재 블록의 토큰만 해싱하면 두 번째 블록을 같은 캐시로 잘못 판단할 수 있다.</p>
+<p>Parent Hash를 연결하면 두 요청은 다음처럼 서로 다른 해시 경로를 갖는다.</p>
+<pre><code class="language-text">A: h₁ = Hash(초깃값, [11, 22])
+   h₂ = Hash(h₁,    [33, 44])
+
+B: g₁ = Hash(초깃값, [55, 66])
+   g₂ = Hash(g₁,    [33, 44])
+</code></pre>
+<p><code>[33, 44]</code>가 같아도 <code>h₁</code>과 <code>g₁</code>이 다르기 때문에 <code>h₂</code>와 <code>g₂</code>도 구분된다. 이 구조 덕분에 Prefix Block은 토큰 내용과 그 토큰이 등장한 앞 문맥을 함께 식별할 수 있다.</p>
+
+</section>
+<section id="section-dbdb5e843dda" class="markdown-section">
+<h2>새 요청에서 캐시를 찾고 재사용하는 과정</h2>
+<ul>
+<li><a href="vllm_prefix_cache_hit_http_metrics.html">vLLM Prefix Cache Hit를 HTTP 응답과 Metrics에서 확인하는 두 방법</a></li>
+</ul>
+<p>새 요청이 들어오면 시스템은 프롬프트를 같은 방식으로 블록으로 나누고, 첫 블록부터 해시를 계산하며 캐시를 조회한다. 앞에서부터 연속으로 해시가 일치하는 블록은 기존 KV를 그대로 재사용한다. 처음으로 캐시가 없는 블록을 만나면 그 지점부터 모델 계산을 진행하고, 계산이 끝난 블록은 다음 요청에서 사용할 수 있도록 캐시에 저장한다.</p>
+<p>예를 들어 기존 요청이 다음과 같다고 하자.</p>
+<pre><code class="language-text">[시스템 프롬프트] [문서 앞부분] [질문 A]
+</code></pre>
+<p>새 요청이 다음처럼 같은 프리픽스로 시작하면,</p>
+<pre><code class="language-text">[시스템 프롬프트] [문서 앞부분] [질문 B]
+</code></pre>
+<p>시스템 프롬프트와 문서 앞부분에 해당하는 Prefix Block의 KV는 재사용하고, 질문 B가 시작되는 이후 구간만 새로 계산할 수 있다. 캐시 조회의 결과는 일반적으로 “몇 개의 토큰이 같은가”가 아니라 “앞에서부터 몇 개의 완전한 블록이 연속으로 일치하는가”로 결정된다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>실제 재사용 동작과 반복 성능 비교는 <a href="vllm_prefix_caching_validation.html">Prefix Caching 실습: 원리부터 60개 요청 검증까지</a>에서 이어 읽을 수 있다.</p>
+<p>프리픽스 캐싱은 문장을 문자열 상태로 보관하는 기능이 아니라, 공통 프리픽스를 모델이 처리한 결과인 KV 블록을 저장하고 다시 참조하는 기능이다. 토큰화한 프롬프트를 블록으로 나눈 뒤, 각 블록을 <code>Hash(Parent Hash, 현재 블록의 토큰 ID들)</code>로 식별한다. Parent Hash에는 이전 블록들의 문맥이 누적되어 있으므로, 같은 토큰 블록이라도 앞 문맥이 다르면 다른 캐시로 구분된다.</p>
+<p>결국 Prefix Block의 해시는 “이 토큰 구간이 어떤 앞 문맥에서 계산되었는가”를 나타내는 키이고, 캐시 적중은 이 키로 기존 KV를 찾아 공통 프리픽스의 계산을 생략하는 과정이다. 자세한 구현 배경은 <a href="https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/" rel="noopener noreferrer">vLLM Automatic Prefix Caching</a>과 <a href="https://docs.vllm.ai/en/v0.21.0/design/prefix_caching/" rel="noopener noreferrer">vLLM Prefix Caching 설계 문서</a>에서 확인할 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="vllm_prefix_cache_hit_http_metrics.html">vLLM Prefix Cache Hit를 HTTP 응답과 Metrics에서 확인하는 두 방법</a></li>
+<li><a href="vllm_prefix_caching_validation.html">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

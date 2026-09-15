@@ -1,0 +1,923 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.md. Do not edit directly. source-sha256:be56cd61b51d7a7d2a96f5d1fdc608e6347735c264c0d70068aeab88a3a4bb85 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="고정 모델 Revision·Package·GPU와 OFF·ON 실행 조건, Cache Hit Metric 관측 경로를 확인합니다.">
+  <meta name="source-sha256" content="be56cd61b51d7a7d2a96f5d1fdc608e6347735c264c0d70068aeab88a3a4bb85">
+  <title>실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비">
+  <meta property="og:description" content="고정 모델 Revision·Package·GPU와 OFF·ON 실행 조건, Cache Hit Metric 관측 경로를 확인합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html","name":"실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비","description":"고정 모델 Revision·Package·GPU와 OFF·ON 실행 조건, Cache Hit Metric 관측 경로를 확인합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html"},"headline":"실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/02_execution_environment_and_measurement.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},{"@type":"ListItem","position":9,"name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html"},{"@type":"ListItem","position":10,"name":"실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_block_hash.html">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_validation.html">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비</h1>
+      <p class="lead">고정 모델 Revision·Package·GPU와 OFF·ON 실행 조건, Cache Hit Metric 관측 경로를 확인합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">실제 실행: 고정 Revision 모델을 준비했다</a>
+        <a href="#section-2">실제 실행: Package·GPU·모델 환경을 확인했다</a>
+        <a href="#section-3">Prefix Caching OFF Server의 초기 상태를 실제로 확인했다</a>
+        <a href="#section-4">두 번째 단계 완료 상태</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>공개본의 환경별 절대 경로는 재현용 상대 경로로 바꾸었다. 코드의 계산·검증 순서와 출력 값은 보존했다.</p>
+<p>이 문서는 Prefix Caching OFF·ON Server를 실제로 실행하기 전에 무엇을 같게 유지하고, Cache Hit를 어떤 값으로 확인할지 정리한다.</p>
+<p>상위 글에서는 두 번째 단계의 역할만 간단히 설명한다. Package·GPU·모델 확인, Server 계약, Metric 확인 방법과 완료 조건은 이 문서에서 자세히 다룬다.</p>
+<p>고정 Revision 모델과 Package·GPU·CUDA 환경을 Snapshot으로 저장하고, 설치된 vLLM <code>0.29.0</code>의 Prefix Caching·Chunked Prefill ON·OFF 옵션을 확인했다. 아래 실제 실행 결과에서 Server 기동·초기 상태와 Cache Hit 관측 경로까지 확인했다. 이후 반복 측정에서는 같은 조건의 OFF·ON Server를 사용했고 Client Timeout만 180초로 설정했다.</p>
+<p>첫 단계의 CPU 모형에서는 완성 Prefix Block의 Hash가 Cache에 있을 때 기존 물리 Block을 새 Sequence의 Block Table에 연결하는 원리를 확인했다. 그러나 Python Dict로 만든 모형만으로는 실제 vLLM이 Cached K·V를 사용했는지, 그 결과 Prefill 계산과 사용자의 첫 Token 대기시간이 줄었는지 알 수 없다.</p>
+<p>실제 효과를 확인하려면 Prefix Caching을 끈 Server와 켠 Server에 같은 요청을 보내 비교해야 한다. 이때 모델이나 GPU, Scheduler 용량까지 함께 달라지면 결과가 Prefix Caching 때문인지 다른 조건 때문인지 구분할 수 없다. 따라서 실제 요청을 보내기 전에 비교 기준부터 고정한다.</p>
+<pre><code class="language-text">비교하면서 바꿀 조건
+→ Prefix Caching OFF 또는 ON
+
+두 실행에서 같게 유지할 조건
+→ GPU
+→ 모델과 Revision
+→ vLLM·PyTorch·Transformers 버전
+→ Tokenizer와 Chat Template
+→ Block 크기와 KV Cache dtype
+→ 최대 Context 길이와 Scheduler 용량
+→ 요청 Prompt와 생성 설정
+→ Client의 요청·시간 측정 방식
+</code></pre>
+<h3>현재 RunPod와 모델을 먼저 확인한다</h3>
+<p>Notebook이 실제로 사용하는 Python 실행 파일과 Package 버전을 기록한다. Prefix Cache 옵션과 Metric 이름은 vLLM 버전에 따라 달라질 수 있으므로 기억에 의존하지 않고 설치된 버전을 기준으로 다음 단계를 진행한다.</p>
+<p>GPU 이름·메모리·CUDA 정보도 함께 저장한다. Prefix Caching OFF와 ON의 TTFT나 Prefill 속도를 비교하려면 같은 GPU에서 실행해야 한다. GPU가 바뀌면 Cache 설정과 무관하게 처리 시간이 달라질 수 있기 때문이다.</p>
+<p>모델은 고정 Revision의 로컬 Artifact를 사용한다. 폴더 이름만 확인하지 않고 <code>config.json</code>, <code>tokenizer_config.json</code>, Weight 파일이 실제로 존재하는지 검사한다. 이 환경 정보는 <code>environment_snapshot.json</code>으로 보존한다.</p>
+<pre><code class="language-text">현재 Notebook 환경 확인
+→ Python 실행 파일과 Package 버전
+→ GPU와 CUDA
+→ 모델 ID·Revision·Artifact
+→ JSON Snapshot 저장
+</code></pre>
+<p>이 확인 셀은 Server를 실행하거나 추론 요청을 보내지 않는다. 이후 OFF·ON Server가 어떤 환경에서 실행됐는지 다시 확인할 수 있는 기준점을 만드는 셀이다.</p>
+<h3>OFF와 ON에서 공통으로 사용할 Server 계약을 만든다</h3>
+<p>환경 확인 후에는 실제 비교에 사용할 Server 설정을 하나의 계약으로 저장한다. 두 Server 실행에서 같은 계약을 사용하고 Prefix Caching 설정만 바꾼다.</p>
+<p>현재 계획의 공통 조건은 다음과 같다. Prefix Caching과 Chunked Prefill을 제어할 CLI 옵션은 설치된 vLLM <code>0.29.0</code>에서 실제 지원되는 것을 확인했다. 다음 활동에서 이 조건을 Server 계약 파일로 저장한다.</p>
+<pre><code class="language-text">Model
+→ Qwen2.5-1.5B-Instruct
+→ Revision 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+
+GPU와 병렬화
+→ 물리 GPU 1개
+→ Tensor Parallel Size 1
+
+KV Cache와 Scheduler
+→ dtype float16
+→ KV Cache dtype float16
+→ Block Size 16Token
+→ max_model_len 4096
+→ max_num_batched_tokens 4096
+→ max_num_seqs 2
+→ FCFS
+→ Chunked Prefill OFF
+
+Client 요청
+→ Concurrency 1
+→ max_tokens 32
+→ temperature 0
+→ ignore_eos True
+→ Timeout 120초
+→ 같은 HTTP Client 연결 재사용
+</code></pre>
+<p><code>max_tokens=32</code>는 출력 Token을 최대 32개 생성하도록 제한하는 요청별 설정이다. 입력 Prompt 길이나 Cached Token 수를 뜻하지 않는다. 실제 출력 Token 수와 종료 이유는 응답 결과에서 별도로 확인한다.</p>
+<h3>현재 vLLM이 비교에 필요한 ON·OFF 옵션을 지원한다</h3>
+<p>설치된 vLLM의 기억이나 다른 버전 문서에 의존하지 않고, 현재 RunPod의 <code>vllm serve --help=all</code> 출력에서 비교에 필요한 옵션을 직접 확인했다.</p>
+<pre><code class="language-text">--enable-prefix-caching, --no-enable-prefix-caching
+  Whether to enable prefix caching. (default: None)
+
+--enable-chunked-prefill, --no-enable-chunked-prefill
+  If True, prefill requests can be chunked based on the
+  remaining max_num_batched_tokens.
+</code></pre>
+<p>따라서 OFF Server에는 <code>--no-enable-prefix-caching</code>, ON Server에는 <code>--enable-prefix-caching</code>을 사용한다. 두 Server 모두 Chunked Prefill의 영향을 섞지 않기 위해 <code>--no-enable-chunked-prefill</code>을 사용한다. 이 확인은 옵션 지원 여부만 검증한 것이며, 아직 Server를 실행하거나 추론 요청을 보낸 것은 아니다.</p>
+<h3>Cache Hit를 어떤 값으로 확인할지 실제 Server에서 찾는다</h3>
+<p>응답이 빨라졌다는 사실만으로 Prefix Cache Hit를 판정하지 않는다. 네트워크 상태, GPU Clock, Queue 대기 같은 다른 요인으로도 TTFT는 달라질 수 있기 때문이다.</p>
+<p>먼저 설치된 vLLM Server의 <code>/metrics</code> 원문과 응답 Usage를 확인하고, Prefix Cache 조회·Hit·Cached Prompt Token을 보여 주는 값이 실제로 제공되는지 찾는다. Counter 형태의 Metric이라면 요청 전후 값을 빼서 해당 요청 동안 증가한 양을 계산한다.</p>
+<pre><code class="language-text">요청 전 Cache Counter
+→ 요청 전 값 저장
+
+실제 요청 수행
+→ 응답과 Usage 저장
+
+요청 후 Cache Counter
+→ 요청 후 값 저장
+
+요청으로 증가한 값
+→ 요청 후 Counter - 요청 전 Counter
+</code></pre>
+<p>예상한 Metric 이름이 없으면 값 <code>0</code>을 임의로 넣지 않는다. 현재 버전에서 제공되지 않는 것으로 기록하고 Server Log나 다른 공식 관찰 경로를 확인한다. 표준 Metric과 응답 정보만으로 충분하면 커스텀 Scheduler Trace는 추가하지 않는다.</p>
+<h3>이 단계가 끝났다고 판단할 실제 증거</h3>
+<p>다음 내용을 실제 출력과 파일로 확인한 뒤 두 번째 단계를 완료한다.</p>
+<pre><code class="language-text">현재 Python·Package 버전 확인
+현재 GPU·CUDA 확인
+고정 Revision 모델 Artifact 확인
+OFF·ON 공통 Server 계약 저장
+Prefix Caching 옵션의 현재 버전 지원 확인
+Server 준비 완료와 실제 Served Model 확인
+요청 전후 Cache Hit를 읽을 Metric 또는 Log 경로 확인
+Running·Waiting이 0인 초기 상태 확인
+</code></pre>
+<p>환경과 CLI 옵션은 실제 RunPod에서 확인했다. 나머지 항목은 Server 계약 저장과 기동, 실제 <code>/metrics</code> 확인을 마친 뒤 완료로 기록한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>실제 실행: 고정 Revision 모델을 준비했다</h2>
+<p>OFF·ON Server가 정확히 같은 Weight와 설정을 사용하도록 모델 ID와 Revision, 저장 경로를 명시해 Artifact를 준비했다.</p>
+<h3>고정 Revision 모델 준비 코드</h3>
+<pre><code class="language-python">
+# ==================================================
+# 2-1
+# 고정 Revision 모델 Artifact 준비
+# ==================================================
+#
+# 이 셀에서 하는 일:
+#
+# 1. 모델을 저장할 폴더 생성
+# 2. 정확한 Revision의 전체 Artifact 다운로드
+# 3. Config·Tokenizer·Weight 파일 확인
+#
+# 아직 vLLM Server를 실행하지 않는다.
+# 추론 요청도 보내지 않는다.
+
+
+from pathlib import Path
+
+from huggingface_hub import (
+    snapshot_download,
+)
+
+
+# --------------------------------------------------
+# 1. 다운로드할 모델과 Revision
+# --------------------------------------------------
+
+model_id: str = (
+    &quot;Qwen/Qwen2.5-1.5B-Instruct&quot;
+)
+
+
+model_revision: str = (
+    &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+)
+
+
+model_artifact_path: Path = Path(
+    &quot;models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+
+model_artifact_path.parent.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+
+# --------------------------------------------------
+# 2. 고정 Revision Artifact 다운로드
+# --------------------------------------------------
+#
+# local_dir에 지정한 경로로
+# 모델 파일 전체를 내려받는다.
+#
+# HF_TOKEN이 설정돼 있지 않으면
+# 비인증 다운로드 경고가 나올 수 있지만,
+# Rate Limit에 걸리지 않는다면 다운로드는 가능하다.
+
+downloaded_artifact_path: str = (
+    snapshot_download(
+        repo_id=model_id,
+        revision=model_revision,
+        local_dir=model_artifact_path,
+    )
+)
+
+
+# --------------------------------------------------
+# 3. 주요 파일 확인
+# --------------------------------------------------
+
+model_config_path: Path = (
+    model_artifact_path
+    / &quot;config.json&quot;
+)
+
+
+tokenizer_config_path: Path = (
+    model_artifact_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+
+weight_paths: list[Path] = sorted(
+    model_artifact_path.glob(
+        &quot;*.safetensors&quot;
+    )
+)
+
+
+assert model_artifact_path.is_dir(), (
+    &quot;다운로드한 모델 폴더가 없습니다: &quot;
+    f&quot;{model_artifact_path}&quot;
+)
+
+
+assert model_config_path.is_file(), (
+    &quot;config.json이 없습니다: &quot;
+    f&quot;{model_config_path}&quot;
+)
+
+
+assert tokenizer_config_path.is_file(), (
+    &quot;tokenizer_config.json이 없습니다: &quot;
+    f&quot;{tokenizer_config_path}&quot;
+)
+
+
+assert weight_paths, (
+    &quot;safetensors Weight 파일을 &quot;
+    &quot;찾지 못했습니다.&quot;
+)
+
+
+# --------------------------------------------------
+# 4. 다운로드 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== 모델 Artifact 준비 완료 ===&quot;)
+print(
+    &quot;Model ID:&quot;,
+    model_id,
+)
+print(
+    &quot;Revision:&quot;,
+    model_revision,
+)
+print(
+    &quot;다운로드 반환 경로:&quot;,
+    downloaded_artifact_path,
+)
+print(
+    &quot;사용할 경로:&quot;,
+    model_artifact_path,
+)
+print(
+    &quot;Config:&quot;,
+    model_config_path.name,
+)
+print(
+    &quot;Tokenizer Config:&quot;,
+    tokenizer_config_path.name,
+)
+print(
+    &quot;Weight 파일:&quot;,
+    [
+        weight_path.name
+        for weight_path in weight_paths
+    ],
+)
+print()
+
+print(
+    &quot;고정 Revision 모델 확인:&quot;,
+    True,
+)
+</code></pre>
+<h3>모델 준비 결과</h3>
+<pre><code class="language-text">Fetching 10 files: 100%|██████████| 10/10 [00:05&lt;00:00,  1.73it/s]
+=== 모델 Artifact 준비 완료 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+다운로드 반환 경로: models/Qwen2.5-1.5B-Instruct-989aa798
+사용할 경로: models/Qwen2.5-1.5B-Instruct-989aa798
+Config: config.json
+Tokenizer Config: tokenizer_config.json
+Weight 파일: [&#39;model.safetensors&#39;]
+
+고정 Revision 모델 확인: True
+</code></pre>
+<p>10개 파일 다운로드가 완료됐고 다음 핵심 파일을 확인했다.</p>
+<pre><code class="language-text">config.json
+tokenizer_config.json
+model.safetensors
+</code></pre>
+<p>정확한 Revision은 다음 값으로 고정됐다.</p>
+<pre><code class="language-text">989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+</code></pre>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>실제 실행: Package·GPU·모델 환경을 확인했다</h2>
+<p>모델 준비 후 환경 확인 셀을 실행했다. 이 셀은 Server를 띄우거나 추론 요청을 보내지 않고, 이후 OFF·ON 비교의 기준이 되는 환경만 저장했다.</p>
+<h3>환경 확인 코드</h3>
+<pre><code class="language-python">
+# ==================================================
+# 2-1
+# 현재 RunPod 환경과 모델 Artifact를 확인하고
+# JSON 파일로 저장한다
+# ==================================================
+#
+# 이 셀은 다음 작업만 수행한다.
+#
+# 1. Python과 Package 버전 확인
+# 2. GPU와 CUDA 확인
+# 3. 모델 Artifact 파일 확인
+# 4. 모델 구조 일부 확인
+# 5. 확인 결과를 JSON으로 저장
+#
+# vLLM Server를 실행하지 않는다.
+# 실제 추론 요청도 보내지 않는다.
+
+
+import json
+import platform
+import sys
+
+from importlib.metadata import version
+from pathlib import Path
+from typing import Any
+
+import torch
+
+
+# --------------------------------------------------
+# 1. 결과를 저장할 폴더
+# --------------------------------------------------
+
+result_root: Path = Path(
+    &quot;&quot;
+    &quot;research/&quot;
+    &quot;vllm_scheduler_kv_cache_criteria/&quot;
+    &quot;results/&quot;
+    &quot;2026-09-15-prefix-caching&quot;
+).resolve()
+
+
+environment_directory: Path = (
+    result_root
+    / &quot;environment&quot;
+)
+
+
+environment_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+
+environment_snapshot_path: Path = (
+    environment_directory
+    / &quot;environment_snapshot.json&quot;
+)
+
+
+# --------------------------------------------------
+# 2. Notebook이 사용하는 Python과 Package
+# --------------------------------------------------
+#
+# Prefix Cache 옵션과 Metric 이름은
+# vLLM 버전에 따라 달라질 수 있다.
+#
+# 따라서 현재 설치된 버전을 직접 기록한다.
+
+python_information: dict[str, str] = {
+    &quot;executable&quot;: sys.executable,
+    &quot;version&quot;: platform.python_version(),
+    &quot;platform&quot;: platform.platform(),
+}
+
+
+package_versions: dict[str, str] = {
+    &quot;torch&quot;: version(&quot;torch&quot;),
+    &quot;transformers&quot;: version(
+        &quot;transformers&quot;
+    ),
+    &quot;vllm&quot;: version(&quot;vllm&quot;),
+    &quot;httpx&quot;: version(&quot;httpx&quot;),
+}
+
+
+# --------------------------------------------------
+# 3. 현재 GPU와 CUDA
+# --------------------------------------------------
+#
+# Prefix Caching OFF·ON의 시간 성능은
+# 같은 GPU에서 비교해야 한다.
+
+assert torch.cuda.is_available(), (
+    &quot;현재 Notebook에서 CUDA GPU를 &quot;
+    &quot;사용할 수 없습니다.&quot;
+)
+
+
+gpu_index: int = 0
+
+
+gpu_properties = (
+    torch.cuda.get_device_properties(
+        gpu_index
+    )
+)
+
+
+gpu_information: dict[str, Any] = {
+    &quot;index&quot;: gpu_index,
+    &quot;name&quot;: torch.cuda.get_device_name(
+        gpu_index
+    ),
+    &quot;total_memory_bytes&quot;: int(
+        gpu_properties.total_memory
+    ),
+    &quot;total_memory_gib&quot;: round(
+        gpu_properties.total_memory
+        / (1024 ** 3),
+        2,
+    ),
+    &quot;cuda_device_count&quot;: (
+        torch.cuda.device_count()
+    ),
+    &quot;torch_cuda_version&quot;: (
+        torch.version.cuda
+    ),
+}
+
+
+# --------------------------------------------------
+# 4. 사용할 모델과 고정 Revision
+# --------------------------------------------------
+
+model_id: str = (
+    &quot;Qwen/Qwen2.5-1.5B-Instruct&quot;
+)
+
+
+model_revision: str = (
+    &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+)
+
+
+model_artifact_path: Path = Path(
+    &quot;models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+).resolve()
+
+
+# --------------------------------------------------
+# 5. Model Artifact 주요 파일 확인
+# --------------------------------------------------
+
+assert model_artifact_path.is_dir(), (
+    &quot;모델 Artifact 폴더가 없습니다: &quot;
+    f&quot;{model_artifact_path}&quot;
+)
+
+
+model_config_path: Path = (
+    model_artifact_path
+    / &quot;config.json&quot;
+)
+
+
+tokenizer_config_path: Path = (
+    model_artifact_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+
+weight_paths: list[Path] = sorted(
+    model_artifact_path.glob(
+        &quot;*.safetensors&quot;
+    )
+)
+
+
+assert model_config_path.is_file(), (
+    &quot;config.json이 없습니다: &quot;
+    f&quot;{model_config_path}&quot;
+)
+
+
+assert tokenizer_config_path.is_file(), (
+    &quot;tokenizer_config.json이 없습니다: &quot;
+    f&quot;{tokenizer_config_path}&quot;
+)
+
+
+assert weight_paths, (
+    &quot;safetensors Weight 파일을 &quot;
+    &quot;찾지 못했습니다.&quot;
+)
+
+
+# config.json 파일의 JSON 문자열을
+# Python Dict로 변환한다.
+model_config: dict[str, Any] = (
+    json.loads(
+        model_config_path.read_text(
+            encoding=&quot;utf-8&quot;,
+        )
+    )
+)
+
+
+model_information: dict[str, Any] = {
+    &quot;model_id&quot;: model_id,
+    &quot;revision&quot;: model_revision,
+    &quot;artifact_path&quot;: str(
+        model_artifact_path
+    ),
+    &quot;model_type&quot;: model_config.get(
+        &quot;model_type&quot;
+    ),
+    &quot;hidden_size&quot;: model_config.get(
+        &quot;hidden_size&quot;
+    ),
+    &quot;number_of_hidden_layers&quot;: (
+        model_config.get(
+            &quot;num_hidden_layers&quot;
+        )
+    ),
+    &quot;number_of_attention_heads&quot;: (
+        model_config.get(
+            &quot;num_attention_heads&quot;
+        )
+    ),
+    &quot;number_of_kv_heads&quot;: (
+        model_config.get(
+            &quot;num_key_value_heads&quot;
+        )
+    ),
+    &quot;weight_files&quot;: [
+        weight_path.name
+        for weight_path in weight_paths
+    ],
+}
+
+
+# --------------------------------------------------
+# 6. 저장할 전체 환경 정보
+# --------------------------------------------------
+
+environment_snapshot: dict[str, Any] = {
+    &quot;python&quot;: python_information,
+    &quot;packages&quot;: package_versions,
+    &quot;gpu&quot;: gpu_information,
+    &quot;model&quot;: model_information,
+}
+
+
+# --------------------------------------------------
+# 7. JSON 파일 저장
+# --------------------------------------------------
+
+environment_snapshot_path.write_text(
+    json.dumps(
+        environment_snapshot,
+        ensure_ascii=False,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+
+# --------------------------------------------------
+# 8. 확인 결과 출력
+# --------------------------------------------------
+
+print(&quot;=== Python과 Package ===&quot;)
+print(
+    &quot;Python 실행 파일:&quot;,
+    python_information[&quot;executable&quot;],
+)
+print(
+    &quot;Python:&quot;,
+    python_information[&quot;version&quot;],
+)
+print(
+    &quot;PyTorch:&quot;,
+    package_versions[&quot;torch&quot;],
+)
+print(
+    &quot;Transformers:&quot;,
+    package_versions[
+        &quot;transformers&quot;
+    ],
+)
+print(
+    &quot;vLLM:&quot;,
+    package_versions[&quot;vllm&quot;],
+)
+print(
+    &quot;HTTPX:&quot;,
+    package_versions[&quot;httpx&quot;],
+)
+print()
+
+print(&quot;=== GPU와 CUDA ===&quot;)
+print(
+    &quot;GPU:&quot;,
+    gpu_information[&quot;name&quot;],
+)
+print(
+    &quot;GPU 메모리:&quot;,
+    gpu_information[
+        &quot;total_memory_gib&quot;
+    ],
+    &quot;GiB&quot;,
+)
+print(
+    &quot;CUDA 장치 수:&quot;,
+    gpu_information[
+        &quot;cuda_device_count&quot;
+    ],
+)
+print(
+    &quot;PyTorch CUDA:&quot;,
+    gpu_information[
+        &quot;torch_cuda_version&quot;
+    ],
+)
+print()
+
+print(&quot;=== 모델 Artifact ===&quot;)
+print(
+    &quot;Model ID:&quot;,
+    model_information[&quot;model_id&quot;],
+)
+print(
+    &quot;Revision:&quot;,
+    model_information[&quot;revision&quot;],
+)
+print(
+    &quot;Artifact 경로:&quot;,
+    model_information[
+        &quot;artifact_path&quot;
+    ],
+)
+print(
+    &quot;Model Type:&quot;,
+    model_information[
+        &quot;model_type&quot;
+    ],
+)
+print(
+    &quot;Transformer Layer:&quot;,
+    model_information[
+        &quot;number_of_hidden_layers&quot;
+    ],
+)
+print(
+    &quot;Attention Head:&quot;,
+    model_information[
+        &quot;number_of_attention_heads&quot;
+    ],
+)
+print(
+    &quot;KV Head:&quot;,
+    model_information[
+        &quot;number_of_kv_heads&quot;
+    ],
+)
+print(
+    &quot;Weight 파일:&quot;,
+    model_information[
+        &quot;weight_files&quot;
+    ],
+)
+print()
+
+print(
+    &quot;환경 정보 저장:&quot;,
+    environment_snapshot_path,
+)
+print()
+
+print(
+    &quot;환경과 모델 Artifact 확인:&quot;,
+    True,
+)
+</code></pre>
+<h3>환경 확인 실제 출력</h3>
+<pre><code class="language-text">=== Python과 Package ===
+Python 실행 파일: .venv-vllm/bin/python
+Python: 3.12.3
+PyTorch: 2.13.0
+Transformers: 5.17.0
+vLLM: 0.29.0
+HTTPX: 0.28.1
+
+=== GPU와 CUDA ===
+GPU: NVIDIA RTX 2000 Ada Generation
+GPU 메모리: 15.57 GiB
+CUDA 장치 수: 1
+PyTorch CUDA: 13.0
+
+=== 모델 Artifact ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Artifact 경로: models/Qwen2.5-1.5B-Instruct-989aa798
+Model Type: qwen2
+Transformer Layer: 28
+Attention Head: 12
+KV Head: 2
+Weight 파일: [&#39;model.safetensors&#39;]
+
+환경 정보 저장: research/vllm_scheduler_kv_cache_criteria/results/2026-09-15-prefix-caching/environment/environment_snapshot.json
+
+환경과 모델 Artifact 확인: True
+</code></pre>
+<p>확인된 환경은 다음과 같다.</p>
+<pre><code class="language-text">Python 실행 파일
+→ .venv-vllm/bin/python
+
+Python
+→ 3.12.3
+
+PyTorch
+→ 2.13.0
+
+Transformers
+→ 5.17.0
+
+vLLM
+→ 0.29.0
+
+HTTPX
+→ 0.28.1
+
+GPU
+→ NVIDIA RTX 2000 Ada Generation
+→ 15.57GiB
+→ CUDA 장치 1개
+→ PyTorch CUDA 13.0
+
+Model
+→ Qwen/Qwen2.5-1.5B-Instruct
+→ Qwen2 구조
+→ Transformer Layer 28
+→ Attention Head 12
+→ KV Head 2
+→ model.safetensors 1개
+</code></pre>
+<p>환경 Snapshot은 다음 경로에 저장됐다.</p>
+<pre><code class="language-text">
+research/vllm_scheduler_kv_cache_criteria/
+results/2026-09-15-prefix-caching/
+environment/environment_snapshot.json
+</code></pre>
+<p>마지막 출력 <code>환경과 모델 Artifact 확인: True</code>로 Package·GPU·모델 확인은 완료됐다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Prefix Caching OFF Server의 초기 상태를 실제로 확인했다</h2>
+<p>공통 실행 조건에 <code>--no-enable-prefix-caching</code>과 <code>--no-enable-chunked-prefill</code>을 적용해 기준 Server를 실행했다. Server Log의 다음 문구로 API가 요청을 받을 준비가 된 것을 확인했다.</p>
+<pre><code class="language-text">(APIServer pid=20907) INFO: Application startup complete.
+</code></pre>
+<p>이 상태에서 모델 추론 요청은 보내지 않고 <code>GET /v1/models</code>와 <code>GET /metrics</code>만 호출했다.</p>
+<pre><code class="language-text">GET /v1/models
+→ Served Model이 qwen2.5-1.5b-instruct인지 확인
+
+GET /metrics
+→ Prefix Caching OFF 설정 확인
+→ 추론 요청 전 Running·Waiting·KV Cache 상태 확인
+→ Prefix Cache 관련 Counter의 실제 이름과 초기값 확인
+</code></pre>
+<p><code>/v1/models</code>에는 계약에서 지정한 모델 하나가 반환됐다.</p>
+<pre><code class="language-text">Served Model: [&#39;qwen2.5-1.5b-instruct&#39;]
+</code></pre>
+<p><code>vllm:cache_config_info</code>에서는 Prefix Caching이 실제로 꺼져 있고, 계획한 KV Cache 조건이 적용된 것을 확인했다.</p>
+<pre><code class="language-text">block_size=&quot;16&quot;
+cache_dtype=&quot;float16&quot;
+enable_prefix_caching=&quot;False&quot;
+gpu_memory_utilization=&quot;0.8&quot;
+num_gpu_blocks=&quot;19789&quot;
+kv_cache_size_tokens=&quot;316624&quot;
+prefix_caching_hash_algo=&quot;sha256&quot;
+</code></pre>
+<p>이 정보에서 <code>enable_prefix_caching=&quot;False&quot;</code>는 OFF Server가 계획대로 실행됐다는 직접 근거다. <code>19,789Block × 16Token = 316,624Token</code>이므로 Block 수와 KV Cache Token 수용량도 서로 일치한다.</p>
+<p>추론 요청 전 초기 Metric은 모두 다음과 같았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>관찰 항목</th>
+<th>실제 Metric</th>
+<th align="right">초기값</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Running 요청</td>
+<td><code>vllm:num_requests_running</code></td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>Waiting 요청</td>
+<td><code>vllm:num_requests_waiting</code></td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>KV Cache 사용률</td>
+<td><code>vllm:kv_cache_usage_perc</code></td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>Prefix Cache 조회 Token</td>
+<td><code>vllm:prefix_cache_queries_total</code></td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>Prefix Cache Hit Token</td>
+<td><code>vllm:prefix_cache_hits_total</code></td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>Cached Prompt Token</td>
+<td><code>vllm:prompt_tokens_cached_total</code></td>
+<td align="right">0</td>
+</tr>
+</tbody></table>
+</div>
+<p>여기서 Prefix Cache 조회와 Hit는 요청 개수 Counter가 아니라 Token 수 Counter다. 이후 실제 요청을 보낼 때는 요청 전후의 누적값 차이를 계산해 그 요청 구간에서 조회하거나 Hit한 Token 수를 구한다.</p>
+<p>Notebook의 검증 결과는 다음 여덟 조건이 모두 <code>True</code>였다.</p>
+<pre><code class="language-text">expected_model_is_served: True
+prefix_caching_is_off: True
+running_requests_is_zero: True
+waiting_requests_is_zero: True
+kv_cache_usage_is_zero: True
+prefix_cache_queries_is_zero: True
+prefix_cache_hits_is_zero: True
+cached_prompt_tokens_is_zero: True
+
+전체 검증 통과: True
+</code></pre>
+<p>확인한 원본과 요약은 다음 파일에 보존했다.</p>
+<pre><code class="language-text">Server Log
+→ results/2026-09-15-prefix-caching/server-off/server.log
+
+/metrics 원문
+→ results/2026-09-15-prefix-caching/server-off/initial_metrics.prom
+
+초기 상태와 검증 결과
+→ results/2026-09-15-prefix-caching/server-off/initial_state.json
+</code></pre>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>두 번째 단계 완료 상태</h2>
+<pre><code class="language-text">현재 Python·Package 버전 확인      완료
+현재 GPU·CUDA 확인                완료
+고정 Revision 모델 Artifact 확인  완료
+환경 Snapshot 저장                완료
+
+OFF·ON 공통 Server 조건 확정      완료
+Prefix Caching 옵션 지원 확인     완료
+Chunked Prefill 옵션 지원 확인    완료
+OFF 기준 Server 기동 확인         완료
+실제 Served Model 확인            완료
+Cache Hit Metric 경로 확인        완료
+초기 Running·Waiting 0 확인       완료
+초기 KV Cache·Prefix Counter 확인 완료
+</code></pre>
+<p>두 번째 단계의 목적은 실제 비교를 시작하기 전에 환경과 Server 조건을 고정하고, Cache Hit를 읽을 수 있는 관찰 경로를 찾는 것이었다. 실제 RunPod 출력으로 이 조건을 모두 확인했으므로 두 번째 단계는 완료됐다. Prefix Caching ON Server를 실행해 공통 Prefix 요청의 Hit를 만드는 작업은 이후 실제 동작 비교 단계에서 진행한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.md. Do not edit directly. source-sha256:81349e4b0dd17eb28d13302f4b2e632120bb224e6c55ef3cbb298ef62f3cd2a1 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="공통 Prefix 1,024Token 재사용을 HTTP와 Metrics로 확인한 1회 Smoke Test이며 성능 결론과 구분합니다.">
+  <meta name="source-sha256" content="81349e4b0dd17eb28d13302f4b2e632120bb224e6c55ef3cbb298ef62f3cd2a1">
+  <title>공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인">
+  <meta property="og:description" content="공통 Prefix 1,024Token 재사용을 HTTP와 Metrics로 확인한 1회 Smoke Test이며 성능 결론과 구분합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html","name":"공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인","description":"공통 Prefix 1,024Token 재사용을 HTTP와 Metrics로 확인한 1회 Smoke Test이며 성능 결론과 구분합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html"},"headline":"공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/04_small_request_hit_comparison.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},{"@type":"ListItem","position":9,"name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html"},{"@type":"ListItem","position":10,"name":"공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_block_hash.html">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_validation.html">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인</h1>
+      <p class="lead">공통 Prefix 1,024Token 재사용을 HTTP와 Metrics로 확인한 1회 Smoke Test이며 성능 결론과 구분합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">어떤 요청을 비교했는가</a>
+        <a href="#section-2">Cache Hit를 두 경로에서 확인했다</a>
+        <a href="#section-3">Prefix Caching OFF에서는 공통 Prefix를 다시 계산했다</a>
+        <a href="#section-4">Prefix Caching ON에서는 후속 요청이 1,024Token을 재사용했다</a>
+        <a href="#section-5">이 결과에서 확정할 수 있는 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>CPU 모형에서는 완성 Prefix Block의 Hash가 일치하면 기존 물리 Block을 새 Sequence의 Block Table에 연결할 수 있다는 원리를 확인했다. 이번 실험에서는 실제 vLLM Server가 같은 공통 Prefix를 계산 결과로 재사용하는지 확인했다.</p>
+<p>이 문서는 4단계의 Smoke Test다. 아래 1회 TTFT는 동작 확인 기록이며 공식 성능 결론의 근거로 사용하지 않는다. 공식 반복 비교는 <a href="05_repeated_measurement_and_interpretation.html">5단계 측정과 해석</a>에서 확인한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>어떤 요청을 비교했는가</h2>
+<p>A·B·C는 전체 Prompt 길이가 각각 <code>1,058Token</code>이고, 입력 시작부터 <code>1,039Token</code>이 같다. Block 크기는 <code>16Token</code>이므로 공통 구간 중 완성 Block에 포함되는 Token은 다음과 같다.</p>
+<pre><code class="language-text">공통 Prefix                    = 1,039Token
+완성된 공통 Prefix Block       = 1,039 // 16 = 64Block
+재사용 후보 Cached Token       = 64 × 16 = 1,024Token
+공통이지만 미완성 Block의 Token = 15Token
+</code></pre>
+<p>세 요청은 A → B → C 순서로 하나씩 보냈다. Prefix Caching OFF와 ON을 제외한 모델·GPU·Block 크기·Scheduler 조건과 요청 내용은 같게 유지했다.</p>
+<pre><code class="language-text">A
+→ 이 공통 Prefix를 처음 보내는 요청
+
+B·C
+→ A와 같은 1,024Token 완성 Prefix Block을 재사용할 수 있는 후속 요청
+</code></pre>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Cache Hit를 두 경로에서 확인했다</h2>
+<p>요청별 Cache Hit는 다음 두 값을 함께 확인했다.</p>
+<pre><code class="language-text">응답 Cached Token
+→ usage.prompt_tokens_details.cached_tokens
+→ 해당 HTTP 요청이 Cache에서 가져온 Prompt Token 수
+
+Metric Hit 증가량
+→ 요청 후 prefix_cache_hits_total - 요청 전 prefix_cache_hits_total
+→ 해당 요청 구간에 증가한 Prefix Cache Hit Token 수
+</code></pre>
+<p>TTFT는 HTTP 요청 전송을 시작한 시점부터 Streaming 응답의 첫 번째 비어 있지 않은 Content가 도착한 시점까지 측정했다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Prefix Caching OFF에서는 공통 Prefix를 다시 계산했다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th align="right">Prompt Token</th>
+<th align="right">응답 Cached Token</th>
+<th align="right">Metric Hit 증가 [token]</th>
+<th align="right">TTFT [ms]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">1,058</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">152.60</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">1,058</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">107.61</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">1,058</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">111.07</td>
+</tr>
+</tbody></table>
+</div>
+<p>A·B·C의 입력 앞부분이 같아도 Prefix Caching을 끈 Server에서는 응답 Cached Token과 Metric Hit 증가량이 모두 <code>0</code>이었다. 따라서 B와 C도 공통 Prefix의 K·V를 재사용하지 않고 입력을 처리했다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>Prefix Caching ON에서는 후속 요청이 1,024Token을 재사용했다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th align="right">Prompt Token</th>
+<th align="right">응답 Cached Token</th>
+<th align="right">Metric Hit 증가 [token]</th>
+<th align="right">TTFT [ms]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">1,058</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">149.88</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">1,058</td>
+<td align="right">1,024</td>
+<td align="right">1,024</td>
+<td align="right">72.99</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">1,058</td>
+<td align="right">1,024</td>
+<td align="right">1,024</td>
+<td align="right">40.81</td>
+</tr>
+</tbody></table>
+</div>
+<p>A는 ON Server에서 해당 Prefix를 처음 처리한 요청이므로 Hit가 <code>0</code>이었다. A가 계산한 완성 Prefix Block이 Cache에 남은 뒤 실행된 B와 C에서는 다음 세 값이 정확히 일치했다.</p>
+<pre><code class="language-text">이론으로 예상한 완성 Prefix Token = 1,024
+HTTP 응답의 Cached Token          = 1,024
+Server Metric의 Hit 증가량        = 1,024
+</code></pre>
+<p>따라서 B와 C는 단순히 같은 Block ID의 빈 저장 공간을 다시 할당받은 것이 아니라, A가 계산해 둔 공통 Prefix <code>1,024Token</code>의 K·V를 실제로 재사용했다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>이 결과에서 확정할 수 있는 범위</h2>
+<p>이번 작은 요청 묶음으로 다음 동작은 확인했다.</p>
+<pre><code class="language-text">Prefix Caching OFF
+→ 같은 Prefix가 반복돼도 Cached Token과 Hit가 0
+
+Prefix Caching ON의 첫 요청 A
+→ 기존 Cache가 없어 Hit 0
+→ 공통 Prefix의 K·V를 처음 계산
+
+Prefix Caching ON의 후속 요청 B·C
+→ 완성된 공통 Prefix 1,024Token Hit
+→ 응답 Usage와 Server Counter가 같은 값으로 확인
+</code></pre>
+<p>ON의 B와 C에서 TTFT가 짧게 관찰됐지만, 각 조건을 한 번씩 실행한 값만으로 일반적인 성능 개선 폭을 확정할 수는 없다. 이 결과는 실제 Cache Hit가 발생했고 TTFT가 줄어드는 방향이 함께 관찰됐다는 동작 확인이다. 안정적인 성능 비교는 같은 조건을 여러 번 반복하고 첫 요청과 후속 요청을 분리해 집계하는 다음 측정에서 수행한다.</p>
+<p>실행 코드와 실제 출력은 RunPod의 <code>notebooks/transformer/vllm_prefix_caching.ipynb</code>에 보존했다. OFF·ON Server Log는 각각 <code>results/2026-09-15-prefix-caching/server-off/server.log</code>, <code>results/2026-09-15-prefix-caching/server-on/server.log</code>에 저장했다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
