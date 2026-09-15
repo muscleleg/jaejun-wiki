@@ -1,0 +1,803 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.md. Do not edit directly. source-sha256:b2cf12c9c89020e56f5775227bf237747c8b64810632c664309007d2183d54e2 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="60개 본 측정의 전체 코드·출력과 Cached Token·TTFT·Latency를 비교하고 Prefix 재사용 효과를 해석합니다.">
+  <meta name="source-sha256" content="b2cf12c9c89020e56f5775227bf237747c8b64810632c664309007d2183d54e2">
+  <title>Prefix Caching 반복 측정과 TTFT·Latency 해석</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prefix Caching 반복 측정과 TTFT·Latency 해석">
+  <meta property="og:description" content="60개 본 측정의 전체 코드·출력과 Cached Token·TTFT·Latency를 비교하고 Prefix 재사용 효과를 해석합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html","name":"Prefix Caching 반복 측정과 TTFT·Latency 해석","description":"60개 본 측정의 전체 코드·출력과 Cached Token·TTFT·Latency를 비교하고 Prefix 재사용 효과를 해석합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html"},"headline":"Prefix Caching 반복 측정과 TTFT·Latency 해석","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/05_repeated_measurement_and_interpretation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},{"@type":"ListItem","position":9,"name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html"},{"@type":"ListItem","position":10,"name":"Prefix Caching 반복 측정과 TTFT·Latency 해석"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_block_hash.html">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_prefix_caching_validation.html">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prefix Caching 반복 측정과 TTFT·Latency 해석</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Prefix Caching 반복 측정과 TTFT·Latency 해석</h1>
+      <p class="lead">60개 본 측정의 전체 코드·출력과 Cached Token·TTFT·Latency를 비교하고 Prefix 재사용 효과를 해석합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">네 조건과 표본의 의미</a>
+        <a href="#section-2">Cached Token과 TTFT의 공식 결과</a>
+        <a href="#section-3">Prefill 재사용과 전체 Latency의 관계</a>
+        <a href="#section-4">측정 경계</a>
+        <a href="#section-5">실제 실행 코드</a>
+        <a href="#section-6">OFF 전체 출력</a>
+        <a href="#section-7">ON 전체 출력</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>공통 입력의 K·V를 재사용했을 때 첫 응답과 전체 완료가 어떻게 달라지는지 확인했다. 4단계 Smoke Test는 Hit 동작 확인이며 아래 공식 5단계 통계에 포함하지 않는다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>네 조건과 표본의 의미</h2>
+<p>OFF·ON 각각에서 distinct(긴 공통 Prefix 없음), shared(긴 공통 Prefix 있음)를 실행했다. 한 묶음의 3요청을 순차 전송하고 서로 다른 Prefix로 5묶음 반복했다. first는 묶음의 첫 요청 5개, followup은 두 번째·세 번째 요청 10개다. distinct를 같은 방식으로 나눈 것은 단순한 전송 순서 효과를 비교하기 위해서다. 각 모드의 별도 Warm-up 3개는 본 측정 60개에서 제외했다.</p>
+<p>Block 크기는 16Token이다. distinct는 Chat Template 공통 1Block, shared는 66Block(1,056Token)을 공유한다. distinct Prompt는 1,080·1,079·1,078Token, shared는 1,081·1,080·1,079Token이다. 두 입력 유형 간 1Token 차이는 있지만 OFF·ON은 같은 Workload를 쓴다. 출력은 모두 32Token, temperature=0, ignore_eos=True이고 요청은 하나씩 완료한 뒤 다음을 보낸다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Cached Token과 TTFT의 공식 결과</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>모드</th>
+<th>유형</th>
+<th>구분</th>
+<th align="right">n</th>
+<th align="right">Cached p50 [token]</th>
+<th align="right">Hit p50 [token]</th>
+<th align="right">TTFT p50 [ms]</th>
+<th align="right">TTFT p95 [ms]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OFF</td>
+<td>distinct</td>
+<td>first</td>
+<td align="right">5</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">110.10</td>
+<td align="right">112.07</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>distinct</td>
+<td>followup</td>
+<td align="right">10</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">108.66</td>
+<td align="right">113.21</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>shared</td>
+<td>first</td>
+<td align="right">5</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">109.58</td>
+<td align="right">112.31</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>shared</td>
+<td>followup</td>
+<td align="right">10</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">110.70</td>
+<td align="right">114.02</td>
+</tr>
+<tr>
+<td>ON</td>
+<td>distinct</td>
+<td>first</td>
+<td align="right">5</td>
+<td align="right">16</td>
+<td align="right">16</td>
+<td align="right">112.75</td>
+<td align="right">115.73</td>
+</tr>
+<tr>
+<td>ON</td>
+<td>distinct</td>
+<td>followup</td>
+<td align="right">10</td>
+<td align="right">16</td>
+<td align="right">16</td>
+<td align="right">109.55</td>
+<td align="right">115.05</td>
+</tr>
+<tr>
+<td>ON</td>
+<td>shared</td>
+<td>first</td>
+<td align="right">5</td>
+<td align="right">16</td>
+<td align="right">16</td>
+<td align="right">109.88</td>
+<td align="right">113.51</td>
+</tr>
+<tr>
+<td>ON</td>
+<td>shared</td>
+<td>followup</td>
+<td align="right">10</td>
+<td align="right">1,056</td>
+<td align="right">1,056</td>
+<td align="right">38.13</td>
+<td align="right">56.44</td>
+</tr>
+</tbody></table>
+</div>
+<p>HTTP cached_tokens와 요청 전후 vllm:prefix_cache_hits_total 차이는 전 요청에서 일치했다. OFF는 모두 0이고 ON은 shared followup에서만 긴 Prefix 전체의 Hit가 나타났다. ON first의 16Token은 Warm-up 등과 공유하는 짧은 Chat Template이다. 따라서 first는 서버 최초 요청이나 완전한 Cache Cold 요청을 뜻하지 않는다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Prefill 재사용과 전체 Latency의 관계</h2>
+<p>shared followup의 TTFT는 p50 65.6%, p95 50.5% 감소했다. distinct followup은 p50 108.66→109.55ms로 거의 같았다. 이 대조는 단순히 ON을 켜거나 뒤에 보냈기 때문에 빨라진 것이 아니라 긴 공통 Prefix 재사용과 첫 응답 감소가 함께 나타났음을 보여 준다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>shared followup 지표</th>
+<th align="right">OFF [ms]</th>
+<th align="right">ON [ms]</th>
+<th align="right">감소율</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TTFT p50</td>
+<td align="right">110.70</td>
+<td align="right">38.13</td>
+<td align="right">65.6%</td>
+</tr>
+<tr>
+<td>TTFT p95</td>
+<td align="right">114.02</td>
+<td align="right">56.44</td>
+<td align="right">50.5%</td>
+</tr>
+<tr>
+<td>전체 Latency p50</td>
+<td align="right">590.40</td>
+<td align="right">515.12</td>
+<td align="right">12.8%</td>
+</tr>
+<tr>
+<td>전체 Latency p95</td>
+<td align="right">594.34</td>
+<td align="right">534.26</td>
+<td align="right">10.1%</td>
+</tr>
+</tbody></table>
+</div>
+<p>Prefix Caching은 공통 Prompt의 Prefill 계산을 생략한다. 첫 Content를 기다리는 시간에는 그 효과가 직접 나타나지만, 이후 32Token을 생성하는 Decode는 계속 필요하다. 그래서 전체 Latency의 감소 비율은 TTFT보다 작았다. 두 지연 분포를 연결한 해석이며 GPU의 Prefill·Decode Kernel 시간을 직접 측정한 값은 아니다.</p>
+<p>shared followup의 Prompt 1,080·1,079Token에서 Cached 1,056Token을 빼면 새로 처리할 입력 추정량은 각각 24·23Token이다. 이 Token 수는 처리량이 아니다. 처리량에는 대응하는 시간 분모가 필요하다.</p>
+<h3>요청별 출력 길이와 TTFT·TPOT</h3>
+<p><code>max_tokens=32</code>는 한 요청에서 생성할 출력 Token 수의 상한이다. 입력 Prompt 길이와 이미 계산된 Prefix의 Cached Token 수를 정하는 값은 아니다. 같은 Prompt·Cache 상태에서 출력 상한을 32에서 64로 늘린다고 첫 Token을 만들기 전에 64Token을 모두 계산하지 않으므로, 그 설정만으로 TTFT가 두 배가 되지는 않는다. 실제 출력은 EOS 등으로 상한보다 먼저 끝날 수도 있어 <code>completion_tokens</code>와 종료 이유를 함께 확인해야 한다.</p>
+<p>TTFT는 첫 Token까지의 대기이고, TPOT(Time Per Output Token)은 첫 Token 이후 출력 Token을 하나 더 만드는 데 걸리는 시간이다. Prefix Caching은 이미 존재하는 공통 입력의 K·V를 재사용하지만 앞으로 생성할 Token의 Decode를 생략하는 기능은 아니다. 따라서 Prefill·TTFT에는 직접 효과가 크고 Decode·TPOT를 같은 비율로 줄인다고 볼 수 없다. 출력이 길어져 Decode가 전체 시간에서 차지하는 비중이 커지면, 같은 Prefill 시간을 절약해도 전체 Latency의 감소율은 작아질 수 있다. 이는 <a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/#limits" rel="noopener noreferrer">vLLM이 설명하는 Prefix Caching의 적용 범위</a>와도 일치한다.</p>
+<p>여기서는 출력 상한과 실제 출력을 모두 32Token으로 맞춰 OFF·ON을 비교했다. 64Token 실험이나 TPOT 측정 결과를 제시한 것은 아니다. 부하가 있는 서버에서는 출력 길이가 Scheduler·자원 점유를 통해 다른 요청의 대기시간에 간접 영향을 줄 수 있으므로, 이 설명을 모든 환경에서 TTFT가 출력 상한과 완전히 무관하다는 주장으로 확장하지 않는다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>측정 경계</h2>
+<p>TTFT는 요청 시작부터 첫 비어 있지 않은 Streaming Content 도착까지다. SSE Chunk 하나가 Token 하나라는 보장은 없고 서버 대기·입력 처리·전송도 포함한다. p50·p95는 정렬한 표본 위치 사이를 선형 보간했다. first 5개·followup 10개로 계산한 p95를 운영 SLO로 일반화하지 않는다.</p>
+<p>공식 본 측정은 요청별 원문 Metrics나 응답 전체 문장을 별도 파일로 저장하지 않았으므로 출력 내용 동일성까지 검증했다고 주장하지 않는다. 현재 보존된 것은 Notebook 코드와 요청별 출력·집계다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>실제 실행 코드</h2>
+<p>아래는 실제로 사용한 코드 전체다. OFF·ON에서 같은 코드를 실행하며 현재 Server 설정을 읽어 모드를 판정한다. 공개 문서의 모델·가상환경·결과 경로는 재현용 상대 경로로 바꾸었으며 계산·측정 로직은 보존했다. 원래 Notebook의 절대 경로는 실행 환경에 맞게 지정한다.</p>
+<h3>OFF Server 실행과 측정 준비</h3>
+<p>현재 서버 Terminal에서 <code>Ctrl+C</code>로 서버를 끝낸 뒤 다음 명령을 실행한다. 새 서버로 시작하므로 이전 실습의 Cache가 본 측정에 남지 않는다.</p>
+<pre><code class="language-bash">source .venv-vllm/bin/activate
+
+vllm serve \
+  models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 4096 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 4096 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --enable-prompt-tokens-details \
+  --seed 0 \
+  2&gt;&amp;1 | tee results/vllm-prefix-stage5-off.log
+</code></pre>
+<p><code>Application startup complete.</code>를 확인한 뒤 바로 아래 코드 셀을 실행한다. 이 셀은 이전 셀의 변수나 Stage 3 JSON을 읽지 않고, 같은 Workload를 메모리에서 직접 만든다. JSON 파일도 생성하지 않는다.</p>
+<h3>두 모드에서 공통으로 실행한 측정 코드</h3>
+<pre><code class="language-python">import json
+import math
+import time
+from statistics import median
+
+import httpx
+from transformers import AutoTokenizer
+
+
+# 이 셀 하나가 현재 서버의 한 모드(OFF 또는 ON)를 전부 측정한다.
+# 이전 셀의 변수나 Stage 3 JSON 파일은 사용하지 않는다.
+server_base_url = &quot;http://127.0.0.1:8000&quot;
+model_name = &quot;qwen2.5-1.5b-instruct&quot;
+model_path = &quot;models/Qwen2.5-1.5B-Instruct-989aa798&quot;
+block_size = 16
+group_count = 5
+requests_per_group = 3
+max_tokens = 32
+
+
+def metric_total(metrics_text: str, metric_name: str) -&gt; float:
+    values = [
+        float(line.split()[-1])
+        for line in metrics_text.splitlines()
+        if line.startswith(metric_name + &quot;{&quot;)
+    ]
+    assert values, f&quot;Metric을 찾지 못했습니다: {metric_name}&quot;
+    return sum(values)
+
+
+def read_server_state(client: httpx.Client) -&gt; dict:
+    response = client.get(&quot;/metrics&quot;)
+    response.raise_for_status()
+    text = response.text
+    config_line = next(
+        line
+        for line in text.splitlines()
+        if line.startswith(&quot;vllm:cache_config_info{&quot;)
+    )
+    mode = &quot;ON&quot; if &#39;enable_prefix_caching=&quot;True&quot;&#39; in config_line else &quot;OFF&quot;
+    return {
+        &quot;mode&quot;: mode,
+        &quot;hit_total&quot;: metric_total(
+            text,
+            &quot;vllm:prefix_cache_hits_total&quot;,
+        ),
+    }
+
+
+tokenizer = AutoTokenizer.from_pretrained(
+    model_path,
+    local_files_only=True,
+)
+
+
+def prompt_token_ids(user_content: str) -&gt; list[int]:
+    rendered = tokenizer.apply_chat_template(
+        [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_content}],
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    return tokenizer.encode(rendered, add_special_tokens=False)
+
+
+def common_prefix_length(token_lists: list[list[int]]) -&gt; int:
+    common = 0
+    for tokens_at_position in zip(*token_lists):
+        if len(set(tokens_at_position)) != 1:
+            break
+        common += 1
+    return common
+
+
+body_unit = (
+    &quot;요청 스케줄링과 메모리 관리를 분석할 때는 &quot;
+    &quot;입력 조건과 측정 구간을 동일하게 유지한다. &quot;
+)
+group_markers = [&quot;갑&quot;, &quot;을&quot;, &quot;병&quot;, &quot;정&quot;, &quot;무&quot;]
+request_markers = [&quot;가&quot;, &quot;나&quot;, &quot;다&quot;]
+question_tails = [
+    &quot;첫 번째 관찰 결과를 한 문장으로 설명해 주세요.&quot;,
+    &quot;두 번째 관찰 결과의 원인을 설명해 주세요.&quot;,
+    &quot;세 번째 관찰 결과의 의미를 설명해 주세요.&quot;,
+]
+
+
+def repeat_until_prompt_is_long(content: str, target_tokens: int = 1040) -&gt; str:
+    while len(prompt_token_ids(content)) &lt; target_tokens:
+        content += body_unit
+    return content
+
+
+# 같은 묶음의 shared 요청 3개는 긴 앞부분을 공유한다.
+# 묶음이 바뀌면 사용자 본문의 첫 Token부터 달라져 이전 묶음의 긴 Cache를 쓰지 않는다.
+workload: list[dict] = []
+workload_checks: list[dict] = []
+
+for group_index, group_marker in enumerate(group_markers, start=1):
+    shared_prefix = repeat_until_prompt_is_long(
+        f&quot;{group_marker} 측정 묶음 {group_index}.\n&quot;
+    )
+    shared_contents = [
+        shared_prefix + &quot;\n&quot; + tail
+        for tail in question_tails
+    ]
+
+    # distinct 요청은 같은 묶음 안에서도 사용자 본문의 첫 Token부터 다르다.
+    distinct_contents = [
+        repeat_until_prompt_is_long(
+            f&quot;{marker}{group_marker} 서로 다른 입력 {group_index}-{order}.\n&quot;
+        ) + &quot;\n&quot; + question_tails[order - 1]
+        for order, marker in enumerate(request_markers, start=1)
+    ]
+
+    for input_type, contents in (
+        (&quot;distinct&quot;, distinct_contents),
+        (&quot;shared&quot;, shared_contents),
+    ):
+        token_lists = [prompt_token_ids(content) for content in contents]
+        common_tokens = common_prefix_length(token_lists)
+        workload_checks.append({
+            &quot;group&quot;: group_index,
+            &quot;input_type&quot;: input_type,
+            &quot;prompt_lengths&quot;: [len(ids) for ids in token_lists],
+            &quot;common_prefix_tokens&quot;: common_tokens,
+            &quot;candidate_blocks&quot;: common_tokens // block_size,
+        })
+
+        for order, (content, token_ids) in enumerate(
+            zip(contents, token_lists),
+            start=1,
+        ):
+            workload.append({
+                &quot;input_type&quot;: input_type,
+                &quot;group&quot;: group_index,
+                &quot;order&quot;: order,
+                &quot;user_content&quot;: content,
+                &quot;expected_prompt_tokens&quot;: len(token_ids),
+                &quot;common_prefix_tokens&quot;: common_tokens,
+            })
+
+
+assert len(workload) == 30
+assert all(
+    check[&quot;candidate_blocks&quot;] &gt;= 60
+    for check in workload_checks
+    if check[&quot;input_type&quot;] == &quot;shared&quot;
+)
+
+distinct_baseline_blocks = {
+    check[&quot;candidate_blocks&quot;]
+    for check in workload_checks
+    if check[&quot;input_type&quot;] == &quot;distinct&quot;
+}
+assert len(distinct_baseline_blocks) == 1
+
+
+def send_streaming_request(
+    client: httpx.Client,
+    mode: str,
+    role: str,
+    input_type: str,
+    group: int,
+    order: int,
+    user_content: str,
+) -&gt; dict:
+    request_id = (
+        f&quot;stage5-{mode.lower()}-{role}-{input_type}-g{group}-o{order}&quot;
+    )
+    hit_before = read_server_state(client)[&quot;hit_total&quot;]
+    started_at = time.perf_counter()
+    first_content_at = None
+    finish_reason = None
+    usage = {}
+    error = None
+
+    try:
+        with client.stream(
+            &quot;POST&quot;,
+            &quot;/v1/chat/completions&quot;,
+            headers={&quot;X-Request-Id&quot;: request_id},
+            json={
+                &quot;model&quot;: model_name,
+                &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_content}],
+                &quot;max_tokens&quot;: max_tokens,
+                &quot;temperature&quot;: 0,
+                &quot;ignore_eos&quot;: True,
+                &quot;stream&quot;: True,
+                &quot;stream_options&quot;: {&quot;include_usage&quot;: True},
+            },
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line.startswith(&quot;data: &quot;):
+                    continue
+                payload = line.removeprefix(&quot;data: &quot;)
+                if payload == &quot;[DONE]&quot;:
+                    break
+                chunk = json.loads(payload)
+                if chunk.get(&quot;usage&quot;):
+                    usage = chunk[&quot;usage&quot;]
+                for choice in chunk.get(&quot;choices&quot;, []):
+                    if choice.get(&quot;finish_reason&quot;) is not None:
+                        finish_reason = choice[&quot;finish_reason&quot;]
+                    content = choice.get(&quot;delta&quot;, {}).get(&quot;content&quot;)
+                    if content and first_content_at is None:
+                        first_content_at = time.perf_counter()
+    except Exception as exc:
+        error = repr(exc)
+
+    completed_at = time.perf_counter()
+    hit_after = read_server_state(client)[&quot;hit_total&quot;]
+    details = usage.get(&quot;prompt_tokens_details&quot;) or {}
+
+    return {
+        &quot;mode&quot;: mode,
+        &quot;role&quot;: role,
+        &quot;input_type&quot;: input_type,
+        &quot;group&quot;: group,
+        &quot;order&quot;: order,
+        &quot;request_id&quot;: request_id,
+        &quot;prompt_tokens&quot;: usage.get(&quot;prompt_tokens&quot;),
+        &quot;completion_tokens&quot;: usage.get(&quot;completion_tokens&quot;),
+        &quot;response_cached_tokens&quot;: details.get(&quot;cached_tokens&quot;, 0),
+        &quot;metric_hit_before&quot;: hit_before,
+        &quot;metric_hit_after&quot;: hit_after,
+        &quot;metric_hit_delta&quot;: hit_after - hit_before,
+        &quot;ttft_ms&quot;: None if first_content_at is None else (
+            first_content_at - started_at
+        ) * 1000,
+        &quot;latency_ms&quot;: (completed_at - started_at) * 1000,
+        &quot;finish_reason&quot;: finish_reason,
+        &quot;error&quot;: error,
+    }
+
+
+def percentile(values: list[float], percent: float) -&gt; float:
+    &quot;&quot;&quot;정렬된 두 표본 사이를 선형 보간하는 percentile이다.&quot;&quot;&quot;
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * percent
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    fraction = position - lower
+    return ordered[lower] * (1 - fraction) + ordered[upper] * fraction
+
+
+with httpx.Client(
+    base_url=server_base_url,
+    timeout=180.0,
+    trust_env=False,
+) as client:
+    mode = read_server_state(client)[&quot;mode&quot;]
+
+    # 본 측정 Prefix와 겹치지 않는 서로 다른 세 입력으로 준비한다.
+    # 이 세 요청은 30개 본 측정 통계에서 제외한다.
+    warmup_results = []
+    for warmup_order, warmup_marker in enumerate((&quot;온&quot;, &quot;도&quot;, &quot;레&quot;), start=1):
+        warmup_content = repeat_until_prompt_is_long(
+            f&quot;{warmup_marker} 준비 요청 {warmup_order}.\n&quot;
+        )
+        warmup_results.append(send_streaming_request(
+            client=client,
+            mode=mode,
+            role=&quot;warmup&quot;,
+            input_type=&quot;warmup&quot;,
+            group=0,
+            order=warmup_order,
+            user_content=warmup_content,
+        ))
+
+    stage5_results = []
+    for request in workload:
+        stage5_results.append(send_streaming_request(
+            client=client,
+            mode=mode,
+            role=&quot;measurement&quot;,
+            input_type=request[&quot;input_type&quot;],
+            group=request[&quot;group&quot;],
+            order=request[&quot;order&quot;],
+            user_content=request[&quot;user_content&quot;],
+        ))
+
+
+assert len(warmup_results) == 3
+assert len(stage5_results) == 30
+assert all(result[&quot;error&quot;] is None for result in stage5_results)
+assert all(result[&quot;finish_reason&quot;] == &quot;length&quot; for result in stage5_results)
+assert all(result[&quot;completion_tokens&quot;] == max_tokens for result in stage5_results)
+
+if mode == &quot;OFF&quot;:
+    assert all(result[&quot;response_cached_tokens&quot;] == 0 for result in stage5_results)
+    assert all(result[&quot;metric_hit_delta&quot;] == 0 for result in stage5_results)
+else:
+    shared_followups = [
+        result
+        for result in stage5_results
+        if result[&quot;input_type&quot;] == &quot;shared&quot; and result[&quot;order&quot;] &gt; 1
+    ]
+    assert all(result[&quot;response_cached_tokens&quot;] &gt;= 960 for result in shared_followups)
+    assert all(
+        result[&quot;response_cached_tokens&quot;] == result[&quot;metric_hit_delta&quot;]
+        for result in stage5_results
+    )
+
+
+print(f&quot;=== 5단계 {mode} Server 본 측정 ===&quot;)
+print(&quot;Warm-up 3개 완료·통계 제외:&quot;, len(warmup_results) == 3)
+print(&quot;본 측정 요청:&quot;, len(stage5_results))
+print(&quot;서로 다른 Prefix의 Chat Template 기준 Block:&quot;, sorted(distinct_baseline_blocks))
+print(
+    &quot;공통 Prefix 조건의 재사용 후보 Block:&quot;,
+    sorted({
+        check[&quot;candidate_blocks&quot;]
+        for check in workload_checks
+        if check[&quot;input_type&quot;] == &quot;shared&quot;
+    }),
+)
+print()
+print(&quot;=== 표를 읽기 전에 용어 확인 ===&quot;)
+print(
+    &quot;distinct: 한 묶음의 세 요청 본문이 서로 다르다. &quot;
+    &quot;Chat Template 공통 1Block(16Token) 외에는 &quot;
+    &quot;긴 Prefix를 공유하지 않는다.&quot;
+)
+print(
+    &quot;shared: 한 묶음의 세 요청이 긴 앞부분을 공유한다. &quot;
+    &quot;첫 요청이 만든 Prefix Cache를 두 번째와 세 번째 요청이 &quot;
+    &quot;재사용할 수 있다.&quot;
+)
+print(
+    &quot;묶음: 순서대로 보내는 요청 3개다. &quot;
+    &quot;이 구조를 서로 다른 Prefix로 총 5묶음 실행한다.&quot;
+)
+print(
+    &quot;first: 각 묶음의 첫 요청 1개씩, 총 5개다. &quot;
+    &quot;해당 묶음의 긴 공통 Prefix Cache를 처음 만드는 요청이며 &quot;
+    &quot;서버 최초 요청이라는 뜻은 아니다.&quot;
+)
+print(
+    &quot;followup: 각 묶음의 두 번째와 세 번째 요청, 총 10개다. &quot;
+    &quot;first가 만든 Prefix Cache를 실제로 재사용하는지 본다.&quot;
+)
+print(
+    &quot;distinct도 first와 followup을 나누는 이유: &quot;
+    &quot;Cache로 쓸 긴 공통 Prefix가 없어도 단순히 뒤에 보낸 요청이 &quot;
+    &quot;빨라지는지 대조하기 위해서다.&quot;
+)
+print()
+print(&quot;유형     | 묶음 | 순서 | Prompt | Cached | Metric Hit | TTFT ms | Latency ms | Output&quot;)
+print(&quot;-&quot; * 100)
+for result in stage5_results:
+    print(
+        f&quot;{result[&#39;input_type&#39;]:&lt;8} | {result[&#39;group&#39;]:&gt;4} | &quot;
+        f&quot;{result[&#39;order&#39;]:&gt;4} | {result[&#39;prompt_tokens&#39;]:&gt;6} | &quot;
+        f&quot;{result[&#39;response_cached_tokens&#39;]:&gt;6} | &quot;
+        f&quot;{result[&#39;metric_hit_delta&#39;]:&gt;10.0f} | &quot;
+        f&quot;{result[&#39;ttft_ms&#39;]:&gt;7.2f} | {result[&#39;latency_ms&#39;]:&gt;10.2f} | &quot;
+        f&quot;{result[&#39;completion_tokens&#39;]:&gt;6}&quot;
+    )
+
+print()
+print(&quot;집계의 first는 묶음별 첫 요청 5개, followup은 후속 요청 10개다.&quot;)
+print(&quot;p50·p95는 정렬 표본 위치를 선형 보간해 계산했다.&quot;)
+print(&quot;유형     | 구분     | n  | Cached p50 | Hit p50 | TTFT p50/p95 ms | Latency p50/p95 ms | Output 평균 | 오류&quot;)
+print(&quot;-&quot; * 126)
+
+for input_type in (&quot;distinct&quot;, &quot;shared&quot;):
+    for order_class in (&quot;first&quot;, &quot;followup&quot;):
+        selected = [
+            result
+            for result in stage5_results
+            if result[&quot;input_type&quot;] == input_type
+            and ((result[&quot;order&quot;] == 1) == (order_class == &quot;first&quot;))
+        ]
+        cached = [float(result[&quot;response_cached_tokens&quot;]) for result in selected]
+        hits = [float(result[&quot;metric_hit_delta&quot;]) for result in selected]
+        ttfts = [float(result[&quot;ttft_ms&quot;]) for result in selected]
+        latencies = [float(result[&quot;latency_ms&quot;]) for result in selected]
+        completions = [float(result[&quot;completion_tokens&quot;]) for result in selected]
+        errors = sum(result[&quot;error&quot;] is not None for result in selected)
+        print(
+            f&quot;{input_type:&lt;8} | {order_class:&lt;8} | {len(selected):&gt;2} | &quot;
+            f&quot;{percentile(cached, 0.50):&gt;10.1f} | &quot;
+            f&quot;{percentile(hits, 0.50):&gt;7.1f} | &quot;
+            f&quot;{percentile(ttfts, 0.50):&gt;8.2f}/{percentile(ttfts, 0.95):&gt;8.2f} | &quot;
+            f&quot;{percentile(latencies, 0.50):&gt;9.2f}/{percentile(latencies, 0.95):&gt;9.2f} | &quot;
+            f&quot;{sum(completions) / len(completions):&gt;11.1f} | {errors}&quot;
+        )
+
+print()
+print(&quot;5단계 현재 모드 검증 통과: True&quot;)
+</code></pre>
+<h3>ON Server 전환</h3>
+<h3>같은 Workload를 ON Server에서 다시 측정한다</h3>
+<p>OFF 측정이 끝나면 서버 Terminal에서 <code>Ctrl+C</code>를 누르고 다음 명령으로 ON Server를 새로 실행한다. 모델·GPU·나머지 설정은 그대로 두고 Prefix Caching만 켠다.</p>
+<pre><code class="language-bash">source .venv-vllm/bin/activate
+
+vllm serve \
+  models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 4096 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 4096 \
+  --scheduling-policy fcfs \
+  --enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --enable-prompt-tokens-details \
+  --seed 0 \
+  2&gt;&amp;1 | tee results/vllm-prefix-stage5-on.log
+</code></pre>
+<p><code>Application startup complete.</code>를 확인한 뒤 아래 코드 셀을 실행한다. 코드가 현재 서버의 ON·OFF를 직접 읽으므로 코드 본문은 OFF 측정 셀과 동일하다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>OFF 전체 출력</h2>
+<pre><code class="language-text">=== 5단계 OFF Server 본 측정 ===
+Warm-up 3개 완료·통계 제외: True
+본 측정 요청: 30
+서로 다른 Prefix의 Chat Template 기준 Block: [1]
+공통 Prefix 조건의 재사용 후보 Block: [66]
+
+=== 표를 읽기 전에 용어 확인 ===
+distinct: 한 묶음의 세 요청 본문이 서로 다르다. Chat Template 공통 1Block(16Token) 외에는 긴 Prefix를 공유하지 않는다.
+shared: 한 묶음의 세 요청이 긴 앞부분을 공유한다. 첫 요청이 만든 Prefix Cache를 두 번째와 세 번째 요청이 재사용할 수 있다.
+묶음: 순서대로 보내는 요청 3개다. 이 구조를 서로 다른 Prefix로 총 5묶음 실행한다.
+first: 각 묶음의 첫 요청 1개씩, 총 5개다. 해당 묶음의 긴 공통 Prefix Cache를 처음 만드는 요청이며 서버 최초 요청이라는 뜻은 아니다.
+followup: 각 묶음의 두 번째와 세 번째 요청, 총 10개다. first가 만든 Prefix Cache를 실제로 재사용하는지 본다.
+distinct도 first와 followup을 나누는 이유: Cache로 쓸 긴 공통 Prefix가 없어도 단순히 뒤에 보낸 요청이 빨라지는지 대조하기 위해서다.
+
+유형     | 묶음 | 순서 | Prompt | Cached | Metric Hit | TTFT ms | Latency ms | Output
+----------------------------------------------------------------------------------------------------
+distinct |    1 |    1 |   1080 |      0 |          0 |  112.30 |     592.50 |     32
+distinct |    1 |    2 |   1079 |      0 |          0 |  108.50 |     588.65 |     32
+distinct |    1 |    3 |   1078 |      0 |          0 |  112.37 |     591.28 |     32
+shared   |    1 |    1 |   1081 |      0 |          0 |  102.03 |     582.49 |     32
+shared   |    1 |    2 |   1080 |      0 |          0 |  108.84 |     588.02 |     32
+shared   |    1 |    3 |   1079 |      0 |          0 |  112.79 |     592.05 |     32
+distinct |    2 |    1 |   1080 |      0 |          0 |  101.36 |     580.74 |     32
+distinct |    2 |    2 |   1079 |      0 |          0 |  107.88 |     587.74 |     32
+distinct |    2 |    3 |   1078 |      0 |          0 |  106.70 |     586.54 |     32
+shared   |    2 |    1 |   1081 |      0 |          0 |  108.28 |     589.24 |     32
+shared   |    2 |    2 |   1080 |      0 |          0 |  103.43 |     582.26 |     32
+shared   |    2 |    3 |   1079 |      0 |          0 |  108.72 |     588.75 |     32
+distinct |    3 |    1 |   1080 |      0 |          0 |  102.70 |     582.35 |     32
+distinct |    3 |    2 |   1079 |      0 |          0 |  107.55 |     587.74 |     32
+distinct |    3 |    3 |   1078 |      0 |          0 |  113.90 |     594.42 |     32
+shared   |    3 |    1 |   1081 |      0 |          0 |  109.58 |     589.72 |     32
+shared   |    3 |    2 |   1080 |      0 |          0 |  113.39 |     592.83 |     32
+shared   |    3 |    3 |   1079 |      0 |          0 |  114.53 |     594.59 |     32
+distinct |    4 |    1 |   1080 |      0 |          0 |  111.14 |     591.89 |     32
+distinct |    4 |    2 |   1079 |      0 |          0 |  109.12 |     588.16 |     32
+distinct |    4 |    3 |   1078 |      0 |          0 |  108.81 |     590.47 |     32
+shared   |    4 |    1 |   1081 |      0 |          0 |  110.16 |     591.88 |     32
+shared   |    4 |    2 |   1080 |      0 |          0 |  113.17 |     594.03 |     32
+shared   |    4 |    3 |   1079 |      0 |          0 |  107.00 |     587.76 |     32
+distinct |    5 |    1 |   1080 |      0 |          0 |  110.10 |     590.38 |     32
+distinct |    5 |    2 |   1079 |      0 |          0 |  112.02 |     592.83 |     32
+distinct |    5 |    3 |   1078 |      0 |          0 |  108.41 |     589.21 |     32
+shared   |    5 |    1 |   1081 |      0 |          0 |  112.85 |     593.73 |     32
+shared   |    5 |    2 |   1080 |      0 |          0 |  112.25 |     593.54 |     32
+shared   |    5 |    3 |   1079 |      0 |          0 |  109.16 |     588.39 |     32
+
+집계의 first는 묶음별 첫 요청 5개, followup은 후속 요청 10개다.
+p50·p95는 정렬 표본 위치를 선형 보간해 계산했다.
+유형     | 구분     | n  | Cached p50 | Hit p50 | TTFT p50/p95 ms | Latency p50/p95 ms | Output 평균 | 오류
+------------------------------------------------------------------------------------------------------------------------------
+distinct | first    |  5 |        0.0 |     0.0 |   110.10/  112.07 |    590.38/   592.38 |        32.0 | 0
+distinct | followup | 10 |        0.0 |     0.0 |   108.66/  113.21 |    588.93/   593.70 |        32.0 | 0
+shared   | first    |  5 |        0.0 |     0.0 |   109.58/  112.31 |    589.72/   593.36 |        32.0 | 0
+shared   | followup | 10 |        0.0 |     0.0 |   110.70/  114.02 |    590.40/   594.34 |        32.0 | 0
+
+5단계 현재 모드 검증 통과: True
+</code></pre>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>ON 전체 출력</h2>
+<pre><code class="language-text">=== 5단계 ON Server 본 측정 ===
+Warm-up 3개 완료·통계 제외: True
+본 측정 요청: 30
+서로 다른 Prefix의 Chat Template 기준 Block: [1]
+공통 Prefix 조건의 재사용 후보 Block: [66]
+
+=== 표를 읽기 전에 용어 확인 ===
+distinct: 한 묶음의 세 요청 본문이 서로 다르다. Chat Template 공통 1Block(16Token) 외에는 긴 Prefix를 공유하지 않는다.
+shared: 한 묶음의 세 요청이 긴 앞부분을 공유한다. 첫 요청이 만든 Prefix Cache를 두 번째와 세 번째 요청이 재사용할 수 있다.
+묶음: 순서대로 보내는 요청 3개다. 이 구조를 서로 다른 Prefix로 총 5묶음 실행한다.
+first: 각 묶음의 첫 요청 1개씩, 총 5개다. 해당 묶음의 긴 공통 Prefix Cache를 처음 만드는 요청이며 서버 최초 요청이라는 뜻은 아니다.
+followup: 각 묶음의 두 번째와 세 번째 요청, 총 10개다. first가 만든 Prefix Cache를 실제로 재사용하는지 본다.
+distinct도 first와 followup을 나누는 이유: Cache로 쓸 긴 공통 Prefix가 없어도 단순히 뒤에 보낸 요청이 빨라지는지 대조하기 위해서다.
+
+유형     | 묶음 | 순서 | Prompt | Cached | Metric Hit | TTFT ms | Latency ms | Output
+----------------------------------------------------------------------------------------------------
+distinct |    1 |    1 |   1080 |     16 |         16 |  112.75 |     592.01 |     32
+distinct |    1 |    2 |   1079 |     16 |         16 |  104.50 |     585.40 |     32
+distinct |    1 |    3 |   1078 |     16 |         16 |  113.84 |     593.80 |     32
+shared   |    1 |    1 |   1081 |     16 |         16 |  109.88 |     589.29 |     32
+shared   |    1 |    2 |   1080 |   1056 |       1056 |   69.21 |     547.48 |     32
+shared   |    1 |    3 |   1079 |   1056 |       1056 |   28.35 |     506.90 |     32
+distinct |    2 |    1 |   1080 |     16 |         16 |  112.59 |     592.51 |     32
+distinct |    2 |    2 |   1079 |     16 |         16 |  113.88 |     593.06 |     32
+distinct |    2 |    3 |   1078 |     16 |         16 |  102.50 |     583.27 |     32
+shared   |    2 |    1 |   1081 |     16 |         16 |  113.23 |     593.48 |     32
+shared   |    2 |    2 |   1080 |   1056 |       1056 |   38.63 |     516.77 |     32
+shared   |    2 |    3 |   1079 |   1056 |       1056 |   39.47 |     517.48 |     32
+distinct |    3 |    1 |   1080 |     16 |         16 |  114.16 |     594.54 |     32
+distinct |    3 |    2 |   1079 |     16 |         16 |  115.04 |     594.92 |     32
+distinct |    3 |    3 |   1078 |     16 |         16 |  115.06 |     595.53 |     32
+shared   |    3 |    1 |   1081 |     16 |         16 |  113.58 |     592.99 |     32
+shared   |    3 |    2 |   1080 |   1056 |       1056 |   27.65 |     506.99 |     32
+shared   |    3 |    3 |   1079 |   1056 |       1056 |   37.63 |     514.55 |     32
+distinct |    4 |    1 |   1080 |     16 |         16 |  109.00 |     589.21 |     32
+distinct |    4 |    2 |   1079 |     16 |         16 |  110.00 |     589.56 |     32
+distinct |    4 |    3 |   1078 |     16 |         16 |  103.13 |     583.81 |     32
+shared   |    4 |    1 |   1081 |     16 |         16 |  109.35 |     590.68 |     32
+shared   |    4 |    2 |   1080 |   1056 |       1056 |   26.32 |     505.23 |     32
+shared   |    4 |    3 |   1079 |   1056 |       1056 |   35.02 |     512.91 |     32
+distinct |    5 |    1 |   1080 |     16 |         16 |  116.13 |     594.57 |     32
+distinct |    5 |    2 |   1079 |     16 |         16 |  108.74 |     588.55 |     32
+distinct |    5 |    3 |   1078 |     16 |         16 |  109.10 |     589.68 |     32
+shared   |    5 |    1 |   1081 |     16 |         16 |  109.06 |     589.13 |     32
+shared   |    5 |    2 |   1080 |   1056 |       1056 |   40.83 |     518.09 |     32
+shared   |    5 |    3 |   1079 |   1056 |       1056 |   39.64 |     515.69 |     32
+
+집계의 first는 묶음별 첫 요청 5개, followup은 후속 요청 10개다.
+p50·p95는 정렬 표본 위치를 선형 보간해 계산했다.
+유형     | 구분     | n  | Cached p50 | Hit p50 | TTFT p50/p95 ms | Latency p50/p95 ms | Output 평균 | 오류
+------------------------------------------------------------------------------------------------------------------------------
+distinct | first    |  5 |       16.0 |    16.0 |   112.75/  115.73 |    592.51/   594.56 |        32.0 | 0
+distinct | followup | 10 |       16.0 |    16.0 |   109.55/  115.05 |    589.62/   595.26 |        32.0 | 0
+shared   | first    |  5 |       16.0 |    16.0 |   109.88/  113.51 |    590.68/   593.38 |        32.0 | 0
+shared   | followup | 10 |     1056.0 |  1056.0 |    38.13/   56.44 |    515.12/   534.26 |        32.0 | 0
+
+5단계 현재 모드 검증 통과: True
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

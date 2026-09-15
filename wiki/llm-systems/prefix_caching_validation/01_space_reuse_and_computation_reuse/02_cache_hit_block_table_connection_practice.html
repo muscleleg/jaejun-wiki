@@ -1,0 +1,971 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.md. Do not edit directly. source-sha256:faf24255b8d962f833d18d66d47951c03d45254f3307a69236ab6c9e014785e4 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cache Index 조회로 기존 물리 Block을 새 Sequence에 연결하는 CPU 모형의 전체 코드와 결과입니다.">
+  <meta name="source-sha256" content="faf24255b8d962f833d18d66d47951c03d45254f3307a69236ab6c9e014785e4">
+  <title>Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정</title>
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정">
+  <meta property="og:description" content="Cache Index 조회로 기존 물리 Block을 새 Sequence에 연결하는 CPU 모형의 전체 코드와 결과입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html","name":"Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정","description":"Cache Index 조회로 기존 물리 Block을 새 Sequence에 연결하는 CPU 모형의 전체 코드와 결과입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html"},"headline":"Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},{"@type":"ListItem","position":9,"name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html"},{"@type":"ListItem","position":10,"name":"Prefix Caching을 이해하기 위한 첫 구분: 빈 Block 재사용과 K·V 재사용","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse.html"},{"@type":"ListItem","position":11,"name":"Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/vllm_prefix_caching_block_hash.html">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/vllm_prefix_caching_validation.html">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/prefix_caching_validation/01_space_reuse_and_computation_reuse.html">Prefix Caching을 이해하기 위한 첫 구분: 빈 Block 재사용과 K·V 재사용</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정</h1>
+      <p class="lead">Cache Index 조회로 기존 물리 Block을 새 Sequence에 연결하는 CPU 모형의 전체 코드와 결과입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">이 실습에서 확인하려고 한 것</a>
+        <a href="#section-2">실행 전 상태와 처리 순서</a>
+        <a href="#section-3">실제 Notebook 코드</a>
+        <a href="#section-4">실제 실행 출력</a>
+        <a href="#section-5">A가 먼저 Cache를 만든 과정</a>
+        <a href="#section-6">B는 Hash 조회 결과로 기존 물리 Block을 연결했다</a>
+        <a href="#section-7">같은 물리 Block을 연결한다는 것은 K·V를 복사한다는 뜻이 아니다</a>
+        <a href="#section-8">코드에서 실제로 검증한 조건</a>
+        <a href="#section-9">이번 실습이 증명한 범위</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="section-1" class="markdown-section">
+<h2>이 실습에서 확인하려고 한 것</h2>
+<p>앞 실습에서는 Prompt Token을 완성 Block 단위로 나누고, Parent Hash와 현재 Block의 Token ID로 만든 Hash가 입력 시작부터 몇 Block 연속으로 일치하는지 확인했다. 그 결과로 어떤 Block이 Prefix Cache Hit 후보인지는 알 수 있었지만, Hash 일치가 실제 K·V 재사용으로 어떻게 이어지는지는 아직 코드로 연결하지 않았다.</p>
+<p>이번 CPU 모형은 다음 한 가지 흐름을 확인하기 위해 만들었다.</p>
+<pre><code class="language-text">새 Sequence의 완성 Block Hash 계산
+→ Cache Index에서 같은 Hash 검색
+→ Hash가 가리키는 기존 물리 Block ID 조회
+→ 새 Sequence의 Block Table에 기존 ID 연결
+→ Cache에 없는 뒷부분만 Free Pool에서 신규 할당
+</code></pre>
+<p>최종 Block Table을 미리 넣어 놓고 공유됐다고 출력한 것이 아니다. 입력 Token과 Free 물리 Block 목록만 초기 조건으로 두고, A를 먼저 처리해 Cache Index를 만든 뒤 B가 그 Index를 조회하도록 했다.</p>
+<p>이 실습은 실제 vLLM이나 GPU KV Cache를 호출하지 않는다. vLLM에서 일어나는 Cache 조회와 Block Table 연결의 핵심 흐름을 Python 자료구조로 단순화한 모형이다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>실행 전 상태와 처리 순서</h2>
+<p>Block 크기는 4Token이며 A와 B는 처음 8Token이 같다.</p>
+<pre><code class="language-text">Sequence A
+[10,20,30,40] [50,60,70,80] [91,92]
+ └ 공통 Block 0 ┘ └ 공통 Block 1 ┘  └ A 전용 ┘
+
+Sequence B
+[10,20,30,40] [50,60,70,80] [81,82]
+ └ 공통 Block 0 ┘ └ 공통 Block 1 ┘  └ B 전용 ┘
+</code></pre>
+<p>코드는 다음 네 가지 상태를 사용했다.</p>
+<pre><code class="language-text">free_physical_block_ids
+→ 아직 사용하지 않은 물리 Block 번호
+
+physical_block_pool
+→ 현재 할당된 물리 Block의 Token, 최초 계산 Sequence, 참조 수
+
+cache_index
+→ 완성 Block Hash에서 물리 Block ID를 찾는 색인
+
+block_tables
+→ Sequence별 논리 Block과 물리 Block의 대응표
+</code></pre>
+<p>모든 변경 가능한 상태는 <code>run_prefix_cache_simulation()</code>의 지역변수로 만들었다. <code>process_sequence()</code>는 함수 바깥의 상태를 몰래 참조하지 않고 필요한 List와 Dict를 Parameter로 전달받는다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>실제 Notebook 코드</h2>
+<pre><code class="language-python"># ==================================================
+# 1-4단계
+# Cache Hit Block을 새 Sequence에 연결한다
+# ==================================================
+#
+# 전역 상태를 사용하지 않는다.
+#
+# 전체 실행 상태는
+# run_prefix_cache_simulation()의 지역변수다.
+#
+# process_sequence()는 필요한 상태를
+# 모두 Parameter로 전달받는다.
+#
+# 실제 vLLM Server를 호출하지 않는 CPU 모형이다.
+
+
+import hashlib
+
+
+# --------------------------------------------------
+# 1. Token을 Block 단위로 분리
+# --------------------------------------------------
+
+def split_into_blocks(
+    token_ids: list[int],
+    block_size: int,
+) -&gt; list[list[int]]:
+    return [
+        token_ids[
+            block_start:
+            block_start + block_size
+        ]
+        for block_start in range(
+            0,
+            len(token_ids),
+            block_size,
+        )
+    ]
+
+
+# --------------------------------------------------
+# 2. Parent Hash와 현재 Token으로 Hash 생성
+# --------------------------------------------------
+
+def create_block_hash(
+    parent_hash: str,
+    block_token_ids: list[int],
+) -&gt; str:
+    token_text: str = &quot;,&quot;.join(
+        str(token_id)
+        for token_id in block_token_ids
+    )
+
+    hash_input: str = (
+        f&quot;{parent_hash}|{token_text}&quot;
+    )
+
+    return hashlib.sha256(
+        hash_input.encode(&quot;utf-8&quot;)
+    ).hexdigest()
+
+
+# --------------------------------------------------
+# 3. Sequence 하나 처리
+# --------------------------------------------------
+#
+# 이 함수는 전역변수를 사용하지 않는다.
+#
+# 필요한 입력과 현재 상태를
+# 모두 Parameter로 전달받는다.
+#
+# free_physical_block_ids
+# → 사용 가능한 물리 Block
+#
+# physical_block_pool
+# → 현재 사용 중인 물리 Block 상태
+#
+# cache_index
+# → Hash로 물리 Block을 찾는 색인
+#
+# lifecycle_events
+# → 판단 과정을 기록할 목록
+
+def process_sequence(
+    sequence_name: str,
+    token_ids: list[int],
+    block_size: int,
+    use_prefix_cache: bool,
+    free_physical_block_ids: list[int],
+    physical_block_pool: dict[int, dict],
+    cache_index: dict[str, int],
+    lifecycle_events: list[dict],
+) -&gt; dict[int, int]:
+    token_blocks: list[list[int]] = (
+        split_into_blocks(
+            token_ids=token_ids,
+            block_size=block_size,
+        )
+    )
+
+    # 새 Sequence는 비어 있는
+    # Block Table로 시작한다.
+    block_table: dict[int, int] = {}
+
+    parent_hash: str = &quot;ROOT&quot;
+
+    # Prefix Cache 조회는 입력 시작부터
+    # 첫 Miss가 발생하기 전까지만 가능하다.
+    prefix_lookup_active: bool = (
+        use_prefix_cache
+    )
+
+    for logical_block_id, block_token_ids in enumerate(
+        token_blocks
+    ):
+        complete_block: bool = (
+            len(block_token_ids)
+            == block_size
+        )
+
+        block_hash: str | None = None
+
+        # 완성 Block만 Cache 조회에 사용할
+        # Hash를 만든다.
+        if complete_block:
+            block_hash = create_block_hash(
+                parent_hash=parent_hash,
+                block_token_ids=block_token_ids,
+            )
+
+        cache_hit: bool = (
+            prefix_lookup_active
+            and complete_block
+            and block_hash in cache_index
+        )
+
+        if cache_hit:
+            # Cache Index에서 기존 물리 Block을 찾는다.
+            physical_block_id: int = (
+                cache_index[block_hash]
+            )
+
+            # 데이터를 복사하지 않고
+            # 기존 물리 Block의 참조 수를 늘린다.
+            physical_block_pool[
+                physical_block_id
+            ][&quot;reference_count&quot;] += 1
+
+            decision: str = &quot;CACHE_HIT&quot;
+            reason: str = (
+                &quot;Block Hash가 Cache Index에 존재&quot;
+            )
+            work: str = (
+                &quot;기존 K·V 재사용 경로&quot;
+            )
+
+        else:
+            # 신규 할당이 필요한 이유를 정한다.
+            if not complete_block:
+                reason = (
+                    &quot;미완성 Block은 Full Block &quot;
+                    &quot;Cache Hit 대상이 아님&quot;
+                )
+
+            elif not use_prefix_cache:
+                reason = (
+                    &quot;최초 Cache를 만드는 Sequence&quot;
+                )
+
+            elif prefix_lookup_active:
+                reason = (
+                    &quot;Block Hash Cache Miss&quot;
+                )
+
+                # 첫 Miss 뒤에는 Prefix Hit가
+                # 더 이상 이어지지 않는다.
+                prefix_lookup_active = False
+
+            else:
+                reason = (
+                    &quot;앞 Block에서 Prefix Hit 종료&quot;
+                )
+
+            assert free_physical_block_ids, (
+                &quot;할당할 Free 물리 Block이 없습니다.&quot;
+            )
+
+            # 전달받은 Free Pool에서
+            # 물리 Block 하나를 꺼낸다.
+            physical_block_id = (
+                free_physical_block_ids.pop(0)
+            )
+
+            # 신규 K·V를 계산해 저장했다고
+            # 단순화해서 기록한다.
+            physical_block_pool[
+                physical_block_id
+            ] = {
+                &quot;token_ids&quot;: list(
+                    block_token_ids
+                ),
+                &quot;block_hash&quot;: block_hash,
+                &quot;computed_by&quot;: sequence_name,
+                &quot;reference_count&quot;: 1,
+            }
+
+            decision = &quot;NEW_ALLOCATION&quot;
+            work = &quot;K·V 신규 계산 경로&quot;
+
+        # 실제 결정된 물리 Block을
+        # 현재 Sequence의 Block Table에 연결한다.
+        block_table[logical_block_id] = (
+            physical_block_id
+        )
+
+        lifecycle_events.append({
+            &quot;sequence&quot;: sequence_name,
+            &quot;logical_block_id&quot;: logical_block_id,
+            &quot;token_ids&quot;: list(
+                block_token_ids
+            ),
+            &quot;decision&quot;: decision,
+            &quot;reason&quot;: reason,
+            &quot;physical_block_id&quot;: (
+                physical_block_id
+            ),
+            &quot;work&quot;: work,
+        })
+
+        if complete_block:
+            # 현재 Hash는 다음 Block의
+            # Parent Hash가 된다.
+            parent_hash = block_hash
+
+            # 신규 계산한 완성 Block은
+            # 이후 요청이 찾을 수 있도록 등록한다.
+            if block_hash not in cache_index:
+                cache_index[block_hash] = (
+                    physical_block_id
+                )
+
+    return block_table
+
+
+# --------------------------------------------------
+# 4. 전체 실험 실행
+# --------------------------------------------------
+#
+# 모든 변경 가능한 상태는 이 함수 안의
+# 지역변수로 만든다.
+
+def run_prefix_cache_simulation() -&gt; dict:
+    block_size: int = 4
+
+    # A와 B는 처음 8Token이 같다.
+    sequence_token_ids: dict[
+        str,
+        list[int],
+    ] = {
+        &quot;A&quot;: [
+            10, 20, 30, 40,
+            50, 60, 70, 80,
+            91, 92,
+        ],
+        &quot;B&quot;: [
+            10, 20, 30, 40,
+            50, 60, 70, 80,
+            81, 82,
+        ],
+    }
+
+    # 아직 사용하지 않은 물리 Block 번호다.
+    #
+    # 신규 공간이 필요할 때
+    # 앞에서부터 하나씩 꺼낸다.
+    free_physical_block_ids: list[int] = [
+        7,
+        2,
+        9,
+        5,
+        6,
+        11,
+    ]
+
+    # 현재 사용 중인 물리 Block 상태다.
+    #
+    # 실제 GPU 메모리가 아니라
+    # 이번 CPU 모형의 상태 저장소다.
+    physical_block_pool: dict[
+        int,
+        dict,
+    ] = {}
+
+    # 완성 Block Hash로
+    # 물리 Block ID를 찾는 색인이다.
+    cache_index: dict[str, int] = {}
+
+    # Sequence별 Block Table이다.
+    block_tables: dict[
+        str,
+        dict[int, int],
+    ] = {}
+
+    # 각 Block의 판단 과정을 기록한다.
+    lifecycle_events: list[dict] = []
+
+    print(&quot;=== 최초 상태 ===&quot;)
+    print(
+        &quot;Free 물리 Block:&quot;,
+        free_physical_block_ids,
+    )
+    print(
+        &quot;Physical Block Pool:&quot;,
+        physical_block_pool,
+    )
+    print(
+        &quot;Cache Index:&quot;,
+        cache_index,
+    )
+    print(
+        &quot;Block Tables:&quot;,
+        block_tables,
+    )
+    print()
+
+    # ----------------------------------------------
+    # A 처리
+    # ----------------------------------------------
+    #
+    # A는 최초 요청이므로
+    # 모든 Block을 신규 계산한다.
+    #
+    # 완성 Block의 Hash는
+    # Cache Index에 등록된다.
+
+    print(&quot;=== A 처리 전 ===&quot;)
+    print(
+        &quot;A Block Table:&quot;,
+        block_tables.get(&quot;A&quot;, {}),
+    )
+    print()
+
+    block_tables[&quot;A&quot;] = process_sequence(
+        sequence_name=&quot;A&quot;,
+        token_ids=sequence_token_ids[&quot;A&quot;],
+        block_size=block_size,
+        use_prefix_cache=False,
+        free_physical_block_ids=(
+            free_physical_block_ids
+        ),
+        physical_block_pool=(
+            physical_block_pool
+        ),
+        cache_index=cache_index,
+        lifecycle_events=lifecycle_events,
+    )
+
+    print(&quot;=== A 처리 후 ===&quot;)
+    print(
+        &quot;A Block Table:&quot;,
+        block_tables[&quot;A&quot;],
+    )
+    print(&quot;Cache Index:&quot;)
+
+    for block_hash, physical_block_id in (
+        cache_index.items()
+    ):
+        print(
+            f&quot;  {block_hash[:12]}&quot;
+            f&quot; → 물리 Block {physical_block_id}&quot;
+        )
+
+    print()
+
+    # ----------------------------------------------
+    # B 처리
+    # ----------------------------------------------
+    #
+    # B는 비어 있는 Block Table로 시작한다.
+    #
+    # 첫 두 완성 Block은 A와 같으므로
+    # Cache Index에서 기존 물리 Block을 찾는다.
+    #
+    # 마지막 [81,82]만 신규 할당한다.
+
+    print(&quot;=== B 처리 전 ===&quot;)
+    print(
+        &quot;B Block Table:&quot;,
+        block_tables.get(&quot;B&quot;, {}),
+    )
+    print()
+
+    block_tables[&quot;B&quot;] = process_sequence(
+        sequence_name=&quot;B&quot;,
+        token_ids=sequence_token_ids[&quot;B&quot;],
+        block_size=block_size,
+        use_prefix_cache=True,
+        free_physical_block_ids=(
+            free_physical_block_ids
+        ),
+        physical_block_pool=(
+            physical_block_pool
+        ),
+        cache_index=cache_index,
+        lifecycle_events=lifecycle_events,
+    )
+
+    print(&quot;=== B 처리 후 ===&quot;)
+    print(
+        &quot;B Block Table:&quot;,
+        block_tables[&quot;B&quot;],
+    )
+    print()
+
+    # ----------------------------------------------
+    # 처리 과정 출력
+    # ----------------------------------------------
+
+    print(&quot;=== Cache 조회와 Block 연결 과정 ===&quot;)
+
+    for event in lifecycle_events:
+        print(
+            f&quot;Sequence {event[&#39;sequence&#39;]} &quot;
+            f&quot;논리 Block {event[&#39;logical_block_id&#39;]}&quot;
+        )
+        print(
+            &quot;  Token:&quot;,
+            event[&quot;token_ids&quot;],
+        )
+        print(
+            &quot;  판단:&quot;,
+            event[&quot;decision&quot;],
+        )
+        print(
+            &quot;  이유:&quot;,
+            event[&quot;reason&quot;],
+        )
+        print(
+            &quot;  물리 Block:&quot;,
+            event[&quot;physical_block_id&quot;],
+        )
+        print(
+            &quot;  작업:&quot;,
+            event[&quot;work&quot;],
+        )
+
+    print()
+
+    # ----------------------------------------------
+    # 물리 Block 상태 출력
+    # ----------------------------------------------
+
+    print(&quot;=== 최종 Physical Block Pool ===&quot;)
+
+    for physical_block_id in sorted(
+        physical_block_pool
+    ):
+        block_state: dict = (
+            physical_block_pool[
+                physical_block_id
+            ]
+        )
+
+        print(
+            f&quot;물리 Block {physical_block_id}&quot;
+        )
+        print(
+            &quot;  Token:&quot;,
+            block_state[&quot;token_ids&quot;],
+        )
+        print(
+            &quot;  최초 계산 Sequence:&quot;,
+            block_state[&quot;computed_by&quot;],
+        )
+        print(
+            &quot;  참조 Sequence 수:&quot;,
+            block_state[&quot;reference_count&quot;],
+        )
+
+    print()
+
+    # ----------------------------------------------
+    # 예상 결과 검증
+    # ----------------------------------------------
+
+    a_block_table: dict[int, int] = (
+        block_tables[&quot;A&quot;]
+    )
+
+    b_block_table: dict[int, int] = (
+        block_tables[&quot;B&quot;]
+    )
+
+    assert a_block_table == {
+        0: 7,
+        1: 2,
+        2: 9,
+    }
+
+    assert b_block_table == {
+        0: 7,
+        1: 2,
+        2: 5,
+    }
+
+    # 공통 Prefix Block은
+    # 같은 물리 Block을 참조한다.
+    assert (
+        a_block_table[0]
+        == b_block_table[0]
+    )
+
+    assert (
+        a_block_table[1]
+        == b_block_table[1]
+    )
+
+    # 서로 다른 마지막 부분은
+    # 서로 다른 물리 Block을 사용한다.
+    assert (
+        a_block_table[2]
+        != b_block_table[2]
+    )
+
+    # 공유 물리 Block은
+    # A와 B가 함께 참조한다.
+    assert (
+        physical_block_pool[
+            a_block_table[0]
+        ][&quot;reference_count&quot;]
+        == 2
+    )
+
+    assert (
+        physical_block_pool[
+            a_block_table[1]
+        ][&quot;reference_count&quot;]
+        == 2
+    )
+
+    # B의 마지막 Block은
+    # B가 신규 계산한 Block이다.
+    assert (
+        physical_block_pool[
+            b_block_table[2]
+        ][&quot;computed_by&quot;]
+        == &quot;B&quot;
+    )
+
+    b_events: list[dict] = [
+        event
+        for event in lifecycle_events
+        if event[&quot;sequence&quot;] == &quot;B&quot;
+    ]
+
+    assert [
+        event[&quot;decision&quot;]
+        for event in b_events
+    ] == [
+        &quot;CACHE_HIT&quot;,
+        &quot;CACHE_HIT&quot;,
+        &quot;NEW_ALLOCATION&quot;,
+    ]
+
+    # ----------------------------------------------
+    # 핵심 결과 출력
+    # ----------------------------------------------
+
+    print(&quot;=== 핵심 결과 ===&quot;)
+    print(
+        &quot;A Block Table:&quot;,
+        a_block_table,
+    )
+    print(
+        &quot;B Block Table:&quot;,
+        b_block_table,
+    )
+    print()
+
+    print(
+        &quot;논리 Block 0이 공유하는 물리 Block:&quot;,
+        a_block_table[0],
+    )
+    print(
+        &quot;논리 Block 1이 공유하는 물리 Block:&quot;,
+        a_block_table[1],
+    )
+    print(
+        &quot;서로 다른 마지막 물리 Block:&quot;,
+        (
+            a_block_table[2],
+            b_block_table[2],
+        ),
+    )
+    print()
+
+    print(
+        &quot;공유 물리 Block 0의 참조 수:&quot;,
+        physical_block_pool[
+            a_block_table[0]
+        ][&quot;reference_count&quot;],
+    )
+    print(
+        &quot;공유 물리 Block 1의 참조 수:&quot;,
+        physical_block_pool[
+            a_block_table[1]
+        ][&quot;reference_count&quot;],
+    )
+    print()
+
+    print(
+        &quot;남은 Free 물리 Block:&quot;,
+        free_physical_block_ids,
+    )
+    print()
+
+    print(&quot;모든 예상 결과 확인:&quot;, True)
+
+    # 실행이 끝난 뒤에도 결과를 살펴볼 수 있도록
+    # 상태를 Dict로 반환한다.
+    return {
+        &quot;sequence_token_ids&quot;: (
+            sequence_token_ids
+        ),
+        &quot;free_physical_block_ids&quot;: (
+            free_physical_block_ids
+        ),
+        &quot;physical_block_pool&quot;: (
+            physical_block_pool
+        ),
+        &quot;cache_index&quot;: cache_index,
+        &quot;block_tables&quot;: block_tables,
+        &quot;lifecycle_events&quot;: lifecycle_events,
+    }
+
+
+# --------------------------------------------------
+# 5. 실험 실행
+# --------------------------------------------------
+
+simulation_result: dict = (
+    run_prefix_cache_simulation()
+)
+</code></pre>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>실제 실행 출력</h2>
+<pre><code class="language-text">=== 최초 상태 ===
+Free 물리 Block: [7, 2, 9, 5, 6, 11]
+Physical Block Pool: {}
+Cache Index: {}
+Block Tables: {}
+
+=== A 처리 전 ===
+A Block Table: {}
+Cache Index: {}
+
+=== A 처리 후 ===
+A Block Table: {0: 7, 1: 2, 2: 9}
+Cache Index:
+  40269794e177 → 물리 Block 7
+  e68405a376de → 물리 Block 2
+
+=== B 처리 전 ===
+B Block Table: {}
+
+=== B 처리 후 ===
+B Block Table: {0: 7, 1: 2, 2: 5}
+
+=== Cache 조회와 Block 연결 과정 ===
+Sequence A 논리 Block 0
+  판단: NEW_ALLOCATION
+  이유: 최초 Cache를 만드는 Sequence
+  물리 Block: 7
+  수행 작업: K·V 신규 계산 경로
+Sequence A 논리 Block 1
+  판단: NEW_ALLOCATION
+  이유: 최초 Cache를 만드는 Sequence
+  물리 Block: 2
+  수행 작업: K·V 신규 계산 경로
+Sequence A 논리 Block 2
+  판단: NEW_ALLOCATION
+  이유: 미완성 Block은 Full Block Cache Hit 대상이 아님
+  물리 Block: 9
+  수행 작업: K·V 신규 계산 경로
+Sequence B 논리 Block 0
+  판단: CACHE_HIT
+  이유: Hash가 Cache Index에 존재
+  물리 Block: 7
+  수행 작업: 기존 K·V 재사용 경로
+Sequence B 논리 Block 1
+  판단: CACHE_HIT
+  이유: Hash가 Cache Index에 존재
+  물리 Block: 2
+  수행 작업: 기존 K·V 재사용 경로
+Sequence B 논리 Block 2
+  판단: NEW_ALLOCATION
+  이유: 미완성 Block은 Full Block Cache Hit 대상이 아님
+  물리 Block: 5
+  수행 작업: K·V 신규 계산 경로
+
+=== 최종 Physical Block Pool ===
+물리 Block 2
+  Token: [50, 60, 70, 80]
+  최초 계산 Sequence: A
+  참조 Sequence 수: 2
+물리 Block 5
+  Token: [81, 82]
+  최초 계산 Sequence: B
+  참조 Sequence 수: 1
+물리 Block 7
+  Token: [10, 20, 30, 40]
+  최초 계산 Sequence: A
+  참조 Sequence 수: 2
+물리 Block 9
+  Token: [91, 92]
+  최초 계산 Sequence: A
+  참조 Sequence 수: 1
+
+=== 핵심 결과 ===
+A Block Table: {0: 7, 1: 2, 2: 9}
+B Block Table: {0: 7, 1: 2, 2: 5}
+
+논리 Block 0이 공유하는 물리 Block: 7
+논리 Block 1이 공유하는 물리 Block: 2
+서로 다른 마지막 물리 Block: (9, 5)
+
+공유 물리 Block 0의 참조 수: 2
+공유 물리 Block 1의 참조 수: 2
+
+남은 Free 물리 Block: [6, 11]
+
+모든 예상 결과 확인: True
+</code></pre>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>A가 먼저 Cache를 만든 과정</h2>
+<p>A는 최초 요청이므로 재사용할 Cached Block이 없다. 세 논리 Block 모두 Free Pool에서 새 물리 Block을 받았다.</p>
+<pre><code class="language-text">A 논리 Block 0 [10,20,30,40]
+→ 물리 Block 7 신규 할당
+→ K·V 신규 계산 경로
+→ 완성 Block Hash를 Cache Index에 등록
+
+A 논리 Block 1 [50,60,70,80]
+→ 물리 Block 2 신규 할당
+→ K·V 신규 계산 경로
+→ Parent Hash와 현재 Token으로 만든 Hash를 Cache Index에 등록
+
+A 논리 Block 2 [91,92]
+→ 물리 Block 9 신규 할당
+→ 미완성 Block이므로 Full Block Cache Index에는 등록하지 않음
+</code></pre>
+<p>따라서 A를 처리한 뒤의 Block Table은 다음과 같이 만들어졌다.</p>
+<pre><code class="language-text">A Block Table
+{
+    논리 Block 0: 물리 Block 7,
+    논리 Block 1: 물리 Block 2,
+    논리 Block 2: 물리 Block 9,
+}
+</code></pre>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>B는 Hash 조회 결과로 기존 물리 Block을 연결했다</h2>
+<p>B의 Block Table은 처음에 비어 있었다. 코드는 B의 완성 Block Hash를 계산하고 A가 만든 Cache Index에서 같은 Hash를 찾았다.</p>
+<pre><code class="language-text">B 논리 Block 0 Hash 조회
+→ Cache Hit
+→ 기존 물리 Block 7 발견
+→ B의 논리 Block 0을 물리 Block 7에 연결
+→ 물리 Block 7의 참조 수 1 → 2
+
+B 논리 Block 1 Hash 조회
+→ Cache Hit
+→ 기존 물리 Block 2 발견
+→ B의 논리 Block 1을 물리 Block 2에 연결
+→ 물리 Block 2의 참조 수 1 → 2
+
+B 논리 Block 2 [81,82]
+→ 미완성 Block이라 Full Block Cache Hit 대상이 아님
+→ Free Pool에서 물리 Block 5 신규 할당
+→ B의 논리 Block 2를 물리 Block 5에 연결
+</code></pre>
+<p>그 결과 B의 Block Table은 실행 과정에서 다음과 같이 만들어졌다.</p>
+<pre><code class="language-text">B Block Table
+{
+    논리 Block 0: 물리 Block 7,
+    논리 Block 1: 물리 Block 2,
+    논리 Block 2: 물리 Block 5,
+}
+</code></pre>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>같은 물리 Block을 연결한다는 것은 K·V를 복사한다는 뜻이 아니다</h2>
+<p>최종 Block Table을 나란히 놓으면 공유 관계가 보인다.</p>
+<pre><code class="language-text">Sequence A
+Block Table = {0: 7, 1: 2, 2: 9}
+                    │     │
+                    └──┬──┘
+                       │ 같은 물리 Block 참조
+                    ┌──┴──┐
+Sequence B          │     │
+Block Table = {0: 7, 1: 2, 2: 5}
+</code></pre>
+<p>물리 Block 7과 2의 K·V 복사본을 B용으로 새로 만든 것이 아니다. B의 Block Table이 A도 참조 중인 기존 물리 Block ID를 가리키고, 각 Block의 참조 수가 2로 증가했다.</p>
+<p>반면 마지막 Token은 서로 다르므로 A는 물리 Block 9를 사용하고 B는 물리 Block 5를 새로 할당받았다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>코드에서 실제로 검증한 조건</h2>
+<p>마지막 Assertion은 다음을 확인했다.</p>
+<pre><code class="language-text">A Block Table = {0: 7, 1: 2, 2: 9}
+B Block Table = {0: 7, 1: 2, 2: 5}
+
+A와 B의 논리 Block 0
+→ 같은 물리 Block 7
+
+A와 B의 논리 Block 1
+→ 같은 물리 Block 2
+
+A와 B의 마지막 Block
+→ 서로 다른 물리 Block 9와 5
+
+공유 물리 Block 7의 참조 수
+→ 2
+
+공유 물리 Block 2의 참조 수
+→ 2
+
+B의 판단 순서
+→ CACHE_HIT
+→ CACHE_HIT
+→ NEW_ALLOCATION
+</code></pre>
+<p>실제 출력의 <code>모든 예상 결과 확인: True</code>는 위 조건이 모두 통과했다는 뜻이다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>이번 실습이 증명한 범위</h2>
+<p>이번 모형으로 확인한 것은 다음 제어 흐름이다.</p>
+<pre><code class="language-text">부모 Block Hash + 현재 완성 Block Token ID
+→ 현재 Block Hash 생성
+→ Cache Index 조회
+
+Hash가 있음
+→ 기존 물리 Block ID를 Block Table에 연결
+→ Reference Count 증가
+→ 기존 K·V 재사용 경로
+
+Hash가 없음
+→ Free Pool에서 물리 Block을 꺼냄
+→ Block Table에 신규 ID 연결
+→ K·V 신규 계산 경로
+</code></pre>
+<p>다만 물리 Block ID와 K·V 계산은 Python Dict에 기록한 모형이다. 실제 vLLM이 Cached Token을 사용했고 Prefill 계산량과 TTFT가 줄었는지는 아직 확인하지 않았다. 그 내용은 실제 vLLM Server에서 Prefix Caching OFF·ON을 비교하는 다음 단계에서 검증한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

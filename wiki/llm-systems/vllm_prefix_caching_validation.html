@@ -1,0 +1,294 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_prefix_caching_validation.md. Do not edit directly. source-sha256:8faf3c3ec2daafaeada69618d2221efd1f5006131f0cf1d301f55ffbff54885d -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="공통 Prefix의 K·V 재사용 원리부터 60개 요청의 OFF·ON 비교와 TTFT·Latency 변화까지 연결한 실습 기록입니다.">
+  <meta name="source-sha256" content="8faf3c3ec2daafaeada69618d2221efd1f5006131f0cf1d301f55ffbff54885d">
+  <title>Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법">
+  <meta property="og:description" content="공통 Prefix의 K·V 재사용 원리부터 60개 요청의 OFF·ON 비교와 TTFT·Latency 변화까지 연결한 실습 기록입니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html","name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","description":"공통 Prefix의 K·V 재사용 원리부터 60개 요청의 OFF·ON 비교와 TTFT·Latency 변화까지 연결한 실습 기록입니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html"},"headline":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_validation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_prefix_caching_block_hash.html"},{"@type":"ListItem","position":9,"name":"Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_prefix_caching_block_hash.html">프리픽스 캐싱: 블록 해시로 이전 계산을 재사용하는 원리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Prefix Caching: 반복되는 Prompt 앞부분의 계산을 다시 사용하는 방법</h1>
+      <p class="lead">공통 Prefix의 K·V 재사용 원리부터 60개 요청의 OFF·ON 비교와 TTFT·Latency 변화까지 연결한 실습 기록입니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">Prefix Caching은 답변이 아니라 공통 입력의 K·V를 재사용한다</a>
+        <a href="#section-2">눈에 같은 문장이 아니라 입력 시작부터 같은 Token이 이어져야 한다</a>
+        <a href="#section-3">재사용 후보는 입력 시작부터 일치하는 완성 Block이다</a>
+        <a href="#section-4">Parent Hash는 같은 Token 묶음의 앞 문맥까지 구분한다</a>
+        <a href="#section-5">Cache Hit는 기존 물리 Block을 새 Sequence의 Block Table에 연결한다</a>
+        <a href="#section-6">같은 Block ID의 재등장과 기존 K·V 재사용은 다른 증거다</a>
+        <a href="#section-7">실제 vLLM에서는 Hit 증거를 먼저 확인하고 속도를 비교해야 한다</a>
+        <a href="#section-8">Prefix Caching의 효과는 공통 Prefix와 실행 조건에 따라 달라진다</a>
+        <a href="#section-9">반복 측정에서 확인한 효과</a>
+        <a href="#section-10">현재까지 확인한 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>언어 모델 서비스에서는 질문만 보내는 것이 아니라 답변에 필요한 공통 지침이나 긴 문서를 함께 보내는 경우가 많다. 같은 회사 규정을 바탕으로 서로 다른 질문에 답하는 서비스라면 다음과 같은 요청이 반복될 수 있다.</p>
+<pre><code class="language-text">첫 요청
+[회사 규정 문서] + [휴가는 며칠 사용할 수 있나요?]
+
+후속 요청
+[동일한 회사 규정 문서] + [출장비는 어떻게 신청하나요?]
+</code></pre>
+<p>두 요청의 질문은 다르지만 입력 앞부분의 회사 규정은 같다. Prefix Caching은 이런 요청에서 공통 앞부분을 매번 다시 계산하지 않도록 이미 만들어 둔 계산 결과를 재사용하는 기능이다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>Prefix Caching은 답변이 아니라 공통 입력의 K·V를 재사용한다</h2>
+<p>모델에 전달된 문자열은 Token ID로 변환된다. 모델은 Prefill 단계에서 입력 Token들을 처리하며 Attention에 필요한 Key와 Value, 즉 K·V를 만들고 KV Cache에 저장한다. 이후 Decode에서는 저장된 K·V를 읽으면서 출력 Token을 이어서 생성한다.</p>
+<pre><code class="language-text">문자열 입력
+→ Token ID 변환
+→ Prefill에서 입력 Token 처리
+→ 각 Token의 K·V 생성
+→ KV Cache에 저장
+→ Decode에서 기존 K·V를 참조하며 답변 생성
+</code></pre>
+<p>첫 요청이 회사 규정을 처리했다면 그 Token들에 대한 K·V가 만들어져 있다. 후속 요청이 같은 Token으로 시작하고 기존 Cache가 남아 있다면, Prefix Caching은 공통 구간의 K·V를 사용하고 아직 처리하지 않은 새 질문 부분만 계산할 수 있다.</p>
+<pre><code class="language-text">첫 요청
+[회사 규정] + [휴가 질문]
+└──── Prefill에서 K·V 계산 ────┘
+
+후속 요청
+[회사 규정] + [출장비 질문]
+└ 기존 K·V 사용 ┘ └ 새로 계산 ┘
+</code></pre>
+<p>재사용 대상은 첫 요청의 답변이 아니다. 후속 요청은 자신의 질문과 답변을 새로 처리한다. 줄어드는 것은 공통 입력 Token에 대한 반복 Prefill 계산이다. <a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/" rel="noopener noreferrer">vLLM Prefix Caching 설명</a></p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>눈에 같은 문장이 아니라 입력 시작부터 같은 Token이 이어져야 한다</h2>
+<p>Prefix는 입력의 맨 앞부터 이어지는 부분을 뜻한다. 따라서 입력 중간에 같은 문장이 등장했다는 사실만으로 Prefix Cache Hit가 되지는 않는다.</p>
+<pre><code class="language-text">요청 A
+[공통 지침] + [회사 규정] + [휴가 질문]
+
+요청 B
+[공통 지침] + [회사 규정] + [출장비 질문]
+└──────── 공통 Prefix ────────┘
+</code></pre>
+<p>실제로 비교하는 대상은 화면에 보이는 문자열이 아니라 Chat Template과 Special Token까지 적용된 최종 Token ID다. 앞부분의 지침이나 역할 Token이 달라지면 뒤에 같은 규정 문장이 있어도 전체 문맥은 달라질 수 있다.</p>
+<p>일반적인 Causal Transformer에서 어떤 Token의 K·V는 앞 문맥의 영향을 받을 수 있다. 그래서 현재 Token 묶음만 같다고 판단하지 않고, 앞 Block의 정보까지 연결해 같은 Prefix 문맥인지 구분한다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>재사용 후보는 입력 시작부터 일치하는 완성 Block이다</h2>
+<p>vLLM은 KV Cache를 일정한 Token 수를 담는 Block 단위로 관리한다. 기본적인 Full Block Prefix Cache 모형에서는 입력 Token을 Block 크기로 나눈 뒤 완성된 Block을 재사용 후보로 다룬다.</p>
+<p>Block 크기가 4Token인 다음 두 입력을 보자.</p>
+<pre><code class="language-text">Sequence A
+[10,20,30,40] [50,60,70,80] [91,92]
+ └ 완성 Block 0 ┘ └ 완성 Block 1 ┘  └ 미완성 ┘
+
+Sequence B
+[10,20,30,40] [50,60,70,80] [81,82]
+ └ 완성 Block 0 ┘ └ 완성 Block 1 ┘  └ 미완성 ┘
+</code></pre>
+<p>A와 B는 처음 8Token이 같고, 이 구간은 완성 Block 두 개와 정확히 일치한다. 마지막 두 Token은 서로 다르고 Block도 완성하지 못했다.</p>
+<p>반면 처음 6Token만 같다면 공통 Token은 6개지만 완성 Block으로 재사용할 수 있는 후보는 앞의 4Token뿐이다.</p>
+<pre><code class="language-text">공통 Prefix 6Token
+[10,20,30,40] [50,60]
+ └ 재사용 후보 ┘  └ 다시 처리할 수 있는 미완성 구간 ┘
+</code></pre>
+<p>그러므로 공통 Prefix Token 수와 실제 Cached Token 후보 수는 Block 경계 때문에 다를 수 있다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>Parent Hash는 같은 Token 묶음의 앞 문맥까지 구분한다</h2>
+<p>완성 Block을 Cache에서 찾기 위해 Block마다 식별값을 만든다. 단순화한 모형에서는 다음과 같이 현재 Block의 Hash를 만든다.</p>
+<pre><code class="language-text">현재 Block Hash
+= Hash(
+    앞 Block의 Hash
+    + 현재 Block의 Token ID
+)
+</code></pre>
+<p>첫 Block은 앞 Block이 없으므로 ROOT에서 시작한다.</p>
+<pre><code class="language-text">H0 = Hash(ROOT, Block 0 Token)
+H1 = Hash(H0,   Block 1 Token)
+H2 = Hash(H1,   Block 2 Token)
+</code></pre>
+<p>이 구조에서는 현재 Block의 Token ID가 같아도 Parent Hash가 다르면 최종 Hash가 달라진다.</p>
+<pre><code class="language-text">A Block 1
+Token       = [50,60,70,80]
+Parent Hash = A의 Block 0 Hash
+
+C Block 1
+Token       = [50,60,70,80]
+Parent Hash = C의 서로 다른 Block 0 Hash
+
+현재 Token은 같지만 Parent Hash가 다름
+→ 최종 Block Hash도 다름
+→ 같은 Prefix Cache Block으로 판단하지 않음
+</code></pre>
+<p>따라서 Cache Hit는 입력 중간에서 우연히 같은 Token 묶음을 찾는 과정이 아니다. 입력 시작부터 Hash가 연속해서 일치하는 완성 Block 구간을 찾는 과정이다. <a href="https://docs.vllm.ai/en/latest/design/prefix_caching/" rel="noopener noreferrer">vLLM의 Block 기반 Prefix Cache 설계</a></p>
+<p>Token을 완성 Block과 미완성 구간으로 나누고 Parent Hash Chain을 비교한 전체 코드와 출력은 <a href="prefix_caching_validation/01_space_reuse_and_computation_reuse/01_complete_block_hash_chain_practice.html">완성 Prefix Block과 Parent Hash Chain을 직접 확인한 실습</a>에 정리했다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>Cache Hit는 기존 물리 Block을 새 Sequence의 Block Table에 연결한다</h2>
+<p>Cache Index는 완성 Block Hash와 해당 K·V가 저장된 물리 Block ID의 관계를 관리한다.</p>
+<pre><code class="language-text">Cache Index
+
+Block Hash H0 → 물리 Block 7
+Block Hash H1 → 물리 Block 2
+</code></pre>
+<p>새 Sequence의 완성 Block Hash가 H0과 H1이라면, 기존 K·V를 새로운 공간에 복사하지 않고 새 Sequence의 Block Table이 물리 Block 7과 2를 가리키게 할 수 있다.</p>
+<pre><code class="language-text">Sequence A
+Block Table = {0: 7, 1: 2, 2: 9}
+                    │     │
+                    └──┬──┘
+                       │ 같은 물리 Block 참조
+                    ┌──┴──┐
+Sequence B          │     │
+Block Table = {0: 7, 1: 2, 2: 5}
+</code></pre>
+<p>A와 B의 논리 Block 0과 1은 같은 물리 Block을 참조한다. 서로 다른 마지막 부분만 A의 물리 Block 9와 B의 물리 Block 5에 따로 저장된다.</p>
+<p>CPU 모형에서는 A를 먼저 신규 할당해 Cache Index를 만들고, 비어 있는 B의 Block Table이 Hash 조회 결과로 물리 Block 7과 2를 연결하는 과정을 실행했다. 공유 Block의 참조 수는 2로 증가했고, B의 미완성 뒷부분만 Free Pool에서 새 Block을 받았다.</p>
+<p>최종 Block Table을 미리 넣지 않고 Cache 조회와 신규 할당을 거쳐 결과를 만든 전체 코드와 실제 출력은 <a href="prefix_caching_validation/01_space_reuse_and_computation_reuse/02_cache_hit_block_table_connection_practice.html">Cache Hit Hash가 기존 물리 Block 연결로 이어지는 과정</a>에 정리했다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>같은 Block ID의 재등장과 기존 K·V 재사용은 다른 증거다</h2>
+<p>요청 A가 끝난 뒤 반환한 물리 Block을 요청 B가 새로 할당받을 수도 있다.</p>
+<pre><code class="language-text">A가 물리 Block 7 사용
+→ A 종료 후 Block 7 반환
+→ B가 Block 7을 신규 할당받음
+→ B의 K·V를 새로 계산해 저장
+</code></pre>
+<p>이 경우 A와 B의 기록에 같은 물리 Block ID가 등장하지만, A의 K·V를 B가 사용한 것은 아니다. 저장 공간만 다시 쓴 것이다.</p>
+<p>Prefix Caching에서 확인하려는 흐름은 다르다.</p>
+<pre><code class="language-text">A의 공통 Prefix K·V가 물리 Block 7에 남아 있음
+→ B의 완성 Prefix Block Hash가 Cache Hit
+→ B의 Block Table에 기존 물리 Block 7 연결
+→ A가 계산했던 공통 Prefix K·V 사용
+</code></pre>
+<p>따라서 같은 Block ID가 다시 보였다는 사실만으로 Prefix Cache Hit라고 결론 내리면 안 된다. Hash 조회, Cached Prompt Token, Cache Hit Counter처럼 기존 계산 결과를 찾고 사용했다는 증거가 필요하다.</p>
+<p>Block 공간의 재사용과 계산 결과 재사용의 차이, Cache 잔존과 참조 수의 관계는 <a href="prefix_caching_validation/01_space_reuse_and_computation_reuse.html">빈 Block 재사용과 K·V 재사용</a>에 자세히 정리했다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>실제 vLLM에서는 Hit 증거를 먼저 확인하고 속도를 비교해야 한다</h2>
+<p>CPU 모형은 Cache 조회와 Block 연결 원리를 이해하기 위한 것이다. 실제 vLLM이 공통 Prefix의 K·V를 사용했는지는 Server가 제공하는 Metric, Log 또는 응답 Usage를 통해 별도로 확인해야 한다.</p>
+<pre><code class="language-text">요청 전 Cache Counter 기록
+→ 실제 요청 수행
+→ 요청 후 Cache Counter 기록
+→ 요청 후 값 - 요청 전 값 계산
+→ 해당 요청 구간에서 증가한 Hit 확인
+</code></pre>
+<p>응답이 빨라졌다는 사실만으로 Cache Hit를 판정하지 않는다. TTFT는 Prefix 계산뿐 아니라 Queue 대기, GPU 상태, 전송 시간 등의 영향을 함께 받기 때문이다.</p>
+<pre><code class="language-text">먼저 확인
+→ Cached Prompt Token 또는 Cache Hit 증가
+
+그다음 비교
+→ 공통 Prefix를 새로 Prefill한 Token 수
+→ 첫 Token이 도착할 때까지의 TTFT
+→ Server가 제공하는 Prefill 시간 또는 처리량
+</code></pre>
+<p>실제 비교에서는 Prefix Caching OFF와 ON을 제외한 모델·GPU·Scheduler·요청 조건을 같게 유지해야 한다. 현재 환경 확인 항목, 공통 Server 계약과 Metric 판정 방법은 <a href="prefix_caching_validation/02_execution_environment_and_measurement.html">실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비</a>에 정리했다.</p>
+<p>실제 vLLM 동작 확인에서는 공통 완성 Prefix가 <code>1,024Token</code>인 A·B·C를 순차 실행했다. OFF에서는 세 요청 모두 Cached Token과 Metric Hit가 <code>0</code>이었다. ON에서는 해당 Prefix를 처음 계산한 A만 <code>0</code>이었고, 후속 요청 B와 C는 응답 Cached Token과 Metric Hit 증가량이 모두 <code>1,024Token</code>이었다. 이로써 이론으로 예상한 완성 Prefix Token과 실제 두 관측 경로가 일치함을 확인했다. 실행 조건·개별 TTFT와 해석은 <a href="prefix_caching_validation/04_small_request_hit_comparison.html">공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인</a>에 정리했다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>Prefix Caching의 효과는 공통 Prefix와 실행 조건에 따라 달라진다</h2>
+<p>Prefix Caching은 반복되는 입력의 Prefill 계산을 줄일 수 있지만 모든 요청을 빠르게 만드는 기능은 아니다.</p>
+<pre><code class="language-text">효과에 영향을 주는 조건
+
+공통 Prefix가 실제 Token ID 기준으로 얼마나 긴가
+→ 짧으면 줄일 계산도 작음
+
+공통 구간이 몇 개의 완성 Block을 이루는가
+→ Block을 채우지 못한 끝부분은 재사용 범위에서 빠질 수 있음
+
+Cached Block이 아직 남아 있는가
+→ 다른 데이터 저장에 사용돼 제거됐다면 Miss
+
+요청이 Queue에서 얼마나 기다리는가
+→ Prefill이 줄어도 대기시간이 크면 TTFT 개선이 가려질 수 있음
+
+모델·GPU·Server 설정이 무엇인가
+→ 실제 처리 시간과 Cache 용량이 달라짐
+</code></pre>
+<p>따라서 Prefix Caching을 이해하려면 “켜면 빨라진다”는 문장만 외우는 것으로 부족하다. 어떤 Token 구간이 Hit했고, 기존 물리 Block이 어떻게 연결됐으며, 실제로 줄어든 Prefill 계산이 사용자 지연에 어떤 변화를 만들었는지를 함께 봐야 한다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>반복 측정에서 확인한 효과</h2>
+<p>같은 GPU·모델에서 Prefix Caching OFF·ON과 긴 공통 Prefix 유무를 조합한 네 조건을 각각 5묶음씩 실행했다. 한 묶음은 요청 3개이며, 첫 요청 5개와 후속 요청 10개를 나누어 집계했다. 모드별 Warm-up 3개는 제외했고 본 측정 60개는 모두 오류 없이 32Token을 생성했다.</p>
+<p>긴 공통 Prefix가 있는 후속 요청은 OFF의 Cached Token·Metric Hit가 0에서 ON의 1,056Token으로 늘었고, TTFT p50은 110.70ms에서 38.13ms로 65.6% 감소했다. p95는 114.02ms에서 56.44ms로 50.5% 감소했다. 긴 공통 Prefix가 없는 대조군은 ON에서도 Chat Template의 16Token만 재사용했고 TTFT가 거의 같았다.</p>
+<p>전체 Latency 감소는 p50 12.8%, p95 10.1%로 TTFT보다 작았다. 공통 입력의 Prefill은 줄어도 32Token을 생성하는 Decode는 계속 수행하기 때문이다. 이 설명은 Cached Token과 지연의 관계에 근거한 해석이며 GPU Decode 시간을 직접 계측한 결과는 아니다. 네 조건의 전체 코드·요청별 출력·집계는 <a href="prefix_caching_validation/05_repeated_measurement_and_interpretation.html">반복 측정과 TTFT·Latency 해석</a>에 보존했다.</p>
+<p><a href="prefix_caching_validation/02_execution_environment_and_measurement.html">실행 환경과 측정 준비</a>, <a href="prefix_caching_validation/04_small_request_hit_comparison.html">Smoke Test</a>, <a href="prefix_caching_validation/01_space_reuse_and_computation_reuse.html">저장 공간과 계산 재사용</a>을 상세 문서에서 이어 읽을 수 있다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>현재까지 확인한 범위</h2>
+<p>현재까지 CPU 모형과 실제 vLLM Server에서 다음 내용을 확인했다.</p>
+<pre><code class="language-text">입력 Token을 완성 Block 단위로 나눔
+→ Parent Hash Chain 생성
+→ 입력 시작부터 연속으로 같은 Hash 확인
+→ Cache Index에서 기존 물리 Block ID 조회
+→ 새 Sequence의 Block Table에 기존 ID 연결
+→ 다른 뒷부분만 Free Pool에서 신규 할당
+
+실제 vLLM Prefix Caching OFF
+→ A·B·C의 Cached Token과 Hit 모두 0
+
+실제 vLLM Prefix Caching ON
+→ 첫 요청 A는 Hit 0
+→ 후속 요청 B·C는 완성 Prefix 1,024Token Hit
+→ 응답 Usage와 Server Counter 결과 일치
+</code></pre>
+<p>공식 반복 측정에서는 추가로 다음 내용을 확인했다.</p>
+<pre><code class="language-text">공통 Prefix가 있는 요청과 없는 요청의 OFF·ON 비교
+첫 요청과 후속 요청을 분리한 60개 요청의 반복 성능 집계
+HTTP Cached Token과 Metric Hit 증가량의 전 요청 일치
+공통 Prefix 후속 요청에서 TTFT 감소와 상대적으로 작은 전체 Latency 감소
+</code></pre>
+<p>4단계의 1회 결과는 Cache Hit 동작을 확인한 Smoke Test이며 성능 결론에 합치지 않았다. 작은 표본의 p95를 운영 SLO로 일반화하지 않는다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="prefix_caching_validation/01_space_reuse_and_computation_reuse.html">Prefix Caching을 이해하기 위한 첫 구분: 빈 Block 재사용과 K·V 재사용</a></li>
+<li><a href="prefix_caching_validation/02_execution_environment_and_measurement.html">실제 Prefix Caching 비교를 위한 실행 환경과 측정 준비</a></li>
+<li><a href="prefix_caching_validation/04_small_request_hit_comparison.html">공통 Prefix가 실제 vLLM에서 Cached Token으로 재사용되는지 확인</a></li>
+<li><a href="prefix_caching_validation/05_repeated_measurement_and_interpretation.html">Prefix Caching 반복 측정과 TTFT·Latency 해석</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
