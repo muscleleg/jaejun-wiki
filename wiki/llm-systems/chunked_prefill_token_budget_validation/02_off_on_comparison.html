@@ -1,0 +1,374 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.md. Do not edit directly. source-sha256:3615bfcdcc778055ec848ce027895743c0bd5f157481cbeb1e750640a781e997 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Token Budget이 1,024로 충분할 때 Chunked Prefill OFF와 ON에서 실제 Prefill 배정과 TTFT·TPOT·응답 간격이 어떻게 달라지는지 비교합니다.">
+  <meta name="source-sha256" content="3615bfcdcc778055ec848ce027895743c0bd5f157481cbeb1e750640a781e997">
+  <title>Chunked Prefill OFF·ON 비교</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Chunked Prefill OFF·ON 비교">
+  <meta property="og:description" content="Token Budget이 1,024로 충분할 때 Chunked Prefill OFF와 ON에서 실제 Prefill 배정과 TTFT·TPOT·응답 간격이 어떻게 달라지는지 비교합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html","name":"Chunked Prefill OFF·ON 비교","description":"Token Budget이 1,024로 충분할 때 Chunked Prefill OFF와 ON에서 실제 Prefill 배정과 TTFT·TPOT·응답 간격이 어떻게 달라지는지 비교합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html"},"headline":"Chunked Prefill OFF·ON 비교","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/02_off_on_comparison.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html"},{"@type":"ListItem","position":7,"name":"Chunked Prefill OFF·ON 비교"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_chunked_prefill_token_budget.html">Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Chunked Prefill OFF·ON 비교</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Chunked Prefill OFF·ON 비교</h1>
+      <p class="lead">Token Budget이 1,024로 충분할 때 Chunked Prefill OFF와 ON에서 실제 Prefill 배정과 TTFT·TPOT·응답 간격이 어떻게 달라지는지 비교합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#chunked-prefill">같은 조건에서 Chunked Prefill 설정만 바꿨다</a>
+        <a href="#a-b-c">A의 첫 응답 조각을 받은 뒤 B와 C를 보냈다</a>
+        <a href="#off-on-b-796token-prefill">OFF와 ON 모두 B의 796Token을 한 번에 Prefill했다</a>
+        <a href="#section-163c34bfeb01">실제 분할이 없으므로 측정값도 거의 같았다</a>
+        <a href="#section-fc10089fed55">보존한 원본 자료</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Chunked Prefill을 켰다는 설정만으로 긴 Prompt가 반드시 여러 조각으로 나뉘는 것은 아니다. 한 Iteration의 Token Budget에 긴 Prompt 전체가 들어가면 ON Server도 Prefill을 한 번에 처리할 수 있다.</p>
+<p>이 실험에서는 Chunked Prefill 설정만 OFF와 ON으로 바꾸고, 두 Server 모두 <code>max_num_batched_tokens=1024</code>를 사용했다. 긴 Prompt B는 796Token이므로 Budget 안에 전부 들어간다. 이 비교의 목적은 <strong>기능을 켰지만 실제 Chunk 분할은 일어나지 않은 조건</strong>을 대조군으로 확인하는 것이다.</p>
+</div>
+        <section id="chunked-prefill" class="markdown-section">
+<h2>같은 조건에서 Chunked Prefill 설정만 바꿨다</h2>
+<p>두 Server에서 다음 조건을 동일하게 유지했다.</p>
+<pre><code class="language-text">모델                   = Qwen2.5-1.5B-Instruct
+max_model_len          = 1024
+max_num_seqs           = 3
+max_num_batched_tokens = 1024
+Prefix Caching         = OFF
+Scheduling Policy      = FCFS
+Block Size             = 16Token
+</code></pre>
+<p>달라진 것은 다음 설정 하나다.</p>
+<pre><code class="language-text">OFF·1024
+→ --no-enable-chunked-prefill
+
+ON·1024
+→ --enable-chunked-prefill
+</code></pre>
+<p>실제 Server 실행 명령은 다음과 같다. 결과 폴더와 Trace 경로를 실행마다 새로 만들고, 모델·GPU 관련 조건은 동일하게 유지했다.</p>
+<pre><code class="language-bash"># Chunked Prefill ON · Budget 1024
+cd /root/transformer-practice/transformer/notebooks/transformer
+
+source \
+  /root/transformer-practice/transformer/.venv-vllm/bin/activate
+
+chunked_prefill_run_id=&quot;on-budget-1024-$(date +%Y%m%d-%H%M%S)&quot;
+
+chunked_prefill_result_directory=&quot;\
+/root/transformer-practice/transformer/\
+research/vllm_scheduler_kv_cache_criteria/results/\
+2026-09-16-chunked-prefill/servers/\
+${chunked_prefill_run_id}&quot;
+
+mkdir -p \
+  &quot;${chunked_prefill_result_directory}&quot;
+
+export PYTHONPATH=&quot;\
+/root/transformer-practice/transformer/\
+notebooks/transformer:${PYTHONPATH:-}&quot;
+
+export KV_CACHE_TRACE_PATH=&quot;\
+${chunked_prefill_result_directory}/\
+kv_cache_trace.jsonl&quot;
+
+vllm serve \
+  /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 1024 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 3 \
+  --max-num-batched-tokens 1024 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --enable-chunked-prefill \
+  --seed 0 \
+  --scheduler-cls \
+  kv_cache_trace.KvCacheTracingScheduler \
+  2&gt;&amp;1 | tee \
+  &quot;${chunked_prefill_result_directory}/server.log&quot;
+</code></pre>
+<p>OFF Server에서는 같은 명령에서 실행 ID와 Chunked Prefill Flag만 바꿨다.</p>
+<pre><code class="language-bash"># Chunked Prefill OFF · Budget 1024
+cd /root/transformer-practice/transformer/notebooks/transformer
+
+source \
+  /root/transformer-practice/transformer/.venv-vllm/bin/activate
+
+chunked_prefill_run_id=&quot;off-budget-1024-$(date +%Y%m%d-%H%M%S)&quot;
+
+chunked_prefill_result_directory=&quot;\
+/root/transformer-practice/transformer/\
+research/vllm_scheduler_kv_cache_criteria/results/\
+2026-09-16-chunked-prefill/servers/\
+${chunked_prefill_run_id}&quot;
+
+mkdir -p \
+  &quot;${chunked_prefill_result_directory}&quot;
+
+export PYTHONPATH=&quot;\
+/root/transformer-practice/transformer/\
+notebooks/transformer:${PYTHONPATH:-}&quot;
+
+export KV_CACHE_TRACE_PATH=&quot;\
+${chunked_prefill_result_directory}/\
+kv_cache_trace.jsonl&quot;
+
+vllm serve \
+  /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 1024 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 3 \
+  --max-num-batched-tokens 1024 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --seed 0 \
+  --scheduler-cls \
+  kv_cache_trace.KvCacheTracingScheduler \
+  2&gt;&amp;1 | tee \
+  &quot;${chunked_prefill_result_directory}/server.log&quot;
+</code></pre>
+
+</section>
+<section id="a-b-c" class="markdown-section">
+<h2>A의 첫 응답 조각을 받은 뒤 B와 C를 보냈다</h2>
+<p>세 요청은 서로 다른 역할을 맡는다.</p>
+<pre><code class="language-text">A: Prompt 81Token, 최대 출력 800Token
+   먼저 전송해 Decode를 계속 수행하게 한다.
+
+B: Prompt 796Token, 최대 출력 32Token
+   A가 Decode 중일 때 긴 Prefill을 발생시킨다.
+
+C: Prompt 135Token, 최대 출력 32Token
+   B와 함께 제출하는 짧은 요청이다.
+</code></pre>
+<p>A의 Streaming 응답에서 처음으로 비어 있지 않은 <code>delta.content</code>를 받으면 <code>Event.set()</code>을 호출했다. Main Thread는 그 신호로 <code>wait()</code>에서 풀려난 뒤 B와 C를 연속해서 제출했다. 이 신호는 A의 요청이 끝났다는 뜻이 아니라, A가 첫 출력 내용을 보냈으므로 현재 Decode 단계에 들어갔다는 뜻이다.</p>
+<p>실제 Notebook의 요청 제출 핵심 코드는 다음과 같다. <code>send_streaming_request()</code>는 SSE 응답을 계속 읽으며 첫 Content에서 Event를 설정하고, 요청이 끝나면 요청별 시각과 Token 수를 반환한다.</p>
+<pre><code class="language-python">with ThreadPoolExecutor(
+    max_workers=3,
+) as executor:
+    request_futures[&quot;A&quot;] = executor.submit(
+        send_streaming_request,
+        client=client,
+        request_case=requests_by_label[&quot;A&quot;],
+        request_id=(
+            f&quot;{request_run_identifier}-A&quot;
+        ),
+        experiment_started_at=(
+            experiment_started_at
+        ),
+        first_content_event=(
+            a_first_content_event
+        ),
+    )
+
+    # A 요청 전체가 아니라 첫 Content까지만 기다린다.
+    a_started_decode = (
+        a_first_content_event.wait(
+            timeout=30.0,
+        )
+    )
+    assert a_started_decode
+
+    bc_submitted_at_seconds = (
+        time.perf_counter()
+        - experiment_started_at
+    )
+
+    # A의 나머지 Decode가 계속되는 동안
+    # B와 C를 연속해서 제출한다.
+    for label in (&quot;B&quot;, &quot;C&quot;):
+        request_futures[label] = (
+            executor.submit(
+                send_streaming_request,
+                client=client,
+                request_case=(
+                    requests_by_label[label]
+                ),
+                request_id=(
+                    f&quot;{request_run_identifier}-&quot;
+                    f&quot;{label}&quot;
+                ),
+                experiment_started_at=(
+                    experiment_started_at
+                ),
+            )
+        )
+</code></pre>
+<p>첫 Content를 감지하는 함수 내부의 실제 조건은 다음과 같다.</p>
+<pre><code class="language-python">if content:
+    if first_content_at is None:
+        first_content_at = time.perf_counter()
+
+        if first_content_event is not None:
+            first_content_event.set()
+
+    response_text_parts.append(content)
+</code></pre>
+<p>각 조건은 Warm-up 1회를 수행한 뒤 통계에서 제외하고, 같은 A·B·C 실행을 5회 측정했다.</p>
+
+</section>
+<section id="off-on-b-796token-prefill" class="markdown-section">
+<h2>OFF와 ON 모두 B의 796Token을 한 번에 Prefill했다</h2>
+<p>Scheduler Trace에서 B의 <code>work_phase=prefill</code> 기록을 모아 <code>scheduled_tokens</code>를 확인했다.</p>
+<p>실제 Trace 분석 코드는 Schedule별 작업을 묶고, B와 C의 Prefill Token 수와 A Decode 동시 배정 횟수를 추출했다.</p>
+<pre><code class="language-python">b_prefill_chunks: list[int] = []
+c_prefill_chunks: list[int] = []
+a_decode_count = 0
+a_decode_with_b_prefill_count = 0
+
+for work_items in work_by_schedule.values():
+    has_a_decode = any(
+        (
+            item[&quot;label&quot;] == &quot;A&quot;
+            and item[&quot;work_phase&quot;] == &quot;decode&quot;
+        )
+        for item in work_items
+    )
+
+    has_b_prefill = any(
+        (
+            item[&quot;label&quot;] == &quot;B&quot;
+            and item[&quot;work_phase&quot;] == &quot;prefill&quot;
+        )
+        for item in work_items
+    )
+
+    if has_a_decode:
+        a_decode_count += 1
+
+    if has_a_decode and has_b_prefill:
+        a_decode_with_b_prefill_count += 1
+
+    for item in work_items:
+        if (
+            item[&quot;label&quot;] == &quot;B&quot;
+            and item[&quot;work_phase&quot;] == &quot;prefill&quot;
+        ):
+            b_prefill_chunks.append(
+                item[&quot;scheduled_tokens&quot;]
+            )
+
+        if (
+            item[&quot;label&quot;] == &quot;C&quot;
+            and item[&quot;work_phase&quot;] == &quot;prefill&quot;
+        ):
+            c_prefill_chunks.append(
+                item[&quot;scheduled_tokens&quot;]
+            )
+</code></pre>
+<pre><code class="language-text">OFF·1024의 B Prefill 배정
+→ [796]
+
+ON·1024의 B Prefill 배정
+→ [796]
+</code></pre>
+<p>ON Server도 B를 여러 Chunk로 나누지 않았다. A의 Decode 1Token을 먼저 배정해도 1,023Token의 Budget이 남고, B의 796Token 전체가 그 안에 들어가기 때문이다.</p>
+<p>따라서 이 조건에서는 다음 두 동작이 사실상 같았다.</p>
+<pre><code class="language-text">OFF·1024
+→ A Decode 1Token과 B Prefill 796Token을 같은 큰 Iteration에서 처리
+
+ON·1024
+→ Chunked Prefill 기능은 켜져 있음
+→ 그러나 남은 Budget이 충분하므로 B Prefill 796Token을 한 번에 처리
+</code></pre>
+
+</section>
+<section id="section-163c34bfeb01" class="markdown-section">
+<h2>실제 분할이 없으므로 측정값도 거의 같았다</h2>
+<p><code>A 최대 간격</code>은 B·C 제출부터 둘 중 첫 Content가 도착할 때까지의 관찰 구간과 겹치는 A의 연속 Streaming Content 간격 중 최댓값이다. A가 긴 Prefill 때문에 순간적으로 얼마나 오래 다음 응답 조각을 보내지 못했는지 보여준다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>B Prefill Chunk</th>
+<th align="right">A TPOT p50 / p95 [ms/token]</th>
+<th align="right">A 최대 간격 p50 / p95 [ms]</th>
+<th align="right">B TTFT p50 / p95 [ms]</th>
+<th align="right">C TTFT p50 / p95 [ms]</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OFF·1024</td>
+<td><code>[796]</code></td>
+<td align="right">15.41 / 15.42</td>
+<td align="right">82.14 / 85.22</td>
+<td align="right">112.73 / 113.98</td>
+<td align="right">111.52 / 113.66</td>
+</tr>
+<tr>
+<td>ON·1024</td>
+<td><code>[796]</code></td>
+<td align="right">15.42 / 15.43</td>
+<td align="right">79.75 / 84.22</td>
+<td align="right">113.78 / 114.40</td>
+<td align="right">113.05 / 113.83</td>
+</tr>
+</tbody></table>
+</div>
+<p>OFF와 ON의 A TPOT는 약 <code>15.4ms/token</code>으로 같았고, A의 국소 최대 간격도 약 <code>80ms</code>로 비슷했다. B와 C의 TTFT 차이도 약 1~2ms 수준이었다.</p>
+<p>이 결과는 “Chunked Prefill을 켜면 무조건 지연이 개선된다”는 뜻이 아님을 보여준다. 이번처럼 긴 Prompt 전체가 남은 Token Budget에 들어가 실제 Chunk 분할이 발생하지 않으면, ON과 OFF의 Scheduling도 거의 같고 지연도 거의 같다.</p>
+<p>다음 문서에서는 Chunked Prefill을 켠 상태에서 Budget을 256으로 줄여 B가 실제로 네 Chunk로 나뉘게 만든다.</p>
+<p>측정 함수, SSE Parser, 요청별 TTFT·TPOT·Latency 계산과 JSON 저장을 포함한 실행 셀 전체는 실습 Notebook에 그대로 보존했다. 이 문서에는 OFF·ON 판정에 직접 사용한 실제 실행 명령과 요청 제출·Trace 분석 코드를 함께 남겼다.</p>
+
+</section>
+<section id="section-fc10089fed55" class="markdown-section">
+<h2>보존한 원본 자료</h2>
+<ul>
+<li>OFF·1024 측정 JSON</li>
+<li>OFF·1024 Scheduler Trace</li>
+<li>OFF·1024 Server Log</li>
+<li>ON·1024 측정 JSON</li>
+<li>ON·1024 Scheduler Trace</li>
+<li>ON·1024 Server Log</li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- Generated from content/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.md. Do not edit directly. source-sha256:9877307740964d2108fe46cce3bcbc8cff58a92648bee2a46093b2b2716b6190 -->
+<!-- Generated from content/wiki/llm-systems/pytorch_vllm_benchmark_contract/01_benchmark_warmup_rationale.md. Do not edit directly. source-sha256:02e44707d79249071e99cb457e83b4bc6d99006a2ed6a2dfafde367eb80fe870 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="성능 측정에서 초기화 오버헤드를 분리하기 위한 Warm-up의 원리와 조건별 적용·Cold Start 예외를 설명합니다.">
-  <meta name="source-sha256" content="9877307740964d2108fe46cce3bcbc8cff58a92648bee2a46093b2b2716b6190">
+  <meta name="source-sha256" content="02e44707d79249071e99cb457e83b4bc6d99006a2ed6a2dfafde367eb80fe870">
   <title>성능 Benchmark에서 Warm-up을 기본으로 수행해야 하는 이유</title>
   <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
   <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
@@ -80,18 +80,33 @@
 </section>
 <section id="section-64c773af9d03" class="markdown-section">
 <h2>첫 실행에는 예상하지 못한 비용이 섞일 수 있다</h2>
-<p>첫 실행에는 환경에 따라 다음과 같은 작업이 추가될 수 있다.</p>
-<pre><code class="language-text">Runtime 초기화
-CUDA Context 생성
-GPU Kernel 로드
-JIT 컴파일
-Memory Pool 최초 확보
-내부 라이브러리 초기화
-CPU·GPU Clock 상승
-연결 Pool 생성
+<p>첫 요청이 후속 요청보다 느리다면 요청 자체의 처리 시간 외에 최초 실행 비용이 섞였을 가능성이 있다. 원인은 하나로 고정되지 않으며 실행 환경에 따라 다음 비용 중 일부가 나타날 수 있다.</p>
+<pre><code class="language-text">CUDA 실행 Context 준비
+GPU 메모리의 최초 할당과 Memory Pool 확장
+특정 크기의 GPU Kernel 최초 실행
+JIT Compile·CUDA Graph Capture·Kernel Autotuning
+내부 Library와 요청 처리 경로의 최초 객체 생성
+Idle 상태에서 낮아진 CPU·GPU Clock의 상승
+TCP 연결·TLS Handshake·HTTP Connection Pool 생성
+처음 읽는 파일이나 Memory Page의 Cache 적재
 </code></pre>
-<p>Benchmark를 작성하는 사람이 이 모든 내부 동작을 정확히 알고 있기는 어렵다. 사용 중인 Framework, Driver, Hardware, Library 버전에 따라 최초 실행 시점에 준비되는 내용도 달라질 수 있다.</p>
-<p>따라서 일반적인 Benchmark에서는 특정 초기화 작업의 존재를 하나씩 증명한 뒤 Warm-up을 결정하기보다, Warm-up을 기본 절차로 두어 최초 실행 효과를 본 측정에서 분리한다.</p>
+<p>Server가 시작 완료 상태라고 해서 모든 요청 형태에 필요한 실행 경로가 전부 같은 상태로 준비됐다는 뜻은 아니다. Server 시작 과정에서 일부 연산을 미리 수행했더라도 처음 사용하는 Prompt 길이, Batch 크기 또는 동시성 조건에서는 추가 준비 비용이 나타날 수 있다.</p>
+<p>GPU가 오랫동안 작업하지 않았다면 첫 요청이 낮은 Clock 상태에서 시작하고, 이후 요청은 Clock이 올라간 상태에서 실행될 수도 있다.</p>
+<pre><code class="language-text">GPU가 오랫동안 Idle
+→ 첫 요청에서 연산 시작과 함께 Clock 상승
+→ 이후 요청은 이미 높아진 Clock에서 실행
+</code></pre>
+<p>Client 측 비용도 구분해야 한다. 첫 요청에서 TCP 연결이나 TLS Handshake를 수행하고 후속 요청에서 기존 연결을 재사용했다면, 첫 요청과 후속 요청의 차이를 전부 GPU 비용으로 해석할 수 없다. 같은 <code>httpx.Client</code>처럼 Connection Pool을 재사용하는 방식인지도 측정 계약에 포함해야 한다.</p>
+<p>새로운 문장의 의미를 모델이 처음 봤기 때문에 느린 것은 아니다. 성능에 직접 영향을 주는 것은 보통 문장의 의미보다 실행 형태다.</p>
+<pre><code class="language-text">Prompt Token 수
+Batch 크기와 동시 요청 수
+출력 길이
+Streaming 사용 여부
+Prefill·Decode 구성
+연산에 사용되는 Tensor Shape
+</code></pre>
+<p>서로 다른 문장도 실행 형태가 비슷하면 같은 준비 상태의 도움을 받을 수 있다. 반대로 비슷한 내용의 문장이라도 Prompt 길이나 Batch 크기가 크게 달라지면 새로운 실행 비용이 나타날 수 있다.</p>
+<p>Benchmark를 작성하는 사람이 최초 비용의 발생 위치를 모두 미리 알기는 어렵다. Framework, Driver, Hardware와 Library 버전에 따라서도 달라진다. 따라서 평상시 반복 성능을 측정할 때는 특정 초기화 하나만 가정하지 않고, 대표 실행을 Warm-up으로 먼저 수행해 최초 실행 효과를 본 측정에서 분리한다.</p>
 
 </section>
 <section id="warm-up-benchmark" class="markdown-section">
@@ -229,8 +244,8 @@ Batch 크기
 </section>
 <section id="warm-up-4" class="markdown-section">
 <h2>Warm-up 이후 측정 상태를 다시 초기화해야 한다</h2>
-<p>Warm-up을 실행하면 시간뿐 아니라 메모리와 Cache 상태도 변할 수 있다.</p>
-<p>예를 들어 Peak GPU Memory를 측정한다면 Warm-up에서 기록된 Peak를 초기화해야 한다.</p>
+<p>Warm-up은 시간뿐 아니라 메모리와 Cache 상태도 바꾼다. 따라서 Warm-up 요청을 보냈다는 사실만으로 올바른 Benchmark가 완성되지는 않는다. 본 측정 전에 측정 기준점과 Cache 조건을 의도한 상태로 맞춰야 한다.</p>
+<p>예를 들어 Peak GPU Memory를 측정한다면 Warm-up에서 기록된 Peak를 초기화한다.</p>
 <pre><code class="language-python">for _ in range(3):
     warmup_result = operation()
 
@@ -257,7 +272,20 @@ peak_memory_bytes = (
 → 본 연산 실행
 → 본 연산의 Peak 조회
 </code></pre>
-<p>Warm-up을 했다는 사실만으로 올바른 Benchmark가 되는 것은 아니다. 측정하려는 통계를 Warm-up 이후 올바른 기준점으로 다시 설정해야 한다.</p>
+<p>Prefix Caching이나 KV Cache 재사용을 측정한다면 더 주의해야 한다. 본 측정과 같은 Prefix를 Warm-up에서 먼저 보내면, 본 측정의 첫 요청부터 Cache Hit가 발생할 수 있다.</p>
+<pre><code class="language-text">Warm-up에서 Prefix A 처리
+→ Prefix A의 K·V가 Cache에 남음
+
+본 측정의 첫 요청에서 Prefix A 사용
+→ 원래 Miss여야 할 요청이 Hit가 됨
+</code></pre>
+<p>이 경우 최초 실행 비용은 제거했지만 측정하려던 Cache 초기 상태를 바꿔 버린다. Cache 실험에서는 목적에 따라 다음 방법 중 하나를 선택한다.</p>
+<pre><code class="language-text">본 측정과 겹치지 않는 별도 Prompt로 Warm-up
+Server를 다시 시작해 Cache 초기화
+지원되는 Cache 초기화 기능 사용
+Warm-up이 만든 Cache 상태까지 실험 조건으로 명시
+</code></pre>
+<p>비교 실험에서는 Warm-up 횟수와 요청 형태뿐 아니라 HTTP Client 재사용 방식, Server Idle 시간과 Cache 초기 상태도 모든 조건에 동일하게 적용한다. Warm-up은 최초 실행 비용을 본 측정 밖으로 옮기는 절차이지, 측정 대상의 상태를 임의로 바꾸는 절차가 아니다.</p>
 
 </section>
 <section id="warm-up-benchmark-2" class="markdown-section">

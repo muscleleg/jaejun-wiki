@@ -1,0 +1,439 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_chunked_prefill_token_budget.md. Do not edit directly. source-sha256:8df01b77e1aa691627ba553d80100c557d2c9a685d2e87e57737aa531ba9d107 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="긴 Prompt의 Prefill을 여러 Iteration으로 나누어 기존 Decode와 GPU Token Budget을 공유하는 원리와 OFF·ON·Budget 1024·256 비교 결과를 설명합니다.">
+  <meta name="source-sha256" content="8df01b77e1aa691627ba553d80100c557d2c9a685d2e87e57737aa531ba9d107">
+  <title>Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법">
+  <meta property="og:description" content="긴 Prompt의 Prefill을 여러 Iteration으로 나누어 기존 Decode와 GPU Token Budget을 공유하는 원리와 OFF·ON·Budget 1024·256 비교 결과를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html","name":"Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법","description":"긴 Prompt의 Prefill을 여러 Iteration으로 나누어 기존 Decode와 GPU Token Budget을 공유하는 원리와 OFF·ON·Budget 1024·256 비교 결과를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html"},"headline":"Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법</h1>
+      <p class="lead">긴 Prompt의 Prefill을 여러 Iteration으로 나누어 기존 Decode와 GPU Token Budget을 공유하는 원리와 OFF·ON·Budget 1024·256 비교 결과를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#prefill-decode-token">긴 Prefill은 기존 Decode의 다음 Token을 늦출 수 있다</a>
+        <a href="#chunked-prefill-iteration">Chunked Prefill은 긴 입력 계산을 여러 Iteration으로 나눈다</a>
+        <a href="#prefill-chunked-prefill-token">한 번의 Prefill과 Chunked Prefill은 같은 Token을 계산하지만 실행 횟수가 다르다</a>
+        <a href="#iteration-token-budget">Iteration Token Budget은 모든 요청의 이번 작업량을 합쳐 제한한다</a>
+        <a href="#sequence-token-budget-kv-cache-block">Sequence 자리와 Token Budget과 KV Cache Block은 서로 다르다</a>
+        <a href="#token-budget">Token Budget 크기는 서로 다른 사용자의 지연을 바꿀 수 있다</a>
+        <a href="#section-6446f45d6f7a">먼저 보는 결론</a>
+        <a href="#section-71148bee2399">실제 동작은 네 가지 실험으로 확인한다</a>
+        <a href="#section-8e2f936e82e9">최종 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>언어 모델 Server에는 서로 다른 단계에 있는 요청이 함께 존재할 수 있다. 어떤 요청은 긴 입력 Prompt를 처음 읽는 중이고, 어떤 요청은 이미 입력 처리를 마치고 출력 Token을 하나씩 생성하는 중일 수 있다.</p>
+<pre><code class="language-text">요청 A
+→ 입력 처리를 마침
+→ 현재 답변을 한 Token씩 생성하는 Decode 단계
+
+요청 B
+→ 긴 문서가 포함된 Prompt가 새로 도착
+→ 입력 Token 전체를 처리해야 하는 Prefill 단계
+</code></pre>
+<p>이때 B의 긴 Prefill을 큰 작업 하나로 처리하면, A가 다음 출력 Token을 생성할 순서가 늦어질 수 있다. Chunked Prefill은 이 문제를 완화하기 위해 긴 Prefill을 여러 Scheduler Iteration으로 나누어 처리한다.</p>
+<p>이 글에서는 Chunked Prefill이 무엇을 나누는지, 한 Iteration의 Token Budget이 어떤 역할을 하는지, 그리고 이 설정이 긴 Prompt와 이미 생성 중인 응답의 지연에 어떤 차이를 만들 수 있는지 설명한다. 실제 동작과 성능 수치는 연결된 하위 실험 문서에서 확인한다.</p>
+</div>
+        <section id="prefill-decode-token" class="markdown-section">
+<h2>긴 Prefill은 기존 Decode의 다음 Token을 늦출 수 있다</h2>
+<p>LLM 요청 처리는 크게 Prefill과 Decode로 나눌 수 있다.</p>
+<pre><code class="language-text">Prefill
+→ 입력 Prompt Token을 처리
+→ 각 Token의 K·V를 계산해 KV Cache에 저장
+
+Decode
+→ 저장된 K·V를 사용
+→ 새로운 출력 Token을 일반적으로 한 번에 하나씩 생성
+</code></pre>
+<p>긴 Prompt는 Prefill에서 처리할 Token이 많다. 반면 이미 Decode 중인 요청은 다음 Iteration에서 출력 Token 하나만 계산하면 사용자에게 다음 내용을 전달할 수 있다.</p>
+<pre><code class="language-text">요청 A: 다음 Decode 1Token 필요
+요청 B: Prefill 3,000Token 필요
+</code></pre>
+<p>B의 3,000Token Prefill이 한 번의 큰 GPU 작업으로 실행되면, 그 작업이 끝날 때까지 A의 다음 Decode가 기다릴 수 있다. 총 처리량이 충분하더라도 A를 보고 있는 사용자는 답변이 중간에 잠시 멈춘 것처럼 느낄 수 있다.</p>
+<p>따라서 긴 Prompt를 얼마나 빨리 처리하는지만 봐서는 부족하다. 긴 Prefill이 들어온 동안 이미 생성 중인 요청의 Token 간격도 함께 봐야 한다.</p>
+
+</section>
+<section id="chunked-prefill-iteration" class="markdown-section">
+<h2>Chunked Prefill은 긴 입력 계산을 여러 Iteration으로 나눈다</h2>
+<p>Chunked Prefill은 긴 Prompt를 삭제하거나 계산량을 줄이는 기능이 아니다. 새로 계산해야 하는 Prefill Token을 여러 Scheduler Iteration에 나누어 배정하는 기능이다.</p>
+<pre><code class="language-text">Chunked Prefill OFF
+
+긴 Prompt 3,000Token
+→ 가능한 경우 큰 Prefill 작업으로 배정
+→ 같은 시점의 Decode 요청이 긴 작업의 영향을 받을 수 있음
+</code></pre>
+<pre><code class="language-text">Chunked Prefill ON
+
+Iteration 1
+→ 기존 요청 Decode
+→ 긴 Prompt Prefill 일부
+
+Iteration 2
+→ 기존 요청 Decode
+→ 긴 Prompt Prefill 일부
+
+Iteration 3
+→ 기존 요청 Decode
+→ 긴 Prompt Prefill 일부
+</code></pre>
+<p>긴 Prompt의 전체 Prefill Token 수는 그대로다. 달라지는 것은 한 Iteration에 몰아서 처리하는 양이다. vLLM V1에서는 Decode 작업을 먼저 Token Budget에 배정하고, 남은 자리에 Prefill을 배정한다. 남은 Budget에 Prefill 전체가 들어가지 않으면 들어갈 수 있는 만큼만 Chunk로 잘라 처리한다. <a href="https://docs.vllm.ai/en/v0.20.0/configuration/optimization/" rel="noopener noreferrer">vLLM Optimization and Tuning</a></p>
+
+</section>
+<section id="prefill-chunked-prefill-token" class="markdown-section">
+<h2>한 번의 Prefill과 Chunked Prefill은 같은 Token을 계산하지만 실행 횟수가 다르다</h2>
+<p>긴 Prompt를 한 번에 Prefill하는 경우와 여러 Chunk로 나누어 Prefill하는 경우 모두 최종적으로는 같은 Prompt Token을 처리한다. Chunked Prefill을 사용한다고 Prompt 일부를 생략하거나, 이미 처리한 Prompt 전체를 Chunk마다 처음부터 다시 계산하는 것은 아니다.</p>
+<p>796Token Prompt와 Transformer Layer 28개를 예로 들어 보자. Chunked Prefill을 사용하지 않고 796Token을 한 번에 처리하면 각 Layer가 796Token을 큰 묶음으로 한 번씩 처리한다.</p>
+<pre><code class="language-text">796Token 전체
+→ Layer 1에서 796Token 처리
+→ Layer 2에서 796Token 처리
+→ ...
+→ Layer 28에서 796Token 처리
+→ Prefill 완료
+</code></pre>
+<p>Token Budget 때문에 같은 Prompt가 <code>255·255·255·31Token</code>으로 나뉘면 각 Chunk가 모든 Transformer Layer를 통과한다.</p>
+<pre><code class="language-text">첫 번째 255Token
+→ Layer 1~28 전체 통과
+
+다음 255Token
+→ Layer 1~28 전체 통과
+
+다음 255Token
+→ Layer 1~28 전체 통과
+
+마지막 31Token
+→ Layer 1~28 전체 통과
+</code></pre>
+<p>이 경우 각 Layer는 네 번 호출되지만 매번 서로 다른 Token 구간을 처리한다.</p>
+<pre><code class="language-text">잘못된 해석
+→ 796Token 전체를 네 번 다시 계산
+
+실제 처리
+→ 255 + 255 + 255 + 31
+→ 전체 796Token이 각 Layer를 한 번씩 통과
+</code></pre>
+<p>따라서 Token 하나가 모델의 28개 Layer를 통과하는 핵심 계산은 두 방식 모두 필요하다. 차이는 796Token을 큰 GPU 작업 하나로 실행하는지, 네 개의 작은 GPU 작업으로 나누어 실행하는지다.</p>
+<h3>각 Chunk에서도 Q·K·V와 Attention을 모두 계산한다</h3>
+<p>Chunked Prefill은 K·V만 먼저 만들어 두고 마지막 Chunk에서 Attention을 한꺼번에 수행하는 방식이 아니다. 각 Chunk가 각 Layer를 지날 때 현재 Token 구간의 Q·K·V와 Attention, MLP 계산을 즉시 수행한다.</p>
+<pre><code class="language-text">현재 Chunk의 Q·K·V 계산
+→ 현재 Q가 앞 Chunk의 Cached K·V와 현재 Chunk의 K·V를 보고 Attention
+→ 현재 Chunk의 Hidden State 계산
+→ 다음 Layer로 전달
+→ 이후 Chunk가 사용할 현재 K·V를 Cache에 추가
+</code></pre>
+<p>Q는 현재 Attention에서 사용한 뒤 장기간 보관하지 않는다. K·V는 다음 Chunk와 이후 Decode가 앞 문맥을 참고할 때 필요하므로 Layer별 KV Cache에 남긴다.</p>
+<p>이 계산이 가능한 이유는 Decoder-only LLM의 Causal Attention 때문이다. 앞 Token은 뒤에 올 미래 Token을 보지 않으므로, 먼저 처리한 Token의 결과를 나중에 수정할 필요가 없다. 다음 Chunk는 원래 Prompt의 Token 위치를 이어받고, 각 Layer에서 앞 Chunk가 남긴 K·V를 읽어 같은 문맥을 계속 계산한다.</p>
+<h3>Chunk가 많아지면 반복 실행 비용이 추가된다</h3>
+<p>GPU는 큰 행렬 연산을 병렬로 처리할 때 효율이 높다. 같은 796Token이라도 큰 작업 한 번과 작은 작업 네 번의 실행 시간은 완전히 같지 않을 수 있다.</p>
+<p>Chunk가 바뀔 때마다 다음 과정이 반복된다.</p>
+<pre><code class="language-text">Scheduler가 다음 작업을 선택
+→ 실행 Batch와 Tensor 정보를 구성
+→ CPU가 GPU 작업을 제출
+→ 각 Layer의 GPU Kernel 실행
+→ 앞 Chunk의 KV Cache 읽기
+→ 현재 Chunk의 K·V 저장
+→ GPU 작업 완료 확인
+→ Scheduler로 복귀
+</code></pre>
+<p>따라서 Chunk 수가 증가하면 다음 비용이 추가될 수 있다.</p>
+<ul>
+<li>Scheduler가 다음 Iteration을 구성하는 비용</li>
+<li>CPU가 GPU Kernel을 여러 번 실행 요청하는 비용</li>
+<li>GPU 실행 사이의 동기화 비용</li>
+<li>큰 행렬 한 번보다 작은 행렬 여러 번을 처리할 때 발생하는 효율 저하</li>
+<li>이전 Chunk의 K·V를 GPU 메모리에서 다시 읽는 비용</li>
+</ul>
+<p>핵심 Token 계산량이 Chunk 수에 비례해 그대로 복제되는 것은 아니다. 동일한 Token이 각 Layer를 여러 번 통과해서 느려지는 것이 아니라, 같은 계산을 여러 GPU 실행으로 나누면서 고정 실행 비용과 데이터 이동이 반복되는 것이다.</p>
+<h3>긴 Prompt의 첫 Token은 마지막 Chunk 이후에만 생성할 수 있다</h3>
+<p>긴 Prompt 요청은 일부 Chunk만 읽은 상태에서 답변 생성을 시작할 수 없다. 전체 Prompt를 모두 읽어야 마지막 Prompt Token의 최종 Hidden State에서 첫 출력 Token을 선택할 수 있다.</p>
+<pre><code class="language-text">B Prefill 255Token
+→ 아직 첫 출력 Token을 만들 수 없음
+
+B Prefill 255Token
+→ 아직 만들 수 없음
+
+B Prefill 255Token
+→ 아직 만들 수 없음
+
+B Prefill 31Token
+→ 전체 796Token Prefill 완료
+→ 첫 출력 Token 선택 가능
+</code></pre>
+<p>따라서 B의 TTFT에는 네 Chunk의 실행 시간, Chunk 사이의 반복 비용, 그 사이 함께 실행된 다른 요청의 작업 시간이 모두 포함된다.</p>
+<p>이번 단일 Smoke 실행에서는 다음 값이 관찰됐다.</p>
+<pre><code class="language-text">Chunked Prefill ON · Token Budget 1,024
+B Prefill 배정 = [796]
+B TTFT         = 113.35ms
+
+Chunked Prefill ON · Token Budget 256
+B Prefill 배정 = [255, 255, 255, 31]
+B TTFT         = 141.12ms
+
+관찰된 차이    = 27.77ms 증가
+</code></pre>
+<p>이 한 번의 결과만으로 Chunk 분할의 평균 성능 비용을 확정할 수는 없다. 다만 Trace를 통해 Budget 256에서는 B가 네 번의 GPU 실행으로 나뉘었고, 각 실행 사이에 A의 Decode가 함께 처리됐으며, B의 첫 Token은 마지막 Chunk가 끝난 뒤 도착했다는 실행 순서는 확인할 수 있다.</p>
+<h3>반복 비용을 감수하는 이유는 다른 Sequence를 중간에 실행하기 위해서다</h3>
+<p>796Token을 한 번에 처리하면 B의 Prefill에는 유리할 수 있지만, 그 큰 GPU 작업이 끝날 때까지 Scheduler가 A의 다음 Decode를 새로 배정할 수 없다.</p>
+<pre><code class="language-text">B Prefill 796Token
+→ 큰 GPU 작업 완료
+→ Scheduler 복귀
+</code></pre>
+<p>네 Chunk로 나누면 각 Chunk가 끝날 때마다 Scheduler가 다음 Iteration을 구성할 수 있다.</p>
+<pre><code class="language-text">A Decode 1 + B Prefill 255
+→ Scheduler 복귀
+
+A Decode 1 + B Prefill 255
+→ Scheduler 복귀
+
+A Decode 1 + B Prefill 255
+→ Scheduler 복귀
+
+A Decode 1 + B Prefill 31 + C Prefill 135
+→ Scheduler 복귀
+</code></pre>
+<p>Chunked Prefill은 B의 전체 계산량을 줄이는 최적화가 아니다. B의 Prefill을 여러 실행으로 나누어, 실행 사이마다 A와 같은 다른 Sequence의 작업을 다시 배정할 기회를 만드는 Scheduling 방식이다.</p>
+<pre><code class="language-text">한 번의 큰 Prefill
+→ 긴 Prompt 요청의 TTFT와 GPU 처리 효율에 유리할 수 있음
+→ 기존 Decode가 다음 Token을 받을 기회는 늦어질 수 있음
+
+여러 번의 Chunked Prefill
+→ 반복 실행 비용 때문에 긴 Prompt의 TTFT가 증가할 수 있음
+→ Chunk 사이마다 기존 Decode를 계속 처리할 수 있음
+</code></pre>
+<p>따라서 비교해야 하는 것은 Chunk 개수 자체가 아니라, 긴 Prompt가 추가로 기다린 시간과 그 사이 기존 Decode 요청이 얻은 실행 기회다.</p>
+
+</section>
+<section id="iteration-token-budget" class="markdown-section">
+<h2>Iteration Token Budget은 모든 요청의 이번 작업량을 합쳐 제한한다</h2>
+<p><code>max_num_batched_tokens</code>는 한 Scheduler Iteration에서 처리하기로 배정할 수 있는 전체 Token 수의 상한이다. 요청 하나의 최대 입력 길이나 출력 길이를 뜻하지 않는다.</p>
+<p>다음 조건을 예로 들어 보자.</p>
+<pre><code class="language-text">max_num_seqs = 2
+max_num_batched_tokens = 8
+
+Sequence A
+→ Decode 1Token 필요
+
+Sequence B
+→ Prefill 20Token 남음
+</code></pre>
+<p>Decode를 먼저 배정하고 남은 Budget을 Prefill에 사용하면 이번 Iteration은 다음과 같이 구성할 수 있다. 여기서 <code>Prefill Chunk</code>는 긴 Prompt의 전체 Prefill 중 이번 Iteration에서 처리하도록 배정된 연속된 일부 Token을 뜻한다.</p>
+<pre><code class="language-text">A의 Decode          1Token
+B의 Prefill Chunk   7Token
+────────────────────────
+Iteration 전체      8Token
+</code></pre>
+<p>B는 실행 자리인 Sequence 하나를 사용하면서, 이번 Iteration에 Prefill Token 7개를 처리한다. 처리된 7Token의 K·V는 Block Size에 맞춰 KV Cache에 저장되며, 7Token을 처리했다고 Block 7개가 생기는 것은 아니다.</p>
+<pre><code class="language-text">Sequence 수
+→ 현재 실행 중인 요청 자리 수
+→ 여기서는 B가 자리 하나를 사용
+
+Scheduled Token 수
+→ 이번 Iteration에서 실제로 처리하기로 한 Token 수
+→ 여기서는 B의 Prefill 7Token
+
+KV Cache Block 수
+→ 지금까지 계산한 K·V를 저장하는 데 필요한 Block 수
+→ Block Size와 B의 누적 처리 Token 수에 따라 결정
+</code></pre>
+<p>Decode 중인 Sequence가 세 개라면 각 Decode 작업을 먼저 넣은 뒤 남은 Budget을 Prefill에 사용할 수 있다.</p>
+<pre><code class="language-text">전체 Token Budget   8Token
+
+A Decode            1Token
+B Decode            1Token
+C Decode            1Token
+긴 Prompt Prefill   5Token
+────────────────────────
+Iteration 전체      8Token
+</code></pre>
+<p>여기서 “Decode를 위해 Budget 하나를 남긴다”는 표현은 개념적으로는 가깝지만, 고정적으로 한 칸만 예약한다는 뜻은 아니다. 현재 실행할 Decode 요청들을 먼저 배정하고 그 요청들이 사용한 만큼을 제외한 나머지를 Prefill에 준다고 이해하는 것이 정확하다.</p>
+
+</section>
+<section id="sequence-token-budget-kv-cache-block" class="markdown-section">
+<h2>Sequence 자리와 Token Budget과 KV Cache Block은 서로 다르다</h2>
+<p>세 설정은 모두 숫자로 보이지만 제한하는 대상이 다르다.</p>
+<pre><code class="language-text">max_num_seqs
+→ 동시에 실행 상태로 유지할 수 있는 Sequence 자리 수
+
+max_num_batched_tokens
+→ 한 Iteration에서 모든 Sequence에 배정한 Token 작업의 합계 상한
+
+block_size
+→ 계산이 끝난 Token의 K·V를 저장할 때 물리 Block 하나가 담는 Token 수
+</code></pre>
+<p>예를 들어 Prefill Chunk가 7Token이라고 해서 Block 7개를 할당한다는 뜻은 아니다. Prefill 계산이 끝나 만들어진 K·V는 KV Cache의 Block Size 경계에 맞춰 저장된다. Scheduling할 계산량과 계산 결과를 저장하는 단위는 구분해야 한다.</p>
+
+</section>
+<section id="token-budget" class="markdown-section">
+<h2>Token Budget 크기는 서로 다른 사용자의 지연을 바꿀 수 있다</h2>
+<p>Chunked Prefill을 켰다고 항상 모든 요청이 더 빨라지는 것은 아니다. 다음 두 요청이 함께 실행된다고 가정해 보자.</p>
+<pre><code class="language-text">A
+→ 이미 답변을 생성 중
+→ 매 Iteration에서 다음 Decode 1Token이 필요
+
+B
+→ 새로 들어온 긴 Prompt
+→ Prefill 20Token을 처리해야 함
+</code></pre>
+<p>Token Budget이 8이면 한 Iteration에서 최대 8Token을 처리한다.</p>
+<pre><code class="language-text">Iteration 1: A Decode 1Token + B Prefill 7Token
+Iteration 2: A Decode 1Token + B Prefill 7Token
+Iteration 3: A Decode 1Token + B Prefill 6Token
+</code></pre>
+<p>A는 B의 Prefill 7Token과 함께 처리되므로 한 Iteration의 작업량이 비교적 작다. 그 Iteration이 끝나면 A의 다음 Decode 차례가 다시 돌아온다. 반면 B는 Prefill을 끝내기 위해 세 번의 Iteration이 필요하므로 첫 출력 Token을 만들기까지 오래 걸릴 수 있다.</p>
+<p>Token Budget이 16이면 한 Iteration에서 최대 16Token을 처리한다.</p>
+<pre><code class="language-text">Iteration 1: A Decode 1Token + B Prefill 15Token
+Iteration 2: A Decode 1Token + B Prefill 5Token
+</code></pre>
+<p>B는 두 번의 Iteration으로 Prefill을 끝낼 수 있으므로 첫 출력 Token을 더 빨리 만들 수 있다. 반면 첫 Iteration에서 A는 B의 Prefill 15Token과 함께 처리되므로 한 Iteration의 GPU 작업이 더 커지고, A의 다음 Decode 차례가 돌아오기까지 오래 걸릴 수 있다.</p>
+<pre><code class="language-text">작은 Token Budget
+→ B의 긴 Prefill을 조금씩 처리
+→ A가 다음 Token을 계속 생성하기에는 유리
+→ B가 첫 Token을 생성하기까지는 불리
+
+큰 Token Budget
+→ B의 긴 Prefill을 한 번에 많이 처리
+→ B가 첫 Token을 생성하기에는 유리
+→ A가 다음 Token을 계속 생성하기에는 불리
+</code></pre>
+<p>이번 실험에서는 A의 전체 평균 TPOT와 Prefill 관찰 구간의 최대 Streaming Content 간격을 함께 사용했다. TPOT는 800Token 전체 생성 속도를 보여 주지만 한 번의 짧은 정지가 평균에 희석될 수 있다. 최대 Content 간격은 긴 Prefill이 들어온 순간 A의 응답이 가장 오래 멈춘 구간을 보여 준다. B와 C의 TTFT는 새 요청이 첫 출력 Token을 받기까지 얼마나 기다렸는지 나타낸다.</p>
+<h3>작은 전체 Token Budget이 항상 해결책은 아니다</h3>
+<p>이번 실험에서 <code>max_num_batched_tokens</code>를 줄여 보는 이유는 긴 Prefill이 여러 Iteration으로 나뉠 때 기존 Decode와 긴 Prompt의 지연이 어떻게 달라지는지 관찰하기 위해서다. 실험에서 작은 Token Budget이 기존 Decode에 유리하게 나타나더라도, 실제 운영에서 반드시 전체 Token Budget을 줄여야 한다는 뜻은 아니다.</p>
+<p><code>max_num_batched_tokens</code>는 긴 Prefill 하나만 제한하지 않는다. 한 Iteration에서 모든 요청에 배정할 수 있는 전체 Token 수를 제한한다. 이 값을 줄이면 긴 Prefill의 Chunk는 작아지지만, 같은 Iteration에서 함께 처리할 수 있는 다른 Decode와 Prefill의 전체 작업량도 줄어들 수 있다.</p>
+<p>여러 Partial Prefill을 함께 처리할 때 긴 Prompt가 짧은 Prompt를 계속 밀어내는 것이 문제라면, <code>long_prefill_token_threshold</code>와 Partial Prefill 관련 설정을 함께 검토할 수 있다.</p>
+<pre><code class="language-text">max_num_batched_tokens
+→ 한 Iteration에서 모든 요청이 함께 사용할 수 있는 전체 Token 수의 상한
+
+long_prefill_token_threshold
+→ Prompt가 이 Token 수를 넘으면 Long Prefill로 분류하는 기준
+
+max_num_partial_prefills
+→ 동시에 진행할 수 있는 Partial Prefill 수의 상한
+
+max_long_partial_prefills
+→ 그중 Long Prefill을 동시에 진행할 수 있는 수의 상한
+</code></pre>
+<p><code>long_prefill_token_threshold</code> 자체가 요청 하나의 Chunk 크기를 제한하거나 긴 요청을 거부하는 것은 아니다. 실제 Chunk 크기는 Decode를 먼저 배정한 뒤 남은 <code>max_num_batched_tokens</code>에 따라 정해진다. 입력 자체가 지나치게 긴 요청을 거부하려면 별도의 입력 Token 또는 Context 길이 제한이 필요하다.</p>
+<p>따라서 이번 실험은 작은 <code>max_num_batched_tokens</code>를 운영 권장값으로 정하기 위한 실험이 아니다. 긴 Prefill의 한 번당 처리량이 달라지면 기존 Decode의 TPOT와 긴 Prompt의 TTFT가 어떻게 변하는지 이해하기 위한 실험이다. 실제 설정을 조정할 때는 Iteration 전체 작업량이 문제인지, 여러 긴 Prefill이 짧은 요청을 밀어내는 것이 문제인지, 입력 자체의 길이를 제한해야 하는 문제인지 먼저 구분해야 한다.</p>
+
+</section>
+<section id="section-6446f45d6f7a" class="markdown-section">
+<h2>먼저 보는 결론</h2>
+<blockquote>
+<p>Chunked Prefill은 긴 Prompt의 총 계산량을 줄이지 않는다. 긴 Prefill을 여러 Scheduler Iteration으로 나누고, 각 Iteration에서 기존 Decode를 먼저 배정한 뒤 남은 Token Budget에 Prefill 일부를 넣는다. 그 결과 기존 Streaming 응답의 긴 멈춤은 줄일 수 있지만, 긴 Prompt와 그 뒤에 기다리는 새 요청의 TTFT는 늘어날 수 있다.</p>
+</blockquote>
+<p>이번 실험에서는 이 Trade-off가 실제로 관찰됐다.</p>
+<pre><code class="language-text">Chunked Prefill OFF · Budget 1024
+→ B Prefill [796]
+→ A 최대 Streaming Content 간격 p50 82.14ms
+
+Chunked Prefill ON · Budget 1024
+→ B Prefill [796]
+→ A 최대 Streaming Content 간격 p50 79.75ms
+
+Chunked Prefill ON · Budget 256
+→ B Prefill [255, 255, 255, 31]
+→ 각 Chunk 사이에 A Decode 1Token 배정
+→ A 최대 Streaming Content 간격 p50 28.59ms
+</code></pre>
+<p>Budget 256은 ON·1024보다 A의 최대 간격을 <code>51.16ms</code>, 약 <code>64.15%</code> 줄였다. 대신 B의 TTFT는 <code>21.25ms</code>, C의 TTFT는 <code>21.51ms</code> 증가했다.</p>
+<p>Chunked Prefill을 켰다는 사실만으로 차이가 생기는 것은 아니었다. ON·1024에서는 긴 Prompt 전체가 남은 Budget에 들어가 B가 <code>[796]</code>으로 한 번에 처리됐고, OFF·1024와 결과가 거의 같았다. <strong>실제 Prefill 분할이 발생해야 기존 Decode에 중간 실행 기회가 생긴다.</strong></p>
+
+</section>
+<section id="section-71148bee2399" class="markdown-section">
+<h2>실제 동작은 네 가지 실험으로 확인한다</h2>
+<p>개념 설명만으로 실제 vLLM이 그렇게 Scheduling했다고 단정하지 않는다. Server 설정, Scheduler Trace와 Client 지연을 연결해 확인한다.</p>
+<h3>실험 준비</h3>
+<p>모델과 GPU, <code>max_num_seqs</code>, Prompt와 출력 길이, Prefix Caching, 요청 순서와 반복 횟수를 고정한다. A는 먼저 보내 Decode가 계속되게 하고, A가 Decode 중일 때 긴 Prompt B와 짧은 Prompt C를 보낸다. 이렇게 해야 긴 Prefill과 기존 Decode가 실제로 경쟁하는 상황을 만들 수 있다.</p>
+<p>Server 명령, A·B·C의 실제 Token 수, 수집할 Trace와 지표는 <a href="chunked_prefill_token_budget_validation/01_experiment_setup.html">Chunked Prefill 실험 준비</a>에 기록한다.</p>
+<h3>Chunked Prefill OFF와 ON 비교</h3>
+<p>같은 Workload와 Budget 1024에서 Chunked Prefill 설정만 바꿨다. OFF와 ON 모두 B의 796Token Prefill이 <code>[796]</code>으로 한 번에 배정됐다. 기능을 켜도 Prefill 전체가 남은 Token Budget에 들어가면 실제 Chunk 분할은 일어나지 않으며, 이 경우 지연 결과도 거의 같다는 사실을 확인했다.</p>
+<p>실제 설정 차이, Iteration별 <code>scheduled_tokens</code>, A·B·C의 지연 결과는 <a href="chunked_prefill_token_budget_validation/02_off_on_comparison.html">Chunked Prefill OFF·ON 비교</a>에 기록한다.</p>
+<h3>Token Budget 크기 비교</h3>
+<p>Chunked Prefill을 켠 상태에서 <code>max_num_batched_tokens</code>만 1024와 256으로 바꿨다. Budget 1024에서는 B가 <code>[796]</code>으로 한 번에 처리됐고, Budget 256에서는 <code>[255, 255, 255, 31]</code>로 나뉘었다. 작은 Chunk는 A의 순간적인 Streaming 정지를 줄였지만 B와 C의 TTFT를 늘렸다.</p>
+<p>Budget별 Server 명령과 측정 결과는 <a href="chunked_prefill_token_budget_validation/03_token_budget_comparison.html">Token Budget 크기 비교</a>에 기록한다.</p>
+<h3>결과 해석</h3>
+<p>Trace에서 관찰한 Token 배정과 Client에서 측정한 지연을 연결했다. 전체 평균 TPOT는 세 조건 모두 약 <code>15.4ms/token</code>으로 비슷했지만, 이 값만으로는 Prefill 순간에 발생한 한 번의 긴 정지가 가려졌다. 그래서 B·C Prefill 관찰 구간과 겹친 A의 최대 Streaming Content 간격을 함께 사용했다.</p>
+<p>초기 최대 간격 계산은 구간 끝이 관찰 종료 시각을 조금 넘으면 해당 간격을 제외하는 오류가 있었다. 원본 Content 도착 시각으로 “두 구간이 조금이라도 겹치는가”를 다시 판정해 최종 비교값을 수정했다. 수정 과정과 적용 한계는 하위 결과 문서에 기록했다.</p>
+<p>최종 비교와 적용 범위는 <a href="chunked_prefill_token_budget_validation/04_result_interpretation.html">Chunked Prefill과 Token Budget 결과 해석</a>에 기록한다.</p>
+
+</section>
+<section id="section-8e2f936e82e9" class="markdown-section">
+<h2>최종 결론</h2>
+<pre><code class="language-text">OFF·1024
+→ B Prefill [796]
+→ A 최대 간격 p50 82.14ms
+
+ON·1024
+→ 기능은 켰지만 B Prefill [796]
+→ OFF와 거의 같은 결과
+
+ON·256
+→ B Prefill [255, 255, 255, 31]
+→ 각 Prefill Chunk 사이에 A Decode 배정
+→ A 최대 간격 p50 28.59ms
+→ B·C TTFT 약 21ms 증가
+</code></pre>
+<p>Chunked Prefill은 긴 입력을 더 적게 계산하는 기능이 아니다. 긴 Prefill을 나누어 큰 정지 한 번을 작은 정지 여러 번으로 바꾸고, 그 사이 기존 Decode가 계속 실행될 기회를 만드는 Scheduling 방식이다.</p>
+<p>따라서 설정에는 다음 Trade-off가 있다.</p>
+<pre><code class="language-text">Prefill Chunk를 크게 유지
+→ 긴 Prompt가 적은 Iteration으로 완료
+→ 새 요청의 TTFT와 GPU 실행 효율에 유리할 수 있음
+→ 기존 Streaming 응답은 한 번에 더 오래 멈출 수 있음
+
+Prefill Chunk를 작게 분할
+→ 기존 Decode가 Chunk 사이마다 실행될 수 있음
+→ Streaming 응답의 최대 멈춤을 줄일 수 있음
+→ 긴 Prompt와 뒤에 기다리는 요청의 TTFT가 늘 수 있음
+</code></pre>
+<p>이번 결과에서 Budget 256은 기존 Decode의 최대 정지를 줄였지만, 보편적인 운영 권장값은 아니다. 실제 설정은 평균·상위 백분위 Prompt 길이, 동시에 Decode 중인 요청 수, TTFT와 Streaming 간격 SLO를 기준으로 같은 방법으로 다시 측정해야 한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="chunked_prefill_token_budget_validation/01_experiment_setup.html">Chunked Prefill 실험 준비</a></li>
+<li><a href="chunked_prefill_token_budget_validation/02_off_on_comparison.html">Chunked Prefill OFF·ON 비교</a></li>
+<li><a href="chunked_prefill_token_budget_validation/03_token_budget_comparison.html">Token Budget 크기에 따라 Prefill Chunk와 사용자 지연이 달라진다</a></li>
+<li><a href="chunked_prefill_token_budget_validation/04_result_interpretation.html">Chunked Prefill과 Token Budget 결과 해석</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
