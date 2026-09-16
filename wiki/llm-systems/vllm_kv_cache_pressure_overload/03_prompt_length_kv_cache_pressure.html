@@ -1,0 +1,260 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.md. Do not edit directly. source-sha256:d4e513a7f1554d142c5c49e296fb2713fe83d98f66ab7f4b21dd0356a7ef81af -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV Cache 고갈로 B가 중단되고 Block을 반환한 뒤 재계산으로 복구되는 과정을 확인한다.">
+  <meta name="source-sha256" content="d4e513a7f1554d142c5c49e296fb2713fe83d98f66ab7f4b21dd0356a7ef81af">
+  <title>두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다">
+  <meta property="og:description" content="KV Cache 고갈로 B가 중단되고 Block을 반환한 뒤 재계산으로 복구되는 과정을 확인한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html","name":"두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다","description":"KV Cache 고갈로 B가 중단되고 Block을 반환한 뒤 재계산으로 복구되는 과정을 확인한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html"},"headline":"두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/03_prompt_length_kv_cache_pressure.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},{"@type":"ListItem","position":7,"name":"두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다</h1>
+      <p class="lead">KV Cache 고갈로 B가 중단되고 Block을 반환한 뒤 재계산으로 복구되는 과정을 확인한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">최소 400Token이 되도록 두 Prompt를 만들었다</a>
+        <a href="#section-2">Prefill 직후에는 두 요청이 모두 Running에 들어갈 수 있었다</a>
+        <a href="#section-3">Decode가 진행되면 두 요청의 Block 합이 59개를 넘는다</a>
+        <a href="#section-4">두 요청을 동시에 보내 실제 Pressure를 만들었다</a>
+        <a href="#section-5">KV Cache Usage 100%에서 B가 Preemption됐다</a>
+        <a href="#section-6">B가 선택된 이유는 마지막 Block이 덜 찼기 때문이 아니다</a>
+        <a href="#section-7">B의 마지막 Block 하나가 아니라 전체 KV Cache가 반환됐다</a>
+        <a href="#section-8">B는 기존 출력까지 고정 입력으로 사용해 KV Cache를 다시 만들었다</a>
+        <a href="#section-9">요청 종료 후 Pool은 원상 복구됐다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>앞 실험에서는 Sequence 자리만 부족하게 만들었다. 이번에는 Sequence 자리를 두 개 유지한 채 긴 요청 A와 B가 함께 59개의 요청용 KV Cache Block을 모두 사용하도록 만들었다.</p>
+<p>목적은 다음 흐름을 실제 Trace로 확인하는 것이다.</p>
+<pre><code class="language-text">A·B 모두 Running
+→ Decode가 진행되며 Block 사용량 증가
+→ Free Block 0개
+→ 다음 Block을 할당할 수 없음
+→ Running 요청 하나를 Preemption
+→ 반환된 Block으로 다른 요청 계속 실행
+</code></pre>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>최소 400Token이 되도록 두 Prompt를 만들었다</h2>
+<p>처음부터 정확히 400Token인 문자열을 준비한 것이 아니다. A와 B 각각에 최초 문장을 넣고 Tokenizer로 실제 Prompt Token 수를 계산했다. 400Token보다 짧으면 미리 준비한 보충 문단을 한 번 붙인 뒤 전체 Prompt를 다시 Tokenize했다.</p>
+<pre><code class="language-python">while True:
+    prompt_text = &quot; &quot;.join(prompt_parts)
+
+    (
+        rendered_chat_prompt,
+        prompt_token_ids,
+    ) = encode_chat_prompt(
+        prompt_text=prompt_text,
+    )
+
+    actual_prompt_tokens = len(
+        prompt_token_ids
+    )
+
+    if actual_prompt_tokens &gt;= 400:
+        break
+
+    prompt_parts.append(filler_text)
+</code></pre>
+<p>코드에 있던 <code>filler_text</code>는 긴 Prompt를 만들기 위해 반복해서 붙인 보충 문단이다. Filler 반복 횟수 자체를 비교한 실험은 아니다.</p>
+<p>실제 Prompt 길이는 다음과 같았다.</p>
+<pre><code class="language-text">요청 A = 433Token
+요청 B = 407Token
+</code></pre>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Prefill 직후에는 두 요청이 모두 Running에 들어갈 수 있었다</h2>
+<p>Block 하나에는 16Token의 K·V가 들어간다. Prefill 직후 예상 Block 수는 다음과 같다.</p>
+<pre><code class="language-text">A = ceil(433 / 16) = 28Block
+B = ceil(407 / 16) = 26Block
+
+합계 = 54Block
+요청용 Pool = 59Block
+남은 Block = 5개
+</code></pre>
+<p>따라서 A와 B는 처음에는 모두 Running으로 들어갈 수 있다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Decode가 진행되면 두 요청의 Block 합이 59개를 넘는다</h2>
+<p>생성 결과의 마지막 Token은 Client에게 전달됐지만 다음 Forward의 입력으로 다시 사용되지 않았으므로, 종료 직전 KV Cache Token은 다음 식으로 계산했다.</p>
+<pre><code class="language-text">KV Cache에 실제로 계산되어 저장된 Token
+= Prompt Token + 현재까지 생성한 Token - 1
+</code></pre>
+<p><code>-1</code>은 출력 Token 하나를 없앤다는 뜻이 아니다. 생성된 마지막 Token이 아직 다음 Transformer Forward를 통과하지 않았기 때문에 그 Token의 K·V가 Cache에 추가되지 않았다는 뜻이다.</p>
+<p>두 요청이 각각 48Token을 생성하면 다음과 같다.</p>
+<pre><code class="language-text">A = 433 + 48 - 1 = 480Token = 30Block
+B = 407 + 48 - 1 = 454Token = 29Block
+
+합계 = 59Block
+Free Block = 0개
+</code></pre>
+<p>각 요청이 49Token을 생성한 상태를 가정하면 A가 다음 Block 경계를 넘는다.</p>
+<pre><code class="language-text">A = 433 + 49 - 1 = 481Token = 31Block
+B = 407 + 49 - 1 = 455Token = 29Block
+
+필요 Block 합계 = 60개
+사용 가능 Block = 59개
+부족 Block = 1개
+</code></pre>
+<p>이 계산은 두 요청이 각각 최대 Block 43개와 42개를 순서대로 선점한다는 뜻이 아니다. 43개와 42개는 각 요청이 최대 출력 256Token까지 자신의 Cache를 유지할 수 있다고 가정한 이론적 상한이다. 실제 Server는 합계가 처음 60개가 되는 더 이른 시점에 이미 조치를 해야 한다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>두 요청을 동시에 보내 실제 Pressure를 만들었다</h2>
+<p>A와 B Worker가 모두 준비된 뒤 같은 시점에 HTTP Streaming 요청을 시작하도록 <code>Barrier(2)</code>를 사용했다.</p>
+<pre><code class="language-python">request_start_gate = threading.Barrier(2)
+
+with ThreadPoolExecutor(
+    max_workers=2,
+) as executor:
+    for request_record in workload_requests:
+        request_futures[label] = executor.submit(
+            send_request,
+            request_record,
+            experiment_started_at,
+        )
+</code></pre>
+<p>요청 실행 중에는 <code>/metrics</code>에서 Running, Waiting, KV Cache Usage와 누적 Preemption을 읽었다. Trace에서는 <code>preempted_request_ids</code>, Preemption 직전 요청의 계산 Token과 Block 수, Scheduling 전후 Free Block을 추출했다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>KV Cache Usage 100%에서 B가 Preemption됐다</h2>
+<pre><code class="language-text">=== 실제 KV Cache Pressure와 Preemption 확인 ===
+
+실험 조건
+  동시에 보낸 요청: A, B
+  요청 사용 가능 Block: 59
+  Prefill 예상 Block 합: 54
+  이론상 최대 Block 합: 85
+
+실제 Server 관찰
+  Max Running: 2
+  Max Waiting: 1
+  Max KV Cache Usage: 100.00%
+  Metric Preemption 증가: 1
+  Trace Preemption 이벤트: 1
+  실제 Preemption된 요청: [&#39;B&#39;]
+  종료 후 Free Block: 59
+
+Preemption 순간
+  Schedule: 1593
+  밀려난 요청: B
+  당시 B 계산 완료 Token: 453
+  당시 B 보유 Block: 29
+  Scheduling 전 Free Block: 0
+  Scheduling 후 Free Block: 28
+
+요청 | Prompt | Output | TTFT ms | Latency ms | 종료 이유
+------------------------------------------------------------------------------
+   A |    433 |    256 |   88.03 |    4026.78 | length
+   B |    407 |    256 |  132.64 |    7259.73 | length
+</code></pre>
+<p>두 요청은 모두 최대 256Token을 생성하고 정상 종료했다. 하지만 B는 중간에 Preemption되어 Latency가 약 7.26초로 A의 약 4.03초보다 길어졌다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>B가 선택된 이유는 마지막 Block이 덜 찼기 때문이 아니다</h2>
+<p>Preemption 직전 상태는 다음과 같았다.</p>
+<pre><code class="language-text">A = 480Token, 30Block
+B = 453Token, 29Block
+Free Block = 0개
+</code></pre>
+<p>A는 다음 Decode를 위해 31번째 Block이 필요했다. 이때 FCFS Scheduler의 Running 목록 끝에 있던 B가 피해 요청으로 선택됐다. 이번 vLLM 코드의 선택은 개념적으로 다음 동작이었다.</p>
+<pre><code class="language-python">preempted_request = self.running.pop()
+</code></pre>
+<p>즉, 마지막 Block에 빈 칸이 많은 요청을 골라 일부 Block만 빼앗는 정책이 아니었다. 실제 선택은 Scheduling Policy와 Running 순서에 의해 결정됐다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>B의 마지막 Block 하나가 아니라 전체 KV Cache가 반환됐다</h2>
+<p>이번 vLLM의 Recompute 방식 Preemption에서는 B가 가진 29Block 전체를 반환했다.</p>
+<pre><code class="language-text">B의 기존 KV Cache 29Block 반환
+→ B의 computed_tokens를 0으로 되돌림
+→ B를 Waiting으로 이동
+</code></pre>
+<p>그런데 Trace의 Scheduling 후 Free Block은 29개가 아니라 28개였다.</p>
+<pre><code class="language-text">B가 반환 = 29Block
+A가 즉시 새로 할당 = 1Block
+────────────────────────
+Scheduling 후 Free = 28Block
+</code></pre>
+<p>B가 반환한 Block 중 하나를 같은 Scheduling 과정에서 A가 바로 사용했기 때문이다. 따라서 <code>29Block 반환</code>과 <code>Free Block 28개</code>는 모순이 아니다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>B는 기존 출력까지 고정 입력으로 사용해 KV Cache를 다시 만들었다</h2>
+<p>B가 Preemption되기 전에 이미 생성한 출력 Token ID는 사라지지 않았다. 사라진 것은 그 Token들을 계산하면서 만들어 둔 KV Cache다.</p>
+<p>재개할 때는 다음 고정 Token 열을 다시 Prefill한다.</p>
+<pre><code class="language-text">원래 Prompt Token
++ Preemption 전에 이미 생성한 출력 Token
+→ 고정 입력으로 다시 Forward
+→ KV Cache 재구축
+→ 기존 마지막 위치 다음부터 Decode 계속
+</code></pre>
+<p>실제 Resume Trace에서는 B가 <code>computed_tokens_before=0</code>에서 454Token을 Prefill한 뒤 다음 Iteration부터 다시 Decode했다.</p>
+<pre><code class="language-text">Schedule 1802
+→ B work_phase = prefill
+→ scheduled_tokens = 454
+
+Schedule 1803 이후
+→ B work_phase = decode
+→ scheduled_tokens = 1
+</code></pre>
+<p>Temperature가 설정돼 있어도 이미 생성한 Token을 다시 Sampling하지 않는다. 기존 Token ID를 정답이 정해진 입력처럼 사용해 K·V만 재계산하고, 그 뒤의 새로운 Token부터 Sampling을 계속한다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>요청 종료 후 Pool은 원상 복구됐다</h2>
+<p>두 요청이 모두 끝난 뒤 다음 상태를 확인했다.</p>
+<pre><code class="language-text">Running = 0
+Waiting = 0
+Free Block = 59
+Server 오류 = 없음
+</code></pre>
+<p>이번 결과는 KV Cache Pressure가 높아졌다고 바로 OOM이 발생하는 것이 아니라, vLLM이 먼저 Running 요청 하나를 Preemption해 Pool을 확보할 수 있음을 보여준다. 다만 Recompute 비용 때문에 피해 요청의 Latency는 증가한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

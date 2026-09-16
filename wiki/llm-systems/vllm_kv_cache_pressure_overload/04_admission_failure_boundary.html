@@ -1,0 +1,345 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.md. Do not edit directly. source-sha256:b696a9b10a4e9138e3207699d368866ef4722ff2bbcdbb262769e25a5b96e971 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="요청 수·Prefill 대기량 제한의 HTTP 503과 수용 후 Client Timeout을 구분한다.">
+  <meta name="source-sha256" content="b696a9b10a4e9138e3207699d368866ef4722ff2bbcdbb262769e25a5b96e971">
+  <title>Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다">
+  <meta property="og:description" content="요청 수·Prefill 대기량 제한의 HTTP 503과 수용 후 Client Timeout을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html","name":"Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다","description":"요청 수·Prefill 대기량 제한의 HTTP 503과 수용 후 Client Timeout을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html"},"headline":"Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/04_admission_failure_boundary.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},{"@type":"ListItem","position":7,"name":"Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다</h1>
+      <p class="lead">요청 수·Prefill 대기량 제한의 HTTP 503과 수용 후 Client Timeout을 구분한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">요청 수 제한은 세 번째 요청을 Scheduler 전에 거부했다</a>
+        <a href="#section-2">Prefill 대기 Token 제한은 현재 Backlog가 한계에 도달한 뒤 다음 요청을 거부했다</a>
+        <a href="#section-3">Client Timeout은 Reject와 다르게 요청이 먼저 수용된다</a>
+        <a href="#section-4">TCP 연결 종료와 HTTP 응답 완료는 같은 사건이 아니다</a>
+        <a href="#section-5">Reject와 Timeout의 판별 기준</a>
+        <a href="#section-6">이번 조건에서는 OOM이 발생하지 않았다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Preemption은 이미 Running인 요청을 밀어내 Pool을 확보한다. 하지만 부하가 계속 들어오는 Server가 모든 요청을 무조건 수용하면 Waiting이 계속 쌓일 수 있다.</p>
+<p>Admission Control은 Server가 감당하도록 설정한 범위를 넘은 새 요청을 실행 전에 거부하는 보호 동작이다. 특정 이름의 독립된 <code>AdmissionController</code> 객체를 확인한 것이 아니라, vLLM API Server가 요청을 Engine에 넣기 전에 수용 여부를 검사하는 기능을 가리킨다.</p>
+<p>이번 단계에서는 다음 두 Admission 제한과 Client Timeout을 구분했다.</p>
+<pre><code class="language-text">max_num_queued_reqs
+→ Server가 동시에 보유할 전체 미완료 요청 수 제한
+
+max_num_queued_tokens
+→ 아직 Prefill하지 못하고 대기 중인 Prompt Token 총량 제한
+
+Client Read Timeout
+→ Server가 수용한 요청이라도 Client가 응답을 기다릴 최대 시간
+</code></pre>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>요청 수 제한은 세 번째 요청을 Scheduler 전에 거부했다</h2>
+<p>첫 번째 Admission Server는 다음 두 값을 2로 설정했다.</p>
+<pre><code class="language-text">max_num_seqs = 2
+max_num_queued_reqs = 2
+</code></pre>
+<p><code>max_num_seqs=2</code>는 동시에 Running 가능한 Sequence 자리가 두 개라는 뜻이다. <code>max_num_queued_reqs=2</code>는 Running과 Waiting을 합쳐 Server가 보유할 수 있는 미완료 요청 수를 두 개로 제한한다.</p>
+<p>실제 Server 명령의 핵심은 다음과 같다.</p>
+<pre><code class="language-bash">vllm serve \
+  /models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --max-model-len 768 \
+  --num-gpu-blocks-override 60 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 1024 \
+  --max-num-queued-reqs 2 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --scheduler-cls kv_cache_trace.KvCacheTracingScheduler
+</code></pre>
+<p>A와 B가 Running 2개를 채운 뒤 C를 보냈다.</p>
+<pre><code class="language-text">A·B
+→ HTTP 200
+→ Server 수용
+→ Running
+
+C
+→ 현재 미완료 요청이 이미 2개
+→ Waiting에 넣지 않음
+→ HTTP 503
+</code></pre>
+<p>실제 결과는 다음과 같았다.</p>
+<pre><code class="language-text">=== vLLM Admission Control 요청 수 제한 확인 ===
+
+Server 설정
+  max_num_seqs: 2
+  max_num_queued_reqs: 2
+
+A·B 처리 결과
+  A: HTTP 200, Output 256, Latency 4116.18ms
+  B: HTTP 200, Output 256, Latency 4101.33ms
+
+C Admission 결과
+  HTTP Status: 503
+  거부 응답 시간: 2.76ms
+  Scheduler Trace 진입: False
+
+Server 관찰
+  Max Running: 2
+  Max Waiting: 0
+  Preemption 증가: 0
+  종료 후 Running: 0
+  종료 후 Waiting: 0
+</code></pre>
+<p>C는 Waiting에 들어갔다가 실패한 요청이 아니다. 약 2.76ms 만에 503을 받았고 Request ID도 Scheduler Trace에 없었다. 즉, Engine과 Scheduler에 들어가기 전 Admission 단계에서 거부됐다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Prefill 대기 Token 제한은 현재 Backlog가 한계에 도달한 뒤 다음 요청을 거부했다</h2>
+<p>두 번째 Admission Server는 다음 조건으로 실행했다.</p>
+<pre><code class="language-text">max_num_seqs = 1
+max_num_queued_tokens = 400
+</code></pre>
+<p>실제 명령의 핵심은 다음과 같다.</p>
+<pre><code class="language-bash">vllm serve \
+  /models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --max-model-len 768 \
+  --num-gpu-blocks-override 60 \
+  --max-num-seqs 1 \
+  --max-num-batched-tokens 1024 \
+  --max-num-queued-tokens 400 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --scheduler-cls kv_cache_trace.KvCacheTracingScheduler
+</code></pre>
+<p>실험 순서는 다음과 같았다.</p>
+<pre><code class="language-text">1. A가 하나뿐인 Sequence 자리에서 Running
+2. Prompt 433Token인 B 전송
+3. B는 수용되지만 실행 자리가 없어 Waiting
+4. 현재 Prefill 대기량 = 433Token
+5. 433 &gt;= 설정 한계 400
+6. C 전송
+7. C를 HTTP 503으로 거부
+</code></pre>
+<p>현재 vLLM 0.29.0의 이 설정은 <code>현재 Backlog + 새 요청 Prompt</code>를 미리 계산해 새 요청이 한계를 넘게 할지 예측하는 방식이 아니었다.</p>
+<pre><code class="language-text">현재 Backlog가 400 미만
+→ B 수용
+→ B 때문에 Backlog가 433이 됨
+
+현재 Backlog 433이 이미 400 이상
+→ 다음 C부터 Reject
+</code></pre>
+<p>실제 결과도 이 순서와 일치했다.</p>
+<pre><code class="language-text">=== Prefill 대기 Token 기반 Admission Control 확인 ===
+
+Server 설정
+  max_num_seqs: 1
+  max_num_queued_tokens: 400
+
+C를 보내기 직전
+  A 상태: Running
+  B 상태: Waiting
+  B의 대기 Prompt Token: 433
+  한계 도달: True
+
+C Admission 결과
+  HTTP Status: 503
+  거부 응답 시간: 2.83ms
+  Scheduler Trace 진입: False
+
+수용된 요청
+  A: Prompt 54, Output 256, Latency 4216.68ms
+  B: Prompt 433, Output 32, TTFT 3899.90ms
+
+Server 관찰
+  Max Running: 1
+  Max Waiting: 1
+  Preemption 증가: 0
+  B Scheduler Trace 진입: True
+  C Scheduler Trace 진입: False
+  종료 후 Running: 0
+  종료 후 Waiting: 0
+</code></pre>
+<p>B의 TTFT 약 3.9초는 433Token Prefill 계산만의 시간이 아니다. A가 하나뿐인 Sequence 자리를 사용하는 동안 B가 Waiting에서 보낸 시간이 대부분 포함됐다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Client Timeout은 Reject와 다르게 요청이 먼저 수용된다</h2>
+<p>다음 실험은 같은 <code>max_num_seqs=1</code> Server에서 Admission 한계를 넘기지 않는 짧은 B를 사용했다.</p>
+<pre><code class="language-text">A
+→ 긴 출력 256Token
+→ Running 자리 점유
+
+B
+→ Server가 수용
+→ Scheduler Trace 진입
+→ Sequence 자리가 없어 Waiting
+
+B Client Read Timeout
+→ 0.5초
+</code></pre>
+<p>Client 코드는 <code>httpx</code>의 Read Timeout을 0.5초로 지정했다.</p>
+<pre><code class="language-python">with httpx.Client(
+    base_url=server_base_url,
+    timeout=httpx.Timeout(
+        connect=5.0,
+        read=0.5,
+        write=5.0,
+        pool=5.0,
+    ),
+    trust_env=False,
+) as client:
+    with client.stream(
+        &quot;POST&quot;,
+        &quot;/v1/chat/completions&quot;,
+        json=request_payload,
+    ) as response:
+        response.raise_for_status()
+
+        for _ in response.iter_lines():
+            pass
+</code></pre>
+<p>B는 HTTP 요청 자체는 수용됐지만 0.5초 안에 Streaming 데이터를 받지 못해 <code>httpx.ReadTimeout</code>이 발생했다.</p>
+<pre><code class="language-text">=== Waiting 중 발생한 Client Timeout 확인 ===
+
+실험 조건
+  Server max_num_seqs: 1
+  B Client Read Timeout: 0.5초
+
+A 결과
+  상태: 정상 완료
+  Prompt Token: 51
+  Output Token: 256
+  TTFT: 51.97ms
+  Latency: 3940.08ms
+
+B 결과
+  Waiting 관찰: True
+  Scheduler Trace 진입: True
+  Client Timeout: True
+  Timeout 종류: ReadTimeout
+  Timeout 발생 시각: 521.70ms
+  Waiting에서 제거: True
+
+Server 결과
+  Max Running: 1
+  Max Waiting: 1
+  Preemption 증가: 0
+  Server 생존: True
+  종료 후 Running: 0
+  종료 후 Waiting: 0
+</code></pre>
+<p><code>Scheduler Trace 진입=True</code>는 B가 Server에 수용됐다는 증거다. <code>Waiting에서 제거=True</code>는 Client가 연결을 닫은 뒤 Server가 B를 취소해 Queue에서 정리했다는 증거다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>TCP 연결 종료와 HTTP 응답 완료는 같은 사건이 아니다</h2>
+<p>Client Timeout을 이해하려면 TCP와 HTTP의 역할을 구분해야 한다.</p>
+<pre><code class="language-text">TCP 3-way Handshake
+Client SYN
+→ Server SYN+ACK
+→ Client ACK
+→ TCP 연결 성립
+
+HTTP 요청
+→ 성립한 TCP 연결 위로 Request Header와 Body 전송
+
+HTTP Streaming 응답
+→ Server가 여러 SSE Chunk를 같은 HTTP Response로 전송
+→ 마지막에 data: [DONE]으로 생성 완료 표현
+
+연결 유지 또는 종료
+→ Keep-Alive면 같은 TCP 연결 재사용 가능
+→ 종료하면 FIN/ACK 절차 또는 비정상 RST
+</code></pre>
+<p>TCP ACK는 상대 OS가 Byte를 받았다는 뜻이지, vLLM이 요청을 처리했거나 사용자가 Content를 읽었다는 뜻이 아니다. HTTP Streaming 완료도 반드시 TCP 연결 종료를 뜻하지 않는다. <code>[DONE]</code>과 HTTP Response 종료 뒤에도 Keep-Alive 연결은 남을 수 있다.</p>
+<p>이번 Timeout에서는 Client가 Read Timeout 후 Response Stream과 Socket을 닫았다. Server의 HTTP 계층은 연결 종료를 감지하고 Engine에 B 취소를 전달했다. 패킷을 직접 Capture하지 않았으므로 FIN인지 RST인지까지 이 실험 결과로 단정하지는 않는다.</p>
+<p>Client가 전원 차단이나 네트워크 단절로 아무 신호도 보내지 못하면 Server가 즉시 알지 못할 수도 있다. TCP 재전송 Timeout, Keepalive, Proxy Timeout이나 애플리케이션 Heartbeat가 이후 단절을 감지한다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>Reject와 Timeout의 판별 기준</h2>
+<pre><code class="language-text">Admission Reject
+→ HTTP 503
+→ Scheduler Trace 없음
+→ Waiting에 들어가지 않음
+
+Client Timeout
+→ 요청은 HTTP 계층에서 수용됨
+→ Scheduler Trace 있음
+→ Waiting 관찰
+→ Client가 먼저 대기 중단
+→ Server가 요청을 Queue에서 제거
+</code></pre>
+<p>두 경우 모두 요청이 최종 응답을 받지 못하지만 원인과 Server 내부 상태는 전혀 다르다. HTTP Status, Scheduler Trace 진입 여부와 Running·Waiting 변화를 함께 봐야 구분할 수 있다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>이번 조건에서는 OOM이 발생하지 않았다</h2>
+<p>이번 실험은 실제 GPU Process를 강제로 OOM 내는 것이 목적이 아니었다. KV Cache가 가득 찼을 때는 Preemption이 먼저 작동했고, Admission 한계를 넘은 새 요청은 503으로 거부됐으며, Client가 포기한 Waiting 요청은 Queue에서 제거됐다.</p>
+<pre><code class="language-text">KV Cache 고갈
+→ Preemption으로 회복
+
+Admission 한계 초과
+→ HTTP 503으로 새 요청 거부
+
+Client 대기 한계 초과
+→ Timeout 후 해당 요청 취소
+
+모든 실험 후
+→ Server 생존
+→ Running 0
+→ Waiting 0
+→ OOM 없음
+</code></pre>
+<p>OOM이 없었다는 것은 아무 한계도 만나지 않았다는 뜻이 아니다. OOM보다 앞선 보호 경계가 실제로 작동했다는 결과다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

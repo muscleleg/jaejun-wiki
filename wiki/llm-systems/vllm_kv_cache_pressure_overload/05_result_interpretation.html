@@ -1,0 +1,335 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.md. Do not edit directly. source-sha256:25e08bf2546dac5027c104e6fc1ed39abe34d6b2b536a98f385300f5b5adb2e8 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Waiting·Preemption·Reject·Timeout 결과와 측정 범위를 비교하고 운영 설정의 의미를 해석한다.">
+  <meta name="source-sha256" content="25e08bf2546dac5027c104e6fc1ed39abe34d6b2b536a98f385300f5b5adb2e8">
+  <title>KV Cache Pressure와 Overload 실험 결과 해석</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KV Cache Pressure와 Overload 실험 결과 해석">
+  <meta property="og:description" content="Waiting·Preemption·Reject·Timeout 결과와 측정 범위를 비교하고 운영 설정의 의미를 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html","name":"KV Cache Pressure와 Overload 실험 결과 해석","description":"Waiting·Preemption·Reject·Timeout 결과와 측정 범위를 비교하고 운영 설정의 의미를 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html"},"headline":"KV Cache Pressure와 Overload 실험 결과 해석","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/05_result_interpretation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},{"@type":"ListItem","position":7,"name":"KV Cache Pressure와 Overload 실험 결과 해석"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV Cache Pressure와 Overload 실험 결과 해석</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>KV Cache Pressure와 Overload 실험 결과 해석</h1>
+      <p class="lead">Waiting·Preemption·Reject·Timeout 결과와 측정 범위를 비교하고 운영 설정의 의미를 해석한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">조건별로 관찰한 상태가 달랐다</a>
+        <a href="#section-2">Sequence 자리 부족은 Queue 지연으로 나타났다</a>
+        <a href="#section-3">KV Cache 고갈은 Running 요청의 Preemption으로 나타났다</a>
+        <a href="#section-4">Admission Reject는 새 요청을 Server 입구에서 막았다</a>
+        <a href="#section-5">Client Timeout은 수용된 요청을 나중에 취소했다</a>
+        <a href="#section-6">이번 실험에서 처음 나타난 경계</a>
+        <a href="#section-7">처리량 포화는 별도 Concurrency Sweep 결과로 이해했다</a>
+        <a href="#section-8">운영 설정은 SLO를 먼저 정한 뒤 선택한다</a>
+        <a href="#section-9">최종 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이번 실험은 같은 현상을 이름만 바꿔 반복한 것이 아니다. 어떤 자원이 부족했는지에 따라 Server의 상태가 달라지는 것을 순서대로 분리했다.</p>
+<pre><code class="language-text">Sequence 자리 부족
+→ Waiting
+
+KV Cache Block 부족
+→ Preemption
+
+Admission 한계 초과
+→ HTTP 503 Reject
+
+수용된 요청의 대기시간이 Client 한계 초과
+→ Client Timeout과 요청 취소
+</code></pre>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>조건별로 관찰한 상태가 달랐다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>Server 수용</th>
+<th>Scheduler 진입</th>
+<th align="right">Max Running</th>
+<th align="right">Max Waiting</th>
+<th>KV Cache·Preemption</th>
+<th>Client 결과</th>
+<th>Server 종료 상태</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>동시 요청 3개·<code>max_num_seqs=2</code></td>
+<td>3개 모두 수용</td>
+<td>3개 모두 진입</td>
+<td align="right">2</td>
+<td align="right">1</td>
+<td>Usage 69.49%, Preemption 0</td>
+<td>모두 200·정상 완료</td>
+<td>Free 59, Idle</td>
+</tr>
+<tr>
+<td>긴 A·B·Pool 59Block</td>
+<td>2개 모두 수용</td>
+<td>2개 모두 진입</td>
+<td align="right">2</td>
+<td align="right">1</td>
+<td>Usage 100%, B Preemption 1</td>
+<td>모두 200·정상 완료</td>
+<td>Free 59, Idle</td>
+</tr>
+<tr>
+<td><code>max_num_queued_reqs=2</code>에서 세 번째 C</td>
+<td>C 거부</td>
+<td>C 미진입</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td>Preemption 0</td>
+<td>C 503, 2.76ms</td>
+<td>Running·Waiting 0</td>
+</tr>
+<tr>
+<td>대기 Prompt 433·한계 400에서 C</td>
+<td>C 거부</td>
+<td>C 미진입</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td>Preemption 0</td>
+<td>C 503, 2.83ms</td>
+<td>Running·Waiting 0</td>
+</tr>
+<tr>
+<td>B Read Timeout 0.5초</td>
+<td>B 수용</td>
+<td>B 진입</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td>Preemption 0</td>
+<td>B ReadTimeout, 521.70ms</td>
+<td>B 제거, Server 생존</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Sequence 자리 부족은 Queue 지연으로 나타났다</h2>
+<p><code>max_num_seqs=2</code>인 Server에 짧은 요청 세 개를 동시에 보내자 두 요청만 Running이 됐고 C는 Waiting에 들어갔다.</p>
+<pre><code class="language-text">A TTFT = 85.64ms
+B TTFT = 72.19ms
+C TTFT = 4,052.13ms
+</code></pre>
+<p>C의 TTFT는 A·B의 약 4초 Latency와 거의 같았다. C가 첫 Token을 계산하기 전에 앞 요청의 완료를 기다렸다는 뜻이다. 당시 KV Cache Usage는 69.49%였고 Preemption은 없었으므로 원인은 Block 부족이 아니라 Sequence 자리 부족이었다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>KV Cache 고갈은 Running 요청의 Preemption으로 나타났다</h2>
+<p>긴 A와 B는 Prefill 직후 합계 54Block을 사용해 59Block Pool에 함께 들어갈 수 있었다. Decode가 진행되면서 Usage가 100%가 됐고 A가 다음 Block을 요구한 순간 B가 Preemption됐다.</p>
+<pre><code class="language-text">Preemption 전 Free Block = 0
+B 반환 = 29Block
+A 즉시 할당 = 1Block
+Preemption 후 Free Block = 28
+</code></pre>
+<p>B의 KV Cache는 전체 반환됐고 이후 기존 Prompt와 이미 생성한 출력 Token을 고정 입력으로 다시 Prefill해 Cache를 복구했다. B는 실패하지 않고 256Token을 모두 생성했지만 Latency는 A의 약 4.03초보다 긴 약 7.26초가 됐다.</p>
+<p>Preemption은 OOM보다 안전하지만 공짜 복구가 아니다. 피해 요청은 이미 수행한 Transformer 계산을 다시 해야 한다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>Admission Reject는 새 요청을 Server 입구에서 막았다</h2>
+<p>요청 수 제한과 Prefill 대기 Token 제한 모두 초과 요청 C를 약 3ms 안에 HTTP 503으로 거부했다.</p>
+<pre><code class="language-text">C Scheduler Trace 진입 = False
+C Waiting 진입 = False
+기존 A·B = 정상 완료
+Server = 생존
+</code></pre>
+<p>이것은 수용한 뒤 Queue에서 오래 기다리게 하는 방식과 다르다. Admission 단계에서 거부하면 Client가 Retry, 다른 Replica 선택이나 Backoff를 수행할 수 있고 Server는 기존 요청에 자원을 집중할 수 있다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>Client Timeout은 수용된 요청을 나중에 취소했다</h2>
+<p>B Timeout 실험에서는 B의 Scheduler Trace가 있었고 Waiting도 실제로 관찰됐다. 따라서 Admission Reject가 아니다.</p>
+<pre><code class="language-text">B 수용
+→ Waiting
+→ 0.5초 동안 Streaming 데이터 없음
+→ Client ReadTimeout
+→ Client 연결 종료
+→ Server가 B 취소
+→ Waiting에서 제거
+</code></pre>
+<p>A는 정상 완료했고 Server도 계속 응답했다. Timeout은 요청이 처리 용량 밖이었다는 Server의 판정이 아니라, Client가 허용한 대기시간을 넘었다는 Client 측 판정이었다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>이번 실험에서 처음 나타난 경계</h2>
+<p>이번에 실행한 정확한 조건 안에서 상태가 처음 바뀐 지점은 다음과 같다.</p>
+<pre><code class="language-text">Sequence Waiting
+→ max_num_seqs=2에서 동시 요청 3개
+
+KV Cache Preemption
+→ 요청용 Pool 59Block
+→ A 30Block + B 29Block으로 Free 0
+→ A가 31번째 Block을 요구할 때 B Preemption
+
+요청 수 Reject
+→ max_num_queued_reqs=2
+→ A·B 처리 중 세 번째 C
+
+Prefill Backlog Reject
+→ max_num_queued_tokens=400
+→ 현재 Waiting Prompt 433Token인 상태에서 C
+
+Client Timeout
+→ max_num_seqs=1
+→ B가 Waiting 중 Read Timeout 0.5초
+
+OOM
+→ 발생하지 않음
+</code></pre>
+<p>이 숫자는 현재 모델, GPU, vLLM 0.29.0, Block Pool 60개와 해당 Workload에서만 유효하다. 다른 GPU나 모델에 그대로 적용할 운영 권장값이 아니다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>처리량 포화는 별도 Concurrency Sweep 결과로 이해했다</h2>
+<p>이번 59Block 제한 실험에서는 과부하 상태의 종류를 분리하기 위해 특정 경계 조건을 한 번씩 만들었다. Concurrency를 <code>1·4·8·16</code>으로 바꾸고 반복 실행하는 전체 Sweep은 여기서 다시 수행하지 않았다.</p>
+<p>대신 별도의 Continuous Batching 실험에서 다음 결과를 이미 확인했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Client Concurrency</th>
+<th align="right">Output Throughput [token/s]</th>
+<th align="right">TTFT p95 [ms]</th>
+<th align="right">Max Waiting</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">63.67</td>
+<td align="right">49.49</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">124.27</td>
+<td align="right">1,581.20</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">124.17</td>
+<td align="right">3,523.37</td>
+<td align="right">6</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">118.82</td>
+<td align="right">6,621.09</td>
+<td align="right">14</td>
+</tr>
+</tbody></table>
+</div>
+<p>Concurrency 4 이후에는 추가 요청이 Throughput 증가로 이어지지 않았다. 대신 Waiting과 TTFT가 계속 증가했다. 이를 통해 Throughput 포화는 Server가 멈춘 상태가 아니라, 추가 부하를 더 높은 처리량으로 바꾸지 못하고 Queue에 쌓는 상태라는 점을 확인했다.</p>
+<p>따라서 다음 두 주장을 구분해야 한다.</p>
+<pre><code class="language-text">이번 실험으로 확인한 것
+→ 세 번째 요청의 Waiting
+→ KV Cache 100%와 Preemption
+→ Admission 503 Reject
+→ Waiting 중 Client Timeout과 정리
+
+이번 실험만으로 정하지 않은 것
+→ 일반적인 최대 동시 사용자 수
+→ 현재 Server의 정확한 Throughput 포화 Concurrency
+→ 운영에 적합한 Queue·Timeout 값
+</code></pre>
+<p>별도 Sweep은 포화의 의미를 이해하는 근거로 사용할 수 있지만, 이번 59Block Server의 정확한 포화 Concurrency를 증명하지는 않는다. GPU·모델·KV Cache Pool과 Server 설정이 바뀌면 포화 지점도 다시 측정해야 한다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>운영 설정은 SLO를 먼저 정한 뒤 선택한다</h2>
+<p>실험 결과는 Server가 어떻게 반응하는지를 보여 주지만 어떤 지연이 허용 가능한지는 알려 주지 않는다. 운영 설정을 정하려면 SLO를 먼저 정해야 한다.</p>
+<p>예를 들어 다음 값을 명시한다.</p>
+<pre><code class="language-text">허용 TTFT p95
+허용 전체 Latency p95
+허용 Waiting 시간
+허용 Timeout·Reject 비율
+Streaming 중 허용 최대 정지 시간
+OOM과 Process 재시작 허용 여부
+</code></pre>
+<p>그 기준에 맞춰 설정의 역할을 구분한다.</p>
+<pre><code class="language-text">max_num_seqs
+→ 동시에 Running으로 둘 Sequence 수
+
+KV Cache Pool
+→ Running 요청들이 유지할 수 있는 Context 총량
+
+max_num_queued_reqs
+→ Server가 보유할 미완료 요청 수
+
+max_num_queued_tokens
+→ Waiting 중 아직 Prefill하지 못한 Prompt Token 총량
+
+Client Timeout
+→ 사용자가 응답을 기다릴 최대 시간
+</code></pre>
+<p><code>max_num_seqs</code>만 늘리면 같은 KV Cache Pool을 더 많은 Sequence가 나눠 사용해 Preemption이 더 빨리 발생할 수 있다. Queue 한계만 크게 늘리면 Reject는 줄지만 TTFT와 Timeout이 증가할 수 있다. 각 값은 서로 다른 자원과 실패 방식을 제어한다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>최종 결론</h2>
+<p>이번 실험은 vLLM의 과부하가 하나의 상태가 아니라는 것을 확인했다.</p>
+<pre><code class="language-text">실행 자리 부족
+→ Waiting과 TTFT 증가
+
+KV Cache Block 고갈
+→ Running 요청 Preemption
+→ KV Cache 전체 반환과 Recompute 비용
+
+Admission 한계 초과
+→ Scheduler 진입 전 HTTP 503
+
+Client 대기 한계 초과
+→ 수용된 Waiting 요청 Timeout
+→ 연결 종료 감지 후 요청 제거
+</code></pre>
+<p>모든 조건에서 기존 요청 또는 Server Process는 생존했고 마지막에는 Running과 Waiting이 0으로 돌아왔다. KV Cache Pressure가 100%에 도달했지만 Preemption과 Admission Control이 OOM보다 먼저 작동했으므로 실제 OOM은 발생하지 않았다.</p>
+<p>따라서 Overload를 진단할 때는 <code>느리다</code> 또는 <code>서버가 터졌다</code>라고 한 문장으로 묶지 않고, HTTP Status, Scheduler Trace 진입 여부, Running·Waiting, KV Cache Usage, Preemption과 Client Timeout을 함께 봐야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

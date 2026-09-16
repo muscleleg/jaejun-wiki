@@ -1,0 +1,230 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.md. Do not edit directly. source-sha256:ffc0e5ae3382d5bf14e60de90f02ea4c6e6b7fddfe2deccaf5d2ef8fd0241bd3 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="60Block 제한 Pool과 모델·서버 설정, 요청 전 Free Block 기준선을 준비한다.">
+  <meta name="source-sha256" content="ffc0e5ae3382d5bf14e60de90f02ea4c6e6b7fddfe2deccaf5d2ef8fd0241bd3">
+  <title>제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기">
+  <meta property="og:description" content="60Block 제한 Pool과 모델·서버 설정, 요청 전 Free Block 기준선을 준비한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html","name":"제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기","description":"60Block 제한 Pool과 모델·서버 설정, 요청 전 Free Block 기준선을 준비한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html"},"headline":"제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/01_experiment_setup.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},{"@type":"ListItem","position":7,"name":"제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기</h1>
+      <p class="lead">60Block 제한 Pool과 모델·서버 설정, 요청 전 Free Block 기준선을 준비한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">환경 정보는 실행 전에 파일로 보존했다</a>
+        <a href="#section-2">Block Pool을 60개로 제한했다</a>
+        <a href="#section-3">Prefix Caching과 Chunked Prefill은 결과에서 제외했다</a>
+        <a href="#section-4">요청이 없는데도 Block 하나는 Free가 아니었다</a>
+        <a href="#section-5">Idle 상태를 기준선으로 저장했다</a>
+        <a href="#section-6">이 단계에서 확보한 기준</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 실험의 목적은 큰 GPU에서 우연히 여유 공간이 남는 상황을 보는 것이 아니라, 작은 KV Cache Pool 안에서 Sequence 자리 부족과 Block 부족이 각각 어떤 상태 변화를 만드는지 분리해 관찰하는 것이다.</p>
+<p>실험에는 <code>Qwen/Qwen2.5-1.5B-Instruct</code>의 고정 Revision을 사용했다. 실제 실행 환경은 다음과 같았다.</p>
+<pre><code class="language-text">Python       = 3.12.3
+PyTorch      = 2.13.0+cu130
+Transformers = 5.17.0
+vLLM         = 0.29.0
+GPU          = NVIDIA RTX 2000 Ada Generation
+GPU Memory   = 16,380MiB
+Model        = Qwen2.5-1.5B-Instruct
+Revision     = 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+</code></pre>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>환경 정보는 실행 전에 파일로 보존했다</h2>
+<p>Notebook에서는 Python Package, GPU, 모델 파일과 기존 vLLM Process를 읽어 <code>environment_snapshot.json</code>으로 저장했다. 환경을 기록한 이유는 다른 GPU나 vLLM 버전에서 얻은 수치를 이번 결과와 섞지 않기 위해서다.</p>
+<p>핵심 코드는 다음과 같다.</p>
+<pre><code class="language-python">environment_snapshot = {
+    &quot;python&quot;: {
+        &quot;version&quot;: platform.python_version(),
+    },
+    &quot;packages&quot;: {
+        &quot;torch&quot;: torch.__version__,
+        &quot;transformers&quot;: transformers.__version__,
+        &quot;vllm&quot;: vllm.__version__,
+        &quot;httpx&quot;: httpx.__version__,
+    },
+    &quot;gpu&quot;: {
+        &quot;name&quot;: gpu_name,
+        &quot;memory_total_mib&quot;: int(gpu_memory_mib),
+        &quot;driver_version&quot;: driver_version,
+    },
+    &quot;model&quot;: {
+        &quot;artifact_path&quot;: str(model_artifact_path),
+        &quot;revision&quot;: model_revision,
+        &quot;weight_files&quot;: [
+            str(path)
+            for path in weight_files
+        ],
+    },
+}
+</code></pre>
+<p>실행 결과에서 모델 Config, Tokenizer Config와 Weight 파일이 존재하는 것도 함께 확인했다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Block Pool을 60개로 제한했다</h2>
+<p>이번 실험에서는 vLLM이 GPU 여유 메모리로 계산한 기본 Block 수를 그대로 사용하지 않고 <code>--num-gpu-blocks-override 60</code>으로 Block Pool을 작게 만들었다.</p>
+<pre><code class="language-text">block_size = 16Token
+전체 물리 Block = 60개
+요청이 사용할 수 있는 Free Block = 59개
+요청용 KV Cache Token 칸 = 59 × 16 = 944개
+</code></pre>
+<p><code>--num-gpu-blocks-override</code>는 일반적인 운영 권장 설정이라기보다, 적은 요청으로도 Block 고갈과 Preemption을 재현하기 위한 실험 장치다.</p>
+<p>실제 Server 명령은 다음과 같다.</p>
+<pre><code class="language-bash">cd /workspace/transformer-practice/transformer/notebooks/transformer
+
+source \
+  /workspace/transformer-practice/transformer/.venv-vllm/bin/activate
+
+export PYTHONPATH=&quot;\
+/workspace/transformer-practice/transformer/\
+notebooks/transformer:${PYTHONPATH:-}&quot;
+
+export KV_CACHE_PRESSURE_RESULT_DIR=&quot;\
+/workspace/transformer-practice/transformer/\
+research/vllm_scheduler_kv_cache_criteria/\
+results/2026-09-16-kv-cache-pressure-overload/\
+servers/constrained-baseline&quot;
+
+mkdir -p &quot;${KV_CACHE_PRESSURE_RESULT_DIR}&quot;
+
+export KV_CACHE_TRACE_PATH=&quot;\
+${KV_CACHE_PRESSURE_RESULT_DIR}/kv_cache_trace.jsonl&quot;
+
+vllm serve \
+  /models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 768 \
+  --gpu-memory-utilization 0.8 \
+  --num-gpu-blocks-override 60 \
+  --max-num-seqs 2 \
+  --max-num-batched-tokens 1024 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --seed 0 \
+  --scheduler-cls kv_cache_trace.KvCacheTracingScheduler \
+  2&gt;&amp;1 | tee &quot;${KV_CACHE_PRESSURE_RESULT_DIR}/server.log&quot;
+</code></pre>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Prefix Caching과 Chunked Prefill은 결과에서 제외했다</h2>
+<p>Prefix Caching을 켜면 서로 같은 입력 부분의 Block을 공유할 수 있다. 그러면 Prompt 길이로 예상한 Block 수와 실제 점유가 달라질 수 있다.</p>
+<p>Chunked Prefill을 켜면 긴 Prompt가 여러 Iteration으로 나뉠 수 있다. 그러면 이번 실험에서 보려는 Sequence 자리와 KV Cache 용량 외에 Iteration Token Budget의 영향까지 섞인다.</p>
+<p>따라서 두 기능을 모두 끄고 다음 관계만 관찰했다.</p>
+<pre><code class="language-text">Prompt와 생성 Token 증가
+→ 요청별 KV Cache Block 증가
+→ 공용 Pool의 Free Block 감소
+→ Block 고갈 시 Preemption 발생 여부 확인
+</code></pre>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>요청이 없는데도 Block 하나는 Free가 아니었다</h2>
+<p>Trace의 시작 기록은 다음 값을 보여 줬다.</p>
+<pre><code class="language-text">전체 GPU Block = 60
+시작 Free Block = 59
+내부 예약 Block = 1
+Running = 0
+Waiting = 0
+KV Cache Usage = 0%
+</code></pre>
+<p>예약된 한 Block은 일반 요청의 Prompt K·V를 미리 저장한 Block이 아니다. vLLM의 KV Cache 관리 코드가 일부 Cache Group이나 실제 KV 저장이 필요 없는 위치에서도 유효한 Block ID를 참조할 수 있도록 남겨 둔 Null Block이다.</p>
+<p>Block Table은 논리적 위치와 물리 Block ID의 대응을 인덱스로 관리한다. 필요한 위치를 목록에서 삭제해 앞 칸을 당기면 이후 논리 Block과 물리 Block의 대응이 달라질 수 있다. 따라서 실제 K·V를 저장하지 않는 위치도 예약된 유효 Block ID로 채울 수 있다.</p>
+<pre><code class="language-text">전체 Pool 60Block
+├─ 내부 예약 Null Block 1개
+└─ 일반 요청이 빌릴 수 있는 Block 59개
+</code></pre>
+<p>그러므로 이번 실험의 용량 계산은 60개가 아니라 실제 시작 Free Block인 59개를 기준으로 했다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>Idle 상태를 기준선으로 저장했다</h2>
+<p>Server 시작 후 생성 요청을 보내기 전에 <code>/health</code>, <code>/v1/models</code>, <code>/metrics</code>와 Trace 첫 기록을 읽었다.</p>
+<pre><code class="language-python">running_requests = int(
+    read_prometheus_metric_sum(
+        metrics_text,
+        &quot;vllm:num_requests_running&quot;,
+    )
+)
+
+waiting_requests = int(
+    read_prometheus_metric_sum(
+        metrics_text,
+        &quot;vllm:num_requests_waiting&quot;,
+    )
+)
+
+kv_cache_usage_ratio = (
+    read_prometheus_metric_sum(
+        metrics_text,
+        &quot;vllm:kv_cache_usage_perc&quot;,
+    )
+)
+</code></pre>
+<p>이 값을 <code>idle_baseline.json</code>으로 저장했다. 이후 실험에서는 요청 종료 후 Free Block이 다시 59개가 되는지, Running과 Waiting이 다시 0이 되는지를 이 기준선과 비교했다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>이 단계에서 확보한 기준</h2>
+<pre><code class="language-text">Sequence 실행 자리 = 2개
+요청용 KV Cache Block = 59개
+Block당 Token = 16개
+요청용 Token 칸 = 944개
+Idle Running·Waiting = 0·0
+Idle KV Cache Usage = 0%
+</code></pre>
+<p>이 기준을 이용하면 이후 실험에서 <code>Sequence 자리가 부족해서 Waiting이 생긴 경우</code>와 <code>Sequence 자리는 있지만 KV Cache Block이 부족해서 Preemption이 생긴 경우</code>를 분리할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

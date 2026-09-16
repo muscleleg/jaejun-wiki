@@ -1,0 +1,252 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_null_block.md. Do not edit directly. source-sha256:9b716aa6c366024dd6da6e4e8f2f6f124367625ef3914c855c592d524a290b0f -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="vLLM의 Null Block이 KV Cache Pool에서 한 Block을 예약하는 이유와, 필요 없어진 K·V Block의 논리적 위치를 Block Table에서 유지하는 방식을 설명합니다.">
+  <meta name="source-sha256" content="9b716aa6c366024dd6da6e4e8f2f6f124367625ef3914c855c592d524a290b0f">
+  <title>vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다">
+  <meta property="og:description" content="vLLM의 Null Block이 KV Cache Pool에서 한 Block을 예약하는 이유와, 필요 없어진 K·V Block의 논리적 위치를 Block Table에서 유지하는 방식을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html","name":"vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다","description":"vLLM의 Null Block이 KV Cache Pool에서 한 Block을 예약하는 이유와, 필요 없어진 K·V Block의 논리적 위치를 Block Table에서 유지하는 방식을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html"},"headline":"vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_null_block.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM은 KV Cache를 Sequence별 Block으로 관리한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_sequence_blocks.html"},{"@type":"ListItem","position":8,"name":"vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_kv_cache_sequence_blocks.html">vLLM은 KV Cache를 Sequence별 Block으로 관리한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM은 Block Table의 논리적 위치를 유지하기 위해 Null Block을 예약한다</h1>
+      <p class="lead">vLLM의 Null Block이 KV Cache Pool에서 한 Block을 예약하는 이유와, 필요 없어진 K·V Block의 논리적 위치를 Block Table에서 유지하는 방식을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kv-cache-block">일반적인 KV Cache 할당에는 실제 물리 Block을 사용한다</a>
+        <a href="#k-v">실제 K·V는 필요 없어져도 논리적 위치는 남아야 한다</a>
+        <a href="#block-null-block">반환한 Block의 위치를 Null Block으로 채운다</a>
+        <a href="#null-block-block">Null Block은 공용 깡통 Block이다</a>
+        <a href="#null-block">모든 요청이 Null Block을 사용하는 것은 아니다</a>
+        <a href="#null-block-2">Null Block은 사용률과 메모리 누수에서 제외해야 한다</a>
+        <a href="#null-block-prefix-cache-block">Null Block과 Prefix Cache Block은 역할이 다르다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM Server를 다음과 같이 실행했다고 가정해 보자.</p>
+<pre><code class="language-arduino">--num-gpu-blocks-override 60
+--block-size 16
+</code></pre>
+<p>설정한 전체 KV Cache Block은 60개다. 아직 요청을 보내지 않았다면 Free Block도 60개여야 할 것처럼 보인다.</p>
+<p>하지만 실제로는 다음과 같은 결과가 나타날 수 있다.</p>
+<pre><code class="language-yaml">전체 GPU Block: 60
+Free Block: 59
+KV Cache Usage: 0%
+</code></pre>
+<p>요청을 하나도 처리하지 않았는데 Free Block이 하나 적은 이유는 vLLM이 Server를 시작할 때 Block 하나를 <strong>Null Block</strong>으로 미리 예약하기 때문이다.</p>
+<pre><code class="language-scss">전체 Block 60개
+├─ Null Block 1개
+└─ 요청에 할당 가능한 Free Block 59개
+</code></pre>
+</div>
+        <section id="kv-cache-block" class="markdown-section">
+<h2>일반적인 KV Cache 할당에는 실제 물리 Block을 사용한다</h2>
+<p>일반적인 요청에서는 Prompt와 생성 Token의 K·V를 실제 물리 Block에 저장한다.</p>
+<p>Prefix Caching을 사용한다면 Token을 Block 크기에 맞게 묶고, 부모 Block의 Hash와 현재 Block의 Token을 사용해 Hash를 계산한다.</p>
+<pre><code class="language-scss">Token을 Block 단위로 묶음
+→ 부모 Hash와 현재 Token으로 Block Hash 계산
+→ Cache Map에서 같은 Hash 검색
+</code></pre>
+<p>Cache 조회 결과에 따라 실제 물리 Block을 연결한다.</p>
+<pre><code class="language-scss">Cache Hit
+→ 기존 K·V가 저장된 물리 Block을 연결
+
+Cache Miss
+→ Free Block을 새로 할당
+→ 계산한 K·V를 저장
+→ 새 물리 Block을 연결
+</code></pre>
+<p>예를 들어 다음과 같은 Block Table이 만들어질 수 있다.</p>
+<pre><code class="language-scss">논리 Block 번호     0    1    2
+물리 Block ID       7   12   23
+</code></pre>
+<p>이를 배열로 표현하면 다음과 같다.</p>
+<pre><code class="language-ini">block_table = [7, 12, 23]
+</code></pre>
+<p>이 과정에서는 Null Block이 사용되지 않는다. Null Block은 Cache Hit를 대신하는 Block도 아니고, 새로운 K·V를 기록하기 위해 할당하는 Block도 아니다.</p>
+
+</section>
+<section id="k-v" class="markdown-section">
+<h2>실제 K·V는 필요 없어져도 논리적 위치는 남아야 한다</h2>
+<p>일부 Attention 구조에서는 이전에 저장한 모든 K·V를 요청이 끝날 때까지 유지할 필요가 없다.</p>
+<p>예를 들어 Sliding Window Attention은 현재 Token 주변의 일정 범위만 참조한다.</p>
+<pre><code class="language-css">전체 처리 구간
+[0~15] [16~31] [32~47] [48~63]
+
+현재 Attention에 필요한 구간
+                [32~47] [48~63]
+</code></pre>
+<p>앞의 두 구간은 더 이상 Attention 계산에 필요하지 않으므로, 해당 K·V가 저장된 물리 Block을 Free Pool로 반환할 수 있다.</p>
+<p>기존 Block Table이 다음과 같다고 해보자.</p>
+<pre><code class="language-scss">논리 Block 번호     0    1    2    3
+물리 Block ID       7   12   23   31
+</code></pre>
+<p>배열로 표현하면 다음과 같다.</p>
+<pre><code class="language-ini">block_table = [7, 12, 23, 31]
+</code></pre>
+<p>여기서 물리 Block 7과 12의 K·V가 필요 없어졌다고 해서 배열의 앞부분을 삭제하면 문제가 발생한다.</p>
+<pre><code class="language-ini">block_table = [23, 31]
+</code></pre>
+<p>Block Table은 배열의 인덱스 자체가 논리 Block 번호다.</p>
+<p>따라서 삭제 전에는 물리 Block 23이 논리 Block 2에 있었지만, 삭제 후에는 배열의 0번 위치로 이동한다.</p>
+<pre><code>삭제 전
+block_table[2] = 23
+
+삭제 후
+block_table[0] = 23
+</code></pre>
+<p>물리 Block에 저장된 K·V는 바뀌지 않았는데, Block Table에서 가리키는 논리적 Token 구간이 달라진 것처럼 보이게 된다.</p>
+
+</section>
+<section id="block-null-block" class="markdown-section">
+<h2>반환한 Block의 위치를 Null Block으로 채운다</h2>
+<p>vLLM은 필요 없어진 물리 Block을 Free Pool에 반환하되, Block Table에서 해당 위치를 삭제하지 않는다.</p>
+<p>대신 그 자리를 Null Block으로 교체한다.</p>
+<pre><code class="language-scss">반환 전
+[7, 12, 23, 31]
+
+물리 Block 7·12 반환
+
+반환 후
+[NULL, NULL, 23, 31]
+</code></pre>
+<p>이제 실제 K·V가 필요 없는 앞 구간은 Null Block을 가리키고, 나머지 물리 Block의 논리적 위치는 그대로 유지된다.</p>
+<pre><code class="language-sql">Block Table 인덱스    0      1     2    3
+물리 Block          Null   Null   23   31
+</code></pre>
+<p>Token 위치와 Block Table을 연결하는 관계도 깨지지 않는다.</p>
+<p>Block 크기가 16Token이라면 Token 위치 40은 다음처럼 논리 Block 2에 해당한다.</p>
+<pre><code>40 // 16 = 2
+</code></pre>
+<p>Block Table에서 2번 위치를 확인하면 기존과 동일하게 물리 Block 23을 찾을 수 있다.</p>
+<pre><code class="language-scss">block_table[2]
+→ 물리 Block 23
+</code></pre>
+
+</section>
+<section id="null-block-block" class="markdown-section">
+<h2>Null Block은 공용 깡통 Block이다</h2>
+<p>Block Table에서 K·V가 필요 없는 위치가 여러 개 생기더라도 Null Block을 여러 개 만들 필요는 없다.</p>
+<pre><code class="language-cpp">Sequence A
+[NULL, NULL, 23, 31]
+
+Sequence B
+[NULL, 14, 25]
+
+Sequence C
+[NULL, NULL, NULL, 42]
+</code></pre>
+<p>위의 모든 <code>NULL</code>은 같은 물리 Null Block 하나를 가리킬 수 있다.</p>
+<pre><code class="language-graphql">모든 Null 위치
+→ 하나의 공용 Null Block 참조
+</code></pre>
+<p>Null Block의 내용은 실제 문맥 정보로 사용되지 않는다. 해당 위치는 Attention Mask에 의해 계산 대상에서 제외된다.</p>
+<p>따라서 Null Block은 요청의 K·V를 저장하는 공간이 아니라, Block Table 형식을 유지하기 위한 공용 자리표시자다.</p>
+
+</section>
+<section id="null-block" class="markdown-section">
+<h2>모든 요청이 Null Block을 사용하는 것은 아니다</h2>
+<p>일반적인 Full Attention 요청에서는 처리한 모든 Token의 K·V를 계속 참조하므로 중간 Block을 Null Block으로 교체할 상황이 거의 발생하지 않을 수 있다.</p>
+<p>Null Block은 주로 다음처럼 일부 구간의 실제 K·V가 필요하지 않은 구조에서 의미가 있다.</p>
+<pre><code class="language-sql">Sliding Window Attention
+Local Attention
+일부 Hybrid Attention 모델
+일부 Mamba 상태 관리
+</code></pre>
+<p>현재 실행 중인 모델이 Null Block을 직접 사용하지 않더라도, vLLM의 공통 Block Pool은 여러 Attention 구조를 지원해야 한다. 그래서 Server를 시작할 때 Null Block 하나를 항상 준비한다.</p>
+
+</section>
+<section id="null-block-2" class="markdown-section">
+<h2>Null Block은 사용률과 메모리 누수에서 제외해야 한다</h2>
+<p>Null Block은 요청이 사용한 Block이 아니므로 vLLM은 KV Cache Usage를 계산할 때 이를 제외한다.</p>
+<pre><code class="language-java">전체 Block
+= 60개
+
+Null Block
+= 1개
+
+요청이 사용할 수 있는 Block
+= 59개
+
+현재 요청이 사용한 Block
+= 0개
+
+KV Cache Usage
+= 0 / 59
+= 0%
+</code></pre>
+<p>따라서 다음 두 값은 서로 모순되지 않는다.</p>
+<pre><code class="language-yaml">Free Block: 59개
+KV Cache Usage: 0%
+</code></pre>
+<p>Free Block이 하나 적은 이유는 요청이 Block을 점유했기 때문이 아니라 Null Block 하나가 Free Queue에서 제외됐기 때문이다.</p>
+<p>요청이 종료된 뒤에도 Free Block이 60개가 아니라 시작값인 59개로 돌아오면 정상이다.</p>
+<pre><code class="language-sql">Server 시작 Free Block: 59
+요청 실행 중 Free Block: 감소
+요청 종료 후 Free Block: 59
+</code></pre>
+<p>반대로 요청이 끝날 때마다 Free Block이 계속 감소한다면 그때는 반환 실패나 메모리 누수를 의심해야 한다.</p>
+
+</section>
+<section id="null-block-prefix-cache-block" class="markdown-section">
+<h2>Null Block과 Prefix Cache Block은 역할이 다르다</h2>
+<p>두 Block을 다음과 같이 구분할 수 있다.</p>
+<pre><code class="language-scss">Prefix Cache Block
+→ 실제 Token의 K·V가 저장돼 있음
+→ Hash가 일치하면 다른 Sequence가 재사용
+→ 실제 Attention 계산에 사용
+
+Null Block
+→ 실제 문맥 K·V를 나타내지 않음
+→ Prefix Cache 조회 결과가 아님
+→ Block Table의 논리적 위치를 유지
+→ Attention Mask에 의해 계산에서 제외
+</code></pre>
+<p>결국 vLLM의 Null Block은 다음과 같이 정의할 수 있다.</p>
+<blockquote>
+<p>Null Block은 실제 K·V가 필요 없어진 논리적 구간을 Block Table에서 삭제하지 않고 자리만 유지하기 위한 공용 깡통 Block이다. 배열의 인덱스가 Token 구간의 논리적 순서를 나타내기 때문에, 앞 구간을 삭제했을 때 뒤 Block의 인덱스가 당겨지는 문제를 막는다.</p>
+</blockquote>
+<p>그래서 요청이 하나도 없는 시작 상태에서도 전체 60Block 중 하나가 Null Block으로 예약되고, 실제 요청에는 나머지 59Block이 할당된다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

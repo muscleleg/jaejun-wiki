@@ -1,0 +1,279 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.md. Do not edit directly. source-sha256:e74f7f8e247edc001c0f9e9f0a9af67439c78eee7b6997ce6bc412b9958bbb2c -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="동시 요청에서 Sequence 자리, Iteration Token Budget, GPU·KV Cache가 Prefill·Decode 지연에 미치는 차이와 병목 구분 기준을 설명한다.">
+  <meta name="source-sha256" content="e74f7f8e247edc001c0f9e9f0a9af67439c78eee7b6997ce6bc412b9958bbb2c">
+  <title>동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유">
+  <meta property="og:description" content="동시 요청에서 Sequence 자리, Iteration Token Budget, GPU·KV Cache가 Prefill·Decode 지연에 미치는 차이와 병목 구분 기준을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html","name":"동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유","description":"동시 요청에서 Sequence 자리, Iteration Token Budget, GPU·KV Cache가 Prefill·Decode 지연에 미치는 차이와 병목 구분 기준을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html"},"headline":"동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrent_prefill_decode_bottlenecks.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>동시 요청이 늘어날 때 Prefill과 Decode가 느려지는 이유</h1>
+      <p class="lead">동시 요청에서 Sequence 자리, Iteration Token Budget, GPU·KV Cache가 Prefill·Decode 지연에 미치는 차이와 병목 구분 기준을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#token-budget-sequence">Token Budget은 모든 Sequence가 함께 사용한다</a>
+        <a href="#prefill-token">Prefill은 한 요청이 많은 Token을 사용할 수 있다</a>
+        <a href="#prefill-ttft">동시 Prefill이 많으면 TTFT가 증가한다</a>
+        <a href="#prefill-token-budget">Prefill이 끝나면 Token Budget 부담은 줄어든다</a>
+        <a href="#decode-token-budget">Decode는 Token Budget에 여유가 있어도 느려질 수 있다</a>
+        <a href="#decode-prefill-token">Decode 중에 긴 Prefill이 들어오면 Token 간격도 영향을 받는다</a>
+        <a href="#concurrency">Concurrency가 증가했을 때 확인할 병목</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM Server에 동시에 들어오는 요청이 많아지면 응답은 느려질 수 있다. 하지만 단순히 “요청이 많아서 느려졌다”라고만 설명하면 어떤 자원이 부족한지 알 수 없다.</p>
+<p>동시 요청이 증가하면 Server에서는 다음 세 가지 제한이 서로 다른 방식으로 작동한다.</p>
+<pre><code class="language-text">Sequence 자리
+→ 동시에 Running할 수 있는 요청 수 제한
+
+Iteration Token Budget
+→ 한 Iteration에서 처리할 전체 Token 작업량 제한
+
+GPU 처리 능력과 KV Cache
+→ 실제 연산 속도와 문맥을 저장할 메모리 제한
+</code></pre>
+<p>특히 Prefill과 Decode는 한 Iteration에서 사용하는 Token 수가 다르기 때문에 동시 요청의 영향을 다르게 받는다.</p>
+</div>
+        <section id="token-budget-sequence" class="markdown-section">
+<h2>Token Budget은 모든 Sequence가 함께 사용한다</h2>
+<p><code>max_num_batched_tokens</code>는 한 Scheduler Iteration에서 처리할 수 있는 Token 작업량의 합계 상한이다.</p>
+<pre><code class="language-text">max_num_batched_tokens = 256
+</code></pre>
+<p>이 값은 Sequence마다 256Token을 사용할 수 있다는 뜻이 아니다. 이번 Iteration에 선택된 모든 Sequence가 합쳐서 최대 256Token을 사용할 수 있다는 뜻이다.</p>
+<pre><code class="language-text">Sequence A의 작업
++ Sequence B의 작업
++ Sequence C의 작업
+─────────────────────
+최대 256Token
+</code></pre>
+<p>동시 요청이 늘어도 Token Budget 설정값 자체가 커지는 것은 아니다. 더 많은 요청이 고정된 Budget을 나눠 사용하게 된다.</p>
+
+</section>
+<section id="prefill-token" class="markdown-section">
+<h2>Prefill은 한 요청이 많은 Token을 사용할 수 있다</h2>
+<p>Prefill에서는 입력 Prompt의 여러 Token을 한꺼번에 처리한다.</p>
+<pre><code class="language-text">요청 B의 Prompt = 796Token
+</code></pre>
+<p>Chunked Prefill을 사용하지 않으면 가능한 경우 큰 Prefill 작업으로 실행할 수 있다. Chunked Prefill을 사용하고 Token Budget이 작으면 Prompt를 여러 Iteration으로 나눠 처리한다.</p>
+<pre><code class="language-text">전체 Prefill = 796Token
+
+Chunk 1 = 255Token
+Chunk 2 = 255Token
+Chunk 3 = 255Token
+Chunk 4 = 31Token
+</code></pre>
+<p>전체 계산할 Prompt Token은 여전히 796개다. 달라지는 것은 한 Iteration에 처리하는 Token 수다.</p>
+
+</section>
+<section id="prefill-ttft" class="markdown-section">
+<h2>동시 Prefill이 많으면 TTFT가 증가한다</h2>
+<p>다음 조건을 생각해 보자.</p>
+<pre><code class="language-text">Iteration Token Budget = 256
+
+요청 A
+→ 이미 Decode 중
+→ 이번 Iteration에 1Token 필요
+
+요청 B
+→ 긴 Prompt Prefill 중
+→ 796Token 남음
+
+요청 C
+→ 새로 도착한 Prefill 요청
+→ 135Token 필요
+</code></pre>
+<p>Scheduler가 기존 Decode를 먼저 배정하면 남는 Budget은 255Token이다.</p>
+<pre><code class="language-text">A Decode  = 1Token
+B Prefill = 255Token
+──────────────────
+합계      = 256Token
+</code></pre>
+<p>이 Iteration에는 C의 Prefill을 넣을 공간이 없다.</p>
+<pre><code class="language-text">Iteration 1
+→ A Decode 1
+→ B Prefill 255
+→ C 대기
+
+Iteration 2
+→ A Decode 1
+→ B Prefill 255
+→ C 대기
+
+Iteration 3
+→ A Decode 1
+→ B Prefill 255
+→ C 대기
+
+Iteration 4
+→ A Decode 1
+→ B Prefill 31
+→ C Prefill 135
+</code></pre>
+<p>동시 Prefill 요청이 많을 때는 다음 두 가지 상황이 생길 수 있다.</p>
+<pre><code class="language-text">한 Sequence가 받는 Prefill Chunk가 작아짐
+→ 전체 Prompt를 처리하는 Iteration 수 증가
+
+앞 요청이 Token Budget을 먼저 사용
+→ 뒤 요청은 Prefill 시작 자체가 늦어짐
+</code></pre>
+<p>Scheduler가 모든 요청에 Budget을 똑같이 나눠 주는 것은 아니다. Scheduling Policy와 요청 순서에 따라 앞 요청이 큰 Chunk를 먼저 받고 뒤 요청이 기다릴 수도 있다.</p>
+<p>두 경우 모두 요청이 전체 Prompt를 처리하고 첫 출력 Token을 만들기까지의 TTFT가 증가한다.</p>
+
+</section>
+<section id="prefill-token-budget" class="markdown-section">
+<h2>Prefill이 끝나면 Token Budget 부담은 줄어든다</h2>
+<p>Decode에서는 각 Running Sequence가 일반적으로 한 Iteration에 새로운 Token 하나를 처리한다.</p>
+<pre><code class="language-text">A Decode = 1Token
+B Decode = 1Token
+C Decode = 1Token
+
+Scheduled Token 합계 = 3Token
+Token Budget = 256Token
+</code></pre>
+<p>Prefill에서는 요청 하나가 수백 Token을 사용할 수 있지만, Decode만 남으면 Sequence 세 개가 사용하는 Budget은 일반적으로 3Token 정도다.</p>
+<p>따라서 Prefill이 모두 끝난 뒤에는 Token Budget 자체가 병목일 가능성이 크게 줄어든다.</p>
+<pre><code class="language-text">Prefill
+→ 한 Sequence가 수백 Token을 사용할 수 있음
+→ Token Budget 경쟁이 큼
+→ TTFT에 큰 영향
+
+Decode
+→ Sequence마다 일반적으로 1Token
+→ Token Budget은 상대적으로 여유로움
+</code></pre>
+
+</section>
+<section id="decode-token-budget" class="markdown-section">
+<h2>Decode는 Token Budget에 여유가 있어도 느려질 수 있다</h2>
+<p>Token Budget이 남는다고 Decode 성능이 항상 동일한 것은 아니다.</p>
+<p>Running Sequence가 많아지면 한 Iteration의 Decode Batch가 커진다.</p>
+<pre><code class="language-text">Running 2개
+→ Decode 2Token 처리
+
+Running 32개
+→ Decode 32Token 처리
+</code></pre>
+<p>32Token은 Budget 256보다 작다. 하지만 GPU는 32개 Sequence의 Attention 계산과 KV Cache 읽기를 함께 처리해야 한다.</p>
+<p>따라서 다음 현상이 생길 수 있다.</p>
+<pre><code class="language-text">Running Sequence 증가
+→ Decode Batch 증가
+→ 한 Iteration의 GPU 작업 증가
+→ 다음 Token을 생성하기까지의 시간 증가
+→ TPOT 증가 가능
+</code></pre>
+<p>즉, Decode 구간에서는 Token Budget보다 GPU 계산량, KV Cache 접근량과 동시에 Running인 Sequence 수가 먼저 병목이 될 수 있다.</p>
+
+</section>
+<section id="decode-prefill-token" class="markdown-section">
+<h2>Decode 중에 긴 Prefill이 들어오면 Token 간격도 영향을 받는다</h2>
+<p>Decode만 실행되는 상황과 긴 Prefill이 함께 실행되는 상황도 구분해야 한다.</p>
+<pre><code class="language-text">Decode만 실행
+
+A Decode 1
+B Decode 1
+C Decode 1
+</code></pre>
+<pre><code class="language-text">Decode와 긴 Prefill이 함께 실행
+
+A Decode 1
+B Decode 1
+C Prefill 254
+</code></pre>
+<p>두 번째 Iteration은 Token Budget 안에 들어가지만 첫 번째보다 GPU 작업이 크다. 따라서 기존 Decode 요청이 다음 Token을 받는 간격이 길어질 수 있다.</p>
+<p>Chunked Prefill은 긴 Prefill을 여러 Iteration으로 나눠 Decode가 매 Iteration마다 실행될 기회를 제공한다. 하지만 Prefill 계산 자체가 사라지는 것은 아니므로 Decode가 전혀 영향을 받지 않는 것은 아니다.</p>
+
+</section>
+<section id="concurrency" class="markdown-section">
+<h2>Concurrency가 증가했을 때 확인할 병목</h2>
+<p>동시 요청이 증가해 응답이 느려졌다면 다음 값을 함께 봐야 한다.</p>
+<pre><code class="language-text">Running이 max_num_seqs에 도달했는가?
+→ Sequence 자리 병목
+
+Scheduled Token 합계가 Token Budget에 가까운가?
+→ Iteration Token Budget 병목
+
+KV Cache Usage가 100%에 가까운가?
+→ KV Cache Block 병목
+
+Running Sequence가 늘면서 TPOT가 증가했는가?
+→ GPU Decode 처리량 병목
+
+Waiting과 TTFT가 함께 증가했는가?
+→ Queue 대기 영향
+</code></pre>
+<p>예를 들어 Running Sequence가 두 개뿐이고 Decode 작업도 Iteration당 2Token이라면, Token Budget이 4,096Token이어도 더 많은 요청을 처리하지 못할 수 있다.</p>
+<pre><code class="language-text">Token Budget = 4,096
+Scheduled Decode Token = 2
+Running = max_num_seqs인 2개
+Waiting = 6개
+</code></pre>
+<p>이 경우 Token Budget은 남아 있지만 Sequence 자리가 먼저 한계에 도달한 것이다.</p>
+<p>반대로 긴 Prefill 요청이 여러 개 들어오면 실제 Scheduled Token이 Budget에 가까워지고, 뒤 요청의 Prefill이 밀리면서 TTFT가 증가할 수 있다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<pre><code class="language-text">동시 Prefill 요청 증가
+→ 고정된 Token Budget을 함께 사용
+→ Prefill Chunk가 작아지거나 Prefill 시작이 밀림
+→ TTFT 증가
+
+Prefill 완료 후 Decode
+→ Sequence마다 일반적으로 1Token 처리
+→ Token Budget 부담은 감소
+
+동시 Decode Sequence 증가
+→ GPU Batch와 KV Cache 접근량 증가
+→ Token Budget이 남아도 TPOT 증가 가능
+
+Decode 중 긴 Prefill 도착
+→ 같은 Iteration의 GPU 작업 증가
+→ 기존 응답의 Token 간격 증가 가능
+</code></pre>
+<p>따라서 동시 요청이 많아졌을 때 느려지는 원인을 정확히 설명하려면 “Token Budget을 많이 사용했다”만 봐서는 부족하다. Sequence 자리, Prefill Budget 경쟁, KV Cache 사용량과 Decode GPU 처리량을 함께 구분해야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

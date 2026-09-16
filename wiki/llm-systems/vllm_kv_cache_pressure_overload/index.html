@@ -1,0 +1,155 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.md. Do not edit directly. source-sha256:43d8b64e0e274c281487f5bb8de4783c84087b835d4a469255a0b63467f8ea49 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="실행 자리와 KV Cache 고갈, Admission 거부와 Client Timeout을 실제 vLLM 결과로 구분한다.">
+  <meta name="source-sha256" content="43d8b64e0e274c281487f5bb8de4783c84087b835d4a469255a0b63467f8ea49">
+  <title>vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout">
+  <meta property="og:description" content="실행 자리와 KV Cache 고갈, Admission 거부와 Client Timeout을 실제 vLLM 결과로 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html","name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","description":"실행 자리와 KV Cache 고갈, Admission 거부와 Client Timeout을 실제 vLLM 결과로 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},"about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</h1>
+      <p class="lead">실행 자리와 KV Cache 고갈, Admission 거부와 Client Timeout을 실제 vLLM 결과로 구분한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">실행 자리와 KV Cache 공간은 서로 다른 제한이다</a>
+        <a href="#section-2">작은 Block Pool을 만들어 한계를 관찰했다</a>
+        <a href="#section-3">실행 자리가 부족하면 첫 Token을 만들기 전부터 기다린다</a>
+        <a href="#section-4">실행 중 Block이 부족해지면 요청 하나를 중단해 공간을 확보한다</a>
+        <a href="#section-5">수용할 요청에 한계를 두면 초과 요청을 입구에서 거부한다</a>
+        <a href="#section-6">서버가 수용해도 Client가 기다리기를 포기할 수 있다</a>
+        <a href="#section-7">요청을 더 보내도 처리량이 늘지 않는 구간이 있다</a>
+        <a href="#section-8">같은 지연이라도 원인을 구분해야 설정을 바꿀 수 있다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM 서버에 요청을 보냈는데 첫 응답이 늦게 도착한다면, 어디서 시간이 걸린 것일까? 입력 문장을 계산하는 데 오래 걸렸을 수도 있고, 다른 요청이 끝날 때까지 실행 차례를 기다렸을 수도 있다. 이미 답변을 생성하던 요청이 메모리 부족으로 잠시 중단되는 경우도 있다.</p>
+<p>이 차이를 알아야 어떤 설정을 바꿀지 판단할 수 있다. 실행 자리가 부족한데 메모리만 늘리거나, 메모리가 부족한데 동시 실행 수만 늘리면 기대한 효과를 얻기 어렵다.</p>
+<p>이번 실험에서는 vLLM의 실행 자리와 KV Cache 공간을 작게 제한해 각각의 한계에 도달하는 상황을 만들었다. 그리고 요청이 대기하는 경우, 실행 중 중단되는 경우, 서버가 새 요청을 거부하는 경우, Client가 기다리다 포기하는 경우를 관찰했다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>실행 자리와 KV Cache 공간은 서로 다른 제한이다</h2>
+<p>vLLM은 여러 요청 중 이번 실행 회차에 처리할 요청과 Token을 고른다. 실행 중인 요청은 Running, 실행 차례를 기다리는 요청은 Waiting으로 관찰할 수 있다. 이번 실험은 요청 하나가 출력 하나를 만드는 조건이므로, 요청 하나를 생성 Sequence 하나로 생각하면 된다.</p>
+<p><code>max_num_seqs</code>는 함께 실행할 Sequence 수를 제한한다. 이 값이 2라면 두 Sequence가 실행 자리를 사용하고 있는 동안 다른 요청은 자리가 날 때까지 기다릴 수 있다.</p>
+<p>각 Sequence에는 실행 자리뿐 아니라 KV Cache 공간도 필요하다. KV Cache는 다음 Token을 계산할 때 다시 참고할 Key와 Value를 저장한 것이다. vLLM은 이 저장 공간을 Block으로 나누어 공용 Pool에서 관리하고, 요청마다 필요한 Block을 빌려 준다.</p>
+<p>입력이 길면 처음부터 많은 Block이 필요하다. 출력 생성이 계속되면 그동안 처리한 Token의 K·V도 저장해야 하므로 Block 사용량이 더 늘어난다. <strong>실행할 자리가 있어도 새 Block을 빌릴 수 없으면 그대로 계산을 계속하기 어렵다.</strong></p>
+<p>이렇게 요청들이 사용하는 Block이 늘어 공용 Pool의 여유가 줄어드는 상태를 KV Cache Pressure라고 한다. 이는 vLLM이 확보한 Pool 안의 여유를 뜻한다. GPU 전체 메모리에는 모델 Weight와 연산용 공간 등도 들어 있으므로, KV Cache 사용률과 GPU 전체 메모리 사용률은 구분해서 봐야 한다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>작은 Block Pool을 만들어 한계를 관찰했다</h2>
+<p>실험에서는 Qwen2.5-1.5B-Instruct와 vLLM 0.29.0을 사용했다. 적은 요청으로도 Block 부족을 관찰할 수 있도록 전체 Pool을 60Block으로 제한했다.</p>
+<pre><code class="language-text">전체 Block                   60개
+내부 예약 Block               1개
+요청에 빌려줄 수 있는 Block   59개
+Block 하나의 저장 용량        16Token의 K·V
+</code></pre>
+<p>처음에는 요청이 없으므로 Running과 Waiting은 모두 0이고, 요청용 Free Block은 59개였다. 이 값을 기준으로 요청 종료 후 자원이 돌아오는지도 확인했다.</p>
+<p>Prefix Caching과 Chunked Prefill은 껐다. 공통 입력의 Cache 공유나 긴 Prefill의 분할이 이번 관찰에 섞이지 않도록 하기 위해서다.</p>
+<p>모델·GPU 정보, 서버 실행 명령과 시작 상태 확인 코드는 <a href="01_experiment_setup.html">제한된 Block Pool을 준비한 과정</a>에 담았다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>실행 자리가 부족하면 첫 Token을 만들기 전부터 기다린다</h2>
+<p>먼저 <code>max_num_seqs=2</code>인 서버에 짧은 요청 A·B·C를 동시에 보냈다. A와 B가 두 실행 자리를 차지했고 C는 Waiting에 들어갔다.</p>
+<p>A와 B는 약 4초 뒤 완료됐다. C가 첫 Token을 받기까지 걸린 시간도 약 4.05초였다. C는 짧은 입력을 처리하기 위해 4초를 계산한 것이 아니라, 실행을 시작하기 전에 앞 요청이 끝나기를 기다린 것이다.</p>
+<p>이때 최대 KV Cache 사용률은 69.49%였고 Preemption은 없었다. Block이 남아 있는데도 Waiting이 생겼으므로, 이 조건에서 C를 기다리게 한 제한은 Sequence 자리였다.</p>
+<p>첫 Token까지 걸린 시간을 TTFT라고 한다. TTFT에는 입력을 처리하는 Prefill 시간뿐 아니라 이렇게 실행 차례를 기다린 시간도 포함된다. 따라서 TTFT가 커졌다면 입력 계산과 Queue 대기 중 어디에서 시간이 늘었는지 함께 확인해야 한다.</p>
+<p>요청 전송 코드와 A·B·C의 실제 출력은 <a href="02_concurrency_queue_saturation.html">실행 자리 부족으로 생긴 Waiting과 TTFT 증가</a>에 정리했다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>실행 중 Block이 부족해지면 요청 하나를 중단해 공간을 확보한다</h2>
+<p>다음에는 긴 요청 A와 B를 함께 실행했다. A의 입력은 433Token, B는 407Token이었다. 입력을 처음 처리하는 Prefill 직후 필요한 Block은 각각 28개와 26개로, 합계 54개였다. 사용 가능한 59개 안에 들어가므로 처음에는 둘 다 실행할 수 있었다.</p>
+<p>문제는 답변을 생성하면서 나타났다. Decode가 진행되자 두 요청이 사용하는 Block이 계속 늘었고, 결국 Free Block이 0개가 됐다. 이때 A가 다음 Block을 요구하자 Scheduler가 B를 Preemption했다.</p>
+<p><strong>Preemption은 아직 끝나지 않은 요청의 실행을 중단하고 다른 요청에 자원을 내주는 동작이다.</strong> 이번 실행에서는 B가 사용하던 29Block 전체를 반환했다. 그중 한 Block을 A가 즉시 할당받아 계산을 계속했으므로, Scheduling이 끝난 뒤 Free Block은 28개가 됐다.</p>
+<p>B는 이후 다시 실행돼 정상 완료했다. 다만 KV Cache를 반환했으므로, 원래 입력과 이미 생성한 출력 Token을 다시 모델에 넣어 K·V를 복구해야 했다. 기존 출력 Token을 새로 뽑는 것은 아니며, 저장된 Token ID로 Cache를 다시 만드는 과정이다.</p>
+<p>그 결과 A의 전체 응답 시간은 약 4.03초, B는 약 7.26초였다. Preemption으로 두 요청을 모두 완료할 수 있었지만, B에는 대기와 재계산 비용이 생겼다.</p>
+<p>왜 B가 선택됐는지, Block 29개를 반환했는데 Free가 28개인 이유, 재개할 때의 Prefill 기록은 <a href="03_prompt_length_kv_cache_pressure.html">KV Cache 고갈과 Preemption을 확인한 실험</a>에서 자세히 다룬다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>수용할 요청에 한계를 두면 초과 요청을 입구에서 거부한다</h2>
+<p>요청이 잠깐 몰리면 Waiting에 두었다가 처리할 수 있다. 하지만 서버가 처리할 수 있는 양보다 많은 작업이 계속 들어오면 대기가 쌓인다. 이런 상태가 Overload, 즉 과부하다.</p>
+<p>새 요청을 어디까지 받을지 결정하는 기능이 Admission Control이다. 이번에는 두 가지 제한을 적용했다.</p>
+<p><code>max_num_queued_reqs=2</code>를 설정했을 때는 A와 B가 처리 중인 상태에서 세 번째 C를 보냈다. C는 약 2.76ms 만에 HTTP 503을 받았다. 이 설정은 이번 버전에서 Running과 Waiting을 합친 미완료 요청 수를 기준으로 동작했다.</p>
+<p><code>max_num_queued_tokens=400</code>을 설정했을 때는 A가 실행 중이고, 입력 433Token인 B가 Waiting인 상태에서 C를 보냈다. 현재 Prefill 대기량이 이미 400Token 이상이었으므로 C는 약 2.83ms 만에 HTTP 503을 받았다.</p>
+<p>두 실험 모두 C의 Request ID가 Scheduler Trace에 없었다. C를 Queue에 넣기 전에 거부했고, 이미 수용한 A와 B는 정상 완료했다.</p>
+<p>여기서 Token 제한 400은 “새 요청까지 더해 항상 400 이하로 유지한다”는 뜻이 아니었다. 사용한 버전은 현재 대기량을 검사했기 때문에 B가 들어와 433Token이 된 뒤 다음 요청 C를 거부했다. 이런 세부 동작까지 알아야 설정값이 실제로 무엇을 제한하는지 해석할 수 있다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>서버가 수용해도 Client가 기다리기를 포기할 수 있다</h2>
+<p>이번에는 실행 자리를 하나로 줄이고 A가 긴 답변을 생성하게 했다. 뒤이어 보낸 B는 서버에 수용됐지만 자리가 없어 Waiting에 들어갔다.</p>
+<p>B의 Client에는 Read Timeout을 0.5초로 설정했다. 읽을 응답 데이터가 오지 않는 상태로 이 시간이 지나자 약 521.70ms에 <code>ReadTimeout</code>이 발생했다. Read Timeout은 요청 전체의 완료 시간을 재는 제한이 아니라, 응답 데이터를 기다리는 읽기 작업의 시간 제한이다.</p>
+<p>Client가 응답 Stream을 닫은 뒤에는 B가 Waiting에서 제거됐다. A는 그대로 정상 완료했고 서버도 계속 응답했다.</p>
+<p>Admission Reject와 구분하는 핵심은 B가 이미 수용됐다는 점이다. B의 Scheduler Trace와 Waiting 기록은 있었지만, 첫 Content를 받기 전에 Client가 대기를 중단했다. 반면 앞의 HTTP 503 요청은 Scheduler에 들어가지 않았다.</p>
+<p>두 Admission 실험의 설정·응답과 Timeout 후 요청 정리 과정은 <a href="04_admission_failure_boundary.html">초과 요청 거부와 수용된 요청의 취소</a>에 담았다. 연결 종료가 어떻게 서버의 요청 취소로 이어지는지도 이 문서에서 설명한다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>요청을 더 보내도 처리량이 늘지 않는 구간이 있다</h2>
+<p>요청이 많아질 때 반드시 오류가 발생해야 한계에 도달한 것은 아니다. 서버가 계속 정상 응답하더라도, 동시 요청을 더 늘렸을 때 초당 처리량은 그대로이고 대기시간만 길어질 수 있다. 이것이 Throughput 포화다.</p>
+<p>별도로 수행한 Continuous Batching 실험에서는 동시 요청 수를 1에서 4로 높이자 Output Throughput이 약 64에서 124 token/s로 증가했다. 그러나 8로 높여도 약 124 token/s였고, 16에서는 약 119 token/s였다. 그동안 최대 Waiting은 2개에서 6개, 14개로 늘었다.</p>
+<p>이 결과는 당시 설정에서 추가 요청이 더 높은 처리량으로 이어지지 않았음을 보여 준다. 다만 이번 59Block 제한 서버에서 다시 측정한 결과는 아니므로, 두 환경의 포화 지점을 같다고 보지는 않는다.</p>
+<p>포화가 항상 Token Budget 소진을 뜻하는 것도 아니다. 긴 Prefill이 많으면 한 Iteration에 배정할 Token Budget을 채워 뒤 요청이 밀릴 수 있다. Decode 중심이라면 Budget이 남아 있어도 <code>max_num_seqs</code>나 GPU 처리 능력이 먼저 한계에 도달할 수 있다.</p>
+<p>별도 Sweep의 수치와 이번 실험에서 확인한 상태를 함께 비교한 내용은 <a href="05_result_interpretation.html">전체 결과와 운영 설정의 해석</a>으로 이어진다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>같은 지연이라도 원인을 구분해야 설정을 바꿀 수 있다</h2>
+<p>이번 실험에서는 실행 자리가 부족한 요청은 Waiting에 머물렀고, KV Cache가 고갈되자 이미 Running이던 요청이 Preemption됐다. Admission 한계를 넘은 요청은 HTTP 503으로 거부됐으며, 수용된 요청도 Client가 기다리기를 포기하면 Queue에서 제거됐다.</p>
+<p>관찰한 실행에서는 OOM이 발생하지 않았다. KV Cache Pool이 가득 찬 상태에서 Preemption으로 실행을 이어갈 수 있었고, Admission과 Client 취소도 동작했다. 이 결과가 모든 부하에서 OOM을 막아 준다는 보장은 아니지만, Pool 고갈과 실제 메모리 할당 실패가 서로 다른 사건이라는 점은 확인할 수 있었다.</p>
+<p>따라서 설정을 고를 때는 어떤 문제가 관찰됐는지부터 구분해야 한다. 실행 자리가 모자라면 동시 실행 수를 검토하되 KV Cache 여유도 함께 봐야 한다. Preemption이 잦으면 동시에 유지하는 Context와 Pool 용량을 살펴야 한다. Queue가 길어 사용자 대기시간이 커진다면 Admission 한계와 서비스가 허용할 대기시간을 함께 정해야 한다.</p>
+<p>이 판단의 기준이 되는 것이 SLO다. 사용자가 첫 Token을 얼마나 기다려도 되는지, 어느 정도의 응답 시간과 오류율을 허용할지를 정한 뒤, 그 조건을 만족하는 서버 설정과 부하 범위를 선택한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="01_experiment_setup.html">제한된 KV Cache Pool에서 과부하 경계를 관찰할 환경 만들기</a></li>
+<li><a href="02_concurrency_queue_saturation.html">Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다</a></li>
+<li><a href="03_prompt_length_kv_cache_pressure.html">두 긴 요청이 KV Cache Pool을 채우자 Running 요청 하나가 Preemption됐다</a></li>
+<li><a href="04_admission_failure_boundary.html">Admission Control은 초과 요청을 거부하고 Client Timeout은 수용된 요청을 취소한다</a></li>
+<li><a href="05_result_interpretation.html">KV Cache Pressure와 Overload 실험 결과 해석</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

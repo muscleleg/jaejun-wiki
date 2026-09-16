@@ -1,0 +1,235 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.md. Do not edit directly. source-sha256:27a40735f302eeb408b392d4ada0926ee11baac66c445795721d77015bd58cab -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="실행 자리 두 개에 요청 세 개를 보내 Waiting과 TTFT 증가를 확인한다.">
+  <meta name="source-sha256" content="27a40735f302eeb408b392d4ada0926ee11baac66c445795721d77015bd58cab">
+  <title>Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다">
+  <meta property="og:description" content="실행 자리 두 개에 요청 세 개를 보내 Waiting과 TTFT 증가를 확인한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html","name":"Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다","description":"실행 자리 두 개에 요청 세 개를 보내 Waiting과 TTFT 증가를 확인한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html"},"headline":"Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/02_concurrency_queue_saturation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html"},{"@type":"ListItem","position":7,"name":"Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_pressure_overload/index.html">vLLM에 요청이 몰리면 일어나는 일: 대기, 중단, 거부와 Timeout</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Sequence 자리가 부족하면 세 번째 요청은 Waiting에서 앞 요청의 완료를 기다린다</h1>
+      <p class="lead">실행 자리 두 개에 요청 세 개를 보내 Waiting과 TTFT 증가를 확인한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">세 요청을 두 개의 실행 자리에 보냈다</a>
+        <a href="#section-2">실제로 Running 2개와 Waiting 1개가 관찰됐다</a>
+        <a href="#section-3">KV Cache 부족으로 발생한 Waiting은 아니었다</a>
+        <a href="#section-4">이번 실험이 확인한 범위</a>
+        <a href="#section-5">처리량 포화의 의미는 별도 Concurrency Sweep에서 확인했다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 실험은 KV Cache를 고갈시키지 않고 <code>max_num_seqs</code>의 실행 자리만 부족하게 만들었다. 목적은 Waiting이 생겼다는 사실만 보고 KV Cache 부족이나 Preemption으로 오해하지 않도록 두 상태를 분리하는 것이다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>세 요청을 두 개의 실행 자리에 보냈다</h2>
+<p>Server 설정과 Client 부하는 다음과 같았다.</p>
+<pre><code class="language-text">Server max_num_seqs = 2
+Client 동시 요청 = 3개
+A·B·C 최대 출력 = 각각 256Token
+</code></pre>
+<p>Client에서는 <code>ThreadPoolExecutor(max_workers=3)</code>으로 A·B·C 작업 세 개를 제출했다. 세 Worker는 <code>Barrier</code>에서 기다렸다가 거의 같은 시각에 HTTP 요청을 시작했다.</p>
+<pre><code class="language-python">request_start_gate = threading.Barrier(3)
+
+with ThreadPoolExecutor(
+    max_workers=3,
+) as executor:
+    futures = [
+        executor.submit(
+            send_request,
+            request_record,
+            experiment_started_at,
+        )
+        for request_record in requests
+    ]
+</code></pre>
+<p>여기서 Worker가 세 개라는 것은 Client가 세 HTTP 요청을 동시에 진행할 수 있다는 뜻이다. Server가 세 Sequence를 동시에 Running으로 실행한다는 뜻은 아니다. Server의 Running 상한은 여전히 <code>max_num_seqs=2</code>다.</p>
+<p>요청이 진행되는 동안 <code>/metrics</code>를 주기적으로 읽었다.</p>
+<pre><code class="language-python">while not all(
+    future.done()
+    for future in futures
+):
+    metric_samples.append(
+        read_metric_sample(
+            metrics_client,
+            experiment_started_at,
+        )
+    )
+
+    time.sleep(0.02)
+</code></pre>
+<p>측정한 값은 Running, Waiting, KV Cache Usage와 누적 Preemption 수다. 요청이 끝난 뒤에는 Running과 Waiting이 모두 0으로 돌아갈 때까지 확인했다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>실제로 Running 2개와 Waiting 1개가 관찰됐다</h2>
+<pre><code class="language-text">=== Sequence 자리 부족으로 발생한 Waiting 확인 ===
+Client 동시 요청: 3
+Server max_num_seqs: 2
+Max Running: 2
+Max Waiting: 1
+Max KV Cache Usage: 69.49%
+Preemption 증가: 0
+Trace Preempted Request: []
+Block 반환 기록: 3
+종료 후 Free Block: 59
+
+요청 | Prompt | Output | TTFT ms | Latency ms | 종료 이유
+------------------------------------------------------------------------------
+   A |     68 |    256 |   85.64 |    4048.59 | length
+   B |     60 |    256 |   72.19 |    4018.91 | length
+   C |     59 |    256 | 4052.13 |    7938.56 | length
+
+전체 검증 통과: True
+</code></pre>
+<p>A와 B의 TTFT는 각각 약 86ms와 72ms였다. 두 요청은 처음부터 Running으로 들어가 Prefill을 수행하고 첫 Token을 만들 수 있었다.</p>
+<p>C의 TTFT는 약 4,052ms였다. 이는 A와 B의 전체 Latency 약 4초와 거의 같다.</p>
+<pre><code class="language-text">A·B가 두 Sequence 자리 사용
+→ C는 Waiting
+→ A 또는 B가 약 4초 뒤 완료
+→ 빈 Sequence 자리에 C 편입
+→ C Prefill
+→ C 첫 Token 도착
+</code></pre>
+<p>따라서 C의 TTFT가 긴 이유는 C의 Prompt가 길거나 Decode가 느려서가 아니다. C가 실행 자리를 얻기 전에 Waiting Queue에서 약 4초를 기다렸기 때문이다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>KV Cache 부족으로 발생한 Waiting은 아니었다</h2>
+<p>이번 실행의 최대 KV Cache Usage는 69.49%였다. 아직 요청용 Block이 남아 있었고 Preemption도 한 번도 증가하지 않았다.</p>
+<pre><code class="language-text">Max Running = 2
+Max Waiting = 1
+KV Cache Usage &lt; 100%
+Preemption = 0
+</code></pre>
+<p>이 조합은 다음 원인을 가리킨다.</p>
+<pre><code class="language-text">KV Cache 공간은 남아 있음
++ max_num_seqs 두 자리는 이미 사용 중
+→ C가 Sequence 자리를 기다림
+</code></pre>
+<p>즉, Waiting은 반드시 KV Cache 부족 때문에 생기는 상태가 아니다. 실행 가능한 Sequence 수가 제한돼도 발생한다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>이번 실험이 확인한 범위</h2>
+<p>이번 실험은 Concurrency <code>1·2·4·8·16</code> 전체를 반복해서 Throughput 포화점을 찾은 Sweep이 아니다. 세 요청과 두 Sequence 자리라는 한 조건에서 다음 상태 전이만 직접 확인했다.</p>
+<pre><code class="language-text">Client 요청 3개
+→ Server Running 2개
+→ Server Waiting 1개
+→ 앞 요청 완료 후 Waiting 요청 실행
+→ 모든 요청 정상 완료
+→ Free Block 59개 복구
+</code></pre>
+<p>따라서 여기서 확인한 경계는 <code>max_num_seqs=2</code>일 때 세 번째 동시 요청부터 Waiting이 생겼다는 것이다. 일반적인 처리량 포화점이나 운영 가능한 최대 동시 사용자 수는 이 한 번의 결과만으로 정하지 않는다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>처리량 포화의 의미는 별도 Concurrency Sweep에서 확인했다</h2>
+<p>이번 59Block Server에서는 전체 Sweep을 반복하지 않았다. 하지만 같은 학습 과정의 별도 Continuous Batching 실험에서는 동일한 16개 요청을 Client Concurrency <code>1·4·8·16</code>으로 실행해 다음 결과를 얻었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Client Concurrency</th>
+<th align="right">Output Throughput [token/s]</th>
+<th align="right">TTFT p95 [ms]</th>
+<th align="right">Max Running</th>
+<th align="right">Max Waiting</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">63.67</td>
+<td align="right">49.49</td>
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">124.27</td>
+<td align="right">1,581.20</td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">124.17</td>
+<td align="right">3,523.37</td>
+<td align="right">2</td>
+<td align="right">6</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">118.82</td>
+<td align="right">6,621.09</td>
+<td align="right">2</td>
+<td align="right">14</td>
+</tr>
+</tbody></table>
+</div>
+<p>Concurrency 1에서 4로 높였을 때는 Running Sequence를 두 개까지 활용하면서 Throughput이 약 두 배가 됐다. 하지만 4에서 8과 16으로 높여도 Max Running은 2에서 늘지 않았고 Throughput도 증가하지 않았다. 추가 요청은 Waiting에 쌓였고 TTFT만 크게 증가했다.</p>
+<pre><code class="language-text">포화 전
+→ 동시 요청 증가
+→ GPU의 남은 처리 능력 사용
+→ Throughput 증가
+
+포화 후
+→ Running 수는 상한에 도달
+→ 추가 요청은 Waiting
+→ Throughput은 정체 또는 감소
+→ TTFT 증가
+</code></pre>
+<p>이 결과에서 Token Budget을 모두 사용했다고 볼 근거는 없었다. 당시 <code>max_num_batched_tokens=4096</code>, <code>max_num_seqs=2</code>였고 Decode 중심 Iteration에서는 두 Running Sequence가 일반적으로 1Token씩, 합계 약 2Token을 배정받는다.</p>
+<pre><code class="language-text">Token Budget = 4,096
+A Decode = 1Token
+B Decode = 1Token
+Scheduled Token 합계 = 2Token
+</code></pre>
+<p>따라서 이 조건의 포화는 Token Budget 4,096을 모두 써서 생긴 현상이라기보다, Running Sequence 자리가 두 개로 제한되고 그 상태에서 GPU가 낼 수 있는 처리량이 더 늘지 않은 현상에 가깝다.</p>
+<p>긴 Prefill 요청이 여러 개 들어오는 조건에서는 상황이 다르다. 하나의 Prefill이 수백 Token을 배정받아 Token Budget을 채울 수 있고, 뒤 요청의 Prefill Chunk가 작아지거나 시작이 늦어져 TTFT가 증가할 수 있다. Prefill이 끝난 뒤 Decode만 남으면 Sequence당 일반적으로 1Token을 배정하므로 Token Budget 부담은 줄지만, Running Sequence가 많아질수록 GPU Batch와 KV Cache 접근량이 증가해 TPOT가 느려질 수 있다.</p>
+<p>별도 Sweep 수치는 이번 59Block Server의 정확한 포화점을 증명하지는 않는다. 여기서는 <code>처리량 포화가 무엇인지</code>와 <code>포화 이후 Waiting과 TTFT가 증가하는 이유</code>를 이해하는 참고 근거로 사용한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
