@@ -1,0 +1,605 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.md. Do not edit directly. source-sha256:f5ae30c6e404c8ef8404cd17908c8747ae9f54e8773b68a6c70b24e8ab56fb13 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Decode 중인 A, 긴 Prefill B, 짧은 요청 C를 함께 실행하기 위한 고정 조건과 실제 Prompt·출력 길이, Trace 수집 경계를 정리합니다.">
+  <meta name="source-sha256" content="f5ae30c6e404c8ef8404cd17908c8747ae9f54e8773b68a6c70b24e8ab56fb13">
+  <title>Chunked Prefill 실험 준비</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Chunked Prefill 실험 준비">
+  <meta property="og:description" content="Decode 중인 A, 긴 Prefill B, 짧은 요청 C를 함께 실행하기 위한 고정 조건과 실제 Prompt·출력 길이, Trace 수집 경계를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html","name":"Chunked Prefill 실험 준비","description":"Decode 중인 A, 긴 Prefill B, 짧은 요청 C를 함께 실행하기 위한 고정 조건과 실제 Prompt·출력 길이, Trace 수집 경계를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html"},"headline":"Chunked Prefill 실험 준비","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/chunked_prefill_token_budget_validation/01_experiment_setup.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_chunked_prefill_token_budget.html"},{"@type":"ListItem","position":7,"name":"Chunked Prefill 실험 준비"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_chunked_prefill_token_budget.html">Chunked Prefill: 긴 입력과 생성 중인 요청이 GPU 시간을 나누는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Chunked Prefill 실험 준비</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Chunked Prefill 실험 준비</h1>
+      <p class="lead">Decode 중인 A, 긴 Prefill B, 짧은 요청 C를 함께 실행하기 위한 고정 조건과 실제 Prompt·출력 길이, Trace 수집 경계를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-a930639bef20">확인하려는 장면</a>
+        <a href="#section-a0058555d379">고정할 조건</a>
+        <a href="#section-5d44ef916885">요청별 역할</a>
+        <a href="#section-b5fb45e37dda">수집할 기록</a>
+        <a href="#section-7fde1674c507">실행 기록</a>
+        <a href="#a-b-c-prompt">A·B·C Prompt를 만드는 방법</a>
+        <a href="#prompt">최소 제작 기준과 실제 Prompt 길이는 다를 수 있다</a>
+        <a href="#prompt-context">요청별 실제 Prompt와 최대 Context</a>
+        <a href="#max-model-len">세 요청이 <code>max_model_len</code> 안에 들어가는지 검사한다</a>
+        <a href="#notebook">Notebook 코드와 출력은 실행한 순서대로 보존한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 문서는 긴 Prefill과 기존 Decode가 같은 Scheduler 자원을 사용하는 상황을 만들기 위한 실제 실험 조건을 기록한다.</p>
+</div>
+        <section id="section-a930639bef20" class="markdown-section">
+<h2>확인하려는 장면</h2>
+<pre><code class="language-text">A를 먼저 전송
+→ A가 Decode 상태에 들어감
+
+A가 Decode 중일 때 B와 C 전송
+→ B는 긴 Prompt의 Prefill 수행
+→ C는 짧은 Prompt의 Prefill 수행
+</code></pre>
+<p>A·B·C를 단순히 동시에 보내는 것이 아니라, A가 실제 Decode 중인 것을 확인한 뒤 B와 C를 보내야 한다. 그래야 B의 긴 Prefill이 기존 Decode와 경쟁했는지 판단할 수 있다.</p>
+
+</section>
+<section id="section-a0058555d379" class="markdown-section">
+<h2>고정할 조건</h2>
+<p>2026-09-16에 이번 Pod에서 확인한 값은 다음과 같다.</p>
+<pre><code class="language-text">모델                    = Qwen/Qwen2.5-1.5B-Instruct
+Revision                = 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+GPU                     = NVIDIA RTX 2000 Ada Generation 16GB
+Python                  = 3.12.3
+vLLM                    = 0.29.0
+PyTorch                 = 2.13.0+cu130
+Transformers            = 5.17.0
+dtype                   = float16 예정
+max_model_len           = 1,024Token으로 계획
+max_num_seqs            = A·B·C의 동시 실행 조건을 확인한 뒤 확정
+Prefix Caching         = OFF 예정
+Block Size             = 16Token 예정
+요청 반복 횟수         = 실험 전 확정
+</code></pre>
+<p>Chunked Prefill OFF·ON 비교에서는 해당 설정 외의 조건을 바꾸지 않는다. Token Budget 비교에서는 Chunked Prefill을 ON으로 유지하고 <code>max_num_batched_tokens</code>만 바꾼다.</p>
+
+</section>
+<section id="section-5d44ef916885" class="markdown-section">
+<h2>요청별 역할</h2>
+<pre><code class="language-text">A
+→ 출력 길이를 충분히 길게 설정
+→ B와 C가 도착할 때 Decode 상태를 유지
+
+B
+→ 긴 Prompt 사용
+→ 여러 Iteration으로 나눌 Prefill 대상
+
+C
+→ 짧은 Prompt 사용
+→ B의 긴 Prefill 때문에 짧은 요청까지 늦어지는지 확인
+</code></pre>
+<p>실제 Prompt Token 수와 출력 설정은 Tokenizer로 계산한 뒤 기록한다. “긴 Prompt”나 “짧은 Prompt”라는 이름만으로 조건을 판단하지 않는다.</p>
+
+</section>
+<section id="section-b5fb45e37dda" class="markdown-section">
+<h2>수집할 기록</h2>
+<p>Scheduler Trace에는 다음 값을 남긴다.</p>
+<pre><code class="language-text">Iteration 번호
+Request ID
+work_phase = prefill 또는 decode
+요청별 scheduled_tokens
+Iteration 전체 scheduled_tokens 합계
+</code></pre>
+<p>초기 계획에서는 <code>/metrics</code>를 주기적으로 읽어 Running·Waiting 상태도 함께 저장하려 했다. 하지만 최종 3조건 반복 측정 파일에는 <code>/metrics</code> 표본을 넣지 않았고, Running·Waiting 수치도 결과 판정에 사용하지 않았다. 따라서 이 실험이 실제로 보존한 Server 내부 근거는 Scheduler Trace의 요청별 Prefill·Decode 배정 기록이다. Running·Waiting 변화는 이번 결과로 확인했다고 주장하지 않는다.</p>
+<p>Client에서는 다음 값을 남긴다.</p>
+<pre><code class="language-text">요청 전송 시각
+첫 Content 도착 시각
+응답 완료 시각
+TTFT
+TPOT
+전체 Latency
+실제 Prompt·Output Token 수
+종료 이유와 오류
+</code></pre>
+
+</section>
+<section id="section-7fde1674c507" class="markdown-section">
+<h2>실행 기록</h2>
+<h3>실제 실행 환경을 읽어 JSON으로 저장했다</h3>
+<p>먼저 이번 실험을 실행하는 Python과 주요 Package의 버전, GPU 종류를 실제 실행 환경에서 읽었다. 출력한 값은 화면에서만 확인하고 버리지 않고 <code>environment_snapshot.json</code>으로도 저장했다.</p>
+<pre><code class="language-python">import json
+import platform
+import sys
+from pathlib import Path
+
+import httpx
+import torch
+import transformers
+import vllm
+
+results_root = Path(
+    &quot;/root/transformer-practice/transformer/research/&quot;
+    &quot;vllm_scheduler_kv_cache_criteria/results/&quot;
+    &quot;2026-09-16-chunked-prefill&quot;
+)
+environment_directory = results_root / &quot;environment&quot;
+environment_directory.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+environment_snapshot = {
+    &quot;python&quot;: {
+        &quot;executable&quot;: sys.executable,
+        &quot;version&quot;: platform.python_version(),
+        &quot;platform&quot;: platform.platform(),
+    },
+    &quot;packages&quot;: {
+        &quot;torch&quot;: torch.__version__,
+        &quot;transformers&quot;: transformers.__version__,
+        &quot;vllm&quot;: vllm.__version__,
+        &quot;httpx&quot;: httpx.__version__,
+    },
+    &quot;gpu&quot;: {
+        &quot;cuda_available&quot;: torch.cuda.is_available(),
+        &quot;name&quot;: torch.cuda.get_device_name(0),
+        &quot;total_memory_bytes&quot;: (
+            torch.cuda
+            .get_device_properties(0)
+            .total_memory
+        ),
+        &quot;torch_cuda_version&quot;: torch.version.cuda,
+    },
+}
+
+environment_snapshot_path = (
+    environment_directory
+    / &quot;environment_snapshot.json&quot;
+)
+
+environment_snapshot_path.write_text(
+    json.dumps(
+        environment_snapshot,
+        indent=2,
+    ),
+    encoding=&quot;utf-8&quot;,
+)
+
+print(&quot;=== Chunked Prefill 실험 환경 ===&quot;)
+print(
+    &quot;Python:&quot;,
+    environment_snapshot[&quot;python&quot;][&quot;version&quot;],
+)
+print(
+    &quot;vLLM:&quot;,
+    environment_snapshot[&quot;packages&quot;][&quot;vllm&quot;],
+)
+print(
+    &quot;PyTorch:&quot;,
+    environment_snapshot[&quot;packages&quot;][&quot;torch&quot;],
+)
+print(
+    &quot;Transformers:&quot;,
+    environment_snapshot[
+        &quot;packages&quot;
+    ][&quot;transformers&quot;],
+)
+print(
+    &quot;GPU:&quot;,
+    environment_snapshot[&quot;gpu&quot;][&quot;name&quot;],
+)
+print(
+    &quot;CUDA:&quot;,
+    environment_snapshot[
+        &quot;gpu&quot;
+    ][&quot;torch_cuda_version&quot;],
+)
+print(
+    &quot;환경 저장:&quot;,
+    environment_snapshot_path,
+)
+</code></pre>
+<p>실제 실행 결과는 다음과 같았다.</p>
+<pre><code class="language-text">=== Chunked Prefill 실험 환경 ===
+Python: 3.12.3
+vLLM: 0.29.0
+PyTorch: 2.13.0+cu130
+Transformers: 5.17.0
+GPU: NVIDIA RTX 2000 Ada Generation
+CUDA: 13.0
+환경 저장: /root/transformer-practice/transformer/research/vllm_scheduler_kv_cache_criteria/results/2026-09-16-chunked-prefill/environment/environment_snapshot.json
+</code></pre>
+<h3>고정한 모델 Revision의 파일을 준비하고 검사했다</h3>
+<p>다음으로 <code>Qwen/Qwen2.5-1.5B-Instruct</code>의 특정 Revision을 지정했다. 로컬 모델 폴더에 파일이 없으면 해당 Revision을 내려받고, 준비가 끝나면 Config·Tokenizer Config·Weight 파일이 실제로 존재하는지 <code>assert</code>로 검사했다.</p>
+<pre><code class="language-python">from huggingface_hub import snapshot_download
+
+model_id = (
+    &quot;Qwen/Qwen2.5-1.5B-Instruct&quot;
+)
+
+model_revision = (
+    &quot;989aa7980e4cf806f80c7fef2b1adb7bc71aa306&quot;
+)
+
+model_artifact_path = Path(
+    &quot;/root/models/&quot;
+    &quot;Qwen2.5-1.5B-Instruct-989aa798&quot;
+)
+
+snapshot_download(
+    repo_id=model_id,
+    revision=model_revision,
+    local_dir=model_artifact_path,
+)
+
+config_path = (
+    model_artifact_path / &quot;config.json&quot;
+)
+
+tokenizer_config_path = (
+    model_artifact_path
+    / &quot;tokenizer_config.json&quot;
+)
+
+weight_paths = sorted(
+    model_artifact_path.glob(
+        &quot;*.safetensors&quot;
+    )
+)
+
+assert config_path.is_file(), config_path
+assert tokenizer_config_path.is_file(), (
+    tokenizer_config_path
+)
+assert weight_paths, model_artifact_path
+
+print(&quot;=== 모델 Artifact 준비 완료 ===&quot;)
+print(&quot;Model ID:&quot;, model_id)
+print(&quot;Revision:&quot;, model_revision)
+print(&quot;저장 경로:&quot;, model_artifact_path)
+print(&quot;Weight 파일 수:&quot;, len(weight_paths))
+print(&quot;Config:&quot;, config_path.name)
+print(
+    &quot;Tokenizer Config:&quot;,
+    tokenizer_config_path.name,
+)
+print(
+    &quot;Weight:&quot;,
+    [
+        path.name
+        for path in weight_paths
+    ],
+)
+</code></pre>
+<p>실제 실행 결과는 다음과 같았다.</p>
+<pre><code class="language-text">=== 모델 Artifact 준비 완료 ===
+Model ID: Qwen/Qwen2.5-1.5B-Instruct
+Revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+저장 경로: /root/models/Qwen2.5-1.5B-Instruct-989aa798
+Weight 파일 수: 1
+Config: config.json
+Tokenizer Config: tokenizer_config.json
+Weight: [&#39;model.safetensors&#39;]
+</code></pre>
+
+</section>
+<section id="a-b-c-prompt" class="markdown-section">
+<h2>A·B·C Prompt를 만드는 방법</h2>
+<p>이번 실험에서는 역할이 다른 세 요청을 사용한다.</p>
+<pre><code class="language-text">A
+→ 짧은 Prompt와 긴 출력을 사용한다.
+→ 가장 먼저 보내 B와 C가 도착했을 때도 Decode 중인 상태를 만든다.
+
+B
+→ 긴 Prompt와 짧은 출력을 사용한다.
+→ A가 Decode 중일 때 긴 Prefill을 발생시킨다.
+
+C
+→ 짧은 Prompt와 짧은 출력을 사용한다.
+→ B의 긴 Prefill이 짧은 요청의 시작까지 늦추는지 확인한다.
+</code></pre>
+<p>각 Prompt를 처음부터 정확히 <code>64·768·128Token</code>으로 준비한 것은 아니다. 먼저 <code>initial_text</code>를 넣고 Qwen Chat Template과 Tokenizer를 적용해 실제 Prompt Token 수를 계산한다. 계산 결과가 요청별 최소 제작 기준보다 짧으면 동일한 <code>filler_text</code> 문장 전체를 한 번 추가한 뒤 전체 Prompt를 다시 Tokenize한다.</p>
+<pre><code class="language-text">initial_text로 Prompt 생성
+→ Chat Template 적용
+→ Tokenizer로 실제 Prompt Token 수 계산
+→ 최소 제작 기준보다 짧으면 filler_text 문장 전체 추가
+→ 늘어난 전체 Prompt를 다시 Tokenize
+→ 최소 제작 기준 이상이 되면 반복 종료
+</code></pre>
+<p>이 흐름은 다음 함수로 구현한다.</p>
+<pre><code class="language-python">def encode_chat_prompt(
+    tokenizer: Any,
+    prompt_text: str,
+) -&gt; list[int]:
+    messages = [
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: prompt_text,
+        }
+    ]
+
+    chat_prompt: str = (
+        tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    )
+
+    return tokenizer.encode(
+        chat_prompt,
+        add_special_tokens=False,
+    )
+
+
+def build_request_case(
+    *,
+    tokenizer: Any,
+    label: str,
+    target_prompt_tokens: int,
+    max_tokens: int,
+    initial_text: str,
+    filler_text: str,
+    planned_max_model_len: int,
+) -&gt; dict[str, Any]:
+    prompt_parts: list[str] = [
+        initial_text,
+    ]
+
+    while True:
+        prompt_text = &quot; &quot;.join(
+            prompt_parts
+        )
+
+        prompt_token_ids = (
+            encode_chat_prompt(
+                tokenizer=tokenizer,
+                prompt_text=prompt_text,
+            )
+        )
+
+        actual_prompt_tokens = len(
+            prompt_token_ids
+        )
+
+        if (
+            actual_prompt_tokens
+            &gt;= target_prompt_tokens
+        ):
+            break
+
+        prompt_parts.append(
+            filler_text
+        )
+
+    maximum_context_tokens = (
+        actual_prompt_tokens
+        + max_tokens
+    )
+
+    assert (
+        maximum_context_tokens
+        &lt;= planned_max_model_len
+    )
+
+    return {
+        &quot;label&quot;: label,
+        &quot;target_prompt_tokens&quot;: (
+            target_prompt_tokens
+        ),
+        &quot;actual_prompt_tokens&quot;: (
+            actual_prompt_tokens
+        ),
+        &quot;max_tokens&quot;: max_tokens,
+        &quot;maximum_context_tokens&quot;: (
+            maximum_context_tokens
+        ),
+        &quot;prompt_text&quot;: prompt_text,
+        &quot;prompt_token_ids&quot;: (
+            prompt_token_ids
+        ),
+    }
+</code></pre>
+<p><code>prompt_text</code>는 현재까지 <code>prompt_parts</code>에 누적된 모든 문장을 하나로 합친 실제 입력 문자열이다.</p>
+<pre><code class="language-python">prompt_text = &quot; &quot;.join(
+    prompt_parts
+)
+</code></pre>
+<p><code>filler_text</code>는 최소 제작 기준에 도달하지 못했을 때 추가하는 보충 문장이다.</p>
+<pre><code class="language-python">prompt_parts.append(
+    filler_text
+)
+</code></pre>
+<p>따라서 반복할 때마다 Prompt는 다음 순서로 길어진다.</p>
+<pre><code class="language-text">처음
+initial_text
+
+filler_text를 한 번 추가한 뒤
+initial_text + filler_text
+
+filler_text를 두 번 추가한 뒤
+initial_text + filler_text + filler_text
+</code></pre>
+
+</section>
+<section id="prompt" class="markdown-section">
+<h2>최소 제작 기준과 실제 Prompt 길이는 다를 수 있다</h2>
+<p>코드의 <code>target_prompt_tokens</code>는 Prompt를 정확히 그 길이로 만들라는 값이 아니다. <strong>실제 Prompt가 이 값 이상이 되면 보충 문장 추가를 멈춘다</strong>는 최소 제작 기준이다.</p>
+<p><code>filler_text</code>는 부족한 Token 수만큼 잘라서 넣지 않는다. 보충 문장 전체를 한 번에 추가하므로 최종 Prompt는 최소 제작 기준을 넘어갈 수 있다.</p>
+<p>B를 만드는 과정에서는 이 차이가 다음처럼 나타났다.</p>
+<pre><code class="language-text">최소 Prompt 제작 기준
+→ 768Token 이상
+
+filler_text를 14회 추가한 결과
+→ 704Token
+→ 768Token보다 짧으므로 계속 추가
+
+filler_text를 15회 추가한 결과
+→ 750Token
+→ 여전히 768Token보다 짧으므로 한 번 더 추가
+
+filler_text를 16회 추가한 결과
+→ 796Token
+→ 768Token 이상이므로 반복 종료
+</code></pre>
+<p>15회 반복한 상태에서는 최소 제작 기준까지 18Token이 부족하다.</p>
+<pre><code class="language-text">768 - 750 = 18Token 부족
+</code></pre>
+<p>하지만 코드는 <code>filler_text</code>에서 18Token만 잘라서 넣지 않는다. 해당 보충 문장 전체가 46Token이므로 46Token을 모두 추가한다.</p>
+<pre><code class="language-text">마지막 보충 문장 추가 전 = 750Token
+보충 문장 전체           = 46Token
+
+750 + 46 = 796Token
+</code></pre>
+<p>그러므로 B의 <code>768Token</code>은 최종 길이가 아니라 최소 제작 중단 기준이고, 실제 요청에 사용하는 Prompt는 <code>796Token</code>이다.</p>
+
+</section>
+<section id="prompt-context" class="markdown-section">
+<h2>요청별 실제 Prompt와 최대 Context</h2>
+<h3>A는 짧은 Prompt를 입력하고 긴 출력을 생성한다</h3>
+<p>A의 최초 문장은 다음과 같다.</p>
+<pre><code class="language-text">인공지능 추론 서버의 구조를 초보자도 이해할 수 있도록 여러 문단으로 자세히 설명해 주세요.
+</code></pre>
+<p>최초 문장만으로 64Token에 도달하지 않아 다음 보충 문장을 한 번 추가한다.</p>
+<pre><code class="language-text">각 개념의 원인과 결과를 구체적인 예시와 함께 설명해 주세요.
+</code></pre>
+<p>실제로 사용할 A의 Prompt는 다음과 같다.</p>
+<pre><code class="language-text">인공지능 추론 서버의 구조를 초보자도 이해할 수 있도록 여러 문단으로 자세히 설명해 주세요. 각 개념의 원인과 결과를 구체적인 예시와 함께 설명해 주세요.
+</code></pre>
+<pre><code class="language-text">최소 Prompt 제작 기준 = 64Token 이상
+실제 Prompt            = 81Token
+요청별 최대 출력 설정  = 800Token
+최대 Context           = 81 + 800 = 881Token
+</code></pre>
+<p><code>881Token</code>은 이미 출력 800Token이 생성됐다는 뜻이 아니다. 현재 입력된 Prompt 81Token에 앞으로 생성할 수 있는 출력의 최대치 800Token을 더한 요청의 최대 전체 길이다.</p>
+<h3>B는 긴 Prompt를 입력해 긴 Prefill을 발생시킨다</h3>
+<p>B의 최초 문장은 다음과 같다.</p>
+<pre><code class="language-text">다음은 긴 기술 문서입니다. 문서 전체를 읽고 핵심 내용을 한 문단으로 요약해 주세요.
+</code></pre>
+<p>다음 보충 문장 전체를 최소 제작 기준에 도달할 때까지 반복해서 추가한다.</p>
+<pre><code class="language-text">대규모 언어 모델 추론 서버는 여러 요청의 입력 처리와 출력 생성을 같은 GPU에서 조정해야 한다. Scheduler는 각 실행 회차마다 처리할 요청과 Token 수를 선택한다.
+</code></pre>
+<p>실제 B의 Prompt에는 최초 문장 뒤에 이 보충 문장 전체가 16번 들어간다.</p>
+<pre><code class="language-text">최소 Prompt 제작 기준 = 768Token 이상
+실제 Prompt            = 796Token
+요청별 최대 출력 설정  = 32Token
+최대 Context           = 796 + 32 = 828Token
+</code></pre>
+<p>B는 A가 Decode 중일 때 전송한다. B의 Prompt 796Token을 Prefill해야 하므로 Chunked Prefill 설정에 따라 한 Iteration에 모두 배정되는지, 여러 Iteration으로 나뉘어 배정되는지 관찰할 수 있다.</p>
+<h3>C는 긴 Prefill과 비슷한 시점에 도착하는 짧은 요청이다</h3>
+<p>C의 최초 문장은 다음과 같다.</p>
+<pre><code class="language-text">Chunked Prefill의 목적을 짧고 명확하게 설명해 주세요.
+</code></pre>
+<p>다음 보충 문장 전체를 4회 추가한다.</p>
+<pre><code class="language-text">긴 입력과 이미 생성 중인 요청이 함께 있을 때를 기준으로 설명해 주세요.
+</code></pre>
+<p>실제로 사용할 C의 Prompt는 다음과 같다.</p>
+<pre><code class="language-text">Chunked Prefill의 목적을 짧고 명확하게 설명해 주세요. 긴 입력과 이미 생성 중인 요청이 함께 있을 때를 기준으로 설명해 주세요. 긴 입력과 이미 생성 중인 요청이 함께 있을 때를 기준으로 설명해 주세요. 긴 입력과 이미 생성 중인 요청이 함께 있을 때를 기준으로 설명해 주세요. 긴 입력과 이미 생성 중인 요청이 함께 있을 때를 기준으로 설명해 주세요.
+</code></pre>
+<pre><code class="language-text">최소 Prompt 제작 기준 = 128Token 이상
+실제 Prompt            = 135Token
+요청별 최대 출력 설정  = 32Token
+최대 Context           = 135 + 32 = 167Token
+</code></pre>
+
+</section>
+<section id="max-model-len" class="markdown-section">
+<h2>세 요청이 <code>max_model_len</code> 안에 들어가는지 검사한다</h2>
+<p>세 요청의 실제 길이와 역할은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th align="right">최소 Prompt 제작 기준</th>
+<th align="right">실제 Prompt</th>
+<th align="right">최대 출력 설정</th>
+<th align="right">최대 Context</th>
+<th>실험에서 맡은 역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">64Token 이상</td>
+<td align="right">81Token</td>
+<td align="right">800Token</td>
+<td align="right">881Token</td>
+<td>먼저 전송해 Decode를 계속 수행</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">768Token 이상</td>
+<td align="right">796Token</td>
+<td align="right">32Token</td>
+<td align="right">828Token</td>
+<td>A가 Decode 중일 때 긴 Prefill 발생</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">128Token 이상</td>
+<td align="right">135Token</td>
+<td align="right">32Token</td>
+<td align="right">167Token</td>
+<td>긴 Prefill과 비슷한 시점에 도착하는 짧은 요청</td>
+</tr>
+</tbody></table>
+</div>
+<p>계획한 Server의 <code>max_model_len</code>은 1,024Token이다.</p>
+<pre><code class="language-text">A의 최대 Context = 881Token
+B의 최대 Context = 828Token
+C의 최대 Context = 167Token
+
+모두 1,024Token 이하
+→ 세 요청 모두 Server가 수용할 수 있는 길이
+</code></pre>
+<p>Prompt Token 수에는 사용자가 작성한 문장뿐 아니라 Qwen Chat Template이 추가한 Special Token도 포함된다.</p>
+
+</section>
+<section id="notebook" class="markdown-section">
+<h2>Notebook 코드와 출력은 실행한 순서대로 보존한다</h2>
+<p>환경 Snapshot과 모델 Artifact 준비 셀은 이미 Notebook에서 실행했으므로 위에 실제 코드와 출력을 함께 기록했다. A·B·C Workload 셀은 사용자가 Notebook에 직접 입력하고 실행한 뒤 다음 내용을 이 문서에 그대로 추가한다.</p>
+<pre><code class="language-text">Notebook에서 실제 실행한 Workload 코드
+A·B·C의 실제 Token 수 출력
+생성한 Workload JSON 저장 경로
+실행 중 발생한 오류와 최종 수정 코드
+</code></pre>
+<p>아직 vLLM Server를 실행하거나 HTTP 추론 요청을 보내지는 않았다. A·B·C Workload를 Notebook에서 직접 실행해 결과를 남긴 다음, 그 길이에 맞춰 <code>max_num_seqs</code>와 비교할 <code>max_num_batched_tokens</code>를 확정한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

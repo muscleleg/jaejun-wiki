@@ -1,0 +1,310 @@
+<!doctype html>
+<!-- Generated from content/wiki/python/python_thread_pool_submit_wait_set_result.md. Do not edit directly. source-sha256:aba3e98f30fbf194efcf82423d42f7f71c3420d1caccf95d3ed17fa3147c5dbf -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ThreadPoolExecutor에서 작업을 제출한 뒤 Main Thread가 언제 계속 진행하고, Event.wait·set과 Future.result가 각각 어떤 조건에서 대기를 해제하는지 실행 순서로 설명합니다.">
+  <meta name="source-sha256" content="aba3e98f30fbf194efcf82423d42f7f71c3420d1caccf95d3ed17fa3147c5dbf">
+  <title>ThreadPoolExecutor에서 submit·wait·set·result 구분하기</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="ThreadPoolExecutor에서 submit·wait·set·result 구분하기">
+  <meta property="og:description" content="ThreadPoolExecutor에서 작업을 제출한 뒤 Main Thread가 언제 계속 진행하고, Event.wait·set과 Future.result가 각각 어떤 조건에서 대기를 해제하는지 실행 순서로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html","name":"ThreadPoolExecutor에서 submit·wait·set·result 구분하기","description":"ThreadPoolExecutor에서 작업을 제출한 뒤 Main Thread가 언제 계속 진행하고, Event.wait·set과 Future.result가 각각 어떤 조건에서 대기를 해제하는지 실행 순서로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html"},"headline":"ThreadPoolExecutor에서 submit·wait·set·result 구분하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-python-concurrency","name":"동시성·비동기","identifier":"topics-python-concurrency"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_thread_pool_submit_wait_set_result.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Python","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-python"},{"@type":"ListItem","position":4,"name":"Python 언어 객체와 리소스 관리","item":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_language_objects_resources.html"},{"@type":"ListItem","position":5,"name":"Python 동시성·비동기 런타임","item":"https://muscleleg.github.io/jaejun-wiki/wiki/python/python_concurrency_async_runtime.html"},{"@type":"ListItem","position":6,"name":"ThreadPoolExecutor에서 submit·wait·set·result 구분하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-python">Python</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/python/python_language_objects_resources.html">Python 언어 객체와 리소스 관리</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/python/python_concurrency_async_runtime.html">Python 동시성·비동기 런타임</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">ThreadPoolExecutor에서 submit·wait·set·result 구분하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Python</span>
+      <h1>ThreadPoolExecutor에서 submit·wait·set·result 구분하기</h1>
+      <p class="lead">ThreadPoolExecutor에서 작업을 제출한 뒤 Main Thread가 언제 계속 진행하고, Event.wait·set과 Future.result가 각각 어떤 조건에서 대기를 해제하는지 실행 순서로 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#threadpoolexecutor-worker-thread">ThreadPoolExecutor는 Worker Thread를 관리한다</a>
+        <a href="#submit-future">submit은 작업을 맡기고 Future를 즉시 반환한다</a>
+        <a href="#event-wait-event-set">Event.wait와 Event.set은 작업 도중의 조건을 전달한다</a>
+        <a href="#future-result">Future.result는 작업 전체 완료를 기다린다</a>
+        <a href="#wait">같은 이름의 wait은 대상이 다르다</a>
+        <a href="#section-43c55738181e">실행 순서를 코드로 확인한다</a>
+        <a href="#section-455a455f8033">무엇을 기다려야 하는지 먼저 정한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><code>ThreadPoolExecutor</code>로 작업을 실행할 때는 다음 세 시점을 구분해야 한다.</p>
+<pre><code class="language-text">작업을 Worker Thread에 맡긴 시점
+→ 작업 도중 특정 조건이 충족된 시점
+→ 작업 전체가 끝난 시점
+</code></pre>
+<p><code>submit()</code>, <code>Event.wait()</code>·<code>Event.set()</code>, <code>Future.result()</code>는 각각 이 세 시점을 다룬다. 서로 연결해서 사용할 수 있지만 같은 기능은 아니다.</p>
+</div>
+        <section id="threadpoolexecutor-worker-thread" class="markdown-section">
+<h2>ThreadPoolExecutor는 Worker Thread를 관리한다</h2>
+<pre><code class="language-python">from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor(
+    max_workers=3,
+)
+</code></pre>
+<p>이 코드는 작업을 실행할 수 있는 Worker Thread를 최대 3개까지 사용하는 Thread Pool을 만든다.</p>
+<p><code>max_workers=3</code>은 작업을 세 개만 받을 수 있다는 뜻이 아니다. 작업은 그보다 많이 제출할 수 있다. 다만 같은 순간에 실행할 수 있는 작업이 최대 세 개이고, 나머지는 Pool 내부 대기열에서 Worker가 비기를 기다린다.</p>
+<pre><code class="language-text">작업 10개 submit
+→ 최대 3개 실행
+→ 나머지 7개는 대기
+→ 실행 중인 작업 하나가 끝남
+→ 대기하던 다음 작업 하나 실행
+</code></pre>
+
+</section>
+<section id="submit-future" class="markdown-section">
+<h2>submit은 작업을 맡기고 Future를 즉시 반환한다</h2>
+<pre><code class="language-python">future = executor.submit(
+    worker,
+    argument,
+)
+
+print(&quot;Main Thread의 다음 코드&quot;)
+</code></pre>
+<p><code>submit()</code>은 <code>worker(argument)</code>라는 작업을 Thread Pool에 제출한다. Worker가 비어 있으면 곧 실행되고, 모두 사용 중이면 대기열에 들어간다.</p>
+<p>중요한 점은 <code>submit()</code>이 작업 완료를 기다리지 않는다는 것이다. 호출한 쪽에는 <code>Future</code>를 즉시 반환하고 Main Thread는 다음 코드로 내려간다.</p>
+<pre><code class="language-text">Main Thread
+→ executor.submit(worker)
+→ Future를 받음
+→ 다음 코드 실행
+
+Worker Thread
+→ worker() 실행
+→ submit한 작업을 계속 처리
+</code></pre>
+<p><code>Future</code>는 실행 중인 작업과 나중에 나올 결과를 가리키는 객체다. 즉 결과 그 자체가 아니라, 아직 진행 중일 수도 있는 작업의 상태와 결과를 조회하기 위한 손잡이다.</p>
+
+</section>
+<section id="event-wait-event-set" class="markdown-section">
+<h2>Event.wait와 Event.set은 작업 도중의 조건을 전달한다</h2>
+<p>Worker 작업 전체가 끝나기 전이라도 Main Thread가 기다려야 하는 중간 조건이 있을 수 있다.</p>
+<p>예를 들어 Worker가 스트리밍 응답을 읽는다고 하자.</p>
+<pre><code class="language-text">HTTP 요청 시작
+→ 첫 Content 도착
+→ 나머지 Content 계속 수신
+→ 전체 Stream 종료
+</code></pre>
+<p>Main Thread가 전체 Stream 종료가 아니라 첫 Content 도착까지만 기다리려면 <code>threading.Event</code>를 사용할 수 있다.</p>
+<pre><code class="language-python">import threading
+
+first_content_event = threading.Event()
+</code></pre>
+<p>Event는 처음에 <code>False</code> 상태다.</p>
+<p>Main Thread에서 다음 코드를 실행하면 Event가 <code>True</code>가 될 때까지 그 Thread가 멈춘다.</p>
+<pre><code class="language-python">first_content_event.wait()
+</code></pre>
+<p>Worker는 첫 Content를 확인한 순간 다음 코드를 실행한다.</p>
+<pre><code class="language-python">first_content_event.set()
+</code></pre>
+<p><code>set()</code>은 Event 상태를 <code>True</code>로 바꾸고, 그 Event의 <code>wait()</code>에서 멈춰 있던 모든 Thread를 깨운다.</p>
+<pre><code class="language-text">Main Thread
+→ first_content_event.wait()
+→ 대기
+
+Worker Thread
+→ 첫 Content 확인
+→ first_content_event.set()
+
+Main Thread
+→ wait() 해제
+→ 다음 코드 실행
+</code></pre>
+<p>Worker가 <code>set()</code>을 호출했다고 해서 Worker 작업이 끝난 것은 아니다. <code>set()</code> 이후에도 Worker는 나머지 Stream을 계속 읽을 수 있다.</p>
+<p>반대로 Worker 작업이 끝났다고 해서 임의의 Event가 자동으로 <code>set()</code>되는 것도 아니다. <code>Event.wait()</code>은 오직 다음 경우에 풀린다.</p>
+<pre><code class="language-text">다른 Thread가 해당 Event의 set()을 호출함
+또는
+wait(timeout=...)에 지정한 제한 시간이 지남
+</code></pre>
+<p>이미 <code>set()</code>된 Event에 나중에 <code>wait()</code>을 호출하면 기다리지 않고 즉시 통과한다. Event를 다시 <code>False</code>로 돌려 재사용하려면 명시적으로 <code>clear()</code>를 호출해야 한다.</p>
+
+</section>
+<section id="future-result" class="markdown-section">
+<h2>Future.result는 작업 전체 완료를 기다린다</h2>
+<pre><code class="language-python">result = future.result()
+</code></pre>
+<p><code>Future.result()</code>는 해당 <code>submit()</code> 작업이 아직 실행 중이면 완료될 때까지 호출한 Thread를 멈춘다. 작업이 끝나면 Worker 함수가 <code>return</code>한 값을 돌려준다.</p>
+<pre><code class="language-python">def worker() -&gt; str:
+    return &quot;완료&quot;
+
+future = executor.submit(worker)
+result = future.result()
+
+print(result)
+# 완료
+</code></pre>
+<p>Worker 함수에서 예외가 발생했다면 <code>result()</code>를 호출한 시점에 그 예외가 다시 전달된다. 이미 작업이 완료된 상태라면 <code>result()</code>는 기다리지 않고 결과를 즉시 반환한다.</p>
+<p>따라서 중간 조건을 기다리는 Event와 작업 전체를 기다리는 Future의 차이는 다음과 같다.</p>
+<pre><code class="language-text">event.wait()
+→ Worker 작업 도중에 정한 특정 조건을 기다림
+→ event.set()이 호출되면 Worker가 계속 실행 중이어도 풀림
+
+future.result()
+→ submit한 함수 전체의 종료를 기다림
+→ 함수가 return하거나 예외로 종료돼야 풀림
+</code></pre>
+
+</section>
+<section id="wait" class="markdown-section">
+<h2>같은 이름의 wait은 대상이 다르다</h2>
+<p>Python에는 <code>Event.wait()</code> 외에도 <code>concurrent.futures.wait()</code>가 있다. 이름은 같지만 기다리는 대상이 다르다.</p>
+<pre><code class="language-python">from concurrent.futures import wait
+
+done_futures, pending_futures = wait(
+    futures,
+)
+</code></pre>
+<p><code>concurrent.futures.wait()</code>는 Event의 상태를 기다리는 함수가 아니다. 여러 <code>Future</code>가 완료되기를 기다리는 함수다.</p>
+<p>기본값으로 사용하면 전달한 Future가 모두 완료될 때까지 기다린다. <code>return_when</code>을 지정하면 첫 작업 완료나 첫 예외 발생 같은 조건으로 바꿀 수 있다.</p>
+<pre><code class="language-text">threading.Event.wait()
+→ Event라는 공유 신호가 set되기를 기다림
+
+concurrent.futures.wait(futures)
+→ 제출된 여러 작업의 완료를 기다림
+</code></pre>
+
+</section>
+<section id="section-43c55738181e" class="markdown-section">
+<h2>실행 순서를 코드로 확인한다</h2>
+<p>다음 코드는 중간 조건과 작업 전체 완료를 각각 기다린다.</p>
+<pre><code class="language-python">import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+
+def worker(
+    first_step_event: threading.Event,
+) -&gt; str:
+    print(&quot;Worker: 첫 번째 작업 시작&quot;)
+    time.sleep(1)
+
+    print(&quot;Worker: 첫 번째 조건 충족&quot;)
+    first_step_event.set()
+
+    print(&quot;Worker: 나머지 작업 계속 실행&quot;)
+    time.sleep(2)
+
+    return &quot;Worker 전체 작업 완료&quot;
+
+
+first_step_event = threading.Event()
+
+with ThreadPoolExecutor(
+    max_workers=1,
+) as executor:
+    future = executor.submit(
+        worker,
+        first_step_event,
+    )
+
+    print(&quot;Main: submit 다음 코드 실행&quot;)
+
+    was_set = first_step_event.wait(
+        timeout=5,
+    )
+    assert was_set
+
+    print(&quot;Main: 중간 조건 확인 후 다음 코드 실행&quot;)
+
+    result = future.result()
+    print(&quot;Main:&quot;, result)
+</code></pre>
+<p>실행 순서는 다음과 같다.</p>
+<pre><code class="language-text">1. Main Thread가 worker를 submit함
+2. Main Thread는 작업 완료를 기다리지 않고 다음 코드로 이동함
+3. Main Thread가 Event.wait()에서 멈춤
+4. Worker가 중간 조건을 만족하고 Event.set()을 호출함
+5. Main Thread의 Event.wait()이 풀림
+6. Worker는 나머지 작업을 계속 실행함
+7. Main Thread가 Future.result()에서 Worker 전체 완료를 기다림
+8. Worker가 return하면 result()가 결과를 받음
+</code></pre>
+
+</section>
+<section id="section-455a455f8033" class="markdown-section">
+<h2>무엇을 기다려야 하는지 먼저 정한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>코드</th>
+<th>의미</th>
+<th>호출한 Thread가 기다리는 것</th>
+<th>대기가 풀리는 조건</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>executor.submit(...)</code></td>
+<td>작업 제출</td>
+<td>기다리지 않음</td>
+<td>Future를 즉시 반환</td>
+</tr>
+<tr>
+<td><code>event.wait()</code></td>
+<td>중간 조건 대기</td>
+<td>Event 상태</td>
+<td><code>event.set()</code> 또는 Timeout</td>
+</tr>
+<tr>
+<td><code>event.set()</code></td>
+<td>중간 조건 충족 알림</td>
+<td>기다리지 않음</td>
+<td>대기 중인 Thread를 깨움</td>
+</tr>
+<tr>
+<td><code>future.result()</code></td>
+<td>작업 하나의 완료·결과 대기</td>
+<td>해당 Future</td>
+<td>함수의 반환 또는 예외 종료</td>
+</tr>
+<tr>
+<td><code>concurrent.futures.wait(...)</code></td>
+<td>여러 작업 완료 대기</td>
+<td>여러 Future</td>
+<td>설정한 완료 조건 충족</td>
+</tr>
+</tbody></table>
+</div>
+<p>또한 <code>with ThreadPoolExecutor(...) as executor:</code> 블록을 빠져나갈 때는 기본적으로 <code>shutdown(wait=True)</code>가 실행된다. 따라서 블록 안에서 <code>result()</code>를 직접 호출하지 않았더라도, <code>with</code>를 완전히 벗어나는 시점에는 제출한 작업들이 끝나기를 기다린다.</p>
+<p>핵심은 다음 한 문장으로 정리할 수 있다.</p>
+<blockquote>
+<p><code>submit()</code>은 작업을 맡기고 바로 다음 코드로 이동하며, <code>Event.wait()</code>은 작업 도중의 특정 신호를 기다리고, <code>Future.result()</code>는 제출한 함수 전체가 끝나기를 기다린다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

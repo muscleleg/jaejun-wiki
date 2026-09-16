@@ -1,0 +1,245 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/multiple_vllm_models_on_single_gpu.md. Do not edit directly. source-sha256:0d6ee6cfc75b2fe6af9d2ec0b0b4ba9ecc96029130d7d46275a52c1ee94684a3 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="하나의 물리 GPU에 여러 vLLM Server를 올리는 방식과 인스턴스별 메모리 제한, LoRA·MIG·Time-Slicing 선택 기준을 정리합니다.">
+  <meta name="source-sha256" content="0d6ee6cfc75b2fe6af9d2ec0b0b4ba9ecc96029130d7d46275a52c1ee94684a3">
+  <title>하나의 GPU에서 여러 vLLM 모델을 운영하는 방법</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="하나의 GPU에서 여러 vLLM 모델을 운영하는 방법">
+  <meta property="og:description" content="하나의 물리 GPU에 여러 vLLM Server를 올리는 방식과 인스턴스별 메모리 제한, LoRA·MIG·Time-Slicing 선택 기준을 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html","name":"하나의 GPU에서 여러 vLLM 모델을 운영하는 방법","description":"하나의 물리 GPU에 여러 vLLM Server를 올리는 방식과 인스턴스별 메모리 제한, LoRA·MIG·Time-Slicing 선택 기준을 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html"},"headline":"하나의 GPU에서 여러 vLLM 모델을 운영하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multiple_vllm_models_on_single_gpu.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"하나의 GPU에서 여러 vLLM 모델을 운영하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">하나의 GPU에서 여러 vLLM 모델을 운영하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>하나의 GPU에서 여러 vLLM 모델을 운영하는 방법</h1>
+      <p class="lead">하나의 물리 GPU에 여러 vLLM Server를 올리는 방식과 인스턴스별 메모리 제한, LoRA·MIG·Time-Slicing 선택 기준을 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#vllm-server">여러 vLLM Server의 메모리를 나누는 방법</a>
+        <a href="#kv-cache">KV Cache 크기만 더 정확하게 정할 수도 있다</a>
+        <a href="#block">Block 개수를 강제로 제한하는 것은 운영용 분할 방법이 아니다</a>
+        <a href="#gpu">메모리를 나눠도 GPU 연산 성능까지 분리되지는 않는다</a>
+        <a href="#lora">같은 기반 모델이라면 LoRA가 더 효율적일 수 있다</a>
+        <a href="#mig">강한 자원 격리가 필요하면 MIG를 사용할 수 있다</a>
+        <a href="#gpu-time-slicing">GPU Time-Slicing은 격리보다 작업 밀도에 가깝다</a>
+        <a href="#section-47d3c91b6436">상황에 따라 선택해야 한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>작은 모델은 GPU 메모리와 연산 능력을 전부 사용하지 못할 수 있다. 이런 경우에는 하나의 물리 GPU에 여러 모델을 함께 올려 GPU 활용률을 높이는 방법을 생각할 수 있다.</p>
+<p>다만 여러 모델이 하나의 vLLM Block Pool을 공유하는 것은 아니다. 모델마다 별도의 vLLM Server를 실행하면 각 Server는 독립된 추론 엔진이 된다.</p>
+<pre><code class="language-text">물리 GPU 1개
+│
+├─ vLLM Server A
+│  ├─ 모델 A Weight
+│  ├─ 모델 A의 Scheduler
+│  ├─ 모델 A의 Waiting Queue
+│  └─ 모델 A의 KV Cache Block Pool
+│
+└─ vLLM Server B
+   ├─ 모델 B Weight
+   ├─ 모델 B의 Scheduler
+   ├─ 모델 B의 Waiting Queue
+   └─ 모델 B의 KV Cache Block Pool
+</code></pre>
+<p>두 Server는 같은 GPU를 사용하지만 요청 Queue, Scheduler, KV Cache Pool을 공유하지 않는다. Server A에서 Block이 남더라도 Server B가 그 Block을 직접 가져다 쓸 수는 없다.</p>
+</div>
+        <section id="vllm-server" class="markdown-section">
+<h2>여러 vLLM Server의 메모리를 나누는 방법</h2>
+<p>같은 GPU에 vLLM Server를 여러 개 실행하려면 각 Server가 사용할 GPU 메모리를 제한해야 한다.</p>
+<pre><code class="language-bash"># 모델 A
+vllm serve model-a \
+  --port 8001 \
+  --gpu-memory-utilization 0.4
+
+# 모델 B
+vllm serve model-b \
+  --port 8002 \
+  --gpu-memory-utilization 0.4
+</code></pre>
+<p>이 구성은 개념적으로 다음과 같다.</p>
+<pre><code class="language-text">GPU 전체 메모리
+├─ Server A가 사용할 영역: 약 40%
+├─ Server B가 사용할 영역: 약 40%
+└─ 여유 공간: 약 20%
+</code></pre>
+<p><code>--gpu-memory-utilization</code>은 현재 vLLM 인스턴스가 사용할 GPU 메모리 비율이다. vLLM 공식 문서에서도 같은 GPU에서 두 인스턴스를 실행할 때 각각 <code>0.5</code>와 같이 지정할 수 있다고 설명한다. <a href="https://docs.vllm.ai/en/latest/cli/serve/" rel="noopener noreferrer">vLLM Server 설정</a></p>
+<p>하지만 이 값만 맞추면 무조건 안전하다는 뜻은 아니다. 각 Server는 KV Cache 외에도 다음과 같은 메모리를 사용한다.</p>
+<pre><code class="language-text">모델 Weight
+KV Cache Pool
+연산 중간 결과
+CUDA 실행 환경
+통신·그래프·작업 공간
+</code></pre>
+<p>따라서 두 Server의 설정값 합을 정확히 <code>1.0</code>으로 채우기보다는 실제 실행 결과를 확인하면서 여유 공간을 남기는 편이 안전하다.</p>
+
+</section>
+<section id="kv-cache" class="markdown-section">
+<h2>KV Cache 크기만 더 정확하게 정할 수도 있다</h2>
+<p><code>--gpu-memory-utilization</code>은 모델 실행에 사용할 전체적인 GPU 메모리 규모를 정한다. KV Cache Pool의 크기를 Byte 단위로 직접 정하고 싶다면 다음 설정을 사용할 수 있다.</p>
+<pre><code class="language-bash">--kv-cache-memory-bytes 4G
+</code></pre>
+<p>두 설정의 차이는 다음과 같다.</p>
+<pre><code class="language-text">--gpu-memory-utilization
+→ 현재 vLLM 인스턴스가 사용할 전체적인 GPU 메모리 비율
+
+--kv-cache-memory-bytes
+→ 그중 KV Cache에 사용할 메모리를 Byte 단위로 직접 지정
+</code></pre>
+<p>다만 KV Cache 크기만 제한해도 모델 Weight와 기타 실행 메모리는 여전히 필요하다.</p>
+
+</section>
+<section id="block" class="markdown-section">
+<h2>Block 개수를 강제로 제한하는 것은 운영용 분할 방법이 아니다</h2>
+<p>다음 설정도 KV Cache Pool 크기를 줄이는 것처럼 보인다.</p>
+<pre><code class="language-bash">--num-gpu-blocks-override 60
+</code></pre>
+<p>하지만 이 설정은 운영 환경에서 여러 Server의 GPU 메모리를 나누는 대표적인 방법이 아니다. vLLM이 GPU 상태를 확인해 계산한 Block 수를 특정 개수로 강제로 덮어쓰는 설정이다.</p>
+<p>공식 문서도 이 옵션을 Preemption 테스트에 사용하는 기능으로 설명한다. <a href="https://docs.vllm.ai/en/stable/cli/run-batch/" rel="noopener noreferrer">vLLM Block Override 설명</a></p>
+<p>따라서 이 설정은 다음과 같은 실험에 적합하다.</p>
+<pre><code class="language-text">KV Cache Block Pool을 의도적으로 작게 만듦
+→ 긴 요청과 동시 요청을 보냄
+→ KV Cache Pressure를 발생시킴
+→ Waiting·Preemption·실패 경계를 관찰함
+</code></pre>
+<p>반면 실제 운영에서는 다음 설정이 더 적절하다.</p>
+<pre><code class="language-text">인스턴스 전체 메모리 제한
+→ --gpu-memory-utilization
+
+KV Cache 메모리 직접 지정
+→ --kv-cache-memory-bytes
+</code></pre>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>메모리를 나눠도 GPU 연산 성능까지 분리되지는 않는다</h2>
+<p>두 vLLM Server가 메모리를 40%씩 사용한다고 해서 GPU 연산 시간도 정확히 40%씩 보장되는 것은 아니다.</p>
+<pre><code class="language-text">Server A에 요청이 몰림
+→ Server A가 많은 GPU 연산 수행
+→ 같은 GPU를 사용하는 Server B의 연산도 지연될 수 있음
+</code></pre>
+<p>각 vLLM은 독립된 Scheduler를 사용하므로 두 Scheduler를 조정하는 상위 Scheduler도 없다.</p>
+<pre><code class="language-text">vLLM A Scheduler
+→ A 요청만 보고 Scheduling
+
+vLLM B Scheduler
+→ B 요청만 보고 Scheduling
+</code></pre>
+<p>두 Server는 같은 GPU에서 서로 경쟁하지만 상대 Server의 Running·Waiting·Token Budget을 알지 못한다. 따라서 같은 GPU에 여러 vLLM을 실행하는 방식은 메모리를 효율적으로 사용할 수 있지만, 모델별 지연시간을 안정적으로 보장하기는 어렵다.</p>
+
+</section>
+<section id="lora" class="markdown-section">
+<h2>같은 기반 모델이라면 LoRA가 더 효율적일 수 있다</h2>
+<p>서비스마다 완전히 다른 모델이 필요한 것이 아니라 같은 기반 모델을 서로 다른 용도로 미세 조정한 경우에는 모델 전체를 여러 번 올리지 않아도 된다.</p>
+<pre><code class="language-text">기반 모델 하나
+├─ 번역용 LoRA
+├─ 요약용 LoRA
+└─ 질의응답용 LoRA
+</code></pre>
+<p>이렇게 하면 거대한 기반 모델 Weight를 여러 번 GPU에 복제하지 않고 여러 LoRA Adapter를 제공할 수 있다. vLLM은 한 Server에서 LoRA Adapter를 제공하는 기능을 지원한다. <a href="https://docs.vllm.ai/en/latest/features/lora/" rel="noopener noreferrer">vLLM LoRA 문서</a></p>
+<p>따라서 다음 조건에서는 여러 vLLM보다 LoRA 구성이 유리할 수 있다.</p>
+<pre><code class="language-text">모델 구조가 같음
+기반 모델이 같음
+서비스별 차이가 LoRA Adapter로 표현 가능함
+</code></pre>
+<p>반대로 모델 구조와 Tokenizer가 완전히 다르다면 각각 별도의 vLLM Server가 필요하다.</p>
+
+</section>
+<section id="mig" class="markdown-section">
+<h2>강한 자원 격리가 필요하면 MIG를 사용할 수 있다</h2>
+<p>MIG를 지원하는 NVIDIA GPU는 하나의 물리 GPU를 여러 개의 작은 GPU처럼 분할할 수 있다.</p>
+<pre><code class="language-text">물리 GPU
+│
+├─ MIG Instance 1
+│  ├─ 전용 GPU 메모리
+│  ├─ 전용 연산 자원
+│  └─ vLLM Server A
+│
+└─ MIG Instance 2
+   ├─ 전용 GPU 메모리
+   ├─ 전용 연산 자원
+   └─ vLLM Server B
+</code></pre>
+<p>단순히 여러 프로세스를 같은 GPU에 실행하는 것과 달리 MIG는 메모리와 연산 자원을 하드웨어 수준에서 분리한다. 따라서 한 모델의 부하나 메모리 문제가 다른 모델에 미치는 영향을 줄이고, 더 예측 가능한 성능을 제공한다. <a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/introduction.html" rel="noopener noreferrer">NVIDIA MIG 설명</a></p>
+<p>다만 모든 GPU가 MIG를 지원하는 것은 아니며, 사용할 수 있는 분할 크기도 GPU별 MIG Profile에 따라 정해진다.</p>
+
+</section>
+<section id="gpu-time-slicing" class="markdown-section">
+<h2>GPU Time-Slicing은 격리보다 작업 밀도에 가깝다</h2>
+<p>Kubernetes 환경에서는 NVIDIA GPU Time-Slicing을 사용해 여러 Workload가 같은 GPU의 실행 시간을 번갈아 사용할 수도 있다.</p>
+<pre><code class="language-text">GPU 실행 시간
+├─ 일정 시간 동안 Workload A 실행
+├─ 일정 시간 동안 Workload B 실행
+└─ 다시 Workload A 실행
+</code></pre>
+<p>이 방식은 많은 Workload가 GPU를 공유할 수 있지만 MIG와 달리 메모리와 장애가 분리되지 않는다. 한 Workload가 메모리를 과도하게 사용하거나 GPU에 큰 부하를 주면 다른 Workload도 영향을 받을 수 있다. <a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/24.9/gpu-sharing.html" rel="noopener noreferrer">NVIDIA GPU Time-Slicing 설명</a></p>
+<p>따라서 높은 작업 밀도가 중요하고 엄격한 지연시간 보장이 필요하지 않을 때 적합하다.</p>
+
+</section>
+<section id="section-47d3c91b6436" class="markdown-section">
+<h2>상황에 따라 선택해야 한다</h2>
+<pre><code class="language-text">서로 다른 작은 모델이고 요청이 많지 않다
+→ 같은 GPU에 여러 vLLM 실행
+→ 인스턴스마다 GPU 메모리 제한
+
+같은 기반 모델에 용도만 다르다
+→ vLLM 하나와 여러 LoRA Adapter 사용
+
+모델별 성능과 메모리를 확실히 격리해야 한다
+→ MIG 사용
+
+격리보다 많은 Workload를 올리는 것이 중요하다
+→ GPU Time-Slicing 고려
+
+각 모델의 트래픽이 많고 지연시간이 중요하다
+→ 모델별 GPU 또는 GPU Replica 분리
+</code></pre>
+<p>결론적으로 하나의 GPU에 여러 작은 모델을 올리는 것은 충분히 가능한 운영 방식이다. 하지만 단순히 Block Pool 개수만 제한하는 방식보다는 vLLM 인스턴스별 메모리를 제한하거나, 필요에 따라 LoRA·MIG·Time-Slicing을 선택해야 한다.</p>
+<p>특히 다음 두 개념을 구분해야 한다.</p>
+<pre><code class="language-text">--num-gpu-blocks-override
+→ 작은 KV Cache Pool을 인위적으로 만들어 한계를 관찰하는 실험 도구
+
+--gpu-memory-utilization / --kv-cache-memory-bytes
+→ 여러 vLLM 인스턴스의 메모리 사용량을 계획하기 위한 운영 설정
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
