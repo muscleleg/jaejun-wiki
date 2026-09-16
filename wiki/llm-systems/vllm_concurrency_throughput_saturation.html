@@ -1,0 +1,370 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_concurrency_throughput_saturation.md. Do not edit directly. source-sha256:ba4ad805ba6ad7fe5f6ccfa68e60fa063edcb7aa2d20c153cdf5a066c290d32b -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="동시 요청 증가에 따른 Throughput 포화, Waiting·TTFT·Latency 변화와 병목 구분, SLO 기준 Concurrency 판단을 설명한다.">
+  <meta name="source-sha256" content="ba4ad805ba6ad7fe5f6ccfa68e60fa063edcb7aa2d20c153cdf5a066c290d32b">
+  <title>동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화">
+  <meta property="og:description" content="동시 요청 증가에 따른 Throughput 포화, Waiting·TTFT·Latency 변화와 병목 구분, SLO 기준 Concurrency 판단을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html","name":"동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화","description":"동시 요청 증가에 따른 Throughput 포화, Waiting·TTFT·Latency 변화와 병목 구분, SLO 기준 Concurrency 판단을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html"},"headline":"동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_concurrency_throughput_saturation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_continuous_batching_performance.html"},{"@type":"ListItem","position":7,"name":"동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/vllm_continuous_batching_performance.html">vLLM Continuous Batching의 동작 방식과 동시 요청 증가에 따른 성능 변화</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>동시 요청을 늘려도 처리량이 증가하지 않는 Throughput 포화</h1>
+      <p class="lead">동시 요청 증가에 따른 Throughput 포화, Waiting·TTFT·Latency 변화와 병목 구분, SLO 기준 Concurrency 판단을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#throughput-server">Throughput은 Server가 일정 시간 동안 처리한 작업량이다</a>
+        <a href="#gpu">동시 요청이 적으면 GPU 처리 능력을 충분히 사용하지 못할 수 있다</a>
+        <a href="#waiting-queue">포화 지점 이후에는 요청이 Waiting Queue에 쌓인다</a>
+        <a href="#throughput">Throughput 포화는 수치로 확인해야 한다</a>
+        <a href="#throughput-waiting-ttft">포화 이후에는 Throughput이 아니라 Waiting과 TTFT가 증가한다</a>
+        <a href="#throughput-2">Throughput 포화와 사용자 체감 속도는 다른 값이다</a>
+        <a href="#token-budget">Token Budget을 모두 사용해야만 포화되는 것은 아니다</a>
+        <a href="#throughput-3">포화 이후 Throughput이 감소할 수도 있다</a>
+        <a href="#throughput-4">Throughput 포화점은 운영 가능한 최대 사용자 수가 아니다</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM Server에 동시에 요청을 많이 보내면 처음에는 GPU 활용도가 높아지면서 처리량이 증가할 수 있다. 하지만 어느 지점부터는 요청을 더 보내도 Server가 초당 처리하는 Token 수가 증가하지 않는다.</p>
+<p>이 상태를 <strong>Throughput 포화</strong>라고 한다.</p>
+</div>
+        <section id="throughput-server" class="markdown-section">
+<h2>Throughput은 Server가 일정 시간 동안 처리한 작업량이다</h2>
+<p>LLM 추론에서 Output Throughput은 일반적으로 다음처럼 계산한다.</p>
+<pre><code class="language-text">Output Throughput
+= 전체 생성 Token 수 / 전체 실행 시간
+</code></pre>
+<p>예를 들어 Server가 10초 동안 1,200개의 출력 Token을 생성했다면 다음과 같다.</p>
+<pre><code class="language-text">1,200Token / 10초
+= 120 token/s
+</code></pre>
+<p>Throughput은 사용자 한 명이 Token을 얼마나 빠르게 받았는지를 직접 나타내는 값이 아니다. Server 전체가 초당 얼마나 많은 출력 Token을 처리했는지를 나타낸다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>동시 요청이 적으면 GPU 처리 능력을 충분히 사용하지 못할 수 있다</h2>
+<p>한 번에 요청 하나만 실행한다고 가정해 보자.</p>
+<pre><code class="language-text">Client Concurrency = 1
+Server Running = 1
+</code></pre>
+<p>요청 하나만 처리하면 GPU가 수행하는 Batch가 작다. GPU에는 더 많은 연산을 병렬로 처리할 능력이 있어도 함께 처리할 요청이 없어서 일부 처리 능력이 남을 수 있다.</p>
+<pre><code class="language-text">작은 Batch
+→ GPU 병렬 처리 능력을 충분히 사용하지 못함
+→ Throughput이 낮을 수 있음
+</code></pre>
+<p>동시 요청을 늘리면 여러 Sequence의 Token 작업을 한 GPU Batch로 처리할 수 있다.</p>
+<pre><code class="language-text">Client Concurrency 증가
+→ 동시에 Running하는 Sequence 증가
+→ GPU Batch 증가
+→ GPU 활용도 증가
+→ 초당 생성 Token 증가
+</code></pre>
+<p>따라서 포화 지점 전에는 동시 요청을 늘리는 것이 Server의 전체 처리량 향상으로 이어질 수 있다.</p>
+
+</section>
+<section id="waiting-queue" class="markdown-section">
+<h2>포화 지점 이후에는 요청이 Waiting Queue에 쌓인다</h2>
+<p>Server가 동시에 처리할 수 있는 요청 수와 GPU 작업량에는 한계가 있다.</p>
+<p>예를 들어 다음과 같은 Server를 생각해 보자.</p>
+<pre><code class="language-text">max_num_seqs = 2
+</code></pre>
+<p>Client Concurrency가 1이면 Running 요청도 하나다.</p>
+<pre><code class="language-text">Concurrency 1
+
+Running = 1
+Waiting = 0
+</code></pre>
+<p>Concurrency가 2로 증가하면 두 Sequence를 함께 실행할 수 있다.</p>
+<pre><code class="language-text">Concurrency 2
+
+Running = 2
+Waiting = 0
+</code></pre>
+<p>하지만 Concurrency를 4로 높여도 Server가 동시에 Running으로 유지할 수 있는 Sequence는 최대 두 개다.</p>
+<pre><code class="language-text">Concurrency 4
+
+Running = 2
+Waiting = 2
+</code></pre>
+<p>Concurrency가 8이면 Waiting 요청만 더 증가한다.</p>
+<pre><code class="language-text">Concurrency 8
+
+Running = 2
+Waiting = 6
+</code></pre>
+<p>이 상태에서는 Client가 더 많은 요청을 보내도 GPU가 동시에 처리하는 Sequence 수가 늘지 않는다.</p>
+<pre><code class="language-text">추가 요청
+→ 추가 Running 작업이 되지 못함
+→ Waiting Queue에 저장
+</code></pre>
+<p>따라서 Server의 Throughput은 거의 그대로인데 사용자 대기시간은 증가한다.</p>
+
+</section>
+<section id="throughput" class="markdown-section">
+<h2>Throughput 포화는 수치로 확인해야 한다</h2>
+<p>Concurrency Sweep은 요청 내용과 Server 설정을 고정하고 Client Concurrency만 단계적으로 변경하는 실험이다.</p>
+<pre><code class="language-text">고정
+
+전체 요청 수
+Prompt와 출력 길이
+모델과 GPU
+max_num_seqs
+Token Budget
+KV Cache 설정
+
+변경
+
+Client Concurrency
+= 1 → 4 → 8 → 16
+</code></pre>
+<p>다음과 같은 결과가 나왔다고 해보자.</p>
+<pre><code class="language-text">Concurrency 1  →  63.67 token/s
+Concurrency 4  → 124.27 token/s
+Concurrency 8  → 124.17 token/s
+Concurrency 16 → 118.82 token/s
+</code></pre>
+<p>Concurrency 1에서 4로 증가했을 때는 Throughput이 약 두 배가 됐다.</p>
+<pre><code class="language-text">Concurrency 1
+→ GPU가 요청 하나를 처리
+
+Concurrency 4
+→ Server가 허용하는 여러 Sequence를 함께 처리
+→ GPU 활용도 증가
+→ Throughput 증가
+</code></pre>
+<p>하지만 Concurrency 4에서 8로 증가해도 Throughput은 거의 같았다.</p>
+<pre><code class="language-text">124.27 token/s
+→ 124.17 token/s
+</code></pre>
+<p>Concurrency 16에서는 오히려 감소했다.</p>
+<pre><code class="language-text">124.17 token/s
+→ 118.82 token/s
+</code></pre>
+<p>이 결과에서는 Concurrency 4 부근부터 Server의 Throughput이 포화됐다고 해석할 수 있다.</p>
+
+</section>
+<section id="throughput-waiting-ttft" class="markdown-section">
+<h2>포화 이후에는 Throughput이 아니라 Waiting과 TTFT가 증가한다</h2>
+<p>같은 실험에서 다음 결과가 관찰됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Concurrency</th>
+<th align="right">Throughput [token/s]</th>
+<th align="right">TTFT p95 [ms]</th>
+<th align="right">Max Waiting</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">63.67</td>
+<td align="right">49.49</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">124.27</td>
+<td align="right">1,581.20</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">124.17</td>
+<td align="right">3,523.37</td>
+<td align="right">6</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">118.82</td>
+<td align="right">6,621.09</td>
+<td align="right">14</td>
+</tr>
+</tbody></table>
+</div>
+<p>Concurrency 4 이후에는 요청을 더 보내도 처리량이 증가하지 않았다. 대신 Waiting과 TTFT가 계속 증가했다.</p>
+<pre><code class="language-text">Concurrency 4 → 8
+
+Throughput
+124.27 → 124.17 token/s
+→ 증가하지 않음
+
+Max Waiting
+2 → 6
+→ 증가
+
+TTFT p95
+1,581ms → 3,523ms
+→ 크게 증가
+</code></pre>
+<p>Concurrency 16에서도 같은 흐름이 나타났다.</p>
+<pre><code class="language-text">Server가 초당 처리하는 Token
+→ 오히려 감소
+
+사용자가 첫 Token을 기다리는 시간
+→ 크게 증가
+</code></pre>
+<p>즉, 추가 요청은 Server의 처리 능력을 높이지 못하고 Queue 길이만 늘렸다.</p>
+
+</section>
+<section id="throughput-2" class="markdown-section">
+<h2>Throughput 포화와 사용자 체감 속도는 다른 값이다</h2>
+<p>Throughput이 높다고 모든 사용자의 응답이 빠른 것은 아니다.</p>
+<pre><code class="language-text">Throughput
+→ Server 전체가 초당 처리한 Token 수
+
+TTFT
+→ 요청 후 첫 Token까지 기다린 시간
+
+TPOT
+→ 첫 Token 이후 Token 하나를 생성하는 평균 시간
+
+Latency
+→ 요청부터 전체 응답 완료까지 걸린 시간
+</code></pre>
+<p>여러 요청을 함께 처리하면 Server 전체 Throughput은 증가할 수 있다. 하지만 각 요청이 실행 순서를 기다리면 TTFT와 Latency는 증가할 수 있다.</p>
+<pre><code class="language-text">Server 관점
+→ GPU를 쉬지 않고 사용
+→ Throughput 증가
+
+사용자 관점
+→ Waiting Queue에서 대기
+→ TTFT 증가
+</code></pre>
+<p>따라서 운영 설정을 정할 때 Throughput만 최대화하면 사용자 경험이 나빠질 수 있다.</p>
+
+</section>
+<section id="token-budget" class="markdown-section">
+<h2>Token Budget을 모두 사용해야만 포화되는 것은 아니다</h2>
+<p>Throughput 포화의 원인은 하나가 아니다.</p>
+<pre><code class="language-text">max_num_seqs 한계
+→ 동시에 Running할 Sequence를 더 늘릴 수 없음
+
+Iteration Token Budget 한계
+→ 이번 Iteration에 더 많은 Token 작업을 넣을 수 없음
+
+GPU 연산 능력 한계
+→ Batch를 늘려도 초당 계산량이 더 증가하지 않음
+
+GPU 메모리 대역폭 한계
+→ KV Cache를 읽는 비용이 병목이 됨
+
+KV Cache 용량 한계
+→ Preemption과 재계산이 발생해 처리 효율이 감소
+</code></pre>
+<p>예를 들어 <code>max_num_batched_tokens=4096</code>이고 Running Sequence가 두 개뿐인 Decode 구간을 생각해 보자.</p>
+<pre><code class="language-text">Sequence A Decode = 1Token
+Sequence B Decode = 1Token
+
+Scheduled Token 합계 = 2Token
+Token Budget = 4,096Token
+</code></pre>
+<p>Token Budget은 많이 남아 있지만 <code>max_num_seqs=2</code>라면 세 번째 요청을 Running에 넣을 수 없다.</p>
+<pre><code class="language-text">Token Budget 부족
+→ 아님
+
+Sequence 자리 부족
+→ 맞음
+</code></pre>
+<p>반대로 긴 Prefill 요청이 여러 개 들어오면 수백 또는 수천 Token이 한 Iteration의 Budget을 사용하면서 Token Budget이 먼저 병목이 될 수 있다.</p>
+<p>그러므로 Throughput이 포화됐다는 사실과 포화 원인은 구분해야 한다.</p>
+
+</section>
+<section id="throughput-3" class="markdown-section">
+<h2>포화 이후 Throughput이 감소할 수도 있다</h2>
+<p>Concurrency를 계속 높이면 Throughput이 그대로 유지되지 않고 감소할 수도 있다.</p>
+<p>가능한 원인은 다음과 같다.</p>
+<pre><code class="language-text">Waiting Queue와 Scheduling 관리 비용 증가
+KV Cache Pressure 증가
+Preemption과 Recompute 발생
+큰 Batch의 비효율
+메모리 접근 경쟁 증가
+Client·Server Timeout과 오류 증가
+</code></pre>
+<p>따라서 가장 높은 Concurrency가 항상 가장 높은 처리량을 만드는 것은 아니다.</p>
+
+</section>
+<section id="throughput-4" class="markdown-section">
+<h2>Throughput 포화점은 운영 가능한 최대 사용자 수가 아니다</h2>
+<p>Throughput이 가장 높은 지점을 그대로 최대 동시 사용자 수로 정하면 안 된다.</p>
+<p>예를 들어 Concurrency 4에서 Throughput이 가장 높아도 TTFT p95가 이미 서비스 기준을 넘었을 수 있다.</p>
+<pre><code class="language-text">Concurrency 4
+
+Throughput
+→ 가장 높음
+
+TTFT p95
+→ 1.58초
+</code></pre>
+<p>서비스의 TTFT SLO가 1초라면 Concurrency 4는 처리량 관점에서는 좋지만 사용자 경험 기준은 충족하지 못한다.</p>
+<p>따라서 운영 범위는 다음 두 조건을 함께 만족해야 한다.</p>
+<pre><code class="language-text">Throughput이 충분함
++
+TTFT·Latency·오류율이 SLO 이내
+</code></pre>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<pre><code class="language-text">동시 요청이 적음
+→ GPU 처리 능력이 남을 수 있음
+→ Concurrency 증가가 Throughput 향상으로 이어짐
+
+Server 처리 한계 도달
+→ Running과 GPU 작업량을 더 늘릴 수 없음
+→ Throughput 포화
+
+포화 이후 Concurrency 증가
+→ 추가 요청은 Waiting으로 이동
+→ Throughput은 거의 그대로이거나 감소
+→ TTFT와 Latency 증가
+</code></pre>
+<p>Throughput 포화는 Server가 완전히 멈춘 상태가 아니다. 요청은 계속 처리하지만 추가 부하를 더 높은 처리량으로 전환하지 못하는 상태다.</p>
+<p>따라서 Concurrency Sweep의 핵심은 가장 큰 Concurrency를 찾는 것이 아니라 다음 경계를 찾는 것이다.</p>
+<blockquote>
+<p>동시 요청을 늘렸을 때 처리량도 함께 증가하는 마지막 구간과, 그 이후 처리량은 증가하지 않고 Waiting과 사용자 지연만 증가하는 구간을 구분한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

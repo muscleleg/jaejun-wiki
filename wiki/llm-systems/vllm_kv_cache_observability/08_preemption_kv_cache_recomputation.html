@@ -1,0 +1,245 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.md. Do not edit directly. source-sha256:3fb73fad8084c24a7105241831252f0f017e2428fdeba2e32c3e152cee7e7493 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Preemption된 요청은 이미 생성한 출력 Token을 보존하고, 원래 Prompt와 그 출력 Token을 다시 처리해 잃어버린 KV Cache를 복구합니다.">
+  <meta name="source-sha256" content="3fb73fad8084c24a7105241831252f0f017e2428fdeba2e32c3e152cee7e7493">
+  <title>Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가">
+  <meta property="og:description" content="Preemption된 요청은 이미 생성한 출력 Token을 보존하고, 원래 Prompt와 그 출력 Token을 다시 처리해 잃어버린 KV Cache를 복구합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html","name":"Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가","description":"Preemption된 요청은 이미 생성한 출력 Token을 보존하고, 원래 Prompt와 그 출력 Token을 다시 처리해 잃어버린 KV Cache를 복구합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html"},"headline":"Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_preemption_kv_cache_recomputation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html"},{"@type":"ListItem","position":7,"name":"vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/index.html"},{"@type":"ListItem","position":8,"name":"KV Cache가 가득 찼을 때 vLLM은 어떤 요청을 Preemption하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm_kv_cache_observability/08_kv_cache_preemption_victim_selection.html"},{"@type":"ListItem","position":9,"name":"Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_kv_cache_lifecycle_memory_purpose.html">LLM Serving에서 KV Cache의 생명주기와 메모리를 이해해야 하는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/index.html">vLLM의 KV Cache 동작을 어디까지 관찰할 수 있는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/vllm_kv_cache_observability/08_kv_cache_preemption_victim_selection.html">KV Cache가 가득 찼을 때 vLLM은 어떤 요청을 Preemption하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Preemption 후 이미 생성된 Token은 어떻게 KV Cache로 복구되는가</h1>
+      <p class="lead">Preemption된 요청은 이미 생성한 출력 Token을 보존하고, 원래 Prompt와 그 출력 Token을 다시 처리해 잃어버린 KV Cache를 복구합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#preemption">Preemption으로 사라지는 것과 남는 것</a>
+        <a href="#section-7b8d3b803909">이미 생성된 출력도 재계산할 때는 입력 문맥이 된다</a>
+        <a href="#prefill">이 재계산도 Prefill로 처리된다</a>
+        <a href="#trace-prefill">실제 Trace에서 확인한 재계산 Prefill</a>
+        <a href="#temperature">Temperature가 있어도 기존 출력은 바뀌지 않는다</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>vLLM에서 KV Cache가 부족해지면 실행 중인 요청 하나가 Preemption될 수 있다. Preemption된 요청은 사용하던 KV Cache Block을 모두 반환하고 Waiting으로 이동한다.</p>
+<p>이때 요청이 처음부터 새로운 답변을 생성하는 것은 아니다. <strong>이미 확정된 Token은 보존하고, 사라진 KV Cache만 처음부터 다시 계산한다.</strong></p>
+</div>
+        <section id="preemption" class="markdown-section">
+<h2>Preemption으로 사라지는 것과 남는 것</h2>
+<p>요청 B가 다음 상태까지 처리됐다고 가정해 보자.</p>
+<pre><code class="language-text">원래 Prompt
+[P1, P2, P3, ...]
+
+이미 생성한 출력
+[O1, O2, O3, ...]
+</code></pre>
+<p>Preemption이 발생하면 다음 정보가 사라진다.</p>
+<pre><code>사라지는 것
+
+Prompt와 기존 출력에서 계산한 K·V
+요청이 사용하던 물리 KV Cache Block
+현재까지 계산했다는 위치인 computed_tokens
+</code></pre>
+<p>반면 다음 정보는 요청에 그대로 남는다.</p>
+<pre><code>남는 것
+
+원래 Prompt Token ID
+이미 생성되어 확정된 출력 Token ID
+Client에게 이미 전달한 출력
+Sampling 설정
+요청의 전체 생성 상태
+</code></pre>
+<p>따라서 <code>computed_tokens=0</code>이 되었다고 해서 이미 생성한 출력까지 삭제됐다는 의미는 아니다.</p>
+<pre><code class="language-makefile">computed_tokens = 0
+
+의미:
+현재 보유한 KV Cache를 기준으로는
+처음 Token부터 다시 계산해야 한다.
+
+의미하지 않는 것:
+이미 생성한 답변을 버리고
+새로운 답변을 다시 뽑는다.
+</code></pre>
+
+</section>
+<section id="section-7b8d3b803909" class="markdown-section">
+<h2>이미 생성된 출력도 재계산할 때는 입력 문맥이 된다</h2>
+<p>Preemption된 요청이 다시 Running으로 올라오면 vLLM은 다음 Token들을 함께 Forward한다.</p>
+<pre><code>원래 Prompt Token
++
+이미 생성되어 확정된 출력 Token
+──────────────────────────
+KV Cache를 다시 만들기 위한 전체 입력 문맥
+</code></pre>
+<p>예를 들어 원래 Prompt가 407Token이고, Preemption 전까지 출력 Token 약 47개가 확정됐다면 재계산 대상은 다음과 같다.</p>
+<pre><code>원래 Prompt = 407Token
+기존 출력   = 약 47Token
+재계산 문맥 = 454Token
+</code></pre>
+<p>이미 생성된 출력 Token은 사용자가 보낸 Prompt로 바뀐 것은 아니다. 다만 KV Cache를 복구하는 계산에서는 이미 확정된 입력 Token처럼 사용된다.</p>
+<pre><code>사용자 관점
+
+Prompt Token = 407개
+출력 Token   = 이미 생성된 약 47개
+</code></pre>
+<pre><code>KV Cache 복구 관점
+
+다시 계산할 입력 문맥
+= Prompt 407개 + 기존 출력 약 47개
+= 454개
+</code></pre>
+
+</section>
+<section id="prefill" class="markdown-section">
+<h2>이 재계산도 Prefill로 처리된다</h2>
+<p>Prefill은 반드시 사용자가 처음 보낸 Prompt만 처리한다는 뜻이 아니다. 실행 관점에서는 <strong>여러 개의 이미 정해진 Token을 한꺼번에 처리해 KV Cache를 만드는 작업</strong>이다.</p>
+<p>따라서 Preemption 이후 다음 Token들을 다시 계산하는 작업도 Prefill 형태로 수행된다.</p>
+<pre><code>Prompt + 이미 생성된 출력
+→ 여러 Token을 한꺼번에 Forward
+→ 각 Token의 K·V 재계산
+→ KV Cache Block 복구
+</code></pre>
+<p>이 구간은 일반적인 최초 Prefill과 구분해 다음처럼 부를 수 있다.</p>
+<pre><code>최초 Prefill
+→ 새 요청의 Prompt를 처음 계산
+
+재계산 Prefill 또는 Re-prefill
+→ Preemption으로 잃어버린 KV Cache를 복구하기 위해
+  Prompt와 기존 출력 Token을 다시 계산
+</code></pre>
+
+</section>
+<section id="trace-prefill" class="markdown-section">
+<h2>실제 Trace에서 확인한 재계산 Prefill</h2>
+<p>실험에서 요청 B는 Preemption 직전에 다음 상태였다.</p>
+<pre><code class="language-ini">computed_tokens = 453
+block_count = 29
+status = RUNNING
+</code></pre>
+<p>Preemption 이후에는 다음처럼 바뀌었다.</p>
+<pre><code class="language-ini">computed_tokens = 0
+block_count = 0
+status = PREEMPTED
+</code></pre>
+<p>A가 완료되고 B가 다시 실행됐을 때 Trace에는 다음 기록이 남았다.</p>
+<pre><code class="language-makefile">Schedule 1802
+
+work_phase = prefill
+scheduled_tokens = 454
+prompt_tokens = 407
+computed_tokens_before = 0
+</code></pre>
+<p>여기서 <code>prompt_tokens=407</code>은 사용자가 보낸 원래 Prompt 길이다.</p>
+<p><code>scheduled_tokens=454</code>에는 원래 Prompt뿐 아니라 Preemption 전에 이미 생성되어 확정된 출력 Token도 포함된다.</p>
+<pre><code>407개의 원래 Prompt Token
++
+이미 생성된 출력 Token
+────────────────────
+454개의 재계산 대상 Token
+</code></pre>
+<p>이 454Token의 KV Cache를 복구한 다음 Iteration부터는 다시 Decode가 이어졌다.</p>
+<pre><code class="language-makefile">Schedule 1802
+
+work_phase = prefill
+scheduled_tokens = 454
+
+→ 기존 문맥 전체의 KV Cache 복구
+</code></pre>
+<pre><code class="language-makefile">Schedule 1803
+
+work_phase = decode
+scheduled_tokens = 1
+computed_tokens_before = 454
+
+→ 다음 새 Token 생성
+</code></pre>
+<p>따라서 전체 실행 흐름은 다음과 같다.</p>
+<pre><code class="language-css">B가 Prompt와 출력 일부를 계산
+→ KV Cache 부족으로 B Preemption
+→ B의 KV Cache Block 전체 반환
+→ B는 Waiting으로 이동
+→ A 완료
+→ B가 다시 Running
+→ Prompt와 기존 출력 Token을 Prefill 방식으로 재계산
+→ KV Cache 복구 완료
+→ 다음 Token부터 Decode 계속
+</code></pre>
+
+</section>
+<section id="temperature" class="markdown-section">
+<h2>Temperature가 있어도 기존 출력은 바뀌지 않는다</h2>
+<p><code>temperature &gt; 0</code>이면 Token Sampling에 무작위성이 들어간다. 그렇다고 Preemption 후 기존 출력 Token을 다시 Sampling하는 것은 아니다.</p>
+<p>이미 생성된 Token은 확정된 Token ID로 보존된다.</p>
+<pre><code>기존 출력 O1
+→ 다시 Sampling하지 않음
+→ O1을 입력으로 사용해 K·V만 복구
+
+기존 출력 O2
+→ 다시 Sampling하지 않음
+→ O2를 입력으로 사용해 K·V만 복구
+</code></pre>
+<p>기존 생성 위치까지 KV Cache를 복구한 뒤에야 다음 출력 Token을 새로 Sampling한다.</p>
+<pre><code>Prompt + O1 + O2 + O3 재계산
+→ 기존 생성 위치까지 복구
+→ 다음 O4부터 새로 Sampling
+</code></pre>
+<p>따라서 Client가 이미 받은 출력이 다른 내용으로 교체되지는 않는다. 요청은 동일한 Stream을 계속 유지하지만, 내부 재계산 비용 때문에 다음 Token을 받기까지의 간격과 전체 Latency가 증가할 수 있다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>Preemption 이후의 재실행은 응답을 처음부터 다시 만드는 작업이 아니다.</p>
+<pre><code>다시 만드는 것
+→ Prompt와 기존 출력의 KV Cache
+
+다시 만들지 않는 것
+→ 이미 확정되어 Client에게 전달한 출력 Token
+</code></pre>
+<p>핵심은 다음과 같다.</p>
+<blockquote>
+<p>Preemption으로 KV Cache를 잃은 요청은 원래 Prompt와 이미 생성된 출력 Token을 확정된 입력 문맥으로 사용해 KV Cache를 다시 계산한다. 이 복구 과정은 여러 Token을 한꺼번에 처리하므로 Prefill로 기록되며, 복구가 끝난 뒤부터 다음 Token의 Decode와 Sampling을 계속한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
