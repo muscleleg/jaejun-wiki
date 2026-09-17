@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/ttft_running_slot_wait.md. Do not edit directly. source-sha256:d5ce04111c9862152df1fbf7a9327fcd78e22eecf226a5c6ed2eb693fc011593 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="동시 요청을 늘렸을 때 TTFT는 증가하고 TPOT는 유지되는 결과를 Running·Waiting 한도와 함께 해석해, 첫 Token 이전의 대기를 추론하고 max_num_seqs 조정 실험으로 연결합니다.">
+  <meta name="source-sha256" content="d5ce04111c9862152df1fbf7a9327fcd78e22eecf226a5c6ed2eb693fc011593">
+  <title>TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다">
+  <meta property="og:description" content="동시 요청을 늘렸을 때 TTFT는 증가하고 TPOT는 유지되는 결과를 Running·Waiting 한도와 함께 해석해, 첫 Token 이전의 대기를 추론하고 max_num_seqs 조정 실험으로 연결합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html","name":"TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다","description":"동시 요청을 늘렸을 때 TTFT는 증가하고 TPOT는 유지되는 결과를 Running·Waiting 한도와 함께 해석해, 첫 Token 이전의 대기를 추론하고 max_num_seqs 조정 실험으로 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html"},"headline":"TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_running_slot_wait.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>TTFT만 늘고 TPOT가 유지된다면 Running 진입 전 대기를 의심할 수 있다</h1>
+      <p class="lead">동시 요청을 늘렸을 때 TTFT는 증가하고 TPOT는 유지되는 결과를 Running·Waiting 한도와 함께 해석해, 첫 Token 이전의 대기를 추론하고 max_num_seqs 조정 실험으로 연결합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ttft-up-tpot-stable">TTFT는 크게 늘었지만 TPOT는 변하지 않았다</a>
+        <a href="#ttft-includes-waiting-prefill">TTFT에는 Waiting과 Prefill이 모두 포함된다</a>
+        <a href="#max-num-seqs-running-waiting">max_num_seqs=16이면 동시 요청 일부가 Running 자리를 기다린다</a>
+        <a href="#tpot-stable-running-limit">TPOT가 유지된 것은 Running 수가 제한됐기 때문이다</a>
+        <a href="#test-higher-max-num-seqs">이 결과는 max_num_seqs를 높여 시험할 근거가 된다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Client Concurrency를 16에서 32로 늘렸을 때 첫 Token을 받기까지의 시간은 크게 늘었지만, 첫 Token 이후 생성 간격은 거의 변하지 않았다. 이 차이는 요청이 Running에 들어간 뒤 Decode가 느려진 것이 아니라, 첫 Token을 만들기 전까지 기다린 시간이 길어졌다는 해석과 맞는다.</p>
+<pre><code class="language-text">TTFT 급증
+→ 첫 Token이 나오기 전 구간에서 지연 발생
+
+TPOT 동일
+→ Running에 들어간 뒤 Decode 속도는 그대로
+
+max_num_seqs=16 확인
+→ Concurrency 32 중 일부 요청은 Waiting
+
+결론
+→ Prefill 계산 자체가 느려졌다기보다
+   Prefill을 시작할 Running 자리를 기다린 것으로 해석할 수 있다
+</code></pre>
+</div>
+        <section id="ttft-up-tpot-stable" class="markdown-section">
+<h2>TTFT는 크게 늘었지만 TPOT는 변하지 않았다</h2>
+<p>Client Concurrency를 16에서 32로 늘린 측정 결과는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Client Concurrency</th>
+<th align="right">Output Token/s</th>
+<th align="right">TTFT p50</th>
+<th align="right">TPOT p50</th>
+<th align="right">Latency p50</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">16</td>
+<td align="right">789.97</td>
+<td align="right">347.58 ms</td>
+<td align="right">17.54 ms</td>
+<td align="right">2,590.29 ms</td>
+</tr>
+<tr>
+<td align="right">32</td>
+<td align="right">791.75</td>
+<td align="right">2,918.97 ms</td>
+<td align="right">17.51 ms</td>
+<td align="right">5,143.03 ms</td>
+</tr>
+</tbody></table>
+</div>
+<p>Concurrency를 두 배로 늘렸을 때 TTFT는 약 348ms에서 약 2,919ms로 크게 늘었다. 반면 TPOT는 약 17.5ms/token으로 거의 같았다. Output Token/s도 약 790 token/s로 비슷했다.</p>
+<p>이 결과는 모든 생성 과정이 느려졌다는 뜻이 아니다. 눈에 띄는 지연은 첫 Token을 받기 전 구간에 집중되어 있다.</p>
+
+</section>
+<section id="ttft-includes-waiting-prefill" class="markdown-section">
+<h2>TTFT에는 Waiting과 Prefill이 모두 포함된다</h2>
+<p>요청이 첫 Token을 받기까지는 다음 단계가 이어진다.</p>
+<pre><code class="language-text">요청 전송
+→ Waiting
+→ Running 진입
+→ Prefill
+→ 첫 Token 생성
+</code></pre>
+<p>TTFT는 요청을 보낸 순간부터 첫 Token을 받을 때까지의 전체 시간이다. 그러므로 TTFT가 길어졌다는 사실만으로는 Prefill 계산이 느려졌는지, Running에 들어가기 전에 Waiting을 오래 했는지 구분할 수 없다.</p>
+<pre><code class="language-text">TTFT
+= Waiting 시간 + Prefill 시간 + 첫 Token 생성까지의 시간
+
+TPOT
+= 첫 Token을 받은 뒤 Decode에서 Token이 이어지는 평균 간격
+</code></pre>
+<p>이번 결과에서는 TPOT가 그대로였으므로 Running 진입 후 Decode 속도 저하가 주된 원인이라고 보기는 어렵다. Waiting과 Prefill 중 어느 쪽인지 확인하려면 Server의 실행 한도와 Running·Waiting 관찰을 함께 봐야 한다.</p>
+
+</section>
+<section id="max-num-seqs-running-waiting" class="markdown-section">
+<h2>max_num_seqs=16이면 동시 요청 일부가 Running 자리를 기다린다</h2>
+<p>측정 당시 Server는 한 번에 Running으로 둘 수 있는 Sequence 수를 16개로 제한했다.</p>
+<pre><code class="language-text">Server 실행 한도
+max_num_seqs = 16
+
+Client가 동시에 보낸 요청
+Concurrency = 32
+
+동시에 Running으로 처리할 수 있는 요청
+최대 16개
+
+나머지 요청
+Running 자리가 생길 때까지 Waiting
+</code></pre>
+<p>따라서 32개 요청을 동시에 보내도 32개가 한꺼번에 Prefill·Decode를 하는 것은 아니다. 이 설정에서는 최대 16개가 Running으로 처리되고, 실행 자리가 없는 요청은 Waiting에서 차례를 기다릴 수 있다.</p>
+<p>앞선 요청이 끝나 Running 자리가 생기면 Waiting 요청이 Running으로 들어가 Prefill을 시작한다. 즉, 대기 시간은 Prefill 계산이 시작되기 전에 TTFT에 더해진다.</p>
+
+</section>
+<section id="tpot-stable-running-limit" class="markdown-section">
+<h2>TPOT가 유지된 것은 Running 수가 제한됐기 때문이다</h2>
+<p>Concurrency 32는 Client가 동시에 유지한 요청 수이지, Server가 동시에 Decode한 Sequence 수와 같지 않다. Server의 <code>max_num_seqs=16</code> 제한 때문에 실제 Running 수는 최대 16개였다.</p>
+<pre><code class="language-text">Concurrency 16
+→ 최대 16개까지 Running
+→ Decode
+
+Concurrency 32
+→ 최대 16개까지 Running
+→ 나머지는 자리 대기
+→ Running 요청이 끝나면 대기 요청이 들어와 Decode
+</code></pre>
+<p>그래서 Concurrency를 32로 늘려도 한 순간에 Decode하는 Sequence 수가 두 배가 된 것은 아니다. 측정에서 TPOT가 거의 같게 나온 것은 이 설명과 일치한다.</p>
+
+</section>
+<section id="test-higher-max-num-seqs" class="markdown-section">
+<h2>이 결과는 max_num_seqs를 높여 시험할 근거가 된다</h2>
+<p>이번 결과만으로 <code>max_num_seqs=32</code>가 더 낫다고 단정할 수는 없다. 측정한 것은 <code>max_num_seqs=16</code>인 Server에서 Client Concurrency를 16과 32로 바꾼 경우다. 아직 Server가 32개 Sequence를 동시에 Running할 때의 결과는 없다.</p>
+<p>다음 실험에서는 <code>max_num_seqs=32</code>로 바꾸고 같은 Concurrency 16·32 조건을 비교할 수 있다.</p>
+<pre><code class="language-text">Output Token/s가 증가하고 TPOT가 허용 범위 안에 유지되며
+Preemption·실패가 없다
+→ 동시 실행 수를 높인 것이 유리할 가능성
+
+Output Token/s는 거의 그대로인데 TPOT가 늘어난다
+→ GPU가 이미 처리 한계에 가까울 가능성
+
+KV Cache Pressure나 Preemption이 발생한다
+→ 32개 동시 실행이 Cache 용량에 부담을 준다는 신호
+</code></pre>
+<p>핵심은 <strong>TTFT가 늘었다고 곧바로 Prefill 계산이 느려졌다고 결론 내리지 않는 것</strong>이다. 이번에는 TPOT가 유지됐고 <code>max_num_seqs=16</code> 제한도 확인됐다. 따라서 Concurrency 32의 추가 요청들이 Prefill을 시작할 Running 자리를 기다렸다는 설명이 관측 결과를 가장 잘 연결한다. 이를 바탕으로 다음에는 <code>max_num_seqs</code>를 높였을 때 처리량·TPOT·Cache 압력이 어떻게 달라지는지 검증할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

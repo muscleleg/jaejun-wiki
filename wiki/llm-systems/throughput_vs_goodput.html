@@ -1,0 +1,466 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/throughput_vs_goodput.md. Do not edit directly. source-sha256:344d14eca9787b944599c44eb81d705fbd96d77d833698deabd4c512a08dd844 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Throughput과 SLO를 만족한 작업량인 Goodput을 구분하고, 요청별 TTFT·TPOT·Latency·오류와 사용자별 및 Server 전체 Token/s를 함께 측정해 Serving 최적점을 찾는 방법을 설명합니다.">
+  <meta name="source-sha256" content="344d14eca9787b944599c44eb81d705fbd96d77d833698deabd4c512a08dd844">
+  <title>Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다">
+  <meta property="og:description" content="Throughput과 SLO를 만족한 작업량인 Goodput을 구분하고, 요청별 TTFT·TPOT·Latency·오류와 사용자별 및 Server 전체 Token/s를 함께 측정해 Serving 최적점을 찾는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html","name":"Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다","description":"Throughput과 SLO를 만족한 작업량인 Goodput을 구분하고, 요청별 TTFT·TPOT·Latency·오류와 사용자별 및 Server 전체 Token/s를 함께 측정해 Serving 최적점을 찾는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html"},"headline":"Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/throughput_vs_goodput.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Throughput만 높아서는 좋은 LLM Serving이라고 할 수 없다</h1>
+      <p class="lead">Throughput과 SLO를 만족한 작업량인 Goodput을 구분하고, 요청별 TTFT·TPOT·Latency·오류와 사용자별 및 Server 전체 Token/s를 함께 측정해 Serving 최적점을 찾는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#throughput-counts-all-completed-work">Throughput은 완료한 모든 작업을 센다</a>
+        <a href="#goodput-counts-slo-work">Goodput은 품질 기준을 만족한 작업만 센다</a>
+        <a href="#goodput-not-over-throughput">Goodput은 항상 Throughput보다 작거나 같다</a>
+        <a href="#throughput-does-not-guarantee-goodput">높은 Throughput이 높은 Goodput을 보장하지 않는다</a>
+        <a href="#llm-serving-quality-criteria">LLM Serving에서 품질을 판단하는 기준</a>
+        <a href="#aggregate-vs-user-token-rate">Server 전체 Token/s와 사용자별 Token/s는 다르다</a>
+        <a href="#goodput-can-drop-at-high-concurrency">Concurrency를 계속 높이면 Goodput이 감소할 수 있다</a>
+        <a href="#calculate-goodput-per-request">Goodput은 요청별 원본 기록으로 계산해야 한다</a>
+        <a href="#define-slo-before-optimization">최적화하려면 먼저 SLO를 정해야 한다</a>
+        <a href="#conclusion">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM Server의 성능을 측정할 때 가장 먼저 보게 되는 값은 Throughput이다.</p>
+<pre><code class="language-text">Request Throughput
+→ 1초에 완료한 요청 수
+
+Output Token Throughput
+→ 1초에 생성한 전체 출력 Token 수
+</code></pre>
+<p>Throughput이 높으면 같은 GPU로 더 많은 작업을 처리할 수 있다. 따라서 Server 용량과 자원 효율을 판단하는 데 중요한 지표다.</p>
+<p>하지만 Throughput만으로는 사용자가 좋은 서비스를 받았는지 알 수 없다.</p>
+<p>Server가 많은 요청을 완료했더라도 사용자가 첫 Token을 받기까지 너무 오래 기다렸거나, 답변이 매우 느린 속도로 생성됐을 수 있기 때문이다.</p>
+<p>이처럼 <strong>완료한 모든 작업량</strong>과 <strong>요구한 품질을 만족하며 완료한 작업량</strong>을 구분하기 위해 Goodput을 사용한다.</p>
+</div>
+        <section id="throughput-counts-all-completed-work" class="markdown-section">
+<h2>Throughput은 완료한 모든 작업을 센다</h2>
+<p>어떤 LLM Server가 10초 동안 요청 100개를 완료했다고 해보자.</p>
+<pre><code class="language-text">Request Throughput
+= 100 / 10
+= 10 requests/s
+</code></pre>
+<p>이 값은 Server가 1초에 평균 10개의 요청을 완료했다는 뜻이다.</p>
+<p>그런데 요청별 결과를 확인해 보니 다음과 같을 수 있다.</p>
+<pre><code class="language-text">요청 60개
+→ 첫 Token을 1초 안에 받음
+
+요청 30개
+→ 첫 Token을 받는 데 3초 소요
+
+요청 10개
+→ 첫 Token을 받는 데 10초 소요
+</code></pre>
+<p>100개 요청이 모두 정상적으로 끝났다면 Throughput 계산에는 전부 포함된다.</p>
+<pre><code class="language-text">빠르게 완료한 요청
+→ Throughput에 포함
+
+오래 기다린 요청
+→ 완료됐다면 Throughput에 포함
+</code></pre>
+<p>Throughput이 답하는 질문은 하나다.</p>
+<blockquote>
+<p>Server가 단위 시간에 얼마나 많은 작업을 완료했는가?</p>
+</blockquote>
+<p>그 작업이 사용자가 기대한 시간 안에 끝났는지는 판단하지 않는다.</p>
+
+</section>
+<section id="goodput-counts-slo-work" class="markdown-section">
+<h2>Goodput은 품질 기준을 만족한 작업만 센다</h2>
+<p>Goodput을 계산하려면 먼저 서비스가 지켜야 할 기준이 필요하다. 이 기준을 SLO라고 한다.</p>
+<p>LLM Serving에서는 다음과 같은 SLO를 정할 수 있다.</p>
+<pre><code class="language-text">TTFT
+≤ 1초
+
+TPOT
+≤ 25ms/token
+
+전체 Latency
+≤ 5초
+
+요청 오류율
+≤ 1%
+</code></pre>
+<p>요청 하나가 이 기준을 모두 만족해야 유효한 요청으로 인정한다고 해보자.</p>
+<pre><code class="language-text">TTFT 기준 만족
+AND TPOT 기준 만족
+AND Latency 기준 만족
+AND 요청 성공
+
+→ Good Request
+</code></pre>
+<p>Goodput은 단위 시간에 완료한 요청 중 이러한 기준을 만족한 요청만 계산한다.</p>
+<pre><code class="language-text">Goodput
+= SLO를 만족한 요청 수
+  / 측정 시간
+</code></pre>
+<p>앞의 예시에서 10초 동안 요청 100개를 완료했지만, SLO를 만족한 요청이 60개뿐이었다면:</p>
+<pre><code class="language-text">Throughput
+= 100 / 10
+= 10 requests/s
+
+Goodput
+= 60 / 10
+= 6 requests/s
+</code></pre>
+<p>Server는 초당 10개의 요청을 끝냈지만, 사용자가 요구한 품질로 제공한 요청은 초당 6개뿐인 것이다.</p>
+
+</section>
+<section id="goodput-not-over-throughput" class="markdown-section">
+<h2>Goodput은 항상 Throughput보다 작거나 같다</h2>
+<p>Goodput은 완료된 요청 중 일부만 선택해서 계산한다.</p>
+<p>따라서 두 값의 관계는 항상 다음과 같다.</p>
+<pre><code class="language-text">Goodput ≤ Throughput
+</code></pre>
+<p>모든 요청이 SLO를 만족하면 두 값은 같아진다.</p>
+<pre><code class="language-text">완료 요청
+= 100개
+
+SLO 만족 요청
+= 100개
+
+Throughput과 Goodput이 같음
+</code></pre>
+<p>일부 요청이 SLO를 위반하면 Goodput은 Throughput보다 작아진다.</p>
+<pre><code class="language-text">완료 요청
+= 100개
+
+SLO 만족 요청
+= 70개
+
+Goodput은 Throughput의 일부
+</code></pre>
+<p>이 차이는 Server가 얼마나 많은 요청을 처리했는지와, 그중 얼마나 많은 요청을 사용자가 만족할 수준으로 처리했는지를 구분해 준다.</p>
+
+</section>
+<section id="throughput-does-not-guarantee-goodput" class="markdown-section">
+<h2>높은 Throughput이 높은 Goodput을 보장하지 않는다</h2>
+<p>두 가지 Server 설정을 비교해 보자.</p>
+<h3>설정 A</h3>
+<pre><code class="language-text">Throughput
+= 8 requests/s
+
+SLO 만족률
+= 95%
+</code></pre>
+<p>10초 동안 처리했다고 가정하면 다음과 같다.</p>
+<pre><code class="language-text">완료 요청
+= 80개
+
+SLO 만족 요청
+= 76개
+
+Goodput
+= 7.6 requests/s
+</code></pre>
+<h3>설정 B</h3>
+<pre><code class="language-text">Throughput
+= 12 requests/s
+
+SLO 만족률
+= 50%
+</code></pre>
+<p>10초 동안 처리하면:</p>
+<pre><code class="language-text">완료 요청
+= 120개
+
+SLO 만족 요청
+= 60개
+
+Goodput
+= 6 requests/s
+</code></pre>
+<p>설정 B는 더 많은 요청을 완료했으므로 Throughput이 높다. 하지만 절반의 요청만 품질 기준을 만족한다.</p>
+<pre><code class="language-text">설정 A
+Throughput은 낮음
+Goodput은 높음
+
+설정 B
+Throughput은 높음
+Goodput은 낮음
+</code></pre>
+<p>사용자가 실제로 만족할 수 있는 요청을 더 많이 제공한 설정은 A다.</p>
+<p>따라서 운영 환경에서는 가장 높은 Throughput을 기록한 설정이 항상 최선은 아니다.</p>
+
+</section>
+<section id="llm-serving-quality-criteria" class="markdown-section">
+<h2>LLM Serving에서 품질을 판단하는 기준</h2>
+<p>LLM 응답은 한 번에 완성되어 전달되지 않는다. 첫 Token이 생성된 뒤 나머지 Token이 순차적으로 전송된다.</p>
+<p>따라서 사용자 경험도 여러 구간으로 나눠 측정해야 한다.</p>
+<h3>TTFT는 답변이 시작되기까지의 시간이다</h3>
+<p>TTFT는 요청을 보낸 뒤 첫 Token을 받을 때까지 걸린 시간이다.</p>
+<pre><code class="language-text">요청 전송
+→ Waiting
+→ Prefill
+→ 첫 Token 생성
+
+이 시간
+= TTFT
+</code></pre>
+<p>TTFT가 길면 사용자는 Server가 반응하지 않는다고 느낀다.</p>
+<pre><code class="language-text">TTFT SLO
+≤ 1초
+</code></pre>
+<p>이 기준은 대부분의 요청이 1초 안에 답변을 시작해야 한다는 의미로 사용할 수 있다.</p>
+<h3>TPOT는 답변이 이어지는 속도다</h3>
+<p>TPOT는 첫 Token 이후 다음 출력 Token 하나가 생성되는 평균 간격이다.</p>
+<pre><code class="language-text">첫 Token
+→ 20ms
+→ 다음 Token
+→ 20ms
+→ 다음 Token
+</code></pre>
+<p>TPOT는 사용자별 Token 생성 속도로 변환할 수 있다.</p>
+<pre><code class="language-text">사용자별 Token/s
+≈ 1,000 / TPOT(ms/token)
+</code></pre>
+<p>TPOT가 <code>25ms/token</code>이라면:</p>
+<pre><code class="language-text">1,000 / 25
+= 40Token/s
+</code></pre>
+<p>따라서 다음 두 SLO는 같은 의미로 사용할 수 있다.</p>
+<pre><code class="language-text">TPOT ≤ 25ms/token
+</code></pre>
+<pre><code class="language-text">사용자별 생성 속도
+≥ 40Token/s
+</code></pre>
+<h3>전체 Latency는 응답이 완성되는 시간이다</h3>
+<p>전체 Latency는 요청을 보낸 뒤 마지막 Token을 받을 때까지의 시간이다.</p>
+<p>대략 다음 관계로 이해할 수 있다.</p>
+<pre><code class="language-text">Latency
+≈ TTFT
+  + TPOT × (출력 Token 수 - 1)
+</code></pre>
+<p>TTFT가 짧더라도 TPOT가 길고 출력이 길다면 전체 응답 완료 시간은 커질 수 있다.</p>
+<h3>요청 실패도 품질 기준에 포함된다</h3>
+<p>다음 요청은 Throughput이나 Goodput에서 다르게 처리될 수 있다.</p>
+<pre><code class="language-text">HTTP 오류
+Timeout
+OOM
+Client 연결 종료
+Admission Reject
+</code></pre>
+<p>실패한 요청은 사용자가 정상적인 결과를 받지 못했으므로 Goodput에 포함하지 않는다.</p>
+
+</section>
+<section id="aggregate-vs-user-token-rate" class="markdown-section">
+<h2>Server 전체 Token/s와 사용자별 Token/s는 다르다</h2>
+<p>LLM Benchmark에서는 두 종류의 Token/s를 구분해야 한다.</p>
+<h3>Server 전체 Output Token/s</h3>
+<pre><code class="language-text">Server Output Throughput
+→ 모든 요청이 생성한 Token의 합
+→ Server 용량과 GPU 자원 효율
+</code></pre>
+<p>예를 들어 32개 요청을 동시에 처리하면서 Server 전체가 초당 1,200Token을 생성할 수 있다.</p>
+<h3>사용자별 Token/s</h3>
+<pre><code class="language-text">사용자별 Token/s
+≈ 1,000 / TPOT
+→ 요청 하나가 받는 생성 속도
+→ 사용자 체감 품질
+</code></pre>
+<p>동시 요청을 늘리면 Server 전체 Output Token/s는 증가할 수 있다. 하지만 각 요청이 받는 생성 속도는 낮아질 수 있다.</p>
+<pre><code class="language-text">Concurrency 증가
+
+Server 전체 Output Token/s
+→ 증가
+
+요청별 TPOT
+→ 증가할 수 있음
+
+사용자별 Token/s
+→ 감소할 수 있음
+</code></pre>
+<p>즉, GPU는 전체적으로 더 많은 일을 하지만 사용자 한 명이 보는 답변은 더 느리게 생성될 수 있다.</p>
+
+</section>
+<section id="goodput-can-drop-at-high-concurrency" class="markdown-section">
+<h2>Concurrency를 계속 높이면 Goodput이 감소할 수 있다</h2>
+<p>낮은 Concurrency에서는 GPU가 충분히 활용되지 않을 수 있다.</p>
+<pre><code class="language-text">Concurrency가 너무 낮음
+→ GPU에 남는 계산 여력 존재
+→ Throughput과 Goodput 모두 낮음
+</code></pre>
+<p>Concurrency를 높이면 GPU가 더 많은 요청을 함께 처리하면서 Throughput이 증가한다.</p>
+<pre><code class="language-text">Concurrency 증가
+→ 더 큰 Batch
+→ GPU 활용률 증가
+→ Throughput 증가
+</code></pre>
+<p>하지만 일정 수준을 넘으면 Waiting이 길어지고 요청별 생성 속도가 느려진다.</p>
+<pre><code class="language-text">Concurrency 과도하게 증가
+→ Waiting 증가
+→ TTFT 증가
+→ TPOT 증가
+→ SLO 위반 증가
+</code></pre>
+<p>이때 전체 Throughput은 계속 증가하거나 유지될 수 있지만 Goodput은 감소할 수 있다.</p>
+<pre><code class="language-text">초기 구간
+Concurrency 증가
+→ Throughput 증가
+→ Goodput 증가
+
+과부하 구간
+Concurrency 증가
+→ Throughput은 유지
+→ SLO 위반 증가
+→ Goodput 감소
+</code></pre>
+<p>운영에서 찾아야 하는 지점은 Throughput이 가장 높은 곳이 아니라 Goodput이 가장 높은 곳이다.</p>
+
+</section>
+<section id="calculate-goodput-per-request" class="markdown-section">
+<h2>Goodput은 요청별 원본 기록으로 계산해야 한다</h2>
+<p>다음과 같은 집계값만으로는 정확한 Goodput을 계산하기 어렵다.</p>
+<pre><code class="language-text">TTFT p50
+TTFT p95
+TPOT p50
+Latency p95
+</code></pre>
+<p>p95는 전체 요청의 분포를 요약한 값이다. 어떤 요청이 TTFT와 TPOT SLO를 동시에 만족했는지는 알려 주지 않는다.</p>
+<p>정확한 Goodput을 계산하려면 요청별 기록이 필요하다.</p>
+<pre><code class="language-text">Request A
+TTFT = 400ms
+TPOT = 18ms/token
+Latency = 3초
+성공 = True
+
+→ 모든 SLO 만족
+→ Goodput에 포함
+</code></pre>
+<pre><code class="language-text">Request B
+TTFT = 1.4초
+TPOT = 17ms/token
+Latency = 4초
+성공 = True
+
+→ TTFT SLO 위반
+→ Throughput에는 포함
+→ Goodput에는 제외
+</code></pre>
+<p>각 요청에 동일한 판정 함수를 적용한다.</p>
+<pre><code class="language-text">good_request
+=
+요청 성공
+AND TTFT ≤ TTFT SLO
+AND TPOT ≤ TPOT SLO
+AND Latency ≤ Latency SLO
+</code></pre>
+<p>마지막으로 Good Request 수를 전체 측정 시간으로 나눈다.</p>
+<pre><code class="language-text">Goodput
+= Good Request 수
+  / Benchmark 측정 시간
+</code></pre>
+
+</section>
+<section id="define-slo-before-optimization" class="markdown-section">
+<h2>최적화하려면 먼저 SLO를 정해야 한다</h2>
+<p>SLO가 없다면 서로 다른 설정 중 무엇이 더 좋은지 판단할 수 없다.</p>
+<pre><code class="language-text">설정 A
+Throughput은 낮음
+TTFT와 TPOT는 좋음
+
+설정 B
+Throughput은 높음
+TTFT와 TPOT는 나쁨
+</code></pre>
+<p>어느 설정이 좋은지는 서비스 요구사항에 따라 달라진다.</p>
+<p>대화형 서비스라면 첫 응답이 빠른 것이 중요할 수 있다.</p>
+<pre><code class="language-text">TTFT p95 ≤ 1초
+</code></pre>
+<p>긴 문서를 생성하는 서비스라면 답변이 이어지는 속도가 더 중요할 수 있다.</p>
+<pre><code class="language-text">TPOT p95 ≤ 25ms/token
+</code></pre>
+<p>Batch 작업이라면 사용자에게 Streaming 응답을 보여 주지 않으므로 전체 처리량이 더 중요할 수 있다.</p>
+<pre><code class="language-text">Output Token Throughput 최대화
+</code></pre>
+<p>따라서 Serving 최적화는 다음 순서로 진행해야 한다.</p>
+<pre><code class="language-text">1. 사용자와 서비스에 필요한 SLO를 정의한다.
+2. Concurrency와 Server 설정을 바꾸며 요청별 성능을 측정한다.
+3. 각 요청이 SLO를 만족했는지 판정한다.
+4. 조건별 Goodput을 계산한다.
+5. SLO를 지키면서 Goodput이 가장 높은 설정을 선택한다.
+</code></pre>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>결론</h2>
+<p>Throughput과 Goodput은 서로 다른 질문에 답한다.</p>
+<pre><code class="language-text">Throughput
+→ Server가 얼마나 많이 처리했는가?
+
+Goodput
+→ 요구한 품질을 지키면서 얼마나 많이 처리했는가?
+</code></pre>
+<p>Throughput은 자원 효율과 Server의 원시 처리 능력을 보여 준다. Goodput은 그 처리량 중 실제 서비스 품질 기준을 만족한 부분만 보여 준다.</p>
+<pre><code class="language-text">Goodput
+= Throughput 중 SLO를 만족한 작업량
+
+Goodput ≤ Throughput
+</code></pre>
+<p>따라서 LLM Serving에서의 최적화 목표는 Throughput을 무조건 최대화하는 것이 아니다.</p>
+<blockquote>
+<p>TTFT·TPOT·전체 Latency·오류율 SLO를 만족하면서 가장 높은 Goodput을 제공하는 설정을 찾는 것이 실제 Serving 최적화다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
