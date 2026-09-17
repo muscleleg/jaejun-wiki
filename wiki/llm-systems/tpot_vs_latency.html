@@ -1,0 +1,206 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/tpot_vs_latency.md. Do not edit directly. source-sha256:9bcf3a2cb9d9e4776351bec7711bb477db8e83f25c8525972510da195e64e0a0 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TTFT·TPOT·Latency의 시간 범위를 구분하고, 출력 Token 수로 전체 응답 시간을 근사하며, Waiting이 주로 TTFT를 늘리는 이유를 설명합니다.">
+  <meta name="source-sha256" content="9bcf3a2cb9d9e4776351bec7711bb477db8e83f25c8525972510da195e64e0a0">
+  <title>TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다">
+  <meta property="og:description" content="TTFT·TPOT·Latency의 시간 범위를 구분하고, 출력 Token 수로 전체 응답 시간을 근사하며, Waiting이 주로 TTFT를 늘리는 이유를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html","name":"TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다","description":"TTFT·TPOT·Latency의 시간 범위를 구분하고, 출력 Token 수로 전체 응답 시간을 근사하며, Waiting이 주로 TTFT를 늘리는 이유를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html"},"headline":"TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tpot_vs_latency.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>TPOT는 전체 생성 시간이 아니라 첫 Token 이후의 Token당 생성 간격이다</h1>
+      <p class="lead">TTFT·TPOT·Latency의 시간 범위를 구분하고, 출력 Token 수로 전체 응답 시간을 근사하며, Waiting이 주로 TTFT를 늘리는 이유를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ttft-first-token">TTFT는 첫 번째 Token까지의 시간이다</a>
+        <a href="#tpot-between-tokens">TPOT는 그다음 Token들의 평균 간격이다</a>
+        <a href="#tpot-interval-count">출력 Token이 128개라면 TPOT 구간은 127개다</a>
+        <a href="#ttft-tpot-user-experience">TTFT와 TPOT는 서로 다른 사용자 경험을 나타낸다</a>
+        <a href="#waiting-increases-ttft">Waiting은 주로 TTFT를 늘린다</a>
+        <a href="#summary">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>처음에는 TPOT를 하나의 요청이 출력 전체를 생성하는 데 걸린 시간처럼 이해할 수 있다. 그래서 다음과 같은 관계를 예상하게 된다.</p>
+<pre><code class="language-ini">Latency = TTFT + TPOT
+</code></pre>
+<p>하지만 TPOT는 출력 전체에 걸린 시간이 아니다. <strong>첫 번째 Token이 나온 뒤, 다음 출력 Token 하나를 생성하는 데 걸리는 평균 시간</strong>이다.</p>
+</div>
+        <section id="ttft-first-token" class="markdown-section">
+<h2>TTFT는 첫 번째 Token까지의 시간이다</h2>
+<p>사용자가 요청을 보낸 직후에는 아직 화면에 표시할 출력이 없다.</p>
+<p>Server는 요청을 받아 Prompt를 처리하고 첫 번째 출력 Token을 만든다. 이때까지 걸린 시간이 TTFT다.</p>
+<pre><code class="language-text">요청 전송
+→ Waiting
+→ Prefill
+→ 첫 번째 Token 생성
+
+이 전체 시간 = TTFT
+</code></pre>
+<p>예를 들어 요청 후 300ms가 지나 첫 Token을 받았다면:</p>
+<pre><code class="language-ini">TTFT = 300ms
+</code></pre>
+
+</section>
+<section id="tpot-between-tokens" class="markdown-section">
+<h2>TPOT는 그다음 Token들의 평균 간격이다</h2>
+<p>첫 Token이 만들어진 뒤에는 Decode가 반복되면서 Token이 하나씩 생성된다.</p>
+<pre><code class="language-text">첫 번째 Token
+→ 17ms
+→ 두 번째 Token
+→ 17ms
+→ 세 번째 Token
+→ 17ms
+→ 네 번째 Token
+</code></pre>
+<p>이때 Token 사이의 평균 간격이 TPOT다.</p>
+<pre><code class="language-ini">TPOT = 17ms/token
+</code></pre>
+<p>이는 전체 응답을 17ms 만에 생성했다는 뜻이 아니다. 첫 Token 이후 새로운 Token이 평균 17ms마다 하나씩 나온다는 뜻이다.</p>
+
+</section>
+<section id="tpot-interval-count" class="markdown-section">
+<h2>출력 Token이 128개라면 TPOT 구간은 127개다</h2>
+<p>첫 번째 Token은 이미 TTFT의 끝에서 만들어졌다. 따라서 출력이 총 128Token이라면 TPOT가 적용되는 구간은 나머지 127개다.</p>
+<pre><code class="language-text">출력 Token 128개
+
+첫 번째 Token
+→ TTFT에 포함
+
+두 번째부터 128번째 Token
+→ TPOT 간격 127번
+</code></pre>
+<p>그래서 전체 Latency는 다음과 같이 계산할 수 있다.</p>
+<pre><code class="language-text">Latency
+≈ TTFT + TPOT × (출력 Token 수 - 1)
+</code></pre>
+<p>예를 들어 다음과 같은 요청이 있다고 해보자.</p>
+<pre><code class="language-makefile">TTFT = 300ms
+TPOT = 17ms/token
+출력 Token = 128개
+</code></pre>
+<p>예상 Latency는 다음과 같다.</p>
+<pre><code class="language-text">Latency
+≈ 300 + 17 × 127
+≈ 2,459ms
+</code></pre>
+<p>즉, 사용자는 약 300ms 뒤에 첫 글자를 보기 시작하지만, 전체 응답을 받으려면 약 2.46초를 기다려야 한다.</p>
+
+</section>
+<section id="ttft-tpot-user-experience" class="markdown-section">
+<h2>TTFT와 TPOT는 서로 다른 사용자 경험을 나타낸다</h2>
+<p>TTFT가 길면 사용자는 Server가 아무 반응도 하지 않는다고 느낀다.</p>
+<pre><code class="language-text">요청 전송
+→ 오랫동안 아무 출력도 없음
+→ 뒤늦게 첫 Token 도착
+</code></pre>
+<p>TPOT가 길면 첫 Token은 빨리 나오더라도 이후 문장이 천천히 생성된다.</p>
+<pre><code class="language-text">첫 Token 도착
+→ 다음 글자가 느리게 나타남
+→ 답변을 읽는 흐름이 자주 끊김
+</code></pre>
+<p>따라서 두 지표는 서로 다른 문제를 보여준다.</p>
+<pre><code class="language-text">TTFT
+→ 첫 응답을 얼마나 빨리 시작하는가?
+
+TPOT
+→ 응답을 시작한 뒤 얼마나 빠르게 계속 생성하는가?
+
+Latency
+→ 전체 응답이 언제 완성되는가?
+</code></pre>
+
+</section>
+<section id="waiting-increases-ttft" class="markdown-section">
+<h2>Waiting은 주로 TTFT를 늘린다</h2>
+<p>동시 요청이 Server의 실행 한도를 넘으면 일부 요청은 Waiting 상태가 된다.</p>
+<pre><code class="language-text">요청 전송
+→ Waiting
+→ Running 진입
+→ 첫 Token 생성
+→ Decode 반복
+</code></pre>
+<p>Waiting 시간은 첫 Token이 나오기 전에 발생하므로 TTFT에 포함된다. 반면 TPOT는 첫 Token 이후부터 측정하므로 Waiting 시간이 직접 포함되지 않는다.</p>
+<p>따라서 다음과 같은 결과도 가능하다.</p>
+<pre><code class="language-text">Concurrency 증가
+→ Waiting 증가
+→ TTFT 크게 증가
+→ TPOT는 거의 동일
+</code></pre>
+<p>이것은 요청이 실행되기 전에는 오래 기다렸지만, 일단 생성이 시작된 뒤에는 이전과 비슷한 속도로 Token이 나왔다는 의미다.</p>
+
+</section>
+<section id="summary" class="markdown-section">
+<h2>정리</h2>
+<p>처음의 오해는 다음과 같았다.</p>
+<pre><code class="language-text">잘못 이해한 관계
+Latency = TTFT + TPOT
+</code></pre>
+<p>실제 관계는 다음에 가깝다.</p>
+<pre><code class="language-text">Latency
+≈ TTFT
+  + TPOT × (출력 Token 수 - 1)
+</code></pre>
+<p>각 지표의 의미를 한 문장으로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>TTFT는 첫 Token을 받기까지의 시간이고, TPOT는 첫 Token 이후 다음 Token 하나가 생성되는 평균 간격이다. 따라서 전체 Latency를 이해하려면 TPOT에 첫 Token을 제외한 출력 Token 수를 곱해야 한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

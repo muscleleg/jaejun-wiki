@@ -1,0 +1,245 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/ttft_waiting_queue_diagnosis.md. Do not edit directly. source-sha256:b69ed9c3d0425b95ce902311dcb1fc706f27a7c9405e32223064ea8acce75e59 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TTFT가 길어진 원인을 Waiting과 함께 구분하고, Queue 누적·지속 가능한 유입 부하·Preemption을 각각 어떻게 해석할지 설명합니다.">
+  <meta name="source-sha256" content="b69ed9c3d0425b95ce902311dcb1fc706f27a7c9405e32223064ea8acce75e59">
+  <title>TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유">
+  <meta property="og:description" content="TTFT가 길어진 원인을 Waiting과 함께 구분하고, Queue 누적·지속 가능한 유입 부하·Preemption을 각각 어떻게 해석할지 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html","name":"TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유","description":"TTFT가 길어진 원인을 Waiting과 함께 구분하고, Queue 누적·지속 가능한 유입 부하·Preemption을 각각 어떻게 해석할지 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html"},"headline":"TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ttft_waiting_queue_diagnosis.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>TTFT만으로 부족할 때 Waiting을 확인해야 하는 이유</h1>
+      <p class="lead">TTFT가 길어진 원인을 Waiting과 함께 구분하고, Queue 누적·지속 가능한 유입 부하·Preemption을 각각 어떻게 해석할지 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#ttft-shows-total-delay">TTFT는 지연 결과만 보여준다</a>
+        <a href="#waiting-before-execution">Waiting은 요청이 실행되기 전에 기다리는 상태다</a>
+        <a href="#diagnose-ttft-with-waiting">TTFT와 Waiting을 함께 보면 지연 원인을 구분할 수 있다</a>
+        <a href="#growing-waiting-signals-worsening-delay">Waiting 증가는 앞으로 지연이 더 악화될 가능성을 보여준다</a>
+        <a href="#waiting-is-not-preemption">Waiting과 Preemption은 서로 다른 현상이다</a>
+        <a href="#ttft-slo-waiting-diagnosis">SLO 판정에는 TTFT를 사용하고 원인 분석에는 Waiting을 사용한다</a>
+        <a href="#conclusion">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM Serving 품질을 평가할 때 사용자에게 가장 직접적인 지표는 TTFT다.</p>
+<pre><code class="language-text">TTFT
+= 요청을 보낸 시점부터
+  첫 번째 출력 Token을 받을 때까지 걸린 시간
+</code></pre>
+<p>TTFT가 짧으면 사용자는 Server가 빠르게 반응한다고 느끼고, TTFT가 길면 응답이 시작되기 전까지 오래 기다렸다고 느낀다.</p>
+<p>따라서 “사용자가 얼마나 기다렸는가?”만 평가한다면 TTFT를 보면 된다. 하지만 TTFT가 증가한 원인을 찾으려면 Waiting도 함께 확인해야 한다.</p>
+</div>
+        <section id="ttft-shows-total-delay" class="markdown-section">
+<h2>TTFT는 지연 결과만 보여준다</h2>
+<p>TTFT에는 첫 Token을 받기 전까지 발생한 여러 시간이 함께 들어간다.</p>
+<pre><code class="language-text">요청 전송
+→ Server의 Waiting Queue에서 대기
+→ Running으로 이동
+→ Prompt Prefill 계산
+→ 첫 Token 생성
+→ Client가 첫 Token 수신
+</code></pre>
+<p>이를 간단히 나타내면 다음과 같다.</p>
+<pre><code class="language-text">TTFT
+= Queue 대기 시간
++ Prefill 계산 시간
++ 첫 Token 전달 시간
+</code></pre>
+<p>TTFT가 2초라고 해도 TTFT만으로는 어느 구간에서 2초가 사용됐는지 알 수 없다.</p>
+<pre><code class="language-text">경우 1
+Waiting 1.8초
++ Prefill과 첫 Token 생성 0.2초
+= TTFT 2초
+
+경우 2
+Waiting 0초
++ Prefill과 첫 Token 생성 2초
+= TTFT 2초
+</code></pre>
+<p>두 요청의 TTFT는 같지만 원인은 완전히 다르다.</p>
+
+</section>
+<section id="waiting-before-execution" class="markdown-section">
+<h2>Waiting은 요청이 실행되기 전에 기다리는 상태다</h2>
+<p>vLLM에 요청이 들어왔다고 해서 모든 요청이 즉시 GPU에서 실행되는 것은 아니다.</p>
+<p>동시에 실행할 수 있는 Sequence 수나 Token Budget 등의 한계 때문에 일부 요청은 Waiting 상태에 머물 수 있다.</p>
+<pre><code class="language-text">요청 50개 도착
+
+Running 32개
+Waiting 18개
+</code></pre>
+<p>Running 요청이 끝나 자리가 생기면 Waiting 요청이 Running으로 이동한다.</p>
+<pre><code class="language-text">Running 요청 완료
+→ 실행 자리 발생
+→ Waiting 요청이 Running으로 이동
+→ Prompt Prefill 시작
+</code></pre>
+<p>Waiting에서 보낸 시간도 사용자의 TTFT에 포함된다. 따라서 Waiting이 증가하면 뒤에 들어오는 요청의 TTFT도 증가할 가능성이 크다.</p>
+
+</section>
+<section id="diagnose-ttft-with-waiting" class="markdown-section">
+<h2>TTFT와 Waiting을 함께 보면 지연 원인을 구분할 수 있다</h2>
+<p>다음처럼 TTFT와 Waiting이 함께 증가했다면 Queue 병목을 의심할 수 있다.</p>
+<pre><code class="language-text">TTFT 증가
+Waiting 증가
+
+→ 요청이 Server 처리 속도보다 빠르게 들어옴
+→ 실행 자리를 얻지 못한 요청이 Queue에 누적됨
+→ Queue 대기 때문에 TTFT가 증가함
+</code></pre>
+<p>반대로 TTFT가 증가했는데 Waiting은 거의 없다면 Queue가 주된 원인은 아니다.</p>
+<pre><code class="language-text">TTFT 증가
+Waiting 거의 없음
+
+→ 긴 Prompt의 Prefill
+→ 큰 Batch의 GPU 연산
+→ Token Budget 분할
+→ Server 또는 네트워크 처리 지연
+</code></pre>
+<p>즉, TTFT는 사용자에게 나타난 결과이고 Waiting은 그 결과가 Queue에서 발생했는지 확인하는 근거다.</p>
+
+</section>
+<section id="growing-waiting-signals-worsening-delay" class="markdown-section">
+<h2>Waiting 증가는 앞으로 지연이 더 악화될 가능성을 보여준다</h2>
+<p>Waiting은 현재의 TTFT뿐 아니라 Server가 지속적인 요청 유입을 감당하고 있는지도 보여준다.</p>
+<p>예를 들어 12 요청/s로 요청을 보내는 동안 Waiting이 다음처럼 관찰됐다고 가정해 보자.</p>
+<pre><code class="language-text">5초 시점  Waiting 10개
+10초 시점 Waiting 25개
+15초 시점 Waiting 45개
+20초 시점 Waiting 70개
+</code></pre>
+<p>이는 Server가 요청을 처리하는 속도보다 새로운 요청이 들어오는 속도가 더 빠르다는 뜻이다.</p>
+<pre><code class="language-text">요청 유입 속도 &gt; 요청 완료 속도
+→ Waiting 지속 증가
+→ 뒤에 들어온 요청이 더 오래 대기
+→ TTFT 지속 증가
+</code></pre>
+<p>짧은 Benchmark에서는 앞쪽 요청이 빠르게 처리되어 TTFT 중앙값이 아직 괜찮아 보일 수도 있다. 하지만 Waiting이 계속 증가한다면 같은 부하를 더 오래 유지했을 때 TTFT가 계속 악화될 가능성이 높다.</p>
+<p>따라서 다음 두 경우를 구분해야 한다.</p>
+<pre><code class="language-text">Waiting이 잠시 증가했다가 감소
+→ Server가 밀린 요청을 다시 처리함
+→ 일시적인 Queue
+
+Waiting이 시간에 따라 계속 증가
+→ Server가 유입 속도를 따라잡지 못함
+→ 지속 불가능한 부하
+</code></pre>
+
+</section>
+<section id="waiting-is-not-preemption" class="markdown-section">
+<h2>Waiting과 Preemption은 서로 다른 현상이다</h2>
+<p>Waiting을 확인하는 주된 이유가 Preemption 때문인 것은 아니다.</p>
+<pre><code class="language-text">Waiting
+→ 아직 실행 자리를 얻지 못한 요청이 기다리는 상태
+
+Preemption
+→ 이미 Running이던 요청이 실행 도중 밀려나는 상태
+</code></pre>
+<p>Waiting은 주로 실행 가능한 Sequence 자리와 처리 속도가 부족할 때 나타난다.</p>
+<p>Preemption은 KV Cache 공간 부족 등의 이유로 Running 요청을 계속 유지할 수 없을 때 발생할 수 있다. 밀려난 요청은 이후 다시 실행되면서 일부 계산을 반복할 수 있으므로 Latency와 처리 효율이 나빠질 수 있다.</p>
+<p>따라서 두 값은 따로 관찰해야 한다.</p>
+<pre><code class="language-text">Waiting 증가
+→ Queue 병목 확인
+
+Preemption 증가
+→ KV Cache Pressure와 재계산 발생 확인
+</code></pre>
+
+</section>
+<section id="ttft-slo-waiting-diagnosis" class="markdown-section">
+<h2>SLO 판정에는 TTFT를 사용하고 원인 분석에는 Waiting을 사용한다</h2>
+<p>운영 판단에서 각 지표의 역할은 다음과 같다.</p>
+<pre><code class="language-text">TTFT·TPOT·Latency
+→ 사용자가 경험한 응답 품질
+
+Goodput
+→ SLO를 만족하며 처리한 요청 수
+
+Running·Waiting
+→ Server가 요청을 어떤 상태로 관리했는지 확인
+
+KV Cache Usage·Preemption
+→ 메모리 압박과 실행 중단 여부 확인
+</code></pre>
+<p>현재 설정에서 몇 RPS까지 서비스할 수 있는지 결정할 때는 TTFT·TPOT·Latency와 Goodput이 최종 기준이다.</p>
+<p>Waiting은 최종 사용자 SLO를 대신하지 않는다. SLO가 무너진 이유가 Queue 누적인지, 그리고 현재 부하를 오래 유지했을 때 지연이 계속 악화될 상태인지를 설명해 준다.</p>
+
+</section>
+<section id="conclusion" class="markdown-section">
+<h2>결론</h2>
+<p>TTFT만으로 사용자가 첫 Token을 얼마나 기다렸는지는 알 수 있다. 하지만 그 시간이 Queue에서 발생했는지, Prefill 계산에서 발생했는지는 구분할 수 없다.</p>
+<pre><code class="language-text">TTFT
+→ 사용자가 기다린 최종 시간
+
+Waiting
+→ 요청이 실행되기 전 Queue에서 기다린 상태
+
+시간에 따른 Waiting 변화
+→ 현재 요청 유입을 Server가 지속해서 감당할 수 있는지
+</code></pre>
+<p>따라서 Capacity Benchmark에서는 다음 흐름으로 판단하는 것이 좋다.</p>
+<pre><code class="language-text">TTFT·TPOT·Latency·Goodput으로 SLO 충족 여부 판단
+→ Waiting으로 Queue 병목 여부 확인
+→ KV Cache Usage와 Preemption으로 메모리 압박 확인
+</code></pre>
+<p>Waiting을 확인하는 이유는 TTFT를 대신하기 위해서가 아니다. TTFT가 나빠진 원인을 찾고, 현재 부하가 지속 가능한지 판단하기 위해서다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

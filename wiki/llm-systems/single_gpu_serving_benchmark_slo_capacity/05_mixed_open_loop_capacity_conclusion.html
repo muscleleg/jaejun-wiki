@@ -1,0 +1,326 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.md. Do not edit directly. source-sha256:777eef17824838c0b48a04b5d8e969c440ae8f4808f29aa49455599a4fd43420 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="혼합 Workload를 2·3·4 요청/s로 지속 유입시키고 Workload별 SLO 통과율로 Capacity 경계를 판정합니다.">
+  <meta name="source-sha256" content="777eef17824838c0b48a04b5d8e969c440ae8f4808f29aa49455599a4fd43420">
+  <title>혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정">
+  <meta property="og:description" content="혼합 Workload를 2·3·4 요청/s로 지속 유입시키고 Workload별 SLO 통과율로 Capacity 경계를 판정합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html","name":"혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정","description":"혼합 Workload를 2·3·4 요청/s로 지속 유입시키고 Workload별 SLO 통과율로 Capacity 경계를 판정합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html"},"headline":"혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/05_mixed_open_loop_capacity_conclusion.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html"},{"@type":"ListItem","position":7,"name":"혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>혼합 Open-loop에서 3~4 요청/s 경계를 찾은 과정</h1>
+      <p class="lead">혼합 Workload를 2·3·4 요청/s로 지속 유입시키고 Workload별 SLO 통과율로 Capacity 경계를 판정합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#closed-loop-to-open-loop">Closed-loop 결과를 실제 유입 후보로 사용했다</a>
+        <a href="#workload-slos">Workload마다 다른 SLO를 미리 고정했다</a>
+        <a href="#benchmark-and-metrics">요청 유입과 Metric 수집을 동시에 실행했다</a>
+        <a href="#r2-r3-pass">2·3 요청/s에서는 모든 Workload가 통과했다</a>
+        <a href="#r4-failure">4 요청/s에서는 <code>prefill-heavy</code>가 먼저 실패했다</a>
+        <a href="#failure-cause">실패 원인은 Queue나 KV Cache 고갈이 아니었다</a>
+        <a href="#outstanding-vs-waiting">미완료 요청 수와 Waiting은 같은 값이 아니다</a>
+        <a href="#capacity-boundary">최종 Capacity 경계는 3~4 요청/s 사이였다</a>
+        <a href="#preserved-evidence">보존한 근거</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>전체 글: <a href="../02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a></p>
+</div>
+        <section id="closed-loop-to-open-loop" class="markdown-section">
+<h2>Closed-loop 결과를 실제 유입 후보로 사용했다</h2>
+<p>세 Workload를 같은 비율로 섞은 Closed-loop에서 전체 처리량은 약 3.1 요청/s였다. Closed-loop는 요청이 끝나야 다음 요청을 보내므로 Queue를 발산시키지 않은 상태의 완료 속도다.</p>
+<p>이 값을 기준으로 Open-loop 후보를 다음처럼 잡았다.</p>
+<pre><code class="language-text">2 요청/s
+→ Closed-loop 완료 속도보다 낮은 부하
+
+3 요청/s
+→ Closed-loop 완료 속도와 가까운 부하
+
+4 요청/s
+→ Closed-loop 완료 속도보다 높은 부하
+</code></pre>
+<p>각 조건은 30초 동안 유지했다. 요청 수는 2 RPS에서 60개, 3 RPS에서 90개, 4 RPS에서 120개였고, 세 Workload를 같은 비율로 넣었다.</p>
+
+</section>
+<section id="workload-slos" class="markdown-section">
+<h2>Workload마다 다른 SLO를 미리 고정했다</h2>
+<p>모든 요청에 같은 Latency를 강제하면 출력 512Token인 <code>decode-heavy</code>가 구조적으로 불리하다. 그래서 서비스가 각 요청 유형에 기대하는 응답 길이가 다르다고 가정하고 Workload별 학습용 SLO를 정했다.</p>
+<pre><code class="language-text">baseline
+TTFT &lt;= 1000ms
+TPOT &lt;= 25ms/token
+Latency &lt;= 4000ms
+
+prefill-heavy
+TTFT &lt;= 1000ms
+TPOT &lt;= 30ms/token
+Latency &lt;= 2000ms
+
+decode-heavy
+TTFT &lt;= 1000ms
+TPOT &lt;= 25ms/token
+Latency &lt;= 12000ms
+
+공통 조건
+요청 성공
+Workload별 통과율 &gt;= 95%
+</code></pre>
+<p>SLO는 결과를 본 뒤 통과하도록 바꾼 값이 아니라 Open-loop 판정 전에 고정한 학습용 계약이다.</p>
+
+</section>
+<section id="benchmark-and-metrics" class="markdown-section">
+<h2>요청 유입과 Metric 수집을 동시에 실행했다</h2>
+<p>Benchmark는 <code>vllm bench serve</code> subprocess로 실행하고, 별도 Thread에서 Server <code>/metrics</code>를 0.2초마다 읽었다.</p>
+<pre><code class="language-python">metric_stop_event = threading.Event()
+metric_samples: list[dict] = []
+
+metric_thread = threading.Thread(
+    target=collect_server_metrics,
+    kwargs={
+        &quot;stop_event&quot;: metric_stop_event,
+        &quot;metric_samples&quot;: metric_samples,
+    },
+)
+
+metric_thread.start()
+
+try:
+    completed = subprocess.run(
+        benchmark_command,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+finally:
+    metric_stop_event.set()
+    metric_thread.join()
+</code></pre>
+<p>이를 통해 Client가 경험한 지연과 Server의 Running·Waiting·KV Cache Usage·Preemption을 같은 실행에서 연결했다.</p>
+
+</section>
+<section id="r2-r3-pass" class="markdown-section">
+<h2>2·3 요청/s에서는 모든 Workload가 통과했다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">설정 RPS</th>
+<th align="right">실제 유입</th>
+<th align="right">완료 RPS</th>
+<th align="right">Output Token/s</th>
+<th align="right">Max Running</th>
+<th align="right">Max Waiting</th>
+<th align="right">Drain</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">2</td>
+<td align="right">1.993</td>
+<td align="right">1.610</td>
+<td align="right">360.72</td>
+<td align="right">13</td>
+<td align="right">0</td>
+<td align="right">6.86초</td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td align="right">2.995</td>
+<td align="right">2.401</td>
+<td align="right">537.90</td>
+<td align="right">18</td>
+<td align="right">0</td>
+<td align="right">7.20초</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">3.994</td>
+<td align="right">3.131</td>
+<td align="right">701.34</td>
+<td align="right">28</td>
+<td align="right">0</td>
+<td align="right">8.12초</td>
+</tr>
+</tbody></table>
+</div>
+<p>완료 RPS가 실제 유입률보다 낮은 이유는 요청을 보내는 30초뿐 아니라 마지막 요청들이 끝나는 Drain 시간까지 분모에 포함했기 때문이다. 이는 요청 손실을 뜻하지 않는다.</p>
+<p>2 요청/s와 3 요청/s에서는 세 Workload가 모두 100% 통과했다.</p>
+<pre><code class="language-text">2 요청/s
+baseline       20/20
+prefill-heavy  20/20
+decode-heavy   20/20
+
+3 요청/s
+baseline       30/30
+prefill-heavy  30/30
+decode-heavy   30/30
+</code></pre>
+
+</section>
+<section id="r4-failure" class="markdown-section">
+<h2>4 요청/s에서는 <code>prefill-heavy</code>가 먼저 실패했다</h2>
+<p>4 요청/s의 결과는 다음과 같았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th align="right">전체</th>
+<th align="right">Good</th>
+<th align="right">통과율</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baseline</td>
+<td align="right">40</td>
+<td align="right">40</td>
+<td align="right">100%</td>
+<td>통과</td>
+</tr>
+<tr>
+<td>prefill-heavy</td>
+<td align="right">40</td>
+<td align="right">37</td>
+<td align="right">92.5%</td>
+<td>실패</td>
+</tr>
+<tr>
+<td>decode-heavy</td>
+<td align="right">40</td>
+<td align="right">40</td>
+<td align="right">100%</td>
+<td>통과</td>
+</tr>
+</tbody></table>
+</div>
+<p>전체로 합치면 117/120, 즉 97.5%가 통과했다. 그러나 Workload별 요구 통과율은 95%이므로 <code>prefill-heavy</code>의 92.5% 때문에 4 요청/s를 실패로 판정했다.</p>
+<p>전체 통과율만 사용하면 한 유형의 성능 저하가 다른 유형의 성공에 가려진다. Workload별 판정은 특정 사용자 집단만 지속적으로 손해 보는 설정을 Capacity로 채택하지 않게 한다.</p>
+
+</section>
+<section id="failure-cause" class="markdown-section">
+<h2>실패 원인은 Queue나 KV Cache 고갈이 아니었다</h2>
+<p>4 요청/s에서도 다음 상태가 관찰됐다.</p>
+<pre><code class="language-text">Max Running: 28
+Server max_num_seqs: 32
+Max Waiting: 0
+Max KV Cache Usage: 3.69%
+Preemption: 0
+요청 실패: 0
+</code></pre>
+<p>Running은 상한 32에 닿지 않았고 Waiting도 없었다. KV Cache도 여유가 있었으며 Preemption도 발생하지 않았다. 따라서 Sequence 자리 부족이나 KV Cache 압력이 원인은 아니었다.</p>
+<p><code>prefill-heavy</code>의 4 RPS 지연은 다음과 같았다.</p>
+<pre><code class="language-text">TTFT p50/p95/p99
+119.85 / 188.87 / 208.89ms
+
+TPOT p50/p95/p99
+19.78 / 31.97 / 33.47ms/token
+
+Latency p50/p95/p99
+751.34 / 1119.49 / 1152.08ms
+</code></pre>
+<p>TTFT와 Latency는 기준 안이었지만 일부 요청의 TPOT가 30ms/token을 넘었다. 혼합 Batch에서 Prefill과 Decode 작업이 경쟁하면서 꼬리 Token 간격이 나빠진 것이다.</p>
+
+</section>
+<section id="outstanding-vs-waiting" class="markdown-section">
+<h2>미완료 요청 수와 Waiting은 같은 값이 아니다</h2>
+<p>30초 시점에 미완료 요청이 17개였지만 Waiting은 0이었다. 미완료에는 Server에서 정상적으로 Running 중인 긴 <code>decode-heavy</code> 요청도 포함된다.</p>
+<pre><code class="language-text">미완료 요청
+→ Client가 보냈지만 아직 전체 응답이 끝나지 않은 요청
+→ Running + Waiting + 네트워크 응답 중인 요청을 포함할 수 있음
+
+vLLM Waiting
+→ Server에 수용됐지만 아직 Running으로 선택되지 않은 요청
+</code></pre>
+<p>출력 512Token인 요청은 정상적으로 Running 중이어도 30초 경계에 완료되지 않을 수 있다. 따라서 미완료 요청이 존재한다는 사실만으로 Queue 병목이라고 판단하지 않았다.</p>
+
+</section>
+<section id="capacity-boundary" class="markdown-section">
+<h2>최종 Capacity 경계는 3~4 요청/s 사이였다</h2>
+<pre><code class="language-text">3 요청/s
+→ 모든 Workload 100% 통과
+
+4 요청/s
+→ prefill-heavy 92.5%
+→ Workload별 95% 요구 미달
+</code></pre>
+<p>따라서 이번 조건에서 검증한 최대 통과 부하는 3 요청/s이고, 그다음 실패 부하는 4 요청/s다.</p>
+<blockquote>
+<p>단일 GPU 혼합 Workload의 SLO 기반 Capacity 경계는 3~4 요청/s 사이였다.</p>
+</blockquote>
+<p>이 값은 물리적 GPU 최대치가 아니다. 모델, Workload 비율, Prompt·Output 길이, SLO, vLLM 설정과 측정 시간이 바뀌면 다시 측정해야 한다. 이번 실험이 증명한 것은 특정 숫자의 영구적인 정답이 아니라, Closed-loop 후보 탐색과 Open-loop 지속 유입, Workload별 SLO·Goodput을 연결해 운영 Capacity를 판단하는 방법이다.</p>
+
+</section>
+<section id="preserved-evidence" class="markdown-section">
+<h2>보존한 근거</h2>
+<p>전체 실행 코드는 <code>notebooks/transformer/vllm_serving_benchmark.ipynb</code>에 보존했다. 원본 Benchmark JSON, 요청별 JSONL, 로그, Server Metric 표본과 집계 결과는 다음 연구 결과 폴더에 보존했다.</p>
+<pre><code class="language-text">research/vllm_serving_benchmark_tuning/
+results/2026-09-17-serving-benchmark/
+</code></pre>
+<p>최종 Open-loop 판정의 핵심 파일은 다음과 같다.</p>
+<pre><code class="language-text">mixed-open-loop-capacity/20260917-125654/
+├─ mixed-open-loop-r2.json
+├─ mixed-open-loop-r2-metrics.json
+├─ mixed-open-loop-r3.json
+├─ mixed-open-loop-r3-metrics.json
+├─ mixed-open-loop-r4.json
+├─ mixed-open-loop-r4-metrics.json
+└─ mixed-open-loop-capacity-summary.json
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.md. Do not edit directly. source-sha256:a7673f6849d639cc90fb9f8a96b44bb05f796d868004fdc71869c52d9b631161 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Concurrency 증가 결과에서 Waiting 병목을 구분하고 max_num_seqs와 Token Budget을 한 변수씩 조정한 결과를 정리합니다.">
+  <meta name="source-sha256" content="a7673f6849d639cc90fb9f8a96b44bb05f796d868004fdc71869c52d9b631161">
+  <title>Closed-loop 포화 탐색과 `max_num_seqs` 조정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Closed-loop 포화 탐색과 `max_num_seqs` 조정">
+  <meta property="og:description" content="Concurrency 증가 결과에서 Waiting 병목을 구분하고 max_num_seqs와 Token Budget을 한 변수씩 조정한 결과를 정리합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html","name":"Closed-loop 포화 탐색과 `max_num_seqs` 조정","description":"Concurrency 증가 결과에서 Waiting 병목을 구분하고 max_num_seqs와 Token Budget을 한 변수씩 조정한 결과를 정리합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html"},"headline":"Closed-loop 포화 탐색과 `max_num_seqs` 조정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/02_closed_loop_saturation_and_tuning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html"},{"@type":"ListItem","position":7,"name":"Closed-loop 포화 탐색과 `max_num_seqs` 조정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Closed-loop 포화 탐색과 `max_num_seqs` 조정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Closed-loop 포화 탐색과 `max_num_seqs` 조정</h1>
+      <p class="lead">Concurrency 증가 결과에서 Waiting 병목을 구분하고 max_num_seqs와 Token Budget을 한 변수씩 조정한 결과를 정리합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#concurrency-sweep">Concurrency를 높이며 처리량 증가가 멈추는 지점을 찾았다</a>
+        <a href="#waiting-diagnosis">TTFT만 늘고 TPOT가 같은 이유는 Waiting이었다</a>
+        <a href="#max-num-seqs-32"><code>max_num_seqs=32</code>에서 실제 동시 실행 수를 늘렸다</a>
+        <a href="#tpot-to-token-rate">TPOT는 ms가 아니라 Token 생성 속도로도 읽었다</a>
+        <a href="#token-budget-result">Token Budget을 늘려도 처리량은 증가하지 않았다</a>
+        <a href="#closed-loop-conclusion">Closed-loop에서 얻은 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>전체 글: <a href="../02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a></p>
+</div>
+        <section id="concurrency-sweep" class="markdown-section">
+<h2>Concurrency를 높이며 처리량 증가가 멈추는 지점을 찾았다</h2>
+<p>Prompt 297Token, 출력 128Token인 요청을 고정하고 Client Concurrency만 1·2·4·8·16·32로 높였다. Closed-loop이므로 동시에 진행할 요청 수가 유지되고, 요청 하나가 끝나면 다음 요청을 보냈다.</p>
+<p>초기 <code>max_num_seqs=16</code> Server에서는 다음 결과가 나왔다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Client Concurrency</th>
+<th align="right">Output Token/s</th>
+<th align="right">TTFT p50</th>
+<th align="right">TPOT p50</th>
+<th align="right">Latency p50</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">8</td>
+<td align="right">446.52</td>
+<td align="right">200.19ms</td>
+<td align="right">16.41ms/token</td>
+<td align="right">2,286.07ms</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">789.97</td>
+<td align="right">347.58ms</td>
+<td align="right">17.54ms/token</td>
+<td align="right">2,590.29ms</td>
+</tr>
+<tr>
+<td align="right">32</td>
+<td align="right">791.75</td>
+<td align="right">2,918.97ms</td>
+<td align="right">17.51ms/token</td>
+<td align="right">5,143.03ms</td>
+</tr>
+</tbody></table>
+</div>
+<p>Concurrency 8에서 16으로 높일 때 Output Token Throughput은 76.92% 증가했다. 그러나 16에서 32로 높일 때는 0.23%만 증가했다. 반면 TTFT는 739.8%, Latency는 98.55% 늘었다.</p>
+
+</section>
+<section id="waiting-diagnosis" class="markdown-section">
+<h2>TTFT만 늘고 TPOT가 같은 이유는 Waiting이었다</h2>
+<p><code>max_num_seqs=16</code>은 동시에 Running으로 처리할 Sequence를 최대 16개로 제한한다.</p>
+<pre><code class="language-text">Client Concurrency 16
+→ Running 최대 16
+
+Client Concurrency 32
+→ Running 최대 16
+→ 나머지는 Waiting
+</code></pre>
+<p>TTFT는 요청을 보낸 뒤 첫 Token을 받을 때까지의 시간이므로 Waiting이 포함된다. TPOT는 첫 Token을 받은 후의 평균 Token 간격이므로 Waiting은 포함되지 않는다.</p>
+<pre><code class="language-text">요청 전송
+→ Waiting
+→ Running 진입
+→ Prefill
+→ 첫 Token 수신
+→ 이후 Decode Token 수신
+
+TTFT: 요청 전송부터 첫 Token까지
+TPOT: 첫 Token 이후의 Token 간격
+</code></pre>
+<p>Concurrency 32의 뒤쪽 요청은 Running 자리가 날 때까지 기다려 TTFT가 늘었다. 하지만 Running에 들어온 뒤에는 여전히 최대 16개 Sequence만 Decode했으므로 TPOT가 Concurrency 16과 비슷했다.</p>
+<p>따라서 이 결과는 GPU가 완전히 포화됐다는 증거가 아니라 <code>max_num_seqs=16</code> 상한을 높여볼 근거였다.</p>
+
+</section>
+<section id="max-num-seqs-32" class="markdown-section">
+<h2><code>max_num_seqs=32</code>에서 실제 동시 실행 수를 늘렸다</h2>
+<p>Server에서 다른 조건을 유지하고 <code>max_num_seqs</code>만 32로 변경했다.</p>
+<pre><code class="language-bash">vllm serve \
+  /root/models/Qwen2.5-1.5B-Instruct-989aa798 \
+  --served-model-name qwen2.5-1.5b-instruct \
+  --dtype float16 \
+  --kv-cache-dtype float16 \
+  --block-size 16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 1024 \
+  --gpu-memory-utilization 0.8 \
+  --max-num-seqs 32 \
+  --max-num-batched-tokens 4096 \
+  --scheduling-policy fcfs \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill \
+  --seed 0 \
+  --host 0.0.0.0 \
+  --port 8000
+</code></pre>
+<p>Concurrency 32의 변경 전후는 다음과 같았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Server 설정</th>
+<th align="right">Output Token/s</th>
+<th align="right">TTFT p50</th>
+<th align="right">TPOT p50</th>
+<th align="right">Latency p50</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>max_num_seqs=16</code></td>
+<td align="right">791.75</td>
+<td align="right">2,918.97ms</td>
+<td align="right">17.51ms/token</td>
+<td align="right">5,143.03ms</td>
+</tr>
+<tr>
+<td><code>max_num_seqs=32</code></td>
+<td align="right">1,254.36</td>
+<td align="right">711.23ms</td>
+<td align="right">19.97ms/token</td>
+<td align="right">3,230.81ms</td>
+</tr>
+</tbody></table>
+</div>
+<pre><code class="language-text">Output Token/s +58.43%
+TTFT p50       -75.63%
+Latency p50    -37.18%
+TPOT p50       +14.05%
+</code></pre>
+<p>Waiting에 머물던 요청이 실제 Batch에 들어가면서 처리량과 TTFT·Latency가 크게 개선됐다. 대신 더 많은 Sequence를 같은 GPU에서 Decode하므로 개별 Token 간격은 다소 느려졌다.</p>
+
+</section>
+<section id="tpot-to-token-rate" class="markdown-section">
+<h2>TPOT는 ms가 아니라 Token 생성 속도로도 읽었다</h2>
+<p>TPOT가 20ms/token이라고 하면 숫자가 작아 보여 체감하기 어렵다. 역수로 바꾸면 초당 생성 Token 수를 알 수 있다.</p>
+<pre><code class="language-text">Token/s = 1000 / TPOT(ms/token)
+</code></pre>
+<pre><code class="language-text">Concurrency 1의 TPOT 약 15.38ms/token
+→ 약 65.0Token/s
+
+Concurrency 32의 TPOT 약 19.97ms/token
+→ 약 50.1Token/s
+</code></pre>
+<p>전체 GPU Output Throughput은 증가했지만 사용자 한 명이 보는 Streaming 속도는 약 65Token/s에서 50Token/s로 낮아졌다. 이 때문에 설정은 전체 처리량과 개별 응답 속도를 함께 판단해야 한다.</p>
+
+</section>
+<section id="token-budget-result" class="markdown-section">
+<h2>Token Budget을 늘려도 처리량은 증가하지 않았다</h2>
+<p><code>max_num_seqs=32</code>, Concurrency 32를 유지하고 <code>max_num_batched_tokens</code>만 4,096에서 12,288로 바꿨다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th align="right">Token Budget</th>
+<th align="right">Output Token/s</th>
+<th align="right">TTFT p50</th>
+<th align="right">TPOT p50</th>
+<th align="right">Latency p50</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">4,096</td>
+<td align="right">1,254.36</td>
+<td align="right">711.23ms</td>
+<td align="right">19.97ms/token</td>
+<td align="right">3,230.81ms</td>
+</tr>
+<tr>
+<td align="right">12,288</td>
+<td align="right">1,254.22</td>
+<td align="right">831.57ms</td>
+<td align="right">19.08ms/token</td>
+<td align="right">3,233.12ms</td>
+</tr>
+</tbody></table>
+</div>
+<p>Output Token Throughput은 사실상 같았고 TTFT가 줄지도 않았다. Token Budget은 한 Scheduler Iteration에서 처리할 수 있는 Token 수의 상한이지만, 상한을 늘린다고 GPU 계산 능력이 커지는 것은 아니다. 현재 Workload에서는 4,096이 이미 충분했으므로 12,288은 유효한 개선이 아니었다.</p>
+
+</section>
+<section id="closed-loop-conclusion" class="markdown-section">
+<h2>Closed-loop에서 얻은 결론</h2>
+<pre><code class="language-text">max_num_seqs=16
+→ Concurrency 32의 절반이 Waiting
+→ 처리량 정체, TTFT 급증
+
+max_num_seqs=32
+→ 32개를 실제 Running으로 처리
+→ 처리량 증가, TTFT 감소
+→ TPOT는 14% 증가
+
+Token Budget 4096 → 12288
+→ 처리량 개선 없음
+</code></pre>
+<p>따라서 후속 Open-loop와 혼합 Workload 실험의 Server 기준값은 <code>max_num_seqs=32</code>, <code>max_num_batched_tokens=4096</code>으로 정했다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
