@@ -1,0 +1,280 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.md. Do not edit directly. source-sha256:d078c29d036515544770245de56f40006f1c8d257f1258671b76705263cc73b0 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="혼합 Open-loop Benchmark와 vLLM·GPU 표본을 같은 기준 시각으로 저장해 3·4요청/s의 차이를 비교합니다.">
+  <meta name="source-sha256" content="d078c29d036515544770245de56f40006f1c8d257f1258671b76705263cc73b0">
+  <title>Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험">
+  <meta property="og:description" content="혼합 Open-loop Benchmark와 vLLM·GPU 표본을 같은 기준 시각으로 저장해 3·4요청/s의 차이를 비교합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html","name":"Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험","description":"혼합 Open-loop Benchmark와 vLLM·GPU 표본을 같은 기준 시각으로 저장해 3·4요청/s의 차이를 비교합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html"},"headline":"Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/02_time_aligned_serving_gpu_metrics.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html"},{"@type":"ListItem","position":7,"name":"단일 GPU Serving에서 성능 한계가 생긴 원인을 찾는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_single_gpu_observability_bottleneck_analysis.html"},{"@type":"ListItem","position":8,"name":"Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_single_gpu_observability_bottleneck_analysis.html">단일 GPU Serving에서 성능 한계가 생긴 원인을 찾는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Client·vLLM·GPU Metric을 같은 시간축에서 비교한 실험</h1>
+      <p class="lead">혼합 Open-loop Benchmark와 vLLM·GPU 표본을 같은 기준 시각으로 저장해 3·4요청/s의 차이를 비교합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#mixed-workload-one-benchmark">세 Workload는 한 Benchmark에서 함께 실행했다</a>
+        <a href="#benchmark-and-metric-collector">Benchmark와 Metric 수집을 서로 다른 Thread에서 실행했다</a>
+        <a href="#aligned-time-origin">기준 시각 하나로 요청과 Metric을 맞췄다</a>
+        <a href="#r3-baseline">3요청/s는 모든 Workload가 SLO를 만족한 기준선이었다</a>
+        <a href="#r4-prefill-heavy-tpot">4요청/s에서는 <code>prefill-heavy</code>의 TPOT 꼬리가 SLO를 넘었다</a>
+        <a href="#exclude-queue-kv-pressure">관찰 결과로 Queue와 KV Cache 부족을 우선 제외했다</a>
+        <a href="#raw-results">원본 결과</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Capacity 실험에서는 혼합 Workload가 3요청/s에서는 SLO를 만족하고 4요청/s에서는 <code>prefill-heavy</code> SLO를 만족하지 못했다. 이번 단계에서는 두 부하를 다시 실행하면서 Client 결과, vLLM 상태와 GPU 상태를 같은 기준 시각으로 저장했다.</p>
+<p>목적은 단순히 Metric을 많이 모으는 것이 아니다. SLO가 무너진 4요청/s에서 어떤 내부 상태가 3요청/s와 함께 달라졌는지를 찾아 다음 통제 실험의 가설을 만드는 것이다.</p>
+</div>
+        <section id="mixed-workload-one-benchmark" class="markdown-section">
+<h2>세 Workload는 한 Benchmark에서 함께 실행했다</h2>
+<p>각 조건은 <code>baseline</code>, <code>prefill-heavy</code>, <code>decode-heavy</code>를 1:1:1로 섞은 하나의 Open-loop Benchmark다.</p>
+<pre><code class="language-text">3요청/s
+→ baseline 30개
+→ prefill-heavy 30개
+→ decode-heavy 30개
+→ 전체 90개
+
+4요청/s
+→ baseline 40개
+→ prefill-heavy 40개
+→ decode-heavy 40개
+→ 전체 120개
+</code></pre>
+<p>세 Workload를 별도 Server 실행으로 측정한 것이 아니다. 서로 다른 요청이 같은 시점에 GPU를 함께 사용하는 실제 혼합 상태를 만들었다.</p>
+<p>Client 상세 결과는 요청마다 남기 때문에 Output Token 수로 Workload를 다시 구분할 수 있었다.</p>
+<pre><code class="language-text">Output 128Token → baseline
+Output 32Token  → prefill-heavy
+Output 512Token → decode-heavy
+</code></pre>
+<p>반면 vLLM의 Running·Waiting과 GPU Utilization은 Engine·GPU 전체 상태다. 특정 Workload 하나의 값으로 나누지 않고 해당 시점에 함께 실행된 모든 요청의 상태로 해석했다.</p>
+
+</section>
+<section id="benchmark-and-metric-collector" class="markdown-section">
+<h2>Benchmark와 Metric 수집을 서로 다른 Thread에서 실행했다</h2>
+<p>Main Thread는 <code>vllm bench serve</code>가 끝날 때까지 기다린다. 별도의 수집 Thread는 그동안 0.2초마다 vLLM <code>/metrics</code>와 <code>nvidia-smi</code>를 읽는다.</p>
+<pre><code class="language-python">collector_thread.start()
+
+try:
+    with benchmark_log_path.open(
+        &quot;w&quot;,
+        encoding=&quot;utf-8&quot;,
+    ) as log_file:
+        completed_process = subprocess.run(
+            benchmark_command,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+finally:
+    time.sleep(0.5)
+    stop_event.set()
+    collector_thread.join()
+</code></pre>
+<p><code>subprocess.run()</code>은 Benchmark Process가 끝날 때까지 Main Thread를 기다리게 한다. 하지만 Metric 수집은 별도 Thread이므로 Benchmark가 실행되는 동안에도 계속 진행된다.</p>
+<p><code>benchmark_log_path</code>는 파일 위치만 나타낸다. <code>stdout</code>에는 실제로 열린 파일 객체가 필요하므로 <code>open()</code>으로 File Descriptor를 확보해 전달했다. <code>with</code> Block이 끝나면 파일이 닫힌다.</p>
+<p>Benchmark가 성공하든 예외가 발생하든 <code>finally</code>가 실행된다. 마지막 Idle 표본을 하나 더 남긴 뒤 <code>stop_event.set()</code>으로 수집 Thread의 반복을 끝내고, <code>join()</code>으로 완전히 종료될 때까지 기다렸다.</p>
+<p>수집 함수가 외부 상태를 암묵적으로 참조하지 않도록 필요한 객체는 Thread Argument로 전달했다.</p>
+<pre><code class="language-python">def collect_metrics(
+    stop_event: threading.Event,
+    samples: list[dict],
+    sampling_interval_seconds: float,
+    server_url: str,
+) -&gt; None:
+    ...
+</code></pre>
+
+</section>
+<section id="aligned-time-origin" class="markdown-section">
+<h2>기준 시각 하나로 요청과 Metric을 맞췄다</h2>
+<p>실험 시작 시각을 <code>time_origin</code>으로 저장했다. Client 요청과 Metric 표본의 실제 시각에서 이 값을 빼 같은 경과 시간으로 변환했다.</p>
+<pre><code class="language-text">Client 요청 시작
+→ started_elapsed_seconds
+
+Client 첫 Token 수신
+→ first_token_elapsed_seconds
+
+Client 응답 완료
+→ finished_elapsed_seconds
+
+vLLM·GPU 표본
+→ elapsed_seconds
+</code></pre>
+<p>이 구조를 사용하면 예를 들어 Client의 TPOT가 나빠진 구간에 Running·Waiting·KV Cache·GPU Utilization이 어떤 상태였는지 같은 Timeline에서 비교할 수 있다.</p>
+
+</section>
+<section id="r3-baseline" class="markdown-section">
+<h2>3요청/s는 모든 Workload가 SLO를 만족한 기준선이었다</h2>
+<p>3요청/s 조건에서는 90개 요청이 모두 성공했다.</p>
+<pre><code class="language-text">Request Throughput       = 2.401요청/s
+Output Throughput        = 537.78Token/s
+TTFT p50/p95/p99         = 74.73 / 124.61 / 167.97ms
+TPOT p50/p95/p99         = 18.30 / 21.11 / 21.75ms/token
+
+Max Running              = 18
+Max Waiting              = 0
+Max KV Cache Usage       = 2.2286%
+Preemption               = 0
+
+GPU Utilization p50/p95/max = 100 / 100 / 100%
+</code></pre>
+<p>설정 유입률은 3요청/s지만 완료 처리량은 2.401요청/s로 출력됐다. 완료 처리량은 90개를 마지막 응답이 끝날 때까지의 전체 Benchmark Duration으로 나눈 값이다. 요청 유입이 끝난 뒤 남은 요청을 완료하는 Drain 시간이 포함되므로 설정 유입률과 같을 필요는 없다.</p>
+<p>중요한 점은 요청당 처리 시간이 1초보다 길어도 여러 요청이 동시에 Running 상태에서 처리되므로 초당 3개의 유입을 받을 수 있다는 것이다. 실제 Max Running은 18이었다.</p>
+<p>Workload별 SLO 결과는 모두 통과했다.</p>
+<pre><code class="language-text">baseline       30/30 통과
+prefill-heavy  30/30 통과
+decode-heavy   30/30 통과
+</code></pre>
+
+</section>
+<section id="r4-prefill-heavy-tpot" class="markdown-section">
+<h2>4요청/s에서는 <code>prefill-heavy</code>의 TPOT 꼬리가 SLO를 넘었다</h2>
+<p>4요청/s 조건에서도 120개 요청은 모두 정상 완료됐다. 처리량은 증가했지만 일부 지연 분포가 나빠졌다.</p>
+<pre><code class="language-text">Request Throughput       = 3.131요청/s
+Output Throughput        = 701.23Token/s
+TTFT p50/p95/p99         = 81.06 / 167.13 / 205.30ms
+TPOT p50/p95/p99         = 19.47 / 24.69 / 32.13ms/token
+
+Max Running              = 28
+Max Waiting              = 0
+Max KV Cache Usage       = 4.1403%
+Preemption               = 0
+
+GPU Utilization p50/p95/max = 100 / 100 / 100%
+</code></pre>
+<p>Workload별로 분리하면 <code>prefill-heavy</code>의 TPOT만 SLO 실패를 만들었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th align="right">Good 요청</th>
+<th align="right">통과율</th>
+<th align="right">TTFT 위반</th>
+<th align="right">TPOT 위반</th>
+<th align="right">Latency 위반</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baseline</td>
+<td align="right">40/40</td>
+<td align="right">100%</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>prefill-heavy</td>
+<td align="right">37/40</td>
+<td align="right">92.5%</td>
+<td align="right">0</td>
+<td align="right">3</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>decode-heavy</td>
+<td align="right">40/40</td>
+<td align="right">100%</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>prefill-heavy</code>의 TPOT p95는 다음과 같이 증가했다.</p>
+<pre><code class="language-text">3요청/s TPOT p95 = 21.74ms/token
+4요청/s TPOT p95 = 31.63ms/token
+SLO               = 30ms/token 이하
+</code></pre>
+
+</section>
+<section id="exclude-queue-kv-pressure" class="markdown-section">
+<h2>관찰 결과로 Queue와 KV Cache 부족을 우선 제외했다</h2>
+<p>3요청/s에서 4요청/s로 높였을 때 Max Running은 18에서 28로 늘었다. 반면 Max Waiting은 두 조건 모두 0이었고, KV Cache Usage는 최대 4.1403%였으며 Preemption도 없었다.</p>
+<pre><code class="language-text">Queue 병목이라면
+→ Waiting 증가와 TTFT 악화가 함께 보여야 함
+→ 실제 Max Waiting은 0
+
+KV Cache 압박이라면
+→ KV Cache Usage가 한계에 가깝거나 Preemption이 발생해야 함
+→ 실제 최대 사용률 4.1403%, Preemption 0
+</code></pre>
+<p>GPU Utilization은 두 조건 모두 100%라서 그 값 하나만으로 차이를 설명할 수 없었다. 대신 더 많은 Sequence가 동시에 Running 상태로 들어간 것과 <code>prefill-heavy</code> TPOT 꼬리가 함께 증가했다.</p>
+<p>따라서 다음 가설을 세웠다.</p>
+<blockquote>
+<p>4요청/s에서는 동시에 Running하는 Sequence가 늘어 GPU 시간을 더 많은 요청이 나눠 썼고, 그 영향이 <code>prefill-heavy</code>의 TPOT 꼬리 지연으로 나타났다.</p>
+</blockquote>
+<p>이 문장은 관찰에서 나온 가설이다. 원인을 확정하려면 Workload와 유입률을 유지한 채 동시에 Running할 수 있는 Sequence 수만 줄여 같은 방향의 변화가 발생하는지 확인해야 한다.</p>
+
+</section>
+<section id="raw-results" class="markdown-section">
+<h2>원본 결과</h2>
+<ul>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r3/20260918-061936/time-aligned-r3.json" rel="noopener noreferrer">3요청/s Benchmark 결과</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r3/20260918-061936/time-aligned-r3-timeline.json" rel="noopener noreferrer">3요청/s 시간 정렬 Timeline</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r3/20260918-061936/time-aligned-r3.log" rel="noopener noreferrer">3요청/s 실행 로그</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r4/20260918-063826/time-aligned-r4.json" rel="noopener noreferrer">4요청/s Benchmark 결과</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r4/20260918-063826/time-aligned-r4-timeline.json" rel="noopener noreferrer">4요청/s 시간 정렬 Timeline</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/time-aligned-r4/20260918-063826/time-aligned-r4.log" rel="noopener noreferrer">4요청/s 실행 로그</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/comparison/r3-r4-observability-comparison-20260918-064834.json" rel="noopener noreferrer">3·4요청/s SLO 비교</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/notebooks/transformer/vllm_observability_bottleneck.ipynb" rel="noopener noreferrer">전체 실습 Notebook</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

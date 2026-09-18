@@ -1,0 +1,356 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prometheus_gauge_counter_histogram.md. Do not edit directly. source-sha256:84b25f63e8f860fd034dd214d9731f00e47f91d69235962a17a95cc658651512 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gauge, Counter, Histogram이 현재 상태·누적 사건·관측값 분포를 각각 어떻게 기록하는지 vLLM Metric 예시로 설명합니다.">
+  <meta name="source-sha256" content="84b25f63e8f860fd034dd214d9731f00e47f91d69235962a17a95cc658651512">
+  <title>Gauge·Counter·Histogram은 무엇을 기록하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Gauge·Counter·Histogram은 무엇을 기록하는가">
+  <meta property="og:description" content="Gauge, Counter, Histogram이 현재 상태·누적 사건·관측값 분포를 각각 어떻게 기록하는지 vLLM Metric 예시로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html","name":"Gauge·Counter·Histogram은 무엇을 기록하는가","description":"Gauge, Counter, Histogram이 현재 상태·누적 사건·관측값 분포를 각각 어떻게 기록하는지 vLLM Metric 예시로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html"},"headline":"Gauge·Counter·Histogram은 무엇을 기록하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_gauge_counter_histogram.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Prometheus는 어떻게 vLLM의 Metrics를 수집하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_scraping_vllm_metrics.html"},{"@type":"ListItem","position":5,"name":"Prometheus `/metrics`가 Metric의 의미와 자료형을 표현하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_metrics_exposition_types.html"},{"@type":"ListItem","position":6,"name":"Gauge·Counter·Histogram은 무엇을 기록하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/prometheus_scraping_vllm_metrics.html">Prometheus는 어떻게 vLLM의 Metrics를 수집하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/prometheus_metrics_exposition_types.html">Prometheus `/metrics`가 Metric의 의미와 자료형을 표현하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Gauge·Counter·Histogram은 무엇을 기록하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Gauge·Counter·Histogram은 무엇을 기록하는가</h1>
+      <p class="lead">Gauge, Counter, Histogram이 현재 상태·누적 사건·관측값 분포를 각각 어떻게 기록하는지 vLLM Metric 예시로 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#gauge">Gauge는 현재 상태를 기록한다</a>
+        <a href="#counter">Counter는 누적된 사건이나 작업량을 기록한다</a>
+        <a href="#histogram">Histogram은 관측값의 분포를 기록한다</a>
+        <a href="#counter-histogram">Counter와 Histogram은 모두 누적되지만 저장하는 정보가 다르다</a>
+        <a href="#section-8c494613cde9">같은 요청 처리 과정을 세 자료형으로 표현할 수 있다</a>
+        <a href="#section-a61d76f9a7db">어떤 자료형을 사용해야 하는지 판단하는 방법</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Prometheus Metric은 모두 숫자로 보이지만, 숫자가 나타내는 의미는 자료형에 따라 다르다.</p>
+<pre><code class="language-text">Gauge
+→ 지금 상태가 얼마인가?
+
+Counter
+→ 지금까지 총 얼마나 발생했는가?
+
+Histogram
+→ 관측한 값들이 어느 크기 구간에 분포하는가?
+</code></pre>
+<p>세 자료형을 구분해야 현재 상태, 누적 사건 수, 지연 분포를 올바르게 해석할 수 있다.</p>
+</div>
+        <section id="gauge" class="markdown-section">
+<h2>Gauge는 현재 상태를 기록한다</h2>
+<p>Gauge는 조회한 순간의 현재 상태를 나타낸다. 상황에 따라 값이 증가할 수도 있고 감소할 수도 있다.</p>
+<p>현재 Running 요청 수를 예로 들어보자.</p>
+<pre><code class="language-text">10:00:00  Running = 0
+10:00:01  요청 3개 실행 시작
+10:00:01  Running = 3
+10:00:03  요청 1개 완료
+10:00:03  Running = 2
+10:00:05  모든 요청 완료
+10:00:05  Running = 0
+</code></pre>
+<p>Gauge는 다음처럼 움직인다.</p>
+<pre><code class="language-text">0 → 3 → 2 → 0
+</code></pre>
+<p>대표적인 Gauge는 다음과 같다.</p>
+<pre><code class="language-text">현재 Running 요청 수
+현재 Waiting 요청 수
+현재 KV Cache 사용률
+현재 GPU Utilization
+현재 VRAM 사용량
+현재 GPU 온도
+</code></pre>
+<p>vLLM에서는 다음 값이 Gauge다.</p>
+<pre><code class="language-text">vllm:num_requests_running
+vllm:num_requests_waiting
+vllm:kv_cache_usage_perc
+</code></pre>
+<p>Gauge는 시작과 종료 시점에 한 번씩만 읽으면 중간 변화를 놓칠 수 있다.</p>
+<pre><code class="language-text">실험 시작
+→ Waiting 0
+
+실험 중간
+→ Waiting 20
+
+실험 종료
+→ Waiting 0
+</code></pre>
+<p>시작과 종료만 확인하면 Waiting이 발생하지 않은 것처럼 보인다. 따라서 Gauge는 실험 중 일정한 간격으로 반복 수집해야 한다.</p>
+<pre><code class="language-text">Gauge를 볼 때 확인할 값
+
+현재값
+최댓값
+최솟값
+시간에 따른 변화
+특정 사건이 발생한 시점의 값
+</code></pre>
+
+</section>
+<section id="counter" class="markdown-section">
+<h2>Counter는 누적된 사건이나 작업량을 기록한다</h2>
+<p>Counter는 Server가 시작된 뒤 사건이 발생할 때마다 증가하는 누적값이다. 일반적으로 값이 감소하지 않는다.</p>
+<p>Preemption 횟수를 예로 들어보자.</p>
+<pre><code class="language-text">Server 시작
+→ Preemption Counter = 0
+
+Preemption 2회 발생
+→ Preemption Counter = 2
+
+Preemption 1회 추가 발생
+→ Preemption Counter = 3
+</code></pre>
+<p>Counter는 다음처럼 움직인다.</p>
+<pre><code class="language-text">0 → 2 → 3
+</code></pre>
+<p>대표적인 Counter는 다음과 같다.</p>
+<pre><code class="language-text">지금까지 처리한 요청 수
+지금까지 처리한 Prompt Token 수
+지금까지 생성한 Token 수
+지금까지 발생한 오류 수
+지금까지 발생한 Preemption 수
+</code></pre>
+<p>vLLM에서는 다음 값이 Counter다.</p>
+<pre><code class="language-text">vllm:num_preemptions_total
+vllm:prompt_tokens_total
+vllm:generation_tokens_total
+vllm:request_success_total
+</code></pre>
+<p>Counter의 현재값은 이번 실험에서 발생한 횟수가 아니다.</p>
+<pre><code class="language-text">실험 전 Preemption Counter = 7
+실험 후 Preemption Counter = 10
+</code></pre>
+<p>이번 실험의 Preemption은 다음처럼 계산한다.</p>
+<pre><code class="language-text">10 - 7 = 3회
+</code></pre>
+<p>따라서 Counter는 주로 두 가지 방식으로 사용한다.</p>
+<pre><code class="language-text">구간 증가량
+→ 실험 후 값 - 실험 전 값
+
+초당 증가 속도
+→ 일정 시간 동안 증가한 값 / 시간
+</code></pre>
+<p>예를 들어 Generation Token Counter가 10초 동안 1,000만큼 증가했다면 다음처럼 해석할 수 있다.</p>
+<pre><code class="language-text">Generation Token 처리량
+= 1,000Token / 10초
+= 100Token/s
+</code></pre>
+<p>Counter는 Server 프로세스가 재시작되면 0부터 다시 시작할 수 있다. 값이 감소했다면 실제 사건이 취소된 것이 아니라 Metric을 관리하던 프로세스가 재시작됐는지 먼저 확인해야 한다.</p>
+
+</section>
+<section id="histogram" class="markdown-section">
+<h2>Histogram은 관측값의 분포를 기록한다</h2>
+<p>Histogram은 요청마다 다른 숫자를 관측하고, 그 값들이 어느 구간에 얼마나 들어왔는지 기록한다.</p>
+<p>TTFT를 예로 들어보자.</p>
+<pre><code class="language-text">요청 A TTFT = 0.1초
+요청 B TTFT = 0.4초
+요청 C TTFT = 0.9초
+</code></pre>
+<p>단순 Counter라면 요청이 세 개였다는 것만 기록할 수 있다.</p>
+<pre><code class="language-text">request_count = 3
+</code></pre>
+<p>하지만 Histogram은 TTFT를 구간별로 기록한다.</p>
+<pre><code class="language-text">0.1초 이하 = 1개
+0.5초 이하 = 2개
+1.0초 이하 = 3개
+</code></pre>
+<p>Prometheus에서는 다음과 같이 표현한다.</p>
+<pre><code class="language-text">ttft_seconds_bucket{le=&quot;0.1&quot;} 1
+ttft_seconds_bucket{le=&quot;0.5&quot;} 2
+ttft_seconds_bucket{le=&quot;1.0&quot;} 3
+
+ttft_seconds_sum 1.4
+ttft_seconds_count 3
+</code></pre>
+<p>Histogram은 세 종류의 값을 함께 가진다.</p>
+<pre><code class="language-text">_bucket
+→ 각 경계 이하에 들어온 관측값의 누적 개수
+
+_sum
+→ 관측한 모든 값의 합
+
+_count
+→ 전체 관측 횟수
+</code></pre>
+<p>Bucket도 누적 방식이다.</p>
+<pre><code class="language-text">le=&quot;0.1&quot; = 1
+→ 0.1초 이하가 1개
+
+le=&quot;0.5&quot; = 2
+→ 0.5초 이하가 2개
+→ 앞의 0.1초 요청도 포함
+
+le=&quot;1.0&quot; = 3
+→ 1초 이하가 3개
+→ 앞의 요청을 모두 포함
+</code></pre>
+<p>Histogram을 이용하면 평균을 계산할 수 있다.</p>
+<pre><code class="language-text">평균 TTFT
+= ttft_seconds_sum / ttft_seconds_count
+= 1.4 / 3
+= 약 0.47초
+</code></pre>
+<p>Bucket 분포를 이용하면 p50·p95·p99 같은 분위수도 추정할 수 있다.</p>
+<p>대표적인 Histogram은 다음과 같다.</p>
+<pre><code class="language-text">요청별 TTFT
+요청별 TPOT 또는 ITL
+요청별 전체 Latency
+요청별 Queue 대기 시간
+요청별 Prefill 시간
+요청별 Decode 시간
+요청별 Prompt Token 수
+</code></pre>
+<p>vLLM에서는 다음 값이 Histogram이다.</p>
+<pre><code class="language-text">vllm:time_to_first_token_seconds
+vllm:inter_token_latency_seconds
+vllm:e2e_request_latency_seconds
+vllm:request_queue_time_seconds
+vllm:request_prefill_time_seconds
+vllm:request_decode_time_seconds
+</code></pre>
+
+</section>
+<section id="counter-histogram" class="markdown-section">
+<h2>Counter와 Histogram은 모두 누적되지만 저장하는 정보가 다르다</h2>
+<p>Counter와 Histogram은 모두 시간이 지나면서 증가한다. 하지만 보존하는 정보가 다르다.</p>
+<p>요청 세 개의 TTFT가 다음과 같다고 해보자.</p>
+<pre><code class="language-text">0.1초, 0.4초, 0.9초
+</code></pre>
+<p>Counter만 사용하면 다음 사실만 알 수 있다.</p>
+<pre><code class="language-text">요청이 총 3개 발생했다
+</code></pre>
+<p>Histogram을 사용하면 다음을 추가로 알 수 있다.</p>
+<pre><code class="language-text">요청이 총 3개 발생했다
+TTFT 전체 합은 1.4초다
+평균 TTFT는 약 0.47초다
+빠른 요청과 느린 요청이 어느 구간에 분포했다
+p50·p95·p99를 추정할 수 있다
+</code></pre>
+<p>Histogram 내부의 <code>_bucket</code>, <code>_sum</code>, <code>_count</code>도 실제로는 누적되는 값이다. 이 여러 누적값을 하나의 Metric Family로 묶어 분포를 표현하기 때문에 전체 자료형을 Histogram이라고 부른다.</p>
+
+</section>
+<section id="section-8c494613cde9" class="markdown-section">
+<h2>같은 요청 처리 과정을 세 자료형으로 표현할 수 있다</h2>
+<p>다음 상황을 생각해보자.</p>
+<pre><code class="language-text">요청 3개가 도착
+→ 2개 Running
+→ 1개 Waiting
+→ 실행 중 KV Cache 부족으로 Preemption 1회 발생
+→ TTFT는 각각 0.1초·0.4초·0.9초
+→ 모든 요청 완료
+</code></pre>
+<p>Gauge는 각 시점의 상태를 기록한다.</p>
+<pre><code class="language-text">Running
+0 → 2 → 1 → 0
+
+Waiting
+0 → 1 → 0
+
+KV Cache Usage
+0% → 70% → 100% → 0%
+</code></pre>
+<p>Counter는 지금까지 발생한 사건이나 작업량을 기록한다.</p>
+<pre><code class="language-text">처리한 요청 수 = 3
+Preemption 누적 횟수 = 1
+생성한 Token 누적 개수 = 384
+</code></pre>
+<p>Histogram은 요청마다 달랐던 값의 분포를 기록한다.</p>
+<pre><code class="language-text">TTFT 분포
+→ 0.1초·0.4초·0.9초
+
+Latency 분포
+→ 요청별 전체 처리 시간
+
+Queue 시간 분포
+→ 요청마다 Waiting에서 보낸 시간
+</code></pre>
+<p>같은 Server를 관찰하더라도 세 자료형은 서로 다른 질문에 답한다.</p>
+
+</section>
+<section id="section-a61d76f9a7db" class="markdown-section">
+<h2>어떤 자료형을 사용해야 하는지 판단하는 방법</h2>
+<p>확인하려는 것이 현재 상태라면 Gauge를 사용한다.</p>
+<pre><code class="language-text">현재 몇 개인가?
+현재 얼마나 사용 중인가?
+현재 온도는 얼마인가?
+
+→ Gauge
+</code></pre>
+<p>지금까지 발생한 누적 횟수나 작업량이라면 Counter를 사용한다.</p>
+<pre><code class="language-text">지금까지 몇 번 발생했는가?
+지금까지 몇 Token을 처리했는가?
+일정 시간 동안 얼마나 증가했는가?
+
+→ Counter
+</code></pre>
+<p>요청마다 달라지는 값의 분포가 필요하면 Histogram을 사용한다.</p>
+<pre><code class="language-text">요청별 시간은 어떻게 분포하는가?
+대부분은 빠르지만 일부만 느린가?
+p50·p95·p99는 얼마인가?
+
+→ Histogram
+</code></pre>
+<p>최종적으로 다음처럼 구분할 수 있다.</p>
+<pre><code class="language-text">Gauge
+→ 지금 상태가 얼마인가?
+
+Counter
+→ 지금까지 총 얼마나 발생했는가?
+
+Histogram
+→ 관측한 값들이 어느 구간에 얼마나 분포하는가?
+</code></pre>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
