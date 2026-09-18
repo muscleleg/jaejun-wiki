@@ -1,0 +1,416 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.md. Do not edit directly. source-sha256:668a6d551c6d8e044b1bc6c473dc6623c80e119d9f24883a6834c3bde412dd2f -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Benchmark가 도는 동안 별도 Thread로 vLLM &#96;/metrics&#96;와 &#96;nvidia-smi&#96;를 반복 수집하고, 실행 Log와 함께 보존하는 방법을 설명합니다.">
+  <meta name="source-sha256" content="668a6d551c6d8e044b1bc6c473dc6623c80e119d9f24883a6834c3bde412dd2f">
+  <title>Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법">
+  <meta property="og:description" content="Benchmark가 도는 동안 별도 Thread로 vLLM &amp;#96;/metrics&amp;#96;와 &amp;#96;nvidia-smi&amp;#96;를 반복 수집하고, 실행 Log와 함께 보존하는 방법을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html","name":"Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법","description":"Benchmark가 도는 동안 별도 Thread로 vLLM &#96;/metrics&#96;와 &#96;nvidia-smi&#96;를 반복 수집하고, 실행 Log와 함께 보존하는 방법을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html"},"headline":"Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/benchmark_vllm_gpu_metrics_collection.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html"},{"@type":"ListItem","position":7,"name":"실험 환경과 측정 계약","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/01_experiment_setup_and_measurement_contract.html"},{"@type":"ListItem","position":8,"name":"Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_serving_benchmark_slo_capacity/01_experiment_setup_and_measurement_contract.html">실험 환경과 측정 계약</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Benchmark를 실행하면서 vLLM·GPU Metric을 함께 수집하는 방법</h1>
+      <p class="lead">Benchmark가 도는 동안 별도 Thread로 vLLM `/metrics`와 `nvidia-smi`를 반복 수집하고, 실행 Log와 함께 보존하는 방법을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#benchmark-metric">Benchmark와 Metric 수집은 동시에 실행한다</a>
+        <a href="#metric-thread-0-2">Metric 수집 Thread는 0.2초마다 상태를 기록한다</a>
+        <a href="#benchmark-client-process">Benchmark Client는 별도의 Process로 실행한다</a>
+        <a href="#benchmark-log">Benchmark 출력은 Log 파일로 보존한다</a>
+        <a href="#benchmark-metric-2">Benchmark가 끝나면 Metric 수집도 종료한다</a>
+        <a href="#finally-thread"><code>finally</code>는 실패했을 때도 수집 Thread를 정리한다</a>
+        <a href="#section-34f18fe75649">실험 결과는 세 종류로 나뉜다</a>
+        <a href="#section-8ef18a61d2fe">모든 시각은 같은 기준으로 맞춘다</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Benchmark 결과만 보면 Server가 얼마나 빨리 요청을 처리했는지는 알 수 있다.</p>
+<pre><code class="language-text">Request Throughput
+Output Token Throughput
+TTFT
+TPOT
+Latency
+</code></pre>
+<p>하지만 성능이 나빠졌을 때 왜 그런 결과가 나왔는지는 Benchmark 결과만으로 알기 어렵다.</p>
+<pre><code class="language-text">TTFT가 증가했다
+→ Waiting 요청이 쌓였는가?
+→ Prefill 계산이 오래 걸렸는가?
+→ GPU가 포화됐는가?
+
+TPOT가 증가했다
+→ 동시에 Decode하는 요청이 많았는가?
+→ GPU 연산 경쟁이 심해졌는가?
+
+Latency가 증가했다
+→ Queue에서 오래 기다렸는가?
+→ 실제 Token 생성 속도가 느려졌는가?
+</code></pre>
+<p>이 원인을 확인하려면 Benchmark를 실행하는 동안 vLLM과 GPU 상태를 동시에 수집해야 한다.</p>
+</div>
+        <section id="benchmark-metric" class="markdown-section">
+<h2>Benchmark와 Metric 수집은 동시에 실행한다</h2>
+<p>이번 실험은 두 작업을 동시에 수행한다.</p>
+<pre><code class="language-text">메인 Thread
+→ vllm bench serve 실행
+
+Metric 수집 Thread
+→ vLLM /metrics와 nvidia-smi 반복 조회
+</code></pre>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">Metric 수집 Thread 시작
+→ Benchmark Client 실행
+→ 요청이 처리되는 동안 Metric 반복 수집
+→ 모든 Benchmark 요청 완료
+→ Benchmark Process 종료
+→ Metric 수집 Thread에 종료 신호 전달
+→ 결과 저장
+</code></pre>
+<p>Benchmark를 먼저 끝낸 뒤 Metric을 조회하면 실행 중의 상태를 볼 수 없다.</p>
+<p>예를 들어 요청이 모두 끝난 뒤 <code>/metrics</code>를 조회하면 다음처럼 나올 수 있다.</p>
+<pre><code class="language-text">Running = 0
+Waiting = 0
+KV Cache Usage = 0%
+GPU Utilization = 0%
+</code></pre>
+<p>하지만 실행 중에는 다음 상태였을 수 있다.</p>
+<pre><code class="language-text">Running = 32
+Waiting = 10
+GPU Utilization = 100%
+</code></pre>
+<p>따라서 Benchmark가 실행되는 동안 일정한 간격으로 Metric을 반복해서 읽어야 한다.</p>
+
+</section>
+<section id="metric-thread-0-2" class="markdown-section">
+<h2>Metric 수집 Thread는 0.2초마다 상태를 기록한다</h2>
+<p>수집 Thread는 종료 신호를 받을 때까지 반복한다.</p>
+<pre><code class="language-python">def collect_metrics(
+    stop_signal,
+    output_samples,
+    metrics_url,
+    sampling_interval_seconds,
+):
+    while not stop_signal.is_set():
+        sample = {
+            &quot;vllm&quot;: read_vllm_metrics(
+                metrics_url=metrics_url,
+            ),
+            &quot;gpu&quot;: read_gpu_metrics(),
+        }
+
+        output_samples.append(sample)
+
+        stop_signal.wait(
+            sampling_interval_seconds
+        )
+</code></pre>
+<p>각 표본에는 해당 시점의 vLLM과 GPU 상태가 함께 들어간다.</p>
+<pre><code class="language-text">측정 시각
+Running 요청 수
+Waiting 요청 수
+KV Cache 사용률
+Preemption 누적값
+GPU Utilization
+GPU Memory
+GPU Power
+GPU Temperature
+GPU Clock
+</code></pre>
+<p>예를 들면 다음과 같은 표본이 반복해서 쌓인다.</p>
+<pre><code class="language-python">{
+    &quot;elapsed_seconds&quot;: 12.4,
+    &quot;running&quot;: 18,
+    &quot;waiting&quot;: 3,
+    &quot;kv_cache_usage_percent&quot;: 2.8,
+    &quot;gpu_utilization_percent&quot;: 100,
+    &quot;gpu_memory_used_mib&quot;: 12394,
+    &quot;gpu_power_watts&quot;: 68.1,
+}
+</code></pre>
+<p>이렇게 해야 <code>12.4초 시점에 Waiting이 생겼고 GPU도 100%였는가</code>처럼 여러 상태를 같은 시점에서 비교할 수 있다.</p>
+
+</section>
+<section id="benchmark-client-process" class="markdown-section">
+<h2>Benchmark Client는 별도의 Process로 실행한다</h2>
+<p>Benchmark 부하는 다음 명령으로 만든다.</p>
+<pre><code class="language-bash">vllm bench serve \
+  --request-rate 3 \
+  --num-prompts 90
+</code></pre>
+<p>Python에서는 <code>subprocess.run()</code>으로 이 명령을 실행한다.</p>
+<pre><code class="language-python">completed_process = subprocess.run(
+    benchmark_command,
+    ...
+)
+</code></pre>
+<p><code>subprocess.run()</code>은 명령을 실행한 뒤 바로 다음 코드로 넘어가지 않는다. 실행한 Benchmark Process가 끝날 때까지 메인 Thread가 기다린다.</p>
+<p>이번 조건에서는 다음 작업이 끝나야 반환된다.</p>
+<pre><code class="language-text">Warm-up 요청 실행
+→ 본 측정 요청 90개 전송
+→ 모든 응답 완료
+→ 결과 JSON 저장
+→ Benchmark Process 종료
+→ subprocess.run() 반환
+</code></pre>
+<p>메인 Thread가 <code>subprocess.run()</code>에서 기다리는 동안 Metric 수집 Thread는 계속 움직인다.</p>
+<pre><code class="language-text">메인 Thread                   Metric 수집 Thread
+
+Benchmark 실행                Metric 수집
+Benchmark 완료 대기           0.2초마다 Metric 수집
+요청 처리 중                  0.2초마다 Metric 수집
+Benchmark 종료                마지막 Metric 수집
+</code></pre>
+
+</section>
+<section id="benchmark-log" class="markdown-section">
+<h2>Benchmark 출력은 Log 파일로 보존한다</h2>
+<p><code>vllm bench serve</code>는 실행 과정과 결과를 표준 출력과 오류 출력으로 내보낸다.</p>
+<pre><code class="language-text">Benchmark 시작
+요청 전송 진행
+측정 결과
+경고
+오류
+</code></pre>
+<p>이 출력은 다음 코드로 Log 파일에 직접 연결한다.</p>
+<pre><code class="language-python">with benchmark_log_path.open(
+    &quot;w&quot;,
+    encoding=&quot;utf-8&quot;,
+) as log_file:
+    completed_process = subprocess.run(
+        benchmark_command,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=False,
+    )
+</code></pre>
+<p>출력 경로는 다음과 같다.</p>
+<pre><code class="language-text">Benchmark의 정상 출력 ─┐
+                       ├─→ Benchmark Log 파일
+Benchmark의 오류 출력 ─┘
+</code></pre>
+<p>현재 코드는 Benchmark 출력을 Notebook 화면에 <code>print</code>하는 것이 아니다. 실행 중 발생한 출력과 오류를 파일로 보존한다.</p>
+<p>Log는 Metric이 아니라 보조 자료다.</p>
+<pre><code class="language-text">Benchmark가 실패함
+→ Log에서 오류 확인
+
+결과가 예상과 다름
+→ 실제 실행 과정 확인
+
+실험을 재현함
+→ 사용한 명령과 출력 확인
+</code></pre>
+
+</section>
+<section id="benchmark-metric-2" class="markdown-section">
+<h2>Benchmark가 끝나면 Metric 수집도 종료한다</h2>
+<p>Metric 수집 Thread는 Benchmark 종료 시점을 직접 알지 못한다.</p>
+<p>Benchmark Process가 종료되면 <code>subprocess.run()</code>이 반환되고, 메인 Thread가 수집 Thread에 종료 신호를 보낸다.</p>
+<pre><code class="language-python">try:
+    completed_process = subprocess.run(
+        benchmark_command,
+        ...
+    )
+finally:
+    time.sleep(0.5)
+    stop_event.set()
+    collector_thread.join(
+        timeout=10.0
+    )
+</code></pre>
+<p><code>stop_event.set()</code>은 수집 Thread에 반복을 종료하라는 신호를 보낸다.</p>
+<pre><code class="language-text">set() 이전
+→ stop_event.is_set() == False
+→ Metric 수집 계속
+
+set() 이후
+→ stop_event.is_set() == True
+→ Metric 수집 종료
+</code></pre>
+<p><code>join()</code>은 수집 Thread가 실제로 끝날 때까지 기다린다.</p>
+<pre><code class="language-text">stop_event.set()
+→ 종료 요청
+
+collector_thread.join()
+→ 실제 종료 확인
+</code></pre>
+<p>0.5초를 추가로 기다리는 이유는 요청이 끝난 직후 Server가 Idle 상태로 돌아오는 모습도 남기기 위해서다.</p>
+<pre><code class="language-text">Running → 0
+Waiting → 0
+GPU Utilization → 하락
+</code></pre>
+
+</section>
+<section id="finally-thread" class="markdown-section">
+<h2><code>finally</code>는 실패했을 때도 수집 Thread를 정리한다</h2>
+<p>Benchmark가 정상적으로 끝난다는 보장은 없다.</p>
+<pre><code class="language-text">명령어 오류
+Server 접속 실패
+요청 실패
+파일 저장 오류
+</code></pre>
+<p>Benchmark 실행을 <code>try</code>에 넣고 Thread 종료를 <code>finally</code>에 넣으면 성공과 실패에 관계없이 수집 Thread를 정리할 수 있다.</p>
+<pre><code class="language-text">Benchmark 정상 완료
+→ finally 실행
+→ Metric 수집 종료
+
+Benchmark 실행 중 오류
+→ 그래도 finally 실행
+→ Metric 수집 종료
+→ 원래 오류 전달
+</code></pre>
+<p><code>finally</code>가 없다면 Benchmark가 실패한 뒤에도 수집 Thread가 남아 <code>/metrics</code>와 <code>nvidia-smi</code>를 계속 호출할 수 있다.</p>
+
+</section>
+<section id="section-34f18fe75649" class="markdown-section">
+<h2>실험 결과는 세 종류로 나뉜다</h2>
+<p>이 구조에서는 다음 세 자료가 만들어진다.</p>
+<pre><code class="language-text">1. Benchmark 결과 JSON
+2. Benchmark 실행 Log
+3. 시간 정렬된 vLLM·GPU Metric
+</code></pre>
+<p>각 자료의 역할은 다르다.</p>
+<h3>Benchmark 결과 JSON</h3>
+<p>Client가 측정한 성능 결과다.</p>
+<pre><code class="language-text">Request Throughput
+Output Token Throughput
+TTFT
+TPOT
+Latency
+요청 성공·실패
+</code></pre>
+<h3>Benchmark 실행 Log</h3>
+<p>Benchmark Process가 출력한 진행 상황과 오류다.</p>
+<pre><code class="language-text">실행 명령
+진행 과정
+경고
+오류 원인
+</code></pre>
+<h3>Metric Timeline</h3>
+<p>Benchmark와 같은 시간대의 Server·GPU 상태다.</p>
+<pre><code class="language-text">Running
+Waiting
+KV Cache Usage
+Preemption
+GPU Utilization
+GPU Memory
+GPU Power
+GPU Temperature
+</code></pre>
+<p>이 세 자료를 연결하면 다음과 같은 분석이 가능해진다.</p>
+<pre><code class="language-text">15초부터 TTFT 증가
+→ 같은 시점부터 Waiting 증가
+→ GPU Utilization은 계속 100%
+→ KV Cache Usage는 낮음
+
+해석
+→ KV Cache 부족보다
+   GPU 처리량을 초과한 Queue 병목 가능성
+</code></pre>
+
+</section>
+<section id="section-8ef18a61d2fe" class="markdown-section">
+<h2>모든 시각은 같은 기준으로 맞춘다</h2>
+<p>Client 요청과 Metric 표본이 서로 다른 시간 기준을 사용하면 함께 비교할 수 없다.</p>
+<p>따라서 본 측정의 첫 번째 요청 시작을 <code>0초</code>로 정하고 모든 기록을 이 기준으로 변환한다.</p>
+<pre><code class="language-text">본 측정 첫 요청 시작
+→ 0초
+
+두 번째 요청 시작
+→ 0.33초
+
+Metric 표본
+→ 0.41초
+
+첫 요청 완료
+→ 2.8초
+</code></pre>
+<p>Warm-up 중 수집한 Metric은 첫 번째 본 측정 요청보다 앞에 있으므로 최종 Timeline에서 제외한다.</p>
+<pre><code class="language-text">Warm-up 표본
+→ 경과 시간 음수
+→ 분석 Timeline에서 제외
+
+본 측정 표본
+→ 경과 시간 0초 이상
+→ 분석에 사용
+</code></pre>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p>Benchmark 실행과 Metric 수집을 분리해서 생각하면 전체 구조를 이해하기 쉽다.</p>
+<pre><code class="language-text">Benchmark Client
+→ Server에 부하를 보냄
+→ TTFT·TPOT·Latency·Throughput 측정
+
+Metric 수집 Thread
+→ 같은 시간대의 vLLM·GPU 상태 반복 측정
+
+Benchmark Log
+→ 실행 과정과 오류를 보존
+
+종료 신호
+→ Benchmark가 끝나면 Metric 수집도 안전하게 종료
+</code></pre>
+<p>이 구조의 목적은 단순히 성능 숫자를 얻는 것이 아니다.</p>
+<blockquote>
+<p>Benchmark에서 관찰한 지연 증가가 발생한 순간에 Running·Waiting·KV Cache와 GPU 상태가 어떻게 변했는지를 같은 시간축에서 확인하여, 성능 저하의 원인 후보를 좁히는 것이 목적이다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

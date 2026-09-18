@@ -1,0 +1,339 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.md. Do not edit directly. source-sha256:24d944f35fe8f787b7dbd3169d26df44c26b385a60c2cf6c8946e2c7d5e00fc7 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="동시 Running Sequence 수만 줄여 TPOT 개선과 Waiting·TTFT 악화를 관찰하고 병목 이동을 확인합니다.">
+  <meta name="source-sha256" content="24d944f35fe8f787b7dbd3169d26df44c26b385a60c2cf6c8946e2c7d5e00fc7">
+  <title>`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정">
+  <meta property="og:description" content="동시 Running Sequence 수만 줄여 TPOT 개선과 Waiting·TTFT 악화를 관찰하고 병목 이동을 확인합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html","name":"`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정","description":"동시 Running Sequence 수만 줄여 TPOT 개선과 Waiting·TTFT 악화를 관찰하고 병목 이동을 확인합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html"},"headline":"`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_observability_bottleneck_analysis/03_max_num_seqs_controlled_validation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/single_gpu_vllm_serving_baseline.html"},{"@type":"ListItem","position":6,"name":"GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html"},{"@type":"ListItem","position":7,"name":"단일 GPU Serving에서 성능 한계가 생긴 원인을 찾는 방법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/03_single_gpu_observability_bottleneck_analysis.html"},{"@type":"ListItem","position":8,"name":"`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/single_gpu_vllm_serving_baseline.html">단일 GPU vLLM Serving Baseline: 계약부터 API Serving과 재시작 재현성까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/02_single_gpu_serving_benchmark_slo_capacity.html">GPU 서버가 SLO(서비스 품질 목표)를 지킬 수 있는 부하를 확인하는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/03_single_gpu_observability_bottleneck_analysis.html">단일 GPU Serving에서 성능 한계가 생긴 원인을 찾는 방법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>`max_num_seqs` 통제 실험으로 병목 가설을 검증한 과정</h1>
+      <p class="lead">동시 Running Sequence 수만 줄여 TPOT 개선과 Waiting·TTFT 악화를 관찰하고 병목 이동을 확인합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#controlled-variable-max-num-seqs">바꾼 조건은 <code>max_num_seqs</code> 하나였다</a>
+        <a href="#tpot-tail-improved">Running을 16개로 제한하자 TPOT 꼬리가 개선됐다</a>
+        <a href="#waiting-ttft-worsened">TPOT가 좋아진 대신 Waiting과 TTFT가 크게 악화됐다</a>
+        <a href="#goodput-decreased">같은 SLO를 적용하자 Goodput이 절반 이하로 줄었다</a>
+        <a href="#hypothesis-vs-operation">가설 검증과 운영 설정 선택은 다른 판단이다</a>
+        <a href="#intermediate-tuning-deferred">중간값 탐색은 후속 튜닝 범위로 남겼다</a>
+        <a href="#raw-results">원본 결과</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>4요청/s에서 <code>prefill-heavy</code>의 TPOT가 SLO를 넘었을 때 Max Running은 28이었지만 Waiting은 0, KV Cache Usage는 4.1403%, Preemption은 0이었다.</p>
+<p>이 관찰로부터 동시에 Running하는 Sequence가 많아져 GPU 시간을 더 많은 요청이 나눠 쓴 것이 TPOT 꼬리 지연에 영향을 줬다는 가설을 세웠다.</p>
+<p>이번 단계에서는 다른 조건을 유지하고 <code>max_num_seqs</code>만 32에서 16으로 줄였다. 동시에 Running하는 요청 수를 실제로 제한했을 때 TPOT가 개선되면 가설을 지지할 수 있다.</p>
+</div>
+        <section id="controlled-variable-max-num-seqs" class="markdown-section">
+<h2>바꾼 조건은 <code>max_num_seqs</code> 하나였다</h2>
+<p>두 조건의 차이는 다음과 같다.</p>
+<pre><code class="language-text">기존 Server
+→ max_num_seqs = 32
+
+통제 Server
+→ max_num_seqs = 16
+</code></pre>
+<p>다음 조건은 그대로 유지했다.</p>
+<pre><code class="language-text">모델
+→ Qwen2.5-1.5B-Instruct
+
+GPU
+→ NVIDIA RTX 2000 Ada Generation 16GB
+
+유입률
+→ 4요청/s
+
+Workload
+→ baseline 40개
+→ prefill-heavy 40개
+→ decode-heavy 40개
+
+Server 설정
+→ max_num_batched_tokens = 4096
+→ Prefix Caching OFF
+→ Chunked Prefill OFF
+</code></pre>
+<p>검증하려는 예상은 다음과 같았다.</p>
+<pre><code class="language-text">가설이 맞다면
+→ Max Running이 16 이하로 감소
+→ 실행 중 요청이 GPU 시간을 덜 나눔
+→ TPOT 꼬리 지연 개선
+
+대신 발생할 수 있는 부작용
+→ Running에 못 들어간 요청이 Waiting
+→ TTFT와 Latency 증가
+</code></pre>
+
+</section>
+<section id="tpot-tail-improved" class="markdown-section">
+<h2>Running을 16개로 제한하자 TPOT 꼬리가 개선됐다</h2>
+<p>실제 통제 실험에서는 Max Running이 정확히 16으로 제한됐다.</p>
+<pre><code class="language-text">max_num_seqs=32
+→ Max Running 28
+→ Max Waiting 0
+
+max_num_seqs=16
+→ Max Running 16
+→ Max Waiting 20
+</code></pre>
+<p>전체 TPOT는 다음과 같이 개선됐다.</p>
+<pre><code class="language-text">                         max_num_seqs=32   max_num_seqs=16
+TPOT p50                 19.47ms/token     18.45ms/token
+TPOT p95                 24.69ms/token     21.37ms/token
+TPOT p99                 32.13ms/token     22.37ms/token
+</code></pre>
+<p>이전에 실패했던 <code>prefill-heavy</code>의 변화도 같은 방향이었다.</p>
+<pre><code class="language-text">prefill-heavy TPOT p95
+31.63ms/token → 22.05ms/token
+
+prefill-heavy TPOT p99
+33.10ms/token → 22.49ms/token
+
+TPOT SLO 위반 요청
+3개 → 0개
+</code></pre>
+<p>동시에 Running하는 요청 수를 줄였을 때 예상대로 TPOT 꼬리가 개선됐다. 따라서 Running Sequence 증가가 TPOT 악화에 영향을 줬다는 가설을 지지한다.</p>
+
+</section>
+<section id="waiting-ttft-worsened" class="markdown-section">
+<h2>TPOT가 좋아진 대신 Waiting과 TTFT가 크게 악화됐다</h2>
+<p><code>max_num_seqs=16</code>에서는 20개 요청이 Running 자리를 기다렸다. 그 결과 전체 TTFT p95는 167.13ms에서 4,711.47ms로 늘었다.</p>
+<pre><code class="language-text">                         max_num_seqs=32   max_num_seqs=16
+Max Waiting              0                 20
+전체 TTFT p95            167.13ms          4,711.47ms
+Request Throughput       3.131요청/s       2.851요청/s
+Output Throughput        701.23Token/s     638.64Token/s
+</code></pre>
+<p>Workload별 TTFT도 같은 문제를 보여 줬다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th align="right">max_num_seqs=32 TTFT p95</th>
+<th align="right">max_num_seqs=16 TTFT p95</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baseline</td>
+<td align="right">144.57ms</td>
+<td align="right">4,676.84ms</td>
+</tr>
+<tr>
+<td>prefill-heavy</td>
+<td align="right">194.21ms</td>
+<td align="right">4,670.25ms</td>
+</tr>
+<tr>
+<td>decode-heavy</td>
+<td align="right">92.35ms</td>
+<td align="right">4,746.16ms</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_num_seqs=16</code>은 실행 중인 요청 하나하나의 Token 생성 간격은 개선했지만, 많은 요청을 실행 전에 기다리게 만들었다.</p>
+<pre><code class="language-text">max_num_seqs=32
+→ 많은 Sequence를 함께 Running
+→ Waiting 없음
+→ 일부 TPOT 꼬리 악화
+
+max_num_seqs=16
+→ Running Sequence 감소
+→ TPOT 개선
+→ Waiting 증가
+→ TTFT와 Latency 악화
+</code></pre>
+<p>병목이 사라진 것이 아니라 Running 단계에서 Waiting 단계로 이동한 것이다.</p>
+
+</section>
+<section id="goodput-decreased" class="markdown-section">
+<h2>같은 SLO를 적용하자 Goodput이 절반 이하로 줄었다</h2>
+<p>두 조건에 동일한 Workload별 SLO와 필요한 통과율 95%를 적용했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Server 설정</th>
+<th align="right">Good 요청</th>
+<th align="right">전체 통과율</th>
+<th align="right">Goodput</th>
+<th>최종 판정</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>max_num_seqs=32</td>
+<td align="right">117/120</td>
+<td align="right">97.5%</td>
+<td align="right">3.052통과 요청/s</td>
+<td>실패</td>
+</tr>
+<tr>
+<td>max_num_seqs=16</td>
+<td align="right">60/120</td>
+<td align="right">50.0%</td>
+<td align="right">1.426통과 요청/s</td>
+<td>실패</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_num_seqs=32</code>는 전체 통과율은 97.5%였지만 <code>prefill-heavy</code>가 개별 필요 통과율 95%를 만족하지 못해 최종 실패였다. <code>max_num_seqs=16</code>은 세 Workload 모두 실패했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Server 설정</th>
+<th align="right">baseline</th>
+<th align="right">prefill-heavy</th>
+<th align="right">decode-heavy</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>max_num_seqs=32</td>
+<td align="right">40/40</td>
+<td align="right">37/40</td>
+<td align="right">40/40</td>
+</tr>
+<tr>
+<td>max_num_seqs=16</td>
+<td align="right">24/40</td>
+<td align="right">18/40</td>
+<td align="right">18/40</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_num_seqs=16</code>에서는 TPOT 위반이 한 건도 없었다. 대신 TTFT와 Latency 위반이 크게 늘었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th align="right">TTFT 위반</th>
+<th align="right">TPOT 위반</th>
+<th align="right">Latency 위반</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>baseline</td>
+<td align="right">16</td>
+<td align="right">0</td>
+<td align="right">14</td>
+</tr>
+<tr>
+<td>prefill-heavy</td>
+<td align="right">22</td>
+<td align="right">0</td>
+<td align="right">22</td>
+</tr>
+<tr>
+<td>decode-heavy</td>
+<td align="right">22</td>
+<td align="right">0</td>
+<td align="right">19</td>
+</tr>
+</tbody></table>
+</div>
+<p>한 요청이 TTFT와 Latency를 동시에 위반할 수 있으므로 위반 수의 합은 실패 요청 수와 같지 않을 수 있다.</p>
+
+</section>
+<section id="hypothesis-vs-operation" class="markdown-section">
+<h2>가설 검증과 운영 설정 선택은 다른 판단이다</h2>
+<p>통제 실험은 동시 Running 증가가 TPOT 꼬리 지연에 영향을 줬다는 가설을 지지했다. 그러나 <code>max_num_seqs=16</code>을 운영 설정으로 선택할 근거는 되지 못했다.</p>
+<pre><code class="language-text">가설 검증 결과
+→ Running 수를 줄이자 TPOT 개선
+→ 동시 Running과 TPOT 악화의 인과관계 지지
+
+운영 설정 평가
+→ Waiting 20개 발생
+→ TTFT p95 약 4.7초
+→ Goodput 3.052 → 1.426요청/s
+→ max_num_seqs=16 채택 불가
+</code></pre>
+<p>일부 Metric 하나를 개선한 설정이 전체 서비스 품질을 개선했다고 판단하면 안 된다. TTFT·TPOT·Latency를 모두 적용한 SLO 통과율과 Goodput까지 다시 계산해야 한다.</p>
+
+</section>
+<section id="intermediate-tuning-deferred" class="markdown-section">
+<h2>중간값 탐색은 후속 튜닝 범위로 남겼다</h2>
+<p>16과 32 사이에 더 나은 절충점이 있을 가능성은 있다. 실제 운영 설정을 최적화한다면 중간값인 24를 먼저 측정하고 결과에 따라 탐색 범위를 좁힐 수 있다.</p>
+<pre><code class="language-text">max_num_seqs=24에서
+TPOT와 TTFT가 모두 SLO 통과
+→ 24를 운영 후보로 유지
+
+TPOT가 여전히 실패
+→ 16~24 사이를 추가 탐색
+
+Waiting과 TTFT가 크게 증가
+→ 24~32 사이를 추가 탐색
+</code></pre>
+<p>이번 단원의 목표는 최적값 탐색이 아니라 병목 원인을 Observability Metric과 통제 실험으로 설명하는 것이므로 중간값 Benchmark는 수행하지 않았다.</p>
+
+</section>
+<section id="raw-results" class="markdown-section">
+<h2>원본 결과</h2>
+<ul>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/controlled-max-seqs-16/20260918-071252/max-seqs-16-r4.json" rel="noopener noreferrer"><code>max_num_seqs=16</code> Benchmark 결과</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/controlled-max-seqs-16/20260918-071252/max-seqs-16-r4-timeline.json" rel="noopener noreferrer"><code>max_num_seqs=16</code> 시간 정렬 Timeline</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/controlled-max-seqs-16/20260918-071252/max-seqs-16-r4.log" rel="noopener noreferrer"><code>max_num_seqs=16</code> 실행 로그</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/research/vllm_observability_bottleneck_analysis/results/2026-09-18-observability-bottleneck/comparison/max-seqs-32-vs-16-20260918-072242.json" rel="noopener noreferrer"><code>max_num_seqs=32</code>와 16의 SLO·Goodput 비교</a></li>
+<li><a href="https://github.com/muscleleg/transformer-practice/blob/main/notebooks/transformer/vllm_observability_bottleneck.ipynb" rel="noopener noreferrer">전체 실습 Notebook</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
