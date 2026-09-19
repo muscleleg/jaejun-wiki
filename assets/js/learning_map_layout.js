@@ -16,19 +16,35 @@ function groupLayout(nodes, edges, width = 520) {
   return { cells, width, height: Math.max(1, ...[...cells.values()].map(cell => cell.y + cell.h + padding)) };
 }
 
-function edgePath(from, to) {
-  if (from.group && from.group !== to.group) {
-    const x = from.x + from.w / 2, y = from.y + from.h;
-    const tx = to.x + to.w / 2, ty = to.y - 6;
-    return `M ${x} ${y} V ${y + 24} H 16 V ${ty - 8} H ${tx} V ${ty} M ${tx - 4} ${ty - 6} L ${tx} ${ty} L ${tx + 4} ${ty - 6}`;
+function edgePoints(from, to) {
+  const x = from.x + from.w / 2, y = from.y + from.h;
+  const tx = to.x + to.w / 2, ty = to.y - 6;
+  if (from.group && (from.group !== to.group || to.y - from.y > 152)) {
+    // The gutter is outside group borders. Enter first-column cards from the
+    // left, below their group heading; other columns use the empty row gap.
+    const gutter = 18;
+    if (to.firstColumn) return [[x, y], [x, y + 18], [gutter, y + 18], [gutter, to.y + to.h / 2], [to.x - 6, to.y + to.h / 2]];
+    return [[x, y], [x, y + 18], [gutter, y + 18], [gutter, to.y - 18], [tx, to.y - 18], [tx, ty]];
   }
   if (from.y === to.y && from.x < to.x) {
-    const x = to.x - 6, y = to.y + to.h / 2;
-    return `M ${from.x + from.w} ${y} H ${x} M ${x - 6} ${y - 4} L ${x} ${y} L ${x - 6} ${y + 4}`;
+    return [[from.x + from.w, to.y + to.h / 2], [to.x - 6, to.y + to.h / 2]];
   }
-  const x = from.x + from.w / 2, y = from.y + from.h;
-  const tx = to.x + to.w / 2, ty = to.y - 6, mid = y + 24;
-  return `M ${x} ${y} V ${mid} H ${tx} V ${ty} M ${tx - 4} ${ty - 6} L ${tx} ${ty} L ${tx + 4} ${ty - 6}`;
+  const mid = y + (to.y - y) / 2;
+  return [[x, y], [x, mid], [tx, mid], [tx, ty]];
+}
+function edgePath(from, to) {
+  const points = edgePoints(from, to).filter((point, i, all) => !i || point[0] !== all[i - 1][0] || point[1] !== all[i - 1][1]);
+  let path = `M ${points[0].join(' ')}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [a, b, c] = points.slice(i - 1, i + 2);
+    const before = Math.hypot(b[0] - a[0], b[1] - a[1]), after = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    const radius = Math.min(8, before / 2, after / 2);
+    const entry = b.map((value, axis) => value + (a[axis] - value) * radius / before);
+    const exit = b.map((value, axis) => value + (c[axis] - value) * radius / after);
+    path += ` L ${entry.join(' ')} Q ${b.join(' ')} ${exit.join(' ')}`;
+  }
+  const end = points.at(-1), prev = points.at(-2), dx = Math.sign(end[0] - prev[0]), dy = Math.sign(end[1] - prev[1]);
+  return path + ` L ${end.join(' ')} M ${end[0] - dx * 6 - dy * 4} ${end[1] - dy * 6 + dx * 4} L ${end.join(' ')} L ${end[0] - dx * 6 + dy * 4} ${end[1] - dy * 6 - dx * 4}`;
 }
 // Preserve branch/merge points and group boundaries while folding only chains.
 function compactUnits(nodes, edges, revealed = new Set()) {
@@ -65,7 +81,7 @@ function compactUnits(nodes, edges, revealed = new Set()) {
 
 // Each group owns a separate band; long groups wrap without mixing groups.
 function unitLayout(nodes, edges, groups, width = 600) {
-  const padding = 24, gap = 36, h = 96, rowStep = 140;
+  const padding = 54, gap = 36, h = 96, rowStep = 152, heading = 80;
   const columns = Math.max(1, Math.min(4, Math.floor((width - padding * 2 + gap) / 210)));
   const w = (width - padding * 2 - gap * (columns - 1)) / columns;
   const owner = new Map(nodes.map(node => [node.id, node.group]));
@@ -85,14 +101,14 @@ function unitLayout(nodes, edges, groups, width = 600) {
     for (const id of queue) {
       const parents = incoming.get(id);
       if (slot % columns && parents.some(edge => edge.newLane || outgoing.get(edge.from).length > 1)) slot += columns - slot % columns;
-      cells.set(id, { x: padding + slot % columns * (w + gap), y: top + 58 + Math.floor(slot / columns) * rowStep, w, h, group: group.id }); slot++;
+      cells.set(id, { x: padding + slot % columns * (w + gap), y: top + heading + Math.floor(slot / columns) * rowStep, w, h, group: group.id, firstColumn: slot % columns === 0 }); slot++;
       for (const edge of outgoing.get(id)) { remaining.set(edge.to, remaining.get(edge.to) - 1); if (!remaining.get(edge.to)) queue.push(edge.to); }
     }
-    const height = 58 + Math.ceil(slot / columns) * rowStep - (rowStep - h) + 20;
-    bands.set(group.id, { x: 10, y: top, w: width - 20, h: height });
+    const height = heading + Math.ceil(slot / columns) * rowStep - (rowStep - h) + 36;
+    bands.set(group.id, { x: 38, y: top, w: width - 76, h: height });
     top += height + 64;
   }
   return { cells, bands, width, height: top, columns };
 }
-globalThis.JWikiHomeMapLayout = Object.freeze({ groupLayout, edgePath, compactUnits, unitLayout });
+globalThis.JWikiHomeMapLayout = Object.freeze({ groupLayout, edgePath, edgePoints, compactUnits, unitLayout });
 })();
