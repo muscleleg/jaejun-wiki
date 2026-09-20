@@ -1,0 +1,491 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-node-resource-registration.md. Do not edit directly. source-sha256:4299b6cc2bfecc6ef74add4383110d0e687b4177f0a9f5eab43aa4951b9dee93 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="물리 NVIDIA GPU가 Linux Driver와 Device Plugin을 거쳐 kubelet·API Server의 Node 자원으로 등록되고 GPU 요청 Pod에 할당되는 전체 흐름을 설명합니다.">
+  <meta name="source-sha256" content="4299b6cc2bfecc6ef74add4383110d0e687b4177f0a9f5eab43aa4951b9dee93">
+  <title>실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?">
+  <meta property="og:description" content="물리 NVIDIA GPU가 Linux Driver와 Device Plugin을 거쳐 kubelet·API Server의 Node 자원으로 등록되고 GPU 요청 Pod에 할당되는 전체 흐름을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html","name":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?","description":"물리 NVIDIA GPU가 Linux Driver와 Device Plugin을 거쳐 kubelet·API Server의 Node 자원으로 등록되고 GPU 요청 Pod에 할당되는 전체 흐름을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html"},"headline":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</h1>
+      <p class="lead">물리 NVIDIA GPU가 Linux Driver와 Device Plugin을 거쳐 kubelet·API Server의 Node 자원으로 등록되고 GPU 요청 Pod에 할당되는 전체 흐름을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-gpu-node">1. 물리 GPU가 Node에 장착된다</a>
+        <a href="#section-2-nvidia-driver-gpu">2. NVIDIA Driver가 GPU를 제어할 수 있게 한다</a>
+        <a href="#section-3-nvml-gpu">3. NVML을 통해 GPU 목록과 상태를 조회한다</a>
+        <a href="#section-4-nvidia-gpu-operator">4. NVIDIA GPU Operator가 필요한 구성요소를 관리할 수 있다</a>
+        <a href="#section-5-nvidia-device-plugin-gpu">5. NVIDIA Device Plugin이 실제 GPU를 발견한다</a>
+        <a href="#section-6-device-plugin-node-kubelet">6. Device Plugin이 같은 Node의 kubelet에 등록한다</a>
+        <a href="#section-7-kubelet-gpu-node">7. kubelet이 GPU를 Node 자원으로 집계한다</a>
+        <a href="#section-8-kubelet-api-server-node">8. kubelet이 API Server에 Node 상태를 보고한다</a>
+        <a href="#section-9-scheduler-node-gpu">9. Scheduler가 Node별 GPU 수량을 확인한다</a>
+        <a href="#section-10-kubelet-device-plugin-gpu">10. kubelet이 Device Plugin에 실제 GPU 할당을 요청한다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+        <a href="#gpu-fake-gpu">실제 GPU와 Fake GPU의 차이</a>
+        <a href="#section-8233a4b7fe59">핵심 결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes가 GPU를 인식하기 전에 먼저 Linux Node가 물리 GPU를 인식해야 한다.</p>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">물리 GPU 장착
+  → Linux가 PCI 장치로 발견
+  → NVIDIA Driver가 GPU 제어
+  → Device File·NVML 준비
+  → NVIDIA Device Plugin이 GPU 발견
+  → Device Plugin이 kubelet에 GPU 정보 전달
+  → kubelet이 API Server에 Node 자원 보고
+  → Scheduler가 GPU 요청 Pod 배치
+  → kubelet이 선택된 GPU를 Container에 할당
+</code></pre>
+<p>이 흐름은 크게 두 단계로 나뉜다.</p>
+<pre><code class="language-text">1. Linux가 GPU를 사용할 수 있게 만드는 단계
+   물리 GPU → Driver → Device File·NVML
+
+2. Kubernetes가 GPU를 자원으로 알게 만드는 단계
+   Device Plugin → kubelet → API Server → Scheduler
+</code></pre>
+</div>
+        <section id="section-1-gpu-node" class="markdown-section">
+<h2>1. 물리 GPU가 Node에 장착된다</h2>
+<p>먼저 서버의 PCIe Slot에 NVIDIA GPU가 물리적으로 장착되어 있어야 한다.</p>
+<pre><code class="language-text">Linux Node
+├─ CPU
+├─ Memory
+└─ PCIe
+   ├─ Network Device
+   └─ NVIDIA GPU
+</code></pre>
+<p>서버가 시작되면 Linux는 PCI Bus를 탐색하여 연결된 장치를 발견한다.</p>
+<p>다음 명령은 Linux가 PCI 장치로 NVIDIA GPU를 발견했는지 확인할 때 사용할 수 있다.</p>
+<pre><code class="language-bash">lspci | grep -i nvidia
+</code></pre>
+<p>예를 들어 다음처럼 나타날 수 있다.</p>
+<pre><code class="language-text">65:00.0 VGA compatible controller: NVIDIA Corporation ...
+</code></pre>
+<p>이 단계에서 알 수 있는 것은 Linux가 PCI 장치의 존재를 발견했다는 것이다. 아직 CUDA Application이나 Kubernetes가 GPU를 사용할 준비가 완료된 것은 아니다.</p>
+
+</section>
+<section id="section-2-nvidia-driver-gpu" class="markdown-section">
+<h2>2. NVIDIA Driver가 GPU를 제어할 수 있게 한다</h2>
+<p>Linux가 PCI 장치의 존재를 알아도 GPU의 기능을 직접 제어할 수 있는 것은 아니다. NVIDIA Driver가 설치되고 Kernel Module이 Load되어야 한다.</p>
+<pre><code class="language-text">물리 GPU
+  ↓ PCI 장치로 발견
+Linux Kernel
+  ↓ NVIDIA Kernel Driver
+GPU 제어 가능
+</code></pre>
+<p>Driver가 정상적으로 Load되면 Linux에는 NVIDIA GPU와 통신하기 위한 Device File이 만들어진다.</p>
+<pre><code class="language-text">/dev/nvidia0
+/dev/nvidia1
+/dev/nvidiactl
+/dev/nvidia-uvm
+</code></pre>
+<p>예를 들어 <code>/dev/nvidia0</code>은 첫 번째 GPU를 나타내는 장치 파일이다.</p>
+<p>Application은 GPU Hardware에 직접 명령을 보내는 대신 CUDA Runtime, NVIDIA Library와 Driver를 거쳐 이 장치에 접근한다.</p>
+<pre><code class="language-text">Application
+  → CUDA Runtime·NVIDIA Library
+  → NVIDIA Driver
+  → /dev/nvidia*
+  → 물리 GPU
+</code></pre>
+<p>Driver 설치 상태와 GPU 목록은 일반적으로 다음 명령으로 확인한다.</p>
+<pre><code class="language-bash">nvidia-smi
+</code></pre>
+<p>출력에는 GPU 제품명, Driver Version, GPU Memory와 사용 상태 등이 나타난다.</p>
+<pre><code class="language-text">GPU 0: NVIDIA A100
+GPU 1: NVIDIA A100
+</code></pre>
+<p>여기까지 완료되면 Linux는 GPU를 사용할 수 있다. 하지만 아직 Kubernetes는 이 GPU를 스케줄링 가능한 자원으로 알지 못한다.</p>
+
+</section>
+<section id="section-3-nvml-gpu" class="markdown-section">
+<h2>3. NVML을 통해 GPU 목록과 상태를 조회한다</h2>
+<p>NVIDIA Management Library, 즉 NVML은 NVIDIA GPU의 정보와 상태를 조회할 수 있게 해주는 Library다.</p>
+<p>NVML을 통해 다음과 같은 정보를 얻을 수 있다.</p>
+<pre><code class="language-text">GPU 개수
+GPU UUID
+GPU 제품명
+GPU Memory
+Driver 상태
+GPU Health
+MIG 구성
+</code></pre>
+<p>구조를 단순화하면 다음과 같다.</p>
+<pre><code class="language-text">물리 GPU
+  ↓
+NVIDIA Driver
+  ↓
+NVML
+  ↓
+GPU 관리 프로그램
+</code></pre>
+<p><code>nvidia-smi</code>도 내부적으로 NVML을 사용한다. Kubernetes의 NVIDIA Device Plugin 역시 일반적으로 Driver와 NVML을 통해 Node의 GPU를 발견한다.</p>
+
+</section>
+<section id="section-4-nvidia-gpu-operator" class="markdown-section">
+<h2>4. NVIDIA GPU Operator가 필요한 구성요소를 관리할 수 있다</h2>
+<p>GPU Node에는 Driver 하나만 필요한 것이 아니다. Kubernetes에서 GPU를 사용하려면 다음과 같은 구성요소가 필요하다.</p>
+<pre><code class="language-text">NVIDIA Driver
+NVIDIA Container Toolkit
+NVIDIA Device Plugin
+GPU Feature Discovery
+DCGM Exporter
+</code></pre>
+<p>이 구성요소를 각각 직접 설치할 수도 있지만, NVIDIA GPU Operator를 사용하면 <code>ClusterPolicy</code>를 기준으로 설치와 상태 유지를 자동화할 수 있다.</p>
+<pre><code class="language-text">ClusterPolicy
+  ↓
+NVIDIA GPU Operator
+  ├─ Driver 배포·관리
+  ├─ Container Toolkit 배포·관리
+  ├─ Device Plugin 배포·관리
+  ├─ GPU Feature Discovery 배포·관리
+  └─ DCGM Exporter 배포·관리
+</code></pre>
+<p>GPU Operator가 GPU 개수를 직접 API Server에 등록하는 것은 아니다.</p>
+<p>GPU Operator의 역할은 GPU 사용에 필요한 Stack을 설치하고 정상 상태로 유지하는 것이다. 실제 GPU 목록을 kubelet에 전달하는 구성요소는 NVIDIA Device Plugin이다.</p>
+<p>Driver가 Node에 미리 설치된 환경에서는 GPU Operator가 Driver 설치를 생략하고 나머지 구성요소만 관리하도록 설정할 수도 있다.</p>
+
+</section>
+<section id="section-5-nvidia-device-plugin-gpu" class="markdown-section">
+<h2>5. NVIDIA Device Plugin이 실제 GPU를 발견한다</h2>
+<p>NVIDIA Device Plugin은 일반적으로 DaemonSet으로 배포되어 GPU Node마다 실행된다.</p>
+<pre><code class="language-text">Node A
+├─ NVIDIA Driver
+├─ GPU 4개
+├─ kubelet
+└─ NVIDIA Device Plugin A
+
+Node B
+├─ NVIDIA Driver
+├─ GPU 2개
+├─ kubelet
+└─ NVIDIA Device Plugin B
+</code></pre>
+<p>각 Device Plugin은 자신이 실행되는 Node의 Driver와 NVML을 이용해 로컬 GPU를 확인한다.</p>
+<p>예를 들어 Node A에서는 다음과 같은 결과를 얻을 수 있다.</p>
+<pre><code class="language-text">GPU-UUID-A: Healthy
+GPU-UUID-B: Healthy
+GPU-UUID-C: Healthy
+GPU-UUID-D: Healthy
+</code></pre>
+<p>이 시점에도 Device Plugin이 API Server에 직접 요청을 보내 Node Object를 수정하는 것은 아니다.</p>
+<p>Device Plugin의 직접적인 통신 상대는 같은 Node의 kubelet이다.</p>
+
+</section>
+<section id="section-6-device-plugin-node-kubelet" class="markdown-section">
+<h2>6. Device Plugin이 같은 Node의 kubelet에 등록한다</h2>
+<p>kubelet은 외부 Device Plugin이 자신에게 장치를 등록할 수 있도록 Device Plugin API를 제공한다.</p>
+<p>관련 Unix Socket은 Node의 다음 경로 아래에서 관리된다.</p>
+<pre><code class="language-text">/var/lib/kubelet/device-plugins/
+</code></pre>
+<p>흐름을 단순화하면 다음과 같다.</p>
+<pre><code class="language-text">NVIDIA Device Plugin 시작
+  ↓
+자신의 Unix Socket 생성
+  ↓
+kubelet.sock을 통해 kubelet에 Register 요청
+  ↓
+ResourceName으로 nvidia.com/gpu 등록
+</code></pre>
+<p>Device Plugin은 kubelet에 다음과 같은 의미의 정보를 전달한다.</p>
+<pre><code class="language-text">“나는 nvidia.com/gpu라는 자원을 관리한다.”
+“현재 이 Node에는 Healthy한 GPU 장치가 4개 있다.”
+</code></pre>
+<p>등록 후에는 <code>ListAndWatch</code> 통신을 통해 GPU 목록과 Health 변화를 kubelet에 전달한다.</p>
+<pre><code class="language-text">NVIDIA Device Plugin
+  → GPU ID와 Health 상태
+  → 같은 Node의 kubelet
+</code></pre>
+<p>예를 들면 다음과 같다.</p>
+<pre><code class="language-text">GPU-UUID-A: Healthy
+GPU-UUID-B: Healthy
+GPU-UUID-C: Healthy
+GPU-UUID-D: Healthy
+</code></pre>
+<p>Device Plugin이 GPU 하나를 <code>nvidia.com/gpu: 1</code>이라고 직접 API Server에 기록하는 것은 아니다. 개별 장치 목록을 받은 kubelet이 스케줄링 가능한 자원 수량으로 집계한다.</p>
+
+</section>
+<section id="section-7-kubelet-gpu-node" class="markdown-section">
+<h2>7. kubelet이 GPU를 Node 자원으로 집계한다</h2>
+<p>kubelet은 Device Plugin이 전달한 Healthy GPU 장치 수를 집계한다.</p>
+<pre><code class="language-text">GPU-UUID-A: Healthy
+GPU-UUID-B: Healthy
+GPU-UUID-C: Healthy
+GPU-UUID-D: Healthy
+        ↓
+Healthy GPU 4개
+        ↓
+nvidia.com/gpu: 4
+</code></pre>
+<p>여기서 kubelet은 개별 GPU UUID를 Scheduler에 공개하는 것이 아니라, 기본적으로 스케줄링에 필요한 확장 자원 수량을 만든다.</p>
+<pre><code class="language-yaml">nvidia.com/gpu: &quot;4&quot;
+</code></pre>
+<p>즉, kubelet은 Device Plugin의 장치 정보를 Kubernetes가 이해할 수 있는 Node 자원 상태로 연결한다.</p>
+
+</section>
+<section id="section-8-kubelet-api-server-node" class="markdown-section">
+<h2>8. kubelet이 API Server에 Node 상태를 보고한다</h2>
+<p>각 Node의 kubelet은 자신이 담당하는 Node의 상태를 API Server에 보고한다.</p>
+<pre><code class="language-text">Node A의 Device Plugin
+  → Node A의 kubelet
+  → API Server의 Node A Object
+
+Node B의 Device Plugin
+  → Node B의 kubelet
+  → API Server의 Node B Object
+</code></pre>
+<p>Node A에 GPU 4개가 있다면 API Server에 저장된 Node Object에는 다음과 같은 정보가 나타난다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Node
+metadata:
+  name: node-a
+status:
+  capacity:
+    cpu: &quot;16&quot;
+    memory: 64Gi
+    nvidia.com/gpu: &quot;4&quot;
+  allocatable:
+    cpu: &quot;15&quot;
+    memory: 60Gi
+    nvidia.com/gpu: &quot;4&quot;
+</code></pre>
+<p>이 단계에서 Kubernetes Cluster가 공식적으로 다음 사실을 알게 된다.</p>
+<pre><code class="language-text">Node A에는 nvidia.com/gpu가 4개 있다.
+Node B에는 nvidia.com/gpu가 2개 있다.
+Node C에는 nvidia.com/gpu가 없다.
+</code></pre>
+<p>책임 경계는 다음과 같다.</p>
+<pre><code class="language-text">Device Plugin
+  → 같은 Node의 kubelet에 장치 정보를 전달
+
+kubelet
+  → 자신의 Node 상태를 API Server에 보고
+
+API Server
+  → Node별 Capacity와 Allocatable을 저장
+</code></pre>
+<p>따라서 “Device Plugin이 API Server에 GPU를 등록한다”보다는 다음 표현이 정확하다.</p>
+<blockquote>
+<p>Device Plugin이 GPU를 발견해 kubelet에 알리고, kubelet이 그 GPU를 자신의 Node 확장 자원으로 API Server에 보고한다.</p>
+</blockquote>
+
+</section>
+<section id="section-9-scheduler-node-gpu" class="markdown-section">
+<h2>9. Scheduler가 Node별 GPU 수량을 확인한다</h2>
+<p>Pod가 다음과 같이 GPU 하나를 요청했다고 하자.</p>
+<pre><code class="language-yaml">resources:
+  limits:
+    nvidia.com/gpu: 1
+</code></pre>
+<p>Scheduler는 API Server에 저장된 Node 정보를 확인한다.</p>
+<pre><code class="language-text">Pod가 nvidia.com/gpu: 1 요청
+  ↓
+Scheduler가 Node별 GPU 자원 상태 확인
+  ↓
+Node A: nvidia.com/gpu 4개
+Node B: nvidia.com/gpu 2개
+Node C: nvidia.com/gpu 없음
+  ↓
+요청을 만족하는 Node 중 하나 선택
+</code></pre>
+<p>Scheduler는 여기서 “Node A의 GPU-UUID-C를 사용하라”고 결정하지 않는다.</p>
+<p>Scheduler가 결정하는 것은 다음과 같다.</p>
+<pre><code class="language-text">이 Pod를 Node A에 배치한다.
+</code></pre>
+<p>해당 Node 안에서 실제로 어떤 GPU를 사용할지는 이후 kubelet과 Device Plugin이 결정한다.</p>
+
+</section>
+<section id="section-10-kubelet-device-plugin-gpu" class="markdown-section">
+<h2>10. kubelet이 Device Plugin에 실제 GPU 할당을 요청한다</h2>
+<ul>
+<li><a href="kubectl-get-describe-gpu-resources.html"><code>kubectl get</code>과 <code>describe</code>는 왜 다른 정보를 보여줄까?</a></li>
+</ul>
+<p>Pod가 Node A에 배치되면 Node A의 kubelet이 Pod 실행을 담당한다.</p>
+<pre><code class="language-text">Scheduler
+  → Pod를 Node A에 배치
+
+Node A의 kubelet
+  → Container Runtime에 Pod 실행 준비 요청
+  → NVIDIA Device Plugin에 GPU Allocate 요청
+</code></pre>
+<p>Device Plugin은 요청받은 개수만큼 실제 GPU를 선택하고, Container에 필요한 정보를 반환한다.</p>
+<pre><code class="language-text">Allocate 요청
+nvidia.com/gpu: 1
+  ↓
+Device Plugin이 GPU-UUID-B 선택
+  ↓
+Device File·환경 변수·Mount·CDI 정보 반환
+</code></pre>
+<p>kubelet은 이 결과를 Container Runtime에 전달한다. NVIDIA Container Toolkit 또는 CDI 구성이 선택된 GPU를 Container에 노출한다.</p>
+<pre><code class="language-text">kubelet
+  → Container Runtime
+  → NVIDIA Container Toolkit·CDI
+  → 선택된 /dev/nvidia*와 Driver Library 연결
+  → Container에서 GPU 사용
+</code></pre>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<pre><code class="language-text">[Linux가 GPU를 인식하는 과정]
+
+물리 NVIDIA GPU
+  ↓ PCI 장치 탐색
+Linux Kernel
+  ↓ NVIDIA Driver Load
+/dev/nvidia* Device File 생성
+  ↓
+NVML로 GPU 목록·상태 조회 가능
+
+[Kubernetes가 GPU를 자원으로 인식하는 과정]
+
+NVIDIA Device Plugin
+  ↓ Driver·NVML로 GPU 발견
+같은 Node의 kubelet에 등록
+  ↓ ListAndWatch로 GPU ID·Health 전달
+kubelet이 Healthy GPU 수량 집계
+  ↓
+nvidia.com/gpu Capacity·Allocatable 생성
+  ↓
+kubelet이 API Server에 Node 상태 보고
+  ↓
+API Server가 Node별 GPU 자원 저장
+  ↓
+Scheduler가 GPU 요청 Pod를 적절한 Node에 배치
+
+[Container가 GPU를 할당받는 과정]
+
+배치된 Node의 kubelet
+  ↓
+Device Plugin에 Allocate 요청
+  ↓
+Device Plugin이 실제 GPU 선택
+  ↓
+Container Runtime·NVIDIA Container Toolkit·CDI
+  ↓
+Container에 선택된 GPU 노출
+</code></pre>
+
+</section>
+<section id="gpu-fake-gpu" class="markdown-section">
+<h2>실제 GPU와 Fake GPU의 차이</h2>
+<ul>
+<li><a href="kubernetes-gpu-node-resource-boundary.html">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</a></li>
+</ul>
+<p>Fake GPU 환경에서는 물리 GPU와 NVIDIA Driver를 통한 탐색 과정이 Topology ConfigMap으로 대체된다.</p>
+<pre><code class="language-text">실제 GPU 환경
+
+물리 GPU
+  → NVIDIA Driver·NVML
+  → NVIDIA Device Plugin
+  → kubelet
+  → API Server
+</code></pre>
+<pre><code class="language-text">Fake GPU 환경
+
+Topology ConfigMap
+  → Fake Device Plugin
+  → kubelet
+  → API Server
+</code></pre>
+<p>두 흐름은 Device Plugin이 kubelet에 자원을 전달하는 지점부터 동일한 Kubernetes 구조를 사용한다.</p>
+<p>Fake 환경에서 다음과 같이 설정했다면:</p>
+<pre><code class="language-yaml">nodePools:
+  default:
+    gpuCount: 2
+    gpuProduct: Tesla-K80
+</code></pre>
+<p>Fake Device Plugin은 이를 실제 장치 탐색 결과처럼 kubelet에 전달한다.</p>
+<pre><code class="language-text">Topology의 gpuCount: 2
+  ↓
+Fake Device Plugin
+  ↓
+kubelet
+  ↓
+Node status.capacity.nvidia.com/gpu: &quot;2&quot;
+</code></pre>
+<p>따라서 Fake GPU 실습은 실제 흐름 중 다음 앞부분만 대체한다.</p>
+<pre><code class="language-text">실제 Hardware 발견
+  ↓
+Driver·NVML을 통한 GPU 조회
+</code></pre>
+<p>그 이후의 다음 흐름은 실제 Kubernetes의 Device Plugin 구조를 학습할 수 있다.</p>
+<pre><code class="language-text">Device Plugin
+  → kubelet
+  → API Server
+  → Scheduler
+  → GPU 요청 Pod 배치
+</code></pre>
+
+</section>
+<section id="section-8233a4b7fe59" class="markdown-section">
+<h2>핵심 결론</h2>
+<blockquote>
+<p>실제 GPU는 먼저 Linux에서 PCI 장치로 발견되고 NVIDIA Driver를 통해 사용할 수 있는 상태가 된다. NVIDIA Device Plugin은 Driver와 NVML을 이용해 GPU를 발견하고 같은 Node의 kubelet에 전달한다. kubelet은 GPU 수량을 <code>nvidia.com/gpu</code> 확장 자원으로 집계해 API Server의 Node 상태에 보고한다. Scheduler는 이 Node 상태를 읽어 GPU 요청 Pod를 배치하고, 배치 후 kubelet은 Device Plugin에 실제 GPU 할당을 요청한다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-gpu-node-resource-boundary.html">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</a><ul><li><a href="fake-gpu-operator-node-resource-registration.html">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</a></li></ul></li>
+<li><a href="kubectl-get-describe-gpu-resources.html">`kubectl get`과 `describe`는 왜 다른 정보를 보여줄까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

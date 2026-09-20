@@ -1,0 +1,502 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.md. Do not edit directly. source-sha256:699fda3e67cda4e605e93bd742cb46954c5455f33a13323035d9edfc685e3876 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="물리 GPU·VM·Driver·GPU Operator·Device Plugin의 경계를 따라 Kubernetes가 GPU를 옮기는 대신 GPU가 있는 Node에 Pod를 배치하는 이유를 설명합니다.">
+  <meta name="source-sha256" content="699fda3e67cda4e605e93bd742cb46954c5455f33a13323035d9edfc685e3876">
+  <title>Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지">
+  <meta property="og:description" content="물리 GPU·VM·Driver·GPU Operator·Device Plugin의 경계를 따라 Kubernetes가 GPU를 옮기는 대신 GPU가 있는 Node에 Pod를 배치하는 이유를 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html","name":"Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지","description":"물리 GPU·VM·Driver·GPU Operator·Device Plugin의 경계를 따라 Kubernetes가 GPU를 옮기는 대신 GPU가 있는 Node에 Pod를 배치하는 이유를 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html"},"headline":"Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-resource-registration.html">실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</h1>
+      <p class="lead">물리 GPU·VM·Driver·GPU Operator·Device Plugin의 경계를 따라 Kubernetes가 GPU를 옮기는 대신 GPU가 있는 Node에 Pod를 배치하는 이유를 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kubernetes-node-gpu">Kubernetes보다 먼저 Node가 GPU를 인식해야 한다</a>
+        <a href="#vm-hypervisor-gpu">VM에서는 Hypervisor가 GPU를 먼저 연결해야 한다</a>
+        <a href="#gpu-operator-gpu">GPU Operator는 GPU를 연결하는 도구가 아니다</a>
+        <a href="#device-plugin-gpu-kubelet">Device Plugin이 로컬 GPU를 kubelet에 알린다</a>
+        <a href="#gpu-hardware">실제 GPU 개수는 Hardware에서 결정된다</a>
+        <a href="#mig-gpu">MIG와 GPU 개수 제한은 다른 문제다</a>
+        <a href="#time-slicing-mps-gpu">Time-slicing과 MPS는 GPU를 공유한다</a>
+        <a href="#scheduler-gpu-node-pod">Scheduler는 GPU가 있는 Node로 Pod를 보낸다</a>
+        <a href="#node-gpu">Node 장애가 발생해도 GPU는 이동하지 않는다</a>
+        <a href="#gpu-kubernetes-infrastructure">GPU 이동은 Kubernetes가 아닌 Infrastructure의 영역이다</a>
+        <a href="#fake-gpu-hardware">Fake GPU 환경은 Hardware 계층을 대체한다</a>
+        <a href="#section-b312c52bbe95">책임 경계를 정리한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes에서 Pod가 <code>nvidia.com/gpu: 1</code>을 요청하면 GPU가 Pod에 할당된다. 이 표현만 보면 Kubernetes가 Cluster 어딘가에 있는 GPU를 골라 Pod가 실행되는 Node로 가져오는 것처럼 느껴질 수 있다.</p>
+<p>하지만 실제 동작은 반대다.</p>
+<blockquote>
+<p>Kubernetes는 GPU를 Pod가 있는 곳으로 옮기지 않는다. GPU가 이미 연결된 Node를 찾아 그곳으로 Pod를 배치한다.</p>
+</blockquote>
+<p>이 차이를 이해하려면 Kubernetes보다 먼저 물리 서버와 VM이 GPU를 어떻게 인식하는지부터 살펴봐야 한다.</p>
+</div>
+        <section id="kubernetes-node-gpu" class="markdown-section">
+<h2>Kubernetes보다 먼저 Node가 GPU를 인식해야 한다</h2>
+<p>GPU는 CPU나 Memory처럼 물리 서버에 연결된 Hardware다. 일반적으로 PCIe를 통해 특정 서버에 장착된다.</p>
+<pre><code class="language-text">물리 서버
+  → PCIe에 NVIDIA GPU 연결
+  → Linux Kernel이 PCI 장치 발견
+  → NVIDIA Driver가 GPU를 제어
+</code></pre>
+<p>다음 명령에서 GPU가 보인다면 Linux가 NVIDIA PCI 장치를 발견한 것이다.</p>
+<pre><code class="language-bash">lspci | grep -i nvidia
+</code></pre>
+<p>NVIDIA Driver까지 정상적으로 준비됐다면 <code>nvidia-smi</code>로 GPU 정보를 조회할 수 있다.</p>
+<pre><code class="language-bash">nvidia-smi
+</code></pre>
+<p>이때 Linux에는 GPU를 제어하기 위한 Device File도 만들어진다.</p>
+<pre><code class="language-text">/dev/nvidia0
+/dev/nvidia1
+/dev/nvidiactl
+/dev/nvidia-uvm
+</code></pre>
+<p>Kubernetes가 GPU를 사용하려면 이 단계가 먼저 완료되어야 한다.</p>
+<pre><code class="language-text">물리 GPU 연결
+  → Kernel이 장치 발견
+  → NVIDIA Driver가 GPU 인식
+  → Device Plugin이 GPU 발견
+</code></pre>
+<p>GPU Operator나 Device Plugin은 Kernel에 존재하지 않는 GPU를 새로 만들 수 없다.</p>
+
+</section>
+<section id="vm-hypervisor-gpu" class="markdown-section">
+<h2>VM에서는 Hypervisor가 GPU를 먼저 연결해야 한다</h2>
+<p>Kubernetes Node가 VM이라면 물리 GPU와 Guest OS 사이에 Hypervisor가 존재한다.</p>
+<pre><code class="language-text">물리 GPU
+  → Hypervisor
+  → PCI Passthrough 또는 vGPU
+  → VM의 Guest Kernel
+  → NVIDIA Driver
+</code></pre>
+<p>PCI Passthrough는 물리 GPU를 특정 VM에 직접 할당하는 방식이다. vGPU는 지원되는 Hardware와 Software를 통해 하나의 물리 GPU 자원을 여러 VM에 나누어 제공하는 방식이다.</p>
+<p>어떤 방식을 사용하든 VM 내부의 Kernel과 NVIDIA Driver가 GPU를 인식해야 다음 단계로 넘어갈 수 있다.</p>
+<pre><code class="language-text">VM에서 nvidia-smi 실행
+  → GPU가 보임
+  → Kubernetes에 게시할 준비가 됨
+</code></pre>
+<p>반대로 VM에 GPU가 연결되지 않았다면 GPU Operator를 설치해도 실제 GPU가 생기지는 않는다.</p>
+<pre><code class="language-text">VM에 GPU 연결 없음
+  + GPU Operator 설치
+  ≠ 실제 GPU 생성
+</code></pre>
+
+</section>
+<section id="gpu-operator-gpu" class="markdown-section">
+<h2>GPU Operator는 GPU를 연결하는 도구가 아니다</h2>
+<p>NVIDIA GPU Operator는 Node에 물리 GPU를 연결하지 않는다. 이미 GPU가 연결된 Node에 필요한 Software Stack을 설치하고 유지한다.</p>
+<pre><code class="language-text">NVIDIA GPU Operator
+├─ NVIDIA Driver
+├─ NVIDIA Container Toolkit
+├─ NVIDIA Device Plugin
+├─ GPU Feature Discovery
+├─ Node Feature Discovery
+├─ MIG Manager
+├─ DCGM Exporter
+└─ Validator
+</code></pre>
+<p>각 구성요소는 다음 책임을 가진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성요소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>NVIDIA Driver</td>
+<td>Kernel이 실제 GPU를 제어하게 한다</td>
+</tr>
+<tr>
+<td>Container Toolkit</td>
+<td>Container에 GPU Device와 Driver Library를 연결한다</td>
+</tr>
+<tr>
+<td>Device Plugin</td>
+<td>GPU를 Kubernetes 확장 자원으로 게시한다</td>
+</tr>
+<tr>
+<td>GPU Feature Discovery</td>
+<td>GPU 제품·메모리·Capability를 Node Label로 표현한다</td>
+</tr>
+<tr>
+<td>MIG Manager</td>
+<td>지원되는 GPU의 MIG Mode와 Partition을 관리한다</td>
+</tr>
+<tr>
+<td>DCGM Exporter</td>
+<td>GPU 사용률·온도·메모리 등의 Metric을 수집한다</td>
+</tr>
+<tr>
+<td>Validator</td>
+<td>GPU Software Stack이 정상적으로 동작하는지 확인한다</td>
+</tr>
+</tbody></table>
+</div>
+<p>GPU Operator가 설치하는 구성요소 중 Kubernetes의 GPU 자원 등록을 직접 담당하는 것은 Device Plugin이다.</p>
+
+</section>
+<section id="device-plugin-gpu-kubelet" class="markdown-section">
+<h2>Device Plugin이 로컬 GPU를 kubelet에 알린다</h2>
+<p>NVIDIA Device Plugin은 일반적으로 GPU Node마다 DaemonSet Pod로 실행된다.</p>
+<pre><code class="language-text">Node A
+├─ GPU 4개
+├─ NVIDIA Driver
+├─ kubelet
+└─ NVIDIA Device Plugin
+</code></pre>
+<p>Device Plugin은 Driver와 NVML을 통해 자신의 Node에 있는 GPU를 발견한다.</p>
+<pre><code class="language-text">NVIDIA Driver·NVML
+  ↓
+GPU-UUID-A: Healthy
+GPU-UUID-B: Healthy
+GPU-UUID-C: Healthy
+GPU-UUID-D: Healthy
+</code></pre>
+<p>그리고 Node 내부의 Device Plugin API를 통해 이 정보를 kubelet에 전달한다.</p>
+<pre><code class="language-text">NVIDIA Device Plugin
+  → ResourceName: nvidia.com/gpu
+  → GPU ID와 Health 상태
+  → 같은 Node의 kubelet
+</code></pre>
+<p>Device Plugin이 API Server에 직접 Node 상태를 기록하는 것은 아니다.</p>
+<pre><code class="language-text">Device Plugin
+  → kubelet
+  → API Server
+</code></pre>
+<p>kubelet은 Healthy GPU 수를 집계해 자신의 Node 상태로 보고한다.</p>
+<pre><code class="language-yaml">status:
+  capacity:
+    nvidia.com/gpu: &quot;4&quot;
+  allocatable:
+    nvidia.com/gpu: &quot;4&quot;
+</code></pre>
+<p>이제 Scheduler가 해당 Node에 GPU가 있다는 사실을 알 수 있다.</p>
+
+</section>
+<section id="gpu-hardware" class="markdown-section">
+<h2>실제 GPU 개수는 Hardware에서 결정된다</h2>
+<p>실제 NVIDIA 환경에서는 Fake GPU Topology처럼 <code>gpuCount</code>를 임의로 작성하지 않는다.</p>
+<pre><code class="language-yaml">gpuCount: 4
+</code></pre>
+<p>와 같은 설정으로 물리 GPU 수를 만드는 것이 아니다.</p>
+<p>Node의 Driver가 GPU 10개를 발견하면 NVIDIA Device Plugin은 기본적으로 GPU 10개를 kubelet에 게시한다.</p>
+<pre><code class="language-text">VM이 GPU 10개 인식
+  ↓
+Device Plugin이 GPU 10개 발견
+  ↓
+kubelet에 GPU 10개 등록
+  ↓
+Node Capacity
+nvidia.com/gpu: 10
+</code></pre>
+<p>공식 NVIDIA Device Plugin에는 발견한 GPU 10개 중 임의로 3개만 게시하는 일반적인 <code>gpuCount</code> 또는 GPU Allowlist 설정이 없다.</p>
+<pre><code class="language-yaml">advertiseGpuCount: 3 # 일반적인 공식 설정이 아님
+</code></pre>
+<p>Kubernetes가 GPU 3개만 소유해야 한다면 가장 명확한 방법은 Infrastructure 계층에서 VM에 GPU 3개만 연결하는 것이다.</p>
+<pre><code class="language-text">물리 Host의 GPU 10개
+  ├─ GPU 3개 → Kubernetes Node VM
+  └─ GPU 7개 → 다른 VM 또는 다른 용도
+</code></pre>
+<p>그러면 VM의 Driver는 GPU 3개만 발견하고 Device Plugin도 3개만 게시한다.</p>
+<pre><code class="language-text">Hypervisor가 VM에 GPU 3개 연결
+  ↓
+VM이 GPU 3개 인식
+  ↓
+Device Plugin이 GPU 3개 게시
+</code></pre>
+<p>공식 Device Plugin을 수정한 Custom Plugin으로 일부 UUID만 게시하는 것도 기술적으로 가능하지만, 이는 GPU Operator의 일반적인 운영 범위를 벗어난다.</p>
+
+</section>
+<section id="mig-gpu" class="markdown-section">
+<h2>MIG와 GPU 개수 제한은 다른 문제다</h2>
+<p>MIG는 물리 GPU 일부를 숨기는 기능이 아니라 하나의 GPU를 Hardware 수준의 여러 Instance로 나누는 기능이다.</p>
+<pre><code class="language-text">A100 GPU 1개
+  ↓ MIG Mode 활성화
+여러 GPU Instance 생성
+  ↓
+각 Instance를 Kubernetes 자원으로 게시
+</code></pre>
+<p>여기에는 두 구성요소가 참여한다.</p>
+<pre><code class="language-text">MIG Manager
+  → 실제 GPU의 MIG Mode와 Partition 구성
+
+Device Plugin
+  → 만들어진 MIG Instance를 Kubernetes 자원으로 게시
+</code></pre>
+<p>예를 들어 <code>migStrategy: mixed</code>를 사용하면 다음과 같은 자원이 나타날 수 있다.</p>
+<pre><code class="language-yaml">nvidia.com/mig-1g.5gb: &quot;4&quot;
+nvidia.com/mig-2g.10gb: &quot;2&quot;
+</code></pre>
+<p>Device Plugin의 <code>migStrategy</code>는 MIG 장치를 어떻게 게시할지 결정한다. 그러나 <code>migStrategy</code>만 변경한다고 물리 GPU가 자동으로 분할되는 것은 아니다. 먼저 MIG Manager나 <code>nvidia-smi</code>를 통해 실제 Hardware 구성이 변경돼야 한다.</p>
+
+</section>
+<section id="time-slicing-mps-gpu" class="markdown-section">
+<h2>Time-slicing과 MPS는 GPU를 공유한다</h2>
+<p>Time-slicing과 MPS는 GPU를 줄이는 기능이 아니라 여러 Workload가 GPU를 공유하게 만드는 기능이다.</p>
+<p>예를 들어 물리 GPU 하나에 Time-slicing Replica를 네 개 설정하면 Scheduler에는 논리 자원이 네 개처럼 보일 수 있다.</p>
+<pre><code class="language-text">물리 GPU 1개
+  ↓ Time-slicing replicas: 4
+논리적인 GPU 예약 단위 4개
+</code></pre>
+<p>하지만 실제 Hardware가 네 개가 된 것은 아니다.</p>
+<pre><code class="language-text">물리 GPU: 1개
+GPU Memory: 공유
+연산 시간: 경쟁
+장애 영역: 같은 물리 GPU
+</code></pre>
+<p>따라서 다음 개념은 구분해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>전체 GPU</td>
+<td>물리 GPU 하나를 하나의 자원으로 사용</td>
+</tr>
+<tr>
+<td>MIG</td>
+<td>GPU를 Hardware Partition으로 분리</td>
+</tr>
+<tr>
+<td>Time-slicing</td>
+<td>하나의 GPU 시간을 여러 Workload가 공유</td>
+</tr>
+<tr>
+<td>MPS</td>
+<td>여러 CUDA Process가 GPU 연산 자원을 공유</td>
+</tr>
+<tr>
+<td>PCI Passthrough·vGPU</td>
+<td>GPU를 특정 VM에서 인식할 수 있게 연결</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="scheduler-gpu-node-pod" class="markdown-section">
+<h2>Scheduler는 GPU가 있는 Node로 Pod를 보낸다</h2>
+<p>Pod가 GPU 하나를 요청했다고 하자.</p>
+<pre><code class="language-yaml">resources:
+  limits:
+    nvidia.com/gpu: 1
+</code></pre>
+<p>현재 Cluster 상태가 다음과 같다면:</p>
+<pre><code class="language-text">Node A: nvidia.com/gpu 4개
+Node B: nvidia.com/gpu 없음
+</code></pre>
+<p>Scheduler는 Pod를 Node A에 배치한다.</p>
+<pre><code class="language-text">GPU를 Node B로 이동 ❌
+
+GPU가 있는 Node A로 Pod를 배치 ✅
+</code></pre>
+<p>Scheduler는 구체적인 GPU UUID를 선택하지 않는다. GPU를 제공할 수 있는 Node만 선택한다.</p>
+<pre><code class="language-text">Scheduler
+  → Pod를 Node A에 배치
+
+Node A의 kubelet
+  → Device Plugin에 GPU 1개 Allocate 요청
+
+Device Plugin
+  → Node A의 GPU 중 하나 선택
+
+Container Runtime
+  → 선택된 GPU를 Container에 노출
+</code></pre>
+<p>GPU 할당은 물리 장치 이동이 아니라 Node에 이미 있는 장치를 특정 Container에 보이도록 만드는 과정이다.</p>
+
+</section>
+<section id="node-gpu" class="markdown-section">
+<h2>Node 장애가 발생해도 GPU는 이동하지 않는다</h2>
+<p>GPU Node가 장애를 일으키면 해당 Node의 GPU도 Kubernetes에서 사용할 수 없는 상태가 된다.</p>
+<pre><code class="language-text">Node A 장애
+  ↓
+Node A의 GPU 사용 불가
+  ↓
+Controller가 Pod 재생성
+  ↓
+Scheduler가 다른 GPU Node 탐색
+</code></pre>
+<p>다른 Node에 충분한 GPU가 있다면 Pod가 재배치된다.</p>
+<pre><code class="language-text">Node B에 여유 GPU 있음
+  → Pod를 Node B에 배치
+</code></pre>
+<p>다른 Node에 GPU가 없거나 부족하면 Pod는 Pending 상태로 남는다.</p>
+<pre><code class="language-text">다른 Node의 GPU 부족
+  → FailedScheduling
+  → Pod Pending
+</code></pre>
+<p>Node A의 GPU가 Node B로 이동한 것이 아니다. Node B에 원래 있던 GPU를 사용한 것이다.</p>
+<p>그래서 GPU Cluster의 장애 복구에는 대체 Node의 여유 GPU가 필요하다.</p>
+<pre><code class="language-text">GPU Node 장애 복구
+= 장애 Node의 GPU 이동
+이 아니라
+= 다른 GPU Node의 여유 자원으로 Pod 재배치
+</code></pre>
+
+</section>
+<section id="gpu-kubernetes-infrastructure" class="markdown-section">
+<h2>GPU 이동은 Kubernetes가 아닌 Infrastructure의 영역이다</h2>
+<p>물리 GPU의 연결 관계를 바꾸는 일은 Kubernetes Scheduler나 GPU Operator의 역할이 아니다.</p>
+<pre><code class="language-text">Infrastructure·Hypervisor
+  → 어떤 GPU를 어떤 서버·VM에 연결할지 결정
+
+Kubernetes
+  → 연결된 GPU를 자원으로 인식하고 Pod 배치
+</code></pre>
+<p>PCI Passthrough GPU를 다른 VM으로 옮길 수 있는지는 Hypervisor와 Hardware 지원에 달려 있다. 가능하더라도 기존 VM 중지, 장치 해제, 재할당과 Driver 초기화가 필요할 수 있다.</p>
+<p>Cloud 환경에서도 GPU가 부족하면 일반적으로 기존 Node에 GPU를 붙이는 것이 아니라 GPU Instance를 새로 만든다.</p>
+<pre><code class="language-text">GPU Pod Pending
+  ↓
+Cluster Autoscaler·Node Provisioner
+  ↓
+GPU가 포함된 새 VM 생성
+  ↓
+Driver와 Device Plugin 준비
+  ↓
+GPU Capacity 등록
+  ↓
+Pending Pod 배치
+</code></pre>
+<p>Infrastructure가 GPU Node를 준비하고 Kubernetes가 그 Node로 Pod를 보내는 구조다.</p>
+
+</section>
+<section id="fake-gpu-hardware" class="markdown-section">
+<h2>Fake GPU 환경은 Hardware 계층을 대체한다</h2>
+<ul>
+<li><a href="fake-gpu-operator-node-resource-registration.html">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</a></li>
+</ul>
+<p>Fake GPU Operator 환경에서는 실제 PCI GPU와 NVIDIA Driver 탐색이 없다.</p>
+<pre><code class="language-text">실제 환경
+
+물리 GPU
+  → Driver·NVML
+  → NVIDIA Device Plugin
+  → kubelet
+  → API Server
+</code></pre>
+<pre><code class="language-text">Fake 환경
+
+Topology ConfigMap
+  → Fake Device Plugin
+  → kubelet
+  → API Server
+</code></pre>
+<p>Fake 환경에서도 Device Plugin 이후의 Kubernetes 자원 등록과 Scheduling 흐름을 실험할 수 있다.</p>
+<p>하지만 다음 항목은 검증할 수 없다.</p>
+<ul>
+<li>실제 CUDA 실행</li>
+<li>실제 VRAM 사용과 격리</li>
+<li>실제 GPU 연산 경쟁</li>
+<li>GPU Hardware 장애</li>
+<li>Driver·NVML의 실제 동작</li>
+<li>PCIe·NVLink·NVSwitch 성능</li>
+</ul>
+<p>Fake GPU는 Scheduler가 판단할 가짜 자원을 만들 뿐, Linux Kernel에 실제 GPU Device를 생성하지 않는다.</p>
+
+</section>
+<section id="section-b312c52bbe95" class="markdown-section">
+<h2>책임 경계를 정리한다</h2>
+<p>전체 계층을 연결하면 다음과 같다.</p>
+<pre><code class="language-text">Infrastructure·Hypervisor
+  → GPU를 물리 서버·VM에 연결
+
+Node Kernel·NVIDIA Driver
+  → 연결된 GPU를 운영체제가 인식
+
+NVIDIA GPU Operator
+  → GPU 사용에 필요한 Software Stack을 설치·유지
+
+NVIDIA Device Plugin
+  → Node의 로컬 GPU를 kubelet에 게시
+
+kubelet
+  → Node Capacity·Allocatable을 API Server에 보고
+  → Pod 실행 시 GPU 할당을 Device Plugin에 요청
+
+Scheduler
+  → GPU 요청을 만족할 수 있는 Node로 Pod 배치
+
+Container Runtime·NVIDIA Container Toolkit
+  → 선택된 GPU를 Container에 노출
+</code></pre>
+<p>Kubernetes GPU 운영의 기본 전제는 다음 세 문장으로 정리할 수 있다.</p>
+<blockquote>
+<p>GPU는 먼저 물리 서버나 VM의 Kernel과 NVIDIA Driver에 인식되어야 한다.</p>
+</blockquote>
+<blockquote>
+<p>Device Plugin은 Node에서 발견한 GPU를 kubelet에 전달하고, kubelet은 이를 Kubernetes 자원으로 API Server에 보고한다.</p>
+</blockquote>
+<blockquote>
+<p>Kubernetes는 GPU를 Node 사이에서 이동시키지 않고, GPU가 이미 존재하는 Node로 Pod를 배치한다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="fake-gpu-operator-node-resource-registration.html">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
