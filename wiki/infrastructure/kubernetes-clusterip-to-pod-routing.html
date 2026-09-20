@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.md. Do not edit directly. source-sha256:aed6990d487960da1f3076cb914ea79a0c00cd95f5ce87753622cb2dce84d20e -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod A가 DNS를 통해 Service의 ClusterIP 10.96.10.20을 얻었다고 하자. 이 주소는 Node IP도 아니고 Pod IP도 아니다. 그렇다면 Pod A는 이 주소만 보고 목적지 Pod가 어느 Node에 있는지 어떻게 알아낼까?">
+  <meta name="source-sha256" content="aed6990d487960da1f3076cb914ea79a0c00cd95f5ce87753622cb2dce84d20e">
+  <title>아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?">
+  <meta property="og:description" content="Pod A가 DNS를 통해 Service의 ClusterIP 10.96.10.20을 얻었다고 하자. 이 주소는 Node IP도 아니고 Pod IP도 아니다. 그렇다면 Pod A는 이 주소만 보고 목적지 Pod가 어느 Node에 있는지 어떻게 알아낼까?">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html","name":"아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?","description":"Pod A가 DNS를 통해 Service의 ClusterIP 10.96.10.20을 얻었다고 하자. 이 주소는 Node IP도 아니고 Pod IP도 아니다. 그렇다면 Pod A는 이 주소만 보고 목적지 Pod가 어느 Node에 있는지 어떻게 알아낼까?","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html"},"headline":"아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html"},{"@type":"ListItem","position":6,"name":"아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html">Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?</h1>
+      <p class="lead">Pod A가 DNS를 통해 Service의 ClusterIP 10.96.10.20을 얻었다고 하자. 이 주소는 Node IP도 아니고 Pod IP도 아니다. 그렇다면 Pod A는 이 주소만 보고 목적지 Pod가 어느 Node에 있는지 어떻게 알아낼까?</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-313535fddab6">ClusterIP는 어느 Node의 주소도 아니다</a>
+        <a href="#section-5d2d597d0d59">Pod는 목적지 Node가 아니라 기본 경로만 안다</a>
+        <a href="#section-3de0b48dcc28">출발 Node에서 Service 규칙이 패킷을 먼저 가로챈다</a>
+        <a href="#section-0e0f6a5bcb0a">Pod IP로 바뀐 뒤에야 목적지 Node를 찾는다</a>
+        <a href="#section-368c177020b1">아무도 갖고 있지 않은 IP가 길을 잃지 않는 이유</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Pod A가 DNS를 통해 Service의 ClusterIP <code>10.96.10.20</code>을 얻었다고 하자. 이 주소는 Node IP도 아니고 Pod IP도 아니다. 그렇다면 Pod A는 이 주소만 보고 목적지 Pod가 어느 Node에 있는지 어떻게 알아낼까?</p>
+<p>여기서는 Linux의 kube-proxy iptables 방식과 가상 Interface로 연결된 일반 Pod를 기준으로, 새 연결이 다른 Node의 Pod로 향하는 과정을 살펴본다. DNS 조회는 끝났고 Service에는 사용 가능한 Endpoint가 있다고 가정한다.</p>
+<p>패킷은 먼저 Pod A가 실행 중인 Node의 호스트 Network로 나오고, 그 Node의 Service 규칙이 ClusterIP를 실제 Pod IP로 바꾼다. 이후 변경된 목적지로 전달할 경로를 고른다. Pod와 Node의 네트워크 처리는 같은 Linux Kernel 안의 서로 다른 Network Namespace에서 이루어진다.</p>
+</div>
+        <section id="section-313535fddab6" class="markdown-section">
+<h2>ClusterIP는 어느 Node의 주소도 아니다</h2>
+<p>다음 주소가 있다고 가정하자.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>IP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pod A</td>
+<td><code>10.244.1.5</code></td>
+</tr>
+<tr>
+<td><code>model-api</code> Service</td>
+<td><code>10.96.10.20</code></td>
+</tr>
+<tr>
+<td>Backend Pod B</td>
+<td><code>10.244.2.7</code></td>
+</tr>
+<tr>
+<td>Pod A가 실행 중인 곳</td>
+<td>Node A</td>
+</tr>
+<tr>
+<td>Pod B가 실행 중인 곳</td>
+<td>Node B</td>
+</tr>
+</tbody></table>
+</div>
+<p>Service의 <code>10.96.10.20</code>은 Service용 IP 대역에서 할당된 가상 IP다. 이 글의 iptables 방식에서는 ClusterIP를 Network Interface에 붙일 필요 없이 패킷 처리 규칙으로 구현한다. IPVS 방식처럼 ClusterIP를 가상 Interface에 설정하는 구현도 있으므로, 제목의 “아무 Node도 갖고 있지 않은” 상황은 이 글의 예시 범위에서 이해해야 한다.</p>
+<p>ClusterIP가 <code>10</code>으로 시작한다는 사실이 목적지 Node를 알려 주는 것도 아니다. 이 예시의 Cluster가 Service용 주소 대역으로 해당 사설 IP 범위를 선택했을 뿐이다. 중요한 것은 각 Node에 이 주소를 알아보는 Service 전달 규칙이 준비되어 있다는 점이다.</p>
+
+</section>
+<section id="section-5d2d597d0d59" class="markdown-section">
+<h2>Pod는 목적지 Node가 아니라 기본 경로만 안다</h2>
+<p>Pod A의 Application이 <code>10.96.10.20:8000</code>으로 연결을 요청하면, Pod 안의 Network Stack은 먼저 자신의 Routing Table을 본다.</p>
+<p>이 예시에서는 Pod의 Routing Table에 ClusterIP를 위한 더 구체적인 경로가 없으므로 기본 경로를 사용한다. 패킷은 Pod의 가상 Network Interface를 지나 Node A의 호스트 Network 처리 단계로 넘어간다. 실제 Interface와 Gateway 구성은 Network 구현에 따라 다를 수 있다.</p>
+<p>Pod가 별도 Kernel을 가진 것처럼 보이는 이유, Pod의 <code>eth0</code>과 Node 쪽 Interface가 연결되는 방식, 그리고 Packet이 iptables의 PREROUTING까지 도달하는 내부 과정은 <a href="kubernetes-pod-network-namespace-veth-netfilter.html">Pod의 패킷은 어떻게 Node의 iptables 규칙까지 도착할까?</a>에서 Network Namespace와 veth pair부터 이어서 살펴본다.</p>
+<pre><code class="language-text">Pod A
+목적지 10.96.10.20:8000
+  → Pod의 기본 경로
+  → Pod의 가상 Network Interface
+  → Node A의 Kernel
+</code></pre>
+<p>이 시점까지 Pod A는 Pod B가 어느 Node에 있는지 모른다. <code>10.96.10.20</code>이라는 Service IP가 Node B를 가리킨 것도 아니다. 패킷은 단지 출발 Pod가 있는 Node A로 나온 것이다.</p>
+
+</section>
+<section id="section-3de0b48dcc28" class="markdown-section">
+<h2>출발 Node에서 Service 규칙이 패킷을 먼저 가로챈다</h2>
+<p>각 Node의 <code>kube-proxy</code>는 Service와 EndpointSlice를 관찰하고, Service IP와 Port로 향하는 패킷을 실제 Endpoint로 연결하는 규칙을 미리 구성한다.</p>
+<p>Node A로 나온 패킷의 목적지가 <code>10.96.10.20:8000</code>이면 이 규칙과 일치한다. 규칙은 Service의 Endpoint 중 하나인 Pod B를 선택하고 목적지 주소를 바꾼다.</p>
+<pre><code class="language-text">변경 전
+출발지 10.244.1.5
+목적지 10.96.10.20:8000
+
+          ↓ 목적지 주소 변환(DNAT)
+
+변경 후
+출발지 10.244.1.5
+목적지 10.244.2.7:8000
+</code></pre>
+<p>DNAT는 Destination Network Address Translation, 즉 목적지 주소 변환이다. 이 예시에서는 kube-proxy가 준비한 iptables 규칙을 Kernel이 적용한다. Service 규칙과 DNAT는 별개의 중계 장치가 아니라, 규칙이 Endpoint를 선택하고 목적지를 바꾸는 하나의 처리 과정이다. 새 연결에 선택된 변환은 연결 추적을 통해 후속 패킷에도 유지된다. IPVS, nftables 또는 eBPF 구현의 세부 처리 위치와 경로는 이 그림과 다를 수 있다.</p>
+<p><img src="../../assets/images/kubernetes-network-learning/kubernetes-clusterip-to-pod-routing.svg" alt="Pod가 ClusterIP로 보낸 패킷이 출발 Node에서 실제 Pod IP로 바뀐 뒤 목적지 Node로 Routing되는 흐름" loading="lazy"></p>
+
+</section>
+<section id="section-0e0f6a5bcb0a" class="markdown-section">
+<h2>Pod IP로 바뀐 뒤에야 목적지 Node를 찾는다</h2>
+<p>목적지가 <code>10.244.2.7</code>로 바뀌고 나면 이제 일반적인 Pod Network의 Routing 문제가 된다. CNI Plugin이 구성한 경로는 <code>10.244.2.7</code>이 어느 방향에 있는지 판단할 수 있게 한다.</p>
+<p>설명을 위해 Node A의 Routing 정보가 다음과 같다고 생각해 보자.</p>
+<pre><code class="language-text">10.244.2.0/24 대역은 Node B 방향으로 보낸다.
+</code></pre>
+<p><code>10.244.2.7</code>은 이 대역에 속하므로 패킷은 CNI 구현이 준비한 Route나 Overlay Tunnel을 따라 Node B로 이동한다. Node B에 도착한 뒤에는 Pod B의 가상 Network Interface로 전달된다.</p>
+<pre><code class="language-text">Service IP로 목적지 Node 선택
+</code></pre>
+<p>이 아니라 다음 순서인 것이다.</p>
+<pre><code class="language-text">Service IP를 실제 Pod IP로 변경
+  → 실제 Pod IP를 기준으로 목적지 Node Routing
+</code></pre>
+<p>선택된 Pod가 Node A에 있다면 Node 사이를 이동할 필요 없이 Node A 내부 경로로 전달된다. 선택된 Pod가 Node B에 있다면 그때 Node 사이의 경로를 사용한다.</p>
+
+</section>
+<section id="section-368c177020b1" class="markdown-section">
+<h2>아무도 갖고 있지 않은 IP가 길을 잃지 않는 이유</h2>
+<p>Service 규칙이 없다면 <code>10.96.10.20</code>을 실제로 소유한 장비가 없으므로 정상적으로 목적지에 도착할 수 없다. 하지만 패킷이 출발 Node의 정상적인 Routing을 따라 멀리 이동하기 전에 Kernel의 Service 규칙이 이 주소를 알아보고 실제 Pod IP로 바꾼다.</p>
+<p>따라서 ClusterIP는 물리적인 목적지 주소라기보다 다음 동작을 실행시키는 가상 접근점으로 이해할 수 있다.</p>
+<pre><code class="language-text">10.96.10.20:8000으로 보내기
+  = model-api의 Endpoint 중 하나를 골라 그 Pod IP로 보내기
+</code></pre>
+<p>이 동작이 어느 Node에서 요청을 시작해도 가능해야 하므로, 기본적인 kube-proxy 구성에서는 각 Node가 같은 Service와 EndpointSlice 상태를 관찰해 자신의 전달 규칙을 유지한다.</p>
+<p>전체 흐름을 한 줄로 정리하면 다음과 같다.</p>
+<blockquote>
+<p>Pod가 ClusterIP로 보낸 패킷은 먼저 출발 Node의 Kernel로 나오고, 그곳에서 실제 Pod IP로 바뀐 뒤에야 CNI가 만든 경로를 따라 목적지 Node로 이동한다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-pod-network-namespace-veth-netfilter.html">Pod의 패킷은 어떻게 Node의 iptables 규칙까지 도착할까?</a><ul><li><a href="linux-network-namespace-basics.html">Linux Network Namespace는 무엇을 분리하는가?</a><ul><li><a href="linux-veth-pair-network-namespace-connection.html">격리된 Network Namespace는 veth pair로 어떻게 연결될까?</a></li></ul></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

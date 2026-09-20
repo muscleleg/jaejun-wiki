@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/linux-veth-pair-network-namespace-connection.md. Do not edit directly. source-sha256:b5ab7a5c1a21298a524d52486e629304be5f226af30d6cbd2481215afdf433a9 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Network Namespace를 만들면 Process마다 Interface, IP, Routing Table과 Port 공간을 분리할 수 있다. 하지만 격리는 통신 경로를 자동으로 만들지 않는다. 새 Namespace 안에 Application을 실행해도 외부로 이어지는 Interface와 Route가 없다면 Host나 다른 Nam...">
+  <meta name="source-sha256" content="b5ab7a5c1a21298a524d52486e629304be5f226af30d6cbd2481215afdf433a9">
+  <title>격리된 Network Namespace는 veth pair로 어떻게 연결될까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="격리된 Network Namespace는 veth pair로 어떻게 연결될까?">
+  <meta property="og:description" content="Network Namespace를 만들면 Process마다 Interface, IP, Routing Table과 Port 공간을 분리할 수 있다. 하지만 격리는 통신 경로를 자동으로 만들지 않는다. 새 Namespace 안에 Application을 실행해도 외부로 이어지는 Interface와 Route가 없다면 Host나 다른 Nam...">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html","name":"격리된 Network Namespace는 veth pair로 어떻게 연결될까?","description":"Network Namespace를 만들면 Process마다 Interface, IP, Routing Table과 Port 공간을 분리할 수 있다. 하지만 격리는 통신 경로를 자동으로 만들지 않는다. 새 Namespace 안에 Application을 실행해도 외부로 이어지는 Interface와 Route가 없다면 Host나 다른 Nam...","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html"},"headline":"격리된 Network Namespace는 veth pair로 어떻게 연결될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-veth-pair-network-namespace-connection.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html"},{"@type":"ListItem","position":6,"name":"아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html"},{"@type":"ListItem","position":7,"name":"Pod의 패킷은 어떻게 Node의 iptables 규칙까지 도착할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace-veth-netfilter.html"},{"@type":"ListItem","position":8,"name":"Linux Network Namespace는 무엇을 분리하는가?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-network-namespace-basics.html"},{"@type":"ListItem","position":9,"name":"격리된 Network Namespace는 veth pair로 어떻게 연결될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html">Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-clusterip-to-pod-routing.html">아무 Node도 갖고 있지 않은 ClusterIP로 보낸 패킷은 어디로 갈까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-network-namespace-veth-netfilter.html">Pod의 패킷은 어떻게 Node의 iptables 규칙까지 도착할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux-network-namespace-basics.html">Linux Network Namespace는 무엇을 분리하는가?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">격리된 Network Namespace는 veth pair로 어떻게 연결될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>격리된 Network Namespace는 veth pair로 어떻게 연결될까?</h1>
+      <p class="lead">Network Namespace를 만들면 Process마다 Interface, IP, Routing Table과 Port 공간을 분리할 수 있다. 하지만 격리는 통신 경로를 자동으로 만들지 않는다. 새 Namespace 안에 Application을 실행해도 외부로 이어지는 Interface와 Route가 없다면 Host나 다른 Nam...</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-3b273f20cb43">veth pair는 한쪽의 출력을 반대쪽 입력으로 전달한다</a>
+        <a href="#section-99c40be531b6">처음에는 두 Interface가 같은 Namespace에 만들어진다</a>
+        <a href="#section-6ebab4058c58">Interface를 연결해도 IP와 Route는 따로 설정해야 한다</a>
+        <a href="#section-9a5a8a5948cc">Host 쪽 Interface는 Bridge에 연결할 수도 있다</a>
+        <a href="#section-1171a542b779">Kubernetes에서는 CNI가 veth를 Pod Network로 확장한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Network Namespace를 만들면 Process마다 Interface, IP, Routing Table과 Port 공간을 분리할 수 있다. 하지만 격리는 통신 경로를 자동으로 만들지 않는다. 새 Namespace 안에 Application을 실행해도 외부로 이어지는 Interface와 Route가 없다면 Host나 다른 Namespace로 Packet을 보낼 수 없다.</p>
+<p>격리된 Network Namespace 사이에 가장 작은 연결을 만드는 Linux 장치가 <code>veth pair</code>다. veth는 Virtual Ethernet의 줄임말이며, 항상 두 개의 가상 Ethernet Interface가 한 쌍으로 만들어진다.</p>
+<p><img src="../../assets/images/kubernetes-network-learning/linux-veth-pair-network-namespace-connection.svg" alt="Pod 쪽 veth 끝점인 eth0에서 보낸 Packet이 Peer인 Host 쪽 veth 끝점에 수신되고 다음 Network 처리로 이어지는 구조" loading="lazy"></p>
+</div>
+        <section id="section-3b273f20cb43" class="markdown-section">
+<h2>veth pair는 한쪽의 출력을 반대쪽 입력으로 전달한다</h2>
+<p>일반 Network Interface는 Cable이나 가상 Switch 같은 Network와 연결된다. veth pair에서는 두 Interface가 서로 직접 연결된다.</p>
+<pre><code class="language-text">veth-a  ═══════════════════  veth-b
+</code></pre>
+<p><code>veth-a</code>로 송신한 Packet은 <code>veth-b</code>의 수신 Packet으로 나타난다. 반대 방향도 같다.</p>
+<pre><code class="language-text">veth-a에서 TX
+  → veth pair 내부 전달
+  → veth-b에서 RX
+
+veth-b에서 TX
+  → veth pair 내부 전달
+  → veth-a에서 RX
+</code></pre>
+<p>여기서 <code>TX</code>는 <code>Transmit</code>, 즉 송신을 뜻하고 <code>RX</code>는 <code>Receive</code>, 즉 수신을 뜻한다. 통신 장비, Network Interface와 Linux의 Packet 통계에서 널리 사용하는 약어다.</p>
+<p>TX와 RX는 Packet 자체에 고정된 속성이 아니라 각 Interface에서 바라본 방향이다. 따라서 같은 Packet도 <code>veth-a</code>에서는 TX로 기록되고, 반대편인 <code>veth-b</code>에서는 RX로 기록된다.</p>
+<pre><code class="language-text">같은 Packet
+
+veth-a의 관점  TX: 내가 내보낸 Packet
+veth-b의 관점  RX: 내가 받은 Packet
+</code></pre>
+<p>두 Interface는 하나의 장치를 양쪽에서 보는 별칭이 아니다. 각각 이름, MAC 주소와 Link 상태를 가진 별도의 Interface지만, Packet 전달 대상이 서로로 고정된 한 쌍이다. 한쪽 Link가 내려가 있으면 연결도 정상적으로 사용할 수 없다.</p>
+
+</section>
+<section id="section-99c40be531b6" class="markdown-section">
+<h2>처음에는 두 Interface가 같은 Namespace에 만들어진다</h2>
+<p>veth pair를 만들면 처음에는 명령을 실행한 Network Namespace 안에 두 Interface가 함께 존재한다.</p>
+<pre><code class="language-text">Host Network Namespace
+  ├─ veth-host
+  └─ veth-pod
+</code></pre>
+<p>이 상태에서도 한쪽에 보낸 Packet은 반대쪽에 나타나지만, 아직 Namespace 사이를 연결한 것은 아니다. 두 Interface가 모두 같은 Network Namespace에 있기 때문이다.</p>
+<p>Namespace를 연결하려면 한쪽 Interface를 대상 Namespace로 옮긴다.</p>
+<pre><code class="language-text">Pod Network Namespace           Host Network Namespace
+  └─ veth-pod        ═══════        veth-host ─┘
+</code></pre>
+<p>옮겨진 Interface는 이제 Host에서 일반적인 <code>ip link</code> 목록을 볼 때 직접 나타나지 않고, 대상 Namespace 안에서 조회해야 보인다. Kubernetes 환경에서는 Pod 쪽 Interface의 이름을 보통 <code>eth0</code>으로 바꾼다.</p>
+<pre><code class="language-text">Pod Network Namespace           Host Network Namespace
+  └─ Pod 쪽 veth 끝점 ═══════ Host 쪽 veth 끝점 ─┘
+     이름: eth0                    이름: vethXXXX
+</code></pre>
+
+</section>
+<section id="section-6ebab4058c58" class="markdown-section">
+<h2>Interface를 연결해도 IP와 Route는 따로 설정해야 한다</h2>
+<p>veth pair는 Packet이 건널 수 있는 Link만 만든다. 어느 IP를 사용할지, 어떤 목적지 Packet을 그 Interface로 내보낼지는 결정하지 않는다.</p>
+<p><code>eth0</code>이 어떤 상태를 가진 Interface인지, Route가 장치가 아니라 Kernel의 경로 선택 규칙이라는 의미와 목적지 IP·다음 경유지·출력 Interface의 관계는 <a href="linux-route-and-eth0.html">Route는 어떻게 eth0을 선택할까?</a>에서 하나의 Packet 예시로 자세히 살펴본다.</p>
+<p>통신하려면 보통 다음 상태가 추가로 필요하다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>필요한 설정</th>
+<th>결정하는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Interface Link 활성화</td>
+<td>Interface가 Packet을 송수신할 수 있는가</td>
+</tr>
+<tr>
+<td>IP 주소</td>
+<td>Namespace가 어떤 주소를 자신의 것으로 사용할 것인가</td>
+</tr>
+<tr>
+<td>Routing Table</td>
+<td>어떤 목적지를 veth 쪽으로 보낼 것인가</td>
+</tr>
+<tr>
+<td>Host의 전달 경로</td>
+<td>반대편에서 받은 Packet을 어디로 이어 보낼 것인가</td>
+</tr>
+</tbody></table>
+</div>
+<p>설명을 위한 단순한 구성을 생각해 보자.</p>
+<pre><code class="language-text">Pod Namespace
+  eth0: 10.0.0.2/24
+  default route: 10.0.0.1 방향
+
+Host Namespace
+  veth-host: Pod에서 나온 Packet 수신
+</code></pre>
+<p>Pod의 Application이 직접 연결된 대역 밖으로 Packet을 보내면 Pod Routing Table은 Default Route를 선택한다. Packet은 Pod 쪽 veth 끝점인 <code>eth0</code>에서 송신되고, Peer인 Host 쪽 끝점 <code>veth-host</code>에서 수신된다.</p>
+<pre><code class="language-text">Application
+  → Pod Namespace의 Route 판단
+  → Pod 쪽 veth 끝점인 eth0에서 TX
+  → Peer인 Host 쪽 veth 끝점에서 RX
+</code></pre>
+<p>여기까지가 veth pair의 책임이다. Host가 받은 Packet을 다른 Pod, 물리 Network 또는 Internet으로 전달하는 일은 Host의 Route, Bridge, NAT나 다른 Network 구현이 맡는다.</p>
+
+</section>
+<section id="section-9a5a8a5948cc" class="markdown-section">
+<h2>Host 쪽 Interface는 Bridge에 연결할 수도 있다</h2>
+<p>같은 Node에 여러 Pod가 있다면 Pod마다 veth pair를 만들 수 있다.</p>
+<pre><code class="language-text">Pod A 쪽 veth 끝점(eth0) ═══ Host 쪽 끝점(veth-a) ─┐
+                                                   ├→ Linux Bridge
+Pod B 쪽 veth 끝점(eth0) ═══ Host 쪽 끝점(veth-b) ─┘
+</code></pre>
+<p>Host 쪽 veth Interface들을 하나의 Linux Bridge에 연결하면 Bridge가 같은 Layer 2 Network의 가상 Switch처럼 Packet을 전달할 수 있다. Pod A가 Pod B의 MAC 주소 방향으로 Frame을 보내면 Bridge는 대응하는 Host veth로 전달한다.</p>
+<p>모든 CNI 구현이 Linux Bridge를 사용하는 것은 아니다. Host Routing Table로 Pod별 경로를 만들거나, eBPF Program 또는 가상 Switch를 사용할 수도 있다. 공통점은 Pod 쪽 Interface와 Host 쪽 Network 처리를 연결하는 경계가 필요하다는 것이다.</p>
+
+</section>
+<section id="section-1171a542b779" class="markdown-section">
+<h2>Kubernetes에서는 CNI가 veth를 Pod Network로 확장한다</h2>
+<p>veth pair의 책임은 같은 Linux Kernel 안에서 두 Network Namespace 사이에 Packet을 전달하는 데까지다. Kubernetes에서는 Container Runtime과 CNI 기반 Network 구현이 veth, Pod IP와 Route를 준비하고, Host 쪽 끝점을 같은 Node와 다른 Node의 Pod Network로 이어 준다.</p>
+<p>이 구성 과정과 Packet이 Namespace 경계를 넘은 뒤 같은 Node 또는 다른 Node의 Pod로 전달되는 흐름은 <a href="kubernetes-cni-pod-network-setup.html">CNI는 Pod의 veth·IP·Route와 Node 간 경로를 어떻게 준비할까?</a>에서 이어서 살펴본다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

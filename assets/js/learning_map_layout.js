@@ -7,13 +7,52 @@ function groupLayout(nodes, edges, width = 520) {
   const connected = new Set(edges.flatMap(edge => [edge.from, edge.to]));
   const ordered = [...nodes.filter(node => connected.has(node.id)), ...nodes.filter(node => !connected.has(node.id))];
   const cells = new Map();
+  const outgoing = new Map(nodes.map(node => [node.id, []]));
+  for (const edge of edges) outgoing.get(edge.from).push(edge.to);
+  const order = new Map(nodes.map((node, index) => [node.id, index]));
+  for (const children of outgoing.values()) children.sort((a, b) => order.get(a) - order.get(b));
+  let canvasWidth = width;
   let row = 0, column = 0;
   for (const node of ordered) {
+    if (cells.has(node.id)) continue;
+    if (outgoing.get(node.id).length > 1) {
+      // A fork owns parallel columns, even when the surrounding chain wraps
+      // to one column. Its descendants retain their branch's horizontal lane.
+      if (column) { row++; column = 0; }
+      const descendants = new Set();
+      const collect = id => { if (descendants.has(id)) return; descendants.add(id); outgoing.get(id).forEach(collect); };
+      collect(node.id);
+      const parents = new Map([...descendants].map(id => [id, []]));
+      for (const edge of edges) if (descendants.has(edge.from) && descendants.has(edge.to)) parents.get(edge.to).push(edge.from);
+      const pending = new Map([...parents].map(([id, list]) => [id, list.length]));
+      const queue = [node.id], depths = new Map([[node.id, 0]]), tree = new Map([...descendants].map(id => [id, []]));
+      for (const id of queue) for (const child of outgoing.get(id)) {
+        depths.set(child, Math.max(depths.get(child) || 0, depths.get(id) + 1));
+        pending.set(child, pending.get(child) - 1);
+        if (!pending.get(child)) { tree.get(id).push(child); queue.push(child); }
+      }
+      const spans = new Map();
+      const measure = id => { const span = Math.max(1, tree.get(id).reduce((sum, child) => sum + measure(child), 0)); spans.set(id, span); return span; };
+      const lanes = measure(node.id);
+      const branchGap = 24;
+      const branchWidth = Math.max(width, padding * 2 + lanes * 120 + (lanes - 1) * branchGap);
+      canvasWidth = Math.max(canvasWidth, branchWidth);
+      const branchCardWidth = (branchWidth - padding * 2 - (lanes - 1) * branchGap) / lanes;
+      const branchHeight = branchCardWidth < 160 ? 140 : height, branchStep = branchHeight + 56;
+      const place = (id, lane) => {
+        const center = padding + (lane + spans.get(id) / 2) * (branchCardWidth + branchGap) - branchGap / 2;
+        cells.set(id, { x: center - branchCardWidth / 2, y: padding + row * step + depths.get(id) * branchStep, w: branchCardWidth, h: branchHeight });
+        for (const child of tree.get(id)) { place(child, lane); lane += spans.get(child); }
+      };
+      place(node.id, 0);
+      row += Math.ceil((Math.max(...depths.values()) + 1) * branchStep / step);
+      continue;
+    }
     if ((node.newLane || !connected.has(node.id)) && column) { row++; column = 0; }
     cells.set(node.id, { x: padding + column * (cardWidth + gap), y: padding + row * step, w: cardWidth, h: height });
     if (++column === columns || !connected.has(node.id)) { row++; column = 0; }
   }
-  return { cells, width, height: Math.max(1, ...[...cells.values()].map(cell => cell.y + cell.h + padding)) };
+  return { cells, width: canvasWidth, height: Math.max(1, ...[...cells.values()].map(cell => cell.y + cell.h + padding)) };
 }
 
 function edgePoints(from, to) {

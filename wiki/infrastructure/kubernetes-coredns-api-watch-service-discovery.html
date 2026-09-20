@@ -1,0 +1,315 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.md. Do not edit directly. source-sha256:389b9849184859aecf08405549fef824e3a1fc5ecb73f701e503c6bb2ff5bf99 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="새 Service를 만들 때마다 사용자가 CoreDNS 설정에 DNS Record를 직접 추가하지 않아도 곧 다음과 같은 이름을 사용할 수 있다.">
+  <meta name="source-sha256" content="389b9849184859aecf08405549fef824e3a1fc5ecb73f701e503c6bb2ff5bf99">
+  <title>CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?">
+  <meta property="og:description" content="새 Service를 만들 때마다 사용자가 CoreDNS 설정에 DNS Record를 직접 추가하지 않아도 곧 다음과 같은 이름을 사용할 수 있다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html","name":"CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?","description":"새 Service를 만들 때마다 사용자가 CoreDNS 설정에 DNS Record를 직접 추가하지 않아도 곧 다음과 같은 이름을 사용할 수 있다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html"},"headline":"CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html"},{"@type":"ListItem","position":7,"name":"CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html">새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?</h1>
+      <p class="lead">새 Service를 만들 때마다 사용자가 CoreDNS 설정에 DNS Record를 직접 추가하지 않아도 곧 다음과 같은 이름을 사용할 수 있다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-e95bc0df108a">CoreDNS의 kubernetes Plugin이 API Server를 관찰한다</a>
+        <a href="#section-534fb2eabe1e">Service마다 정적 Zone 파일을 추가하는 방식은 아니다</a>
+        <a href="#section-2a77666216d8">cluster.local을 담당하는 것과 모든 이름을 허용하는 것은 다르다</a>
+        <a href="#section-bbdecc4079e1">Service 종류에 따라 DNS 응답에 사용하는 객체가 다르다</a>
+        <a href="#section-5d9350441c94">kube-proxy가 CoreDNS를 갱신하는 것은 아니다</a>
+        <a href="#section-bd9ea8ebd6ff">DNS Packet 전달에는 kube-proxy 규칙이 사용될 수 있다</a>
+        <a href="#section-edac0bf73740">DNS 이름이 실제 Service 요청으로 이어지는 전체 흐름</a>
+        <a href="#section-5af919afbd6d">핵심은 같은 API 상태를 서로 다른 목적으로 사용한다는 점이다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>새 Service를 만들 때마다 사용자가 CoreDNS 설정에 DNS Record를 직접 추가하지 않아도 곧 다음과 같은 이름을 사용할 수 있다.</p>
+<pre><code class="language-text">model-server.default.svc.cluster.local
+  → 10.96.10.20
+</code></pre>
+<p>CoreDNS가 모든 Service 이름을 와일드카드로 미리 등록해 둔 것도 아니다. CoreDNS Process 안의 <code>kubernetes</code> Plugin이 Kubernetes API를 관찰하고, Service와 EndpointSlice 같은 객체의 변화를 자체 상태에 반영하기 때문에 가능한 일이다.</p>
+<p><img src="../../assets/images/kubernetes-network-learning/kubernetes-coredns-api-watch-and-kube-proxy.svg" alt="CoreDNS의 kubernetes Plugin과 각 Node의 kube-proxy가 같은 API Server의 Service와 EndpointSlice를 별도로 관찰해 각각 DNS 응답 상태와 로컬 Service 전달 규칙을 만드는 구조, 그리고 실제 DNS 질의가 kube-dns Service를 통해 CoreDNS Pod에 도착하는 별도 Packet 경로" loading="lazy"></p>
+</div>
+        <section id="section-e95bc0df108a" class="markdown-section">
+<h2>CoreDNS의 kubernetes Plugin이 API Server를 관찰한다</h2>
+<p>일반적인 Kubernetes Cluster에서 CoreDNS는 Deployment로 실행된다. 각 CoreDNS Process에는 여러 Plugin이 연결될 수 있고, 그중 <code>kubernetes</code> Plugin이 Kubernetes Service Discovery를 담당한다.</p>
+<p>Plugin은 Cluster 내부의 Service Account 권한을 이용해 API Server에 연결할 수 있다. 그리고 설정에 따라 다음과 같은 객체를 읽고 변화를 Watch한다.</p>
+<pre><code class="language-text">Service
+EndpointSlice
+Namespace
+필요한 구성에서는 Pod
+</code></pre>
+<p>Service가 생성되면 흐름은 다음과 같다.</p>
+<pre><code class="language-text">사용자가 Service 생성
+  → API Server에 Service Object 저장
+  → CoreDNS kubernetes Plugin이 변경을 관찰
+  → CoreDNS 내부 Cache·Index 갱신
+  → 이후 DNS 질의에 새 상태로 응답
+</code></pre>
+<p>CoreDNS Pod가 여러 개라면 각 CoreDNS 인스턴스가 API Server와 상태를 동기화한다. API Server에 Service가 기록된 시점과 모든 CoreDNS 인스턴스가 변경을 반영한 시점 사이에는 짧은 전파 시간이 생길 수 있다.</p>
+
+</section>
+<section id="section-534fb2eabe1e" class="markdown-section">
+<h2>Service마다 정적 Zone 파일을 추가하는 방식은 아니다</h2>
+<p>CoreDNS가 Service 생성 때마다 다음과 같은 정적 파일을 수정하는 것으로 생각할 필요는 없다.</p>
+<pre><code class="language-text">model-server.default.svc.cluster.local = 10.96.10.20
+payment.default.svc.cluster.local = 10.96.10.21
+</code></pre>
+<p><code>kubernetes</code> Plugin은 API에서 동기화한 객체 정보를 메모리에 유지하고, DNS 질의가 들어오면 이름의 구조를 해석해 응답을 만든다.</p>
+<pre><code class="language-text">DNS 질의
+model-server.default.svc.cluster.local
+        ↓
+이름에서 Service와 Namespace 해석
+  Service: model-server
+  Namespace: default
+        ↓
+동기화된 Kubernetes 객체에서 Service 확인
+        ↓
+Service의 ClusterIP로 DNS 응답
+10.96.10.20
+</code></pre>
+<p>따라서 새 Service에 대응하는 DNS 정보는 자동으로 생기지만, 사용자가 CoreDNS에 레코드를 하나씩 쓰는 방식과는 다르다.</p>
+
+</section>
+<section id="section-2a77666216d8" class="markdown-section">
+<h2>cluster.local을 담당하는 것과 모든 이름을 허용하는 것은 다르다</h2>
+<p>CoreDNS는 설정된 <code>cluster.local</code> 같은 Kubernetes DNS Zone에 대해 권한 있는 DNS Server로 동작한다. 그렇다고 <code>*.svc.cluster.local</code>에 해당하는 모든 이름을 하나의 와일드카드 규칙으로 성공시키는 것은 아니다.</p>
+<pre><code class="language-text">API Server에 존재하는 Service
+model-server.default.svc.cluster.local
+  → 10.96.10.20
+
+존재하지 않는 Service
+unknown.default.svc.cluster.local
+  → 해당 이름을 찾을 수 없음
+</code></pre>
+<p>두 상태를 구분해야 한다.</p>
+<pre><code class="language-text">cluster.local Zone의 질의를 CoreDNS가 담당함
+  → CoreDNS의 Zone 설정
+
+그 안의 특정 Service가 실제로 존재함
+  → Kubernetes API에서 동기화한 Service Object
+</code></pre>
+<p>Pod에서 <code>model-server</code>처럼 짧은 이름만 사용해도 되는 것은 또 다른 과정이다. kubelet이 Pod의 <code>/etc/resolv.conf</code>에 Namespace와 Cluster Domain을 Search Domain으로 넣으면 이름 해석기가 전체 이름 후보를 만들어 질의할 수 있다.</p>
+
+</section>
+<section id="section-bbdecc4079e1" class="markdown-section">
+<h2>Service 종류에 따라 DNS 응답에 사용하는 객체가 다르다</h2>
+<p>일반적인 ClusterIP Service는 Service Object의 ClusterIP를 DNS 응답으로 제공한다.</p>
+<pre><code class="language-text">일반 Service
+model-server.default.svc.cluster.local
+  → Service ClusterIP 10.96.10.20
+</code></pre>
+<p>이때 CoreDNS가 Backend Pod를 하나 선택한 것은 아니다. 실제 요청이 ClusterIP로 전송된 뒤 Service 규칙이 Endpoint 중 하나를 선택한다.</p>
+<p>Headless Service는 <code>clusterIP: None</code>이므로 반환할 Service ClusterIP가 없다. 이 경우 CoreDNS는 EndpointSlice의 주소를 이용해 실제 Backend 주소들을 DNS 응답으로 제공할 수 있다.</p>
+<pre><code class="language-text">Headless Service
+model-server.default.svc.cluster.local
+  → 10.244.1.5
+  → 10.244.2.7
+</code></pre>
+<p>ExternalName Service라면 외부 이름을 가리키는 CNAME 응답을 만들 수 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Service 형태</th>
+<th>DNS 응답의 중심 정보</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>일반 ClusterIP Service</td>
+<td>Service Object의 ClusterIP</td>
+</tr>
+<tr>
+<td>Headless Service</td>
+<td>EndpointSlice의 Endpoint 주소</td>
+</tr>
+<tr>
+<td>ExternalName Service</td>
+<td>Service에 선언된 외부 DNS 이름</td>
+</tr>
+</tbody></table>
+</div>
+<p>그래서 CoreDNS는 Service뿐 아니라 EndpointSlice의 변화도 관찰한다.</p>
+<p>일반 ClusterIP Service의 기본 A·AAAA 응답에는 Service 객체만으로 충분한데도 EndpointSlice를 함께 관찰하는 이유와 Headless·Endpoint별 이름·SRV Record의 차이는 <a href="kubernetes-coredns-why-watch-endpointslices.html">CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?</a>에서 자세히 살펴본다.</p>
+
+</section>
+<section id="section-5d9350441c94" class="markdown-section">
+<h2>kube-proxy가 CoreDNS를 갱신하는 것은 아니다</h2>
+<p>CoreDNS와 kube-proxy는 Service와 EndpointSlice라는 공통 입력을 볼 수 있지만 서로를 갱신하는 관계는 아니다.</p>
+<pre><code class="language-text">API Server
+  ├─ Service·EndpointSlice
+  │      ↓ Watch
+  │   CoreDNS kubernetes Plugin
+  │      ↓
+  │   DNS 응답용 내부 상태 갱신
+  │
+  └─ Service·EndpointSlice
+         ↓ Watch
+      각 Node의 kube-proxy
+         ↓
+      로컬 Service 전달 규칙 갱신
+</code></pre>
+<p>각 구성요소가 만드는 결과도 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성요소</th>
+<th>관찰하는 주요 객체</th>
+<th>만드는 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CoreDNS의 kubernetes Plugin</td>
+<td>Service·EndpointSlice·Namespace 등</td>
+<td>Service 이름에 대한 DNS 응답</td>
+</tr>
+<tr>
+<td>각 Node의 kube-proxy</td>
+<td>Service·EndpointSlice</td>
+<td>Service IP를 Endpoint로 연결하는 로컬 규칙</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 <code>model-server</code> Service가 만들어졌을 때 CoreDNS는 다음 관계를 응답할 수 있도록 상태를 갱신한다.</p>
+<pre><code class="language-text">model-server.default.svc.cluster.local
+  → 10.96.10.20
+</code></pre>
+<p>kube-proxy는 별도로 다음 의미의 규칙을 자기 Node에 반영한다.</p>
+<pre><code class="language-text">10.96.10.20:8000
+  → Service의 Endpoint 중 하나
+  → 예: 10.244.2.7:8000
+</code></pre>
+<p>kube-proxy가 CoreDNS에 DNS Record 추가를 요청하거나, CoreDNS가 kube-proxy에 iptables 규칙을 전달하지 않는다.</p>
+<p>두 구성요소가 같은 EndpointSlice를 어떻게 다르게 사용하고, Pod에서 나온 Service Packet이 veth를 거쳐 Host의 규칙을 만나는지는 <a href="kubernetes-coredns-kube-proxy-endpointslice-roles.html">CoreDNS와 kube-proxy는 EndpointSlice를 어떻게 다르게 사용할까?</a>에서 한 흐름으로 이어서 살펴본다.</p>
+
+</section>
+<section id="section-bd9ea8ebd6ff" class="markdown-section">
+<h2>DNS Packet 전달에는 kube-proxy 규칙이 사용될 수 있다</h2>
+<p>CoreDNS 상태 동기화와 실제 DNS 질의 Packet 전달은 별개의 과정이다.</p>
+<p>CoreDNS Pod들은 보통 호환성을 위해 <code>kube-dns</code>라는 이름을 사용하는 Service 뒤에 노출된다. Pod의 <code>/etc/resolv.conf</code>에는 이 DNS Service의 ClusterIP가 Nameserver 주소로 들어갈 수 있다.</p>
+<pre><code class="language-text">Application Pod
+  → kube-dns Service ClusterIP:53
+  → 출발 Node의 Service 전달 규칙
+  → 실제 CoreDNS Pod IP:53
+</code></pre>
+<p>iptables Mode라면 kube-proxy가 미리 준비한 Service 규칙이 DNS Service IP를 CoreDNS Pod의 Endpoint IP로 바꾼다.</p>
+<p>하지만 이 관계는 DNS Packet을 CoreDNS Pod까지 전달하는 Data Plane의 관계다.</p>
+<pre><code class="language-text">kube-proxy가 관여할 수 있는 것
+  DNS 질의 Packet을 CoreDNS Pod에 전달
+
+kube-proxy가 하지 않는 것
+  CoreDNS 내부의 Service DNS 정보 동기화
+</code></pre>
+<p>CoreDNS의 DNS 응답 상태는 <code>kubernetes</code> Plugin이 API Server를 Watch하며 갱신한다.</p>
+
+</section>
+<section id="section-edac0bf73740" class="markdown-section">
+<h2>DNS 이름이 실제 Service 요청으로 이어지는 전체 흐름</h2>
+<p>Service 생성과 이후 요청을 합치면 Control 경로와 Data 경로가 구분된다.</p>
+<pre><code class="language-text">Control 경로
+
+Service 생성
+  → API Server
+  ├→ CoreDNS kubernetes Plugin
+  │    → DNS 응답 상태 갱신
+  └→ 각 Node의 kube-proxy
+       → Service 전달 규칙 갱신
+</code></pre>
+<p>준비가 끝난 뒤 Application의 실제 요청은 두 번의 통신으로 진행될 수 있다.</p>
+<pre><code class="language-text">첫 번째 통신: DNS 질의
+
+Application Pod
+  → kube-dns Service IP:53
+  → CoreDNS Pod
+  ← Service ClusterIP 응답
+
+두 번째 통신: 실제 Service 요청
+
+Application Pod
+  → Service ClusterIP:Application Port
+  → 출발 Node의 Service 규칙
+  → Endpoint Pod IP
+  → CNI Network 경로
+  → 대상 Pod
+</code></pre>
+<p>CoreDNS는 두 번째 Application 요청의 중간에서 Packet을 중계하지 않는다. 이름을 IP로 해석하는 첫 번째 통신이 끝나면 Application이 알아낸 IP를 사용해 별도의 연결을 시작한다.</p>
+<p>DNS 질의와 실제 요청의 Packet 경로를 더 자세히 보고 싶다면 <a href="kubernetes-pod-dns-resolution-before-request.html">Pod에서 도메인은 어떻게 실제 요청으로 이어질까?</a>에서 이어서 살펴볼 수 있다.</p>
+
+</section>
+<section id="section-5af919afbd6d" class="markdown-section">
+<h2>핵심은 같은 API 상태를 서로 다른 목적으로 사용한다는 점이다</h2>
+<p>CoreDNS와 kube-proxy는 모두 API Server의 Service와 EndpointSlice를 관찰할 수 있다. 하지만 CoreDNS는 DNS 이름을 답하기 위한 상태를 만들고, kube-proxy는 Service Packet을 Endpoint로 전달하기 위한 Node 로컬 상태를 만든다.</p>
+<pre><code class="language-text">CoreDNS kubernetes Plugin
+  Service 이름 → ClusterIP 또는 Endpoint 주소
+
+kube-proxy
+  Service IP·Port → Endpoint IP·Port
+</code></pre>
+<p>따라서 “CoreDNS를 지속적으로 동기화하는 것은 kube-proxy인가?”라는 질문의 답은 아니다.</p>
+<blockquote>
+<p>CoreDNS Process 안의 kubernetes Plugin이 API Server를 직접 Watch해 DNS 응답 상태를 갱신한다. kube-proxy는 같은 객체를 별도로 Watch해 자기 Node의 Service 전달 규칙을 갱신한다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-coredns-why-watch-endpointslices.html">CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?</a></li>
+<li><a href="kubernetes-pod-dns-resolution-before-request.html">Pod에서 도메인은 어떻게 실제 요청으로 이어질까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

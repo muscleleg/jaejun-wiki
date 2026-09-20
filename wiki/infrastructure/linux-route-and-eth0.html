@@ -1,0 +1,297 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/linux-route-and-eth0.md. Do not edit directly. source-sha256:f03795c722efad49b48baa29e4b1351371e32c1113ba505ab7c15117015fc1f3 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="veth pair로 Pod 형태의 Network Namespace와 Host Network Namespace를 연결해도 Packet이 자동으로 eth0으로 나가는 것은 아니다. Application이 IP 기반 통신을 시작하면 Linux Kernel은 해당 Network Namespace의 Routing 정보를 조회한다. 그 결과에 ...">
+  <meta name="source-sha256" content="f03795c722efad49b48baa29e4b1351371e32c1113ba505ab7c15117015fc1f3">
+  <title>Route는 어떻게 eth0을 선택할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Route는 어떻게 eth0을 선택할까?">
+  <meta property="og:description" content="veth pair로 Pod 형태의 Network Namespace와 Host Network Namespace를 연결해도 Packet이 자동으로 eth0으로 나가는 것은 아니다. Application이 IP 기반 통신을 시작하면 Linux Kernel은 해당 Network Namespace의 Routing 정보를 조회한다. 그 결과에 ...">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html","name":"Route는 어떻게 eth0을 선택할까?","description":"veth pair로 Pod 형태의 Network Namespace와 Host Network Namespace를 연결해도 Packet이 자동으로 eth0으로 나가는 것은 아니다. Application이 IP 기반 통신을 시작하면 Linux Kernel은 해당 Network Namespace의 Routing 정보를 조회한다. 그 결과에 ...","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html"},"headline":"Route는 어떻게 eth0을 선택할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-route-and-eth0.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html"},{"@type":"ListItem","position":7,"name":"Pod가 Service 도메인으로 보낸 요청은 어떻게 다른 Node의 Pod에 도착할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-domain-to-remote-pod-packet-path.html"},{"@type":"ListItem","position":8,"name":"Routing Table은 목적지 IP의 다음 경로를 어떻게 선택할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-routing-table-next-hop-interface.html"},{"@type":"ListItem","position":9,"name":"Route는 어떻게 eth0을 선택할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html">새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-service-domain-to-remote-pod-packet-path.html">Pod가 Service 도메인으로 보낸 요청은 어떻게 다른 Node의 Pod에 도착할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux-routing-table-next-hop-interface.html">Routing Table은 목적지 IP의 다음 경로를 어떻게 선택할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Route는 어떻게 eth0을 선택할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Route는 어떻게 eth0을 선택할까?</h1>
+      <p class="lead">veth pair로 Pod 형태의 Network Namespace와 Host Network Namespace를 연결해도 Packet이 자동으로 eth0으로 나가는 것은 아니다. Application이 IP 기반 통신을 시작하면 Linux Kernel은 해당 Network Namespace의 Routing 정보를 조회한다. 그 결과에 ...</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-68b9aeb7efd7">IP Packet은 먼저 Route 판단을 받는다</a>
+        <a href="#section-38543e3e79e8">eth0은 Network Namespace 안에 존재하는 Interface다</a>
+        <a href="#section-090cb46728ca">Route는 장치가 아니라 Routing Table의 규칙이다</a>
+        <a href="#section-c77b448bf3a7">Kernel은 가장 구체적으로 일치하는 Route를 선택한다</a>
+        <a href="#section-d48779fbce73">최종 목적지와 다음 경유지는 다르다</a>
+        <a href="#section-021a36b58226">eth0은 veth pair의 Pod 쪽 끝점으로서 Packet을 송신한다</a>
+        <a href="#section-0d637d9455d8">명령 결과도 역할에 따라 나누어 읽을 수 있다</a>
+        <a href="#section-17dbcce0230b">그림의 Route 상자는 결정 단계로 읽어야 한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>veth pair로 Pod 형태의 Network Namespace와 Host Network Namespace를 연결해도 Packet이 자동으로 <code>eth0</code>으로 나가는 것은 아니다. Application이 IP 기반 통신을 시작하면 Linux Kernel은 해당 Network Namespace의 Routing 정보를 조회한다. 그 결과에 따라 Packet을 현재 Namespace 안에서 처리할지, <code>lo</code>나 <code>eth0</code>으로 내보낼지, Gateway를 사용할지 또는 도달할 수 없는 목적지로 처리할지를 결정한다.</p>
+<p>Application이 처음부터 IP가 아니라 <code>model-server</code> 같은 도메인 이름만 알고 있다면, 이 Route 조회에 앞서 이름을 IP로 해석해야 한다. Cache·hosts·CoreDNS를 거치는 이름 해석과 응답받은 IP로 보내는 실제 요청이 어떻게 분리되는지는 <a href="kubernetes-pod-dns-resolution-before-request.html">Pod에서 도메인은 어떻게 실제 요청으로 이어질까?</a>에서 살펴본다.</p>
+<p>여기서 <code>Route</code>와 <code>eth0</code>은 서로 다른 종류의 요소다.</p>
+<pre><code class="language-text">Route
+  → 목적지에 따라 어디로 내보낼지 정하는 규칙과 결정 과정
+
+eth0
+  → 결정된 Packet을 실제로 송수신하는 Network Interface
+</code></pre>
+<p><img src="../../assets/images/kubernetes-network-learning/linux-route-and-eth0.svg" alt="Application이 지정한 목적지 IP를 Linux Kernel이 Routing Table과 비교해 Gateway와 Pod 쪽 veth 끝점인 eth0을 선택하고, Peer인 Host 쪽 veth 끝점으로 Packet을 전달하는 흐름" loading="lazy"></p>
+</div>
+        <section id="section-68b9aeb7efd7" class="markdown-section">
+<h2>IP Packet은 먼저 Route 판단을 받는다</h2>
+<p>Pod의 Application이 IPv4나 IPv6 Packet을 보내면 Linux Kernel은 해당 Pod Network Namespace의 Routing 정보를 조회해 처리 경로를 결정한다. Application이 직접 <code>eth0</code>을 선택하거나 Packet을 특정 Gateway로 밀어 넣는 것이 아니다.</p>
+<p>Route 판단은 외부 Network로 나갈 때만 필요한 과정도 아니다. 목적지에 따라 결과가 달라진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>목적지 예시</th>
+<th>Route 판단 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>127.0.0.1</code></td>
+<td>Local Route에 따라 Loopback Interface인 <code>lo</code>로 전달한다.</td>
+</tr>
+<tr>
+<td>Pod 자신의 IP</td>
+<td>현재 Network Namespace의 Local Network Stack으로 전달한다.</td>
+</tr>
+<tr>
+<td>직접 연결된 Pod 대역</td>
+<td>구성된 Route에 따라 Gateway 없이 <code>eth0</code>으로 송신할 수 있다.</td>
+</tr>
+<tr>
+<td>Service ClusterIP</td>
+<td>일반적인 veth 기반 구성에서는 Default Route를 따라 <code>eth0</code>으로 송신한 뒤 Node의 Service 규칙을 만난다.</td>
+</tr>
+<tr>
+<td>외부 IP</td>
+<td>Default Route가 지정한 Interface와 Gateway 방향으로 송신한다.</td>
+</tr>
+<tr>
+<td>일치하는 경로가 없는 주소</td>
+<td>Kernel이 도달 불가능하다고 판단해 Application에 오류를 돌려준다.</td>
+</tr>
+</tbody></table>
+</div>
+<pre><code class="language-text">Application이 목적지 IP 지정
+  → Kernel이 Routing 정보 조회
+  → 처리 방법 결정
+      ├─ Local Network Stack에 전달
+      ├─ lo로 전달
+      ├─ eth0으로 직접 송신
+      ├─ eth0을 통해 Gateway로 송신
+      └─ 도달 불가능 오류 반환
+</code></pre>
+<p>따라서 “Packet이 Routing Table을 거친다”는 말은 Routing Table이 Network 장치처럼 Packet을 받아 전달한다는 뜻이 아니다. 정확히는 <strong>Kernel이 Packet을 처리하기 전에 Routing 정보를 조회하고 그 결과에 따라 Packet의 운명을 결정한다</strong>는 뜻이다.</p>
+<p>이 원칙의 범위는 IP 기반 통신이다. Process 내부 호출이나 Unix Domain Socket처럼 IP Packet을 만들지 않는 통신은 IP Routing의 대상이 아니다.</p>
+
+</section>
+<section id="section-38543e3e79e8" class="markdown-section">
+<h2>eth0은 Network Namespace 안에 존재하는 Interface다</h2>
+<p>Network Interface는 Linux Kernel이 Packet을 송수신하는 출입구다. <code>eth0</code>은 Interface에 붙은 이름이며, 이름 자체가 물리 Ethernet 장치라는 뜻은 아니다.</p>
+<p>일반 Linux Machine의 <code>eth0</code>은 물리 Network Card를 나타낼 수도 있다. Container나 Kubernetes Pod 안에서는 veth pair의 한쪽 끝을 해당 Network Namespace로 옮긴 뒤 <code>eth0</code>으로 이름을 바꾼 경우가 많다.</p>
+<pre><code class="language-text">Pod Network Namespace              Host Network Namespace
+
+Pod 쪽 veth 끝점                   Host 쪽 veth 끝점
+이름: eth0          ══ veth pair ══ 이름: vethXXXX
+</code></pre>
+<p>Pod의 <code>eth0</code>은 보통 다음과 같은 상태를 가진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>상태</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Interface 이름</td>
+<td>Namespace 안에서 장치를 구분하는 <code>eth0</code></td>
+</tr>
+<tr>
+<td>IP 주소</td>
+<td>Pod가 자신의 주소로 사용하는 <code>10.244.1.5</code> 같은 값</td>
+</tr>
+<tr>
+<td>MAC 주소</td>
+<td>Ethernet Frame에서 사용하는 Link 계층 주소</td>
+</tr>
+<tr>
+<td>MTU</td>
+<td>한 Frame에 담을 수 있는 최대 크기</td>
+</tr>
+<tr>
+<td>Link 상태</td>
+<td>Packet을 송수신할 수 있는 <code>UP</code> 또는 중지된 <code>DOWN</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>Application은 일반적으로 <code>eth0</code>에 직접 Packet을 쓰지 않는다. Socket에 목적지 IP와 Port를 지정하면 Kernel이 적절한 Interface를 결정한다.</p>
+
+</section>
+<section id="section-090cb46728ca" class="markdown-section">
+<h2>Route는 장치가 아니라 Routing Table의 규칙이다</h2>
+<p>Routing Table은 목적지 IP에 따라 다음 경로를 선택하는 규칙들의 집합이다. 각 Network Namespace는 자신의 Routing Table을 가질 수 있다.</p>
+<p>Route 하나는 보통 다음 정보를 표현한다.</p>
+<pre><code class="language-text">어느 목적지 대역에 적용되는가
+  → 다음 경유지는 누구인가
+  → 어느 Interface로 내보내는가
+  → 필요하면 어느 출발지 IP를 사용하는가
+</code></pre>
+<p>설명을 위한 Pod Routing Table을 생각해 보자.</p>
+<pre><code class="language-text">10.244.1.0/24 dev eth0 src 10.244.1.5
+default via 10.244.1.1 dev eth0
+</code></pre>
+<p>첫 번째 Route는 <code>10.244.1.0/24</code> 대역으로 가는 Packet을 <code>eth0</code>으로 직접 내보내라는 의미다. 두 번째 Default Route는 더 구체적인 규칙과 일치하지 않는 나머지 목적지를 <code>10.244.1.1</code>이라는 다음 경유지 방향으로 보내되, 출력 Interface로 <code>eth0</code>을 사용하라는 의미다.</p>
+<p>실제 CNI 구현에 따라 Gateway 주소, Prefix와 Route 형태는 달라질 수 있다. 여기서는 Route가 목적지, 다음 경유지와 출력 Interface를 연결한다는 구조만 본다.</p>
+
+</section>
+<section id="section-c77b448bf3a7" class="markdown-section">
+<h2>Kernel은 가장 구체적으로 일치하는 Route를 선택한다</h2>
+<p>하나의 목적지 IP가 여러 Route와 일치할 수도 있다. Linux Kernel은 일반적으로 목적지와 가장 긴 Prefix가 일치하는 Route를 우선한다. 이를 Longest Prefix Match라고 한다.</p>
+<p>다음 Route가 있다고 해보자.</p>
+<pre><code class="language-text">10.244.1.0/24 dev eth0
+10.244.0.0/16 via 10.244.1.1 dev eth0
+default via 10.244.1.1 dev eth0
+</code></pre>
+<p>목적지가 <code>10.244.1.20</code>이면 세 규칙 모두 범위상 후보가 될 수 있지만 <code>/24</code>가 가장 구체적이므로 첫 번째 Route가 선택된다.</p>
+<pre><code class="language-text">10.244.1.20
+  → 10.244.1.0/24와 일치
+  → eth0으로 직접 전달
+</code></pre>
+<p>목적지가 Service ClusterIP <code>10.96.10.20</code>이라면 위의 <code>/24</code>와 <code>/16</code>에 속하지 않는다. 따라서 Default Route가 선택된다.</p>
+<pre><code class="language-text">10.96.10.20
+  → 더 구체적인 Route 없음
+  → default Route 선택
+  → 다음 경유지 10.244.1.1
+  → 출력 Interface eth0
+</code></pre>
+<p>Route 조회는 Packet이 통과하는 별도 Process나 장치가 아니다. Kernel이 Routing Table을 읽고 Packet에 사용할 경로를 결정하는 계산 단계다.</p>
+
+</section>
+<section id="section-d48779fbce73" class="markdown-section">
+<h2>최종 목적지와 다음 경유지는 다르다</h2>
+<p>Default Route에서 <code>via 10.244.1.1</code>을 선택했다고 해서 Packet의 최종 목적지 IP가 <code>10.244.1.1</code>로 바뀌는 것은 아니다.</p>
+<pre><code class="language-text">최종 목적지 IP  10.96.10.20
+다음 경유지      10.244.1.1
+출력 Interface   eth0
+</code></pre>
+<p>최종 목적지는 Application이 통신하려는 상대다. 다음 경유지는 그 목적지로 가는 길에서 Packet을 먼저 넘겨받을 이웃이다.</p>
+<p>Ethernet으로 Packet을 내보낼 때 Kernel은 다음 경유지에 대응하는 MAC 주소를 알아내고 Frame을 만든다. 이때 Frame의 목적지 MAC 주소는 다음 경유지를 가리킬 수 있지만, Frame 안의 IP Packet은 여전히 최종 목적지 <code>10.96.10.20</code>을 담고 있다.</p>
+<pre><code class="language-text">Ethernet Frame
+  목적지 MAC: 다음 경유지의 MAC
+
+Frame 안의 IP Packet
+  목적지 IP: 10.96.10.20
+</code></pre>
+<p>각 경유지는 IP 목적지를 유지한 채 자신의 Routing Table을 다시 확인해 다음 경로로 전달한다. NAT 규칙이 적용되는 지점에서는 IP 주소가 실제로 변경될 수 있다.</p>
+
+</section>
+<section id="section-021a36b58226" class="markdown-section">
+<h2>eth0은 veth pair의 Pod 쪽 끝점으로서 Packet을 송신한다</h2>
+<p>Route 조회 결과가 <code>dev eth0</code>이라면 Kernel은 <code>eth0</code>을 출력 Interface로 사용한다.</p>
+<pre><code class="language-text">Application
+  → Socket에 목적지 지정
+  → Kernel이 해당 Namespace의 Routing Table 조회
+  → 다음 경유지와 출력 Interface eth0 선택
+  → Pod 쪽 veth 끝점인 eth0에서 Packet 송신
+  → Peer인 Host 쪽 veth 끝점에서 Packet 수신
+</code></pre>
+<p>Pod 쪽 <code>eth0</code>이 veth pair의 한쪽 끝이라면 Packet은 Host 쪽 <code>vethXXXX</code>에서 수신된다. 이 시점부터 Host Network Namespace의 Packet 처리 규칙과 Routing Table이 적용된다.</p>
+<p>Route가 <code>eth0</code>을 선택한 뒤 다음 경유지의 MAC 주소를 확인하고 Ethernet Frame을 만드는 과정, 그리고 실제로 누가 그 Frame을 Host 쪽 Interface의 수신 경로에 넣는지는 <a href="linux-eth0-veth-peer-packet-transmission.html">eth0으로 내보낸 Packet은 실제로 어디에 전달될까?</a>에서 이어서 살펴본다.</p>
+<p>즉, Pod와 Host에는 서로 다른 Route 판단이 차례로 존재할 수 있다.</p>
+<pre><code class="language-text">Pod Network Namespace
+  목적지 IP로 Route 조회
+  → Pod 쪽 veth 끝점인 eth0 선택
+  → Peer인 Host 쪽 veth 끝점으로 전달
+
+Host Network Namespace
+  Packet 규칙 적용
+  → 필요하면 목적지 IP 변경
+  → Host Routing Table로 다음 경로 선택
+</code></pre>
+<p>Kubernetes Service의 iptables 방식에서는 Host의 Routing 판단 전에 DNAT가 적용될 수 있다. 그러면 Host의 Route 조회는 원래 ClusterIP가 아니라 변경된 실제 Pod IP를 기준으로 다음 Node나 Interface를 선택한다.</p>
+<p>이때 Routing Table이 여러 Route 중 하나를 고르는 기준과 <code>목적지 IP</code>, <code>다음 Hop</code>, <code>출력 Interface</code>의 차이는 <a href="linux-routing-table-next-hop-interface.html">Routing Table은 목적지 IP의 다음 경로를 어떻게 선택할까?</a>에서 이어서 살펴본다.</p>
+
+</section>
+<section id="section-0d637d9455d8" class="markdown-section">
+<h2>명령 결과도 역할에 따라 나누어 읽을 수 있다</h2>
+<p>Linux 환경에서는 다음 명령으로 Interface와 Route를 각각 관찰할 수 있다.</p>
+<pre><code class="language-bash">ip addr show dev eth0
+ip link show dev eth0
+</code></pre>
+<p>이 명령들은 <code>eth0</code>의 IP, MAC, MTU와 Link 상태처럼 Interface 자체를 보여 준다.</p>
+<pre><code class="language-bash">ip route
+ip route get 10.96.10.20
+</code></pre>
+<p><code>ip route</code>는 현재 Namespace의 Routing Table을 보여 준다. <code>ip route get</code>은 특정 목적지에 대해 Kernel이 선택할 Route, 다음 경유지와 출력 Interface를 확인할 때 사용한다.</p>
+<p>Pod 안과 Node에서 같은 명령을 실행하면 결과가 다를 수 있다. 두 위치가 같은 Linux Kernel을 사용하더라도 서로 다른 Network Namespace의 Interface와 Routing Table을 보기 때문이다.</p>
+
+</section>
+<section id="section-17dbcce0230b" class="markdown-section">
+<h2>그림의 Route 상자는 결정 단계로 읽어야 한다</h2>
+<p>앞선 veth 흐름 그림의 <code>Route</code> 상자는 Packet이 통과하는 독립된 Network 장비를 뜻하지 않는다. 다음 과정을 짧게 표현한 것이다.</p>
+<pre><code class="language-text">목적지 IP 확인
+  → Routing Table에서 가장 구체적인 규칙 선택
+  → 다음 경유지 결정
+  → 출력 Interface 결정
+</code></pre>
+<p><code>eth0</code>은 선택 결과로 사용되는 실제 Interface이고, Route는 그 Interface를 선택하는 Kernel의 규칙과 판단이다. 일반적인 Pod에서 이 <code>eth0</code>의 장치 종류가 veth이며, Host 쪽 Peer와 함께 하나의 veth pair를 이룬다. 따라서 흐름은 <code>Application → Route → Pod 쪽 veth 끝점 eth0에서 TX → Host 쪽 veth 끝점에서 RX</code>로 읽는 것이 정확하다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
