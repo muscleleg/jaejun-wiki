@@ -1,0 +1,860 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/fake-gpu-operator-node-resource-registration.md. Do not edit directly. source-sha256:c955cb93b8ebda39fc1c8c7dc3c7adf10b75e1192e628c7c1b05a71f56fe184f -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Apple Silicon Minikube에서 Fake GPU Operator의 Label·Topology·Device Plugin·kubelet 흐름이 가상 GPU 자원을 Node 상태에 게시하는 과정을 설명합니다.">
+  <meta name="source-sha256" content="c955cb93b8ebda39fc1c8c7dc3c7adf10b75e1192e628c7c1b05a71f56fe184f">
+  <title>Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?">
+  <meta property="og:description" content="Apple Silicon Minikube에서 Fake GPU Operator의 Label·Topology·Device Plugin·kubelet 흐름이 가상 GPU 자원을 Node 상태에 게시하는 과정을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html","name":"Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?","description":"Apple Silicon Minikube에서 Fake GPU Operator의 Label·Topology·Device Plugin·kubelet 흐름이 가상 GPU 자원을 Node 상태에 게시하는 과정을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html"},"headline":"Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html"},{"@type":"ListItem","position":7,"name":"Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-resource-registration.html">실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</h1>
+      <p class="lead">Apple Silicon Minikube에서 Fake GPU Operator의 Label·Topology·Device Plugin·kubelet 흐름이 가상 GPU 자원을 Node 상태에 게시하는 과정을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#gpu-hardware">실제 GPU 환경에서는 Hardware가 출발점이다</a>
+        <a href="#helm-chart">Helm Chart는 구성요소를 미리 설치한다</a>
+        <a href="#cluster-topology-gpu-pool">Cluster Topology에 GPU Pool을 정의한다</a>
+        <a href="#label-node-pool">사용자가 첫 번째 Label로 Node와 Pool을 연결한다</a>
+        <a href="#status-updater-label">status-updater가 첫 번째 Label을 감지한다</a>
+        <a href="#status-updater-node-topology-configmap">status-updater가 Node별 Topology ConfigMap을 만든다</a>
+        <a href="#label-status-updater">두 번째 Label은 status-updater가 자동으로 붙인다</a>
+        <a href="#label-kubernetes">두 번째 Label에도 특별한 Kubernetes 의미는 없다</a>
+        <a href="#daemonset-controller-label">DaemonSet Controller가 두 번째 Label에 반응한다</a>
+        <a href="#fake-gpu-operator-kubernetes">Fake GPU Operator와 Kubernetes의 책임은 분리돼 있다</a>
+        <a href="#device-plugin-node">Device Plugin은 자신의 Node를 어떻게 알까?</a>
+        <a href="#node-topology-label">Node별 Topology와 배포 Label은 모두 필요하다</a>
+        <a href="#fake-device-plugin-kubelet-gpu">Fake Device Plugin이 kubelet에 GPU를 등록한다</a>
+        <a href="#kubelet-gpu-capacity-api-server">kubelet이 GPU Capacity를 API Server에 보고한다</a>
+        <a href="#watch-reconcile">여러 Watch와 Reconcile이 연결된다</a>
+        <a href="#section-bf0c94725744">현재 환경에서 관찰한 결과</a>
+        <a href="#section-c201e1256fb8">무엇이 실제이고 무엇이 가짜일까?</a>
+        <a href="#section-80f2fc666a82">전체 흐름을 정리한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Apple Silicon Mac에서 실행한 Minikube Node에는 실제 NVIDIA GPU가 없다. Linux Kernel이 발견한 NVIDIA PCI 장치도 없고, NVIDIA Driver가 만든 <code>/dev/nvidia0</code>도 없다.</p>
+<p>그런데 Fake GPU Operator를 설치하고 Node에 Label을 붙이면 Kubernetes의 Node 상태에는 다음과 같은 GPU 자원이 나타난다.</p>
+<pre><code class="language-yaml">status:
+  capacity:
+    nvidia.com/gpu: &quot;2&quot;
+  allocatable:
+    nvidia.com/gpu: &quot;2&quot;
+</code></pre>
+<p>실제 Hardware가 없는데 Kubernetes는 어떻게 이 Node에 GPU가 있다고 판단할까?</p>
+<p>겉으로는 Node에 Label 하나를 붙였을 뿐이지만 내부에서는 여러 Controller와 kubelet이 순서대로 동작한다.</p>
+<pre><code class="language-text">GPU Pool 정의
+  → 사용자가 Node에 Pool Label 적용
+  → status-updater가 Node 변경 감지
+  → Node별 가상 GPU Inventory 생성
+  → status-updater가 Device Plugin 배포 Label 추가
+  → DaemonSet Controller가 Device Plugin Pod 생성
+  → Fake Device Plugin이 kubelet에 가짜 GPU 등록
+  → kubelet이 API Server에 GPU Capacity 보고
+</code></pre>
+<p>핵심은 Label 자체가 GPU를 만드는 것이 아니라는 점이다.</p>
+<blockquote>
+<p>첫 번째 Label은 Fake GPU Operator에 어떤 가짜 GPU Pool을 적용할지 알려준다. Fake GPU Operator가 두 번째 Label과 Node별 Topology를 준비하면, Kubernetes의 DaemonSet Controller가 Device Plugin Pod를 실행한다. 실행된 Fake Device Plugin이 kubelet에 가짜 GPU를 등록하면서 비로소 Kubernetes GPU 자원이 된다.</p>
+</blockquote>
+</div>
+        <section id="gpu-hardware" class="markdown-section">
+<h2>실제 GPU 환경에서는 Hardware가 출발점이다</h2>
+<p>실제 NVIDIA GPU 환경에서는 먼저 GPU가 Node의 운영체제에 보여야 한다.</p>
+<pre><code class="language-text">물리 GPU
+  → PCIe 또는 VM Passthrough
+  → Linux Kernel
+  → NVIDIA Driver
+  → NVML
+  → NVIDIA Device Plugin
+</code></pre>
+<p>NVIDIA Device Plugin은 Driver와 NVML을 통해 Node에 연결된 GPU를 발견한다. 발견한 GPU의 ID와 Health를 kubelet에 전달하면 kubelet이 GPU 수량을 Node 상태로 API Server에 보고한다.</p>
+<pre><code class="language-text">NVIDIA Device Plugin
+  → kubelet
+  → API Server의 Node status
+</code></pre>
+<p>Fake GPU 환경에는 이 앞부분이 없다.</p>
+<pre><code class="language-text">NVIDIA PCI 장치 없음
+실제 NVIDIA Driver 없음
+실제 NVML Hardware 조회 없음
+실제 GPU Device File 없음
+</code></pre>
+<p>Fake GPU Operator는 이 구간을 Topology 설정으로 대체한다.</p>
+<pre><code class="language-text">실제 환경
+물리 GPU → Driver·NVML → GPU 목록
+
+Fake 환경
+Topology ConfigMap → 가짜 GPU 목록
+</code></pre>
+<p>Device Plugin 이후의 Kubernetes 등록 흐름은 실제 구조와 비슷하게 유지한다.</p>
+
+</section>
+<section id="helm-chart" class="markdown-section">
+<h2>Helm Chart는 구성요소를 미리 설치한다</h2>
+<p>Fake GPU Operator Helm Chart를 설치하면 여러 Kubernetes Resource가 생성된다.</p>
+<p>현재 GPU 등록 흐름에서 중요한 구성요소는 다음과 같다.</p>
+<pre><code class="language-text">status-updater Deployment
+Device Plugin DaemonSet
+Cluster Topology ConfigMap
+</code></pre>
+<p>각 구성요소의 책임은 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성요소</th>
+<th>책임</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cluster Topology ConfigMap</td>
+<td>사용할 가짜 GPU Pool 정의</td>
+</tr>
+<tr>
+<td>status-updater</td>
+<td>Pool Label이 붙은 Node를 발견하고 Node별 설정 준비</td>
+</tr>
+<tr>
+<td>Device Plugin DaemonSet</td>
+<td>조건을 만족하는 Node마다 Fake Device Plugin Pod 실행</td>
+</tr>
+<tr>
+<td>Fake Device Plugin</td>
+<td>가짜 GPU를 kubelet Device Plugin API에 등록</td>
+</tr>
+<tr>
+<td>kubelet</td>
+<td>GPU Capacity·Allocatable을 API Server에 보고</td>
+</tr>
+</tbody></table>
+</div>
+<p>Device Plugin DaemonSet은 Node에 Pool Label을 붙인 뒤 새로 설치되는 것이 아니다. Helm Chart를 설치할 때 이미 생성돼 있다.</p>
+<pre><code class="language-text">Helm 설치
+  ↓
+Device Plugin DaemonSet 생성
+  ↓
+아직 실행 조건을 만족하는 Node가 없음
+  ↓
+Device Plugin Pod는 0개
+</code></pre>
+<p>초기 상태에서 실제로 다음과 같이 나타났다.</p>
+<pre><code class="language-text">Device Plugin DaemonSet
+DESIRED: 0
+CURRENT: 0
+READY:   0
+</code></pre>
+<p>DaemonSet 자체는 존재하지만 실행 대상 Node가 아직 없었던 것이다.</p>
+
+</section>
+<section id="cluster-topology-gpu-pool" class="markdown-section">
+<h2>Cluster Topology에 GPU Pool을 정의한다</h2>
+<p>Cluster 전체에서 사용할 가짜 GPU 종류를 Topology ConfigMap에 정의한다.</p>
+<pre><code class="language-yaml">nodePools:
+  a100-pool:
+    gpuCount: 2
+    gpuMemory: 40960
+    gpuProduct: NVIDIA-A100-SXM4-40GB
+
+  t4-pool:
+    gpuCount: 1
+    gpuMemory: 16384
+    gpuProduct: Tesla-T4
+</code></pre>
+<p>이 설정은 두 종류의 논리적인 GPU Pool이 있다는 뜻이다.</p>
+<pre><code class="language-text">a100-pool
+├─ GPU 제품: NVIDIA A100 40GB
+├─ GPU 개수: 2
+└─ GPU 메모리: 40960 MiB
+
+t4-pool
+├─ GPU 제품: Tesla T4
+├─ GPU 개수: 1
+└─ GPU 메모리: 16384 MiB
+</code></pre>
+<p>아직 어떤 Node가 어떤 Pool을 사용하는지는 정해지지 않았다.</p>
+<pre><code class="language-text">GPU Pool 정의 완료
+  ≠
+Node에 GPU 적용 완료
+</code></pre>
+<p>Cluster Topology는 가짜 GPU 사양을 정의한 템플릿일 뿐이다.</p>
+
+</section>
+<section id="label-node-pool" class="markdown-section">
+<h2>사용자가 첫 번째 Label로 Node와 Pool을 연결한다</h2>
+<p>각 Node가 어떤 GPU Pool을 사용할지는 사용자가 Label로 지정한다.</p>
+<pre><code class="language-bash">kubectl label node gpu-lab-m02 \
+  run.ai/simulated-gpu-node-pool=a100-pool
+</code></pre>
+<pre><code class="language-bash">kubectl label node gpu-lab-m03 \
+  run.ai/simulated-gpu-node-pool=t4-pool
+</code></pre>
+<p>이제 Node Object에는 다음 관계가 저장된다.</p>
+<pre><code class="language-text">gpu-lab-m02 → a100-pool
+gpu-lab-m03 → t4-pool
+</code></pre>
+<p>Node YAML로 보면 Metadata에 문자열 Label이 추가된 것이다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Node
+metadata:
+  name: gpu-lab-m02
+  labels:
+    run.ai/simulated-gpu-node-pool: a100-pool
+</code></pre>
+<p>이 Label 자체가 Kubernetes에 GPU를 만드는 것은 아니다.</p>
+<p>Kubernetes Core는 <code>run.ai/simulated-gpu-node-pool</code>이라는 이름에 특별한 의미를 부여하지 않는다.</p>
+<pre><code class="language-text">Kubernetes가 아는 것
+→ Node에 문자열 Label이 추가됐다
+
+Kubernetes가 모르는 것
+→ 이 Label이 A100 GPU 2개를 의미한다
+</code></pre>
+<p>이 Label의 의미를 해석하는 구성요소는 Fake GPU Operator의 <code>status-updater</code>다.</p>
+
+</section>
+<section id="status-updater-label" class="markdown-section">
+<h2>status-updater가 첫 번째 Label을 감지한다</h2>
+<p><code>status-updater</code>에는 API Server의 Node Object를 감시하는 Controller가 있다.</p>
+<pre><code class="language-text">사용자가 kubectl label 실행
+  ↓
+API Server의 Node Object 변경
+  ↓
+Node Watch Event 발생
+  ↓
+status-updater의 Node Controller가 Event 수신
+</code></pre>
+<p>Node Controller는 다음 Label이 있는 Node를 Fake GPU 대상으로 처리한다.</p>
+<pre><code class="language-yaml">run.ai/simulated-gpu-node-pool: &lt;pool-name&gt;
+</code></pre>
+<p><code>gpu-lab-m02</code>의 Label 값이 <code>a100-pool</code>이면 Cluster Topology에서 같은 이름의 Pool을 조회한다.</p>
+<pre><code class="language-text">Node Label 값
+a100-pool
+  ↓
+Cluster Topology 조회
+  ↓
+gpuCount: 2
+gpuMemory: 40960
+gpuProduct: NVIDIA-A100-SXM4-40GB
+</code></pre>
+<p>이 과정에서 Node와 Pool 템플릿이 결합된다.</p>
+<pre><code class="language-text">gpu-lab-m02
+  +
+a100-pool
+  ↓
+gpu-lab-m02에는 가상의 A100 2개가 있다
+</code></pre>
+
+</section>
+<section id="status-updater-node-topology-configmap" class="markdown-section">
+<h2>status-updater가 Node별 Topology ConfigMap을 만든다</h2>
+<p><code>status-updater</code>가 가장 먼저 수행하는 일은 Node별 Topology ConfigMap을 만드는 것이다.</p>
+<pre><code class="language-text">Cluster Topology
+  → 어떤 GPU Pool이 존재하는가
+
+Node Label
+  → 어떤 Node가 어떤 Pool을 선택했는가
+
+Node별 Topology
+  → 해당 Node에 어떤 가상 GPU들이 존재하는가
+</code></pre>
+<p>실제로 <code>gpu-lab-m02</code>에는 다음 ConfigMap이 만들어졌다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: topology-gpu-lab-m02
+  namespace: gpu-operator
+  labels:
+    node-name: gpu-lab-m02
+    node-topology: &quot;true&quot;
+data:
+  topology.yml: |
+    gpuMemory: 40960
+    gpuProduct: NVIDIA-A100-SXM4-40GB
+    gpus:
+      - id: GPU-12994019-b704-5d73-9809-3aa7d1173b0e
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+
+      - id: GPU-cc0ab4cf-b6e7-569e-8d6c-d0f9535c05e6
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+
+    migStrategy: none
+</code></pre>
+<p>이 ConfigMap은 <code>gpu-lab-m02</code>에 적용된 최종 가상 GPU Inventory다.</p>
+<pre><code class="language-text">GPU 제품: NVIDIA A100
+GPU 메모리: 40960 MiB
+GPU 개수: 2
+GPU ID: 가상 UUID 2개
+MIG: 사용하지 않음
+</code></pre>
+<p>아직 GPU를 할당받은 Pod가 없으므로 <code>allocatedBy</code>는 비어 있다.</p>
+<pre><code class="language-yaml">allocatedBy:
+  namespace: &quot;&quot;
+  pod: &quot;&quot;
+  container: &quot;&quot;
+</code></pre>
+<p><code>gpu-lab-m03</code>에도 별도의 Node별 Topology가 생성된다.</p>
+<pre><code class="language-text">topology-gpu-lab-m02
+→ A100 2개
+
+topology-gpu-lab-m03
+→ T4 1개
+</code></pre>
+<p>Node별 Topology가 만들어졌다고 해서 kubelet이 이 ConfigMap을 자동으로 GPU 자원으로 해석하는 것은 아니다.</p>
+<p>kubelet은 Fake GPU Operator의 ConfigMap 형식을 모른다. 다음 단계에서 이 정보를 Device Plugin API로 변환할 Fake Device Plugin이 필요하다.</p>
+
+</section>
+<section id="label-status-updater" class="markdown-section">
+<h2>두 번째 Label은 status-updater가 자동으로 붙인다</h2>
+<p>두 번째 Label은 사용자가 붙이는 것이 아니다. :codex-annotation{index=&quot;1&quot;}</p>
+<p>Node별 Topology ConfigMap 생성에 성공하면 <code>status-updater</code>가 같은 Node의 Metadata를 Patch하여 다음 Label을 추가한다.</p>
+<pre><code class="language-yaml">nvidia.com/gpu.deploy.device-plugin: &quot;true&quot;
+</code></pre>
+<p>정확한 처리 순서는 다음과 같다.</p>
+<pre><code class="language-text">사용자가 Pool Label 적용
+  ↓
+status-updater가 Node 변경 감지
+  ↓
+Pool 이름으로 Cluster Topology 조회
+  ↓
+Node별 Topology ConfigMap 생성
+  ↓ 성공
+status-updater가 Device Plugin 배포 Label 추가
+</code></pre>
+<p>개념적으로는 <code>status-updater</code>가 Kubernetes API에 다음과 같은 Patch를 요청하는 것이다.</p>
+<pre><code class="language-text">PATCH /api/v1/nodes/gpu-lab-m02
+</code></pre>
+<p>최종적으로 Node에는 두 Label이 존재한다.</p>
+<pre><code class="language-yaml">metadata:
+  name: gpu-lab-m02
+  labels:
+    run.ai/simulated-gpu-node-pool: a100-pool
+    nvidia.com/gpu.deploy.device-plugin: &quot;true&quot;
+</code></pre>
+<p>첫 번째와 두 번째 Label의 주체와 목적은 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>누가 붙이는가</th>
+<th>누가 사용하는가</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>run.ai/simulated-gpu-node-pool=a100-pool</code></td>
+<td>사용자</td>
+<td><code>status-updater</code></td>
+<td>Node가 사용할 가짜 GPU Pool 선택</td>
+</tr>
+<tr>
+<td><code>nvidia.com/gpu.deploy.device-plugin=true</code></td>
+<td><code>status-updater</code></td>
+<td>Device Plugin DaemonSet</td>
+<td>Device Plugin Pod 실행 대상 선택</td>
+</tr>
+</tbody></table>
+</div>
+<p>코드 흐름으로 표현하면 다음과 같다.</p>
+<pre><code class="language-text">HandleAdd(Node)
+  ↓
+createNodeTopologyCM(Node)
+  ↓
+labelNode(Node)
+  ↓
+nvidia.com/gpu.deploy.device-plugin=true
+</code></pre>
+<p>Node별 Topology를 만드는 데 실패하면 두 번째 Label을 붙이는 단계에도 도달하지 않는다.</p>
+<p>예를 들어 존재하지 않는 Pool 이름을 입력했다고 하자.</p>
+<pre><code class="language-yaml">run.ai/simulated-gpu-node-pool: unknown-pool
+</code></pre>
+<p>그러면:</p>
+<pre><code class="language-text">status-updater가 unknown-pool 조회
+  ↓
+Cluster Topology에서 찾을 수 없음
+  ↓
+Node별 Topology 생성 실패
+  ↓
+Device Plugin 배포 Label도 추가되지 않음
+</code></pre>
+<p>이 순서 덕분에 읽을 Topology가 없는 상태에서 Device Plugin Pod부터 실행되는 것을 방지할 수 있다.</p>
+
+</section>
+<section id="label-kubernetes" class="markdown-section">
+<h2>두 번째 Label에도 특별한 Kubernetes 의미는 없다</h2>
+<p><code>nvidia.com/gpu.deploy.device-plugin=true</code>라는 Label 역시 Kubernetes Core가 특별한 명령어로 해석하지 않는다.</p>
+<p><code>nvidia.com</code>은 Label 이름의 소유 영역을 구분하는 접두사다. Label 자체는 여전히 문자열 Metadata다.</p>
+<pre><code class="language-yaml">key: nvidia.com/gpu.deploy.device-plugin
+value: &quot;true&quot;
+</code></pre>
+<p>이 Label이 실제 동작으로 이어지는 이유는 Device Plugin DaemonSet이 같은 조건을 가지고 있기 때문이다.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: device-plugin
+spec:
+  template:
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.deploy.device-plugin: &quot;true&quot;
+</code></pre>
+<p>이 설정의 의미는 다음과 같다.</p>
+<blockquote>
+<p><code>nvidia.com/gpu.deploy.device-plugin=true</code>인 각 Node에 Device Plugin Pod를 하나씩 실행하라.</p>
+</blockquote>
+<p>Kubernetes가 이것이 NVIDIA Device Plugin인지 이해해서 Pod를 만드는 것이 아니다.</p>
+<p>다음처럼 임의의 Label을 사용해도 원리는 같다.</p>
+<pre><code class="language-yaml">nodeSelector:
+  example.com/run-this-pod: &quot;yes&quot;
+</code></pre>
+<p>Node가 동일한 Label을 가지고 있다면 DaemonSet의 실행 대상이 된다.</p>
+<pre><code class="language-text">DaemonSet이 요구하는 Label
+=
+Node가 가진 Label
+</code></pre>
+<p>이 문자열 일치가 핵심이다.</p>
+
+</section>
+<section id="daemonset-controller-label" class="markdown-section">
+<h2>DaemonSet Controller가 두 번째 Label에 반응한다</h2>
+<p>Kubernetes의 DaemonSet Controller는 DaemonSet과 Node 상태를 계속 관찰한다.</p>
+<p><code>status-updater</code>가 Node에 두 번째 Label을 붙이면 Node Object가 다시 변경된다.</p>
+<pre><code class="language-text">status-updater가 Node Patch
+  ↓
+API Server의 Node Object 변경
+  ↓
+DaemonSet Controller가 변경 감지
+</code></pre>
+<p>DaemonSet Controller는 Device Plugin DaemonSet의 <code>nodeSelector</code>와 Node Label을 비교한다.</p>
+<pre><code class="language-text">Device Plugin DaemonSet의 조건
+nvidia.com/gpu.deploy.device-plugin=true
+
+gpu-lab-m02의 Label
+nvidia.com/gpu.deploy.device-plugin=true
+
+조건 일치
+  ↓
+gpu-lab-m02는 Device Plugin DaemonSet의 대상
+</code></pre>
+<p>그러면 DaemonSet Controller는 <code>gpu-lab-m02</code>용 Device Plugin Pod를 생성한다.</p>
+<pre><code class="language-text">DaemonSet Controller
+  → gpu-lab-m02용 Device Plugin Pod 생성
+
+Scheduler
+  → 생성된 Pod를 gpu-lab-m02에 배치
+
+gpu-lab-m02의 kubelet
+  → 자신에게 배치된 Device Plugin Pod 실행
+</code></pre>
+<p>따라서 다음 표현은 정확하지 않다.</p>
+<pre><code class="language-text">Kubernetes가 nvidia.com Label을 보고
+Device Plugin이 필요하다고 이해한다
+</code></pre>
+<p>정확한 표현은 다음과 같다.</p>
+<blockquote>
+<p><code>status-updater</code>가 Node에 배포 Label을 붙였고, 미리 설치돼 있던 Device Plugin DaemonSet의 <code>nodeSelector</code>가 그 Label과 일치했다. Kubernetes의 일반적인 DaemonSet Reconcile 과정에 따라 해당 Node용 Device Plugin Pod가 생성됐다.</p>
+</blockquote>
+
+</section>
+<section id="fake-gpu-operator-kubernetes" class="markdown-section">
+<h2>Fake GPU Operator와 Kubernetes의 책임은 분리돼 있다</h2>
+<p><code>status-updater</code>는 Device Plugin Process를 직접 Node에서 실행하지 않는다.</p>
+<p>Fake GPU Operator가 담당하는 것은 다음 상태를 준비하는 것이다.</p>
+<pre><code class="language-text">Fake GPU Operator의 status-updater
+├─ Pool Label이 붙은 Node 감지
+├─ GPU Pool 설정 조회
+├─ Node별 Topology ConfigMap 생성
+└─ Device Plugin 배포 Label 추가
+</code></pre>
+<p>그 이후 Pod 생성과 실행은 Kubernetes의 일반적인 구성요소들이 담당한다.</p>
+<pre><code class="language-text">DaemonSet Controller
+  → 필요한 Device Plugin Pod 생성
+
+Scheduler
+  → Device Plugin Pod를 대상 Node에 배치
+
+kubelet
+  → Device Plugin Container 실행
+</code></pre>
+<p>따라서 다음과 같은 구조가 아니다.</p>
+<pre><code class="language-text">Fake GPU Operator가 Node에 접속
+  → Device Plugin Process 직접 수정·실행
+</code></pre>
+<p>실제 구조는 다음과 같다.</p>
+<pre><code class="language-text">Fake GPU Operator가 API Server의 상태 변경
+  ↓
+Kubernetes Controller가 원하는 상태 해석
+  ↓
+Pod 생성·배치·실행
+</code></pre>
+
+</section>
+<section id="device-plugin-node" class="markdown-section">
+<h2>Device Plugin은 자신의 Node를 어떻게 알까?</h2>
+<p>Device Plugin DaemonSet에는 자신의 Node 이름을 환경 변수로 받을 수 있는 설정이 있다.</p>
+<p>개념적으로는 다음과 같다.</p>
+<pre><code class="language-yaml">env:
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+</code></pre>
+<p>Device Plugin Pod가 <code>gpu-lab-m02</code>에 배치되면 Container 내부에는 다음 값이 들어간다.</p>
+<pre><code class="language-text">NODE_NAME=gpu-lab-m02
+</code></pre>
+<p>Device Plugin은 이 값으로 자신의 Node별 Topology ConfigMap 이름을 계산한다.</p>
+<pre><code class="language-text">NODE_NAME=gpu-lab-m02
+  ↓
+ConfigMap 이름 계산
+  ↓
+topology-gpu-lab-m02 조회
+</code></pre>
+<p>그리고 ConfigMap에서 가짜 GPU 목록을 읽는다.</p>
+<pre><code class="language-text">GPU-12994019-...
+GPU-cc0ab4cf-...
+</code></pre>
+<p>ConfigMap이 실행 중인 Plugin에 값을 직접 밀어 넣는 것은 아니다.</p>
+<pre><code class="language-text">ConfigMap이 Device Plugin에 Push
+</code></pre>
+<p>가 아니라 다음 구조다.</p>
+<pre><code class="language-text">Device Plugin이 API Server에서
+자신의 Node Topology ConfigMap을 조회
+</code></pre>
+
+</section>
+<section id="node-topology-label" class="markdown-section">
+<h2>Node별 Topology와 배포 Label은 모두 필요하다</h2>
+<p>두 요소는 서로 다른 문제를 해결한다.</p>
+<pre><code class="language-text">Node별 Topology ConfigMap
+→ Device Plugin이 어떤 가짜 장치를 게시할지 알려준다
+
+Device Plugin 배포 Label
+→ 어느 Node에서 Device Plugin Pod를 실행할지 알려준다
+</code></pre>
+<p>배포 Label만 있고 Node별 Topology가 없다면 Device Plugin Pod는 실행되더라도 읽을 가짜 GPU 정보가 없다.</p>
+<pre><code class="language-text">Device Plugin Pod 실행
+  ↓
+Node별 Topology 없음
+  ↓
+Plugin 초기화 실패 가능
+</code></pre>
+<p>반대로 Node별 Topology만 있고 배포 Label이 없다면 Device Plugin Pod가 실행되지 않는다.</p>
+<pre><code class="language-text">Node별 가짜 GPU 목록 존재
+  ↓
+Device Plugin Pod 없음
+  ↓
+kubelet에 GPU가 등록되지 않음
+</code></pre>
+<p>두 가지가 모두 준비돼야 한다.</p>
+<pre><code class="language-text">Node별 Topology
+  +
+Device Plugin Pod
+  ↓
+kubelet에 가짜 GPU 등록 가능
+</code></pre>
+
+</section>
+<section id="fake-device-plugin-kubelet-gpu" class="markdown-section">
+<h2>Fake Device Plugin이 kubelet에 GPU를 등록한다</h2>
+<p>Fake Device Plugin은 Node의 다음 디렉터리를 사용한다.</p>
+<pre><code class="language-text">/var/lib/kubelet/device-plugins/
+</code></pre>
+<p>Device Plugin Pod에는 이 Host 경로가 Mount되어 있다.</p>
+<p>Plugin은 이 경로에 자신의 Unix Socket을 만든다.</p>
+<pre><code class="language-text">fake-nvidia-gpu.sock
+</code></pre>
+<p>그리고 kubelet의 Device Plugin API에 자신을 등록한다.</p>
+<pre><code class="language-text">Fake Device Plugin
+  ↓ Register
+
+ResourceName
+nvidia.com/gpu
+
+Endpoint
+fake-nvidia-gpu.sock
+</code></pre>
+<p>등록 후 <code>ListAndWatch</code>를 통해 가짜 GPU ID와 Health 상태를 kubelet에 전달한다.</p>
+<pre><code class="language-text">Fake Device Plugin
+  → 가짜 GPU 0: Healthy
+  → 가짜 GPU 1: Healthy
+  → kubelet
+</code></pre>
+<p>Device Plugin이 API Server에 직접 Node Capacity를 기록하는 것은 아니다.</p>
+<pre><code class="language-text">잘못된 이해
+Fake Device Plugin → API Server
+
+실제 흐름
+Fake Device Plugin → kubelet → API Server
+</code></pre>
+
+</section>
+<section id="kubelet-gpu-capacity-api-server" class="markdown-section">
+<h2>kubelet이 GPU Capacity를 API Server에 보고한다</h2>
+<p>kubelet은 Device Plugin으로부터 받은 Healthy 장치 수를 집계한다.</p>
+<pre><code class="language-text">Healthy한 가짜 GPU 2개
+  ↓
+nvidia.com/gpu: 2
+</code></pre>
+<p>그리고 자신의 Node 상태에 포함해 API Server에 보고한다.</p>
+<pre><code class="language-yaml">status:
+  capacity:
+    nvidia.com/gpu: &quot;2&quot;
+  allocatable:
+    nvidia.com/gpu: &quot;2&quot;
+</code></pre>
+<p>이제 Scheduler가 해당 Node를 GPU Pod의 배치 후보로 사용할 수 있다.</p>
+<pre><code class="language-text">Pod가 nvidia.com/gpu: 1 요청
+  ↓
+Scheduler가 API Server의 Node 상태 확인
+  ↓
+gpu-lab-m02: GPU 2개
+gpu-lab-m03: GPU 1개
+  ↓
+조건을 만족하는 Node 선택
+</code></pre>
+<p>Scheduler는 이것이 물리 GPU인지 Fake Device Plugin이 만든 장치인지 직접 확인하지 않는다. kubelet이 API Server에 보고한 확장 자원 상태를 기준으로 판단한다.</p>
+
+</section>
+<section id="watch-reconcile" class="markdown-section">
+<h2>여러 Watch와 Reconcile이 연결된다</h2>
+<p>이 과정은 하나의 Operator가 처음부터 끝까지 실행하는 단일 함수가 아니다.</p>
+<p>먼저 <code>status-updater</code>가 Node를 Watch한다.</p>
+<pre><code class="language-text">관찰 대상
+→ run.ai/simulated-gpu-node-pool Label이 붙은 Node
+
+원하는 상태
+→ Node별 Topology가 존재해야 한다
+→ Device Plugin 배포 Label이 존재해야 한다
+</code></pre>
+<p>그다음 DaemonSet Controller가 Node와 DaemonSet을 Watch한다.</p>
+<pre><code class="language-text">관찰 대상
+→ Device Plugin DaemonSet
+→ Cluster의 Node와 Label
+
+원하는 상태
+→ Selector와 일치하는 Node마다 Device Plugin Pod가 하나 있어야 한다
+</code></pre>
+<p>그다음 kubelet이 자신에게 배치된 Pod를 관찰한다.</p>
+<pre><code class="language-text">관찰 대상
+→ spec.nodeName이 자신의 Node인 Pod
+
+원하는 상태
+→ Pod의 Container가 실행 중이어야 한다
+</code></pre>
+<p>마지막으로 Device Plugin과 kubelet이 로컬 Socket을 통해 연결된다.</p>
+<pre><code class="language-text">Device Plugin
+  → 가짜 장치 등록
+
+kubelet
+  → Node GPU 상태를 API Server에 보고
+</code></pre>
+<p>하나의 Label 변경이 여러 제어 루프를 연쇄적으로 실행시키는 구조다.</p>
+
+</section>
+<section id="section-bf0c94725744" class="markdown-section">
+<h2>현재 환경에서 관찰한 결과</h2>
+<p>현재 Minikube 환경에서는 다음 상태가 확인됐다.</p>
+<pre><code class="language-text">gpu-lab-m02
+├─ 사용자가 붙인 Pool Label: a100-pool
+├─ status-updater가 만든 Topology: topology-gpu-lab-m02
+├─ status-updater가 붙인 배포 Label: true
+├─ Fake GPU: A100 2개
+├─ Device Plugin Pod: Running
+├─ Capacity: nvidia.com/gpu 2
+└─ Allocatable: nvidia.com/gpu 2
+</code></pre>
+<pre><code class="language-text">gpu-lab-m03
+├─ 사용자가 붙인 Pool Label: t4-pool
+├─ status-updater가 만든 Topology: topology-gpu-lab-m03
+├─ status-updater가 붙인 배포 Label: true
+├─ Fake GPU: T4 1개
+├─ Device Plugin Pod: Running
+├─ Capacity: nvidia.com/gpu 1
+└─ Allocatable: nvidia.com/gpu 1
+</code></pre>
+<p>Control Plane에는 사용자가 Pool Label을 붙이지 않았다.</p>
+<pre><code class="language-text">gpu-lab
+├─ Pool Label: 없음
+├─ Node별 Topology: 없음
+├─ Device Plugin 배포 Label: 없음
+├─ Device Plugin Pod: 없음
+└─ nvidia.com/gpu: 없음
+</code></pre>
+<p>Label을 붙이기 전 Device Plugin DaemonSet 상태는 다음과 같았다.</p>
+<pre><code class="language-text">DESIRED: 0
+CURRENT: 0
+READY:   0
+</code></pre>
+<p>두 Worker에 Pool Label을 붙인 뒤에는 다음처럼 바뀌었다.</p>
+<pre><code class="language-text">DESIRED: 2
+CURRENT: 2
+READY:   2
+</code></pre>
+<p>이 변화가 다음 연쇄 관계를 보여준다.</p>
+<pre><code class="language-text">사용자가 Pool Label 적용
+  ↓
+status-updater의 Reconcile
+  ↓
+Node별 Topology + 배포 Label
+  ↓
+DaemonSet Controller의 Reconcile
+  ↓
+각 Worker에 Device Plugin Pod 실행
+</code></pre>
+
+</section>
+<section id="section-c201e1256fb8" class="markdown-section">
+<h2>무엇이 실제이고 무엇이 가짜일까?</h2>
+<p>이 실습에서 실제로 동작하는 부분은 다음과 같다.</p>
+<pre><code class="language-text">실제 Kubernetes API Server
+실제 Node Object와 Label
+실제 ConfigMap
+실제 status-updater Controller
+실제 DaemonSet Controller
+실제 Scheduler
+실제 kubelet
+실제 Device Plugin API
+실제 Node Capacity·Allocatable
+</code></pre>
+<p>가짜인 부분은 다음과 같다.</p>
+<pre><code class="language-text">NVIDIA PCI 장치
+NVIDIA Driver가 발견한 GPU
+GPU UUID와 Hardware 상태
+GPU 제품·메모리
+GPU Hardware Metric
+CUDA 연산 능력
+</code></pre>
+<p>따라서 Scheduler 수준의 GPU 등록과 배치는 실험할 수 있지만 실제 GPU 연산은 검증할 수 없다.</p>
+<pre><code class="language-text">nvidia.com/gpu Capacity·Allocatable
+→ 실제 Kubernetes 상태
+
+가짜 GPU ID·제품·메모리
+→ 주입된 Synthetic 상태
+
+CUDA 연산·VRAM·GPU 성능
+→ 검증 불가능
+</code></pre>
+
+</section>
+<section id="section-80f2fc666a82" class="markdown-section">
+<h2>전체 흐름을 정리한다</h2>
+<p>Fake GPU가 Node 자원으로 나타나는 전체 과정은 다음과 같다.</p>
+<pre><code class="language-text">Helm Chart 설치
+  ↓
+status-updater Deployment 생성
+Device Plugin DaemonSet 생성
+Cluster Topology ConfigMap 생성
+  ↓
+사용자가 Node에 Pool Label 적용
+run.ai/simulated-gpu-node-pool=a100-pool
+  ↓
+status-updater가 Node Watch Event 수신
+  ↓
+Cluster Topology에서 a100-pool 조회
+  ↓
+Node별 Topology ConfigMap 생성
+topology-gpu-lab-m02
+  ↓
+status-updater가 두 번째 Label 자동 추가
+nvidia.com/gpu.deploy.device-plugin=true
+  ↓
+DaemonSet Controller가 nodeSelector 일치 확인
+  ↓
+Device Plugin Pod 생성
+  ↓
+Scheduler가 Pod를 해당 Node에 배치
+  ↓
+kubelet이 Device Plugin Container 실행
+  ↓
+Device Plugin이 NODE_NAME 확인
+  ↓
+자신의 Node별 Topology ConfigMap 조회
+  ↓
+가짜 GPU 장치 목록 구성
+  ↓
+kubelet Device Plugin API에 등록
+  ↓
+kubelet이 GPU Capacity·Allocatable 보고
+  ↓
+Scheduler가 GPU Node로 인식
+</code></pre>
+<p>이 과정의 핵심은 두 Label의 생성 주체와 역할을 구분하는 것이다.</p>
+<pre><code class="language-text">첫 번째 Pool Label
+→ 사용자가 붙인다
+→ status-updater가 해석한다
+
+두 번째 배포 Label
+→ status-updater가 자동으로 붙인다
+→ Device Plugin DaemonSet이 선택 조건으로 사용한다
+</code></pre>
+<p>최종적으로 다음과 같이 정리할 수 있다.</p>
+<blockquote>
+<p>사용자가 Node에 Fake GPU Pool Label을 붙이면 <code>status-updater</code>가 이를 감지해 Pool 설정을 Node별 Topology ConfigMap으로 구체화한다. Node별 Topology 생성에 성공하면 <code>status-updater</code>가 같은 Node에 Device Plugin 배포 Label을 자동으로 붙인다. 미리 설치된 Device Plugin DaemonSet의 <code>nodeSelector</code>가 이 두 번째 Label과 일치하면서 Kubernetes의 DaemonSet Controller가 해당 Node용 Device Plugin Pod를 만든다. 실행된 Fake Device Plugin은 자신의 Node Topology를 읽고 kubelet에 가짜 GPU를 등록한다. kubelet이 그 수량을 API Server의 Node Capacity와 Allocatable으로 보고하면서 Kubernetes에는 실제 GPU가 있는 것처럼 보이게 된다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
