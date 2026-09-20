@@ -186,6 +186,13 @@
       button.setAttribute("aria-expanded", String(open)); button.textContent = open ? "접기" : "더 보기";
       button.parentElement.classList.toggle("is-open", open); hints();
     }
+    if (button.hasAttribute("data-evidence-documents")) {
+      const row = button.closest('[data-evidence-unit]');
+      const panel = row.querySelector('.hlm-evidence-documents');
+      const open = button.getAttribute("aria-expanded") !== "true";
+      for (const toggle of row.querySelectorAll('[data-evidence-documents]')) toggle.setAttribute("aria-expanded", String(open));
+      panel.hidden = !open; hints();
+    }
     if (button.classList.contains("hlm-expand")) {
       const wide = one(".hlm-layout").classList.toggle("is-wide");
       one(".hlm-evidence-pane").hidden = wide;

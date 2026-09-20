@@ -1,0 +1,341 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.md. Do not edit directly. source-sha256:f21b0a7cdb948ae139cba4004784b9c5561d4551b6f370299bb4bf688f4a3d99 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="일반적인 ClusterIP Service의 DNS 이름을 Service IP로 바꾸는 일만 생각하면 CoreDNS는 Service 객체만 읽어도 된다.">
+  <meta name="source-sha256" content="f21b0a7cdb948ae139cba4004784b9c5561d4551b6f370299bb4bf688f4a3d99">
+  <title>CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?">
+  <meta property="og:description" content="일반적인 ClusterIP Service의 DNS 이름을 Service IP로 바꾸는 일만 생각하면 CoreDNS는 Service 객체만 읽어도 된다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html","name":"CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?","description":"일반적인 ClusterIP Service의 DNS 이름을 Service IP로 바꾸는 일만 생각하면 CoreDNS는 Service 객체만 읽어도 된다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html"},"headline":"CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-why-watch-endpointslices.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html"},{"@type":"ListItem","position":7,"name":"CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html"},{"@type":"ListItem","position":8,"name":"CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html">새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html">CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>CoreDNS는 왜 Service뿐 아니라 EndpointSlice도 관찰할까?</h1>
+      <p class="lead">일반적인 ClusterIP Service의 DNS 이름을 Service IP로 바꾸는 일만 생각하면 CoreDNS는 Service 객체만 읽어도 된다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-e36b389c9a16">일반 ClusterIP Service의 A·AAAA 응답에는 Service가 중심이다</a>
+        <a href="#section-8436989c0bc3">Headless Service에는 반환할 ClusterIP가 없다</a>
+        <a href="#section-a29870dd87fc">Endpoint별 DNS 이름에도 Endpoint 정보가 필요하다</a>
+        <a href="#section-6fbc5df7db24">Headless Service의 SRV Record에도 Endpoint가 필요하다</a>
+        <a href="#section-086aa15e39b2">Endpoint의 준비 상태도 DNS 게시 여부에 영향을 준다</a>
+        <a href="#section-4cbc7f0d82d7">CoreDNS는 정적 Zone 파일보다 API Cache를 사용한다</a>
+        <a href="#section-c754b77826cf">질의 종류에 따라 사용하는 객체가 다르다</a>
+        <a href="#section-e89ca31197e7">CoreDNS와 kube-proxy는 같은 EndpointSlice를 다르게 사용한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>일반적인 ClusterIP Service의 DNS 이름을 Service IP로 바꾸는 일만 생각하면 CoreDNS는 Service 객체만 읽어도 된다.</p>
+<pre><code class="language-text">Service Object
+  이름: model-server
+  ClusterIP: 10.96.10.20
+        ↓
+CoreDNS 응답
+  model-server.default.svc.cluster.local
+    → 10.96.10.20
+</code></pre>
+<p>Backend Pod가 두 개에서 다섯 개로 늘어나도 일반 ClusterIP Service의 DNS 응답은 바뀌지 않는다.</p>
+<pre><code class="language-text">Pod 2개일 때
+  model-server.default.svc → 10.96.10.20
+
+Pod 5개일 때
+  model-server.default.svc → 10.96.10.20
+</code></pre>
+<p>실제 Endpoint 선택은 DNS가 아니라 Service Data Plane에서 이루어진다.</p>
+<pre><code class="language-text">CoreDNS
+  도메인 이름 → Service IP
+
+kube-proxy 또는 대체 구현
+  Service IP → Endpoint 선택과 전달
+</code></pre>
+<p>그런데 Kubernetes DNS가 제공해야 하는 이름은 일반 ClusterIP Service의 기본 주소만이 아니다. Headless Service, Endpoint별 이름과 SRV Record를 처리하려면 실제 Endpoint 주소·Port·Hostname·상태가 필요하다. CoreDNS가 EndpointSlice도 관찰하는 이유가 여기에 있다.</p>
+</div>
+        <section id="section-e36b389c9a16" class="markdown-section">
+<h2>일반 ClusterIP Service의 A·AAAA 응답에는 Service가 중심이다</h2>
+<p>일반적인 IPv4 ClusterIP Service를 조회하면 CoreDNS는 Service 객체의 ClusterIP로 A Record를 응답한다.</p>
+<pre><code class="language-text">DNS 질의
+  model-server.default.svc.cluster.local A
+
+Service Object
+  clusterIP: 10.96.10.20
+
+DNS 응답
+  10.96.10.20
+</code></pre>
+<p>IPv6 ClusterIP라면 AAAA Record를 응답할 수 있고, Dual Stack Service라면 Service의 IP Family 구성에 맞는 주소들을 제공할 수 있다.</p>
+<p>이 질의에서 CoreDNS가 EndpointSlice의 Pod IP 중 하나를 선택해 반환하는 것은 아니다.</p>
+<pre><code class="language-text">EndpointSlice
+  10.244.1.5
+  10.244.2.7
+
+일반 Service DNS 응답
+  10.96.10.20
+</code></pre>
+<p>따라서 일반 ClusterIP Service의 기본 A·AAAA 응답만 지원한다면 Service 객체만으로도 핵심 응답을 만들 수 있다.</p>
+
+</section>
+<section id="section-8436989c0bc3" class="markdown-section">
+<h2>Headless Service에는 반환할 ClusterIP가 없다</h2>
+<p>Headless Service는 다음과 같이 정의한다.</p>
+<pre><code class="language-yaml">spec:
+  clusterIP: None
+</code></pre>
+<p>이 Service에는 DNS가 반환할 ClusterIP가 없다. 대신 DNS는 EndpointSlice의 실제 Endpoint 주소들을 응답할 수 있다.</p>
+<pre><code class="language-text">일반 ClusterIP Service
+  DNS 이름 → Service ClusterIP
+
+Headless Service
+  DNS 이름 → 실제 Endpoint IP 목록
+</code></pre>
+<p>EndpointSlice가 다음 상태라고 하자.</p>
+<pre><code class="language-text">model-server의 Endpoints
+  ├─ 10.244.1.5  ready: true
+  ├─ 10.244.2.7  ready: true
+  └─ 10.244.3.9  ready: false
+</code></pre>
+<p>CoreDNS는 게시 가능한 Endpoint를 이용해 다음 응답을 만들 수 있다.</p>
+<pre><code class="language-text">model-server.default.svc.cluster.local
+  → 10.244.1.5
+  → 10.244.2.7
+</code></pre>
+<p>Client는 Service IP를 거치지 않고 DNS에서 받은 Endpoint IP 중 하나로 직접 연결한다.</p>
+<pre><code class="language-text">Client
+  → Headless Service DNS 질의
+  → Endpoint IP 목록 수신
+  → 선택한 Endpoint IP로 직접 연결
+</code></pre>
+<p>따라서 Headless Service의 Service Discovery를 제공하려면 CoreDNS가 EndpointSlice를 알아야 한다.</p>
+
+</section>
+<section id="section-a29870dd87fc" class="markdown-section">
+<h2>Endpoint별 DNS 이름에도 Endpoint 정보가 필요하다</h2>
+<p>EndpointSlice에는 IP뿐 아니라 Endpoint의 Hostname이 들어갈 수 있다.</p>
+<pre><code class="language-yaml">endpoints:
+  - addresses:
+      - 10.244.1.5
+    hostname: model-server-0
+    conditions:
+      ready: true
+</code></pre>
+<p>CoreDNS는 이 정보를 사용해 Endpoint별 DNS 이름을 제공할 수 있다.</p>
+<pre><code class="language-text">model-server-0.model-server.default.svc.cluster.local
+  → 10.244.1.5
+</code></pre>
+<p>StatefulSet과 Headless Service를 함께 사용할 때 다음과 같은 안정적인 Pod별 이름을 흔히 사용한다.</p>
+<pre><code class="language-text">model-server-0.model-server.default.svc
+model-server-1.model-server.default.svc
+model-server-2.model-server.default.svc
+</code></pre>
+<p>각 이름은 하나의 공통 Service IP가 아니라 해당 Endpoint의 실제 IP를 가리킬 수 있다. 이 응답을 만들려면 Service 이름뿐 아니라 EndpointSlice의 주소와 Hostname이 필요하다.</p>
+
+</section>
+<section id="section-6fbc5df7db24" class="markdown-section">
+<h2>Headless Service의 SRV Record에도 Endpoint가 필요하다</h2>
+<p>Service Port에 이름이 있으면 DNS는 SRV Record를 제공할 수 있다.</p>
+<pre><code class="language-yaml">ports:
+  - name: grpc
+    protocol: TCP
+    port: 8000
+</code></pre>
+<p>일반 ClusterIP Service의 SRV 응답은 Service 이름과 Port를 가리킨다.</p>
+<pre><code class="language-text">_grpc._tcp.model-server.default.svc
+  → model-server.default.svc:8000
+</code></pre>
+<p>Headless Service에서는 각 Endpoint의 Hostname과 Port를 반환할 수 있다.</p>
+<pre><code class="language-text">_grpc._tcp.model-server.default.svc
+  → model-server-0.model-server.default.svc:8000
+  → model-server-1.model-server.default.svc:8000
+</code></pre>
+<p>따라서 Headless Service의 SRV 응답에는 다음 두 객체가 함께 필요하다.</p>
+<pre><code class="language-text">Service
+  → Port 이름과 Protocol
+
+EndpointSlice
+  → Endpoint Hostname·주소·Port
+</code></pre>
+
+</section>
+<section id="section-086aa15e39b2" class="markdown-section">
+<h2>Endpoint의 준비 상태도 DNS 게시 여부에 영향을 준다</h2>
+<p>일반적으로 준비되지 않은 Endpoint는 Headless Service의 DNS 응답에서 제외될 수 있다.</p>
+<pre><code class="language-text">Endpoint A
+  ready: true
+  → DNS 응답에 포함
+
+Endpoint B
+  ready: false
+  → 일반적으로 DNS 응답에서 제외
+</code></pre>
+<p>Service에 <code>publishNotReadyAddresses: true</code>가 설정되면 준비되지 않은 Endpoint도 게시 대상에 포함될 수 있다.</p>
+<pre><code class="language-yaml">spec:
+  publishNotReadyAddresses: true
+</code></pre>
+<p>따라서 CoreDNS는 Endpoint IP만 보는 것이 아니라 EndpointSlice에 반영된 게시 조건도 함께 사용한다.</p>
+<pre><code class="language-text">EndpointSlice 변화
+  Endpoint 추가·삭제
+  Ready 상태 변경
+  Hostname 변경
+  Port 변경
+        ↓
+CoreDNS의 Endpoint 관련 Cache 갱신
+        ↓
+Headless·Endpoint DNS 응답 변경
+</code></pre>
+
+</section>
+<section id="section-4cbc7f0d82d7" class="markdown-section">
+<h2>CoreDNS는 정적 Zone 파일보다 API Cache를 사용한다</h2>
+<p>CoreDNS의 <code>kubernetes</code> Plugin은 Kubernetes API의 객체를 Watch하고 로컬 Cache와 Index를 유지한다.</p>
+<pre><code class="language-text">API Server
+  ├─ Service
+  └─ EndpointSlice
+          ↓ Watch
+CoreDNS kubernetes Plugin의 Cache
+          ↓ DNS 질의
+현재 객체 상태에 맞는 DNS 응답 생성
+</code></pre>
+<p>Service가 추가될 때마다 전통적인 Zone 파일에 Record 한 줄을 직접 쓰는 방식으로 이해할 필요는 없다.</p>
+<pre><code class="language-text">Kubernetes 객체 변화
+  → CoreDNS가 Watch Event 수신
+  → 로컬 Cache 갱신
+  → 이후 DNS 질의에 최신 상태로 응답
+</code></pre>
+<p>Endpoint 감시를 비활성화하는 구성도 가능하지만, 그러면 Headless Service와 Endpoint 관련 질의에 필요한 정보를 제공할 수 없다. 일반 Service 이름을 ClusterIP로 바꾸는 기능과 Endpoint 기반 DNS 기능의 경계가 이 설정에서 분명하게 드러난다.</p>
+
+</section>
+<section id="section-c754b77826cf" class="markdown-section">
+<h2>질의 종류에 따라 사용하는 객체가 다르다</h2>
+<p>CoreDNS가 어떤 객체를 사용하는지는 DNS 질의 종류에 따라 달라진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>DNS 질의 종류</th>
+<th>Service</th>
+<th>EndpointSlice</th>
+<th>주요 응답</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>일반 ClusterIP Service A·AAAA</td>
+<td>필요</td>
+<td>기본 응답에는 불필요</td>
+<td>Service ClusterIP</td>
+</tr>
+<tr>
+<td>ExternalName Service</td>
+<td>필요</td>
+<td>불필요</td>
+<td>외부 이름의 CNAME</td>
+</tr>
+<tr>
+<td>Headless Service A·AAAA</td>
+<td>필요</td>
+<td>필요</td>
+<td>게시 가능한 Endpoint IP 목록</td>
+</tr>
+<tr>
+<td>Headless Service SRV</td>
+<td>필요</td>
+<td>필요</td>
+<td>Endpoint별 Hostname과 Port</td>
+</tr>
+<tr>
+<td>Endpoint별 Service DNS 이름</td>
+<td>필요</td>
+<td>필요</td>
+<td>개별 Endpoint IP</td>
+</tr>
+</tbody></table>
+</div>
+<p>그래서 <code>CoreDNS는 Service만 관찰하면 되는가?</code>라는 질문에는 다음처럼 답할 수 있다.</p>
+<pre><code class="language-text">일반 ClusterIP Service의 기본 DNS 응답만 보면
+  → Service 객체만으로 충분
+
+Kubernetes의 전체 Service Discovery 기능을 제공하려면
+  → Service와 EndpointSlice가 모두 필요
+</code></pre>
+
+</section>
+<section id="section-e89ca31197e7" class="markdown-section">
+<h2>CoreDNS와 kube-proxy는 같은 EndpointSlice를 다르게 사용한다</h2>
+<p>CoreDNS와 kube-proxy는 둘 다 Service와 EndpointSlice를 관찰할 수 있지만 만드는 결과는 다르다.</p>
+<pre><code class="language-text">CoreDNS
+  Service + EndpointSlice
+  → DNS 응답용 Cache와 Index 갱신
+  → Headless·Endpoint 관련 DNS Record 제공
+
+kube-proxy
+  Service + EndpointSlice
+  → Node의 Service Data Plane 갱신
+  → Service Traffic을 Endpoint로 전달
+</code></pre>
+<p>CoreDNS는 EndpointSlice를 보고 Host의 DNAT 규칙이나 Pod Network를 갱신하지 않는다. kube-proxy도 EndpointSlice를 보고 DNS Record를 만들지 않는다.</p>
+<pre><code class="language-text">같은 입력
+  Service·EndpointSlice
+
+서로 다른 출력
+  CoreDNS → DNS 응답 상태
+  kube-proxy → Packet 전달 상태
+</code></pre>
+<p>따라서 가장 정확한 표현은 다음과 같다.</p>
+<blockquote>
+<p>일반 ClusterIP Service의 기본 DNS 응답에는 Service 객체만으로 충분하지만, CoreDNS는 Headless Service, Endpoint별 DNS 이름, SRV Record와 Endpoint 준비 상태를 처리하기 위해 EndpointSlice도 관찰한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

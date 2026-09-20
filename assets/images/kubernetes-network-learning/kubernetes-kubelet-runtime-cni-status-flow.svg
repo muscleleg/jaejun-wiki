@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500" role="img" aria-labelledby="title desc">
+<!-- Canonical JWiki asset: kubernetes-kubelet-runtime-cni-status-flow.svg -->
+<title id="title">kubelet, Container Runtime, CNI Plugin과 API Server 사이의 Pod 실행 및 상태 보고 흐름</title>
+<desc id="desc">API Server에 Node B 배정이 기록되면 kubelet이 이를 관찰하고 CRI로 Runtime에 RunPodSandbox를 요청한다. Runtime은 Pod Sandbox와 Network Namespace를 준비하고 CNI ADD 호출로 Namespace 참조와 eth0 이름을 전달한다. CNI Plugin은 veth, Pod IP와 Route를 구성하여 결과를 반환한다. Runtime이 Container를 실행하고 상태를 제공하면 kubelet은 Pod IP, 실행 상태와 Ready 상태를 API Server에 보고한다. Network Namespace, veth와 Routing Table 자체는 Node에 남는다.</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#64748b"/></marker>
+  <marker id="returnArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#2f855a"/></marker>
+</defs>
+<rect width="1200" height="1500" fill="#ffffff"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif">
+  <text x="50" y="55" font-size="30" font-weight="700" fill="#1e293b">Pod 실행에서 Network 구성과 상태 보고까지</text>
+  <text x="50" y="90" font-size="19" fill="#60738c">지휘하는 kubelet · 구현하는 Runtime과 CNI · 상태를 공유하는 API Server</text>
+
+  <rect x="40" y="120" width="1120" height="1230" rx="24" fill="#f8fafc" stroke="#cbd8e8" stroke-width="2"/>
+  <text x="70" y="158" font-size="22" font-weight="700" fill="#46617f">Node B</text>
+
+  <rect x="90" y="190" width="1020" height="122" rx="18" fill="#eef5ff" stroke="#89b3ed" stroke-width="2"/>
+  <text x="120" y="230" font-size="23" font-weight="700" fill="#24364d">① kubelet이 자신에게 배정된 Pod를 발견한다</text>
+  <text x="120" y="269" font-size="20" fill="#31445d">API Server의 Pod: spec.nodeName = node-b</text>
+  <text x="120" y="299" font-size="18" fill="#63758d">원하는 상태와 현재 Node의 실행 상태를 비교한다.</text>
+
+  <path d="M600 312 V354" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="90" y="364" width="1020" height="120" rx="18" fill="#fff7ed" stroke="#f0ae68" stroke-width="2"/>
+  <text x="120" y="405" font-size="23" font-weight="700" fill="#24364d">② kubelet이 CRI로 Runtime에 Pod 실행을 요청한다</text>
+  <text x="120" y="444" font-size="20" fill="#31445d">RunPodSandbox → Pod 단위 기반 환경을 준비해 달라는 요청</text>
+  <text x="120" y="473" font-size="18" fill="#63758d">kubelet은 Container와 Namespace를 직접 구현하지 않는다.</text>
+
+  <path d="M600 484 V526" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="90" y="536" width="1020" height="130" rx="18" fill="#fefce8" stroke="#d9bf58" stroke-width="2"/>
+  <text x="120" y="578" font-size="23" font-weight="700" fill="#24364d">③ Container Runtime이 Pod Sandbox와 Network Namespace를 준비한다</text>
+  <text x="120" y="618" font-size="20" fill="#31445d">독립된 Network 공간은 생겼지만 eth0 · Pod IP · Route는 아직 필요하다.</text>
+  <text x="120" y="650" font-size="18" fill="#63758d">일반적인 Linux Runtime을 단순화한 표현이다.</text>
+
+  <path d="M600 666 V708" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="90" y="718" width="1020" height="166" rx="18" fill="#ecfdf5" stroke="#64c69d" stroke-width="2"/>
+  <text x="120" y="758" font-size="23" font-weight="700" fill="#24364d">④ Runtime이 CNI Plugin을 ADD로 호출한다</text>
+  <text x="120" y="798" font-size="20" fill="#31445d">CNI_NETNS = 준비한 Namespace 참조  ·  CNI_IFNAME = eth0</text>
+  <text x="120" y="833" font-size="20" fill="#31445d">CNI_CONTAINERID · CNI_ARGS · 설정 JSON도 함께 전달</text>
+  <text x="120" y="869" font-size="18" fill="#63758d">“이 Namespace를 설정된 Cluster Network에 연결해 달라.”</text>
+
+  <path d="M600 884 V926" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="90" y="936" width="1020" height="156" rx="18" fill="#f0fdf4" stroke="#61ba82" stroke-width="2"/>
+  <text x="120" y="977" font-size="23" font-weight="700" fill="#24364d">⑤ CNI가 Interface · IP · Route를 구성하고 결과를 반환한다</text>
+  <text x="120" y="1017" font-size="20" fill="#31445d">veth pair → Pod eth0 → IP 10.244.2.7 → Gateway · Route → Host 연결</text>
+  <text x="120" y="1052" font-size="20" fill="#2f855a">CNI Result: interfaces · ips · routes · dns</text>
+  <text x="120" y="1082" font-size="18" fill="#63758d">실제 장치와 Route는 Node와 Pod Network Namespace에 남는다.</text>
+
+  <path d="M600 1092 V1134" fill="none" stroke="#2f855a" stroke-width="3" marker-end="url(#returnArrow)"/>
+  <rect x="90" y="1144" width="1020" height="130" rx="18" fill="#fff7ed" stroke="#f0ae68" stroke-width="2"/>
+  <text x="120" y="1185" font-size="23" font-weight="700" fill="#24364d">⑥ Runtime이 Container를 실행하고 실제 상태를 kubelet에 제공한다</text>
+  <text x="120" y="1225" font-size="20" fill="#31445d">Sandbox 상태 · Container 상태 · Pod IP</text>
+  <text x="120" y="1259" font-size="18" fill="#63758d">kubelet은 Runtime 상태와 Probe 결과를 계속 관찰한다.</text>
+
+  <rect x="90" y="1378" width="1020" height="82" rx="17" fill="#f5f3ff" stroke="#ae99e8" stroke-width="2"/>
+  <text x="600" y="1412" font-size="22" font-weight="700" text-anchor="middle" fill="#24364d">API Server에 보고: podIP · Container 상태 · Ready 등</text>
+  <text x="600" y="1444" font-size="18" text-anchor="middle" fill="#63758d">보고하지 않음: Network Namespace 경로 · veth 이름 · Routing Table 전체</text>
+
+  <path d="M600 1274 V1368" fill="none" stroke="#2f855a" stroke-width="3" marker-end="url(#returnArrow)"/>
+
+  <text x="600" y="1485" font-size="20" font-weight="700" text-anchor="middle" fill="#334155">kubelet은 직접 구현하는 주체가 아니라 Node의 실행을 조율하고 결과를 보고하는 주체다.</text>
+</g>
+</svg>

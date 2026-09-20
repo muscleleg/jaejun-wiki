@@ -1,0 +1,308 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.md. Do not edit directly. source-sha256:7421b8f634d28c42caaf6ab4fbdf85b030e4452f29c22d29dca0f3f3f231b514 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="일반적인 ClusterIP Service에서 Client는 Backend Pod의 주소를 직접 알 필요 없이 Service IP와 Port로 연결한다. Cluster 안의 Service 구현은 이 요청을 받을 수 있는 Endpoint 중 하나를 선택하고, Packet이 그 Endpoint에 도달하도록 전달 상태를 적용한다.">
+  <meta name="source-sha256" content="7421b8f634d28c42caaf6ab4fbdf85b030e4452f29c22d29dca0f3f3f231b514">
+  <title>Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?">
+  <meta property="og:description" content="일반적인 ClusterIP Service에서 Client는 Backend Pod의 주소를 직접 알 필요 없이 Service IP와 Port로 연결한다. Cluster 안의 Service 구현은 이 요청을 받을 수 있는 Endpoint 중 하나를 선택하고, Packet이 그 Endpoint에 도달하도록 전달 상태를 적용한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html","name":"Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?","description":"일반적인 ClusterIP Service에서 Client는 Backend Pod의 주소를 직접 알 필요 없이 Service IP와 Port로 연결한다. Cluster 안의 Service 구현은 이 요청을 받을 수 있는 Endpoint 중 하나를 선택하고, Packet이 그 Endpoint에 도달하도록 전달 상태를 적용한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html"},"headline":"Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-service-ip-endpoint-translation-implementations.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"CNI는 Pod의 veth·IP·Route와 Node 간 경로를 어떻게 준비할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-cni-pod-network-setup.html"},{"@type":"ListItem","position":7,"name":"Pod 생성은 어떻게 각 Node의 Netfilter 규칙 갱신으로 이어질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kube-proxy-service-rule-reconciliation.html"},{"@type":"ListItem","position":8,"name":"kube-proxy는 Service와 EndpointSlice를 어떻게 Node의 Service Data Plane으로 바꿀까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kube-proxy-service-endpointslice-dataplane-sync.html"},{"@type":"ListItem","position":9,"name":"Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-cni-pod-network-setup.html">CNI는 Pod의 veth·IP·Route와 Node 간 경로를 어떻게 준비할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kube-proxy-service-rule-reconciliation.html">Pod 생성은 어떻게 각 Node의 Netfilter 규칙 갱신으로 이어질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kube-proxy-service-endpointslice-dataplane-sync.html">kube-proxy는 Service와 EndpointSlice를 어떻게 Node의 Service Data Plane으로 바꿀까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Service IP를 Endpoint IP로 연결하는 개념은 구현마다 어떻게 같을까?</h1>
+      <p class="lead">일반적인 ClusterIP Service에서 Client는 Backend Pod의 주소를 직접 알 필요 없이 Service IP와 Port로 연결한다. Cluster 안의 Service 구현은 이 요청을 받을 수 있는 Endpoint 중 하나를 선택하고, Packet이 그 Endpoint에 도달하도록 전달 상태를 적용한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-8943ae2e1450">공통 입력은 Service와 Endpoint 집합이다</a>
+        <a href="#section-bc83c9fba1fd">구현이 달라도 처리 단계는 비슷하다</a>
+        <a href="#section-34e76bfcbd5a">iptables는 Chain과 DNAT 규칙으로 구현한다</a>
+        <a href="#section-d505caecb3f2">nftables는 nftables의 Rule과 자료구조로 구현한다</a>
+        <a href="#section-b2e692efbae0">IPVS는 Virtual Server와 Real Server로 구현한다</a>
+        <a href="#section-7db8ed484b1b">eBPF 구현은 Program과 Map으로 kube-proxy를 대체할 수 있다</a>
+        <a href="#section-6d93281a518b">같은 것은 Service의 의미이고 다른 것은 Data Plane이다</a>
+        <a href="#section-a569fade26ea">모든 Service가 Service IP 변환을 사용하는 것은 아니다</a>
+        <a href="#section-0ece16980e5c">구현 공통 흐름을 기준으로 세부 구조를 읽는다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>일반적인 ClusterIP Service에서 Client는 Backend Pod의 주소를 직접 알 필요 없이 Service IP와 Port로 연결한다. Cluster 안의 Service 구현은 이 요청을 받을 수 있는 Endpoint 중 하나를 선택하고, Packet이 그 Endpoint에 도달하도록 전달 상태를 적용한다.</p>
+<p>iptables, nftables, IPVS와 eBPF는 내부 자료구조와 Packet을 처리하는 위치가 다르다. 그러나 Kubernetes의 Service와 EndpointSlice를 읽어 실제 Service Traffic을 Backend로 연결한다는 추상적인 역할은 같다.</p>
+<p>kube-proxy가 두 객체에서 서로 다른 정보를 읽고 Node별 정책을 적용해 로컬 전달 상태를 계속 맞추는 과정은 <a href="kubernetes-kube-proxy-service-endpointslice-dataplane-sync.html">kube-proxy는 Service와 EndpointSlice를 어떻게 Node의 Service Data Plane으로 바꿀까?</a>에서 자세히 살펴본다.</p>
+</div>
+        <section id="section-8943ae2e1450" class="markdown-section">
+<h2>공통 입력은 Service와 Endpoint 집합이다</h2>
+<p>다음과 같은 ClusterIP Service를 생각해 보자.</p>
+<pre><code class="language-text">Service
+  ClusterIP: 10.96.10.20
+  Port: 8000
+
+EndpointSlice
+  ├─ 10.244.1.5:8000
+  ├─ 10.244.2.7:8000
+  └─ 10.244.3.9:8000
+</code></pre>
+<p>Service 구현이 알아야 할 핵심 정보는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>정보</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Service IP·Port·Protocol</td>
+<td>Client가 연결할 가상 접근점</td>
+</tr>
+<tr>
+<td>Endpoint IP·Port</td>
+<td>실제 요청을 처리할 Backend 주소</td>
+</tr>
+<tr>
+<td>Endpoint 조건</td>
+<td>Ready·Terminating 등 후보 판단에 필요한 상태</td>
+</tr>
+<tr>
+<td>Traffic Policy·Topology 정보</td>
+<td>어느 Endpoint를 후보로 삼거나 우선할지 결정하는 조건</td>
+</tr>
+</tbody></table>
+</div>
+<p>일반적으로 Endpoint는 Pod IP지만 반드시 Pod일 필요는 없다. Selector가 없는 Service에 별도의 EndpointSlice를 연결하면 다른 Backend IP도 Endpoint가 될 수 있다.</p>
+<p>따라서 구현에 독립적인 표현은 <code>Service IP를 Pod IP로 바꾼다</code>보다 다음 문장이 더 정확하다.</p>
+<blockquote>
+<p>Service의 가상 IP와 Port로 들어온 새 연결에 대해 사용할 Endpoint 하나를 선택하고, Packet이 그 Endpoint IP와 Port에 도달하도록 전달한다.</p>
+</blockquote>
+
+</section>
+<section id="section-bc83c9fba1fd" class="markdown-section">
+<h2>구현이 달라도 처리 단계는 비슷하다</h2>
+<p>일반적인 Service Data Plane은 다음 책임을 가진다.</p>
+<pre><code class="language-text">Service·EndpointSlice 변화 관찰
+  → Node의 Service 전달 상태 갱신
+  → Service IP·Port로 들어온 Traffic 식별
+  → 사용할 수 있는 Endpoint 중 하나 선택
+  → 선택한 Endpoint 주소로 전달되도록 Packet 처리
+  → 같은 연결의 후속 Packet에도 선택 결과 유지
+  → Endpoint IP까지의 Network 경로 사용
+</code></pre>
+<p>이 흐름에서 Kubernetes 객체를 읽�� 전달 상태를 갱신하는 것은 Control 경로다.</p>
+<pre><code class="language-text">Control 경로
+Service·EndpointSlice
+  → kube-proxy 또는 대체 Agent
+  → Kernel의 Service Data Plane 갱신
+</code></pre>
+<p>실제 Application Packet이 준비된 상태를 사용하는 것은 Data 경로다.</p>
+<pre><code class="language-text">Data 경로
+Service IP Packet
+  → Endpoint 선택
+  → 선택한 Endpoint 주소로 변환·전달
+  → Endpoint IP를 기준으로 다음 경로 선택
+  → Backend 도착
+</code></pre>
+<p>구현별 차이는 주로 <code>Kernel의 Service Data Plane</code>을 어떤 기능으로 만들고, Endpoint 선택과 주소 변환을 어느 지점에서 수행하는가에 있다.</p>
+
+</section>
+<section id="section-34e76bfcbd5a" class="markdown-section">
+<h2>iptables는 Chain과 DNAT 규칙으로 구현한다</h2>
+<p>kube-proxy의 iptables Mode는 Netfilter가 평가할 Chain과 Rule을 구성한다.</p>
+<pre><code class="language-text">KUBE-SERVICES
+  → Service IP·Port 식별
+
+KUBE-SVC-*
+  → 확률 규칙으로 Endpoint Chain 선택
+
+KUBE-SEP-*
+  → 선택한 Endpoint IP로 DNAT
+</code></pre>
+<p>예를 들어 Pod B가 선택되면 다음과 같이 목적지가 변한다.</p>
+<pre><code class="language-text">10.96.10.20:8000
+  → DNAT
+10.244.2.7:8000
+</code></pre>
+<p>iptables Mode의 Service·Endpoint Chain이 실제로 어떻게 만들어지는지는 <a href="kubernetes-service-registration-kube-proxy-dnat-chains.html">Service가 등록되면 kube-proxy는 DNAT Chain을 어떻게 만들까?</a>에서 자세히 살펴본다.</p>
+
+</section>
+<section id="section-d505caecb3f2" class="markdown-section">
+<h2>nftables는 nftables의 Rule과 자료구조로 구현한다</h2>
+<p>kube-proxy의 nftables Mode도 Linux Netfilter를 사용하지만 iptables Chain 대신 nftables API로 Ruleset을 구성한다. Set과 Map 같은 nftables의 자료구조를 이용해 Service와 Endpoint를 표현할 수 있다.</p>
+<pre><code class="language-text">Service IP·Port와 일치
+  → nftables 규칙에서 Endpoint 선택
+  → 선택한 Endpoint IP·Port로 목적지 변환
+</code></pre>
+<p>따라서 iptables에서 보던 <code>KUBE-SVC-*</code>, <code>KUBE-SEP-*</code> Chain과 <code>statistic</code> 규칙을 그대로 찾을 수 있다고 가정하면 안 된다. 화면에 보이는 Ruleset은 달라도 Service를 식별하고 Backend를 선택해 Endpoint로 전달한다는 역할은 같다.</p>
+
+</section>
+<section id="section-b2e692efbae0" class="markdown-section">
+<h2>IPVS는 Virtual Server와 Real Server로 구현한다</h2>
+<p>IPVS Mode에서 kube-proxy는 Service를 IPVS Virtual Server로, Endpoint를 Real Server로 구성한다.</p>
+<pre><code class="language-text">Virtual Server
+10.96.10.20:8000
+  ├─ Real Server 10.244.1.5:8000
+  ├─ Real Server 10.244.2.7:8000
+  └─ Real Server 10.244.3.9:8000
+</code></pre>
+<p>IPVS Scheduler가 Round Robin이나 다른 Scheduling 방식으로 Real Server 하나를 선택하고, Kernel의 IPVS 처리 경로가 Packet을 선택된 Backend로 전달한다. 이 구현에서는 iptables Mode의 Endpoint별 확률 Chain이 핵심 자료구조가 아니다.</p>
+<p>IPVS Mode는 기존 Cluster에서 볼 수 있지만 현재 Kubernetes에서는 Deprecated된 방식이다. 새로운 학습과 구성에서는 iptables와 nftables의 차이를 먼저 이해하는 편이 현재 방향에 더 가깝다.</p>
+
+</section>
+<section id="section-7db8ed484b1b" class="markdown-section">
+<h2>eBPF 구현은 Program과 Map으로 kube-proxy를 대체할 수 있다</h2>
+<p>Cilium 같은 Network 구현은 kube-proxy 없이 eBPF로 Service 기능을 구현할 수 있다. 이 경우 Node의 Agent가 Service와 Endpoint 상태를 관찰하고, eBPF Program이 사용할 Map을 갱신한다.</p>
+<pre><code class="language-text">Service Map
+  Service IP·Port → Service와 Backend 집합
+
+Backend Map
+  Backend ID → Endpoint IP·Port
+
+eBPF Program
+  → Service Traffic 식별
+  → Backend 하나 선택
+  → Endpoint 방향으로 주소 변환·전달
+</code></pre>
+<p>eBPF Program은 구성에 따라 iptables의 PREROUTING보다 이른 Interface 처리 지점이나 Socket과 가까운 지점에서 동작할 수 있다. 따라서 Packet 경로와 관찰 도구는 달라질 수 있지만 Service의 가상 주소를 Backend Endpoint에 연결하는 책임은 유지된다.</p>
+
+</section>
+<section id="section-6d93281a518b" class="markdown-section">
+<h2>같은 것은 Service의 의미이고 다른 것은 Data Plane이다</h2>
+<p>구현별 관계를 한 표로 비교하면 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구현</th>
+<th>Service 표현</th>
+<th>Endpoint 표현</th>
+<th>선택·전달 방식</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>iptables</td>
+<td>Service Chain</td>
+<td>Endpoint별 Chain</td>
+<td>확률 Jump 후 Endpoint Chain에서 DNAT</td>
+</tr>
+<tr>
+<td>nftables</td>
+<td>nftables Rule·Set·Map</td>
+<td>nftables의 Endpoint 상태</td>
+<td>Ruleset에서 선택 후 주소 변환</td>
+</tr>
+<tr>
+<td>IPVS</td>
+<td>Virtual Server</td>
+<td>Real Server</td>
+<td>Scheduler가 Backend 선택 후 IPVS 전달</td>
+</tr>
+<tr>
+<td>eBPF</td>
+<td>Service Map</td>
+<td>Backend Map</td>
+<td>eBPF Program이 선택과 주소 변환·전달 수행</td>
+</tr>
+</tbody></table>
+</div>
+<p>구체적인 내부 상태는 달라도 Client가 보는 Service의 의미는 같다.</p>
+<pre><code class="language-text">Client가 아는 주소
+  model-server Service 10.96.10.20:8000
+
+실제 연결되는 주소
+  선택된 Endpoint 10.244.2.7:8000
+</code></pre>
+<p>구현을 관찰할 때에는 <code>KUBE-SVC Chain이 있는가?</code>만 묻기보다 다음 질문부터 확인해야 한다.</p>
+<pre><code class="language-text">이 Cluster에서는 누가 Service·EndpointSlice를 관찰하는가?
+  → kube-proxy인가, 다른 Agent인가?
+
+어떤 Data Plane을 구성하는가?
+  → iptables, nftables, IPVS, eBPF 중 무엇인가?
+
+Service IP는 어디에서 식별되는가?
+  → 어떤 Hook·Interface·Socket 처리 지점인가?
+</code></pre>
+
+</section>
+<section id="section-a569fade26ea" class="markdown-section">
+<h2>모든 Service가 Service IP 변환을 사용하는 것은 아니다</h2>
+<p>지금까지의 설명은 ClusterIP가 있는 일반적인 Service를 기준으로 한다. Service 종류에 따라 Service IP를 Endpoint IP로 바꾸는 단계 자체가 없을 수도 있다.</p>
+<p>Headless Service는 <code>clusterIP: None</code>이므로 고정된 ClusterIP를 제공하지 않는다. DNS가 실제 Endpoint 주소들을 응답하면 Client가 그 주소 중 하나에 직접 연결한다.</p>
+<pre><code class="language-text">Headless Service DNS 질의
+  → Endpoint IP 목록 응답
+  → Client가 Endpoint IP로 직접 연결
+</code></pre>
+<p>ExternalName Service는 외부 DNS 이름을 CNAME 형태로 제공한다. 이 경우에도 ClusterIP를 Endpoint IP로 변환하는 Service Data Plane을 사용하지 않는다.</p>
+<pre><code class="language-text">ExternalName Service DNS 질의
+  → 외부 DNS 이름 응답
+  → Client가 이름을 해석해 외부 주소로 연결
+</code></pre>
+<p>따라서 <code>Service IP를 특정 Pod IP로 바꾼다</code>는 이해는 일반적인 ClusterIP Service에는 적절하지만, 모든 Service 종류에 그대로 적용되는 정의는 아니다.</p>
+
+</section>
+<section id="section-0ece16980e5c" class="markdown-section">
+<h2>구현 공통 흐름을 기준으로 세부 구조를 읽는다</h2>
+<p>일반적인 ClusterIP Service의 공통 흐름은 다음과 같이 정리할 수 있다.</p>
+<pre><code class="language-text">Service의 가상 IP·Port로 새 연결
+  → 현재 정책에 맞는 Endpoint 후보 집합 확인
+  → Endpoint 하나 선택
+  → Packet이 선택된 Endpoint IP·Port로 향하도록 처리
+  → 연결 상태에 선택 결과 유지
+  → Endpoint IP까지 Route·Datapath를 따라 전달
+</code></pre>
+<p>iptables의 Chain, nftables의 Ruleset, IPVS의 Virtual Server와 eBPF Map은 이 공통 흐름을 구현하는 서로 다른 방법이다. 먼저 Service의 공통 의미를 잡고 나면 특정 구현의 규칙 이름이나 Packet Hook은 그 의미를 실현하는 구체적인 장치로 읽을 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

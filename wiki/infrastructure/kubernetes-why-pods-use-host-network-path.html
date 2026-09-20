@@ -1,0 +1,164 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.md. Do not edit directly. source-sha256:59cee707111373225601b9845f47849a49e340de85435e22b116dd880aad7ef6 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="같은 Node에서 실행되는 Pod A가 Pod B로 Packet을 보낸다고 하자. 두 Pod를 하나의 veth pair로 직접 연결하면 가장 짧은 길처럼 보일 수 있다. 그러나 일반적인 Kubernetes Pod Network는 Pod마다 자신의 Node와 연결되는 veth pair를 만들고, Host Network Namespace...">
+  <meta name="source-sha256" content="59cee707111373225601b9845f47849a49e340de85435e22b116dd880aad7ef6">
+  <title>Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?">
+  <meta property="og:description" content="같은 Node에서 실행되는 Pod A가 Pod B로 Packet을 보낸다고 하자. 두 Pod를 하나의 veth pair로 직접 연결하면 가장 짧은 길처럼 보일 수 있다. 그러나 일반적인 Kubernetes Pod Network는 Pod마다 자신의 Node와 연결되는 veth pair를 만들고, Host Network Namespace...">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html","name":"Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?","description":"같은 Node에서 실행되는 Pod A가 Pod B로 Packet을 보낸다고 하자. 두 Pod를 하나의 veth pair로 직접 연결하면 가장 짧은 길처럼 보일 수 있다. 그러나 일반적인 Kubernetes Pod Network는 Pod마다 자신의 Node와 연결되는 veth pair를 만들고, Host Network Namespace...","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html"},"headline":"Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-why-pods-use-host-network-path.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"CNI는 Pod의 veth·IP·Route와 Node 간 경로를 어떻게 준비할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-cni-pod-network-setup.html"},{"@type":"ListItem","position":7,"name":"Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-cni-pod-network-setup.html">CNI는 Pod의 veth·IP·Route와 Node 간 경로를 어떻게 준비할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Pod끼리는 왜 직접 veth pair로 연결하지 않고 Host Network를 경유할까?</h1>
+      <p class="lead">같은 Node에서 실행되는 Pod A가 Pod B로 Packet을 보낸다고 하자. 두 Pod를 하나의 veth pair로 직접 연결하면 가장 짧은 길처럼 보일 수 있다. 그러나 일반적인 Kubernetes Pod Network는 Pod마다 자신의 Node와 연결되는 veth pair를 만들고, Host Network Namespace...</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-93982ecd58d0">일반적인 구성에서는 Pod마다 Host와 연결되는 veth pair가 있다</a>
+        <a href="#section-70147444523b">같은 Node의 Pod로 갈 때도 먼저 Host 쪽 끝점에서 수신된다</a>
+        <a href="#section-de4b53a8a052">다른 Node의 Pod라면 Host 경로가 Node 사이 Network로 이어진다</a>
+        <a href="#section-872dd5393537">두 Pod를 하나의 veth pair로 직접 연결하는 것은 가능하지만 일반 구조로 쓰기 어렵다</a>
+        <a href="#section-aaa41a4a4eb7">Service는 Host 경유를 만드는 것이 아니라 목적지 선택을 추가한다</a>
+        <a href="#section-5d7502c0d58a">구조를 한 문장으로 정리한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>같은 Node에서 실행되는 Pod A가 Pod B로 Packet을 보낸다고 하자. 두 Pod를 하나의 veth pair로 직접 연결하면 가장 짧은 길처럼 보일 수 있다. 그러나 일반적인 Kubernetes Pod Network는 Pod마다 자신의 Node와 연결되는 veth pair를 만들고, Host Network Namespace의 공통 Network 경로가 Pod 사이를 이어 준다.</p>
+<p><img src="../../assets/images/kubernetes-network-learning/kubernetes-pod-host-network-path.svg" alt="각 Pod가 Host Network Namespace와 자신의 veth pair를 가지고, 같은 Node의 Pod 또는 다른 Node의 Pod로 향하는 공통 Network 경로를 사용하는 구조" loading="lazy"></p>
+<p>이 글은 일반적인 veth 기반 CNI 구성을 기준으로 한다. CNI가 <code>ipvlan</code>, <code>macvlan</code>, SR-IOV 또는 eBPF 기반의 다른 Datapath를 사용한다면 Interface와 Packet 처리 위치는 달라질 수 있다.</p>
+</div>
+        <section id="section-93982ecd58d0" class="markdown-section">
+<h2>일반적인 구성에서는 Pod마다 Host와 연결되는 veth pair가 있다</h2>
+<p>Pod A와 Pod B는 서로 하나의 veth pair를 공유하지 않는다. 각 Pod가 자신의 Network Namespace와 Host Network Namespace를 잇는 별도의 pair를 가진다.</p>
+<pre><code class="language-text">Pod A Network Namespace              Host Network Namespace
+Pod A 쪽 veth 끝점(eth0)  ═══════  Host 쪽 veth-A 끝점
+
+Pod B Network Namespace              Host Network Namespace
+Pod B 쪽 veth 끝점(eth0)  ═══════  Host 쪽 veth-B 끝점
+</code></pre>
+<p>Host 쪽 두 끝점은 Bridge, Host Routing Table, 가상 Switch 또는 eBPF Program 같은 공통 Network 처리에 연결될 수 있다. 어느 방식을 사용하는지는 CNI 구현에 따라 다르지만, 각 Pod가 Host의 Network 처리와 연결된다는 구조는 일반적인 veth 기반 구성에서 공통적이다.</p>
+
+</section>
+<section id="section-70147444523b" class="markdown-section">
+<h2>같은 Node의 Pod로 갈 때도 먼저 Host 쪽 끝점에서 수신된다</h2>
+<p>Pod A의 Application이 Packet을 만들면 Pod A의 Routing Table이 출력 Interface를 결정한다. 출력 Interface가 <code>eth0</code>이라면 Packet은 Pod A 쪽 veth 끝점에서 송신되고, Peer인 Host 쪽 veth-A 끝점에서 수신된다.</p>
+<p>Host Network Namespace는 목적지 Pod IP를 기준으로 다음 경로를 선택한다. 목적지인 Pod B가 같은 Node에 있다면 Packet을 Pod B와 연결된 Host 쪽 veth-B 끝점으로 송신한다. 그러면 Peer인 Pod B의 <code>eth0</code>에서 수신된다.</p>
+<pre><code class="language-text">Pod A Application
+  → Pod A의 Route 판단
+  → Pod A eth0에서 TX
+  → Host veth-A에서 RX
+  → Host의 Bridge·Route·eBPF 처리
+  → Host veth-B에서 TX
+  → Pod B eth0에서 RX
+  → Pod B Application
+</code></pre>
+<p>따라서 같은 Node에 있는 Pod끼리 통신해도 일반적인 veth 구성에서는 Host Network의 공통 경로를 사용한다. 여기서 Host를 경유한다는 말은 반드시 별도의 Proxy Process가 Packet을 받아 재전송한다는 뜻이 아니다. 같은 Linux Kernel이 Bridge, Routing 또는 eBPF 같은 준비된 Datapath를 따라 Packet을 처리한다.</p>
+
+</section>
+<section id="section-de4b53a8a052" class="markdown-section">
+<h2>다른 Node의 Pod라면 Host 경로가 Node 사이 Network로 이어진다</h2>
+<p>목적지 Pod가 다른 Node에 있다면 출발 과정은 같다. Pod A의 Packet은 먼저 Node A의 Host 쪽 veth에서 수신된다. 이후 CNI가 준비한 직접 Route나 Overlay Tunnel을 통해 Node B로 이동한다.</p>
+<pre><code class="language-text">Pod A eth0에서 TX
+  → Node A의 Host veth에서 RX
+  → Node A의 Route 또는 Tunnel
+  → Node 사이 Network
+  → Node B의 Route 또는 Tunnel
+  → Node B의 대상 Host veth에서 TX
+  → 목적지 Pod eth0에서 RX
+</code></pre>
+<p>veth pair의 두 끝점은 하나의 Linux Kernel 안에 존재한다. 따라서 Node A와 Node B를 하나의 veth pair로 직접 잇는 것이 아니라, 각 Node의 Host Network 사이를 실제 Network나 Tunnel이 연결한다.</p>
+
+</section>
+<section id="section-872dd5393537" class="markdown-section">
+<h2>두 Pod를 하나의 veth pair로 직접 연결하는 것은 가능하지만 일반 구조로 쓰기 어렵다</h2>
+<p>Linux에서는 veth pair의 양쪽 끝점을 서로 다른 두 Network Namespace에 넣을 수 있다. 따라서 Pod A와 Pod B를 하나의 pair로 직접 연결하는 것 자체가 기술적으로 불가능한 것은 아니다.</p>
+<p>문제는 이 구조가 Kubernetes의 동적인 Pod 집합에 맞지 않는다는 점이다.</p>
+<ul>
+<li>Pod가 여러 상대와 통신하려면 상대마다 Interface와 pair가 필요해진다.</li>
+<li>Pod가 생성·삭제·교체될 때 직접 연결 관계를 계속 다시 구성해야 한다.</li>
+<li>다른 Node의 Pod와는 하나의 veth pair로 직접 연결할 수 없다.</li>
+<li>공통 Routing, Network Policy와 관찰 지점을 적용하기 어려워진다.</li>
+<li>Service가 선택한 여러 Endpoint로 유연하게 전달하기 어렵다.</li>
+</ul>
+<p>Pod별 veth를 Host의 공통 Datapath에 연결하면 Pod는 상대 Pod마다 직접 Link를 만들 필요가 없다. 자신의 기본 Network 출구 하나만 사용하고, 목적지까지의 경로는 CNI가 준비한 Host와 Node 사이 Network가 맡는다.</p>
+
+</section>
+<section id="section-aaa41a4a4eb7" class="markdown-section">
+<h2>Service는 Host 경유를 만드는 것이 아니라 목적지 선택을 추가한다</h2>
+<p>Pod IP로 직접 요청해도 일반적인 veth 구성에서는 Packet이 출발 Pod의 Host 쪽 끝점으로 나온다. Service를 사용한다고 해서 이 Host 경로가 새로 생기는 것은 아니다.</p>
+<p>차이는 Host Network에서 실제 목적지를 정하는 과정에 있다.</p>
+<pre><code class="language-text">Pod IP로 직접 요청
+  → Host에서 해당 Pod IP로 Route 판단
+
+Service ClusterIP로 요청
+  → Host의 Service 규칙과 일치
+  → Endpoint 하나를 선택하고 실제 Pod IP로 DNAT
+  → 변경된 Pod IP로 Route 판단
+</code></pre>
+<p>kube-proxy의 iptables 구성을 기준으로 Pod에서 들어온 ClusterIP Packet은 Host Network Namespace의 <code>PREROUTING</code> 경로에서 Service 규칙을 만날 수 있다. 목적지가 실제 Pod IP로 바뀐 뒤에는 일반적인 Pod Network 경로를 따라 같은 Node 또는 다른 Node의 대상 Pod로 전달된다.</p>
+
+</section>
+<section id="section-5d7502c0d58a" class="markdown-section">
+<h2>구조를 한 문장으로 정리한다</h2>
+<p>일반적인 veth 기반 Kubernetes Network에서는 각 Pod가 자신의 Node와 veth pair로 연결되고, Host의 공통 Datapath가 같은 Node와 다른 Node의 목적지까지 이어 준다. Service는 이 경로 자체를 만드는 것이 아니라, 안정적인 ClusterIP를 실제 Endpoint Pod IP로 연결하는 목적지 선택 단계를 추가한다.</p>
+<p>Host 쪽 veth에서 수신한 ClusterIP Packet에 Service DNAT를 적용하고 실제 대상 Pod까지 전달하는 세부 과정은 <a href="linux-eth0-veth-peer-packet-transmission.html">eth0으로 내보낸 Packet은 실제로 어디에 전달될까?</a>에서 이어서 볼 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="linux-eth0-veth-peer-packet-transmission.html">eth0으로 내보낸 Packet은 실제로 어디에 전달될까?</a><ul><li><a href="linux-interface-peer-and-link-state.html">ip link로 Network Interface의 상태와 연결 구조를 어떻게 읽을까?</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
