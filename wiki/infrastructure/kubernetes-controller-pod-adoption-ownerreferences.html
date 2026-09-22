@@ -1,0 +1,321 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.md. Do not edit directly. source-sha256:9096e8cdc7c3a8ca759d9ff317098ff181dcb1e73bf6a07d1809a566138e8f91 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ReplicaSet이 Selector와 ownerReferences를 기준으로 독립 Pod를 입양하는 과정과 Deployment가 만든 ReplicaSet의 pod-template-hash, 연쇄 삭제와 안전한 Label 설계를 설명한다.">
+  <meta name="source-sha256" content="9096e8cdc7c3a8ca759d9ff317098ff181dcb1e73bf6a07d1809a566138e8f91">
+  <title>같은 Label의 Pod는 언제 Controller에게 입양될까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="같은 Label의 Pod는 언제 Controller에게 입양될까?">
+  <meta property="og:description" content="ReplicaSet이 Selector와 ownerReferences를 기준으로 독립 Pod를 입양하는 과정과 Deployment가 만든 ReplicaSet의 pod-template-hash, 연쇄 삭제와 안전한 Label 설계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html","name":"같은 Label의 Pod는 언제 Controller에게 입양될까?","description":"ReplicaSet이 Selector와 ownerReferences를 기준으로 독립 Pod를 입양하는 과정과 Deployment가 만든 ReplicaSet의 pod-template-hash, 연쇄 삭제와 안전한 Label 설계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html"},"headline":"같은 Label의 Pod는 언제 Controller에게 입양될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-controller-pod-adoption-ownerreferences.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"같은 Label의 Pod는 언제 Controller에게 입양될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">같은 Label의 Pod는 언제 Controller에게 입양될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>같은 Label의 Pod는 언제 Controller에게 입양될까?</h1>
+      <p class="lead">ReplicaSet이 Selector와 ownerReferences를 기준으로 독립 Pod를 입양하는 과정과 Deployment가 만든 ReplicaSet의 pod-template-hash, 연쇄 삭제와 안전한 Label 설계를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#replicaset-pod">ReplicaSet은 원하는 Pod 수를 유지한다</a>
+        <a href="#label-ownerreferences">삭제 여부는 Label이 아니라 ownerReferences가 결정한다</a>
+        <a href="#deployment-pod">Deployment는 Pod를 직접 관리하지 않는다</a>
+        <a href="#app-pod"><code>app</code>만 같은 수동 Pod가 일반적으로 입양되지 않는 이유</a>
+        <a href="#section-b375d5d30a9e">입양될 수 있는 경우</a>
+        <a href="#controller-pod">다른 Controller가 소유한 Pod를 마음대로 빼앗지는 않는다</a>
+        <a href="#label-label">관리용 Label과 공유용 Label은 분리한다</a>
+        <a href="#section-7f15b70e16ca">실제 소유 관계 확인하기</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes Controller는 자신이 직접 생성한 객체만 관리하지 않는다. 자신의 Selector와 일치하면서 다른 Controller가 소유하지 않은 객체를 발견하면 관리 대상으로 가져올 수 있다. 이를 Controller의 입양(adoption)이라고 한다.</p>
+<p>이 동작을 이해하려면 Label과 실제 소유 관계를 구분해야 한다.</p>
+<pre><code class="language-text">Label·Selector
+→ 관리 대상으로 삼을 수 있는 객체를 찾는 조건
+
+ownerReferences
+→ 현재 실제로 어떤 객체가 소유하고 있는지 나타내는 관계
+</code></pre>
+</div>
+        <section id="replicaset-pod" class="markdown-section">
+<h2>ReplicaSet은 원하는 Pod 수를 유지한다</h2>
+<p>ReplicaSet의 목적은 자신의 Selector와 일치하는 Pod를 지정된 개수만큼 유지하는 것이다.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: example-rs
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: example
+</code></pre>
+<p>이 ReplicaSet은 같은 Namespace에서 <code>app=example</code>인 Pod들을 찾는다.</p>
+<pre><code class="language-text">ReplicaSet이 원하는 상태
+app=example인 Pod 2개
+
+현재 상태
+app=example인 Pod 1개
+
+결과
+Pod 1개 추가 생성
+</code></pre>
+<p>그런데 이미 수동으로 만든 Pod가 조건을 만족할 수도 있다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: manually-created-pod
+  labels:
+    app: example
+</code></pre>
+<p>이 Pod가 다른 Controller의 소유가 아니라면 ReplicaSet은 새 Pod를 만드는 대신 기존 Pod를 자신의 관리 대상으로 입양할 수 있다.</p>
+<pre><code class="language-text">수동 Pod 발견
+→ ReplicaSet Selector와 Label 비교
+→ app=example 일치
+→ 다른 Controller의 소유가 아님
+→ ReplicaSet이 Pod를 입양
+→ Pod의 ownerReferences에 ReplicaSet 기록
+</code></pre>
+<p>입양된 이후에는 수동으로 만들었는지가 중요하지 않다. 해당 Pod는 ReplicaSet이 관리하는 Replica 중 하나가 된다.</p>
+
+</section>
+<section id="label-ownerreferences" class="markdown-section">
+<h2>삭제 여부는 Label이 아니라 ownerReferences가 결정한다</h2>
+<p>ReplicaSet이 Pod를 입양하면 Pod에 소유 관계가 기록된다.</p>
+<pre><code class="language-yaml">metadata:
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: example-rs
+      controller: true
+</code></pre>
+<p>이 상태에서 ReplicaSet을 기본 방식으로 삭제하면 소유 관계를 따라 Pod도 함께 삭제될 수 있다.</p>
+<pre><code class="language-text">ReplicaSet 삭제
+→ ReplicaSet이 소유한 Pod 확인
+→ 종속 객체인 Pod도 삭제
+</code></pre>
+<p>따라서 다음 표현은 정확하지 않다.</p>
+<blockquote>
+<p><code>app</code> Label이 같아서 ReplicaSet을 삭제할 때 Pod도 삭제됐다.</p>
+</blockquote>
+<p>더 정확한 설명은 다음과 같다.</p>
+<blockquote>
+<p><code>app</code> Label이 Selector와 일치해 ReplicaSet에 입양됐고, 이후 설정된 ownerReferences를 따라 함께 삭제됐다.</p>
+</blockquote>
+<p>Label은 입양 후보를 찾는 조건이고, 실제 연쇄 삭제는 소유 관계가 만든다.</p>
+
+</section>
+<section id="deployment-pod" class="markdown-section">
+<h2>Deployment는 Pod를 직접 관리하지 않는다</h2>
+<p>Deployment의 소유 관계는 한 단계 더 있다.</p>
+<pre><code class="language-text">Deployment
+  └─ ReplicaSet
+       └─ Pod
+</code></pre>
+<p>Deployment는 ReplicaSet을 만들고 관리한다. 실제 Pod 생성과 입양은 ReplicaSet이 담당한다.</p>
+<p>Deployment를 다음처럼 선언했다고 하자.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: example
+  template:
+    metadata:
+      labels:
+        app: example
+</code></pre>
+<p>Deployment가 ReplicaSet을 만들 때 ReplicaSet의 Selector와 Pod Template에 <code>pod-template-hash</code>를 추가한다.</p>
+<pre><code class="language-text">Deployment의 spec.selector
+app=example
+
+생성된 ReplicaSet의 selector
+app=example
+pod-template-hash=7d9f8c
+
+생성된 Pod의 Label
+app=example
+pod-template-hash=7d9f8c
+</code></pre>
+<p><code>pod-template-hash</code>는 Rolling Update 과정에서 서로 다른 Pod Template을 사용하는 ReplicaSet들을 구분하기 위한 Label이다. 입양 방지용 보안 기능은 아니지만, 결과적으로 <code>app</code> Label만 같은 수동 Pod가 우연히 ReplicaSet에 입양되는 것을 줄여 준다.</p>
+
+</section>
+<section id="app-pod" class="markdown-section">
+<h2><code>app</code>만 같은 수동 Pod가 일반적으로 입양되지 않는 이유</h2>
+<p>수동 Pod에 다음 Label만 있다고 하자.</p>
+<pre><code class="language-yaml">labels:
+  app: example
+</code></pre>
+<p>Deployment가 만든 ReplicaSet의 전체 Selector와 비교하면:</p>
+<pre><code class="language-text">app=example                → 일치
+pod-template-hash=7d9f8c  → 수동 Pod에 없음
+</code></pre>
+<p>모든 조건이 일치하지 않으므로 ReplicaSet의 관리 대상이 아니다.</p>
+<pre><code class="language-text">수동 Pod
+app=example
+
+Deployment가 만든 ReplicaSet
+app=example AND pod-template-hash=7d9f8c
+
+결과
+Selector 불일치 → 입양하지 않음
+</code></pre>
+<p>여기서 Deployment의 <code>spec.selector</code> 자체에 Hash가 추가되는 것은 아니다. Deployment가 생성한 ReplicaSet의 Selector와 Pod Template에 Hash가 추가된다.</p>
+
+</section>
+<section id="section-b375d5d30a9e" class="markdown-section">
+<h2>입양될 수 있는 경우</h2>
+<h3>ReplicaSet을 직접 만들고 Selector가 넓은 경우</h3>
+<p>직접 만든 ReplicaSet이 <code>app</code> 하나만 검사한다면 같은 Label을 가진 독립 Pod가 입양될 수 있다.</p>
+<pre><code class="language-yaml">selector:
+  matchLabels:
+    app: example
+</code></pre>
+<pre><code class="language-text">ReplicaSet Selector: app=example
+수동 Pod Label:      app=example
+다른 Controller:     없음
+
+→ 입양 가능
+</code></pre>
+<h3>수동 Pod가 전체 Selector와 일치하는 경우</h3>
+<p>수동 Pod에 ReplicaSet이 요구하는 Hash까지 넣었다면 Deployment가 만든 ReplicaSet에도 입양될 수 있다.</p>
+<pre><code class="language-yaml">labels:
+  app: example
+  pod-template-hash: 7d9f8c
+</code></pre>
+<p>Pod가 다른 Controller 소유가 아니고 전체 Selector가 일치하면 입양 후보가 된다.</p>
+<h3>기존 소유 관계가 사라져 Pod가 고아가 된 경우</h3>
+<p>원래 Controller가 삭제되거나 소유 관계가 제거돼 Pod가 고아 객체가 되면, Selector가 일치하는 다른 ReplicaSet이 입양할 수 있다.</p>
+<pre><code class="language-text">기존 ReplicaSet의 소유 관계에서 분리
+→ Pod는 계속 존재
+→ 다른 ReplicaSet의 Selector와 일치
+→ 새 ReplicaSet이 입양 가능
+</code></pre>
+<h3>Deployment가 고아 ReplicaSet을 입양하는 경우</h3>
+<p>Deployment도 Pod를 직접 입양하지는 않지만, 자신의 Selector와 일치하는 고아 ReplicaSet을 입양할 수 있다.</p>
+<pre><code class="language-text">Deployment
+→ 일치하는 고아 ReplicaSet 입양
+→ 해당 ReplicaSet이 소유한 Pod까지 간접적으로 관리
+</code></pre>
+<p>따라서 Deployment를 삭제했을 때 예상하지 못한 ReplicaSet과 Pod가 함께 영향을 받았다면 Pod뿐 아니라 ReplicaSet의 <code>ownerReferences</code>도 확인해야 한다.</p>
+
+</section>
+<section id="controller-pod" class="markdown-section">
+<h2>다른 Controller가 소유한 Pod를 마음대로 빼앗지는 않는다</h2>
+<p>Selector가 일치하더라도 Pod에 이미 다른 Controller를 가리키는 <code>ownerReferences</code>가 있다면 일반적으로 ReplicaSet이 그 Pod를 빼앗아 가지 않는다.</p>
+<pre><code class="language-text">Selector 일치
++ 다른 Controller가 이미 소유
+→ 입양하지 않음
+</code></pre>
+<p>하나의 객체를 여러 Controller가 동시에 주 소유자로 관리하면 원하는 Replica 수와 삭제 동작이 충돌하기 때문이다.</p>
+
+</section>
+<section id="label-label" class="markdown-section">
+<h2>관리용 Label과 공유용 Label은 분리한다</h2>
+<p>안전한 구성에서는 Controller가 사용하는 고유 Label과 Service나 Topology Spread가 사용하는 공유 Label을 분리한다.</p>
+<pre><code class="language-yaml">labels:
+  app.kubernetes.io/name: model-api
+  app.kubernetes.io/instance: model-api-stable
+</code></pre>
+<p>Deployment는 고유 인스턴스 Label을 Selector로 사용한다.</p>
+<pre><code class="language-yaml">selector:
+  matchLabels:
+    app.kubernetes.io/instance: model-api-stable
+</code></pre>
+<p>Service는 여러 Deployment가 공유하는 Label을 선택할 수 있다.</p>
+<pre><code class="language-yaml">selector:
+  app.kubernetes.io/name: model-api
+</code></pre>
+<p>그러면 책임이 분리된다.</p>
+<pre><code class="language-text">Deployment Selector
+→ 자기 Replica만 소유하고 관리
+
+Service Selector
+→ 공통 서비스에 참여할 Pod를 선택
+
+Topology Spread Selector
+→ 함께 분산할 Pod 그룹을 선택
+</code></pre>
+<p><code>app</code>이라는 Label key 자체에는 특별한 기능이 없다. 중요한 것은 어느 Controller가 어떤 Selector를 소유권 경계로 사용하고 있는가다.</p>
+
+</section>
+<section id="section-7f15b70e16ca" class="markdown-section">
+<h2>실제 소유 관계 확인하기</h2>
+<p>Pod가 누구에게 관리되는지는 다음 명령으로 확인한다.</p>
+<pre><code class="language-bash">kubectl describe pod &lt;pod-name&gt;
+</code></pre>
+<pre><code class="language-text">Controlled By: ReplicaSet/example-rs
+</code></pre>
+<p>원본 데이터를 직접 확인할 수도 있다.</p>
+<pre><code class="language-bash">kubectl get pod &lt;pod-name&gt; \
+  -o jsonpath=&#39;{.metadata.ownerReferences}&#39;
+</code></pre>
+<p>ReplicaSet의 상위 소유자는 다음처럼 확인한다.</p>
+<pre><code class="language-bash">kubectl describe replicaset &lt;replicaset-name&gt;
+</code></pre>
+<pre><code class="language-text">Controlled By: Deployment/example
+</code></pre>
+<p>결국 예상하지 못한 연쇄 삭제를 분석할 때는 Label만 보면 안 된다.</p>
+<pre><code class="language-text">Selector가 왜 일치했는가
+→ 실제 입양이 일어났는가
+→ ownerReferences가 누구를 가리키는가
+→ 삭제 전파가 어느 소유 관계를 따라갔는가
+</code></pre>
+<p>이 네 단계를 확인해야 수동 Pod가 왜 Controller의 관리 대상이 됐고, 왜 Controller와 함께 삭제됐는지 정확히 설명할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

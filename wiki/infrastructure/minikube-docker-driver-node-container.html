@@ -1,0 +1,239 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/minikube-docker-driver-node-container.md. Do not edit directly. source-sha256:d95070dff8231d8dee1be5e963d98d89b70f03529866826ab6aab4b3c82263ee -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Docker Driver가 Minikube Node를 Container로 구현하는 구조와 Kubernetes가 이를 독립 Node로 인식하는 기준을 설명합니다.">
+  <meta name="source-sha256" content="d95070dff8231d8dee1be5e963d98d89b70f03529866826ab6aab4b3c82263ee">
+  <title>Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?">
+  <meta property="og:description" content="Docker Driver가 Minikube Node를 Container로 구현하는 구조와 Kubernetes가 이를 독립 Node로 인식하는 기준을 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html","name":"Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?","description":"Docker Driver가 Minikube Node를 Container로 구현하는 구조와 Kubernetes가 이를 독립 Node로 인식하는 기준을 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html"},"headline":"Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/minikube-docker-driver-node-container.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-registration.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html"},{"@type":"ListItem","position":7,"name":"Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/fake-gpu-operator-node-resource-registration.html"},{"@type":"ListItem","position":8,"name":"Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-resource-registration.html">실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-resource-boundary.html">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/fake-gpu-operator-node-resource-registration.html">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?</h1>
+      <p class="lead">Docker Driver가 Minikube Node를 Container로 구현하는 구조와 Kubernetes가 이를 독립 Node로 인식하는 기준을 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#minikube-prepares-kubernetes-machines">Minikube는 로컬에서 Kubernetes가 사용할 머신을 준비한다</a>
+        <a href="#node-container-and-application-container">Node Container는 애플리케이션 Container와 역할이 다르다</a>
+        <a href="#apple-silicon-container-layers">Apple Silicon Mac에서는 여러 격리 계층이 겹쳐진다</a>
+        <a href="#how-kubernetes-recognizes-separate-nodes">Kubernetes는 무엇을 보고 별개의 Node로 인식할까?</a>
+        <a href="#learning-boundary-of-container-nodes">이 환경에서 배울 수 있는 것과 없는 것을 구분한다</a>
+        <a href="#inspect-minikube-node-containers">Node Container를 직접 확인한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Minikube로 멀티노드 Kubernetes Cluster를 만들고 <code>kubectl get nodes</code>를 실행하면 Control Plane과 Worker가 각각 하나의 Node로 나타난다. 그런데 같은 이름을 <code>docker ps</code>에서도 볼 수 있다. Docker Driver를 사용하면 Minikube가 Node 하나를 Docker Container 하나로 구현하기 때문이다.</p>
+<p>여기서 생기는 첫 번째 질문은 이것이다.</p>
+<blockquote>
+<p>Kubernetes의 Node는 서버라고 배웠는데, 어떻게 Container가 Node가 될 수 있을까?</p>
+</blockquote>
+<p>핵심은 Kubernetes가 Node를 물리 장비의 모양으로 판단하지 않는다는 데 있다. kubelet이 고유한 Node 이름과 IP, 자원 상태를 API Server에 보고하고 그 Node에서 Pod를 실행할 수 있다면, 그 실행 환경은 Kubernetes에게 하나의 Node가 될 수 있다. 운영 환경에서는 이 실행 환경이 주로 물리 서버나 가상 머신이지만, 로컬 학습 환경에서는 Minikube가 Container로 작은 서버 환경을 만들어 대신한다.</p>
+</div>
+        <section id="minikube-prepares-kubernetes-machines" class="markdown-section">
+<h2>Minikube는 로컬에서 Kubernetes가 사용할 머신을 준비한다</h2>
+<p>Kubernetes Cluster에는 Control Plane과 Worker Node가 필요하다. 실제 운영 환경에서는 먼저 서버나 가상 머신을 준비하고 그 위에 Kubernetes 구성요소를 설치한다. 개인 Mac에서 같은 방식을 사용하면 여러 가상 머신을 실행해야 하므로 시작 시간과 자원 사용량이 커진다.</p>
+<p>Minikube는 이 기반 환경을 Driver를 통해 준비한다. 어떤 Driver를 선택하는지에 따라 Node를 담는 실행 단위가 달라진다.</p>
+<pre><code class="language-text">VM Driver 사용
+  → Node 하나를 VM 하나로 구현
+
+Docker Driver 사용
+  → Node 하나를 Docker Container 하나로 구현
+</code></pre>
+<p>이번 실습에서는 <code>--driver=docker --nodes=3</code>을 사용했다. 따라서 Minikube는 Control Plane을 담당할 Node Container 하나와 Worker 역할을 할 Node Container 두 개를 만들었다.</p>
+<pre><code class="language-text">gpu-lab       → Control Plane Node Container
+gpu-lab-m02   → Worker Node Container
+gpu-lab-m03   → Worker Node Container
+</code></pre>
+<p>이때 <code>gpu-lab</code>이라는 첫 Node도 Control Plane 역할만 하는 추상적인 관리 객체가 아니다. kubelet과 Container Runtime을 가진 실제 Kubernetes Node이며, 그 위에서 API Server·Scheduler·Controller Manager 같은 Control Plane 구성요소가 실행된다.</p>
+
+</section>
+<section id="node-container-and-application-container" class="markdown-section">
+<h2>Node Container는 애플리케이션 Container와 역할이 다르다</h2>
+<p>Node Container와 Pod 안에서 실행되는 애플리케이션 Container는 모두 Container 기술을 사용하지만, Cluster에서 맡는 역할과 계층이 다르다.</p>
+<pre><code class="language-text">Node Container
+  → 작은 Linux 서버처럼 동작
+  → kubelet과 Container Runtime 실행
+  → Pod를 받아 실행할 환경 제공
+
+Pod의 애플리케이션 Container
+  → Node의 Container Runtime이 실행
+  → 실제 Application Process 실행
+</code></pre>
+<p>Node Container는 Kubernetes가 Pod를 배치할 대상이다. 애플리케이션 Container는 그 Node 안에서 Pod의 일부로 실행되는 Workload다. 따라서 <code>docker ps</code>에서 보이는 <code>gpu-lab-m02</code>를 일반적인 nginx Container와 같은 수준의 Workload로 이해하면 계층이 뒤섞인다. <code>gpu-lab-m02</code>는 nginx 같은 Workload를 실행할 Node 환경 자체를 Container로 구현한 것이다.</p>
+
+</section>
+<section id="apple-silicon-container-layers" class="markdown-section">
+<h2>Apple Silicon Mac에서는 여러 격리 계층이 겹쳐진다</h2>
+<p>macOS Kernel은 Linux Container를 직접 실행하지 않는다. Docker Desktop은 내부에 Linux 실행 환경을 마련하고, Docker Driver의 Minikube Node Container는 그 위에서 실행된다.</p>
+<pre><code class="language-text">Apple Silicon Mac
+└─ macOS
+   └─ Docker Desktop의 Linux 실행 환경
+      ├─ gpu-lab Node Container
+      │  ├─ kubelet
+      │  ├─ Container Runtime
+      │  └─ Control Plane 구성요소와 배치된 Pod
+      ├─ gpu-lab-m02 Node Container
+      │  ├─ kubelet
+      │  ├─ Container Runtime
+      │  └─ 배치된 Pod
+      └─ gpu-lab-m03 Node Container
+         ├─ kubelet
+         ├─ Container Runtime
+         └─ 배치된 Pod
+</code></pre>
+<p>세 Node는 서로 다른 이름과 내부 IP, Process·Filesystem·Network 격리 공간을 가진다. 그래서 kubelet은 각각을 별개의 Node로 등록할 수 있고 Scheduler도 서로 다른 배치 대상으로 취급한다.</p>
+<p>하지만 이들은 세 대의 물리 서버가 아니다. 모두 한 대의 Mac과 Docker Desktop의 Linux 실행 환경에 의존한다. 실제 서버처럼 완전히 독립된 Kernel과 Hardware를 하나씩 보유하는 구조는 아니다.</p>
+
+</section>
+<section id="how-kubernetes-recognizes-separate-nodes" class="markdown-section">
+<h2>Kubernetes는 무엇을 보고 별개의 Node로 인식할까?</h2>
+<p>Kubernetes는 Container의 외형을 보고 Node인지 판단하지 않는다. 각 환경에서 동작하는 kubelet이 API Server에 자신을 Node로 등록하고 상태를 지속적으로 보고하기 때문에 별개의 Node가 된다.</p>
+<pre><code class="language-text">gpu-lab의 kubelet
+  → 이름 gpu-lab, IP 192.168.58.2, 자원 상태 보고
+
+gpu-lab-m02의 kubelet
+  → 이름 gpu-lab-m02, IP 192.168.58.3, 자원 상태 보고
+
+gpu-lab-m03의 kubelet
+  → 이름 gpu-lab-m03, IP 192.168.58.4, 자원 상태 보고
+</code></pre>
+<p>API Server에 세 Node Object가 만들어지면 Scheduler는 각 Node의 Capacity·Allocatable, Label, Taint와 현재 Pod 요청량을 비교해 배치할 Node를 고를 수 있다. Node의 밑바탕이 물리 서버인지, VM인지, 학습용 Container인지는 이 배치 모델의 핵심 조건이 아니다.</p>
+<p>이번 실습에서 확인한 Node 상태는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>상태</th>
+<th>역할</th>
+<th>내부 IP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab</code></td>
+<td>Ready</td>
+<td>Control Plane</td>
+<td><code>192.168.58.2</code></td>
+</tr>
+<tr>
+<td><code>gpu-lab-m02</code></td>
+<td>Ready</td>
+<td>Worker</td>
+<td><code>192.168.58.3</code></td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td>Ready</td>
+<td>Worker</td>
+<td><code>192.168.58.4</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>Worker의 <code>ROLES</code>가 <code>&lt;none&gt;</code>으로 표시되는 것은 실행할 역할이 없다는 뜻이 아니다. 특별한 역할 Label이 붙지 않았다는 뜻이며 일반 Worker로 Pod를 실행할 수 있다.</p>
+
+</section>
+<section id="learning-boundary-of-container-nodes" class="markdown-section">
+<h2>이 환경에서 배울 수 있는 것과 없는 것을 구분한다</h2>
+<p>Container로 만든 멀티노드 Cluster에서도 Kubernetes의 제어 흐름은 관찰할 수 있다.</p>
+<ul>
+<li>kubelet이 Node 상태와 자원을 보고하는 과정</li>
+<li>Scheduler가 여러 Node 중 배치 대상을 고르는 과정</li>
+<li>Pod가 특정 Node에서 실행되거나 자원 부족으로 Pending이 되는 과정</li>
+<li>Node별 Label·Taint와 확장 자원을 이용한 배치</li>
+<li>CNI가 구성한 Pod Network와 Service 전달</li>
+<li>Node마다 Device Plugin이 게시한 Fake GPU 자원</li>
+</ul>
+<p>반면 물리적인 차이에서 비롯되는 현상은 이 환경으로 검증할 수 없다.</p>
+<ul>
+<li>서로 다른 서버 사이의 실제 Network 지연과 대역폭</li>
+<li>Node별 독립 Kernel 장애</li>
+<li>물리 GPU와 Driver의 동작</li>
+<li>GPU Interconnect와 실제 GPU 연산 성능</li>
+<li>서버 한 대의 전원·NIC·PCIe 장애가 다른 서버와 격리되는 특성</li>
+</ul>
+<p>따라서 이 실습의 결론은 “물리 서버 세 대를 재현했다”가 아니다. <strong>한 대의 Mac에서 Kubernetes가 여러 Node를 관리하고 그 사이에 Pod와 자원을 배치하는 제어 모델을 재현했다</strong>고 이해해야 한다.</p>
+
+</section>
+<section id="inspect-minikube-node-containers" class="markdown-section">
+<h2>Node Container를 직접 확인한다</h2>
+<p>Kubernetes 관점에서는 <code>kubectl get nodes -o wide</code>로 Node 이름·역할·IP·상태를 확인한다.</p>
+<pre><code class="language-bash">kubectl get nodes -o wide
+</code></pre>
+<p>Docker Host 관점에서는 같은 이름을 가진 Node Container를 확인한다.</p>
+<pre><code class="language-bash">docker ps \
+  --filter &quot;name=gpu-lab&quot; \
+  --format &quot;table {{.Names}}\t{{.Image}}\t{{.Status}}&quot;
+</code></pre>
+<p>이번 실습에서는 다음 결과를 확인했다.</p>
+<pre><code class="language-text">NAMES         IMAGE                                 STATUS
+gpu-lab-m03   gcr.io/k8s-minikube/kicbase:v0.0.48   Up
+gpu-lab-m02   gcr.io/k8s-minikube/kicbase:v0.0.48   Up
+gpu-lab       gcr.io/k8s-minikube/kicbase:v0.0.48   Up
+</code></pre>
+<p><code>kubectl get nodes -o wide</code>에서 확인한 <code>gpu-lab</code>, <code>gpu-lab-m02</code>, <code>gpu-lab-m03</code>과 Docker Container 이름이 정확히 일치했다. 세 Container는 모두 같은 <code>kicbase:v0.0.48</code> Image를 사용했고 실행 상태도 <code>Up</code>이었다. 이 결과로 Docker Driver가 같은 Mac의 Docker Host 위에 Node마다 하나의 Container 실행 환경을 만들었다는 것을 확인할 수 있다.</p>
+<p>두 결과를 함께 보면 같은 대상을 서로 다른 관점에서 읽을 수 있다.</p>
+<pre><code class="language-text">kubectl 관점
+  gpu-lab-m02 = Pod를 배치할 Kubernetes Worker Node
+
+Docker 관점
+  gpu-lab-m02 = Minikube가 작은 Linux Node 환경으로 만든 Container
+</code></pre>
+<p>이 관계를 이해하면 다음 Fake GPU 실험도 명확해진다. Fake GPU는 Mac 전체에 하나의 자원으로 등록되는 것이 아니라, 각 Node Container 안에서 동작하는 kubelet과 Device Plugin의 관계를 통해 해당 Kubernetes Node의 확장 자원으로 게시된다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

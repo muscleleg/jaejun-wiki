@@ -1,0 +1,336 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-pod-network-namespace.md. Do not edit directly. source-sha256:92bd1d608882795a030463def1000c14648ac5e910e4fa8058d2e9f099b9d75a -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod의 Network Namespace를 컨테이너 프로세스들이 어떻게 공유하고 네트워크 경계를 형성하는지 설명한다.">
+  <meta name="source-sha256" content="92bd1d608882795a030463def1000c14648ac5e910e4fa8058d2e9f099b9d75a">
+  <title>Kubernetes Pod와 Network Namespace의 관계</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes Pod와 Network Namespace의 관계">
+  <meta property="og:description" content="Pod의 Network Namespace를 컨테이너 프로세스들이 어떻게 공유하고 네트워크 경계를 형성하는지 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html","name":"Kubernetes Pod와 Network Namespace의 관계","description":"Pod의 Network Namespace를 컨테이너 프로세스들이 어떻게 공유하고 네트워크 경계를 형성하는지 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html"},"headline":"Kubernetes Pod와 Network Namespace의 관계","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes Pod의 Linux 실행 구조","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html"},{"@type":"ListItem","position":5,"name":"Kubernetes Pod Sandbox의 역할","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pause-container-pod-sandbox.html"},{"@type":"ListItem","position":6,"name":"Kubernetes Pod와 Network Namespace의 관계"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html">Kubernetes Pod의 Linux 실행 구조</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pause-container-pod-sandbox.html">Kubernetes Pod Sandbox의 역할</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes Pod와 Network Namespace의 관계</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes Pod와 Network Namespace의 관계</h1>
+      <p class="lead">Pod의 Network Namespace를 컨테이너 프로세스들이 어떻게 공유하고 네트워크 경계를 형성하는지 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#network-namespace">프로세스마다 Network Namespace를 만드는 것은 아니다</a>
+        <a href="#linux">Linux 커널 관점</a>
+        <a href="#pod-network-namespace">Pod Network Namespace에 포함되는 것</a>
+        <a href="#pod-localhost">같은 Pod에서 <code>localhost</code> 통신이 가능한 이유</a>
+        <a href="#pod">같은 Pod에서 포트가 충돌하는 이유</a>
+        <a href="#section-42691f53a004">컨테이너에는 여러 프로세스가 있을 수 있다</a>
+        <a href="#pod-sandbox-pause">Pod Sandbox와 pause 컨테이너</a>
+        <a href="#namespace">다른 Namespace도 모두 공유할까?</a>
+        <a href="#hostnetwork"><code>hostNetwork</code>를 사용하는 예외</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="kubernetes-pause-container-pod-sandbox.html">상위 문서: Kubernetes Pod Sandbox의 역할</a></p>
+<p>Kubernetes에서는 흔히 “Pod가 Network Namespace를 가진다”고 표현한다. 이 설명은 Kubernetes 관점에서는 맞지만, Linux 커널 관점에서는 조금 더 정확하게 이해할 필요가 있다.</p>
+<p>Linux 커널은 Kubernetes의 Pod나 컨테이너라는 개념을 직접 알지 못한다. 커널이 관리하는 것은 <strong>프로세스와 Namespace</strong>다.</p>
+<p>따라서 실제 동작은 다음과 같다.</p>
+<blockquote>
+<p>Kubernetes의 컨테이너 런타임이 Pod에서 사용할 Network Namespace를 하나 준비하고, Pod에 포함된 컨테이너 프로세스들을 그 Namespace 안에서 실행한다.</p>
+</blockquote>
+</div>
+        <section id="network-namespace" class="markdown-section">
+<h2>프로세스마다 Network Namespace를 만드는 것은 아니다</h2>
+<p>Pod 안에 여러 컨테이너가 있다고 가정해보자.</p>
+<pre><code class="language-yaml">spec:
+  containers:
+    - name: app
+      image: example-app
+
+    - name: sidecar
+      image: example-sidecar
+</code></pre>
+<p>Kubernetes는 일반적으로 컨테이너마다 독립적인 Network Namespace를 만들지 않는다.</p>
+<pre><code class="language-text">잘못 이해한 구조
+
+Pod
+├─ app 컨테이너
+│  └─ 별도의 Network Namespace
+│
+└─ sidecar 컨테이너
+   └─ 별도의 Network Namespace
+</code></pre>
+<p>대신 Pod에서 사용할 Network Namespace를 하나 준비하고, 두 컨테이너의 프로세스를 같은 Namespace에 소속시킨다.</p>
+<pre><code class="language-text">실제 구조
+
+Pod
+│
+└─ Pod용 Network Namespace
+   ├─ app 컨테이너의 프로세스
+   └─ sidecar 컨테이너의 프로세스
+</code></pre>
+<p>이 구조는 “각 프로세스에 새로운 Namespace를 하나씩 생성한다”는 의미가 아니다. <strong>여러 프로세스가 동일한 Network Namespace를 참조하는 구조</strong>다.</p>
+
+</section>
+<section id="linux" class="markdown-section">
+<h2>Linux 커널 관점</h2>
+<p>Linux 커널에는 다음과 같은 관계가 존재한다.</p>
+<pre><code class="language-text">Network Namespace
+├─ 프로세스 A
+├─ 프로세스 B
+└─ 프로세스 C
+</code></pre>
+<p>프로세스마다 반드시 자신만의 Namespace가 필요한 것은 아니다. 여러 프로세스가 같은 Namespace에 속할 수 있다.</p>
+<p>Kubernetes는 이 기능을 이용해 다음과 같이 Pod의 네트워크 경계를 만든다.</p>
+<pre><code class="language-text">Pod A의 Network Namespace
+├─ app 프로세스
+└─ sidecar 프로세스
+
+Pod B의 Network Namespace
+├─ app 프로세스
+└─ sidecar 프로세스
+</code></pre>
+<p>Pod A와 Pod B는 Network Namespace가 다르기 때문에 서로 다른 네트워크 공간을 가진다. 반면 같은 Pod 안의 프로세스들은 동일한 Network Namespace에 속하므로 네트워크 공간을 공유한다.</p>
+
+</section>
+<section id="pod-network-namespace" class="markdown-section">
+<h2>Pod Network Namespace에 포함되는 것</h2>
+<p>Network Namespace에는 단순히 IP 주소만 들어 있는 것이 아니다. 하나의 독립된 네트워크 공간을 구성하는 여러 요소가 포함된다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ Network Interface
+│  └─ eth0
+├─ Pod IP
+├─ Routing Table
+├─ ARP·Neighbor Table
+├─ Netfilter 상태
+├─ TCP·UDP Socket
+└─ Port 공간
+</code></pre>
+<p>따라서 같은 Pod의 컨테이너 프로세스들은 다음을 공유한다.</p>
+<ul>
+<li>같은 Pod IP</li>
+<li>같은 <code>eth0</code></li>
+<li>같은 라우팅 테이블</li>
+<li>같은 <code>localhost</code></li>
+<li>같은 TCP·UDP 포트 공간</li>
+<li>같은 Network Namespace의 소켓 상태</li>
+</ul>
+<p>파일시스템이나 환경변수처럼 컨테이너마다 분리된 요소가 있더라도 네트워크 관점에서는 하나의 컴퓨터에서 실행되는 여러 프로세스와 비슷하게 동작한다.</p>
+<p>같은 Pod의 컨테이너들이 하나의 <code>eth0</code>과 veth pair를 통해 Host Network에 연결되는 구조는 하위 문서인 <a href="kubernetes-pod-shared-veth-interface.html">같은 Pod의 컨테이너는 어떻게 eth0과 veth를 공유할까?</a>에서 이어서 다룬다.</p>
+
+</section>
+<section id="pod-localhost" class="markdown-section">
+<h2>같은 Pod에서 <code>localhost</code> 통신이 가능한 이유</h2>
+<p>예를 들어 app 컨테이너의 프로세스가 다음 주소에서 요청을 받고 있다고 해보자.</p>
+<pre><code class="language-text">127.0.0.1:9090
+</code></pre>
+<p>sidecar 컨테이너의 프로세스도 같은 Network Namespace에 속하므로 다음과 같이 접근할 수 있다.</p>
+<pre><code class="language-text">http://localhost:9090
+</code></pre>
+<p>구조는 다음과 같다.</p>
+<pre><code class="language-text">Pod Network Namespace
+
+app 프로세스
+└─ 127.0.0.1:9090에서 listen
+
+sidecar 프로세스
+└─ localhost:9090으로 접근
+</code></pre>
+<p>두 프로세스는 컨테이너가 서로 다르지만 동일한 loopback 인터페이스를 사용한다.</p>
+<p>반대로 서로 다른 Pod는 Network Namespace가 다르기 때문에 <code>localhost</code>를 공유하지 않는다.</p>
+<pre><code class="language-text">Pod A의 localhost ≠ Pod B의 localhost
+</code></pre>
+<p>Pod A에서 <code>localhost</code>로 요청하면 언제나 Pod A의 Network Namespace 안에서 대상을 찾는다. Pod B에 접근하려면 Pod B의 IP 또는 Service를 사용해야 한다.</p>
+
+</section>
+<section id="pod" class="markdown-section">
+<h2>같은 Pod에서 포트가 충돌하는 이유</h2>
+<p>Pod 안의 컨테이너 프로세스들은 포트 공간도 공유한다.</p>
+<p>app 컨테이너의 프로세스가 다음 주소를 사용하고 있다고 하자.</p>
+<pre><code class="language-text">0.0.0.0:9090/TCP
+</code></pre>
+<p>이 상태에서 sidecar 컨테이너의 프로세스가 같은 주소에 바인딩하려 하면 일반적으로 실패한다.</p>
+<pre><code class="language-text">app 프로세스
+└─ 0.0.0.0:9090/TCP → 성공
+
+sidecar 프로세스
+└─ 0.0.0.0:9090/TCP → Address already in use
+</code></pre>
+<p>포트 충돌은 컨테이너 이름을 기준으로 판단하지 않는다. 일반적으로 다음 조합이 겹치는지를 기준으로 판단한다.</p>
+<pre><code class="language-text">Network Namespace
++ IP 주소
++ 프로토콜
++ 포트 번호
+</code></pre>
+<p>같은 Pod의 프로세스들은 Network Namespace가 같으므로 동일한 주소와 포트를 동시에 사용할 수 없다.</p>
+<p>반면 서로 다른 Pod는 Network Namespace와 Pod IP가 다르므로 같은 포트를 사용할 수 있다.</p>
+<pre><code class="language-text">Pod A: 10.244.1.10:9090
+Pod B: 10.244.1.11:9090
+Pod C: 10.244.1.12:9090
+</code></pre>
+<p>이것이 Deployment가 생성한 모든 Pod에서 동일한 애플리케이션 포트를 사용할 수 있는 이유다.</p>
+
+</section>
+<section id="section-42691f53a004" class="markdown-section">
+<h2>컨테이너에는 여러 프로세스가 있을 수 있다</h2>
+<p>“컨테이너 프로세스”라고 표현하더라도 컨테이너 하나에 반드시 프로세스 하나만 존재하는 것은 아니다.</p>
+<pre><code class="language-text">app 컨테이너
+├─ main 프로세스
+├─ worker 프로세스 1
+└─ worker 프로세스 2
+</code></pre>
+<p>이 프로세스들도 일반적으로 모두 같은 Pod Network Namespace에 속한다.</p>
+<p>따라서 정확한 구조는 다음과 같다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ app 컨테이너
+│  ├─ main 프로세스
+│  ├─ worker 프로세스 1
+│  └─ worker 프로세스 2
+│
+└─ sidecar 컨테이너
+   └─ proxy 프로세스
+</code></pre>
+<p>커널 관점에서는 컨테이너 단위보다 각 프로세스가 어느 Network Namespace에 속하는지가 중요하다.</p>
+
+</section>
+<section id="pod-sandbox-pause" class="markdown-section">
+<h2>Pod Sandbox와 pause 컨테이너</h2>
+<p>일반적인 Kubernetes 컨테이너 런타임은 먼저 Pod Sandbox를 준비한다. 이 Sandbox는 Pod가 사용할 Namespace의 기준점 역할을 한다.</p>
+<p>구현에 따라 <code>pause</code> 또는 infra 컨테이너라고 부르는 작은 컨테이너가 사용된다.</p>
+<pre><code class="language-text">Pod Sandbox
+└─ pause 프로세스
+   └─ Pod Network Namespace 유지
+</code></pre>
+<p>그 후 실제 애플리케이션 컨테이너들이 해당 Network Namespace에 참여한다.</p>
+<pre><code class="language-text">pause 프로세스 ───┐
+app 프로세스 ─────┼─ 동일한 Network Namespace
+sidecar 프로세스 ─┘
+</code></pre>
+<p><code>pause</code> 프로세스가 네트워크 패킷을 대신 전달한다는 뜻은 아니다. Pod의 다른 컨테이너들이 공유할 Namespace를 안정적으로 유지하는 기준점에 가깝다.</p>
+<p><code>pause</code> 실행 파일과 Pod Sandbox의 관계는 <a href="kubernetes-pause-container-overview.html">Kubernetes <code>pause</code> 컨테이너 개요</a>에서 이어서 다룬다.</p>
+<p>대략적인 생성 과정은 다음과 같다.</p>
+<pre><code class="language-text">1. Pod Sandbox 생성
+2. Pod용 Network Namespace 준비
+3. CNI 호출
+4. veth·eth0·Pod IP·Route 구성
+5. app 컨테이너 프로세스를 해당 Namespace에서 실행
+6. sidecar 컨테이너 프로세스도 같은 Namespace에서 실행
+</code></pre>
+<p>여기서 CNI는 Pod의 Network Namespace 안에 네트워크 장치와 주소, 경로를 구성하고 이를 Node 네트워크와 연결한다.</p>
+
+</section>
+<section id="namespace" class="markdown-section">
+<h2>다른 Namespace도 모두 공유할까?</h2>
+<p>같은 Pod의 컨테이너가 모든 종류의 Namespace를 반드시 공유하는 것은 아니다.</p>
+<p>일반적인 Kubernetes Pod에서는 다음과 같이 구분할 수 있다.</p>
+<ul>
+<li>Network Namespace: Pod 단위로 공유</li>
+<li>IPC Namespace: Pod 단위로 공유</li>
+<li>UTS Namespace: 일반적으로 Pod 단위로 공유</li>
+<li>Mount Namespace: 컨테이너별로 분리</li>
+<li>PID Namespace: 기본적으로 컨테이너별로 분리</li>
+<li>PID Namespace 공유: <code>shareProcessNamespace: true</code>로 활성화 가능</li>
+</ul>
+<p>따라서 같은 Pod의 컨테이너들은 동일한 IP와 <code>localhost</code>를 사용하면서도 서로 다른 파일시스템을 볼 수 있다. 또한 기본 설정에서는 다른 컨테이너의 프로세스가 보이지 않을 수 있다.</p>
+<p>즉, Pod는 모든 격리 경계를 동일하게 공유하는 단위가 아니다. Namespace 종류에 따라 공유 여부가 다르다.</p>
+
+</section>
+<section id="hostnetwork" class="markdown-section">
+<h2><code>hostNetwork</code>를 사용하는 예외</h2>
+<p>Pod에 다음 설정이 있으면 일반적인 Pod Network Namespace 구조와 달라진다.</p>
+<pre><code class="language-yaml">spec:
+  hostNetwork: true
+</code></pre>
+<p>이 경우 별도의 Pod Network Namespace를 사용하는 대신 컨테이너 프로세스가 Node의 Network Namespace를 사용한다.</p>
+<pre><code class="language-text">일반 Pod
+└─ 별도의 Pod Network Namespace 사용
+
+hostNetwork Pod
+└─ Node의 Network Namespace 사용
+</code></pre>
+<p>따라서 <code>hostNetwork</code> Pod는 Node의 네트워크 인터페이스와 포트 공간을 공유한다. 같은 Node에서 실행되는 다른 <code>hostNetwork</code> Pod 또는 Host 프로세스와 포트 충돌이 발생할 수 있다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>Kubernetes는 일반적으로 컨테이너나 프로세스마다 새로운 Network Namespace를 생성하지 않는다. Pod에서 사용할 Network Namespace를 하나 준비하고, Pod에 포함되는 컨테이너의 프로세스들을 그 Namespace 안에서 실행한다.</p>
+<pre><code class="language-text">Kubernetes 관점
+
+Pod
+└─ 여러 컨테이너
+   └─ 하나의 네트워크 공간 공유
+</code></pre>
+<pre><code class="language-text">Linux 관점
+
+Network Namespace 하나
+└─ 여러 컨테이너에 속한 프로세스들이 함께 소속
+</code></pre>
+<p>이 구조 때문에 같은 Pod의 컨테이너들은 다음 특성을 가진다.</p>
+<ul>
+<li>같은 Pod IP를 사용한다.</li>
+<li>같은 <code>eth0</code>과 라우팅 테이블을 사용한다.</li>
+<li><code>localhost</code>로 서로 통신할 수 있다.</li>
+<li>동일한 TCP·UDP 포트 공간을 공유한다.</li>
+<li>같은 주소와 포트에 동시에 바인딩하면 충돌한다.</li>
+</ul>
+<p>핵심은 다음 문장으로 정리할 수 있다.</p>
+<blockquote>
+<p>Kubernetes는 Pod에 속한 각 프로세스마다 Network Namespace를 만드는 것이 아니라, Pod용 Network Namespace 하나를 준비하고 Pod 안의 컨테이너 프로세스들을 그 Namespace에 소속시킨다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-pod-shared-veth-interface.html">같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?</a></li>
+<li><a href="kubernetes-pause-container-overview.html">Kubernetes `pause` 컨테이너 개요</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

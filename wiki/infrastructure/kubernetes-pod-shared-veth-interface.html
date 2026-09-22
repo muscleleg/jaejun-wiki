@@ -1,0 +1,227 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-pod-shared-veth-interface.md. Do not edit directly. source-sha256:2d93aba96924d837baccaee28c6b8b9ee58852eabdd58e330df4659b1b57291b -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="같은 Pod의 컨테이너 프로세스들이 하나의 Pod eth0과 veth pair를 통해 Host Network Namespace와 연결되는 구조를 설명한다.">
+  <meta name="source-sha256" content="2d93aba96924d837baccaee28c6b8b9ee58852eabdd58e330df4659b1b57291b">
+  <title>같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?">
+  <meta property="og:description" content="같은 Pod의 컨테이너 프로세스들이 하나의 Pod eth0과 veth pair를 통해 Host Network Namespace와 연결되는 구조를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html","name":"같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?","description":"같은 Pod의 컨테이너 프로세스들이 하나의 Pod eth0과 veth pair를 통해 Host Network Namespace와 연결되는 구조를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html"},"headline":"같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-shared-veth-interface.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes Pod의 Linux 실행 구조","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html"},{"@type":"ListItem","position":5,"name":"Kubernetes Pod Sandbox의 역할","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pause-container-pod-sandbox.html"},{"@type":"ListItem","position":6,"name":"Kubernetes Pod와 Network Namespace의 관계","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-network-namespace.html"},{"@type":"ListItem","position":7,"name":"같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html">Kubernetes Pod의 Linux 실행 구조</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pause-container-pod-sandbox.html">Kubernetes Pod Sandbox의 역할</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-network-namespace.html">Kubernetes Pod와 Network Namespace의 관계</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>같은 Pod의 컨테이너는 어떻게 `eth0`과 veth를 공유할까?</h1>
+      <p class="lead">같은 Pod의 컨테이너 프로세스들이 하나의 Pod eth0과 veth pair를 통해 Host Network Namespace와 연결되는 구조를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#veth">컨테이너마다 veth를 만드는 것은 아니다</a>
+        <a href="#veth-pair-pod-host">veth pair는 Pod와 Host를 연결한다</a>
+        <a href="#pod-veth">같은 Pod 안의 통신은 veth를 통과할까?</a>
+        <a href="#pod">다른 Pod로 보낼 때의 경로</a>
+        <a href="#network-interface">여러 Network Interface를 사용하는 예외</a>
+        <a href="#hostnetwork"><code>hostNetwork</code>를 사용하는 예외</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="kubernetes-pod-network-namespace.html">상위 문서: Kubernetes Pod와 Network Namespace의 관계</a></p>
+<p>일반적인 Kubernetes Pod에서는 같은 Pod 안의 모든 컨테이너가 동일한 Network Namespace와 동일한 Pod 측 가상 Network Interface인 <code>eth0</code>을 사용한다.</p>
+<p>그리고 이 <code>eth0</code>은 veth pair를 통해 Host Network Namespace와 연결된다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ app 컨테이너 프로세스 ─────┐
+├─ sidecar 컨테이너 프로세스 ─┤
+│                              │
+└─ eth0  10.244.1.20 ──────────┘
+       │
+       │ veth pair
+       │
+Host Network Namespace
+└─ vethXXXX
+   └─ Bridge·Route·eBPF 등 Host Data Plane
+</code></pre>
+</div>
+        <section id="veth" class="markdown-section">
+<h2>컨테이너마다 veth를 만드는 것은 아니다</h2>
+<p>일반적인 단일 Network Interface 구성에서는 다음처럼 컨테이너마다 별도의 veth pair를 만들지 않는다.</p>
+<pre><code class="language-text">컨테이너 A ─ veth A ─ Host
+컨테이너 B ─ veth B ─ Host
+</code></pre>
+<p>대신 Pod Network Namespace에 하나의 <code>eth0</code>을 구성하고, 같은 Pod의 컨테이너 프로세스들이 이를 함께 사용한다.</p>
+<pre><code class="language-text">컨테이너 A의 프로세스 ─┐
+컨테이너 B의 프로세스 ─┼─ Pod의 eth0 ─ veth pair ─ Host
+컨테이너 C의 프로세스 ─┘
+</code></pre>
+<p>정확히는 컨테이너가 Network Interface를 소유하는 것이 아니다. <code>eth0</code>은 Pod Network Namespace에 속하고, 컨테이너의 프로세스들이 그 Namespace에 참여한다.</p>
+<pre><code class="language-text">Pod Network Namespace
+└─ eth0
+   ├─ app 프로세스가 사용
+   └─ sidecar 프로세스가 사용
+</code></pre>
+<p>따라서 app과 sidecar에서 각각 다음 명령을 실행하면 일반적으로 동일한 <code>eth0</code>과 Pod IP를 보게 된다.</p>
+<pre><code class="language-bash">ip addr show eth0
+</code></pre>
+<pre><code class="language-text">eth0
+└─ 10.244.1.20
+</code></pre>
+
+</section>
+<section id="veth-pair-pod-host" class="markdown-section">
+<h2>veth pair는 Pod와 Host를 연결한다</h2>
+<p>veth pair는 서로 연결된 두 가상 Network Interface다.</p>
+<pre><code class="language-text">Pod 쪽 끝점:  eth0
+Host 쪽 끝점: vethXXXX
+</code></pre>
+<p>Pod 쪽 Interface 이름이 항상 커널의 원래 이름부터 <code>eth0</code>이라는 의미는 아니다. CNI와 런타임이 Pod 내부에서 사용하기 쉬운 이름으로 설정한 결과다. Host 쪽 끝점의 이름은 CNI 구현에 따라 달라질 수 있다.</p>
+<p>Pod의 app 프로세스가 외부로 패킷을 보내면 다음 경로를 지난다.</p>
+<pre><code class="language-text">app 프로세스
+    ↓
+Pod Network Namespace의 Routing Table
+    ↓
+Pod eth0에서 TX
+    ↓
+veth pair
+    ↓
+Host veth에서 RX
+    ↓
+Host의 Bridge·Route·eBPF 처리
+    ↓
+다른 Pod 또는 외부 Network
+</code></pre>
+<p>sidecar 프로세스가 외부로 보낼 때도 같은 Pod Routing Table, <code>eth0</code>과 veth pair를 사용한다.</p>
+<pre><code class="language-text">sidecar 프로세스
+    ↓
+같은 Pod Routing Table
+    ↓
+같은 eth0
+    ↓
+같은 veth pair
+    ↓
+Host Network Namespace
+</code></pre>
+
+</section>
+<section id="pod-veth" class="markdown-section">
+<h2>같은 Pod 안의 통신은 veth를 통과할까?</h2>
+<p>두 컨테이너가 <code>localhost</code>로 통신한다면 Host로 나가지 않으며 veth도 통과하지 않는다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ app 프로세스
+│      ↓
+├─ loopback interface인 lo
+│      ↓
+└─ sidecar 프로세스
+</code></pre>
+<p>예를 들어 app이 <code>localhost:9090</code>으로 요청을 보내고 sidecar가 같은 주소에서 요청을 받는다면 통신은 Pod Network Namespace 내부에서 끝난다.</p>
+<pre><code class="language-text">app → localhost:9090 → sidecar
+</code></pre>
+<p>같은 Pod의 Pod IP로 자기 자신에게 접근하는 경우도 Linux가 목적지 IP를 자신의 로컬 주소로 판단하면 Namespace 내부에서 처리할 수 있다. 반드시 Host 측 veth까지 나갔다가 돌아오는 것은 아니다.</p>
+
+</section>
+<section id="pod" class="markdown-section">
+<h2>다른 Pod로 보낼 때의 경로</h2>
+<p>다른 Pod는 별도의 Network Namespace와 Pod IP를 사용하므로 패킷이 현재 Pod 밖으로 나가야 한다.</p>
+<pre><code class="language-text">Pod A의 app
+    ↓
+Pod A의 eth0
+    ↓
+Pod A의 veth pair
+    ↓
+Host Network
+    ↓
+Pod B 방향의 Bridge·Route·Tunnel·eBPF 처리
+    ↓
+Pod B의 Host 측 veth
+    ↓
+Pod B의 eth0
+    ↓
+Pod B의 프로세스
+</code></pre>
+<p>같은 Node의 Pod인지 다른 Node의 Pod인지, 그리고 어떤 CNI를 사용하는지에 따라 Host 이후의 실제 경로는 달라질 수 있다. 하지만 출발 Pod가 일반적인 veth 기반 구성이라면 Pod의 <code>eth0</code>에서 Host 측 veth로 나간다는 시작 구조는 같다.</p>
+
+</section>
+<section id="network-interface" class="markdown-section">
+<h2>여러 Network Interface를 사용하는 예외</h2>
+<p>Multus 같은 다중 네트워크 구성을 사용하면 하나의 Pod Network Namespace에 여러 Interface가 존재할 수 있다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ eth0 → 기본 Cluster Network
+└─ net1 → 추가 Network
+</code></pre>
+<p>추가 Interface는 veth뿐 아니라 macvlan, ipvlan 또는 SR-IOV 장치로 연결될 수도 있다. 그래도 같은 Pod의 컨테이너 프로세스들은 Network Namespace를 공유하므로 해당 Namespace에 들어 있는 Interface들을 함께 볼 수 있다.</p>
+
+</section>
+<section id="hostnetwork" class="markdown-section">
+<h2><code>hostNetwork</code>를 사용하는 예외</h2>
+<p>다음 설정을 사용하면 Pod가 별도의 일반적인 Pod Network Namespace와 veth pair를 만들지 않고 Node의 Network Namespace를 사용한다.</p>
+<pre><code class="language-yaml">spec:
+  hostNetwork: true
+</code></pre>
+<pre><code class="language-text">일반 Pod
+└─ Pod eth0 ─ veth pair ─ Host
+
+hostNetwork Pod
+└─ Host의 Network Interface를 직접 사용
+</code></pre>
+<p>따라서 <code>hostNetwork</code> Pod는 Node의 IP, Route와 포트 공간을 공유한다.</p>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<blockquote>
+<p>일반적인 Kubernetes Pod에서는 컨테이너마다 veth를 만드는 것이 아니라, Pod Network Namespace에 <code>eth0</code>을 만들고 그 Interface를 veth pair로 Host에 연결한다. 같은 Pod의 컨테이너 프로세스들은 동일한 Network Namespace에 속하므로 같은 <code>eth0</code>, Pod IP, Routing Table과 Host 연결 경로를 사용한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

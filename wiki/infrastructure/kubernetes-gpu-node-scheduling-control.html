@@ -1,0 +1,452 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.md. Do not edit directly. source-sha256:efe6103a32a84874cbcc2beb08df976629b21992141c82ebb155548502c90957 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPU Request, Node Affinity, Taint·Toleration과 Topology Spread가 GPU Pod의 후보 Node와 집중·분산 배치를 어떻게 바꾸는지 실험 결과로 설명합니다.">
+  <meta name="source-sha256" content="efe6103a32a84874cbcc2beb08df976629b21992141c82ebb155548502c90957">
+  <title>GPU Pod의 Node 배치를 어떻게 제어할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU Pod의 Node 배치를 어떻게 제어할까?">
+  <meta property="og:description" content="GPU Request, Node Affinity, Taint·Toleration과 Topology Spread가 GPU Pod의 후보 Node와 집중·분산 배치를 어떻게 바꾸는지 실험 결과로 설명합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html","name":"GPU Pod의 Node 배치를 어떻게 제어할까?","description":"GPU Request, Node Affinity, Taint·Toleration과 Topology Spread가 GPU Pod의 후보 Node와 집중·분산 배치를 어떻게 바꾸는지 실험 결과로 설명합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html"},"headline":"GPU Pod의 Node 배치를 어떻게 제어할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"GPU Pod의 Node 배치를 어떻게 제어할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU Pod의 Node 배치를 어떻게 제어할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>GPU Pod의 Node 배치를 어떻게 제어할까?</h1>
+      <p class="lead">GPU Request, Node Affinity, Taint·Toleration과 Topology Spread가 GPU Pod의 후보 Node와 집중·분산 배치를 어떻게 바꾸는지 실험 결과로 설명합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#scheduler">Scheduler는 조건을 더하는 것이 아니라 후보를 줄여 간다</a>
+        <a href="#section-073bf9836b83">실습은 하나의 배치 문제를 점점 구체화했다</a>
+        <a href="#pod-node">먼저 한 Pod는 한 Node에 배치된다는 기준을 세운다</a>
+        <a href="#nodeselector-affinity-gpu-node">NodeSelector와 Affinity로 원하는 GPU Node를 고른다</a>
+        <a href="#taint-toleration-gpu-node">Taint와 Toleration으로 GPU Node의 진입을 제어한다</a>
+        <a href="#gpu-pod">집중과 분산으로 여러 GPU Pod의 배치 모양을 제어한다</a>
+        <a href="#gpu">집중과 분산의 차이는 다음 큰 GPU 요청에서 드러난다</a>
+        <a href="#pending">Pending은 스케줄링 조건의 결과로 읽는다</a>
+        <a href="#section-614b35e708cc">세 실습으로 스케줄링 제어를 다시 증명한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU가 Kubernetes Node 자원으로 등록되면 Scheduler는 Pod를 실행할 Node를 찾아야 한다. GPU 개수가 충분하다는 사실만으로는 Node가 결정되지 않는다. 어떤 GPU가 필요한지, 어느 Node를 후보로 삼을지, 전용 Node의 진입을 허용할지, 같은 종류의 Pod를 모을지 흩을지도 함께 결정해야 한다.</p>
+<p>오늘 다룬 중심 주제는 <strong>GPU Pod의 Node 배치를 Kubernetes의 스케줄링 기능으로 제어하는 방법</strong>이다.</p>
+<p>앞선 실습에서는 Fake Device Plugin이 Node의 GPU를 kubelet에 알리고, kubelet이 <code>nvidia.com/gpu</code>를 Node의 Capacity와 Allocatable로 API Server에 보고하는 과정까지 확인했다. 그 단계가 끝나면 Kubernetes는 “어느 Node에 GPU가 몇 개 있는가”를 안다.</p>
+<p>하지만 자원이 보인다는 것과 Pod가 적절한 Node에서 실행된다는 것은 다른 문제다. Pod를 생성할 때 사용자는 보통 Node 이름을 직접 지정하지 않는다. 대신 필요한 GPU 수, 원하는 Node의 특성, 허용할 Taint와 Pod 사이의 배치 관계를 선언한다. Scheduler가 그 선언과 현재 Cluster 상태를 함께 읽고 실행할 Node를 결정한다.</p>
+<pre><code class="language-text">Device Plugin·kubelet
+  → 각 Node가 제공할 수 있는 GPU를 API Server에 기록
+
+Pod Spec
+  → 필요한 GPU 수와 배치 조건을 선언
+
+Scheduler
+  → Node 상태와 Pod 조건을 비교
+  → 실행 가능한 Node 하나를 선택
+</code></pre>
+<p>따라서 이번 학습은 GPU 등록 실습의 반복이 아니다. 등록된 GPU를 어떤 워크로드에 내어 주고, 어떤 Node를 보호하며, 여러 Pod를 어떤 모양으로 배치할지 배우는 단계다.</p>
+<pre><code class="language-text">GPU Resource Request
+  → 요청을 감당할 수 있는 Node만 남긴다
+
+NodeSelector·Node Affinity
+  → 원하는 GPU 종류와 Node 특성을 가진 후보만 남긴다
+
+Taint·Toleration
+  → 전용 Node에 들어갈 수 없는 Pod를 후보에서 제외한다
+
+Topology Spread·집중 배치 조건
+  → 여러 Pod를 Node 사이에 모으거나 흩어지게 한다
+</code></pre>
+<p>이 기능들의 문법만 확인한 것은 아니다. 조건을 하나씩 바꾸고 Pod가 Running 또는 Pending이 되는 결과를 비교해 각 기능이 Scheduler의 후보 Node를 어떻게 바꾸는지 증명했다.</p>
+</div>
+        <section id="scheduler" class="markdown-section">
+<h2>Scheduler는 조건을 더하는 것이 아니라 후보를 줄여 간다</h2>
+<p>스케줄링 조건을 이해하기 어려운 이유는 각 기능을 별개의 명령처럼 외우기 때문이다. 실제 판단은 전체 Node 집합에서 조건을 만족하지 않는 Node를 차례로 제외하는 과정으로 보는 편이 자연스럽다.</p>
+<pre><code class="language-text">처음 후보
+  control-plane, gpu-lab-m02, gpu-lab-m03
+
+GPU 2개 Request 적용
+  → GPU가 없거나 두 개가 함께 남지 않은 Node 제외
+
+A100 required Affinity 적용
+  → A100 Label이 없는 Node 제외
+
+dedicated=gpu:NoSchedule 적용
+  → 일치하는 Toleration이 없으면 해당 Node 제외
+
+최종 후보가 하나 이상
+  → 점수화한 뒤 한 Node에 Binding
+
+최종 후보가 0개
+  → Pod는 Pending, 이유는 Scheduler Event에 기록
+</code></pre>
+<p>Resource Request, Affinity와 Taint는 같은 일을 하는 기능이 아니다. 다만 결과적으로는 모두 후보 Node 집합에 영향을 준다. 하나의 Pod에는 이 조건들이 동시에 적용되므로 각각은 통과했는데 조합했을 때 후보가 사라질 수도 있다.</p>
+<p>반면 Topology Spread는 한 Pod가 들어갈 수 있는지만 보는 데서 한 단계 더 나아간다. 이미 배치된 같은 그룹의 Pod 수를 Node별로 비교해, 새 Pod가 들어갔을 때 분산 규칙을 지킬 수 있는지 판단한다.</p>
+
+</section>
+<section id="section-073bf9836b83" class="markdown-section">
+<h2>실습은 하나의 배치 문제를 점점 구체화했다</h2>
+<p>실습 환경에는 GPU Worker 두 대를 두고 각각 Fake GPU 두 개를 게시했다. GPU 종류 선택까지 관찰하기 위해 서로 다른 Product Label을 사용했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>GPU Product Label</th>
+<th align="right">GPU 수</th>
+<th>추가 조건</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td><code>NVIDIA-A100-SXM4-40GB</code></td>
+<td align="right">2</td>
+<td>GPU 전용 Node 실험에서 Taint 적용</td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td><code>Tesla-T4</code></td>
+<td align="right">2</td>
+<td>Taint 없음</td>
+</tr>
+</tbody></table>
+</div>
+<p>Fake GPU를 사용했지만 관찰한 대상은 Fake GPU Operator 자체가 아니었다. Scheduler가 API Server에 기록된 Extended Resource와 Label, Taint, Pod Spec을 읽어 Node를 선택하는 과정이었다. 실제 CUDA 연산, VRAM 사용과 GPU 간 통신은 이 실습의 검증 범위가 아니다.</p>
+<p>실험은 다음 질문이 자연스럽게 이어지도록 진행했다.</p>
+<pre><code class="language-text">1. GPU 수량만 요청하면 어떤 Node가 후보가 되는가?
+   ↓
+2. 원하는 GPU 종류까지 지정하면 후보가 어떻게 줄어드는가?
+   ↓
+3. 선택한 Node가 Tainted 상태라면 무엇을 더 선언해야 하는가?
+   ↓
+4. Pod가 여러 개라면 같은 Node에 모을 것인가, 여러 Node에 펼칠 것인가?
+   ↓
+5. 그 배치 모양이 다음 2-GPU Pod에 어떤 영향을 주는가?
+</code></pre>
+<p>각 실험은 앞의 조건을 버리고 새 기능을 구경한 것이 아니라, Scheduler가 판단하는 조건을 하나씩 추가한 것이다.</p>
+
+</section>
+<section id="pod-node" class="markdown-section">
+<h2>먼저 한 Pod는 한 Node에 배치된다는 기준을 세운다</h2>
+<p>모든 실험의 출발점은 다음 규칙이다.</p>
+<blockquote>
+<p>Pod 하나가 요청한 GPU는 Node 하나가 전부 제공해야 한다.</p>
+</blockquote>
+<p>두 Worker가 GPU를 두 개씩 제공하면 Cluster 전체 GPU는 네 개다. 하지만 GPU 네 개를 요청한 단일 Pod는 어느 Node에도 배치되지 못했다.</p>
+<pre><code class="language-text">gpu-lab-m02: GPU 2개
+gpu-lab-m03: GPU 2개
+
+단일 Pod가 GPU 4개 요청
+  → 요청 전체를 제공하는 Node 없음
+  → Pending
+</code></pre>
+<p>반면 GPU 한 개를 요청하는 Replica 네 개는 각각 독립된 Pod이므로 두 Worker에 나뉘어 Running됐다.</p>
+<p>이때 <code>Allocatable: 2</code>를 “현재 GPU 두 개가 비어 있다”로 읽으면 안 된다. Allocatable은 Node가 Pod에 제공할 수 있는 총량이다. 이미 GPU 하나를 요청한 Pod가 배치돼도 Allocatable 값 자체는 계속 2이고, 실제 배치 여유는 실행 중인 Pod들의 Request 합계를 빼서 판단한다.</p>
+<pre><code class="language-text">현재 GPU 배치 여유
+= Node의 nvidia.com/gpu Allocatable
+- 해당 Node에 배치된 Pod들의 nvidia.com/gpu Request 합계
+</code></pre>
+<p>그래서 Node YAML의 Capacity·Allocatable과 <code>kubectl describe node</code>의 <code>Allocated resources</code>를 함께 봤다. 전자는 게시된 자원 규모를, 후자는 현재 Pod들이 예약한 합계를 보여 준다.</p>
+<p>이 기준 실험으로 다음 사실을 확인했다.</p>
+<ul>
+<li>Scheduler는 Cluster 전체 GPU 합계를 한 Pod에 합쳐 주지 않는다.</li>
+<li>Resource Request는 Node별 <code>Allocatable</code>과 이미 배치된 Pod의 Request 합계를 기준으로 평가된다.</li>
+<li>여러 Replica의 분산 실행과 하나의 Multi-GPU Runtime은 다른 구조다.</li>
+</ul>
+<p>GPU 1·2·4개 요청과 단일 Pod·Replica 비교를 재현하는 방법은 <a href="kubernetes-gpu-single-pod-vs-replicas-scheduling.html">GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</a>에서 확인할 수 있다.</p>
+
+</section>
+<section id="nodeselector-affinity-gpu-node" class="markdown-section">
+<h2>NodeSelector와 Affinity로 원하는 GPU Node를 고른다</h2>
+<p><code>nvidia.com/gpu: 1</code>은 GPU 한 개가 필요하다는 뜻일 뿐 A100과 T4 중 무엇을 원하는지는 표현하지 않는다. GPU 종류와 Node 특성은 Label을 기준으로 선택한다.</p>
+<pre><code class="language-text">Resource Request
+  → GPU가 몇 개 필요한가?
+
+NodeSelector·Node Affinity
+  → 어떤 특성을 가진 Node여야 하는가?
+</code></pre>
+<p>동일하게 GPU 한 개를 요청하는 Pod에 선택 조건만 다르게 적용했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>선택 조건</th>
+<th>관찰 결과</th>
+<th>증명한 내용</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A100 <code>nodeSelector</code></td>
+<td>A100 Label이 있는 m02에서 Running</td>
+<td>정확한 Label로 Node를 선택할 수 있다</td>
+</tr>
+<tr>
+<td>T4 required Node Affinity</td>
+<td>T4 Label이 있는 m03에서 Running</td>
+<td>표현식으로 필수 후보 조건을 만들 수 있다</td>
+</tr>
+<tr>
+<td>존재하지 않는 H100 required Affinity</td>
+<td>Pending</td>
+<td>일치하는 Node가 없으면 후보가 0개가 된다</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>requiredDuringSchedulingIgnoredDuringExecution</code>은 Scheduling 시점에 조건을 반드시 만족해야 한다는 뜻이다. 배치된 뒤 Node Label이 달라져도 기존 Pod를 자동 퇴출하지는 않는다.</p>
+<p>여기서 required Affinity는 Scheduler에게 “가능하면 이 Node를 선호하라”고 말하는 점수 조건이 아니다. 조건을 만족하지 못한 Node를 후보에서 제거하는 필수 조건이다. 반대로 preferred Affinity를 사용했다면 일치하는 Node에 더 높은 점수를 줄 뿐, 일치하지 않는 Node도 다른 필수 조건을 만족하면 후보로 남을 수 있다.</p>
+<p>이번 실습에서 H100 Pod를 required 조건으로 만든 이유도 이 차이를 눈으로 확인하기 위해서였다. H100 Label을 가진 Node가 없었으므로 Scheduler가 대체 Node를 고르지 않고 Pod를 Pending으로 남겼다.</p>
+<p>이 실험을 마치면 다음을 할 수 있다.</p>
+<ul>
+<li>GPU 수량 조건과 GPU Product 조건을 따로 설계한다.</li>
+<li>정확한 값 하나는 <code>nodeSelector</code>, 집합·존재 여부 같은 조건은 Node Affinity로 표현한다.</li>
+<li>Affinity 때문에 Pending인 Pod와 GPU 수량 부족으로 Pending인 Pod를 구분한다.</li>
+</ul>
+<p>Node Label 확인부터 A100·T4·존재하지 않는 H100 조건을 비교하는 절차는 <a href="kubernetes-gpu-node-selection-taint-lab.html">GPU 종류와 전용 Node 조건은 후보 Node를 어떻게 바꿀까?</a>에 정리한다.</p>
+
+</section>
+<section id="taint-toleration-gpu-node" class="markdown-section">
+<h2>Taint와 Toleration으로 GPU Node의 진입을 제어한다</h2>
+<p>GPU Node에도 CPU와 Memory가 있으므로 별도 제한이 없으면 GPU를 사용하지 않는 일반 Pod가 배치될 수 있다. <code>Taint</code>는 이런 Pod를 GPU Node의 후보에서 제외해 전용 Node를 보호한다.</p>
+<pre><code class="language-text">Node의 Taint
+dedicated=gpu:NoSchedule
+
+→ 이 Taint를 허용하지 않는 새 Pod는 해당 Node에 배치하지 않는다
+</code></pre>
+<p><code>Toleration</code>은 Taint를 무시하고 아무 Node에나 들어가는 설정이 아니다. 일치하는 Taint 하나 때문에 후보에서 제외되는 것을 허용할 뿐이다.</p>
+<p>이 구분은 GPU Node 운영에서 특히 중요하다. GPU를 요청했다는 이유만으로 모든 GPU Pod에 특정 Node를 강제하고 싶지는 않을 수 있다. 수량만 맞으면 어떤 GPU Node든 사용할 Pod도 있고, A100처럼 특정 Product가 반드시 필요한 Pod도 있다. Taint는 이 선택과 무관하게 “이 Node를 일반 Pod가 소비하지 못하게 보호할 것인가”를 다룬다.</p>
+<p>두 Pod 모두 A100 Node인 m02를 선택하게 하고 Toleration 유무만 바꿨다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>관찰 결과</th>
+<th>증명한 내용</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A100 선택, Toleration 없음</td>
+<td>Pending</td>
+<td>m02는 Taint로, 다른 Node는 Label 조건으로 제외된다</td>
+</tr>
+<tr>
+<td>A100 선택, 일치하는 Toleration 있음</td>
+<td>m02 Running</td>
+<td>Taint에 의한 배제가 해제된다</td>
+</tr>
+</tbody></table>
+</div>
+<p>여기서 각 설정의 책임은 분명히 나뉜다.</p>
+<pre><code class="language-text">NodeSelector·Node Affinity
+  → 어느 Node를 원하는가
+
+Taint
+  → 해당 Node가 어떤 Pod를 밀어내는가
+
+Toleration
+  → 그 밀어냄을 이 Pod에 대해서 허용할 수 있는가
+</code></pre>
+<p>Toleration만으로 GPU Node를 선택할 수는 없다. 반대로 Tainted Node만 NodeSelector로 요구하면서 Toleration을 넣지 않으면 모든 후보가 사라진다.</p>
+<p>이 실험을 마치면 다음을 할 수 있다.</p>
+<ul>
+<li>GPU Node를 일반 워크로드로부터 보호한다.</li>
+<li>Node 선택 조건과 Node 진입 허용 조건을 별도로 구성한다.</li>
+<li><code>untolerated taint</code>가 Container 실행 실패가 아니라 Scheduling 단계의 후보 제거임을 설명한다.</li>
+</ul>
+<p>Taint 적용과 Toleration 유무 비교 방법은 <a href="kubernetes-gpu-node-selection-taint-lab.html">GPU 종류와 전용 Node 조건은 후보 Node를 어떻게 바꿀까?</a>에서 이어진다.</p>
+
+</section>
+<section id="gpu-pod" class="markdown-section">
+<h2>집중과 분산으로 여러 GPU Pod의 배치 모양을 제어한다</h2>
+<p>NodeSelector와 Affinity가 개별 Pod의 후보를 정한다면, 여러 Pod의 상대적 위치도 제어할 수 있다. 이번에는 1-GPU Replica 두 개의 총 사용량을 그대로 두고 배치 모양만 바꿨다.</p>
+<p>집중 배치는 두 Replica를 같은 Node에 모았다.</p>
+<pre><code class="language-text">m02 [사용][사용]
+m03 [여유][여유]
+</code></pre>
+<p>분산 배치는 <code>TopologySpreadConstraints</code>로 Replica를 Worker마다 하나씩 배치했다.</p>
+<pre><code class="language-text">m02 [사용][여유]
+m03 [사용][여유]
+</code></pre>
+<p><code>topologyKey: kubernetes.io/hostname</code>은 Node 하나를 하나의 분산 구역으로 본다는 뜻이다. <code>labelSelector</code>는 새 Pod를 만드는 설정이 아니라, Scheduler가 Node별 개수를 계산할 때 어떤 Pod 그룹을 셀지 정한다.</p>
+<p>예를 들어 첫 번째 <code>app=gpu-spread</code> Pod가 m02에 배치된 뒤 두 번째 Pod까지 m02에 놓으면 Node별 개수는 2 대 0이 된다. <code>maxSkew: 1</code>을 넘으므로 두 번째 Pod는 m03에 놓여야 1 대 1을 만들 수 있다. 이 계산 때문에 Replica가 우연히 흩어진 것이 아니라 선언한 분산 규칙에 의해 흩어졌다고 말할 수 있다.</p>
+<p>이 실험으로 다음을 확인했다.</p>
+<ul>
+<li>NodeSelector를 이용하면 작은 GPU Pod를 한 Node에 의도적으로 모을 수 있다.</li>
+<li>Topology Spread를 이용하면 같은 그룹의 Pod를 Node 사이에 고르게 펼칠 수 있다.</li>
+</ul>
+<p>Topology Spread의 LabelSelector는 Pod를 세기 위한 그룹 기준이지 Pod의 소유권을 뜻하지 않는다. Label로 묶이는 Pod와 Deployment의 실제 소유 관계가 어떻게 다른지는 <a href="kubernetes-controller-pod-adoption-ownerreferences.html">Controller는 어떤 Pod를 입양하며 Deployment의 Pod는 왜 쉽게 입양되지 않을까?</a>에서 따로 볼 수 있다.</p>
+<p>집중·분산 Manifest와 결과 비교 방법은 <a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a>에 정리한다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>집중과 분산의 차이는 다음 큰 GPU 요청에서 드러난다</h2>
+<p>두 방식은 모두 GPU 두 개를 사용한다. 그러나 그 뒤 GPU 두 개를 한꺼번에 요청하는 Pod를 만들자 결과가 달라졌다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>기존 배치</th>
+<th align="right">m02 잔여 GPU</th>
+<th align="right">m03 잔여 GPU</th>
+<th>후속 2-GPU Pod</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>집중</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td>Running</td>
+</tr>
+<tr>
+<td>분산</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td>Pending</td>
+</tr>
+</tbody></table>
+</div>
+<p>분산 상태에서도 Cluster 전체 유휴 GPU는 두 개다. 하지만 한 Pod의 요청은 한 Node가 충족해야 하므로 어느 Node도 후보가 되지 못했다.</p>
+<p>이 현상을 GPU 단편화로 볼 수 있다. 자원이 사라진 것은 아니지만, 큰 요청이 사용할 수 없는 작은 조각으로 Node마다 나뉘어 남아 있다. Scheduler가 GPU 두 조각을 Node 사이에서 합쳐 주지 않기 때문에 총량만으로는 실제 수용 가능성을 알 수 없다.</p>
+<p>이 비교가 증명한 핵심은 다음과 같다.</p>
+<blockquote>
+<p>같은 GPU 사용량이라도 기존 Pod가 어디에 배치됐는지에 따라 다음 Multi-GPU Pod를 받을 수 있는지가 달라진다.</p>
+</blockquote>
+<p>분산은 장애 격리와 Replica 가용성에 유리할 수 있다. 집중은 작은 요청을 일부 Node에 모아 다른 Node의 큰 연속 GPU 공간을 보존할 수 있다. 따라서 어느 방식이 좋은지는 앞으로 받을 요청의 크기와 장애 분산 요구에 따라 결정해야 한다.</p>
+<p>집중·분산 상태를 만들고 같은 2-GPU Pod를 비교하는 절차는 <a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a>에 정리한다.</p>
+
+</section>
+<section id="pending" class="markdown-section">
+<h2>Pending은 스케줄링 조건의 결과로 읽는다</h2>
+<p>실습에서는 의도적으로 세 종류의 Pending을 만들었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조작한 조건</th>
+<th>Scheduler Event</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>한 Node보다 큰 GPU 요청</td>
+<td><code>Insufficient nvidia.com/gpu</code></td>
+<td>Resource Request를 만족하는 Node가 없다</td>
+</tr>
+<tr>
+<td>존재하지 않는 GPU Product</td>
+<td><code>didn&#39;t match Pod&#39;s node affinity/selector</code></td>
+<td>Label·Affinity 조건을 만족하는 Node가 없다</td>
+</tr>
+<tr>
+<td>Tainted Node만 선택하고 Toleration 누락</td>
+<td><code>untolerated taint {dedicated: gpu}</code></td>
+<td>유일한 후보가 Taint로 제외됐다</td>
+</tr>
+</tbody></table>
+</div>
+<p>모두 화면에는 <code>Pending</code>으로 보이지만 수정해야 할 설정은 서로 다르다. 따라서 <code>STATUS</code>만 보고 GPU 부족으로 결론 내리면 안 된다.</p>
+<pre><code class="language-text">Pod가 Pending
+  → spec.nodeName 확인
+  → Scheduler Event 확인
+  → Resource·Affinity·Taint 중 어떤 조건이 후보를 없앴는지 판단
+</code></pre>
+<p>아직 Node가 정해지지 않았다면 kubelet은 Pod 실행 요청을 받지 않는다. 이 경우 <code>Pulled</code>·<code>Created</code>·<code>Started</code> Event도 없다. Node가 정해진 뒤 Container 실행이 실패한 문제와 구분할 수 있다.</p>
+<p>분산 Replica를 삭제해 GPU 예약을 반환하자 기존 Pending 2-GPU Pod가 다시 평가돼 Running됐다. Node의 Capacity와 Allocatable은 계속 2였고, 달라진 것은 이미 배치된 Pod의 Request 합계였다.</p>
+<p>Pending Pod를 삭제하고 다시 만든 것이 아니라는 점도 중요하다. Pod 객체와 요청 조건은 그대로였지만 Cluster의 현재 상태가 바뀌었다. Scheduler는 이전에 실패한 Pod를 다시 평가했고, GPU 두 개가 함께 비어 있는 Node가 생기자 Binding했다. Scheduling은 최초 생성 순간에 한 번만 시도하고 끝나는 판단이 아니다.</p>
+<pre><code class="language-text">현재 배치 여유
+= Node Allocatable
+- 이미 배치된 Pod의 GPU Request 합계
+</code></pre>
+<p>이 과정도 <a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a>의 자원 반환 단계에서 확인할 수 있다.</p>
+
+</section>
+<section id="section-614b35e708cc" class="markdown-section">
+<h2>세 실습으로 스케줄링 제어를 다시 증명한다</h2>
+<p>기능 이름이 아니라 증명할 질문을 기준으로 세 묶음으로 나눈다.</p>
+<ol>
+<li><a href="kubernetes-gpu-single-pod-vs-replicas-scheduling.html">GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</a><ul>
+<li>한 Pod의 요청은 왜 한 Node가 모두 만족해야 하는가?</li>
+<li>단일 Multi-GPU Pod와 여러 1-GPU Replica는 어떻게 다른가?</li>
+</ul>
+</li>
+<li><a href="kubernetes-gpu-node-selection-taint-lab.html">GPU 종류와 전용 Node 조건은 후보 Node를 어떻게 바꿀까?</a><ul>
+<li>NodeSelector·Affinity는 후보를 어떻게 선택하는가?</li>
+<li>Taint·Toleration은 후보를 어떻게 제외하고 다시 허용하는가?</li>
+</ul>
+</li>
+<li><a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a><ul>
+<li>여러 Pod의 배치 모양은 어떻게 제어하는가?</li>
+<li>같은 유휴 GPU 수인데 왜 후속 2-GPU Pod의 결과가 달라지는가?</li>
+<li>예약이 반환되면 Pending Pod는 어떻게 다시 배치되는가?</li>
+</ul>
+</li>
+</ol>
+<p>세 실습을 마치면 GPU Pod를 보고 다음 순서로 배치 결과를 예측할 수 있다.</p>
+<pre><code class="language-text">GPU Request로 수량 후보 계산
+  → NodeSelector·Affinity로 특성 후보 계산
+  → Taint·Toleration으로 진입 가능 후보 계산
+  → 집중·분산 조건으로 여러 Pod의 위치 결정
+  → Node별 남은 공간으로 다음 요청의 가능성 판단
+  → Scheduler Event로 실제 결정 검증
+</code></pre>
+<p>여기까지가 Kubernetes가 책임지는 GPU 자원 예약과 Node 배치다. Pod가 Running된 뒤 모델을 여러 GPU로 나누고 GPU 사이에서 통신하는 과정은 vLLM 같은 Model Runtime의 책임으로 넘어간다.</p>
+<p>결국 이번 실습에서 배운 것은 기능 목록이 아니라 하나의 판단 방식이다. 먼저 한 Pod의 요청을 감당할 Node가 있는지 보고, 그중 원하는 특성을 가진 Node를 남기고, Taint로 인해 다시 제외되는 Node가 있는지 확인한다. Pod가 여러 개라면 서로의 배치가 다음 Pod의 후보와 남은 GPU 공간까지 바꾼다는 사실도 함께 본다.</p>
+<p>이 관점이 잡히면 <code>Pending</code>은 막연한 실패 상태가 아니다. 어떤 조건이 모든 후보를 제거했는지 추적할 수 있는 스케줄링 결과가 된다. Running 역시 단순 성공이 아니라 Resource, Label, Taint와 Pod 간 배치 조건을 모두 만족한 결과로 읽을 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-gpu-single-pod-vs-replicas-scheduling.html">GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</a></li>
+<li><a href="kubernetes-gpu-node-selection-taint-lab.html">GPU 종류와 전용 Node 조건은 후보 Node를 어떻게 바꿀까?</a></li>
+<li><a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

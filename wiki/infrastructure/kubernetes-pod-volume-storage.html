@@ -1,0 +1,328 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-pod-volume-storage.md. Do not edit directly. source-sha256:fe85e6e1312430c8bb73c378610b7d35043d577fd323c565271b8bcb5aa3fe8f -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Linux Process의 파일 경로, Filesystem Mount, Mount Namespace, Kubernetes Volume이 연결되는 기본 구조를 설명한다.">
+  <meta name="source-sha256" content="fe85e6e1312430c8bb73c378610b7d35043d577fd323c565271b8bcb5aa3fe8f">
+  <title>Kubernetes Pod Volume의 구조</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes Pod Volume의 구조">
+  <meta property="og:description" content="Linux Process의 파일 경로, Filesystem Mount, Mount Namespace, Kubernetes Volume이 연결되는 기본 구조를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html","name":"Kubernetes Pod Volume의 구조","description":"Linux Process의 파일 경로, Filesystem Mount, Mount Namespace, Kubernetes Volume이 연결되는 기본 구조를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html"},"headline":"Kubernetes Pod Volume의 구조","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-storage","name":"스토리지·Stateful·MariaDB","identifier":"topics-kubernetes-storage"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes Pod의 Linux 실행 구조","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html"},{"@type":"ListItem","position":5,"name":"Kubernetes Pod Volume의 구조"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html">Kubernetes Pod의 Linux 실행 구조</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes Pod Volume의 구조</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes Pod Volume의 구조</h1>
+      <p class="lead">Linux Process의 파일 경로, Filesystem Mount, Mount Namespace, Kubernetes Volume이 연결되는 기본 구조를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#container-process">Container의 실제 실행 주체는 Process다</a>
+        <a href="#process-storage">Process는 Storage가 아니라 파일 경로를 사용한다</a>
+        <a href="#mount-filesystem">Mount는 Filesystem을 경로에 연결한다</a>
+        <a href="#mount-namespace-mount-tree">Mount Namespace는 보이는 Mount Tree를 나눈다</a>
+        <a href="#kubernetes-volume">Kubernetes Volume은 이 연결을 선언한다</a>
+        <a href="#process-kubernetes-volume">Process는 Kubernetes Volume을 알지 못한다</a>
+        <a href="#volume">Volume은 데이터 수명을 분리한다</a>
+        <a href="#volume-volume">임시 Volume과 영속 Volume</a>
+        <a href="#section-c00d7fbb4602">문서 구조와 학습 순서</a>
+        <a href="#section-85b0c903e952">핵심 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="kubernetes-pod-linux-runtime-structure.html">상위 문서: Kubernetes Pod의 Linux 실행 구조</a></p>
+<p>Kubernetes Volume을 이해하려면 Linux Process가 파일과 저장소를 어떻게 보는지부터 연결해야 한다.</p>
+<pre><code class="language-text">Container 안의 Linux Process
+        ↓ 파일 경로 사용
+Filesystem과 Mount
+        ↓ 보이는 구조 분리
+Mount Namespace
+        ↓ Kubernetes가 선언
+Pod Volume과 volumeMounts
+        ↓ 수명에 따라 선택
+emptyDir 또는 Persistent Volume
+</code></pre>
+</div>
+        <section id="container-process" class="markdown-section">
+<h2>Container의 실제 실행 주체는 Process다</h2>
+<p>Container는 특별한 Process 종류가 아니다. 하나 이상의 Linux Process에 Namespace, cgroup, Root Filesystem 등의 실행 환경을 적용한 단위에 가깝다.</p>
+<pre><code class="language-text">Container
+├─ Linux Process
+├─ Namespace
+├─ cgroup
+├─ Root Filesystem
+└─ Mount 설정
+</code></pre>
+<p>CPU와 Memory를 실제로 사용하는 주체도 Process이고 파일을 읽고 쓰는 주체도 Process다.</p>
+<p>따라서 Volume도 Container라는 추상 객체가 직접 사용하는 것이 아니다. Container 안의 Process가 Volume이 연결된 파일 경로에 접근한다.</p>
+
+</section>
+<section id="process-storage" class="markdown-section">
+<h2>Process는 Storage가 아니라 파일 경로를 사용한다</h2>
+<p>일반적인 애플리케이션 Process는 SSD의 특정 Block을 직접 지정하기보다 파일 경로를 사용한다.</p>
+<pre><code class="language-text">/app/data/result.txt
+/etc/config/app.yaml
+/var/log/app.log
+</code></pre>
+<p>Process가 <code>open</code>, <code>read</code>, <code>write</code> 같은 System Call을 실행하면 Linux Kernel의 VFS(Virtual File System, 가상 파일시스템)가 경로를 해석한다.</p>
+<pre><code class="language-text">Process
+  │ open(&quot;/app/data/result.txt&quot;)
+  ▼
+Linux Kernel의 VFS
+  │ 경로 탐색
+  ▼
+경로에 연결된 Filesystem
+  ▼
+실제 Storage에서 데이터 읽기·쓰기
+</code></pre>
+<p>VFS 덕분에 Process는 ext4, XFS, NFS, tmpfs 같은 Filesystem의 차이를 모두 직접 처리하지 않고 같은 파일 경로 방식을 사용할 수 있다.</p>
+
+</section>
+<section id="mount-filesystem" class="markdown-section">
+<h2>Mount는 Filesystem을 경로에 연결한다</h2>
+<p>Storage가 존재한다는 사실만으로 Process가 <code>/data/file.txt</code>처럼 접근할 수 있는 것은 아니다. Filesystem이나 디렉터리 같은 저장소 원본을 Process가 볼 수 있는 디렉터리 경로에 연결해야 한다. 이 작업이 Mount다.</p>
+<pre><code class="language-text">Storage의 Filesystem
+        │ Mount
+        ▼
+      /data
+</code></pre>
+<p><code>/data</code>처럼 연결 지점이 되는 디렉터리를 Mount Point라고 한다.</p>
+<p>Mount가 완료되면 Process는 평범한 파일 경로로 접근한다.</p>
+<pre><code class="language-text">Process가 /data/result.txt를 open
+        ↓
+Kernel이 /data의 Mount 확인
+        ↓
+연결된 Filesystem에서 파일 탐색
+        ↓
+실제 Storage 접근
+</code></pre>
+<p>Mount는 파일을 사용할 때마다 반복하지 않는다. kubelet과 Container Runtime이 필요한 Mount를 먼저 준비하고 Process를 실행한다. 이후 Process는 준비된 경로에서 일반적인 파일 System Call을 사용한다.</p>
+
+</section>
+<section id="mount-namespace-mount-tree" class="markdown-section">
+<h2>Mount Namespace는 보이는 Mount Tree를 나눈다</h2>
+<p>Process가 보는 <code>/</code>는 하나의 물리 디스크가 아니라 여러 Filesystem과 Mount가 결합된 Tree일 수 있다.</p>
+<pre><code class="language-text">/
+├─ app/              ← Container Image 기반 Root Filesystem
+├─ proc/             ← procfs
+├─ etc/config/       ← ConfigMap Volume
+├─ cache/            ← emptyDir Volume
+└─ data/             ← Persistent Volume
+</code></pre>
+<p>Mount Namespace는 이 중 어떤 Mount Tree가 Process에게 보이는지 격리한다.</p>
+<pre><code class="language-text">app Process
+└─ app Mount Namespace
+   ├─ /app
+   ├─ /data
+   └─ /etc/config
+
+sidecar Process
+└─ sidecar Mount Namespace
+   ├─ /sidecar
+   └─ /logs
+</code></pre>
+<p>같은 Pod의 Container들은 Network Namespace를 일반적으로 공유하지만 Mount Namespace는 일반적으로 Container별로 구성한다.</p>
+<p>따라서 같은 저장 공간을 공유할 때도 Mount Namespace 자체를 공유하는 것이 아니다.</p>
+<pre><code class="language-text">같은 Volume 원본
+      ├─ app Mount Namespace의 /app/data에 Mount
+      └─ sidecar Mount Namespace의 /logs에 Mount
+</code></pre>
+
+</section>
+<section id="kubernetes-volume" class="markdown-section">
+<h2>Kubernetes Volume은 이 연결을 선언한다</h2>
+<p>Kubernetes Volume은 저장소 원본과 Container의 Mount Point를 선언적으로 연결하는 구조다.</p>
+<pre><code class="language-text">spec.volumes
+→ Pod가 사용할 Volume과 저장소 원본 정의
+
+spec.containers[].volumeMounts
+→ 각 Container가 Volume을 어느 경로에서 볼지 정의
+</code></pre>
+<pre><code class="language-yaml">spec:
+  volumes:
+    - name: shared-data
+      emptyDir: {}
+
+  containers:
+    - name: app
+      volumeMounts:
+        - name: shared-data
+          mountPath: /app/data
+
+    - name: sidecar
+      volumeMounts:
+        - name: shared-data
+          mountPath: /logs
+</code></pre>
+<pre><code class="language-text">Pod Volume: shared-data
+          ├─ app Mount Namespace의 /app/data
+          └─ sidecar Mount Namespace의 /logs
+</code></pre>
+<p>app의 <code>/app/data/result.txt</code>와 sidecar의 <code>/logs/result.txt</code>는 서로 다른 경로지만 같은 Volume의 파일일 수 있다.</p>
+<p>Volume을 Pod에 선언했다고 모든 Container에 자동으로 나타나는 것은 아니다. 사용할 Container마다 <code>volumeMounts</code>가 필요하다.</p>
+
+</section>
+<section id="process-kubernetes-volume" class="markdown-section">
+<h2>Process는 Kubernetes Volume을 알지 못한다</h2>
+<p>애플리케이션 Process는 일반적으로 PVC나 CSI Driver를 직접 호출하지 않는다.</p>
+<pre><code class="language-text">Process가 아는 것
+→ /app/data에 파일이 있음
+
+Process가 몰라도 되는 것
+→ emptyDir인지 PVC인지
+→ Cloud Disk인지 NFS인지
+→ 어떤 CSI Driver가 준비했는지
+</code></pre>
+<p>전체 연결은 다음과 같다.</p>
+<pre><code class="language-text">실제 Storage
+    ↓ Filesystem 준비
+Node의 Mount
+    ↓ Bind Mount 등의 연결
+Container의 Mount Namespace
+    ↓ mountPath
+Container Process가 보는 파일 경로
+    ↓ open·read·write
+Linux Kernel이 실제 Storage 접근
+</code></pre>
+<p>일반적인 파일·디렉터리 접근은 이 흐름을 사용한다. 예외적으로 Raw Block Device를 직접 사용하는 애플리케이션은 Filesystem Mount 없이 Block Device를 다룰 수도 있다.</p>
+
+</section>
+<section id="volume" class="markdown-section">
+<h2>Volume은 데이터 수명을 분리한다</h2>
+<p>Container의 쓰기 계층에 저장한 데이터는 Container가 교체되면 새 Container에 이어지지 않는다. Volume을 사용하면 데이터 위치를 특정 Container의 쓰기 계층과 분리할 수 있다.</p>
+<pre><code class="language-text">Container 쓰기 계층
+→ Container 교체 시 이전 데이터 소멸
+
+emptyDir
+→ 같은 Pod의 Container 교체에는 유지
+→ Pod 삭제·교체 시 소멸
+
+PVC 기반 Persistent Volume
+→ Pod가 삭제되어도 유지 가능
+→ 최종 수명은 PVC·PV·Reclaim Policy와 Storage 정책에 따라 결정
+</code></pre>
+<p>Volume을 사용했다는 사실만으로 데이터가 영구 보존되는 것은 아니다. 어떤 Volume Source를 사용했고 그 수명이 무엇과 연결되는지 확인해야 한다.</p>
+<p>Mount 구조, <code>emptyDir</code> 수명, <code>subPath</code>, 권한과 <code>hostPath</code> 주의점은 <a href="kubernetes-pod-volume-mount-lifecycle.html">Pod Volume Mount와 데이터 수명</a>에서 자세히 다룬다.</p>
+
+</section>
+<section id="volume-volume" class="markdown-section">
+<h2>임시 Volume과 영속 Volume</h2>
+<p>처음에는 세부 Plugin을 외우기보다 두 부류로 나누면 된다.</p>
+<pre><code class="language-text">임시 Volume
+├─ emptyDir
+├─ configMap
+├─ secret
+├─ downwardAPI
+└─ projected 등
+
+영속 Volume
+└─ PVC
+   └─ PV
+      └─ Cloud Disk·NFS·Ceph 등의 실제 Storage
+</code></pre>
+<p><code>configMap</code>, <code>secret</code>과 <code>downwardAPI</code>는 일반적인 데이터 저장소라기보다 Kubernetes 데이터를 Container 파일시스템에 주입하는 Volume에 가깝다.</p>
+<p>PVC·PV·StorageClass·CSI의 역할, Access Mode와 Reclaim Policy는 <a href="kubernetes-persistent-volume-storage-lifecycle.html">Kubernetes Persistent Volume의 연결과 수명</a>에서 자세히 다룬다.</p>
+
+</section>
+<section id="section-c00d7fbb4602" class="markdown-section">
+<h2>문서 구조와 학습 순서</h2>
+<pre><code class="language-text">Kubernetes Pod Volume의 구조
+├─ Process의 파일 경로 사용
+├─ Filesystem과 Mount
+├─ Mount Namespace
+├─ Kubernetes volumes와 volumeMounts
+│
+├─ Pod Volume Mount와 데이터 수명
+│  ├─ Container 쓰기 계층
+│  ├─ emptyDir 수명
+│  └─ Mount·권한 관련 주의점
+│
+└─ Kubernetes Persistent Volume의 연결과 수명
+   ├─ PVC·PV·StorageClass·CSI
+   ├─ 동적 스토리지 프로비저닝
+   │  └─ StorageClass·PVC·PV의 연결 과정
+   ├─ Mount 흐름
+   ├─ Access Mode
+   └─ Reclaim Policy
+</code></pre>
+<pre><code class="language-text">1. Process가 파일 경로로 Kernel에 접근 요청
+2. Mount가 Filesystem을 디렉터리 경로에 연결
+3. Mount Namespace가 Process에게 보이는 Mount Tree 결정
+4. Kubernetes Volume이 저장소 원본 선언
+5. volumeMounts가 Container의 Mount Point 선언
+6. Volume 종류에 따라 데이터 수명 결정
+7. Persistent Storage는 PVC·PV·StorageClass·CSI로 확장
+</code></pre>
+
+</section>
+<section id="section-85b0c903e952" class="markdown-section">
+<h2>핵심 정리</h2>
+<pre><code class="language-text">Container Process
+        ↓ 파일 경로 사용
+Mount Namespace의 Directory Tree
+        ↓ Mount Point
+Kubernetes Volume
+        ↓ Volume Source
+Node 또는 외부의 실제 Storage
+</code></pre>
+<blockquote>
+<p>Container Process는 Kubernetes Volume을 직접 다루지 않는다. kubelet과 Container Runtime이 저장소를 Container의 Mount Namespace 안 특정 경로에 미리 Mount하고, Process는 그 경로를 <code>open</code>, <code>read</code>, <code>write</code>해서 저장소를 사용한다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-pod-volume-mount-lifecycle.html">Pod Volume Mount와 데이터 수명</a></li>
+<li><a href="kubernetes-persistent-volume-storage-lifecycle.html">Kubernetes Persistent Volume의 연결과 수명</a><ul><li><a href="kubernetes-dynamic-storage-provisioning.html">Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
