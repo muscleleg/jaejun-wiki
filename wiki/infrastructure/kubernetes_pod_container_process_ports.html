@@ -1,0 +1,455 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes_pod_container_process_ports.md. Do not edit directly. source-sha256:ccf51608439f0df81951762401e2354bdc2e111d0061cb918dcd7d4d52f9e624 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod Network Namespace에서 프로세스가 실제 포트를 열고 containerPort·Service targetPort·NodePort·Probe가 그 포트와 연결되는 방식을 설명한다.">
+  <meta name="source-sha256" content="ccf51608439f0df81951762401e2354bdc2e111d0061cb918dcd7d4d52f9e624">
+  <title>Kubernetes Pod의 포트는 실제로 어떻게 동작하는가</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes Pod의 포트는 실제로 어떻게 동작하는가">
+  <meta property="og:description" content="Pod Network Namespace에서 프로세스가 실제 포트를 열고 containerPort·Service targetPort·NodePort·Probe가 그 포트와 연결되는 방식을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html","name":"Kubernetes Pod의 포트는 실제로 어떻게 동작하는가","description":"Pod Network Namespace에서 프로세스가 실제 포트를 열고 containerPort·Service targetPort·NodePort·Probe가 그 포트와 연결되는 방식을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html"},"headline":"Kubernetes Pod의 포트는 실제로 어떻게 동작하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_pod_container_process_ports.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html"},{"@type":"ListItem","position":6,"name":"Kubernetes Pod의 포트는 실제로 어떻게 동작하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-to-service-traffic-flow.html">Pod에서 Service 이름으로 보낸 요청은 어떻게 다른 Pod에 도착할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes Pod의 포트는 실제로 어떻게 동작하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes Pod의 포트는 실제로 어떻게 동작하는가</h1>
+      <p class="lead">Pod Network Namespace에서 프로세스가 실제 포트를 열고 containerPort·Service targetPort·NodePort·Probe가 그 포트와 연결되는 방식을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#pod-network-namespace">Pod와 Network Namespace</a>
+        <a href="#section-e3f289ff91c5">실제 포트는 프로세스가 연다</a>
+        <a href="#section-ba162ca73afe">컨테이너 포트와 프로세스 포트</a>
+        <a href="#containerport"><code>containerPort</code>와 실제 포트가 다른 경우</a>
+        <a href="#pod">같은 Pod에서는 포트가 충돌할 수 있다</a>
+        <a href="#service">Service와 실제 프로세스 포트의 연결</a>
+        <a href="#pod-running">포트가 잘못되어도 Pod는 <code>Running</code>일 수 있다</a>
+        <a href="#containerport-2"><code>containerPort</code>만 잘못된 경우</a>
+        <a href="#section-753c3443756c">포트뿐 아니라 바인딩 주소도 중요하다</a>
+        <a href="#probe">Probe에 따른 상태 차이</a>
+        <a href="#network-namespace">Network Namespace에서 보이는 포트</a>
+        <a href="#section-a8e1097b68c2">최종 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes Pod 명세에는 <code>containerPort</code>, Service에는 <code>port</code>, <code>targetPort</code>, <code>nodePort</code> 같은 여러 포트가 등장한다. 이 때문에 Kubernetes가 컨테이너마다 별도의 포트를 만들고 서로 연결한다고 생각하기 쉽다.</p>
+<p>하지만 Linux 관점에서 실제로 포트를 여는 주체는 Kubernetes나 컨테이너가 아니라 <strong>컨테이너 안에서 실행되는 프로세스</strong>다. Kubernetes의 포트 설정은 이 실제 프로세스 포트로 트래픽이 도달하도록 연결하고 설명하는 역할을 한다.</p>
+</div>
+        <section id="pod-network-namespace" class="markdown-section">
+<h2>Pod와 Network Namespace</h2>
+<p>Linux 커널은 Kubernetes의 Pod라는 개념을 직접 알지 못한다. 커널 관점에서는 각 프로세스가 어느 Network Namespace에 속하는지가 중요하다.</p>
+<p>Kubernetes의 컨테이너 런타임은 Pod를 생성할 때 Network Namespace를 준비하고, Pod 안에서 실행되는 컨테이너 프로세스들을 해당 Namespace에 참여시킨다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ Pod IP
+├─ eth0
+├─ Routing Table
+├─ TCP·UDP 포트 공간
+│
+├─ app 컨테이너의 프로세스
+└─ sidecar 컨테이너의 프로세스
+</code></pre>
+<p>따라서 “Pod가 네트워크를 가진다”는 말은 정확히는 다음을 의미한다.</p>
+<blockquote>
+<p>Pod 안의 컨테이너 프로세스들이 하나의 Network Namespace를 공유한다.</p>
+</blockquote>
+<p>이 때문에 같은 Pod의 컨테이너들은 다음 네트워크 자원을 공유한다.</p>
+<ul>
+<li>Pod IP</li>
+<li>네트워크 인터페이스</li>
+<li>라우팅 테이블</li>
+<li>TCP·UDP 포트 공간</li>
+<li><code>localhost</code></li>
+</ul>
+
+</section>
+<section id="section-e3f289ff91c5" class="markdown-section">
+<h2>실제 포트는 프로세스가 연다</h2>
+<p>애플리케이션 프로세스는 Linux의 <code>bind()</code>와 <code>listen()</code> 시스템 콜을 사용해 포트를 연다.</p>
+<p>예를 들어 프로세스가 다음 주소에 바인딩했다고 하자.</p>
+<pre><code class="language-text">0.0.0.0:9090/TCP
+</code></pre>
+<p>이것은 현재 Network Namespace에 속한 모든 네트워크 인터페이스의 TCP <code>9090</code> 포트에서 요청을 받겠다는 의미다.</p>
+<p>Pod의 Network Namespace에서 확인하면 실제 소켓이 나타난다.</p>
+<pre><code class="language-bash">ss -lntp
+</code></pre>
+<pre><code class="language-text">LISTEN 0 4096 0.0.0.0:9090 0.0.0.0:* users:((&quot;app&quot;,pid=123,...))
+</code></pre>
+<p>여기서 보이는 <code>9090</code>은 Kubernetes가 만든 가상 포트가 아니다. 애플리케이션 프로세스가 실제로 열어 놓은 소켓이다.</p>
+
+</section>
+<section id="section-ba162ca73afe" class="markdown-section">
+<h2>컨테이너 포트와 프로세스 포트</h2>
+<p>일반적으로 “컨테이너 포트”라고 부르는 것은 별도의 Linux 네트워크 객체가 아니다.</p>
+<pre><code class="language-text">애플리케이션 프로세스가 9090에서 listen
+                 ↓
+이를 컨테이너 관점에서 ‘컨테이너 포트 9090’이라고 표현
+</code></pre>
+<p>즉, 실제로 존재하는 것은 프로세스가 연 소켓이고, 컨테이너 포트는 그 포트를 컨테이너 관점에서 부르는 표현이다.</p>
+<p>다만 Kubernetes YAML의 <code>containerPort</code>는 실제 프로세스 포트와 구분해야 한다.</p>
+<pre><code class="language-yaml">containers:
+  - name: app
+    image: example-app
+    ports:
+      - containerPort: 9090
+</code></pre>
+<p><code>containerPort: 9090</code>은 Kubernetes가 <code>9090</code> 포트를 직접 열겠다는 뜻이 아니다. 다음과 같은 선언에 가깝다.</p>
+<blockquote>
+<p>이 컨테이너에서 실행되는 애플리케이션은 <code>9090</code> 포트를 사용할 예정이다.</p>
+</blockquote>
+<p>따라서 <code>containerPort</code>를 작성하는 것만으로는 다음 작업이 발생하지 않는다.</p>
+<ul>
+<li>애플리케이션의 포트 설정 변경</li>
+<li>Linux 소켓 생성</li>
+<li>외부 트래픽 공개</li>
+<li>방화벽 포트 개방</li>
+<li>다른 포트로의 자동 변환</li>
+</ul>
+<p>실제 포트는 이미지 안에서 실행되는 애플리케이션의 설정, 실행 인자 또는 환경변수로 결정된다.</p>
+
+</section>
+<section id="containerport" class="markdown-section">
+<h2><code>containerPort</code>와 실제 포트가 다른 경우</h2>
+<p>Pod 명세에는 <code>9090</code>을 선언했지만 애플리케이션이 실제로 <code>8080</code>에서 실행될 수도 있다.</p>
+<pre><code class="language-text">Pod 명세의 containerPort: 9090
+실제 프로세스의 포트:     8080
+</code></pre>
+<p>이 상태에서 <code>ss</code>로 확인하면 실제 소켓인 <code>8080</code>만 나타난다.</p>
+<pre><code class="language-text">LISTEN 0 4096 0.0.0.0:8080 0.0.0.0:*
+</code></pre>
+<p><code>9090</code>은 선언만 되어 있을 뿐, 실제 프로세스가 사용하지 않으므로 나타나지 않는다. Kubernetes도 두 값이 다르다는 이유만으로 컨테이너 실행을 막지 않는다.</p>
+<p>따라서 다음 관계는 자동으로 보장되지 않는다.</p>
+<pre><code class="language-text">containerPort 선언
+        ≠
+프로세스의 실제 listen 포트
+</code></pre>
+<p>정상적으로 구성된 애플리케이션에서는 두 값을 의도적으로 동일하게 맞춘다.</p>
+<pre><code class="language-text">containerPort: 9090
+        ↓ 설정상 약속
+프로세스가 0.0.0.0:9090에 bind
+        ↓ 실제 상태
+Network Namespace에서 :9090 관찰
+</code></pre>
+
+</section>
+<section id="pod" class="markdown-section">
+<h2>같은 Pod에서는 포트가 충돌할 수 있다</h2>
+<p>Pod 안의 컨테이너들은 동일한 Network Namespace를 사용한다. 따라서 컨테이너가 서로 다르더라도 동일한 주소와 포트에 동시에 바인딩할 수 없다.</p>
+<pre><code class="language-text">하나의 Pod Network Namespace
+
+app 프로세스
+└─ 0.0.0.0:9090/TCP 사용
+
+sidecar 프로세스
+└─ 0.0.0.0:9090/TCP 사용 시도
+   └─ Address already in use
+</code></pre>
+<p>포트 충돌은 컨테이너 이름이 아니라 일반적으로 다음 조합을 기준으로 판단한다.</p>
+<pre><code class="language-text">Network Namespace
++ IP 주소
++ 프로토콜
++ 포트 번호
+</code></pre>
+<p>따라서 같은 Pod 안에서는 각 애플리케이션이 서로 다른 포트를 사용하는 것이 일반적이다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ app 프로세스     → 0.0.0.0:9090
+├─ sidecar 프로세스 → 0.0.0.0:15000
+└─ metrics 프로세스 → 0.0.0.0:9100
+</code></pre>
+<p>반면 서로 다른 Pod는 Network Namespace와 Pod IP가 다르므로 같은 포트를 사용할 수 있다.</p>
+<pre><code class="language-text">Pod A: 10.244.1.10:9090
+Pod B: 10.244.1.11:9090
+Pod C: 10.244.1.12:9090
+</code></pre>
+<p>이것이 Deployment가 생성한 여러 Pod에서 동일한 애플리케이션 포트를 사용할 수 있는 이유다.</p>
+
+</section>
+<section id="service" class="markdown-section">
+<h2>Service와 실제 프로세스 포트의 연결</h2>
+<p>Service는 클라이언트의 요청을 Pod의 실제 프로세스 포트로 전달한다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: example-app
+spec:
+  type: NodePort
+  selector:
+    app: example-app
+  ports:
+    - port: 80
+      targetPort: 9090
+      nodePort: 30909
+</code></pre>
+<p>각 포트는 서로 다른 네트워크 위치를 나타낸다.</p>
+<pre><code class="language-text">클러스터 외부 요청
+Node IP:30909
+     │
+     │ nodePort
+     ▼
+Service:80
+     │
+     │ targetPort
+     ▼
+Pod IP:9090
+     │
+     ▼
+9090에서 listen 중인 프로세스
+</code></pre>
+<p>각 설정의 역할은 다음과 같다.</p>
+<ul>
+<li><code>nodePort: 30909</code><ul>
+<li>클러스터 외부에서 Node IP를 통해 접근하는 포트</li>
+</ul>
+</li>
+<li><code>port: 80</code><ul>
+<li>클러스터 내부에서 Service에 접근하는 포트</li>
+</ul>
+</li>
+<li><code>targetPort: 9090</code><ul>
+<li>Service가 트래픽을 전달할 Pod의 실제 포트</li>
+</ul>
+</li>
+<li><code>containerPort: 9090</code><ul>
+<li>컨테이너가 사용할 예정인 포트를 설명하는 선언</li>
+</ul>
+</li>
+<li>프로세스의 <code>9090</code><ul>
+<li>실제로 소켓이 열려 있는 포트</li>
+</ul>
+</li>
+</ul>
+<p>다른 Pod에서는 일반적으로 Service의 DNS 이름과 <code>port</code>를 사용한다.</p>
+<pre><code class="language-text">http://example-app:80
+</code></pre>
+<p>클러스터 외부에서는 NodePort를 통해 접근할 수 있다.</p>
+<pre><code class="language-text">http://&lt;Node-IP&gt;:30909
+</code></pre>
+
+</section>
+<section id="pod-running" class="markdown-section">
+<h2>포트가 잘못되어도 Pod는 <code>Running</code>일 수 있다</h2>
+<p>이미지 속 애플리케이션이 실제로 <code>8080</code>에서 실행되는데 다음과 같이 잘못 설정했다고 가정하자.</p>
+<pre><code class="language-yaml">containers:
+  - name: app
+    image: example-app
+    ports:
+      - containerPort: 9090
+---
+ports:
+  - port: 80
+    targetPort: 9090
+</code></pre>
+<p>실제 연결 상태는 다음과 같다.</p>
+<pre><code class="language-text">Service가 보내는 곳: PodIP:9090
+실제 프로세스 위치:  PodIP:8080
+</code></pre>
+<p>Service는 <code>9090</code>으로 트래픽을 전달하지만 해당 포트에서 듣는 프로세스가 없으므로 통신이 실패한다.</p>
+<pre><code class="language-text">Service:80
+    ↓
+PodIP:9090
+    ↓
+듣는 프로세스 없음
+    ↓
+Connection refused 또는 timeout
+</code></pre>
+<p>하지만 애플리케이션 프로세스 자체는 <code>8080</code>에서 정상적으로 실행 중이다. 프로세스가 종료되지 않았으므로 Kubernetes에서는 Pod가 다음과 같이 보일 수 있다.</p>
+<pre><code class="language-text">STATUS: Running
+</code></pre>
+<p>즉, <code>Running</code>은 기본적으로 컨테이너 프로세스가 실행 중이라는 뜻이지, 애플리케이션이 올바른 포트에서 정상적으로 요청을 받고 있다는 뜻은 아니다.</p>
+
+</section>
+<section id="containerport-2" class="markdown-section">
+<h2><code>containerPort</code>만 잘못된 경우</h2>
+<p><code>containerPort</code>는 잘못 선언했지만 Service의 <code>targetPort</code>가 실제 프로세스 포트를 가리키고 있다면 통신될 수 있다.</p>
+<pre><code class="language-yaml">containers:
+  - name: app
+    ports:
+      - containerPort: 9090  # 실제와 다른 선언
+
+---
+ports:
+  - port: 80
+    targetPort: 8080         # 실제 프로세스 포트
+</code></pre>
+<p>실제 흐름은 다음과 같다.</p>
+<pre><code class="language-text">Service:80
+    ↓
+PodIP:8080
+    ↓
+8080에서 listen 중인 프로세스
+    ↓
+통신 성공
+</code></pre>
+<p><code>containerPort</code> 자체는 패킷 전달에 직접 관여하지 않기 때문이다.</p>
+<p>다만 이름 있는 포트를 사용할 때는 <code>containerPort</code> 선언이 Service 연결에 사용된다.</p>
+<pre><code class="language-yaml">containers:
+  - name: app
+    ports:
+      - name: http
+        containerPort: 9090
+
+---
+ports:
+  - port: 80
+    targetPort: http
+</code></pre>
+<p>이 경우 <code>targetPort: http</code>는 이름이 <code>http</code>인 <code>containerPort: 9090</code>을 참조한다. 따라서 <code>containerPort</code>가 잘못되어 있으면 Service도 잘못된 포트로 트래픽을 전달한다.</p>
+
+</section>
+<section id="section-753c3443756c" class="markdown-section">
+<h2>포트뿐 아니라 바인딩 주소도 중요하다</h2>
+<p>프로세스가 올바른 포트를 사용하더라도 어느 IP 주소에 바인딩했는지에 따라 접근 가능 범위가 달라진다.</p>
+<p>프로세스가 다음과 같이 실행된다면:</p>
+<pre><code class="language-text">127.0.0.1:9090
+</code></pre>
+<p>같은 Pod Network Namespace의 <code>localhost</code>에서는 접근할 수 있지만, 다른 Pod가 <code>PodIP:9090</code>으로 접근하지 못할 수 있다.</p>
+<p>다른 Pod나 Service의 요청을 받으려면 일반적으로 다음처럼 모든 인터페이스에 바인딩한다.</p>
+<pre><code class="language-text">0.0.0.0:9090
+</code></pre>
+<p>따라서 실제 통신 여부를 판단할 때는 포트 번호뿐 아니라 바인딩 주소도 확인해야 한다.</p>
+
+</section>
+<section id="probe" class="markdown-section">
+<h2>Probe에 따른 상태 차이</h2>
+<p>Kubernetes가 애플리케이션의 실제 상태를 판단하려면 Probe를 설정해야 한다.</p>
+<h3>Probe가 없는 경우</h3>
+<p>프로세스만 살아 있다면 다음과 같은 상태가 가능하다.</p>
+<pre><code class="language-text">Pod 상태: Running
+Ready 상태: true일 수도 있음
+실제 통신: 실패
+</code></pre>
+<p>Kubernetes가 애플리케이션의 포트와 응답을 별도로 검사하지 않기 때문이다.</p>
+<h3>Readiness Probe</h3>
+<p>Readiness Probe는 애플리케이션이 현재 요청을 받을 준비가 되었는지 검사한다.</p>
+<pre><code class="language-yaml">readinessProbe:
+  httpGet:
+    path: /health
+    port: 9090
+</code></pre>
+<p>검사가 실패하면 프로세스는 살아 있으므로 Pod는 계속 <code>Running</code>일 수 있지만 Ready 상태는 <code>false</code>가 된다.</p>
+<pre><code class="language-text">Pod 상태: Running
+Ready 상태: false
+kubectl 표시: 0/1 Running
+Service Endpoint: 제외
+</code></pre>
+<p>이 Pod는 Service의 트래픽 대상에서 제외된다.</p>
+<h3>Liveness Probe</h3>
+<p>Liveness Probe는 애플리케이션이 복구할 수 없는 비정상 상태인지 검사한다.</p>
+<pre><code class="language-yaml">livenessProbe:
+  httpGet:
+    path: /health
+    port: 9090
+</code></pre>
+<p>검사가 반복해서 실패하면 Kubernetes가 컨테이너를 재시작한다.</p>
+<pre><code class="language-text">잘못된 포트 또는 응답 실패
+        ↓
+Liveness Probe 실패
+        ↓
+컨테이너 재시작
+        ↓
+반복되면 CrashLoopBackOff 형태로 관찰 가능
+</code></pre>
+<p>Readiness Probe는 트래픽 수신 가능 여부를 판단하고, Liveness Probe는 컨테이너 재시작 필요 여부를 판단한다.</p>
+
+</section>
+<section id="network-namespace" class="markdown-section">
+<h2>Network Namespace에서 보이는 포트</h2>
+<p>Pod의 Network Namespace에서 <code>ss</code>를 실행하면 특정 컨테이너만의 포트가 아니라 해당 Namespace에 존재하는 모든 소켓이 보인다.</p>
+<pre><code class="language-text">Pod Network Namespace
+├─ app 컨테이너의 프로세스     → :9090
+└─ sidecar 컨테이너의 프로세스 → :15000
+</code></pre>
+<p>따라서 Network Namespace만 보면 어떤 포트가 열려 있는지는 알 수 있지만, 그것이 어느 컨테이너의 프로세스가 연 포트인지를 구분하려면 PID와 cgroup 정보를 함께 확인해야 한다.</p>
+<p>여기서 Namespace와 cgroup의 역할이 연결된다.</p>
+<ul>
+<li>Network Namespace는 프로세스들이 공유하는 네트워크 공간을 결정한다.</li>
+<li>소켓과 포트는 그 Network Namespace 안에 존재한다.</li>
+<li>PID는 실제로 소켓을 연 프로세스를 나타낸다.</li>
+<li>cgroup은 해당 프로세스가 어느 컨테이너에 속하는지와 자원 사용량을 구분하는 단서가 된다.</li>
+</ul>
+
+</section>
+<section id="section-a8e1097b68c2" class="markdown-section">
+<h2>최종 정리</h2>
+<p>Kubernetes의 포트 연결은 다음 값들이 정상적으로 맞아야 동작한다.</p>
+<pre><code class="language-text">이미지 속 애플리케이션 설정
+        ↓
+프로세스가 실제로 listen하는 IP와 포트
+        ↓
+Service의 targetPort
+        ↓
+Readiness·Liveness Probe의 검사 포트
+</code></pre>
+<p>정상적인 구성에서는 보통 다음과 같이 일치한다.</p>
+<pre><code class="language-text">containerPort
+= Service의 targetPort
+= Probe가 확인하는 포트
+= 프로세스가 실제로 listen하는 포트
+</code></pre>
+<p>하지만 Kubernetes가 이 일치를 자동으로 보장하지는 않는다.</p>
+<p><code>containerPort</code>는 포트를 설명하는 선언이고, 실제로 존재하는 포트는 프로세스가 Network Namespace 안에서 <code>bind()</code>한 소켓이다. 설정이 잘못되어도 프로세스가 살아 있으면 Pod는 <code>Running</code>으로 표시될 수 있으므로, 실제 동작을 확인하려면 다음을 함께 살펴봐야 한다.</p>
+<ul>
+<li>Pod의 <code>Running</code> 상태</li>
+<li>컨테이너의 Ready 상태</li>
+<li>Readiness·Liveness Probe 결과</li>
+<li>Service의 <code>targetPort</code></li>
+<li>Service Endpoint 포함 여부</li>
+<li>프로세스의 실제 listen IP와 포트</li>
+</ul>
+<p>결국 Linux와 Kubernetes를 연결하는 핵심은 다음 문장으로 정리할 수 있다.</p>
+<blockquote>
+<p>Kubernetes의 포트 설정은 트래픽이 도달할 경로를 선언하고, 실제 통신 가능 여부는 Pod Network Namespace 안에서 프로세스가 어느 IP와 포트에 소켓을 열었는지가 결정한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

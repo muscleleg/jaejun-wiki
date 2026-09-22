@@ -1,0 +1,353 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.md. Do not edit directly. source-sha256:d5184e08bd046d637d41598ada26e525044c374b4d0b3def227a6412f68f0870 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="한 Pod의 GPU 요청은 한 Node가 만족해야 한다는 조건을 4-GPU Pod와 1-GPU Replica 네 개의 배치 결과로 검증합니다.">
+  <meta name="source-sha256" content="d5184e08bd046d637d41598ada26e525044c374b4d0b3def227a6412f68f0870">
+  <title>GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?">
+  <meta property="og:description" content="한 Pod의 GPU 요청은 한 Node가 만족해야 한다는 조건을 4-GPU Pod와 1-GPU Replica 네 개의 배치 결과로 검증합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html","name":"GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?","description":"한 Pod의 GPU 요청은 한 Node가 만족해야 한다는 조건을 4-GPU Pod와 1-GPU Replica 네 개의 배치 결과로 검증합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html"},"headline":"GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-single-pod-vs-replicas-scheduling.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"GPU Pod의 Node 배치를 어떻게 제어할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html"},{"@type":"ListItem","position":7,"name":"GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-node-scheduling-control.html">GPU Pod의 Node 배치를 어떻게 제어할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</h1>
+      <p class="lead">한 Pod의 GPU 요청은 한 Node가 만족해야 한다는 조건을 4-GPU Pod와 1-GPU Replica 네 개의 배치 결과로 검증합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#gpu">GPU를 예약했다는 사실은 어디에서 확인할까?</a>
+        <a href="#gpu-node">GPU 한 개 요청은 여유가 있는 Node에 배치됐다</a>
+        <a href="#gpu-node-2">GPU 두 개 요청은 한 Node에 두 개가 함께 남아 있어야 했다</a>
+        <a href="#cluster-gpu-pod-pending">Cluster에 네 개가 있어도 GPU 네 개를 요청한 Pod는 Pending됐다</a>
+        <a href="#gpu-budget-replica-running">같은 GPU Budget을 Replica 네 개로 나누자 모두 Running됐다</a>
+        <a href="#replica-multi-gpu-runtime">Replica 네 개는 하나의 Multi-GPU Runtime이 아니다</a>
+        <a href="#fake-gpu-scheduling">Fake GPU 실험에서 확인한 범위는 Scheduling까지다</a>
+        <a href="#section-dd630180f3be">같은 비교를 직접 재현한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU가 두 개씩 있는 Worker 두 대라면 Cluster 전체 GPU는 네 개다. 그렇다면 GPU 네 개를 요청하는 Pod 하나도 실행할 수 있을까?</p>
+<p>Kubernetes Scheduler의 답은 아니다. Pod 하나는 Node 하나에 배치되므로, GPU 네 개를 요청한 Pod를 실행하려면 GPU 네 개를 함께 제공할 수 있는 Node가 필요하다. 반대로 GPU 한 개를 요청하는 Pod 네 개는 서로 다른 Node에 나눠 배치할 수 있다.</p>
+<pre><code class="language-text">Cluster 전체 GPU: 2 + 2 = 4
+
+Pod 1개가 GPU 4개 요청
+  → 한 Node가 GPU 4개를 제공해야 함
+  → 가능한 Node가 없으므로 Pending
+
+Pod 4개가 GPU 1개씩 요청
+  → 각 Pod를 독립적으로 배치할 수 있음
+  → 두 Node에 2개씩 배치 가능
+</code></pre>
+<p>이 차이를 확인하기 위해 CPU Mock Container가 GPU Extended Resource만 요청하도록 만들고, 요청 크기와 Pod 수만 바꿔 Scheduler의 결정을 관찰했다. Fake GPU 환경을 사용했기 때문에 확인 대상은 실제 연산 성능이 아니라 Kubernetes의 자원 게시·예약·배치 동작이었다.</p>
+</div>
+        <section id="gpu" class="markdown-section">
+<h2>GPU를 예약했다는 사실은 어디에서 확인할까?</h2>
+<p>실습에 사용한 Worker는 <code>gpu-lab-m02</code>와 <code>gpu-lab-m03</code>이다. 최종 비교 환경에서는 두 Node가 각각 다음 Fake GPU 자원을 게시했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th align="right"><code>nvidia.com/gpu</code> Capacity</th>
+<th align="right"><code>nvidia.com/gpu</code> Allocatable</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+</tbody></table>
+</div>
+<p>Pod의 Container에는 요청 수에 맞춰 <code>requests</code>와 <code>limits</code>를 같은 값으로 지정했다.</p>
+<pre><code class="language-yaml">resources:
+  requests:
+    nvidia.com/gpu: &quot;1&quot;
+  limits:
+    nvidia.com/gpu: &quot;1&quot;
+</code></pre>
+<p>여기서 <code>Allocatable: 2</code>는 현재 남은 GPU가 두 개라는 뜻이 아니다. Pod가 GPU 하나를 예약해도 Node YAML의 Capacity와 Allocatable은 계속 2로 보인다. 현재 예약량은 <code>kubectl describe node</code>의 <code>Allocated resources</code>에 표시되는 GPU Requests와 Limits 합계로 확인해야 한다.</p>
+<pre><code class="language-text">배치 가능한 GPU 수
+  = Node의 Allocatable
+  - 해당 Node에 배치된 Pod들의 GPU Request 합계
+</code></pre>
+<p>따라서 다음 두 명령은 서로 다른 질문에 답한다.</p>
+<pre><code class="language-bash">kubectl get node gpu-lab-m02 -o yaml
+kubectl describe node gpu-lab-m02
+</code></pre>
+<p>첫 번째 결과의 Capacity와 Allocatable은 Device Plugin이 게시한 Node 자원 규모를 보여 준다. 두 번째 결과의 <code>Allocated resources</code>는 현재 그 Node에 배치된 Pod들이 예약한 자원의 합계를 계산해 보여 준다.</p>
+
+</section>
+<section id="gpu-node" class="markdown-section">
+<h2>GPU 한 개 요청은 여유가 있는 Node에 배치됐다</h2>
+<p>먼저 <code>gpu-request-one</code>이 GPU 한 개를 요청하도록 만들었다. GPU가 있는 Worker 두 대가 모두 자원 조건을 만족했고, Scheduler는 <code>gpu-lab-m02</code>를 선택했다. Pod는 Running이 됐다.</p>
+<pre><code class="language-text">gpu-request-one
+  GPU Request: 1
+  선택된 Node: gpu-lab-m02
+  상태: Running
+</code></pre>
+<p>배치 뒤에도 <code>gpu-lab-m02</code>의 Capacity와 Allocatable은 2였다. 대신 <code>Allocated resources</code>의 <code>nvidia.com/gpu</code> Requests와 Limits 합계가 1로 나타났다. 이 결과로 자원 규모와 현재 예약량을 같은 값으로 읽어서는 안 된다는 점을 확인했다.</p>
+
+</section>
+<section id="gpu-node-2" class="markdown-section">
+<h2>GPU 두 개 요청은 한 Node에 두 개가 함께 남아 있어야 했다</h2>
+<p>GPU 두 개를 요청한 <code>gpu-request-two-contiguous</code>는 Cluster 전체의 남은 개수만으로 배치되지 않았다. 이 실험 시점에는 <code>gpu-lab-m02</code>의 GPU 두 개 중 하나가 다른 Pod에 예약돼 있었고, <code>gpu-lab-m03</code>이 게시한 GPU는 한 개였다.</p>
+<pre><code class="language-text">gpu-lab-m02의 배치 여유: 1
+gpu-lab-m03의 배치 여유: 1
+Cluster 전체 배치 여유: 2
+
+gpu-request-two-contiguous의 요청: 2
+</code></pre>
+<p>전체 여유를 더하면 두 개지만 어느 Node도 GPU 두 개를 한꺼번에 제공할 수 없었다. Pod에는 <code>nodeName</code>이 정해지지 않았고 Scheduler Event에는 <code>Insufficient nvidia.com/gpu</code>가 기록됐다.</p>
+<p>그 뒤 <code>gpu-lab-m02</code>에서 GPU 하나를 예약하던 Pod를 삭제했다. Node의 Capacity와 Allocatable은 2로 그대로였지만 예약 합계가 줄면서 한 Node에 GPU 두 개가 함께 비었다. 대기 중이던 <code>gpu-request-two-contiguous</code>는 다시 평가돼 <code>gpu-lab-m02</code>에서 Running이 됐다.</p>
+<pre><code class="language-text">GPU 하나를 예약한 Pod 삭제
+  → gpu-lab-m02의 GPU Request 합계 감소
+  → 한 Node에서 GPU 2개 요청을 충족할 수 있게 됨
+  → Pending Pod가 gpu-lab-m02에 배치됨
+</code></pre>
+<p>여기서 필요한 것은 물리적으로 연속된 PCI 장치 번호가 아니다. Scheduler 관점에서는 Pod가 요청한 GPU 수량 전체를 Node 하나의 배치 가능량으로 충족할 수 있어야 한다.</p>
+
+</section>
+<section id="cluster-gpu-pod-pending" class="markdown-section">
+<h2>Cluster에 네 개가 있어도 GPU 네 개를 요청한 Pod는 Pending됐다</h2>
+<p>다음 비교를 위해 <code>gpu-lab-m02</code>와 <code>gpu-lab-m03</code>이 각각 Fake GPU 두 개를 게시하고, 실험용 GPU Pod가 자원을 예약하지 않은 상태를 만들었다.</p>
+<pre><code class="language-text">gpu-lab-m02: Allocatable 2, GPU Request 합계 0
+gpu-lab-m03: Allocatable 2, GPU Request 합계 0
+Cluster 합계: 4
+</code></pre>
+<p>이 상태에서 <code>gpu-request-four-fragmentation</code>이 GPU 네 개를 요청했다. Cluster 총량과 요청량은 같았지만 Pod는 Pending이 됐다.</p>
+<pre><code class="language-text">gpu-request-four-fragmentation
+  → gpu-lab-m02가 제공할 수 있는 최대 수량: 2
+  → gpu-lab-m03가 제공할 수 있는 최대 수량: 2
+  → GPU 4개를 함께 제공할 Node가 없음
+</code></pre>
+<p>Scheduler Event는 다음 원인을 보여 줬다.</p>
+<pre><code class="language-text">0/3 nodes are available: 3 Insufficient nvidia.com/gpu
+</code></pre>
+<p>Event의 Node 수에는 GPU를 게시하지 않는 Control Plane Node도 포함됐다. 중요한 관찰은 Cluster 합계가 아니라 각 Node를 하나씩 검사했을 때 GPU 네 개 요청을 만족하는 후보가 없었다는 점이다.</p>
+<p>Pending Pod의 <code>nodeName</code>은 비어 있었고 kubelet의 Container <code>Created</code>나 <code>Started</code> Event도 없었다. 이는 Node가 정해진 뒤 실행에 실패한 것이 아니라 Scheduler가 배치할 Node를 찾지 못한 상태라는 뜻이다.</p>
+
+</section>
+<section id="gpu-budget-replica-running" class="markdown-section">
+<h2>같은 GPU Budget을 Replica 네 개로 나누자 모두 Running됐다</h2>
+<p>GPU 네 개를 한 Pod에 요청하는 대신, GPU 하나를 요청하는 Replica 네 개를 가진 <code>gpu-request-one-replicas</code> Deployment를 만들었다.</p>
+<pre><code class="language-yaml">spec:
+  replicas: 4
+  template:
+    spec:
+      containers:
+        - resources:
+            requests:
+              nvidia.com/gpu: &quot;1&quot;
+            limits:
+              nvidia.com/gpu: &quot;1&quot;
+</code></pre>
+<p>각 Pod가 독립적인 Scheduling 단위가 되자 네 Pod가 모두 Running됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th align="right">Running Replica</th>
+<th align="right">GPU Requests 합계</th>
+<th align="right">GPU Limits 합계</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">2</td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td align="right">2</td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+</tbody></table>
+</div>
+<p>다음 조회를 함께 보면 Pod별 배치와 Node별 예약량을 연결할 수 있다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab get pods \
+  -l app=gpu-request-one-replica \
+  -o wide
+
+kubectl describe node gpu-lab-m02
+kubectl describe node gpu-lab-m03
+</code></pre>
+<p>결과는 한 Pod가 여러 Node의 GPU를 합쳐 사용한 것이 아니다. GPU 한 개를 요청한 서로 다른 Pod 네 개가 각각 Node 하나에 배치됐고, Scheduler가 두 Node에 두 개씩 나눴다.</p>
+
+</section>
+<section id="replica-multi-gpu-runtime" class="markdown-section">
+<h2>Replica 네 개는 하나의 Multi-GPU Runtime이 아니다</h2>
+<p>두 구성은 GPU Budget만 같을 뿐 실행 구조가 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>Scheduling 단위</th>
+<th align="right">Application Instance</th>
+<th>여러 Node 분산</th>
+<th>Kubernetes가 자동 구성하지 않는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pod 1개 × GPU 4개</td>
+<td>Pod 1개</td>
+<td align="right">1개</td>
+<td>불가능</td>
+<td>Tensor Parallel, Process Group, NCCL, Model Sharding</td>
+</tr>
+<tr>
+<td>Pod 4개 × GPU 1개</td>
+<td>Pod 4개</td>
+<td align="right">4개</td>
+<td>가능</td>
+<td>Instance 사이의 Model 분할과 GPU 통신</td>
+</tr>
+</tbody></table>
+</div>
+<p>GPU 네 개를 요청한 단일 Pod가 Running되더라도 Kubernetes가 모델을 네 GPU로 나누는 것은 아니다. Kubernetes는 Node를 고르고 요청된 장치를 Container에 할당할 기반을 제공한다. 실제 Tensor Parallel Degree, Worker Process, NCCL 통신과 Model Sharding은 vLLM 같은 Runtime이 별도로 구성해야 한다.</p>
+<p>마찬가지로 1-GPU Replica 네 개가 Running된 것은 독립된 Application Instance 네 개가 실행됐다는 뜻이다. Service 뒤에 두어 요청 처리량을 늘리는 방식으로 사용할 수는 있지만, 모델 하나가 네 GPU에 분할됐다는 증거는 아니다.</p>
+
+</section>
+<section id="fake-gpu-scheduling" class="markdown-section">
+<h2>Fake GPU 실험에서 확인한 범위는 Scheduling까지다</h2>
+<p>Fake GPU Operator는 <code>nvidia.com/gpu</code>라는 확장 자원과 가상 장치 상태를 제공했다. 덕분에 다음 Kubernetes 동작은 확인할 수 있었다.</p>
+<ul>
+<li>GPU Request가 Node의 배치 가능량과 비교되는 과정</li>
+<li>한 Pod의 GPU 요청 전체를 Node 하나가 만족해야 한다는 조건</li>
+<li><code>Insufficient nvidia.com/gpu</code>로 남는 Pending Event</li>
+<li>여러 Replica가 서로 다른 Node에 독립적으로 배치되는 결과</li>
+<li>Capacity·Allocatable과 현재 Requests·Limits 합계의 차이</li>
+</ul>
+<p>하지만 CPU Mock Container는 실제 NVIDIA GPU로 CUDA 연산을 하지 않았다. 따라서 다음 항목은 이 결과로 검증되지 않았다.</p>
+<ul>
+<li>실제 CUDA 실행과 GPU Kernel 수행</li>
+<li>실제 VRAM 예약·사용·OOM</li>
+<li>GPU 간 통신과 NCCL 동작</li>
+<li>Tensor Parallel의 Model 분할과 처리 성능</li>
+<li>실제 GPU Hardware Metric과 장치 장애</li>
+</ul>
+<p>이 실험이 보여 준 결론은 명확하다. Kubernetes는 Cluster 전체 GPU 총량을 한 Pod에 합쳐 주지 않는다. 한 Pod는 한 Node의 자원으로 만족돼야 하고, 여러 Pod는 각각 독립적으로 여러 Node에 배치될 수 있다. 그 위에서 하나의 모델을 여러 GPU로 실행할지는 Kubernetes가 아니라 Model Runtime의 설정이 결정한다.</p>
+
+</section>
+<section id="section-dd630180f3be" class="markdown-section">
+<h2>같은 비교를 직접 재현한다</h2>
+<p>작업공간 루트에서 Namespace와 Node 상태를 확인한다.</p>
+<pre><code class="language-bash">kubectl create namespace gpu-resource-lab --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl get nodes gpu-lab-m02 gpu-lab-m03 \
+  -L nvidia.com/gpu.product,nvidia.com/gpu.count
+</code></pre>
+<p>두 Worker가 각각 GPU 두 개를 게시하고 다른 실험 Pod가 GPU를 예약하지 않은 상태에서 진행한다.</p>
+<p>먼저 GPU 1·2·4개 요청을 비교한다.</p>
+<pre><code class="language-bash">kubectl apply -f transformer/research/kubernetes_gpu_resource_registration/gpu-request-counts.yaml
+kubectl -n gpu-resource-lab get pods -o wide
+</code></pre>
+<p>GPU 네 개를 요청한 Pod의 Event를 확인한다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab describe pod gpu-count-four \
+  | sed -n &#39;/Events:/,$p&#39;
+</code></pre>
+<p><code>gpu-count-four</code>가 Pending이고 Event에 <code>Insufficient nvidia.com/gpu</code>가 나타나면 한 Node가 요청 전체를 만족해야 한다는 조건을 확인한 것이다. 다음 비교를 위해 정리한다.</p>
+<pre><code class="language-bash">kubectl delete -f transformer/research/kubernetes_gpu_resource_registration/gpu-request-counts.yaml \
+  --ignore-not-found
+</code></pre>
+<p>같은 GPU Budget 네 개를 단일 Pod 하나와 1-GPU Replica 네 개로 비교한다.</p>
+<pre><code class="language-bash">kubectl apply -f transformer/research/kubernetes_gpu_resource_registration/gpu-single-vs-replicas.yaml
+kubectl -n gpu-resource-lab get pods -o wide
+</code></pre>
+<p>Node별 예약량도 확인한다.</p>
+<pre><code class="language-bash">kubectl describe node gpu-lab-m02 | sed -n &#39;/Allocated resources:/,/Events:/p&#39;
+kubectl describe node gpu-lab-m03 | sed -n &#39;/Allocated resources:/,/Events:/p&#39;
+</code></pre>
+<p>판정 기준은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>성공 판정</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-four-single-pod</code></td>
+<td>Pending, <code>Insufficient nvidia.com/gpu</code></td>
+</tr>
+<tr>
+<td><code>gpu-one-four-replicas</code>의 네 Pod</td>
+<td>두 Worker에 나뉘어 모두 Running</td>
+</tr>
+<tr>
+<td>두 Worker의 GPU Requests 합계</td>
+<td>각각 2</td>
+</tr>
+</tbody></table>
+</div>
+<p>실험을 정리한다.</p>
+<pre><code class="language-bash">kubectl delete -f transformer/research/kubernetes_gpu_resource_registration/gpu-single-vs-replicas.yaml \
+  --ignore-not-found
+</code></pre>
+<p>이 비교를 재현하면 “Cluster에 GPU 네 개가 있다”와 “한 Pod가 GPU 네 개를 사용할 수 있다”가 같은 문장이 아니라는 사실을 결과로 증명할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

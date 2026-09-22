@@ -1,0 +1,374 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.md. Do not edit directly. source-sha256:1320405fc6f423fb23948c3dd8a9def4759aa17a2cd0144d0698402e4f851167 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="StorageClass를 선택한 PVC가 기존 PV를 탐색하거나 Provisioner를 통해 실제 Storage와 PV를 동적으로 준비하는 흐름을 설명한다.">
+  <meta name="source-sha256" content="1320405fc6f423fb23948c3dd8a9def4759aa17a2cd0144d0698402e4f851167">
+  <title>Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정">
+  <meta property="og:description" content="StorageClass를 선택한 PVC가 기존 PV를 탐색하거나 Provisioner를 통해 실제 Storage와 PV를 동적으로 준비하는 흐름을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html","name":"Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정","description":"StorageClass를 선택한 PVC가 기존 PV를 탐색하거나 Provisioner를 통해 실제 Storage와 PV를 동적으로 준비하는 흐름을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html"},"headline":"Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-storage","name":"스토리지·Stateful·MariaDB","identifier":"topics-kubernetes-storage"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dynamic-storage-provisioning.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes Pod의 Linux 실행 구조","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html"},{"@type":"ListItem","position":5,"name":"Kubernetes Pod Volume의 구조","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-volume-storage.html"},{"@type":"ListItem","position":6,"name":"Kubernetes Persistent Volume의 연결과 수명","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-persistent-volume-storage-lifecycle.html"},{"@type":"ListItem","position":7,"name":"Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-linux-runtime-structure.html">Kubernetes Pod의 Linux 실행 구조</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-volume-storage.html">Kubernetes Pod Volume의 구조</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-persistent-volume-storage-lifecycle.html">Kubernetes Persistent Volume의 연결과 수명</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes 동적 스토리지 프로비저닝: StorageClass·PVC·PV의 연결 과정</h1>
+      <p class="lead">StorageClass를 선택한 PVC가 기존 PV를 탐색하거나 Provisioner를 통해 실제 Storage와 PV를 동적으로 준비하는 흐름을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#storageclass-pvc">StorageClass가 PVC를 자동 생성하는 것은 아니다</a>
+        <a href="#pv">정적 프로비저닝에서는 PV가 먼저 존재한다</a>
+        <a href="#pvc">동적 프로비저닝에서는 PVC가 생성 요청의 시작점이다</a>
+        <a href="#pvc-2">왜 동적 방식에서는 PVC가 먼저일까?</a>
+        <a href="#pv-2">기존 PV가 있으면 반드시 새로 만들지는 않는다</a>
+        <a href="#pod-pv-pvc">Pod는 PV가 아니라 PVC를 참조한다</a>
+        <a href="#pvc-3">PVC는 여러 주체가 만들 수 있다</a>
+        <a href="#storageclass">StorageClass가 있어도 동적 생성이 불가능할 수 있다</a>
+        <a href="#waitforfirstconsumer">WaitForFirstConsumer는 생성을 늦출 수 있다</a>
+        <a href="#section-e2f141167d69">객체별 역할 정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="kubernetes-persistent-volume-storage-lifecycle.html">상위 문서: Kubernetes Persistent Volume의 연결과 수명</a></p>
+<p>Kubernetes에서 StorageClass를 지정했을 때 실제 Storage와 PV가 어떻게 준비되고 PVC에 연결되는지 이해하려면 세 객체의 역할을 먼저 분리해야 한다.</p>
+<pre><code class="language-text">PVC
+→ 사용자가 원하는 Storage 조건을 표현한 요청서
+
+StorageClass
+→ 요청에 맞는 Storage를 만드는 방법과 정책
+
+PV
+→ 준비된 실제 Storage를 Kubernetes가 표현하는 객체
+</code></pre>
+<p>핵심 흐름은 다음과 같다.</p>
+<pre><code class="language-text">PVC가 StorageClass 선택
+        ↓
+Provisioner가 요청 확인
+        ↓
+실제 Storage와 PV 준비
+        ↓
+PVC와 PV Binding
+        ↓
+Pod가 PVC를 통해 Storage 사용
+</code></pre>
+</div>
+        <section id="storageclass-pvc" class="markdown-section">
+<h2>StorageClass가 PVC를 자동 생성하는 것은 아니다</h2>
+<p>먼저 자주 생기는 오해를 바로잡아야 한다.</p>
+<pre><code class="language-text">StorageClass를 지정하면 PVC가 자동 생성된다          X
+PVC가 생성되면서 사용할 StorageClass를 선택한다     O
+선택된 StorageClass에 따라 Storage와 PV가 생성된다  O
+</code></pre>
+<p>StorageClass는 PVC를 만드는 객체가 아니다. 일반적으로 사용자, Helm Chart, Operator 또는 Kubernetes Controller가 PVC를 생성한다.</p>
+<p>PVC 안의 <code>storageClassName</code>은 그 PVC가 어떤 생성 정책을 사용할지 선택한다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+spec:
+  storageClassName: fast-ssd
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+</code></pre>
+<p>이 선언은 다음 요청으로 읽을 수 있다.</p>
+<pre><code class="language-text">fast-ssd 정책을 사용하고
+ReadWriteOnce를 지원하며
+최소 10Gi인 Storage가 필요하다.
+</code></pre>
+
+</section>
+<section id="pv" class="markdown-section">
+<h2>정적 프로비저닝에서는 PV가 먼저 존재한다</h2>
+<p>정적 프로비저닝에서는 관리자가 Storage와 PV를 미리 준비한다.</p>
+<pre><code class="language-text">1. 관리자가 실제 Storage 준비
+2. 관리자가 PV 생성
+3. 사용자가 PVC 생성
+4. 조건이 맞는 PVC와 PV Binding
+5. Pod가 PVC 사용
+</code></pre>
+<pre><code class="language-text">실제 Storage
+      ↓
+     PV
+      ↑ Binding
+     PVC
+      ↑
+     Pod
+</code></pre>
+<p>이 방식에서는 PV가 PVC보다 먼저 존재한다. PVC가 생성되면 Kubernetes는 용량, Access Mode, StorageClass 등의 조건이 맞는 기존 PV를 찾아 연결한다.</p>
+
+</section>
+<section id="pvc" class="markdown-section">
+<h2>동적 프로비저닝에서는 PVC가 생성 요청의 시작점이다</h2>
+<p>동적 프로비저닝에서는 모든 Storage와 PV를 미리 만들어 두지 않는다. PVC가 필요한 조건을 제시하면 Provisioner가 그 요청에 맞춰 Storage를 준비한다.</p>
+<pre><code class="language-text">1. 관리자가 CSI Driver와 StorageClass 준비
+2. 사용자나 Controller가 PVC 생성
+3. PVC가 StorageClass 선택
+4. 조건에 맞는 기존 PV 탐색
+5. 기존 PV가 없으면 Provisioner가 실제 Storage 생성
+6. 생성된 Storage를 나타내는 PV 생성
+7. PVC와 PV Binding
+8. Pod가 PVC 사용
+</code></pre>
+<pre><code class="language-text">PVC: fast-ssd로 10Gi 요청
+             ↓
+      StorageClass 확인
+             ↓
+       CSI Provisioner
+             ↓
+     실제 Storage + PV 생성
+             ↓
+         PVC ↔ PV Binding
+</code></pre>
+<p>PVC는 PV가 아직 없어도 생성될 수 있다. 연결할 PV를 기다리는 동안에는 일반적으로 <code>Pending</code> 상태이고, PV와 연결되면 <code>Bound</code> 상태가 된다.</p>
+<pre><code class="language-text">PVC 생성
+→ Pending
+→ PV 준비 및 Binding
+→ Bound
+</code></pre>
+
+</section>
+<section id="pvc-2" class="markdown-section">
+<h2>왜 동적 방식에서는 PVC가 먼저일까?</h2>
+<p>Provisioner가 적절한 Storage를 만들려면 사용자의 요구사항을 먼저 알아야 하기 때문이다.</p>
+<pre><code class="language-text">얼마나 큰 용량이 필요한가?
+어떤 StorageClass를 사용할 것인가?
+어떤 Access Mode가 필요한가?
+어느 Zone에 만들어야 하는가?
+어떤 Storage Backend 설정을 적용할 것인가?
+</code></pre>
+<p>PVC가 이러한 수요를 표현하고 StorageClass가 생성 정책을 제공한다.</p>
+<pre><code class="language-text">PVC
+→ 무엇이 얼마나 필요한가?
+
+StorageClass
+→ 어떤 Provisioner와 정책으로 만들 것인가?
+
+Provisioner
+→ 요청과 정책을 실제 Storage 작업으로 실행
+</code></pre>
+<p>따라서 동적 프로비저닝은 수요가 공급을 발생시키는 구조다.</p>
+<pre><code class="language-text">PVC = Storage 수요
+PV  = 제공된 Storage의 Kubernetes 표현
+</code></pre>
+
+</section>
+<section id="pv-2" class="markdown-section">
+<h2>기존 PV가 있으면 반드시 새로 만들지는 않는다</h2>
+<p>PVC가 생성되었다고 항상 새 Storage와 PV를 만드는 것은 아니다. 조건이 맞는 기존 PV가 있다면 그 PV와 연결될 수 있다.</p>
+<pre><code class="language-text">PVC 생성
+        ↓
+조건에 맞는 기존 PV가 있는가?
+        │
+        ├─ 있음
+        │  └─ 기존 PV와 Binding
+        │
+        └─ 없음
+           └─ 동적 Provisioning이 가능한 StorageClass라면
+              실제 Storage와 PV 생성 후 Binding
+</code></pre>
+<p>정적 프로비저닝과 동적 프로비저닝은 서로 배타적인 Cluster 구성이라기보다 PVC가 어떤 PV를 공급받는지에 대한 두 경로다.</p>
+
+</section>
+<section id="pod-pv-pvc" class="markdown-section">
+<h2>Pod는 PV가 아니라 PVC를 참조한다</h2>
+<p>Pod는 일반적으로 PV 이름을 직접 선택하지 않는다. 자신에게 필요한 저장소 요청인 PVC를 참조한다.</p>
+<pre><code class="language-yaml">spec:
+  volumes:
+    - name: app-data
+      persistentVolumeClaim:
+        claimName: app-data
+
+  containers:
+    - name: app
+      image: example-app
+      volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+</code></pre>
+<p>전체 연결은 다음과 같다.</p>
+<pre><code class="language-text">Container Process
+        ↓ /app/data 사용
+volumeMounts
+        ↓
+Pod Volume
+        ↓ claimName
+PVC
+        ↓ Binding
+PV
+        ↓ CSI Driver
+실제 Storage
+</code></pre>
+<p>Pod가 PVC를 참조한 뒤에는 kubelet과 CSI Driver가 필요한 Attach와 Mount를 준비한다. 애플리케이션 Process는 PVC나 PV를 직접 조작하지 않고 Container 안의 파일 경로를 사용한다.</p>
+
+</section>
+<section id="pvc-3" class="markdown-section">
+<h2>PVC는 여러 주체가 만들 수 있다</h2>
+<p>PVC가 먼저 생성된다는 말이 반드시 사람이 YAML을 직접 적용한다는 뜻은 아니다.</p>
+<pre><code class="language-text">PVC 생성 주체
+├─ 사용자가 직접 작성한 Manifest
+├─ Helm Chart
+├─ Operator
+├─ StatefulSet Controller
+└─ 그 밖의 Kubernetes Controller
+</code></pre>
+<p>StatefulSet에서는 <code>volumeClaimTemplates</code>가 Replica별 PVC의 템플릿 역할을 한다.</p>
+<pre><code class="language-yaml">volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      storageClassName: fast-ssd
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+</code></pre>
+<p>StatefulSet Controller는 이 템플릿으로 각 Pod에 대응하는 PVC를 만든다.</p>
+<pre><code class="language-text">StatefulSet: mysql
+├─ Pod: mysql-0
+│  └─ PVC: data-mysql-0
+└─ Pod: mysql-1
+   └─ PVC: data-mysql-1
+</code></pre>
+<p>이후 각 PVC가 일반적인 동적 프로비저닝 흐름을 따른다. StatefulSet은 PVC를 자동 생성하는 대표적인 상위 Controller일 뿐, StorageClass가 PVC를 생성하는 것은 아니다.</p>
+
+</section>
+<section id="storageclass" class="markdown-section">
+<h2>StorageClass가 있어도 동적 생성이 불가능할 수 있다</h2>
+<p>StorageClass는 Provisioner와 여러 정책을 담는다.</p>
+<pre><code class="language-text">StorageClass
+├─ provisioner
+├─ parameters
+├─ reclaimPolicy
+├─ volumeBindingMode
+└─ allowVolumeExpansion
+</code></pre>
+<p>하지만 모든 StorageClass가 실제 Storage를 동적으로 생성하는 것은 아니다. 예를 들어 <code>kubernetes.io/no-provisioner</code>를 사용하는 Class는 자동 Provisioner가 없으므로 관리자가 PV를 별도로 준비해야 한다.</p>
+<pre><code class="language-text">PVC가 StorageClass를 선택함
+≠ 언제나 새로운 PV가 자동 생성됨
+</code></pre>
+<p>동적 생성 여부는 해당 StorageClass의 Provisioner와 설치된 CSI Driver가 기능을 지원하는지에 달려 있다.</p>
+
+</section>
+<section id="waitforfirstconsumer" class="markdown-section">
+<h2>WaitForFirstConsumer는 생성을 늦출 수 있다</h2>
+<p>StorageClass의 <code>volumeBindingMode</code>가 <code>WaitForFirstConsumer</code>이면 PVC가 생기자마자 Storage와 PV를 준비하지 않을 수 있다.</p>
+<pre><code class="language-yaml">volumeBindingMode: WaitForFirstConsumer
+</code></pre>
+<pre><code class="language-text">PVC 생성
+        ↓
+PVC를 사용하는 Pod 확인
+        ↓
+Scheduler가 배치 가능한 Node·Zone 고려
+        ↓
+해당 위치에 맞는 Storage와 PV 준비
+        ↓
+PVC와 PV Binding
+</code></pre>
+<p>Cloud Block Storage처럼 특정 Zone에 속하는 Storage는 Pod가 실행될 위치와 맞아야 한다. 이 모드는 Pod의 배치 정보를 알기 전 잘못된 Zone에 Storage를 만드는 문제를 줄인다.</p>
+
+</section>
+<section id="section-e2f141167d69" class="markdown-section">
+<h2>객체별 역할 정리</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성요소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PVC</td>
+<td>필요한 용량, Access Mode, StorageClass 등의 수요를 표현한다.</td>
+</tr>
+<tr>
+<td>StorageClass</td>
+<td>Provisioner와 Storage 생성 정책을 정의한다.</td>
+</tr>
+<tr>
+<td>CSI Provisioner</td>
+<td>PVC와 StorageClass를 바탕으로 실제 Storage와 PV를 준비한다.</td>
+</tr>
+<tr>
+<td>PV</td>
+<td>제공된 실제 Storage를 Kubernetes 객체로 표현한다.</td>
+</tr>
+<tr>
+<td>Binding</td>
+<td>특정 PVC와 PV의 연결 관계를 확정한다.</td>
+</tr>
+<tr>
+<td>Pod</td>
+<td>PVC를 Volume으로 참조하고 Container의 경로에 Mount한다.</td>
+</tr>
+</tbody></table>
+</div>
+<pre><code class="language-text">정적 프로비저닝
+실제 Storage + PV → PVC → Pod
+
+동적 프로비저닝
+PVC → StorageClass·Provisioner → 실제 Storage + PV → Binding → Pod
+</code></pre>
+<blockquote>
+<p>StorageClass는 PVC를 만드는 객체가 아니다. PVC가 필요한 Storage 조건과 사용할 StorageClass를 선택하면, 동적 프로비저닝이 가능한 환경에서 Provisioner가 그 요청에 맞는 실제 Storage와 PV를 준비하고 PVC에 연결한다.</p>
+</blockquote>
+<p>자세한 최신 동작은 <a href="https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/" rel="noopener noreferrer">Kubernetes Dynamic Volume Provisioning 공식 문서</a>, <a href="https://kubernetes.io/docs/concepts/storage/storage-classes/" rel="noopener noreferrer">StorageClass 공식 문서</a>, <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes/" rel="noopener noreferrer">Persistent Volumes 공식 문서</a>에서 확인할 수 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -58,10 +58,17 @@ function groupLayout(nodes, edges, width = 520) {
 function edgePoints(from, to) {
   const x = from.x + from.w / 2, y = from.y + from.h;
   const tx = to.x + to.w / 2, ty = to.y - 6;
-  if (from.group && (from.group !== to.group || to.y - from.y > 152)) {
+  if (from.group && from.group !== to.group) {
+    // Fork in the open space between group bands, then enter each child band
+    // through its own outer gutter so the line never cuts across the heading.
+    const gutter = to.gutter ?? 18;
+    const mid = y + ((to.bandTop ?? to.y) - y) / 2;
+    return [[x, y], [x, mid], [gutter, mid], [gutter, to.y - 18], [tx, to.y - 18], [tx, ty]];
+  }
+  if (from.group && from.group === to.group && to.y - from.y > 152) {
     // The gutter is outside group borders. Enter first-column cards from the
     // left, below their group heading; other columns use the empty row gap.
-    const gutter = 18;
+    const gutter = to.gutter ?? 18;
     if (to.firstColumn) return [[x, y], [x, y + 18], [gutter, y + 18], [gutter, to.y + to.h / 2], [to.x - 6, to.y + to.h / 2]];
     return [[x, y], [x, y + 18], [gutter, y + 18], [gutter, to.y - 18], [tx, to.y - 18], [tx, ty]];
   }
@@ -118,16 +125,16 @@ function compactUnits(nodes, edges, revealed = new Set()) {
   return { nodes: visible, representative };
 }
 
-// Each group owns a separate band; long groups wrap without mixing groups.
+// Each group owns an internal top-down tree. The group bands themselves use
+// cross-group edges as a second tree, so sibling learning tracks remain visibly
+// forked instead of being flattened into a vertical list.
 function unitLayout(nodes, edges, groups, width = 600) {
   const padding = 54, gap = 36, h = 96, rowStep = 152, heading = 80;
-  const columns = Math.max(1, Math.min(4, Math.floor((width - padding * 2 + gap) / 210)));
-  const w = (width - padding * 2 - gap * (columns - 1)) / columns;
+  const groupWidth = Math.max(600, width), groupGap = 80, outer = 24;
   const owner = new Map(nodes.map(node => [node.id, node.group]));
-  const connected = new Set(edges.filter(edge => owner.get(edge.from) !== owner.get(edge.to)).flatMap(edge => [owner.get(edge.from), owner.get(edge.to)]));
-  const ordered = [...groups].sort((a, b) => Number(connected.has(b.id)) - Number(connected.has(a.id)));
-  const cells = new Map(), bands = new Map(); let top = 24;
-  for (const group of ordered) {
+  const order = new Map(groups.map((group, index) => [group.id, index]));
+  const local = new Map();
+  for (const group of groups) {
     const members = nodes.filter(node => node.group === group.id);
     if (!members.length) continue;
     const memberIds = new Set(members.map(node => node.id));
@@ -136,18 +143,100 @@ function unitLayout(nodes, edges, groups, width = 600) {
     for (const edge of edges) if (memberIds.has(edge.from) && memberIds.has(edge.to)) { incoming.get(edge.to).push(edge); outgoing.get(edge.from).push(edge); }
     const remaining = new Map(members.map(node => [node.id, incoming.get(node.id).length]));
     const queue = members.filter(node => !remaining.get(node.id)).map(node => node.id);
-    let slot = 0;
-    for (const id of queue) {
-      const parents = incoming.get(id);
-      if (slot % columns && parents.some(edge => edge.newLane || outgoing.get(edge.from).length > 1)) slot += columns - slot % columns;
-      cells.set(id, { x: padding + slot % columns * (w + gap), y: top + heading + Math.floor(slot / columns) * rowStep, w, h, group: group.id, firstColumn: slot % columns === 0 }); slot++;
-      for (const edge of outgoing.get(id)) { remaining.set(edge.to, remaining.get(edge.to) - 1); if (!remaining.get(edge.to)) queue.push(edge.to); }
+    const depths = new Map(queue.map(id => [id, 0])), traversal = [...queue];
+    for (const id of traversal) for (const edge of outgoing.get(id)) {
+      depths.set(edge.to, Math.max(depths.get(edge.to) || 0, depths.get(id) + 1));
+      remaining.set(edge.to, remaining.get(edge.to) - 1);
+      if (!remaining.get(edge.to)) traversal.push(edge.to);
     }
-    const height = heading + Math.ceil(slot / columns) * rowStep - (rowStep - h) + 36;
-    bands.set(group.id, { x: 38, y: top, w: width - 76, h: height });
-    top += height + 64;
+    const layers = new Map();
+    for (const id of traversal) {
+      const depth = depths.get(id);
+      if (!layers.has(depth)) layers.set(depth, []);
+      layers.get(depth).push(id);
+    }
+    const rows = Math.max(0, ...layers.keys()) + 1;
+    const localCells = new Map();
+    for (const [depth, ids] of layers) {
+      const w = Math.min(320, (groupWidth - padding * 2 - gap * (ids.length - 1)) / ids.length);
+      const layerWidth = ids.length * w + (ids.length - 1) * gap;
+      const start = (groupWidth - layerWidth) / 2;
+      ids.forEach((id, column) => localCells.set(id, {
+        x: start + column * (w + gap), y: heading + depth * rowStep, w, h,
+        group: group.id, firstColumn: ids.length > 1 && column === 0,
+      }));
+    }
+    const height = heading + rows * rowStep - (rowStep - h) + 36;
+    local.set(group.id, { cells: localCells, height });
   }
-  return { cells, bands, width, height: top, columns };
+
+  const incoming = new Map(groups.map(group => [group.id, []]));
+  const outgoing = new Map(groups.map(group => [group.id, []]));
+  const crossSeen = new Set();
+  for (const edge of edges) {
+    const from = owner.get(edge.from), to = owner.get(edge.to), key = `${from}:${to}`;
+    if (!from || !to || from === to || crossSeen.has(key) || !local.has(from) || !local.has(to)) continue;
+    crossSeen.add(key); outgoing.get(from).push(to); incoming.get(to).push(from);
+  }
+  for (const ids of [...incoming.values(), ...outgoing.values()]) ids.sort((a, b) => order.get(a) - order.get(b));
+  const connected = new Set([...crossSeen].flatMap(key => key.split(':')));
+  const connectedIds = groups.map(group => group.id).filter(id => local.has(id) && connected.has(id));
+  const roots = connectedIds.filter(id => !incoming.get(id).length);
+  const remaining = new Map(connectedIds.map(id => [id, incoming.get(id).length]));
+  const traversal = [...roots], depths = new Map(roots.map(id => [id, 0]));
+  for (const id of traversal) for (const child of outgoing.get(id)) {
+    depths.set(child, Math.max(depths.get(child) || 0, depths.get(id) + 1));
+    remaining.set(child, remaining.get(child) - 1);
+    if (!remaining.get(child)) traversal.push(child);
+  }
+
+  // A group with multiple parents keeps the first stable parent for placement;
+  // all declared cross-group edges are still rendered.
+  const tree = new Map(connectedIds.map(id => [id, []]));
+  const parent = new Map();
+  for (const id of connectedIds) if (incoming.get(id).length) {
+    const chosen = incoming.get(id)[0]; parent.set(id, chosen); tree.get(chosen).push(id);
+  }
+  const treeRoots = connectedIds.filter(id => !parent.has(id));
+  const spans = new Map();
+  const measure = id => {
+    const span = Math.max(1, tree.get(id).reduce((sum, child) => sum + measure(child), 0));
+    spans.set(id, span); return span;
+  };
+  const totalLanes = Math.max(1, treeRoots.reduce((sum, id) => sum + measure(id), 0));
+  const canvasWidth = Math.max(groupWidth + outer * 2, totalLanes * groupWidth + (totalLanes - 1) * groupGap + outer * 2);
+  const depthHeights = new Map();
+  for (const id of connectedIds) depthHeights.set(depths.get(id), Math.max(depthHeights.get(depths.get(id)) || 0, local.get(id).height));
+  const depthTops = new Map(); let top = outer;
+  for (let depth = 0; depth <= Math.max(-1, ...depthHeights.keys()); depth++) {
+    depthTops.set(depth, top); top += (depthHeights.get(depth) || 0) + 64;
+  }
+
+  const cells = new Map(), bands = new Map();
+  const placeGroup = (id, lane) => {
+    const spanWidth = spans.get(id) * groupWidth + (spans.get(id) - 1) * groupGap;
+    const groupX = outer + lane * (groupWidth + groupGap) + (spanWidth - groupWidth) / 2;
+    const groupY = depthTops.get(depths.get(id));
+    const layout = local.get(id);
+    bands.set(id, { x: groupX + 38, y: groupY, w: groupWidth - 76, h: layout.height });
+    for (const [nodeId, cell] of layout.cells) cells.set(nodeId, {
+      ...cell, x: groupX + cell.x, y: groupY + cell.y, gutter: groupX + 18, bandTop: groupY,
+    });
+    for (const child of tree.get(id)) { placeGroup(child, lane); lane += spans.get(child); }
+  };
+  let lane = 0;
+  for (const root of treeRoots) { placeGroup(root, lane); lane += spans.get(root); }
+
+  const isolated = groups.map(group => group.id).filter(id => local.has(id) && !connected.has(id));
+  for (const id of isolated) {
+    const layout = local.get(id), groupX = (canvasWidth - groupWidth) / 2;
+    bands.set(id, { x: groupX + 38, y: top, w: groupWidth - 76, h: layout.height });
+    for (const [nodeId, cell] of layout.cells) cells.set(nodeId, {
+      ...cell, x: groupX + cell.x, y: top + cell.y, gutter: groupX + 18, bandTop: top,
+    });
+    top += layout.height + 64;
+  }
+  return { cells, bands, width: canvasWidth, height: Math.max(top, ...[...bands.values()].map(band => band.y + band.h + outer)) };
 }
 globalThis.JWikiHomeMapLayout = Object.freeze({ groupLayout, edgePath, edgePoints, compactUnits, unitLayout });
 })();

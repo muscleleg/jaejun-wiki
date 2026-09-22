@@ -75,7 +75,7 @@
     mode = next;
     map.hidden = next !== "groups"; unitScroll.hidden = next !== "units";
     one(".hlm-map-pane").classList.toggle("is-unit", next === "units");
-    for (const selector of [".hlm-unit-tools", ".hlm-unit-context", ".hlm-group-labels", ".hlm-zoom", ".hlm-back"]) one(selector).hidden = next !== "units";
+    for (const selector of [".hlm-unit-tools", ".hlm-unit-context", ".hlm-zoom", ".hlm-back"]) one(selector).hidden = next !== "units";
     one('.hlm-unit-detail').hidden = true;
     one('.hlm-search-results').hidden = true;
     if (next === 'units') layoutUnits();
@@ -85,18 +85,8 @@
   function transformUnits() {
     unitGraph.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
     one('.hlm-zoom output').textContent = Math.round(scale * 100) + '%';
-    const distant = scale < .5;
+    const distant = scale < .28;
     unitGraph.classList.toggle('is-distant', distant);
-    const labelWidth = Math.min(280, unitScroll.clientWidth - 32);
-    let lastBottom = 58;
-    for (const label of all('[data-map-label]')) {
-      const band = unitPositions?.bands.get(label.dataset.mapLabel);
-      const y = band ? ty + (band.y + band.h / 2) * scale - 15 : -100;
-      label.hidden = !distant || !band || y < 50 || y > unitScroll.clientHeight - 64;
-      if (label.hidden) continue;
-      const top = Math.max(lastBottom + 4, y); lastBottom = top + 28;
-      Object.assign(label.style, { left: Math.max(16, Math.min(unitScroll.clientWidth - labelWidth - 16, tx + unitPositions.width * scale / 2 - labelWidth / 2)) + 'px', top: top + 'px', width: labelWidth + 'px' });
-    }
   }
   function layoutUnits() {
     lastUnitWidth = unitScroll.clientWidth;
@@ -140,9 +130,13 @@
     transformUnits();
   }
   function fitUnits() {
-    scale = Math.min(1, (unitScroll.clientWidth - 32) / unitPositions.width, (unitScroll.clientHeight - 130) / unitPositions.height);
-    tx = (unitScroll.clientWidth - unitPositions.width * scale) / 2;
-    ty = 64 + (unitScroll.clientHeight - 130 - unitPositions.height * scale) / 2;
+    const band = unitPositions.bands.get(selected);
+    if (!band) return;
+    const availableWidth = unitScroll.clientWidth - 32;
+    const availableHeight = unitScroll.clientHeight - 130;
+    scale = Math.min(1, availableWidth / band.w, availableHeight / band.h);
+    tx = (unitScroll.clientWidth - band.w * scale) / 2 - band.x * scale;
+    ty = 64 + (availableHeight - band.h * scale) / 2 - band.y * scale;
     fitted = true; transformUnits();
   }
   function focusGroup(id) {

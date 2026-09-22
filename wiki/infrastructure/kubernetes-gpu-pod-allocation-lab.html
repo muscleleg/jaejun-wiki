@@ -1,0 +1,585 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.md. Do not edit directly. source-sha256:38d991f90b7b26859dabdcd70f3b3dfe454dec2b42d9d764083ee862ad3a636e -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Device Plugin의 GPU 자원 게시부터 Pod 요청, Scheduler의 Node 선택, 개별 장치 할당, 소진과 반환까지 실습 결과로 연결합니다.">
+  <meta name="source-sha256" content="38d991f90b7b26859dabdcd70f3b3dfe454dec2b42d9d764083ee862ad3a636e">
+  <title>Kubernetes는 GPU를 어떻게 Pod에 할당할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes는 GPU를 어떻게 Pod에 할당할까?">
+  <meta property="og:description" content="Device Plugin의 GPU 자원 게시부터 Pod 요청, Scheduler의 Node 선택, 개별 장치 할당, 소진과 반환까지 실습 결과로 연결합니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html","name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","description":"Device Plugin의 GPU 자원 게시부터 Pod 요청, Scheduler의 Node 선택, 개별 장치 할당, 소진과 반환까지 실습 결과로 연결합니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},"headline":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes는 GPU를 어떻게 Pod에 할당할까?</h1>
+      <p class="lead">Device Plugin의 GPU 자원 게시부터 Pod 요청, Scheduler의 Node 선택, 개별 장치 할당, 소진과 반환까지 실습 결과로 연결합니다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#gpu-node-gpu">GPU 할당은 Node에 GPU 자원을 게시하는 것부터 시작한다</a>
+        <a href="#gpu">물리 GPU 없이 같은 제어 흐름을 관찰할 환경을 만든다</a>
+        <a href="#gpu-capacity-worker">서로 다른 GPU Capacity를 가진 두 Worker를 준비한다</a>
+        <a href="#device-plugin-gpu-node">Device Plugin이 GPU를 Node 자원으로 만든다</a>
+        <a href="#capacity-allocatable-gpu">Capacity와 Allocatable에서 GPU 게시 결과를 확인한다</a>
+        <a href="#pod-nvidia-com-gpu-gpu">Pod는 nvidia.com/gpu로 필요한 GPU 수를 요청한다</a>
+        <a href="#scheduler-gpu-node">Scheduler는 GPU가 남은 Node를 선택한다</a>
+        <a href="#gpu-pod-pending">GPU를 모두 예약하면 추가 Pod는 Pending이 된다</a>
+        <a href="#pod-gpu-pod">Pod가 종료되면 GPU 예약이 반환되고 대기 Pod가 배치된다</a>
+        <a href="#gpu-2">자원 할당과 GPU 사용률은 서로 다른 상태다</a>
+        <a href="#gpu-kubernetes">실제 GPU에서도 Kubernetes의 중심 흐름은 같다</a>
+        <a href="#gpu-3">이 실습으로 확인한 GPU 할당의 경계</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>단일 GPU에서 vLLM을 실행할 때는 이미 사용할 수 있는 GPU가 있다는 전제에서 시작한다. Model을 GPU Memory에 올리고, 요청이 Queue에서 기다리며, Continuous Batching과 KV Cache가 처리량에 어떤 영향을 주는지 관찰한다.</p>
+<p>하지만 vLLM을 Kubernetes에서 실행하려면 그보다 앞선 질문에 먼저 답해야 한다.</p>
+<blockquote>
+<p>Kubernetes는 어느 Node에 GPU가 있는지 어떻게 알고, GPU를 요청한 Pod를 그 Node에 어떻게 배치할까?</p>
+</blockquote>
+<p>Kubernetes가 GPU를 Pod에 할당하는 과정은 단순히 “GPU가 있는 Node에 Pod를 띄운다”로 끝나지 않는다. 먼저 Node의 GPU가 Kubernetes 자원으로 게시돼야 하고, Pod가 그 자원을 요청해야 하며, Scheduler가 요청을 만족할 Node를 선택해야 한다. Pod가 Node에 배치된 뒤에는 kubelet과 Device Plugin이 실제로 사용할 장치를 Container에 연결하는 단계가 이어진다.</p>
+<pre><code class="language-text">Node의 GPU 발견
+  → Device Plugin이 kubelet에 GPU 등록
+  → kubelet이 Node의 GPU 자원을 API Server에 보고
+  → Pod가 nvidia.com/gpu 요청
+  → Scheduler가 GPU 여유가 있는 Node 선택
+  → 선택된 Node의 kubelet과 Device Plugin이 장치 할당
+  → Pod 종료 시 예약과 장치 반환
+</code></pre>
+<p>물리 GPU 대신 Fake GPU Operator로 <code>nvidia.com/gpu</code>가 게시되고, 요청되고, 소진되고, 반환되는 과정을 재현했다. Fake GPU는 CUDA 연산을 대신하지 않고 Kubernetes의 GPU 자원 제어 흐름만 만들어 준다.</p>
+</div>
+        <section id="gpu-node-gpu" class="markdown-section">
+<h2>GPU 할당은 Node에 GPU 자원을 게시하는 것부터 시작한다</h2>
+<p>Kubernetes는 Node에 장착된 PCI 장치를 직접 탐색해 GPU 자원으로 해석하지 않는다. GPU Vendor의 Device Plugin이 Node에서 장치를 발견하고 kubelet에 등록해야 한다.</p>
+<p>실제 NVIDIA 환경의 앞부분은 다음과 같다.</p>
+<pre><code class="language-text">물리 GPU
+  → Operating System과 NVIDIA Driver가 장치 인식
+  → NVIDIA Device Plugin이 GPU 발견
+  → Device Plugin API로 kubelet에 nvidia.com/gpu 등록
+  → kubelet이 Node Status의 Capacity·Allocatable 보고
+</code></pre>
+<p>여기서 Device Plugin은 API Server에 직접 GPU 수를 쓰지 않는다. 같은 Node의 kubelet에 장치 목록과 상태를 전달하고, kubelet이 Node 상태의 일부로 API Server에 보고한다. Device Plugin부터 API Server까지의 구성요소별 연결은 <a href="kubernetes-gpu-node-resource-registration.html">실제 GPU는 어떻게 Kubernetes Node 자원으로 등록될까?</a>에 정리돼 있다.</p>
+<p>또한 Kubernetes나 GPU Operator가 물리 GPU를 다른 Node로 옮겨 주는 것도 아니다. GPU는 먼저 특정 Bare-Metal Server나 VM의 Kernel에 연결돼 있어야 한다. Kubernetes가 옮기는 것은 GPU가 아니라 GPU를 요청한 Pod다. <a href="kubernetes-gpu-node-resource-boundary.html">Kubernetes는 GPU를 옮기지 않는다: 물리 GPU가 Node 자원이 되기까지</a>를 보면 하드웨어와 Kubernetes의 책임 경계를 구분할 수 있다.</p>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>물리 GPU 없이 같은 제어 흐름을 관찰할 환경을 만든다</h2>
+<p>CUDA 연산 성능이 아니라 Kubernetes의 GPU 자원 관리 흐름을 관찰해야 했다. Apple Silicon Mac 위에 Minikube 멀티노드 Cluster를 만들고 Fake GPU Operator를 Device Plugin 구현체로 사용했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>실습 환경</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Host</td>
+<td>Apple Silicon <code>arm64</code></td>
+</tr>
+<tr>
+<td>Minikube</td>
+<td><code>v1.37.0</code></td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td><code>v1.34.0</code></td>
+</tr>
+<tr>
+<td>Minikube Profile</td>
+<td><code>gpu-lab</code></td>
+</tr>
+<tr>
+<td>Node</td>
+<td>Control Plane 1개, Worker 2개</td>
+</tr>
+<tr>
+<td>Device Plugin 구현체</td>
+<td>Fake GPU Operator <code>v0.2.0</code></td>
+</tr>
+<tr>
+<td>GPU 요청 방식</td>
+<td><code>nvidia.com/gpu</code> Extended Resource</td>
+</tr>
+<tr>
+<td>DRA·MIG</td>
+<td>사용하지 않음</td>
+</tr>
+</tbody></table>
+</div>
+<p>Docker Driver를 사용했기 때문에 세 Node는 서로 다른 물리 서버가 아니라 같은 Mac에서 실행되는 Container다.</p>
+<pre><code class="language-text">Apple Silicon Mac
+├─ gpu-lab       Container → Control Plane Node
+├─ gpu-lab-m02   Container → Worker Node
+└─ gpu-lab-m03   Container → Worker Node
+</code></pre>
+<p>각 Container 안에는 독립된 kubelet과 Node 환경이 있으므로 Scheduler 관점에서는 세 개의 Kubernetes Node다. Container가 Node 역할을 할 수 있는 이유는 <a href="minikube-docker-driver-node-container.html">Docker Driver의 Minikube에서 Node는 왜 Container로 만들어질까?</a>에 정리돼 있다.</p>
+<p>Apple Silicon에서는 Helm Chart를 내려받을 수 있다는 사실만으로 설치 가능하다고 판단할 수 없다. Chart가 사용하는 모든 Container Image에 <code>linux/arm64</code> Manifest가 있어야 한다. 설치 전 Image Architecture를 확인한 과정은 <a href="fake-gpu-operator-arm64-image-compatibility.html">Fake GPU Operator를 설치하기 전에 ARM64 이미지를 어떻게 확인할까?</a>에 분리했다.</p>
+<p>이번 실습은 전통적인 Device Plugin 경로에 집중했다.</p>
+<pre><code class="language-yaml">devicePlugin:
+  enabled: true
+
+draPlugin:
+  enabled: false
+
+nvidiaDraDriver:
+  enabled: false
+</code></pre>
+<p>Device Plugin과 두 DRA 경로가 GPU 요청과 할당을 어떻게 다르게 표현하는지는 <a href="fake-gpu-operator-device-plugin-dra-paths.html">Fake GPU Operator의 세 GPU 할당 경로는 어떻게 다를까?</a>에서 비교한다.</p>
+
+</section>
+<section id="gpu-capacity-worker" class="markdown-section">
+<h2>서로 다른 GPU Capacity를 가진 두 Worker를 준비한다</h2>
+<p>GPU 요청에 따라 Scheduler의 선택이 달라지는 것을 보려면 Node마다 다른 GPU 자원이 필요하다. 두 Worker를 다음과 같이 구성했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>GPU Model</th>
+<th align="right">GPU 수</th>
+<th align="right">GPU Memory</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td>A100 40GB</td>
+<td align="right">2</td>
+<td align="right">40960MiB</td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td>T4</td>
+<td align="right">1</td>
+<td align="right">16384MiB</td>
+</tr>
+<tr>
+<td><code>gpu-lab</code></td>
+<td>없음</td>
+<td align="right">0</td>
+<td align="right">없음</td>
+</tr>
+</tbody></table>
+</div>
+<p>Fake GPU Operator에는 두 GPU Pool을 정의했다.</p>
+<pre><code class="language-yaml">topology:
+  migStrategy: none
+  nodePoolLabelKey: run.ai/simulated-gpu-node-pool
+  nodePools:
+    a100-pool:
+      gpuCount: 2
+      gpuMemory: 40960
+      gpuProduct: NVIDIA-A100-SXM4-40GB
+
+    t4-pool:
+      gpuCount: 1
+      gpuMemory: 16384
+      gpuProduct: Tesla-T4
+</code></pre>
+<p>그리고 각 Worker에 적용할 Pool을 Label로 선택했다.</p>
+<pre><code class="language-bash">kubectl label node gpu-lab-m02 \
+  run.ai/simulated-gpu-node-pool=a100-pool --overwrite
+
+kubectl label node gpu-lab-m03 \
+  run.ai/simulated-gpu-node-pool=t4-pool --overwrite
+</code></pre>
+<p>이 Label 자체가 Kubernetes에 GPU를 등록하는 것은 아니다. Fake GPU Operator가 어느 Node에 어떤 가짜 장치 목록을 제공할지 결정하는 입력이다. <code>topology</code>, Node Pool과 <code>migStrategy</code>가 결정하는 범위는 <a href="fake-gpu-operator-topology-node-pools-mig-strategy.html">Fake GPU Operator의 topology와 migStrategy는 무엇을 설정할까?</a>에서 확인할 수 있다.</p>
+
+</section>
+<section id="device-plugin-gpu-node" class="markdown-section">
+<h2>Device Plugin이 GPU를 Node 자원으로 만든다</h2>
+<p>Node에 Pool Label을 붙인 뒤에는 Fake GPU Operator의 여러 구성요소와 Kubernetes Controller가 차례로 움직였다.</p>
+<pre><code class="language-text">Node Pool Label
+  → status-updater가 적용할 Pool 선택
+  → Node별 Topology ConfigMap 생성
+  → Device Plugin 배포 대상 Label 추가
+  → DaemonSet Controller가 해당 Node에 Device Plugin Pod 생성
+  → Device Plugin이 kubelet에 nvidia.com/gpu 등록
+  → kubelet이 API Server에 Node GPU Capacity 보고
+</code></pre>
+<p>이 흐름에는 역할이 다른 두 Label이 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>누가 사용하는가</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>run.ai/simulated-gpu-node-pool=a100-pool</code></td>
+<td>Fake GPU Operator</td>
+<td>Node에 적용할 가짜 GPU Pool을 선택한다.</td>
+</tr>
+<tr>
+<td><code>nvidia.com/gpu.deploy.device-plugin=true</code></td>
+<td>Device Plugin DaemonSet</td>
+<td><code>nodeSelector</code>와 일치하는 Node에 Plugin Pod를 배치한다.</td>
+</tr>
+</tbody></table>
+</div>
+<p>두 번째 Label의 이름에 <code>nvidia.com</code>이 들어가지만 Kubernetes가 이 문자열을 보고 GPU 의미를 추론하는 것은 아니다. DaemonSet Controller는 다른 Label과 마찬가지로 <code>nodeSelector</code>가 일치하는지만 판단한다.</p>
+<p>각 Worker에서 실행된 Device Plugin Log에는 kubelet 등록 과정이 나타났다.</p>
+<pre><code class="language-text">Starting device plugin for RealNodeDevicePlugin-nvidia.com/gpu
+Starting to serve on /var/lib/kubelet/device-plugins/fake-nvidia-gpu.sock
+Registered device plugin with Kubelet
+</code></pre>
+<p>Device Plugin Pod가 kubelet 설정 파일을 수정한 것은 아니다. Pod 안의 Process가 Unix Socket을 열고 같은 Node의 kubelet에 동적으로 등록했다.</p>
+<pre><code class="language-text">m02 Device Plugin → m02 kubelet → nvidia.com/gpu 2개
+m03 Device Plugin → m03 kubelet → nvidia.com/gpu 1개
+</code></pre>
+<p>Fake GPU Operator가 이 과정을 어떻게 구성하는지는 <a href="fake-gpu-operator-node-resource-registration.html">Fake GPU Operator는 GPU가 없는 Node를 어떻게 GPU Node로 보이게 할까?</a>에서 구성요소별로 확인할 수 있다.</p>
+
+</section>
+<section id="capacity-allocatable-gpu" class="markdown-section">
+<h2>Capacity와 Allocatable에서 GPU 게시 결과를 확인한다</h2>
+<p>Device Plugin 등록이 끝나자 Node Status에 <code>nvidia.com/gpu</code>가 나타났다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th align="right">Capacity</th>
+<th align="right">Allocatable</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">2</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td><code>gpu-lab</code></td>
+<td align="right">없음</td>
+<td align="right">없음</td>
+</tr>
+</tbody></table>
+</div>
+<pre><code class="language-yaml">status:
+  capacity:
+    nvidia.com/gpu: &quot;2&quot;
+  allocatable:
+    nvidia.com/gpu: &quot;2&quot;
+</code></pre>
+<p>여기까지가 GPU를 Pod에 할당할 수 있게 만드는 준비 단계다. API Server에 저장된 Node 상태를 통해 Scheduler는 어느 Node가 GPU를 제공하는지 알 수 있게 됐다.</p>
+<p>주의할 점은 <code>allocatable</code>이 현재 남은 GPU 수가 아니라는 것이다. GPU 하나를 Pod에 예약해도 Node YAML의 값이 2에서 1로 줄어들지는 않았다.</p>
+<pre><code class="language-text">현재 추가로 배치 가능한 GPU 요청량
+= Node Allocatable
+- 해당 Node에 이미 배치된 Pod의 GPU Request 합계
+</code></pre>
+<p><code>kubectl describe node</code>의 <code>Allocated resources</code>는 Node Object에 저장된 별도 필드가 아니다. <code>kubectl</code>이 Node와 그 Node에 배치된 Pod의 정보를 조합해 만든 진단 보고서다. <a href="kubectl-get-describe-gpu-resources.html"><code>kubectl get</code>과 <code>describe</code>는 왜 다른 정보를 보여줄까?</a>를 보면 원본 객체와 조합된 진단 정보의 차이를 구분할 수 있다.</p>
+
+</section>
+<section id="pod-nvidia-com-gpu-gpu" class="markdown-section">
+<h2>Pod는 nvidia.com/gpu로 필요한 GPU 수를 요청한다</h2>
+<p>Node가 GPU를 게시했더라도 모든 Pod가 자동으로 GPU를 받는 것은 아니다. Pod 명세가 GPU Extended Resource를 명시적으로 요청해야 한다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-request-one
+  namespace: gpu-resource-lab
+spec:
+  restartPolicy: Never
+  containers:
+    - name: cpu-test-container
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - while true; do sleep 3600; done
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+</code></pre>
+<p>GPU 연산과 Kubernetes 할당을 분리해 관찰하려고 CUDA Image 대신 BusyBox를 사용했다. 이 Container는 실제 GPU 연산을 하지 않지만, Kubernetes에는 GPU 한 개가 필요한 Pod로 보인다.</p>
+<p>GPU 같은 Extended Resource는 <code>limits</code>만 적으면 같은 값이 Request로 사용된다. 실제 Pod를 확인했을 때 Requests와 Limits 모두 GPU 한 개였다.</p>
+<pre><code class="language-text">Limits:
+  nvidia.com/gpu: 1
+Requests:
+  nvidia.com/gpu: 1
+</code></pre>
+<p>처음에 단순한 <code>sleep 3600</code>을 사용했을 때는 한 시간 뒤 Container가 정상 종료되어 Pod가 <code>Completed</code>됐다. 완료된 <code>restartPolicy: Never</code> Pod를 다시 시작할 수는 없으므로, 계속 관찰할 Pod에는 무한 대기 Loop를 사용했다.</p>
+
+</section>
+<section id="scheduler-gpu-node" class="markdown-section">
+<h2>Scheduler는 GPU가 남은 Node를 선택한다</h2>
+<p>Pod가 생성되자 Scheduler는 Node마다 다음 조건을 비교했다.</p>
+<pre><code class="language-text">Pod의 GPU Request
+  nvidia.com/gpu: 1
+
+각 Node의 배치 가능량
+  Node Allocatable
+  - 이미 배치된 Pod의 GPU Request 합계
+</code></pre>
+<p>첫 번째 Pod는 A100 Pool을 가진 <code>gpu-lab-m02</code>에 배치됐다.</p>
+<pre><code class="language-text">gpu-request-one   Running   gpu-lab-m02
+</code></pre>
+<p>Event에서도 Scheduler와 kubelet의 책임이 순서대로 나타났다.</p>
+<pre><code class="language-text">Scheduled  default-scheduler  gpu-resource-lab/gpu-request-one을 gpu-lab-m02에 할당
+Pulled     kubelet            Container Image 준비
+Created    kubelet            Container 생성
+Started    kubelet            Container 시작
+</code></pre>
+<p>여기서 Scheduler가 고른 것은 <code>gpu-lab-m02</code>라는 <strong>Node</strong>다. Scheduler가 A100의 개별 UUID까지 선택한 것은 아니다.</p>
+<pre><code class="language-text">Scheduler
+  → GPU Request를 수용할 Node 선택
+
+선택된 Node의 kubelet과 Device Plugin
+  → 사용 가능한 개별 GPU 장치 선택·할당
+  → Container 실행에 필요한 Device 정보 반환
+</code></pre>
+<p>Fake 환경에서는 Per-Node Topology에 다음 할당 대상이 기록됐다.</p>
+<pre><code class="language-yaml">allocatedBy:
+  namespace: gpu-resource-lab
+  pod: gpu-request-one
+  container: cpu-test-container
+</code></pre>
+<p>이는 BusyBox가 GPU 연산을 수행했다는 뜻이 아니다. Scheduler가 <code>nvidia.com/gpu</code>를 배치 조건으로 사용했고, 선택된 Node의 Fake Device Plugin이 논리적인 장치 하나를 Pod에 할당했다는 뜻이다.</p>
+
+</section>
+<section id="gpu-pod-pending" class="markdown-section">
+<h2>GPU를 모두 예약하면 추가 Pod는 Pending이 된다</h2>
+<p>같은 GPU 요청을 가진 Pod 두 개를 더 만들자 Cluster의 GPU 세 개가 모두 예약됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Pod</th>
+<th>Node</th>
+<th align="right">GPU Request</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-request-one</code></td>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">1</td>
+<td>Running</td>
+</tr>
+<tr>
+<td><code>gpu-request-two</code></td>
+<td><code>gpu-lab-m03</code></td>
+<td align="right">1</td>
+<td>Running</td>
+</tr>
+<tr>
+<td><code>gpu-request-three</code></td>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">1</td>
+<td>Running</td>
+</tr>
+</tbody></table>
+</div>
+<p>Node별 예약량은 m02가 2/2, m03이 1/1이다. 이 상태에서 GPU 하나를 요청하는 네 번째 Pod를 만들었다.</p>
+<pre><code class="language-text">gpu-request-overflow   0/1   Pending
+</code></pre>
+<p><code>Pending</code>이라는 상태 문자열만으로는 원인을 확정할 수 없다. 실제 원인은 Scheduler Event에 기록됐다.</p>
+<pre><code class="language-text">Warning  FailedScheduling
+0/3 nodes are available: 3 Insufficient nvidia.com/gpu.
+</code></pre>
+<p>Control Plane은 GPU를 게시하지 않았고 두 Worker의 GPU는 이미 모두 예약돼 있었다. 따라서 네 번째 Pod에는 <code>nodeName</code>, Pod IP와 Container ID가 없었고 kubelet의 <code>Created</code>·<code>Started</code> Event도 발생하지 않았다.</p>
+<pre><code class="language-text">Pod 생성
+  → Scheduler가 모든 Node 평가
+  → GPU Request를 만족하는 Node 없음
+  → PodScheduled=False
+  → Container 실행 전에 Pending
+</code></pre>
+<p>이 경계는 GPU Serving 장애를 해석할 때 중요하다. Pod가 아직 <code>Pending</code>이면 vLLM Queue나 KV Cache를 조사할 단계가 아니다. 반대로 GPU Pod가 이미 <code>Running</code>인데 요청 처리가 느리다면 Kubernetes 배치보다 Runtime 내부의 Queue·KV Cache·연산 경쟁을 먼저 살펴봐야 한다.</p>
+
+</section>
+<section id="pod-gpu-pod" class="markdown-section">
+<h2>Pod가 종료되면 GPU 예약이 반환되고 대기 Pod가 배치된다</h2>
+<p>m02에서 실행 중이던 <code>gpu-request-three</code>를 삭제했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab delete pod gpu-request-three
+</code></pre>
+<p>Pod가 사라지면서 GPU Request 한 개가 더 이상 m02에 예약되지 않았다. 그러자 기존 <code>gpu-request-overflow</code>를 다시 만들지 않았는데도 Scheduler가 같은 Pod를 재평가해 m02에 배치했다.</p>
+<pre><code class="language-text">FailedScheduling: Insufficient nvidia.com/gpu
+  → gpu-request-three 삭제
+  → m02의 예약량이 2에서 1로 감소
+  → Scheduler가 Pending Pod 재평가
+  → gpu-request-overflow를 gpu-lab-m02에 배치
+  → kubelet과 Device Plugin이 반환된 장치 할당
+  → Container 생성·실행
+</code></pre>
+<p>같은 Pod의 Event에는 과거 <code>FailedScheduling</code>과 이후 <code>Scheduled</code>가 함께 남았다. Scheduler는 한 번 배치에 실패한 Pod를 버리는 것이 아니라 Cluster 상태가 바뀌면 다시 평가한다.</p>
+<p>Per-Node Topology에서도 두 번째 GPU의 <code>allocatedBy.pod</code>가 삭제된 <code>gpu-request-three</code>에서 <code>gpu-request-overflow</code>로 바뀌었다. GPU 반환은 Node의 <code>Allocatable</code> 숫자를 줄였다가 늘리는 일이 아니라, 해당 Node에 배치된 Pod들의 GPU Request 합계와 Device Plugin의 장치 할당 상태가 바뀌는 일이다.</p>
+
+</section>
+<section id="gpu-2" class="markdown-section">
+<h2>자원 할당과 GPU 사용률은 서로 다른 상태다</h2>
+<p>Kubernetes가 Pod에 GPU 한 개를 할당했다는 사실과 Application이 그 GPU를 얼마나 사용하고 있다는 사실은 다르다.</p>
+<pre><code class="language-text">Kubernetes 자원 상태
+  nvidia.com/gpu 한 개 요청·예약·할당
+
+Runtime과 Hardware 상태
+  GPU Utilization, VRAM 사용량, 온도, 전력, 연산량
+</code></pre>
+<p>이번 환경의 <code>status-exporter</code>는 9400 Port의 <code>/metrics</code>에서 DCGM과 같은 이름의 Prometheus Metric을 노출했다.</p>
+<pre><code class="language-text">DCGM_FI_DEV_GPU_UTIL
+DCGM_FI_DEV_FB_USED
+DCGM_FI_DEV_FB_FREE
+</code></pre>
+<p>실제 연산을 하지 않는 BusyBox Pod에도 GPU 사용률 100과 Framebuffer 사용량 40960MiB가 나타났다. 이는 Hardware 측정값이 아니라 Fake Topology와 할당 상태를 사용해 만든 합성값이다.</p>
+<p>Pod Annotation으로 합성값을 변경할 수도 있었다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab annotate pod gpu-request-one \
+  run.ai/simulated-gpu-utilization=&quot;10-30&quot; \
+  gpu-fraction=&quot;0.25&quot; \
+  --overwrite
+</code></pre>
+<p>조회한 한 표본에서는 다음 값이 나타났다.</p>
+<pre><code class="language-text">DCGM_FI_DEV_GPU_UTIL 23
+DCGM_FI_DEV_FB_USED 10240
+</code></pre>
+<p><code>10240</code>은 Pool에 설정한 40960MiB의 25%다. 그러나 <code>gpu-fraction: 0.25</code>가 Scheduler의 예약량을 0.25개로 바꾸지는 않았다. Pod는 여전히 <code>nvidia.com/gpu: 1</code>을 예약했다.</p>
+<p>Fake Metric은 Prometheus Scrape, Dashboard와 Alert의 데이터 흐름을 연습하는 데 사용할 수 있다. 실제 CUDA 연산량, VRAM 압력이나 GPU 성능의 증거로 사용할 수는 없다.</p>
+
+</section>
+<section id="gpu-kubernetes" class="markdown-section">
+<h2>실제 GPU에서도 Kubernetes의 중심 흐름은 같다</h2>
+<p>Fake 환경과 실제 NVIDIA 환경은 장치를 발견하는 시작점과 Container에 장치를 노출하는 마지막 단계가 다르다.</p>
+<pre><code class="language-text">이번 실습
+Fake Topology
+  → Fake Device Plugin
+  → kubelet
+  → API Server
+  → Scheduler
+  → Fake Device Plugin의 논리 장치 할당
+  → CPU Container 실행
+</code></pre>
+<pre><code class="language-text">실제 NVIDIA 환경
+물리 GPU
+  → NVIDIA Driver·NVML
+  → NVIDIA Device Plugin
+  → kubelet
+  → API Server
+  → Scheduler
+  → Device Plugin Allocate
+  → Container Runtime·NVIDIA Toolkit 또는 CDI
+  → Container에서 실제 GPU 사용
+</code></pre>
+<p>하지만 Kubernetes 관점에서 중심이 되는 계약은 같다.</p>
+<pre><code class="language-text">Device Plugin이 GPU 자원 게시
+  → Pod가 GPU 수 요청
+  → Scheduler가 수용 가능한 Node 선택
+  → Node의 kubelet과 Device Plugin이 장치 할당
+  → Pod 종료 시 자원 반환
+</code></pre>
+<p>Apple Silicon에서 NVIDIA GPU Operator의 <code>ClusterPolicy</code>와 Operand Reconcile을 살펴보려면 기본 Fake Backend와 별도의 Mock Backend를 구분해야 한다. <a href="fake-gpu-operator-mock-backend-clusterpolicy-apple-silicon.html">Apple Silicon에서 NVIDIA ClusterPolicy를 어디까지 학습할 수 있을까?</a>를 보면 관찰 가능한 Operator 제어 흐름과 실제 Hardware 검증의 경계가 나뉜다.</p>
+
+</section>
+<section id="gpu-3" class="markdown-section">
+<h2>이 실습으로 확인한 GPU 할당의 경계</h2>
+<p><a href="kubernetes-gpu-node-scheduling-control.html">GPU Pod의 Node 배치를 어떻게 제어할까?</a></p>
+<p>이번 실습으로 확인한 것은 Kubernetes의 GPU 자원 등록·Scheduling·할당·반환 흐름이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인한 것</th>
+<th>Fake 환경에서 확인하지 못한 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Device Plugin이 kubelet에 <code>nvidia.com/gpu</code> 등록</td>
+<td>NVIDIA Driver가 물리 GPU를 제어하는 과정</td>
+</tr>
+<tr>
+<td>kubelet이 Node Capacity·Allocatable 보고</td>
+<td>CUDA Kernel의 실제 실행</td>
+</tr>
+<tr>
+<td>Pod GPU Request를 사용한 Scheduler의 Node 선택</td>
+<td>실제 VRAM 사용량과 격리</td>
+</tr>
+<tr>
+<td>선택된 Node에서 논리 장치 할당</td>
+<td>실제 GPU Device의 Container 주입</td>
+</tr>
+<tr>
+<td>GPU 소진 시 Pending과 <code>FailedScheduling</code></td>
+<td>GPU 연산 경쟁과 처리량</td>
+</tr>
+<tr>
+<td>Pod 삭제 후 예약 반환과 Pending Pod 재배치</td>
+<td>KV Cache 부족과 실제 GPU OOM</td>
+</tr>
+<tr>
+<td>Fake Metric Endpoint와 Pod Annotation 연결</td>
+<td>실제 DCGM·NVML Hardware Metric</td>
+</tr>
+</tbody></table>
+</div>
+<p>실습 전체를 Kubernetes의 책임을 중심으로 다시 연결하면 다음과 같다.</p>
+<pre><code class="language-text">Device Plugin이 Node의 GPU를 kubelet에 등록한다
+  → kubelet이 API Server에 nvidia.com/gpu Capacity를 보고한다
+  → Pod가 nvidia.com/gpu를 요청한다
+  → Scheduler가 Allocatable과 기존 Request를 비교해 Node를 고른다
+  → 선택된 Node의 kubelet과 Device Plugin이 개별 장치를 할당한다
+  → Pod가 종료되면 Request 예약과 장치 할당이 반환된다
+</code></pre>
+<p>Fake GPU Operator는 이 흐름에서 물리 GPU·Driver·실제 NVIDIA Device Plugin을 대신해 관찰 가능한 가짜 장치와 상태를 제공했다. 따라서 이 실습의 결론은 “Mac에서도 GPU를 사용했다”가 아니다. <strong>GPU가 Kubernetes의 확장 자원으로 게시되고 Pod 요청에 따라 할당되는 과정을 끝까지 확인했다</strong>는 것이다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-gpu-node-scheduling-control.html">GPU Pod의 Node 배치를 어떻게 제어할까?</a><ul><li><a href="kubernetes-gpu-single-pod-vs-replicas-scheduling.html">GPU 요청을 한 Pod에 모을 때와 여러 Pod로 나눌 때 배치는 어떻게 달라질까?</a></li>
+<li><a href="kubernetes-gpu-node-selection-taint-lab.html">GPU 종류와 전용 Node 조건은 후보 Node를 어떻게 바꿀까?</a></li>
+<li><a href="kubernetes-gpu-pack-spread-fragmentation-lab.html">집중과 분산은 다음 Multi-GPU Pod의 가능성을 어떻게 바꿀까?</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
