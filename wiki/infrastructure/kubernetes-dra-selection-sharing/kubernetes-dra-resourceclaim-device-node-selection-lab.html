@@ -1,0 +1,398 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.md. Do not edit directly. source-sha256:0eba99a91cf1195a3ebe4e1d4611093b8bdc51dd2a35d74999d5741953feeee2 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ResourceClaim에 A100 한 개라고 적는 순간에는 실제 GPU와 Node가 정해져 있지 않다. Scheduler는 DRA Driver가 게시한 장치 인벤토리와 DeviceClass·ResourceClaim의 조건을 함께 보고, 조건에 맞는 개별 장치와 그 장치에 접근할 수 있는 Node를 선택한다. Pod가 Claim을 사용하기 전후의 상태를 비교하면 추상적인 요청이 구체적인 할당으로 바뀌는 지점을 볼 수 있다.">
+  <meta name="source-sha256" content="0eba99a91cf1195a3ebe4e1d4611093b8bdc51dd2a35d74999d5741953feeee2">
+  <title>DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?">
+  <meta property="og:description" content="ResourceClaim에 A100 한 개라고 적는 순간에는 실제 GPU와 Node가 정해져 있지 않다. Scheduler는 DRA Driver가 게시한 장치 인벤토리와 DeviceClass·ResourceClaim의 조건을 함께 보고, 조건에 맞는 개별 장치와 그 장치에 접근할 수 있는 Node를 선택한다. Pod가 Claim을 사용하기 전후의 상태를 비교하면 추상적인 요청이 구체적인 할당으로 바뀌는 지점을 볼 수 있다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html","name":"DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?","description":"ResourceClaim에 A100 한 개라고 적는 순간에는 실제 GPU와 Node가 정해져 있지 않다. Scheduler는 DRA Driver가 게시한 장치 인벤토리와 DeviceClass·ResourceClaim의 조건을 함께 보고, 조건에 맞는 개별 장치와 그 장치에 접근할 수 있는 Node를 선택한다. Pod가 Claim을 사용하기 전후의 상태를 비교하면 추상적인 요청이 구체적인 할당으로 바뀌는 지점을 볼 수 있다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html"},"headline":"DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-device-node-selection-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</h1>
+      <p class="lead">ResourceClaim에 A100 한 개라고 적는 순간에는 실제 GPU와 Node가 정해져 있지 않다. Scheduler는 DRA Driver가 게시한 장치 인벤토리와 DeviceClass·ResourceClaim의 조건을 함께 보고, 조건에 맞는 개별 장치와 그 장치에 접근할 수 있는 Node를 선택한다. Pod가 Claim을 사용하기 전후의 상태를 비교하면 추상적인 요청이 구체적인 할당으로 바뀌는 지점을 볼 수 있다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#dra">클러스터가 DRA 객체를 지원하는지 확인한다</a>
+        <a href="#dra-driver">장치 인벤토리를 게시할 DRA Driver가 필요하다</a>
+        <a href="#resourceslice">ResourceSlice에서 실제 선택 후보를 읽는다</a>
+        <a href="#deviceclass">DeviceClass가 공통 장치 범위를 만든다</a>
+        <a href="#resourceclaim-a100">ResourceClaim으로 A100 한 개를 요청한다</a>
+        <a href="#pod-claim-node">Pod가 Claim을 사용하면 실제 장치와 Node가 정해진다</a>
+        <a href="#section-a57e22380548">존재하지 않는 모델은 할당 결과를 만들지 못한다</a>
+        <a href="#section-42ee573758e9">선택 결과를 읽을 때 객체를 함께 본다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>ResourceClaim에 <code>A100 한 개</code>라고 적는 순간에는 실제 GPU와 Node가 정해져 있지 않다. Scheduler는 DRA Driver가 게시한 장치 인벤토리와 DeviceClass·ResourceClaim의 조건을 함께 보고, 조건에 맞는 개별 장치와 그 장치에 접근할 수 있는 Node를 선택한다. Pod가 Claim을 사용하기 전후의 상태를 비교하면 추상적인 요청이 구체적인 할당으로 바뀌는 지점을 볼 수 있다.</p>
+<pre><code class="language-text">ResourceSlice의 장치 후보
+        +
+DeviceClass의 공통 조건
+        +
+ResourceClaim의 모델 조건과 수량
+        +
+Pod의 배치 조건
+        ↓
+Scheduler가 개별 장치와 Node 선택
+        ↓
+ResourceClaim.status에 할당 결과 기록
+        ↓
+Pod를 선택한 Node에 배치
+</code></pre>
+</div>
+        <section id="dra" class="markdown-section">
+<h2>클러스터가 DRA 객체를 지원하는지 확인한다</h2>
+<p>DRA Manifest를 만들기 전에 API Server가 어떤 DRA API Version과 객체를 제공하는지 확인한다.</p>
+<pre><code class="language-bash">kubectl api-resources --api-group=resource.k8s.io
+</code></pre>
+<p>실습 클러스터에서는 네 객체가 모두 <code>resource.k8s.io/v1</code>으로 제공됐다.</p>
+<pre><code class="language-text">NAME                     APIVERSION           NAMESPACED   KIND
+deviceclasses            resource.k8s.io/v1   false        DeviceClass
+resourceclaims           resource.k8s.io/v1   true         ResourceClaim
+resourceclaimtemplates   resource.k8s.io/v1   true         ResourceClaimTemplate
+resourceslices           resource.k8s.io/v1   false        ResourceSlice
+</code></pre>
+<p>DeviceClass와 ResourceSlice는 클러스터 범위 객체다. ResourceClaim과 ResourceClaimTemplate은 Namespace 범위 객체이며, Pod는 같은 Namespace의 Claim을 참조한다.</p>
+<p>API 객체가 존재한다고 장치 정보까지 자동으로 생기는 것은 아니다. 다음 조회에서는 처음에 아무 ResourceSlice도 나오지 않았다.</p>
+<pre><code class="language-bash">kubectl get resourceslices
+</code></pre>
+<pre><code class="language-text">No resources found
+</code></pre>
+<p>이 결과는 API Server가 DRA 객체 형식을 지원하지만, 장치 인벤토리를 게시하는 DRA Driver가 아직 실행되지 않았다는 뜻이다.</p>
+
+</section>
+<section id="dra-driver" class="markdown-section">
+<h2>장치 인벤토리를 게시할 DRA Driver가 필요하다</h2>
+<p>API 객체가 준비돼 있어도 ResourceSlice는 저절로 채워지지 않는다. 장치 정보를 발견하고 Kubernetes API에 게시하는 DRA Driver가 필요하다. 이 실습에서는 실제 GPU 대신 Fake GPU Operator의 DRA Plugin을 사용했고, Plugin이 두 Worker의 가상 장치를 게시하자 Node별 ResourceSlice가 생성됐다.</p>
+<p>Fake GPU 게시 경로를 Device Plugin에서 DRA로 전환한 설정, 동일 장치의 중복 게시 방지와 GPU Node의 Taint를 통과하도록 DRA Plugin에 Toleration을 추가한 과정은 <a href="fake-gpu-operator-dra-plugin-enablement.html">Fake GPU Operator에서 DRA Plugin을 어떻게 활성화할까?</a>에서 별도로 다룬다.</p>
+
+</section>
+<section id="resourceslice" class="markdown-section">
+<h2>ResourceSlice에서 실제 선택 후보를 읽는다</h2>
+<p>실습에 사용한 DRA Driver는 Node별 장치 정보를 ResourceSlice로 게시하고 현재 상태와 맞췄다. A100 Pool의 ResourceSlice에는 개별 GPU 두 개와 각 장치의 모델·UUID·Memory가 들어 있었다.</p>
+<pre><code class="language-yaml">spec:
+  driver: gpu.nvidia.com
+  nodeName: gpu-lab-m02
+  pool:
+    name: gpu-lab-m02
+    generation: 1
+    resourceSliceCount: 1
+  devices:
+    - name: gpu-cc0ab4cf-b6e7-569e-8d6c-d0f9535c05e6
+      attributes:
+        model:
+          string: NVIDIA-A100-SXM4-40GB
+        gpu.nvidia.com/type:
+          string: gpu
+        uuid:
+          string: GPU-cc0ab4cf-b6e7-569e-8d6c-d0f9535c05e6
+      capacity:
+        memory:
+          value: 40Gi
+    - name: gpu-12994019-b704-5d73-9809-3aa7d1173b0e
+      attributes:
+        model:
+          string: NVIDIA-A100-SXM4-40GB
+      capacity:
+        memory:
+          value: 40Gi
+</code></pre>
+<p>T4 Pool도 같은 구조로 개별 장치 두 개를 게시했다.</p>
+<pre><code class="language-yaml">spec:
+  driver: gpu.nvidia.com
+  nodeName: gpu-lab-m03
+  pool:
+    name: gpu-lab-m03
+  devices:
+    - name: gpu-d7513d6b-37c9-51b7-886b-a6c2070838a9
+      attributes:
+        model:
+          string: Tesla-T4
+      capacity:
+        memory:
+          value: 16Gi
+    - name: gpu-0b9e85ca-54e8-5cd9-8772-d70eeb3f1725
+      attributes:
+        model:
+          string: Tesla-T4
+      capacity:
+        memory:
+          value: 16Gi
+</code></pre>
+<p>Scheduler가 선택할 수 있는 실제 후보는 다음과 같이 정리된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Pool</th>
+<th align="right">장치 수</th>
+<th>모델</th>
+<th align="right">장치별 Memory</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gpu-lab-m02</code></td>
+<td><code>gpu-lab-m02</code></td>
+<td align="right">2</td>
+<td><code>NVIDIA-A100-SXM4-40GB</code></td>
+<td align="right"><code>40Gi</code></td>
+</tr>
+<tr>
+<td><code>gpu-lab-m03</code></td>
+<td><code>gpu-lab-m03</code></td>
+<td align="right">2</td>
+<td><code>Tesla-T4</code></td>
+<td align="right"><code>16Gi</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>Device Plugin 방식의 <code>nvidia.com/gpu: 2</code>와 달리 DRA에서는 개별 장치의 이름과 속성, 접근 가능한 Node가 Scheduler의 입력으로 드러난다.</p>
+
+</section>
+<section id="deviceclass" class="markdown-section">
+<h2>DeviceClass가 공통 장치 범위를 만든다</h2>
+<p>실습 Driver의 설치 패키지는 <code>gpu.nvidia.com</code>이라는 기본 DeviceClass를 함께 설치했다. DeviceClass가 Driver 등록만으로 Kubernetes에 자동 생성되는 것은 아니다. Driver 설치자가 기본 Class를 제공할 수도 있고 클러스터 관리자가 정책에 맞는 Class를 직접 만들 수도 있다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: gpu.nvidia.com
+spec:
+  selectors:
+    - cel:
+        expression: &gt;-
+          device.driver == &#39;gpu.nvidia.com&#39; &amp;&amp;
+          device.attributes[&#39;gpu.nvidia.com&#39;].type == &#39;gpu&#39;
+</code></pre>
+<p>이 DeviceClass는 A100이나 T4 중 하나를 고르지 않는다. <code>gpu.nvidia.com</code> Driver가 게시했고 <code>type</code>이 <code>gpu</code>인 장치를 모두 하나의 공통 요청 범주로 만든다.</p>
+<pre><code class="language-text">gpu.nvidia.com DeviceClass
+  ├─ gpu-lab-m02의 A100 두 개
+  └─ gpu-lab-m03의 T4 두 개
+</code></pre>
+<p>Workload가 아무 GPU나 사용할 수 있다면 이 Class와 수량만 요청해도 된다. 특정 모델이 필요하다면 ResourceClaim에서 조건을 더 좁힌다.</p>
+
+</section>
+<section id="resourceclaim-a100" class="markdown-section">
+<h2>ResourceClaim으로 A100 한 개를 요청한다</h2>
+<p>기본 DeviceClass의 범위에서 A100만 선택하도록 ResourceClaim을 만들었다. <code>model</code> 속성의 경로와 값은 실제 ResourceSlice에 게시된 내용을 사용했다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: a100-one
+  namespace: gpu-resource-lab
+spec:
+  devices:
+    requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.nvidia.com
+          allocationMode: ExactCount
+          count: 1
+          selectors:
+            - cel:
+                expression: device.attributes[&#39;gpu.nvidia.com&#39;].model == &#39;NVIDIA-A100-SXM4-40GB&#39;
+</code></pre>
+<p>이 요청에는 DeviceClass와 ResourceClaim의 조건이 함께 적용된다.</p>
+<pre><code class="language-text">DeviceClass
+  → Driver가 gpu.nvidia.com
+  → type이 gpu
+
+ResourceClaim
+  → model이 NVIDIA-A100-SXM4-40GB
+  → 정확히 한 개
+
+최종 후보
+  → gpu-lab-m02의 A100 두 개
+</code></pre>
+<p>Claim만 만들었을 때는 실제 장치가 할당되지 않았다.</p>
+<pre><code class="language-yaml">status: {}
+</code></pre>
+<p>ResourceClaim은 요청을 표현하지만, 소비하는 Pod가 없으면 Scheduler가 장치와 Node를 선택할 필요가 없기 때문이다.</p>
+
+</section>
+<section id="pod-claim-node" class="markdown-section">
+<h2>Pod가 Claim을 사용하면 실제 장치와 Node가 정해진다</h2>
+<p>Pod 수준의 <code>resourceClaims</code>는 <code>gpu</code>라는 Pod 내부 별칭을 실제 <code>a100-one</code> Claim과 연결한다. Container의 <code>resources.claims</code>는 이 Container가 그 별칭의 장치를 사용한다고 지정한다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: a100-claim-consumer
+  namespace: gpu-resource-lab
+spec:
+  restartPolicy: Never
+  resourceClaims:
+    - name: gpu
+      resourceClaimName: a100-one
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: gpu
+      effect: NoSchedule
+  containers:
+    - name: cpu-test-container
+      image: busybox:1.36
+      command: [&quot;sh&quot;, &quot;-c&quot;, &quot;echo DRA device prepared; sleep 3600&quot;]
+      resources:
+        claims:
+          - name: gpu
+</code></pre>
+<p>Pod가 Claim을 사용하자 Scheduler는 A100 두 개 중 하나와 해당 장치에 접근할 수 있는 Node를 선택했다.</p>
+<pre><code class="language-yaml">status:
+  allocation:
+    devices:
+      results:
+        - request: gpu
+          driver: gpu.nvidia.com
+          pool: gpu-lab-m02
+          device: gpu-cc0ab4cf-b6e7-569e-8d6c-d0f9535c05e6
+    nodeSelector:
+      nodeSelectorTerms:
+        - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+                - gpu-lab-m02
+  reservedFor:
+    - resource: pods
+      name: a100-claim-consumer
+      uid: 79137045-2644-46b3-a807-3a8fe6434e78
+</code></pre>
+<p><code>allocation.devices.results</code>는 어떤 Driver·Pool·Device가 선택됐는지 보여준다. <code>nodeSelector</code>는 선택된 장치를 사용할 수 있는 Node를 제한하고, <code>reservedFor</code>는 같은 Namespace에서 이 Claim을 사용할 수 있도록 예약된 Pod를 나타낸다.</p>
+<p>Pod도 그 Node에 배치되어 실행됐다.</p>
+<pre><code class="language-text">NAME                  STATUS    NODE
+a100-claim-consumer   Running   gpu-lab-m02
+</code></pre>
+<pre><code class="language-text">Normal  Scheduled  default-scheduler
+Successfully assigned gpu-resource-lab/a100-claim-consumer to gpu-lab-m02
+</code></pre>
+<p>이 결과는 <code>A100 한 개</code>라는 조건이 단순한 문서상의 설명이 아니라 실제 장치 UUID와 Node 선택에 사용됐음을 보여준다.</p>
+
+</section>
+<section id="section-a57e22380548" class="markdown-section">
+<h2>존재하지 않는 모델은 할당 결과를 만들지 못한다</h2>
+<p>Selector가 실제 장치 후보를 걸러내는지 비교하기 위해 ResourceSlice에 없는 H100을 요청했다. DeviceClass와 Pod의 Toleration은 성공 사례와 같게 두고 모델 조건만 바꿨다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: h100-one
+  namespace: gpu-resource-lab
+spec:
+  devices:
+    requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.nvidia.com
+          allocationMode: ExactCount
+          count: 1
+          selectors:
+            - cel:
+                expression: device.attributes[&#39;gpu.nvidia.com&#39;].model == &#39;NVIDIA-H100&#39;
+</code></pre>
+<p>이 Claim을 참조하는 Pod는 Pending 상태에 머물렀고 Claim에도 할당 결과가 생기지 않았다.</p>
+<pre><code class="language-yaml">status: {}
+</code></pre>
+<pre><code class="language-text">NAME                  STATUS    NODE
+h100-claim-consumer   Pending   &lt;none&gt;
+</code></pre>
+<pre><code class="language-text">Warning  FailedScheduling  default-scheduler
+0/3 nodes are available: 3 cannot allocate all claims.
+</code></pre>
+<p>Scheduler Event가 <code>H100이 없다</code>고 모델명을 직접 알려주지는 않는다. 실패 원인은 Claim의 조건, 실제 ResourceSlice의 후보와 비어 있는 Claim 상태를 함께 연결해 판단한다.</p>
+<pre><code class="language-text">Claim 조건
+  → model == NVIDIA-H100
+
+실제 ResourceSlice
+  → A100과 T4만 존재
+
+Claim 상태
+  → 할당 결과 없음
+
+Pod Event
+  → 모든 Claim을 할당할 수 없음
+</code></pre>
+<p>조건과 일치하는 장치가 없어서 실패한 경우와 조건에는 맞지만 다른 Claim이 모두 사용 중이어서 실패한 경우는 서로 다르다. 전자는 장치를 반환해도 해결되지 않고, 후자는 기존 할당이 해제되면 다시 할당될 수 있다.</p>
+
+</section>
+<section id="section-42ee573758e9" class="markdown-section">
+<h2>선택 결과를 읽을 때 객체를 함께 본다</h2>
+<p>ResourceClaim 하나만 보거나 Pod의 Pending 문자열만 보는 것으로는 선택 과정을 완전히 설명하기 어렵다. 다음 객체와 상태를 함께 읽어야 한다.</p>
+<pre><code class="language-text">ResourceSlice
+  → 실제 후보 장치와 속성·Node 접근 범위
+
+DeviceClass
+  → 공통 Driver·장치 범주
+
+ResourceClaim.spec
+  → Workload가 요구한 조건과 수량
+
+ResourceClaim.status.allocation
+  → 선택된 Driver·Pool·Device와 Node 조건
+
+ResourceClaim.status.reservedFor
+  → Claim을 사용할 수 있도록 예약된 소비자
+
+Pod.spec.nodeName과 Event
+  → 실제 Node 배치와 성공·실패 결과
+</code></pre>
+<p>이 연결을 통해 DRA의 장치 선택은 <code>A100</code>이라는 Label이 붙은 Node를 고르는 데서 끝나지 않고, ResourceSlice에 게시된 개별 장치를 선택하고 그 장치에 접근할 수 있는 Node에 Pod를 배치하는 과정임을 알 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="fake-gpu-operator-dra-plugin-enablement.html">Fake GPU Operator에서 DRA Plugin을 어떻게 활성화할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

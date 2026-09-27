@@ -1,0 +1,227 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/README.md. Do not edit directly. source-sha256:74201bf88f0e3b4a9982b2d01f7a3a25d7b084bfbe456a5baf7a8ec2a2437df6 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Device Plugin 방식에서 Pod는 GPU의 종류나 ID가 아니라 필요한 개수를 요청한다.">
+  <meta name="source-sha256" content="74201bf88f0e3b4a9982b2d01f7a3a25d7b084bfbe456a5baf7a8ec2a2437df6">
+  <title>Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?">
+  <meta property="og:description" content="Device Plugin 방식에서 Pod는 GPU의 종류나 ID가 아니라 필요한 개수를 요청한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html","name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","description":"Device Plugin 방식에서 Pod는 GPU의 종류나 ID가 아니라 필요한 개수를 요청한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},"headline":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</h1>
+      <p class="lead">Device Plugin 방식에서 Pod는 GPU의 종류나 ID가 아니라 필요한 개수를 요청한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9b346af9a267">전체 문서 트리</a>
+        <a href="#gpu">GPU 개수 요청에서 개별 장치 선택으로</a>
+        <a href="#dra">DRA로 배포하려면 객체의 역할을 알아야 한다</a>
+        <a href="#node">장치 조건은 실제 장치와 Node 선택으로 이어진다</a>
+        <a href="#section-119a2f07668f">장치 할당에는 수명주기가 있다</a>
+        <a href="#gpu-2">GPU 한 개의 의미는 공유 방식에 따라 달라진다</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="section-9b346af9a267" class="markdown-section">
+<h2>전체 문서 트리</h2>
+<ul>
+<li><a href="dra-device-plugin-to-dra-foundations.html">Device Plugin에서 DRA까지: 장치 할당의 기반 개념</a>
+          - <a href="why-learn-dra-after-device-plugin.html">GPU 개수 요청을 이해한 다음 DRA를 배우는 이유</a>
+          - <a href="kubernetes-device-plugin-vs-dra-node-plugin.html">Device Plugin과 DRA Driver는 장치를 어떻게 다르게 게시하고 준비할까?</a>
+                          - <a href="kubernetes-dra-driver-component-deployment-shapes.html">DRA Driver는 왜 하나의 Pod나 Process로 고정되지 않을까?</a>
+                          - <a href="kubernetes-device-plugin-allocate-container-access.html">Device Plugin의 Allocate는 무엇을 할까?</a>
+                                          - <a href="container-process-gpu-access-requirements.html">Container Process가 GPU를 사용하려면 무엇이 필요할까?</a>
+                                          - <a href="kubernetes-kubelet-device-manager-gpu-selection.html">Scheduler가 Node를 고른 뒤 kubelet은 GPU ID를 어떻게 선택할까?</a>
+                          - <a href="kubernetes-dra-node-prepare-resources.html">DRA Node Plugin의 NodePrepareResources는 무엇을 할까?</a>
+                                          - <a href="kubernetes-dra-node-prepare-cdi-runtime-settings.html">NodePrepareResources는 GPU Runtime 설정을 어떻게 전달할까?</a>
+                                                          - <a href="cdi-spec-node-storage-runtime-resolution.html">CDI Spec은 Node 어디에 저장되고 Runtime은 언제 적용할까?</a>
+                          - <a href="kubernetes-kubelet-plugin-registration-cri-container-config.html">kubelet은 나중에 설치된 장치 Plugin을 어떻게 발견하고 Container 실행에 반영할까?</a>
+          - <a href="kubernetes-device-manager-vs-dra-manager.html">Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?</a>
+                          - <a href="kubernetes-device-manager-to-dra-evolution.html">Device Manager에서 DRA로: Kubernetes는 왜 두 장치 할당 경로를 유지할까?</a>
+                          - <a href="why-dra-is-dynamic.html">DRA의 Dynamic은 무엇이 동적이라는 뜻일까?</a>
+          - <a href="kubernetes-device-plugin-gpu-model-mig-selection-boundary.html">Device Plugin은 GPU 모델과 MIG 장치를 어디까지 구분할 수 있을까?</a>
+          - <a href="kubernetes-device-plugin-vs-dra-gpu-card-selection.html">Device Plugin과 DRA는 GPU를 어디까지 선택할 수 있을까?</a></li>
+<li><a href="kubernetes-dra-object-relationships.html">DRA 객체는 장치 요청과 할당을 어떻게 연결할까?</a>
+          - <a href="kubernetes-dra-driver-resource-slice.html">DRA Driver는 장치를 어떻게 ResourceSlice로 게시할까?</a>
+          - <a href="why-resourceclaim-uses-deviceclass-instead-of-resourceslice.html">ResourceClaim은 왜 ResourceSlice를 직접 지정하지 않고 DeviceClass를 거칠까?</a>
+          - <a href="kubernetes-scheduler-vendor-device-standard-resource.html">Vendor 장치는 어떻게 Kubernetes Scheduler가 판단할 수 있는 자원이 될까?</a>
+          - <a href="kubernetes-resourceclaim-device-allocation-boundary.html">ResourceClaim은 Pod가 아니라 장치 할당의 경계를 나타낸다</a>
+          - <a href="kubernetes-resourceclaim-template-pod-lifecycle.html">ResourceClaim과 ResourceClaimTemplate은 Pod에 장치를 어떻게 연결할까?</a>
+                          - <a href="kubernetes-resourceclaimtemplate-generated-resourceclaim.html">ResourceClaimTemplate은 어떻게 Pod별 ResourceClaim으로 만들어질까?</a>
+                          - <a href="kubernetes-resourceclaimtemplate-generated-claim-count.html">ResourceClaimTemplate에서 실제 Claim은 몇 개 생성될까?</a></li>
+<li><a href="kubernetes-dra-resourceclaim-device-node-selection-lab.html">DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</a>
+          - <a href="fake-gpu-operator-dra-plugin-enablement.html">Fake GPU Operator에서 DRA Plugin을 어떻게 활성화할까?</a></li>
+<li><a href="kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</a>
+          - <a href="kubernetes-dra-claim-allocation-release-flow.html">ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</a>
+                          - <a href="kubernetes-resourceclaim-controller-watch-reconcile.html">ResourceClaim Controller는 Pod와 Claim을 어떻게 Watch할까?</a>
+          - <a href="kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</a></li>
+<li><a href="kubernetes-dra-timeslicing-resourceclaimtemplate-lab.html">ResourceClaimTemplate으로 A100 Time-slicing 요청하기</a>
+          - <a href="kubernetes-gpu-timeslicing-device-plugin-vs-dra.html">Kubernetes에서 GPU Time-slicing을 제공하는 두 가지 방법</a>
+                          - <a href="nvidia-timeslicing-configmap-only-increases-resource-replicas.html">Time-slicing ConfigMap이 하는 일은 GPU 자원 하나당 Replica 배율을 늘리는 것뿐이다</a>
+                                          - <a href="nvidia-timeslicing-renamebydefault-shared-resource-name.html"><code>renameByDefault</code>는 전용 GPU와 Time-slicing GPU를 선택하는 옵션이 아니다</a>
+                          - <a href="nvidia-device-plugin-mig-timeslicing-multi-node-profiles.html">NVIDIA Device Plugin의 MIG와 Time-slicing 설정은 여러 GPU Node에 어떻게 적용될까?</a>
+                                          - <a href="nvidia-device-plugin-profiles-do-not-merge.html">NVIDIA Device Plugin Profile은 왜 일부 값만 병합할 수 없을까?</a>
+          - <a href="kubernetes-dra-timeslicing-claim-config-driver-boundary.html">ResourceClaimTemplate의 Time-slicing 값만으로 GPU 공유가 설정될까?</a>
+          - <a href="kubernetes-dra-same-claim-multiple-containers.html">Time-slicing 설정 없이 두 Container가 같은 Claim을 사용하면 어떻게 될까?</a>
+          - <a href="kubernetes-dra-timeslicing-cdi-runtime-boundary.html">Time-slicing CDI Spec이 만들어졌는데 Container에는 왜 보이지 않을까?</a></li>
+<li><a href="kubernetes-dra-mig-instance-allocation.html">MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?</a>
+          - <a href="fake-gpu-dra-mig-instance-allocation-lab.html">Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?</a></li>
+<li><a href="LEARNING_CHECKLIST.html">DRA 장치 선택·수명주기와 GPU 공유 학습 체크리스트</a></li>
+</ul>
+
+</section>
+<section id="gpu" class="markdown-section">
+<h2>GPU 개수 요청에서 개별 장치 선택으로</h2>
+<p>Device Plugin 방식에서 Pod는 GPU의 종류나 ID가 아니라 필요한 개수를 요청한다.</p>
+<pre><code class="language-yaml">resources:
+  limits:
+    nvidia.com/gpu: 1
+</code></pre>
+<p>이 방식은 단순하지만 A100과 T4처럼 서로 다른 GPU가 섞이면 한계가 드러난다. 숫자 하나에는 원하는 장치의 속성, 실제로 선택된 장치, 할당의 소유자와 반환 시점이 나타나지 않는다. Node Label로 특정 종류의 GPU가 있는 Node를 고를 수는 있지만, Node 안의 개별 장치를 선택하고 그 결과를 관리하는 것과는 다르다.</p>
+<p>Device Plugin 방식에서 API Server에 드러나는 대표 정보는 <code>nvidia.com/gpu: 2</code>처럼 Node가 제공할 수 있는 GPU의 총개수다. 두 GPU가 서로 어떤 모델인지, 메모리는 얼마인지, 어느 장치가 현재 요청에 선택됐는지는 이 숫자에 담기지 않는다.</p>
+<p>DRA에서는 Driver가 <code>gpu-0은 A100</code>, <code>gpu-1은 T4</code>처럼 개별 장치의 이름과 속성, 접근 가능한 Node를 게시할 수 있다. Workload는 이 정보에 맞춰 “A100 조건을 만족하는 장치 한 개”처럼 요청하고, Scheduler는 조건을 만족하는 구체적인 장치와 Node를 함께 선택한다. 선택된 Driver·장치·Node는 Claim의 할당 상태에 기록되므로, 단순한 총개수를 넘어 무엇이 누구에게 할당됐는지까지 Kubernetes 상태에서 다룰 수 있다.</p>
+<p>Device Plugin의 개수 요청이 처리되는 과정과 DRA가 장치를 게시·준비하는 내부 구조는 <a href="dra-device-plugin-to-dra-foundations.html">Device Plugin에서 DRA까지: 장치 할당의 기반 개념</a>에 정리되어 있다.</p>
+
+</section>
+<section id="dra" class="markdown-section">
+<h2>DRA로 배포하려면 객체의 역할을 알아야 한다</h2>
+<p>DRA 방식으로 장치를 요청하는 Workload를 실제로 배포하려면 여러 Kubernetes 객체를 만들고 서로 연결해야 한다. Device Plugin 방식처럼 Pod에 <code>nvidia.com/gpu: 1</code>만 적는 것으로 끝나지 않고, 어떤 장치를 제공할 수 있는지, 어떤 종류의 장치를 요청할지, Workload가 그 요청을 어떻게 참조할지를 각 객체로 표현하기 때문이다.</p>
+<p>DRA는 장치 공급 정보와 Workload의 요구를 하나의 객체에 섞지 않는다. 선택 가능한 장치, 요청에 적용할 공통 조건, Workload가 원하는 장치와 실제 선택 결과를 서로 다른 객체로 나눈다. 따라서 각 객체의 역할과 참조 관계를 알아야 배포에 필요한 YAML을 구성할 수 있고, 배포 후에는 어떤 장치가 선택됐는지와 요청이 Pending된 이유도 추적할 수 있다.</p>
+<p>실제 배포에 필요한 객체들의 역할과 Pod까지 이어지는 참조 구조는 <a href="kubernetes-dra-object-relationships.html">DRA 객체는 장치 요청과 할당을 어떻게 연결할까?</a>에서 하나씩 살펴본다.</p>
+
+</section>
+<section id="node" class="markdown-section">
+<h2>장치 조건은 실제 장치와 Node 선택으로 이어진다</h2>
+<p>DRA에서 Workload가 GPU를 사용하려면 필요한 장치를 ResourceClaim으로 요청하고, Pod가 그 Claim을 참조해야 한다. ResourceClaim은 Workload의 장치 요구와 실제 GPU 할당을 연결하는 객체다.</p>
+<p>ResourceClaim은 특정 장치 ID를 미리 고르는 대신 필요한 장치의 조건과 수량을 선언한다. Scheduler는 ResourceSlice에 게시된 후보 중 그 조건을 만족하는 장치와 해당 장치에 접근할 수 있는 Node를 함께 선택하고, 결과를 Claim의 상태에 기록한다. Pod는 선택된 Node에 배치되고, kubelet과 DRA Node Plugin이 Claim에 할당된 GPU를 Container에서 사용할 수 있도록 준비한다.</p>
+<pre><code class="language-text">Workload가 ResourceClaim 참조
+  → Scheduler가 실제 GPU와 Node 선택
+  → ResourceClaim에 할당 결과 기록
+  → Pod를 선택된 Node에 배치
+  → GPU를 Container에서 사용할 수 있도록 준비
+</code></pre>
+<p>장치 조건이 실제 GPU와 Node 선택으로 이어지는 과정은 <a href="kubernetes-dra-resourceclaim-device-node-selection-lab.html">DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</a>에서 살펴본다.</p>
+
+</section>
+<section id="section-119a2f07668f" class="markdown-section">
+<h2>장치 할당에는 수명주기가 있다</h2>
+<p>장치를 고른 뒤에는 선택된 Node에서 Container가 사용할 수 있도록 준비해야 한다. 사용이 끝나면 준비 상태와 할당도 정리되어야 한다. 따라서 DRA의 장치 할당은 선택뿐 아니라 요청·할당·준비·사용·반환까지 이어지는 수명주기다.</p>
+<p>마지막 소비 Pod가 사라졌을 때 기존 Claim의 GPU 할당이 해제되고 대기 중인 다른 Claim으로 넘어가는 과정은 <a href="kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</a>에서 살펴본다.</p>
+
+</section>
+<section id="gpu-2" class="markdown-section">
+<h2>GPU 한 개의 의미는 공유 방식에 따라 달라진다</h2>
+<p>지금까지는 Claim 하나에 GPU 하나를 할당하고 Container에 연결하는 기본 흐름을 살펴봤다. 여기서 GPU 하나를 여러 Workload가 사용하게 하려면 Time-slicing과 MIG가 서로 무엇을 공유하고 무엇을 분리하는지 구분해야 한다.</p>
+<h3>전용 GPU에서 한 개는 물리 GPU 전체를 뜻한다</h3>
+<p>전용 GPU 방식에서는 물리 GPU 전체가 하나의 장치이자 할당 단위다. ResourceClaim이 GPU 한 개를 할당받으면 다른 독립된 Claim은 그 할당이 반환될 때까지 같은 GPU를 받을 수 없다. GPU를 더 작은 Instance로 나누거나 공유 슬롯을 늘리지 않았으므로, Workload는 해당 GPU의 연산 자원과 메모리 전체를 사용하는 구조가 된다.</p>
+<pre><code class="language-text">물리 GPU 1개
+  → DRA 장치 1개로 게시
+  → ResourceClaim 1개에 할당
+  → 다른 독립 Claim에는 중복 할당하지 않음
+</code></pre>
+<h3>Time-slicing은 하나의 GPU를 여러 Process가 함께 사용한다</h3>
+<p>Time-slicing은 물리 GPU를 여러 장치로 분할하지 않는다. 여러 Container의 CUDA Process가 같은 GPU에 접근하고, NVIDIA Driver가 각 CUDA Context의 실행을 번갈아 처리한다. 같은 Claim을 여러 Container가 참조하거나 DRA Driver에 <code>TimeSlicing</code> 전략을 요청해 이러한 공유 의도를 표현할 수 있지만, GPU 메모리와 장애 영역은 분리되지 않으며 일정한 성능 지분도 보장되지 않는다.</p>
+<p>DRA에서는 Workload가 Claim에 Time-slicing 의도를 담아 GPU 공유를 요청하고, DRA Driver가 선택된 GPU를 여러 Process가 사용할 수 있도록 준비한다. 이 요청이 장치 할당과 Container의 GPU 사용으로 이어지는 과정은 <a href="kubernetes-dra-timeslicing-resourceclaimtemplate-lab.html">ResourceClaimTemplate으로 A100 Time-slicing 요청하기</a>에서 살펴본다.</p>
+<h3>MIG는 하나의 GPU를 여러 Instance로 나누어 공유한다</h3>
+<p>MIG는 <strong>Multi-Instance GPU</strong>의 약자다. 하나의 물리 GPU를 여러 개의 독립적인 GPU Instance로 나누고, 각 Workload가 서로 다른 Instance를 할당받아 사용하게 한다.</p>
+<pre><code class="language-text">물리 GPU 1개
+├─ MIG Instance A → Workload A
+├─ MIG Instance B → Workload B
+└─ MIG Instance C → Workload C
+</code></pre>
+<p>Time-slicing에서는 여러 Process가 분할되지 않은 같은 GPU와 메모리를 함께 사용한다. MIG에서는 같은 물리 GPU를 공유하더라도 각 Instance에 연산 자원과 메모리 영역이 나뉜다. 따라서 MIG에서 장치 한 개를 요청한다는 말은 물리 GPU 전체가 아니라 MIG Instance 한 개를 요청한다는 뜻이다.</p>
+<pre><code class="language-text">전용 GPU
+  → 한 Workload가 물리 GPU 전체를 사용
+
+Time-slicing
+  → 여러 Process가 같은 물리 GPU를 그대로 공유
+
+MIG
+  → 물리 GPU를 여러 Instance로 나눔
+  → 여러 Workload가 서로 다른 Instance를 사용
+</code></pre>
+<p>DRA에서 중요한 것은 물리 GPU와 MIG Instance를 같은 “장치 한 개”로 읽지 않는 것이다. MIG 구성이 끝나면 각 Instance는 고유한 이름과 Profile·Memory 같은 속성을 가진 독립적인 선택 후보로 게시된다. ResourceClaim의 <code>count: 1</code>도 이때는 물리 GPU 한 장이 아니라 조건을 만족하는 MIG Instance 한 개를 뜻한다.</p>
+<p>MIG를 구성하는 단계와 DRA가 Instance를 게시·선택·반환하는 단계의 경계, ResourceSlice에서 각 Instance가 독립된 장치로 나타나는 이유는 <a href="kubernetes-dra-mig-instance-allocation.html">MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?</a>에서 살펴본다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="LEARNING_CHECKLIST.html">DRA 장치 선택·수명주기와 GPU 공유 학습 체크리스트</a></li>
+<li><a href="dra-device-plugin-to-dra-foundations.html">Device Plugin에서 DRA까지: 장치 할당의 기반 개념</a><ul><li><a href="kubernetes-device-plugin-vs-dra-node-plugin.html">Device Plugin과 DRA Driver는 장치를 어떻게 다르게 게시하고 준비할까?</a><ul><li><a href="kubernetes-device-manager-vs-dra-manager.html">Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?</a><ul><li><a href="kubernetes-device-manager-to-dra-evolution.html">Device Manager에서 DRA로: Kubernetes는 왜 두 장치 할당 경로를 유지할까?</a><ul><li><a href="kubernetes-device-plugin-gpu-model-mig-selection-boundary.html">Device Plugin은 GPU 모델과 MIG 장치를 어디까지 구분할 수 있을까?</a><ul><li><a href="kubernetes-device-plugin-vs-dra-gpu-card-selection.html">Device Plugin과 DRA는 GPU를 어디까지 선택할 수 있을까?</a></li></ul></li></ul></li></ul></li>
+<li><a href="kubernetes-device-plugin-allocate-container-access.html">Device Plugin의 Allocate는 무엇을 할까?</a><ul><li><a href="container-process-gpu-access-requirements.html">Container Process가 GPU를 사용하려면 무엇이 필요할까?</a></li>
+<li><a href="kubernetes-kubelet-device-manager-gpu-selection.html">Scheduler가 Node를 고른 뒤 kubelet은 GPU ID를 어떻게 선택할까?</a></li></ul></li>
+<li><a href="kubernetes-dra-driver-component-deployment-shapes.html">DRA Driver는 왜 하나의 Pod나 Process로 고정되지 않을까?</a></li>
+<li><a href="kubernetes-dra-node-prepare-resources.html">DRA Node Plugin의 NodePrepareResources는 무엇을 할까?</a><ul><li><a href="kubernetes-dra-node-prepare-cdi-runtime-settings.html">NodePrepareResources는 GPU Runtime 설정을 어떻게 전달할까?</a><ul><li><a href="cdi-spec-node-storage-runtime-resolution.html">CDI Spec은 Node 어디에 저장되고 Runtime은 언제 적용할까?</a></li></ul></li></ul></li>
+<li><a href="kubernetes-kubelet-plugin-registration-cri-container-config.html">kubelet은 나중에 설치된 장치 Plugin을 어떻게 발견하고 Container 실행에 반영할까?</a></li></ul></li>
+<li><a href="why-dra-is-dynamic.html">DRA의 Dynamic은 무엇이 동적이라는 뜻일까?</a></li>
+<li><a href="why-learn-dra-after-device-plugin.html">GPU 개수 요청을 이해한 다음 DRA를 배우는 이유</a></li></ul></li>
+<li><a href="kubernetes-dra-mig-instance-allocation.html">MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?</a><ul><li><a href="fake-gpu-dra-mig-instance-allocation-lab.html">Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?</a></li></ul></li>
+<li><a href="kubernetes-dra-object-relationships.html">DRA 객체는 장치 요청과 할당을 어떻게 연결할까?</a><ul><li><a href="kubernetes-dra-driver-resource-slice.html">DRA Driver는 장치를 어떻게 ResourceSlice로 게시할까?</a></li>
+<li><a href="kubernetes-resourceclaim-template-pod-lifecycle.html">ResourceClaim과 ResourceClaimTemplate은 Pod에 장치를 어떻게 연결할까?</a><ul><li><a href="kubernetes-resourceclaim-device-allocation-boundary.html">ResourceClaim은 Pod가 아니라 장치 할당의 경계를 나타낸다</a></li>
+<li><a href="kubernetes-resourceclaimtemplate-generated-resourceclaim.html">ResourceClaimTemplate은 어떻게 Pod별 ResourceClaim으로 만들어질까?</a></li></ul></li>
+<li><a href="why-resourceclaim-uses-deviceclass-instead-of-resourceslice.html">ResourceClaim은 왜 ResourceSlice를 직접 지정하지 않고 DeviceClass를 거칠까?</a><ul><li><a href="kubernetes-scheduler-vendor-device-standard-resource.html">Vendor 장치는 어떻게 Kubernetes Scheduler가 판단할 수 있는 자원이 될까?</a></li></ul></li></ul></li>
+<li><a href="kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</a><ul><li><a href="kubernetes-dra-claim-allocation-release-flow.html">ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</a><ul><li><a href="kubernetes-resourceclaim-controller-watch-reconcile.html">ResourceClaim Controller는 Pod와 Claim을 어떻게 Watch할까?</a></li></ul></li>
+<li><a href="kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</a></li></ul></li>
+<li><a href="kubernetes-dra-resourceclaim-device-node-selection-lab.html">DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</a><ul><li><a href="fake-gpu-operator-dra-plugin-enablement.html">Fake GPU Operator에서 DRA Plugin을 어떻게 활성화할까?</a></li></ul></li>
+<li><a href="kubernetes-dra-timeslicing-resourceclaimtemplate-lab.html">ResourceClaimTemplate으로 A100 Time-slicing 요청하기</a><ul><li><a href="kubernetes-dra-same-claim-multiple-containers.html">Time-slicing 설정 없이 두 Container가 같은 Claim을 사용하면 어떻게 될까?</a><ul><li><a href="kubernetes-resourceclaimtemplate-generated-claim-count.html">ResourceClaimTemplate에서 실제 Claim은 몇 개 생성될까?</a></li></ul></li>
+<li><a href="kubernetes-dra-timeslicing-cdi-runtime-boundary.html">Time-slicing CDI Spec이 만들어졌는데 Container에는 왜 보이지 않을까?</a></li>
+<li><a href="kubernetes-dra-timeslicing-claim-config-driver-boundary.html">ResourceClaimTemplate의 Time-slicing 값만으로 GPU 공유가 설정될까?</a></li>
+<li><a href="kubernetes-gpu-timeslicing-device-plugin-vs-dra.html">Kubernetes에서 GPU Time-slicing을 제공하는 두 가지 방법</a><ul><li><a href="nvidia-device-plugin-mig-timeslicing-multi-node-profiles.html">NVIDIA Device Plugin의 MIG와 Time-slicing 설정은 여러 GPU Node에 어떻게 적용될까?</a><ul><li><a href="nvidia-device-plugin-profiles-do-not-merge.html">NVIDIA Device Plugin Profile은 왜 일부 값만 병합할 수 없을까?</a></li></ul></li>
+<li><a href="nvidia-timeslicing-configmap-only-increases-resource-replicas.html">Time-slicing ConfigMap이 하는 일은 GPU 자원 하나당 Replica 배율을 늘리는 것뿐이다</a><ul><li><a href="nvidia-timeslicing-renamebydefault-shared-resource-name.html">`renameByDefault`는 전용 GPU와 Time-slicing GPU를 선택하는 옵션이 아니다</a></li></ul></li></ul></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

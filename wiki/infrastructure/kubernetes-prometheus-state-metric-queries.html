@@ -1,0 +1,161 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.md. Do not edit directly. source-sha256:54fa8377f8d9966f088c1404919923690b8c4242a7152bf89e7d24cba35be33a -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="kube-state-metrics를 Prometheus가 수집한 뒤 Pending Pod, Scheduler Event, Ready 상태와 Replica 차이를 질의한다.">
+  <meta name="source-sha256" content="54fa8377f8d9966f088c1404919923690b8c4242a7152bf89e7d24cba35be33a">
+  <title>Prometheus에서 Kubernetes 상태를 질의하는 법</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prometheus에서 Kubernetes 상태를 질의하는 법">
+  <meta property="og:description" content="kube-state-metrics를 Prometheus가 수집한 뒤 Pending Pod, Scheduler Event, Ready 상태와 Replica 차이를 질의한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html","name":"Prometheus에서 Kubernetes 상태를 질의하는 법","description":"kube-state-metrics를 Prometheus가 수집한 뒤 Pending Pod, Scheduler Event, Ready 상태와 Replica 차이를 질의한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html"},"headline":"Prometheus에서 Kubernetes 상태를 질의하는 법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-operations","name":"설치·운영 아카이브","identifier":"topics-kubernetes-operations"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-prometheus-state-metric-queries.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes GPU 배치 상태를 메트릭으로 읽는 법","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-observability-metrics.html"},{"@type":"ListItem","position":7,"name":"Prometheus에서 Kubernetes 상태를 질의하는 법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-gpu-observability-metrics.html">Kubernetes GPU 배치 상태를 메트릭으로 읽는 법</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prometheus에서 Kubernetes 상태를 질의하는 법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Prometheus에서 Kubernetes 상태를 질의하는 법</h1>
+      <p class="lead">kube-state-metrics를 Prometheus가 수집한 뒤 Pending Pod, Scheduler Event, Ready 상태와 Replica 차이를 질의한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-3dc7b1370511">현재 값이 시계열이 되기까지</a>
+        <a href="#section-6e20626395e5">Prometheus 설치</a>
+        <a href="#section-21d89f5f4e13">Prometheus 화면 접속</a>
+        <a href="#section-f95c82f5f5b3">Prometheus의 수집 상태 확인</a>
+        <a href="#section-4fa9081c70a9">Pending Pod 상태 질의</a>
+        <a href="#section-25047cbaea2e">Scheduler Event로 배치 실패 원인 확인</a>
+        <a href="#section-d08a6b5eddb2">Running Pod 준비 상태 질의</a>
+        <a href="#section-801377ee4f35">Deployment Replica 차이 질의</a>
+        <a href="#section-523d35819b16">메트릭 해석의 경계</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="section-3dc7b1370511" class="markdown-section">
+<h2>현재 값이 시계열이 되기까지</h2>
+<p>원시 <code>/metrics</code>에서 알 수 있는 것은 kube-state-metrics가 지금 내보내는 값이다. “아까는 Ready가 몇 개였지?”, “Pending이 언제부터 늘었지?”처럼 시간에 따른 변화를 보려면 값을 반복 수집하고 저장할 곳이 필요하다. Prometheus는 kube-state-metrics를 주기적으로 Scrape해 메트릭과 수집 시각을 시계열로 저장한다.</p>
+<p><img src="../../assets/images/kubernetes-gpu-observability/kubernetes-metric-scrape-timeline.svg" alt="kube-state-metrics의 현재 값이 Prometheus의 반복 Scrape를 통해 시각이 있는 시계열로 축적되고 같은 PromQL을 Instant 또는 시간 범위로 조회하는 차이" loading="lazy"></p>
+
+</section>
+<section id="section-6e20626395e5" class="markdown-section">
+<h2>Prometheus 설치</h2>
+<p>다음 Helm 명령은 Prometheus를 <code>observability</code> Namespace에 설치한다. 이 예제는 kube-state-metrics를 별도 Release로 두므로, Chart에 포함된 중복 설치는 <code>prometheus-values.yaml</code>에서 끈다. 이미 설치돼 있다면 이 명령을 반복할 필요가 없다.</p>
+<pre><code class="language-bash">helm upgrade --install prometheus prometheus-community/prometheus \
+  --version 29.33.0 --namespace observability --create-namespace \
+  -f prometheus-values.yaml
+</code></pre>
+
+</section>
+<section id="section-21d89f5f4e13" class="markdown-section">
+<h2>Prometheus 화면 접속</h2>
+<p><code>kubectl port-forward</code>는 클라이언트의 <code>localhost:9090</code>을 Prometheus Service에 임시로 연결한다.</p>
+<pre><code class="language-bash">kubectl -n observability port-forward svc/prometheus-server 9090:80
+</code></pre>
+<p>브라우저에서 <code>http://localhost:9090</code>을 열면 PromQL을 직접 입력할 수 있다.</p>
+
+</section>
+<section id="section-f95c82f5f5b3" class="markdown-section">
+<h2>Prometheus의 수집 상태 확인</h2>
+<p>첫 쿼리로 <code>up</code>을 조회하면 Prometheus가 각 대상을 Scrape할 수 있는지 알 수 있다. 터미널에서는 아래 <code>kubectl get --raw</code>가 API Server의 Service Proxy를 통해 Prometheus Query API에 <code>up</code> 쿼리를 전달한다. <code>jq</code>는 응답 JSON에서 수집 대상과 값만 보여준다.</p>
+<pre><code class="language-bash">kubectl get --raw \
+  &#39;/api/v1/namespaces/observability/services/http:prometheus-server:80/proxy/api/v1/query?query=up&#39; \
+  | jq &#39;.data.result[] | {job: .metric.job, value: .value[1]}&#39;
+</code></pre>
+<p><code>up</code>은 Prometheus의 수집 대상별 Scrape 성공 여부다. 값 <code>1</code>은 최근 Scrape 성공, <code>0</code>은 실패를 뜻한다.</p>
+
+</section>
+<section id="section-4fa9081c70a9" class="markdown-section">
+<h2>Pending Pod 상태 질의</h2>
+<p>수집 경로가 동작하면 먼저 GPU 4개를 요청한 <code>gpu-observability-pending</code>을 조회한다. 이 쿼리는 Pod가 현재 Pending인지 묻는다.</p>
+<pre><code class="language-promql">kube_pod_status_phase{namespace=&quot;gpu-resource-lab&quot;,pod=&quot;gpu-observability-pending&quot;,phase=&quot;Pending&quot;} == 1
+</code></pre>
+<p>다음 쿼리는 Scheduler가 이 Pod를 배치 불가로 표시했는지 묻는다.</p>
+<pre><code class="language-promql">kube_pod_status_unschedulable{namespace=&quot;gpu-resource-lab&quot;,pod=&quot;gpu-observability-pending&quot;} == 1
+</code></pre>
+<p>두 값이 모두 <code>1</code>이면 Pod가 Pending이고 Scheduler도 배치할 수 없다고 보고 있다. <code>== 1</code>은 값이 <code>0</code>인 시계열을 걸러 현재 참인 상태만 남긴다. 시간 범위를 바꾸면 이 상태가 언제부터 나타났는지도 볼 수 있다.</p>
+
+</section>
+<section id="section-25047cbaea2e" class="markdown-section">
+<h2>Scheduler Event로 배치 실패 원인 확인</h2>
+<p>Pending과 배치 불가 상태만으로는 이유를 알 수 없다. 아래 명령은 해당 Pod의 Event 부분을 출력해 Scheduler가 기록한 이유를 읽는다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab describe pod gpu-observability-pending \
+  | sed -n &#39;/Events:/,$p&#39;
+</code></pre>
+<p>예제처럼 한 Pod가 GPU 4개를 요구하는데 두 Worker가 각각 2개씩만 제공한다면, Event의 <code>FailedScheduling</code>에서 <code>Insufficient nvidia.com/gpu</code>를 확인할 수 있다. 같은 Pending이라도 Node Label 불일치나 Taint가 원인일 수 있으므로, 메트릭으로 대상을 찾은 다음 Event로 원인을 확인한다.</p>
+
+</section>
+<section id="section-d08a6b5eddb2" class="markdown-section">
+<h2>Running Pod 준비 상태 질의</h2>
+<p>이번에는 이미 배치된 <code>gpu-request-one</code>을 조회한다. Ready 조건이 참인 시계열의 값은 <code>1</code>, 컨테이너의 누적 재시작 횟수는 예제에서 <code>0</code>이다.</p>
+<pre><code class="language-promql">kube_pod_status_ready{namespace=&quot;gpu-resource-lab&quot;,pod=&quot;gpu-request-one&quot;,condition=&quot;true&quot;}
+kube_pod_container_status_restarts_total{namespace=&quot;gpu-resource-lab&quot;,pod=&quot;gpu-request-one&quot;}
+</code></pre>
+<p>두 값은 Pod가 준비됐는지와 재시작했는지를 답한다. GPU 계산이 실행됐거나 요청 처리가 빠르다는 뜻은 아니다.</p>
+
+</section>
+<section id="section-801377ee4f35" class="markdown-section">
+<h2>Deployment Replica 차이 질의</h2>
+<p>Deployment의 원하는 Replica 수에서 Ready Replica 수를 빼면 아직 준비되지 않은 수를 볼 수 있다. 원하는 수·현재 수·Ready 수·Available 수의 차이는 <a href="kubernetes-deployment-replica-state-metrics.html">Deployment Replica 메트릭 읽기</a>에서 먼저 구분한다.</p>
+<pre><code class="language-promql">kube_deployment_spec_replicas{namespace=&quot;gpu-resource-lab&quot;,deployment=&quot;replica-gap-lab&quot;}
+  - kube_deployment_status_replicas_ready{namespace=&quot;gpu-resource-lab&quot;,deployment=&quot;replica-gap-lab&quot;}
+</code></pre>
+<p>Desired가 <code>2</code>이고 Ready가 <code>0</code>이면 결과 <code>2</code>는 두 개가 부족하다는 뜻이다. Ready가 <code>2</code>라면 결과 <code>0</code>은 차이가 없다는 뜻이다.</p>
+
+</section>
+<section id="section-523d35819b16" class="markdown-section">
+<h2>메트릭 해석의 경계</h2>
+<p><code>up=1</code>은 Scrape가 성공했다는 뜻이지 대상 Application의 모든 기능이 정상이라는 판정은 아니다. Deployment의 Replica 차이는 같은 시각에 조회한 두 메트릭으로 계산해야 한다. 또한 <code>Pending</code>이나 <code>Ready</code>는 Kubernetes 상태를 표현할 뿐 GPU 연산 성능을 측정하지 않는다.</p>
+<p>같은 PromQL을 화면에서 직접 탐색하고 계속 볼 질문을 패널로 옮기는 과정은 <a href="kubernetes-grafana-explore-dashboard.html">Grafana Explore와 Dashboard</a>로 이어진다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.md. Do not edit directly. source-sha256:083d273b2347d9c8a7858a9e971a380a5a65f7f43da5f24e939d027def8d2c49 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Time-slicing 설정을 담은 ResourceClaimTemplate과 Pod를 생성하자 Kubernetes는 Pod별 ResourceClaim을 만들고 A100 장치와 Node까지 선택했다. 그런데 Pod는 실행되지 않고 ContainerCreating에 머물렀다.">
+  <meta name="source-sha256" content="083d273b2347d9c8a7858a9e971a380a5a65f7f43da5f24e939d027def8d2c49">
+  <title>DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?">
+  <meta property="og:description" content="Time-slicing 설정을 담은 ResourceClaimTemplate과 Pod를 생성하자 Kubernetes는 Pod별 ResourceClaim을 만들고 A100 장치와 Node까지 선택했다. 그런데 Pod는 실행되지 않고 ContainerCreating에 머물렀다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html","name":"DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?","description":"Time-slicing 설정을 담은 ResourceClaimTemplate과 Pod를 생성하자 Kubernetes는 Pod별 ResourceClaim을 만들고 A100 장치와 Node까지 선택했다. 그런데 Pod는 실행되지 않고 ContainerCreating에 머물렀다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html"},"headline":"DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-containercreating-stale-kubelet-checkpoint.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html"},{"@type":"ListItem","position":8,"name":"DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</h1>
+      <p class="lead">Time-slicing 설정을 담은 ResourceClaimTemplate과 Pod를 생성하자 Kubernetes는 Pod별 ResourceClaim을 만들고 A100 장치와 Node까지 선택했다. 그런데 Pod는 실행되지 않고 ContainerCreating에 머물렀다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#claim-container">Claim 할당과 Container 준비는 별도 단계다</a>
+        <a href="#kubelet">kubelet 로그에서 장치 준비 단계를 확인한다</a>
+        <a href="#kubelet-dra-api">kubelet의 DRA 체크포인트를 API 상태와 비교한다</a>
+        <a href="#kubelet-2">kubelet 재시작으로 상태를 다시 맞췄다</a>
+        <a href="#containercreating-scheduler">ContainerCreating은 Scheduler 실패만 뜻하지 않는다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Time-slicing 설정을 담은 ResourceClaimTemplate과 Pod를 생성하자 Kubernetes는 Pod별 ResourceClaim을 만들고 A100 장치와 Node까지 선택했다. 그런데 Pod는 실행되지 않고 <code>ContainerCreating</code>에 머물렀다.</p>
+<p>이 상태에서는 Kubernetes가 장치를 선택하지 못한 것인지, 선택된 장치를 Node에서 준비하지 못한 것인지 먼저 구분해야 한다.</p>
+</div>
+        <section id="claim-container" class="markdown-section">
+<h2>Claim 할당과 Container 준비는 별도 단계다</h2>
+<p>DRA를 사용하는 Pod는 다음 순서로 실행된다.</p>
+<pre><code class="language-text">1. Scheduler가 장치와 Node 선택
+2. ResourceClaim에 allocation과 reservedFor 기록
+3. Pod를 선택한 Node에 Binding
+4. kubelet이 DRA Node Plugin에 NodePrepareResources 요청
+5. Node Plugin이 장치와 CDI 설정 준비
+6. Container Runtime이 설정을 적용해 Container 생성
+</code></pre>
+<p>이번 Claim에는 <code>status.allocation</code>과 <code>status.reservedFor</code>가 있었고 Pod에도 <code>gpu-lab-m02</code>가 지정돼 있었다. Scheduler의 장치 선택과 Node 배치는 끝난 상태였다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab get pod a100-timeslicing -o wide
+kubectl -n gpu-resource-lab get resourceclaim
+kubectl -n gpu-resource-lab get resourceclaim &lt;생성된-Claim-이름&gt; -o yaml
+</code></pre>
+<p>따라서 조사 범위는 Scheduler가 아니라 선택된 Node의 <code>kubelet → DRA Node Plugin → Container Runtime</code> 구간으로 좁혀졌다.</p>
+
+</section>
+<section id="kubelet" class="markdown-section">
+<h2>kubelet 로그에서 장치 준비 단계를 확인한다</h2>
+<p>먼저 문제가 발생한 Node의 Shell로 들어간다.</p>
+<pre><code class="language-bash">minikube -p gpu-lab ssh -n gpu-lab-m02
+</code></pre>
+<p>Node 안에서 kubelet 로그 중 DRA 장치 준비와 관련된 줄을 찾는다.</p>
+<pre><code class="language-bash">sudo journalctl -u kubelet --no-pager \
+  | grep -Ei &#39;dra|claim|prepare&#39;
+</code></pre>
+<p><code>journalctl -u kubelet</code>은 systemd가 보관한 kubelet Service 로그를 읽는다. Pipe 뒤의 <code>grep</code>은 많은 로그 중 <code>dra</code>, <code>claim</code>, <code>prepare</code>가 들어간 줄만 남긴다. 이번에는 <code>PrepareResources</code> 처리가 반복해서 실패하고 있었다.</p>
+<pre><code class="language-text">Claim allocation 존재
+  +
+Pod의 Node 지정 완료
+  +
+PrepareResources 실패
+  =
+장치 선택 이후의 Node 로컬 준비 단계에서 정지
+</code></pre>
+
+</section>
+<section id="kubelet-dra-api" class="markdown-section">
+<h2>kubelet의 DRA 체크포인트를 API 상태와 비교한다</h2>
+<p>kubelet은 재시작 뒤에도 준비한 Claim과 장치 상태를 복구할 수 있도록 Node 로컬 상태를 저장한다. 파일명을 모른다면 kubelet 저장소에서 관련 이름을 검색할 수 있다.</p>
+<pre><code class="language-bash">sudo find /var/lib/kubelet -maxdepth 2 -type f \
+  | grep -Ei &#39;dra|claim|state&#39;
+</code></pre>
+<p>이 명령은 <code>/var/lib/kubelet</code> 아래의 일반 파일을 하위 두 단계까지 찾고, 이름에 DRA·Claim·State가 들어간 파일만 보여준다. 검색 결과로 다음 체크포인트를 찾았다.</p>
+<pre><code class="language-text">/var/lib/kubelet/dra_manager_state
+</code></pre>
+<p>내용은 다음 명령으로 확인했다.</p>
+<pre><code class="language-bash">sudo cat /var/lib/kubelet/dra_manager_state
+</code></pre>
+<p>체크포인트에는 이미 강제 삭제된 이전 <code>a100-two</code> 소비 Pod의 UID가 남아 있었다. 새 Time-slicing Claim도 들어 있었지만 준비된 장치를 나타내는 <code>Devices</code>가 <code>null</code>이었다.</p>
+<pre><code class="language-text">API Server
+  → 이전 Pod 삭제 완료
+  → 새 Claim의 장치 할당 완료
+
+gpu-lab-m02의 kubelet 체크포인트
+  → 삭제된 이전 Pod의 사용 기록이 남아 있음
+  → 새 Claim의 장치 준비 결과는 없음
+</code></pre>
+<p>API Server의 현재 상태와 Node의 DRA 로컬 상태가 서로 맞지 않았다. 앞에서 소비 Pod를 강제 삭제한 과정에서 정상적인 장치 정리가 완료되지 않고 이전 기록이 남은 것으로 판단했다.</p>
+
+</section>
+<section id="kubelet-2" class="markdown-section">
+<h2>kubelet 재시작으로 상태를 다시 맞췄다</h2>
+<p>이번 실습에서는 해당 Node의 kubelet을 재시작해 현재 Pod·Claim 상태를 다시 읽고 DRA 장치 준비를 재시도하게 했다.</p>
+<pre><code class="language-bash">minikube -p gpu-lab ssh -n gpu-lab-m02 -- \
+  &quot;sudo systemctl restart kubelet&quot;
+</code></pre>
+<p>재시작 뒤에는 DRA Node Plugin이 새 Claim 하나를 처리했고, kubelet 체크포인트에 CDI Device ID를 포함한 준비 결과가 기록됐다. Pod도 <code>2/2 Running</code>으로 바뀌었다.</p>
+<pre><code class="language-text">kubelet 재시작
+  → API Server의 현재 Pod와 Claim 상태 재확인
+  → DRA Node Plugin에 PrepareResources 재요청
+  → 새 Claim의 장치와 CDI 정보 준비
+  → Container 생성
+  → Pod 2/2 Running
+</code></pre>
+
+</section>
+<section id="containercreating-scheduler" class="markdown-section">
+<h2>ContainerCreating은 Scheduler 실패만 뜻하지 않는다</h2>
+<p>이번 장애는 Claim 조건이나 장치 부족 때문에 발생한 <code>FailedScheduling</code>이 아니었다. 장치와 Node는 이미 선택됐지만 Node에서 그 장치를 Container용으로 준비하지 못한 상태였다.</p>
+<pre><code class="language-text">FailedScheduling
+  → ResourceSlice·DeviceClass·Claim 조건·가용 장치 조사
+
+ContainerCreating이며 allocation과 Node가 이미 존재
+  → kubelet·DRA Node Plugin·Container Runtime 조사
+
+Running이지만 장치 설정이 Container에 없음
+  → CDI Spec·CRI 전달·Container Runtime 적용 조사
+</code></pre>
+<p>비슷한 문제가 발생하면 Pod와 Claim에서 완료된 단계를 먼저 확인하고, Scheduler 단계가 끝났다면 해당 Node의 kubelet 로그와 DRA 체크포인트를 조사한다. 체크포인트 경로를 외우는 것보다 <strong>Claim 할당과 Node 로컬 장치 준비가 서로 다른 단계이며 서로 다른 위치에 상태를 남긴다</strong>는 구조를 아는 것이 중요하다.</p>
+<p>이번 결과를 모든 강제 삭제에 일반화할 수는 없다. 확인된 사실은 API Server에서 사라진 이전 Pod의 DRA 사용 기록이 해당 Node의 kubelet 체크포인트에 남아 있었고, 새 Claim의 <code>PrepareResources</code>가 완료되지 않았으며, kubelet 재시작 뒤 상태가 조정되면서 Pod가 실행됐다는 것이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

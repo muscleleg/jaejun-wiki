@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/transformer/swiglu_why_two_branches.md. Do not edit directly. source-sha256:38821c26a6dd6fade747051509db9e258b49a48a97cdfa32a8605d5818a22d67 -->
+<!-- Generated from content/wiki/transformer/swiglu_why_two_branches.md. Do not edit directly. source-sha256:b030b5f62066722fa05391fd6a84b1ce7193cd754bb139301e0d2249ee2ab2f7 -->
 <html lang="ko">
 <head>
   <!-- search-indexing:start -->
@@ -20,7 +20,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="기존 FFN과 SwiGLU를 비교하고, SiLU 내부 곱셈과 up·gate 결합, down projection의 서로 다른 역할을 실제 숫자와 Shape으로 설명합니다.">
-  <meta name="source-sha256" content="38821c26a6dd6fade747051509db9e258b49a48a97cdfa32a8605d5818a22d67">
+  <meta name="source-sha256" content="b030b5f62066722fa05391fd6a84b1ce7193cd754bb139301e0d2249ee2ab2f7">
   <title>SwiGLU는 왜 입력을 두 갈래로 나누고 다시 곱할까</title>
   <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
@@ -81,15 +81,7 @@
         <section id="ffn" class="markdown-section">
 <h2>기존 FFN의 구조</h2>
 <p>일반적인 FFN은 입력을 중간 크기로 확장하고 활성화 함수를 적용한 뒤, 다시 원래 feature 크기로 줄인다.</p>
-<pre><code class="language-mermaid">flowchart TD
-    X[&quot;한 토큰의 입력&lt;br/&gt;feature 2개&quot;]
-    U[&quot;Linear up&lt;br/&gt;2 → 3&quot;]
-    A[&quot;GELU 또는 SiLU&lt;br/&gt;비선형 변환&quot;]
-    D[&quot;Linear down&lt;br/&gt;3 → 2&quot;]
-    Y[&quot;한 토큰의 출력&lt;br/&gt;feature 2개&quot;]
-
-    X --&gt; U --&gt; A --&gt; D --&gt; Y
-</code></pre>
+<p><img src="../../assets/images/transformer/swiglu-standard-ffn.svg" alt="기존 FFN: 입력을 확장하고 비선형 변환한 다음 출력 크기로 줄이는 흐름" loading="lazy"></p>
 <p>설명용 Shape으로 쓰면 다음과 같다.</p>
 <pre><code class="language-text">[batch, token, 2]
         ↓ Linear(2, 3)
@@ -110,24 +102,7 @@
 <h2>SwiGLU의 구조</h2>
 <p>SwiGLU에서는 같은 입력 전체를 서로 다른 두 Linear에 넣는다.</p>
 <p>입력 feature를 절반씩 쪼개는 것이 아니다. <strong>동일한 입력을 서로 다른 가중치를 가진 두 Linear가 각각 처리하는 것</strong>이다.</p>
-<pre><code class="language-mermaid">flowchart TD
-    X[&quot;한 토큰의 동일한 입력&lt;br/&gt;feature 2개&quot;]
-
-    U[&quot;Linear up&lt;br/&gt;2 → 3&lt;br/&gt;전달할 중간 특징 생성&quot;]
-    G[&quot;Linear gate&lt;br/&gt;2 → 3&lt;br/&gt;조절값 생성&quot;]
-
-    S[&quot;SiLU&lt;br/&gt;gate × sigmoid(gate)&quot;]
-    M[&quot;같은 위치끼리 곱하기&lt;br/&gt;up × SiLU(gate)&quot;]
-    D[&quot;Linear down&lt;br/&gt;3 → 2&lt;br/&gt;조절된 특징을 다시 조합&quot;]
-    Y[&quot;한 토큰의 출력&lt;br/&gt;feature 2개&quot;]
-
-    X --&gt; U
-    X --&gt; G
-    G --&gt; S
-    U --&gt; M
-    S --&gt; M
-    M --&gt; D --&gt; Y
-</code></pre>
+<p><img src="../../assets/images/transformer/swiglu-two-branches.svg" alt="SwiGLU: 동일한 입력에서 up 특징과 SiLU gate를 만들어 곱하고 down으로 조합하는 흐름" loading="lazy"></p>
 <p>전체 계산은 다음 한 줄로 표현할 수 있다.</p>
 <pre><code class="language-text">출력 = down_proj(SiLU(gate_proj(x)) × up_proj(x))
 </code></pre>
@@ -188,6 +163,8 @@ sigmoid(1000) ≈ 1
 SiLU(1000) ≈ 1000
 </code></pre>
 <p>큰 음수에서는 sigmoid가 거의 0이므로 값이 크게 줄어든다.</p>
+<aside class="md-component md-takeaway" data-component="takeaway"><p class="md-component-title">SiLU와 SwiGLU의 연결</p><div class="md-component-body"><p><strong>SiLU의 목적을 단순히 음수를 없애는 것으로 보면 안 된다.</strong> SiLU는 큰 음수 gate를 0에 가깝게 억제하고 큰 양수 gate는 대부분 남겨, 부호를 가진 부드러운 조절값을 만든다. SwiGLU의 핵심은 이 조절값을 <code>up</code> 특징에 곱해 현재 입력에서 각 중간 특징의 영향력을 다르게 만드는 것이다.</p>
+</div></aside>
 
 </section>
 <section id="section-2bdd75fd1722" class="markdown-section">
@@ -298,15 +275,7 @@ SiLU:
 <section id="up-linear" class="markdown-section">
 <h2>왜 up Linear를 별도로 만들까</h2>
 <p>만약 up 갈래를 없애면 다음과 같은 구조가 된다.</p>
-<pre><code class="language-mermaid">flowchart TD
-    X[&quot;입력&quot;]
-    G[&quot;Linear&quot;]
-    S[&quot;SiLU&quot;]
-    D[&quot;Linear down&quot;]
-    Y[&quot;출력&quot;]
-
-    X --&gt; G --&gt; S --&gt; D --&gt; Y
-</code></pre>
+<p><img src="../../assets/images/transformer/swiglu-without-up.svg" alt="up 갈래를 뺀 일반적인 SiLU FFN: 입력, Linear, SiLU, Linear down, 출력 순서" loading="lazy"></p>
 <p>이것은 잘못된 구조가 아니다. 실제로 사용할 수 있는 일반적인 SiLU FFN이다.</p>
 <p>하지만 이 구조에서는 하나의 값 <code>g</code>가 두 역할을 동시에 맡는다.</p>
 <pre><code class="language-text">전달할 중간 특징 = g

@@ -1,0 +1,203 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.md. Do not edit directly. source-sha256:9e9c5851de9fb069b66efac82b2ae09fcd62a8cc874e0b2bebd7adc4df5df6c9 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DRA에서 장치를 선택하는 과정만 알아서는 GPU의 전체 수명주기를 설명할 수 없다. Pod가 사라진 뒤에도 ResourceClaim 객체가 남는다면 특정 GPU까지 계속 점유하는지, 아니면 장치만 반환되어 다른 요청이 사용할 수 있는지를 구분해야 한다.">
+  <meta name="source-sha256" content="9e9c5851de9fb069b66efac82b2ae09fcd62a8cc874e0b2bebd7adc4df5df6c9">
+  <title>ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?">
+  <meta property="og:description" content="DRA에서 장치를 선택하는 과정만 알아서는 GPU의 전체 수명주기를 설명할 수 없다. Pod가 사라진 뒤에도 ResourceClaim 객체가 남는다면 특정 GPU까지 계속 점유하는지, 아니면 장치만 반환되어 다른 요청이 사용할 수 있는지를 구분해야 한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html","name":"ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?","description":"DRA에서 장치를 선택하는 과정만 알아서는 GPU의 전체 수명주기를 설명할 수 없다. Pod가 사라진 뒤에도 ResourceClaim 객체가 남는다면 특정 GPU까지 계속 점유하는지, 아니면 장치만 반환되어 다른 요청이 사용할 수 있는지를 구분해야 한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html"},"headline":"ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</h1>
+      <p class="lead">DRA에서 장치를 선택하는 과정만 알아서는 GPU의 전체 수명주기를 설명할 수 없다. Pod가 사라진 뒤에도 ResourceClaim 객체가 남는다면 특정 GPU까지 계속 점유하는지, 아니면 장치만 반환되어 다른 요청이 사용할 수 있는지를 구분해야 한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-72f33bf4f24d">장치를 모두 사용해야 반환 여부가 드러난다</a>
+        <a href="#claim-pod">Claim이 아니라 소비 Pod만 삭제했다</a>
+        <a href="#gpu-claim">반환된 GPU가 대기 중인 Claim으로 넘어갔다</a>
+        <a href="#claim-gpu">같은 Claim을 다시 사용해도 이전 GPU를 보장하지 않는다</a>
+        <a href="#section-783d4fc431b3">상태를 기록하고 지우는 주체는 하위 흐름에서 나뉜다</a>
+        <a href="#resourceclaim">실습이 보여준 ResourceClaim 수명주기</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>DRA에서 장치를 선택하는 과정만 알아서는 GPU의 전체 수명주기를 설명할 수 없다. Pod가 사라진 뒤에도 ResourceClaim 객체가 남는다면 특정 GPU까지 계속 점유하는지, 아니면 장치만 반환되어 다른 요청이 사용할 수 있는지를 구분해야 한다.</p>
+<p>여기서 알아야 할 핵심은 <strong>ResourceClaim 객체의 수명과 실제 장치 할당의 수명이 다르다</strong>는 점이다.</p>
+<pre><code class="language-text">ResourceClaim 객체
+  → 필요한 장치 조건과 수량을 담은 요청
+
+ResourceClaim.status.allocation
+  → 현재 그 요청에 선택된 구체적인 장치
+
+ResourceClaim.status.reservedFor
+  → 그 할당을 사용할 수 있도록 예약된 소비자
+</code></pre>
+<p>직접 만든 Claim은 Pod와 별개로 남을 수 있다. 그러나 마지막 소비자가 사라졌는데도 구체적인 GPU까지 계속 붙잡는지는 객체의 존재만 보고 알 수 없다. 이 차이를 보기 위해 <strong>A100을 모두 소진한 뒤 한 Pod만 삭제하고, 반환된 장치가 대기 중인 Claim으로 넘어가는지</strong> 관찰했다.</p>
+</div>
+        <section id="section-72f33bf4f24d" class="markdown-section">
+<h2>장치를 모두 사용해야 반환 여부가 드러난다</h2>
+<p>실습 환경에는 A100 두 개가 있었다. 먼저 두 개의 독립된 Claim과 Pod가 A100을 하나씩 사용하게 했다.</p>
+<pre><code class="language-text">a100-one
+  → gpu-cc0ab4cf-b6e7-569e-8d6c-d0f9535c05e6
+  → a100-claim-reuser
+
+a100-two
+  → gpu-12994019-b704-5d73-9809-3aa7d1173b0e
+  → a100-claim-second
+</code></pre>
+<p>이 상태에서 같은 조건의 세 번째 Claim <code>a100-three</code>와 Pod를 만들었다. ResourceSlice에는 A100이 두 개 존재했지만 모두 기존 Claim에 할당돼 있었기 때문에 새 Claim에는 장치가 선택되지 않았다.</p>
+<pre><code class="language-yaml">status: {}
+</code></pre>
+<pre><code class="language-text">Warning  FailedScheduling  default-scheduler
+0/3 nodes are available: 3 cannot allocate all claims.
+</code></pre>
+<p>세 번째 Pod가 Pending된 결과로 다음 상태를 알 수 있다.</p>
+<pre><code class="language-text">A100이라는 조건을 만족하는 장치는 존재함
+  +
+기존 두 Claim이 두 장치를 모두 사용 중임
+  =
+새 Claim에 할당할 가용 A100이 없음
+</code></pre>
+<p>이것은 H100처럼 조건에 맞는 장치가 아예 없는 경우가 아니다. 기존 할당이 해제되면 해결될 수 있는 <strong>일시적인 장치 부족</strong>이다. 조건 불일치와 수량 부족을 구분하는 과정은 <a href="kubernetes-dra-resourceclaim-device-node-selection-lab.html">DRA 장치 조건은 어떻게 실제 GPU와 Node 선택으로 이어질까?</a>에서 자세히 살펴본다.</p>
+
+</section>
+<section id="claim-pod" class="markdown-section">
+<h2>Claim이 아니라 소비 Pod만 삭제했다</h2>
+<p>다음 질문은 <code>a100-one</code>을 사용하는 Pod만 삭제했을 때 GPU가 반환되는가였다. Claim 객체 자체는 그대로 두고 마지막 소비 Pod만 삭제했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab delete pod a100-claim-reuser
+</code></pre>
+<p>Pod가 <code>Terminating</code>인 동안에는 <code>reservedFor</code>가 잠시 남아 있었다. 삭제가 완료되자 <code>a100-one</code> 객체와 <code>spec</code>은 유지됐지만 상태에서 예약과 할당이 모두 사라졌다.</p>
+<pre><code class="language-text">a100-one
+  → Claim 객체 유지
+  → A100 한 개를 요청하는 spec 유지
+  → reservedFor 없음
+  → allocation 없음
+</code></pre>
+<p>이 결과는 Claim 객체와 GPU 할당이 같은 수명주기를 갖지 않는다는 것을 보여준다.</p>
+<pre><code class="language-text">남은 것
+  → A100 한 개가 필요하다는 요청 사양
+
+사라진 것
+  → 삭제된 Pod의 예약
+  → 특정 A100 장치의 할당
+</code></pre>
+<p>따라서 직접 만든 ResourceClaim이 Pod보다 오래 존재한다는 말은 요청서를 다시 사용할 수 있다는 뜻이다. 마지막 Pod가 사라진 뒤에도 기존 GPU를 계속 보관한다는 뜻은 아니다.</p>
+
+</section>
+<section id="gpu-claim" class="markdown-section">
+<h2>반환된 GPU가 대기 중인 Claim으로 넘어갔다</h2>
+<p><code>a100-one</code>의 할당이 사라진 뒤에는 Pending이던 <code>a100-three</code>에 반환된 A100이 할당됐고, 세 번째 Pod가 Running으로 바뀌었다.</p>
+<pre><code class="language-text">Pod 삭제 전
+  a100-one   → gpu-cc0ab4cf-... 할당
+  a100-two   → gpu-12994019-... 할당
+  a100-three → 미할당, Pod Pending
+
+Pod 삭제 후
+  a100-one   → 미할당
+  a100-two   → gpu-12994019-... 유지
+  a100-three → gpu-cc0ab4cf-... 할당, Pod Running
+</code></pre>
+<p>이 변화로 장치 반환과 재할당 흐름을 연결할 수 있다.</p>
+<pre><code class="language-text">마지막 소비 Pod 삭제
+  → 기존 Claim의 reservedFor 제거
+  → 기존 Claim의 allocation 제거
+  → A100이 다시 가용해짐
+  → Scheduler가 대기 중인 Claim에 A100 할당
+  → Pending Pod 실행
+</code></pre>
+<p>ResourceSlice에서 A100이 삭제됐다가 다시 생성된 것은 아니다. ResourceSlice는 계속 장치 인벤토리를 유지하고, 기존 Claim의 <code>allocation</code>이 사라지면서 해당 장치가 다시 가용한 후보가 됐다.</p>
+
+</section>
+<section id="claim-gpu" class="markdown-section">
+<h2>같은 Claim을 다시 사용해도 이전 GPU를 보장하지 않는다</h2>
+<p>Pod 삭제 뒤에도 직접 만든 Claim의 요청 사양은 남아 있으므로 다른 Pod가 같은 Claim을 다시 참조할 수 있다. 그러면 Scheduler는 남아 있는 조건을 사용해 현재 가용한 장치를 새로 선택한다.</p>
+<pre><code class="language-text">남아 있는 Claim을 새 Pod가 참조
+  → Claim 조건 재평가
+  → 현재 가용한 장치 선택
+  → 새 allocation과 reservedFor 기록
+</code></pre>
+<p>실습에서는 같은 장치 ID가 다시 선택된 경우도 있었지만 이전 할당이 유지된 것은 아니었다. <strong>같은 Claim을 재사용한다는 것은 요청 조건을 재사용하는 것이지, 이전 GPU를 고정해서 재사용하는 것이 아니다.</strong></p>
+
+</section>
+<section id="section-783d4fc431b3" class="markdown-section">
+<h2>상태를 기록하고 지우는 주체는 하위 흐름에서 나뉜다</h2>
+<p>Scheduler는 장치를 선택해 Claim의 <code>allocation</code>과 <code>reservedFor</code>를 기록한다. 실행되던 Pod가 종료되면 ResourceClaim Controller가 소비자 예약을 제거하고, 마지막 소비자가 사라졌다면 할당도 제거한다. Scheduler는 그 변경을 관찰해 장치를 다시 가용한 후보로 반영한다.</p>
+<p>누가 어떤 상태를 기록하고 제거하는지는 <a href="kubernetes-dra-claim-allocation-release-flow.html">ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</a>에서 자세히 살펴본다.</p>
+<p>Node에서 GPU 접근 상태를 준비하고 해제하는 <code>NodePrepareResources</code>·<code>NodeUnprepareResources</code>는 <a href="kubernetes-dra-node-prepare-resources.html">DRA Node Plugin의 NodePrepareResources는 무엇을 할까?</a>에서 이어진다.</p>
+<p>Pod를 강제 삭제한 뒤 kubelet의 DRA 로컬 상태에 이전 소비 기록이 남아 새 Claim의 <code>PrepareResources</code>가 진행되지 않은 사례와, API 상태·kubelet 로그·DRA 체크포인트를 비교해 원인을 좁힌 과정은 <a href="kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</a>에 정리되어 있다.</p>
+
+</section>
+<section id="resourceclaim" class="markdown-section">
+<h2>실습이 보여준 ResourceClaim 수명주기</h2>
+<p>이 실습을 통해 연결한 수명주기는 다음과 같다.</p>
+<pre><code class="language-text">Claim이 장치 조건을 선언
+  → Pod가 Claim을 사용
+  → 구체적인 GPU가 Claim에 할당됨
+  → 마지막 소비 Pod 삭제
+  → Claim 객체는 남고 구체적인 할당은 해제됨
+  → 반환된 GPU가 대기 중인 다른 Claim에 할당됨
+</code></pre>
+<p>ResourceClaim은 특정 GPU를 영구히 보관하는 객체가 아니다. 소비자가 있는 동안에는 구체적인 장치 할당의 경계가 되고, 마지막 소비자가 사라지면 장치를 다음 요청에 돌려준다. 직접 만든 Claim이 남아 있더라도 실제 GPU는 다른 Claim으로 넘어갈 수 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-dra-claim-allocation-release-flow.html">ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</a><ul><li><a href="kubernetes-resourceclaim-controller-watch-reconcile.html">ResourceClaim Controller는 Pod와 Claim을 어떻게 Watch할까?</a></li></ul></li>
+<li><a href="kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

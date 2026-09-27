@@ -1,0 +1,338 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.md. Do not edit directly. source-sha256:286e24c65569b808171e0b996967d2477f0e2ba3d90ac64471ea0ca81531bb12 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DRA에서는 장치 선택과 반환에 여러 컴포넌트가 참여하지만 ResourceClaim 상태를 쓰고 지우는 책임은 분명히 나뉜다. Scheduler가 장치를 선택해 status.allocation을 기록하고 Pod를 status.reservedFor에 추가한다. Pod가 종료되거나 삭제되면 ResourceClaim Controller가 그 Pod를 reservedFor에서 제거하고, 마지막 소비자가 사라졌다면 allocation도 제거한다.">
+  <meta name="source-sha256" content="286e24c65569b808171e0b996967d2477f0e2ba3d90ac64471ea0ca81531bb12">
+  <title>ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?">
+  <meta property="og:description" content="DRA에서는 장치 선택과 반환에 여러 컴포넌트가 참여하지만 ResourceClaim 상태를 쓰고 지우는 책임은 분명히 나뉜다. Scheduler가 장치를 선택해 status.allocation을 기록하고 Pod를 status.reservedFor에 추가한다. Pod가 종료되거나 삭제되면 ResourceClaim Controller가 그 Pod를 reservedFor에서 제거하고, 마지막 소비자가 사라졌다면 allocation도 제거한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html","name":"ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?","description":"DRA에서는 장치 선택과 반환에 여러 컴포넌트가 참여하지만 ResourceClaim 상태를 쓰고 지우는 책임은 분명히 나뉜다. Scheduler가 장치를 선택해 status.allocation을 기록하고 Pod를 status.reservedFor에 추가한다. Pod가 종료되거나 삭제되면 ResourceClaim Controller가 그 Pod를 reservedFor에서 제거하고, 마지막 소비자가 사라졌다면 allocation도 제거한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html"},"headline":"ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-claim-allocation-release-flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html"},{"@type":"ListItem","position":8,"name":"ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-resourceclaim-allocation-lifecycle-lab.html">ResourceClaim의 GPU는 언제 반환되고 다음 요청에 할당될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>ResourceClaim의 allocation과 reservedFor는 누가 기록하고 지울까?</h1>
+      <p class="lead">DRA에서는 장치 선택과 반환에 여러 컴포넌트가 참여하지만 ResourceClaim 상태를 쓰고 지우는 책임은 분명히 나뉜다. Scheduler가 장치를 선택해 status.allocation을 기록하고 Pod를 status.reservedFor에 추가한다. Pod가 종료되거나 삭제되면 ResourceClaim Controller가 그 Pod를 reservedFor에서 제거하고, 마지막 소비자가 사라졌다면 allocation도 제거한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-f85356c9b053">기록하는 주체와 제거하는 주체가 다르다</a>
+        <a href="#section-1ddaa96ee2a4">생성과 삭제는 서로 다른 컴포넌트가 이어서 처리한다</a>
+        <a href="#driver">Driver가 선택 가능한 장치를 게시한다</a>
+        <a href="#pod-resourceclaim">Pod는 ResourceClaim을 통해 필요한 장치를 요청한다</a>
+        <a href="#scheduler-node">Scheduler가 가용 장치와 Node를 함께 선택한다</a>
+        <a href="#resourceclaim-pod">선택 결과는 ResourceClaim과 Pod 상태에 기록된다</a>
+        <a href="#kubelet-node">kubelet은 이미 결정된 장치를 Node에서 준비한다</a>
+        <a href="#container-runtime">Container Runtime이 장치 설정을 적용한다</a>
+        <a href="#pod">Pod가 사라지면 실행 준비와 할당이 반대 순서로 정리된다</a>
+        <a href="#section-f0474bf61261">전체 흐름을 연결한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>DRA에서는 장치 선택과 반환에 여러 컴포넌트가 참여하지만 ResourceClaim 상태를 쓰고 지우는 책임은 분명히 나뉜다. <strong>Scheduler가 장치를 선택해 <code>status.allocation</code>을 기록하고 Pod를 <code>status.reservedFor</code>에 추가한다. Pod가 종료되거나 삭제되면 ResourceClaim Controller가 그 Pod를 <code>reservedFor</code>에서 제거하고, 마지막 소비자가 사라졌다면 <code>allocation</code>도 제거한다.</strong></p>
+</div>
+        <section id="section-f85356c9b053" class="markdown-section">
+<h2>기록하는 주체와 제거하는 주체가 다르다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>ResourceClaim 상태 변화</th>
+<th>담당 주체</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>장치와 Node 선택</td>
+<td>Scheduler의 DRA Plugin</td>
+</tr>
+<tr>
+<td><code>status.allocation</code> 기록</td>
+<td>Scheduler의 DRA Plugin</td>
+</tr>
+<tr>
+<td>Pod를 <code>status.reservedFor</code>에 추가</td>
+<td>Scheduler의 DRA Plugin</td>
+</tr>
+<tr>
+<td>종료·삭제된 Pod를 <code>status.reservedFor</code>에서 제거</td>
+<td><code>kube-controller-manager</code>의 ResourceClaim Controller</td>
+</tr>
+<tr>
+<td>마지막 소비자가 사라진 Claim의 <code>status.allocation</code> 제거</td>
+<td>ResourceClaim Controller</td>
+</tr>
+<tr>
+<td>Claim 변경을 보고 장치 가용성 갱신</td>
+<td>Scheduler의 DRA Plugin</td>
+</tr>
+</tbody></table>
+</div>
+<p>API Server는 이 상태를 저장하고 Watch로 전달한다. kubelet과 DRA Node Plugin은 Claim의 <code>allocation</code>을 결정하거나 일반적인 Pod 종료에서 <code>reservedFor</code>를 수정하는 주체가 아니다. 두 컴포넌트는 이미 선택된 장치를 Node에서 준비하고 정리한다.</p>
+<p>이 구분은 Pod가 정상적으로 배치된 뒤 종료·삭제되는 일반적인 수명주기를 기준으로 한다. 스케줄링 도중 Binding이 실패한 경우에는 Scheduler가 자신이 추가한 예약을 <code>Unreserve</code> 단계에서 되돌릴 수 있지만, 실행되던 Pod가 사라진 뒤의 정리는 ResourceClaim Controller가 맡는다.</p>
+<pre><code class="language-text">할당할 때
+Scheduler
+  → status.allocation 기록
+  → status.reservedFor에 Pod 추가
+
+Pod를 삭제할 때
+ResourceClaim Controller
+  → status.reservedFor에서 Pod 제거
+  → 마지막 소비자라면 status.allocation 제거
+
+Scheduler
+  → 변경된 Claim을 관찰
+  → 반환된 장치를 다시 가용한 후보로 반영
+</code></pre>
+
+</section>
+<section id="section-1ddaa96ee2a4" class="markdown-section">
+<h2>생성과 삭제는 서로 다른 컴포넌트가 이어서 처리한다</h2>
+<p>Pod를 생성할 때는 Scheduler가 ResourceSlice와 기존 ResourceClaim을 함께 보고 가용 장치를 선택한다.</p>
+<pre><code class="language-text">Pod 생성
+  → Scheduler가 ResourceSlice의 후보 장치 확인
+  → 기존 ResourceClaim의 allocation으로 사용 중 장치 제외
+  → 새 Claim의 조건을 만족하는 장치와 Node 선택
+  → Claim의 allocation과 reservedFor 기록
+  → Pod를 Node에 Binding
+  → kubelet과 DRA Node Plugin이 장치 준비
+  → Container 실행
+</code></pre>
+<p>Pod를 삭제할 때는 Node의 준비 상태를 먼저 정리하고, ResourceClaim Controller가 API의 예약과 할당을 비운다. Scheduler는 이 변경을 관찰해 반환된 장치를 다시 가용한 후보로 사용한다.</p>
+<pre><code class="language-text">Pod 삭제
+  → kubelet과 DRA Node Plugin이 NodeUnprepareResources 처리
+  → ResourceClaim Controller가 reservedFor에서 Pod 제거
+  → 마지막 소비자라면 allocation 제거
+  → Scheduler가 Claim 변경을 관찰해 가용 장치 상태 갱신
+  → 반환된 장치를 기다리던 Pod의 스케줄링 재시도
+</code></pre>
+
+</section>
+<section id="driver" class="markdown-section">
+<h2>Driver가 선택 가능한 장치를 게시한다</h2>
+<p>DRA Driver는 자신이 관리하는 장치와 속성, 장치에 접근할 수 있는 Node를 ResourceSlice로 게시한다.</p>
+<pre><code class="language-text">DRA Driver
+  → ResourceSlice로 장치 인벤토리 게시
+</code></pre>
+<p>예를 들어 ResourceSlice에 다음 정보가 들어갈 수 있다.</p>
+<pre><code class="language-text">gpu-A
+  → model: NVIDIA-A100-SXM4-40GB
+  → pool: gpu-lab-m02
+  → node: gpu-lab-m02
+
+gpu-B
+  → model: NVIDIA-A100-SXM4-40GB
+  → pool: gpu-lab-m02
+  → node: gpu-lab-m02
+</code></pre>
+<p>ResourceSlice는 장치가 존재한다는 인벤토리다. 어떤 Claim이 현재 장치를 사용 중인지는 기존 ResourceClaim의 <code>status.allocation</code>에서 확인한다.</p>
+
+</section>
+<section id="pod-resourceclaim" class="markdown-section">
+<h2>Pod는 ResourceClaim을 통해 필요한 장치를 요청한다</h2>
+<p>ResourceClaim은 필요한 장치의 범주·조건·수량을 표현하고, Pod는 그 Claim을 참조한다.</p>
+<pre><code class="language-text">Pod 생성
+  → ResourceClaim 참조
+</code></pre>
+<p>다음 요청은 A100 조건을 만족하는 장치 한 개가 필요하다는 뜻이다.</p>
+<pre><code class="language-yaml">spec:
+  devices:
+    requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.nvidia.com
+          allocationMode: ExactCount
+          count: 1
+          selectors:
+            - cel:
+                expression: device.attributes[&#39;gpu.nvidia.com&#39;].model == &#39;NVIDIA-A100-SXM4-40GB&#39;
+</code></pre>
+<p>이 시점에는 아직 구체적인 GPU와 Node가 정해지지 않았다.</p>
+
+</section>
+<section id="scheduler-node" class="markdown-section">
+<h2>Scheduler가 가용 장치와 Node를 함께 선택한다</h2>
+<p>Scheduler는 새 Claim의 조건을 ResourceSlice의 후보 장치에 적용한다. 이미 다른 Claim에 할당된 장치는 제외하고, 남은 장치에 접근할 수 있는 Node가 Pod의 일반 배치 조건도 만족하는지 확인한다.</p>
+<pre><code class="language-text">Scheduler
+  → 새 Claim의 조건 확인
+  → ResourceSlice의 후보 장치 확인
+  → 기존 Claim들의 allocation을 보고 사용 중인 장치 제외
+  → 장치에 접근 가능한 Node와 Pod 배치 조건 비교
+  → 구체적인 장치와 Node 선택
+</code></pre>
+<p>예를 들어 두 A100이 기존 Claim에 모두 할당돼 있다면 새 Claim의 조건에 맞는 장치는 존재하더라도 당장 할당할 수는 없다.</p>
+<pre><code class="language-text">ResourceSlice
+  → gpu-A, gpu-B 존재
+
+기존 Claim 상태
+  → Claim A가 gpu-A 사용
+  → Claim B가 gpu-B 사용
+
+새 Claim
+  → A100 한 개 요청
+  → 가용 장치 없음
+  → Pod Pending
+</code></pre>
+
+</section>
+<section id="resourceclaim-pod" class="markdown-section">
+<h2>선택 결과는 ResourceClaim과 Pod 상태에 기록된다</h2>
+<p>장치와 Node를 선택하면 Scheduler가 결과를 API Server에 기록한다.</p>
+<pre><code class="language-text">Scheduler → API Server
+  → ResourceClaim.status.allocation 기록
+  → ResourceClaim.status.reservedFor에 Pod 기록
+  → Pod를 Node에 Binding
+</code></pre>
+<p><code>allocation</code>에는 선택된 Driver·Pool·Device와 장치에 접근 가능한 Node 조건이 들어간다. <code>reservedFor</code>는 그 할당을 사용할 수 있도록 예약된 Pod를 나타낸다.</p>
+<pre><code class="language-yaml">status:
+  allocation:
+    devices:
+      results:
+        - driver: gpu.nvidia.com
+          pool: gpu-lab-m02
+          device: gpu-A
+    nodeSelector:
+      # gpu-lab-m02
+  reservedFor:
+    - resource: pods
+      name: a100-consumer
+      uid: ...
+</code></pre>
+<p>따라서 구체적인 장치를 Claim에 할당하는 주체는 kubelet이 아니라 Scheduler다.</p>
+
+</section>
+<section id="kubelet-node" class="markdown-section">
+<h2>kubelet은 이미 결정된 장치를 Node에서 준비한다</h2>
+<p>Pod가 Node에 Binding되면 해당 Node의 kubelet이 Pod와 ResourceClaim의 할당 결과를 읽는다. kubelet은 Claim에 기록된 Driver 이름으로 등록된 DRA Node Plugin을 찾아 <code>NodePrepareResources</code>를 호출한다.</p>
+<pre><code class="language-text">선택된 Node의 kubelet
+  → Pod와 Claim의 할당 결과 읽기
+  → DRA Node Plugin에 NodePrepareResources 요청
+</code></pre>
+<p>이 요청은 장치를 다시 고르라는 의미가 아니다. Scheduler가 이미 고른 장치를 현재 Node에서 사용할 수 있도록 준비하라는 의미다.</p>
+<pre><code class="language-text">DRA Node Plugin
+  → 할당된 장치가 Node에서 준비 가능한지 확인
+  → Driver별 Node 로컬 상태 준비
+  → CDI Spec 생성·갱신
+  → CDI Device ID 같은 준비 결과를 kubelet에 반환
+</code></pre>
+
+</section>
+<section id="container-runtime" class="markdown-section">
+<h2>Container Runtime이 장치 설정을 적용한다</h2>
+<p>kubelet은 준비된 장치 정보를 Container 생성 요청에 포함한다. Container Runtime은 CDI Device ID에 대응하는 CDI Spec을 읽고 Device File·Mount·환경 변수 같은 설정을 적용한다.</p>
+<pre><code class="language-text">kubelet → Container Runtime
+  → 준비된 장치 설정과 함께 Container 생성 요청
+
+Container Runtime
+  → CDI Spec 조회
+  → Device File·Mount·환경 변수 적용
+  → GPU를 사용할 수 있는 Container Process 생성
+</code></pre>
+<p>DRA Node Plugin이 Container를 직접 실행하는 것은 아니다. Plugin은 Vendor별 장치 준비를 맡고, kubelet이 Pod 설정과 장치 정보를 모으며, Container Runtime이 최종 실행 환경을 만든다.</p>
+
+</section>
+<section id="pod" class="markdown-section">
+<h2>Pod가 사라지면 실행 준비와 할당이 반대 순서로 정리된다</h2>
+<p>Pod가 종료되면 Node에서 Container 사용을 위해 준비한 상태와 Kubernetes API의 예약·할당이 정리된다.</p>
+<pre><code class="language-text">Pod 종료
+  → Container와 Pod Sandbox 종료
+  → kubelet이 NodeUnprepareResources 요청
+  → DRA Node Plugin이 Node 로컬 준비 상태 정리
+  → ResourceClaim Controller가 reservedFor에서 Pod 제거
+  → 마지막 소비자가 사라지면 Controller가 allocation 제거
+  → Scheduler가 Claim 변경을 관찰해 가용 장치 상태 갱신
+  → 장치가 다른 Claim의 선택 후보로 반환
+</code></pre>
+<p>정상적인 Pod 종료에서 Scheduler가 직접 삭제된 Pod의 예약과 할당을 정리하는 것은 아니다. <code>kube-controller-manager</code>의 ResourceClaim Controller가 Pod의 종료·삭제를 관찰해 <code>reservedFor</code>와 더 이상 필요 없는 <code>allocation</code>을 정리한다. Scheduler는 변경된 Claim을 Watch해 내부 가용 장치 상태를 갱신하고, 해당 장치를 기다리던 Pending Pod를 다시 스케줄링할 수 있다.</p>
+<p>ResourceClaim Controller가 Pod와 Claim Event를 관찰하고 오래된 예약을 정리하는 과정은 <a href="kubernetes-resourceclaim-controller-watch-reconcile.html">ResourceClaim Controller는 Pod와 Claim을 어떻게 Watch할까?</a>에서 자세히 살펴본다.</p>
+<p>ResourceSlice의 장치 인벤토리에서 장치가 사라지거나 사용 가능 표시로 수정되는 것도 아니다. ResourceSlice는 장치가 존재한다는 사실을 계속 표현하고, ResourceClaim의 할당 기록이 사라지면서 Scheduler 관점에서 다시 가용한 장치가 된다.</p>
+
+</section>
+<section id="section-f0474bf61261" class="markdown-section">
+<h2>전체 흐름을 연결한다</h2>
+<pre><code class="language-text">1. DRA Driver
+   → ResourceSlice로 장치 인벤토리 게시
+
+2. Pod 생성
+   → ResourceClaim 참조
+
+3. Scheduler
+   → 새 Claim의 조건 확인
+   → ResourceSlice의 후보 장치 확인
+   → 기존 Claim들의 allocation을 보고 사용 중인 장치 제외
+   → 장치에 접근 가능한 Node와 Pod 배치 조건 비교
+   → 구체적인 장치와 Node 선택
+
+4. Scheduler → API Server
+   → ResourceClaim.status.allocation 기록
+   → ResourceClaim.status.reservedFor에 Pod 기록
+   → Pod를 Node에 Binding
+
+5. 선택된 Node의 kubelet
+   → Pod와 Claim의 할당 결과 읽기
+   → DRA Node Plugin에 NodePrepareResources 요청
+
+6. DRA Node Plugin
+   → 선택된 장치의 Node 로컬 상태·CDI 설정 준비
+
+7. kubelet → Container Runtime
+   → 준비된 장치 설정과 함께 Container 생성
+</code></pre>
+<p>Scheduler는 장치와 Node를 선택해 Kubernetes 상태에 기록하고, kubelet과 DRA Node Plugin은 그 결정을 선택된 Node에서 실행 가능한 상태로 만든다. ResourceSlice·ResourceClaim·Pod 배치와 CDI는 서로 다른 단계에 있지만, 이 순서로 연결되어 하나의 GPU 사용 경로를 완성한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-resourceclaim-controller-watch-reconcile.html">ResourceClaim Controller는 Pod와 Claim을 어떻게 Watch할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
