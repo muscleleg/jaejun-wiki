@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 590" role="img" aria-labelledby="title desc">
+  <title id="title">Control Plane Node의 NodePort에서 Worker Pod까지 이어지는 Packet 경로</title>
+  <desc id="desc">클라이언트가 Control Plane Node의 NodePort로 Packet을 보낸다. Control Plane Node의 Network Interface가 이를 수신하고, Service 규칙이 Endpoint Pod IP로 DNAT한다. Routing Table과 CNI가 Worker Node의 Network Interface로 전달한다. Worker Node는 Host veth를 거쳐 Pod eth0과 Application Port로 Packet을 보낸다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#607089"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #203047; }
+    .title { font-size: 26px; font-weight: 700; }
+    .group-title { font-size: 19px; font-weight: 700; }
+    .node-title { font-size: 16px; font-weight: 650; text-anchor: middle; }
+    .detail { font-size: 13px; fill: #536580; text-anchor: middle; }
+    .note { font-size: 14px; fill: #536580; }
+    .client { fill: #F5F7FA; stroke: #A8B5C5; stroke-width: 1.5; }
+    .control { fill: #EFF6FF; stroke: #8CB8F5; stroke-width: 1.5; }
+    .worker { fill: #F0FDF7; stroke: #89D8B1; stroke-width: 1.5; }
+    .pod { fill: #FAF5FF; stroke: #C5A2EF; stroke-width: 1.5; }
+    .group-control { fill: #F8FBFF; stroke: #BCD4F5; stroke-width: 1.5; }
+    .group-worker { fill: #F8FFFB; stroke: #B8E3CE; stroke-width: 1.5; }
+    .arrow { fill: none; stroke: #607089; stroke-width: 2.2; marker-end: url(#arrow); }
+  </style>
+
+  <rect width="1200" height="590" rx="18" fill="#FFFFFF"/>
+  <text x="30" y="46" class="title">Control Plane Node로 들어온 NodePort 요청이 Worker Pod까지 가는 길</text>
+
+  <rect x="245" y="80" width="540" height="440" rx="18" class="group-control"/>
+  <text x="270" y="115" class="group-title">Control Plane Node</text>
+  <text x="270" y="143" class="note">Packet은 이 Node의 Kernel에서 처리된다</text>
+
+  <rect x="820" y="80" width="350" height="440" rx="18" class="group-worker"/>
+  <text x="845" y="115" class="group-title">Worker Node</text>
+
+  <rect x="30" y="188" width="185" height="100" rx="13" class="client"/>
+  <text x="122.5" y="217" class="node-title">외부 클라이언트</text>
+  <text x="122.5" y="244" class="detail">요청 목적지</text>
+  <text x="122.5" y="266" class="detail">192.168.58.2:30080</text>
+  <path d="M215 238 H260" class="arrow"/>
+
+  <rect x="270" y="188" width="145" height="100" rx="12" class="control"/>
+  <text x="342.5" y="222" class="node-title">Node NIC</text>
+  <text x="342.5" y="251" class="detail">Kernel에 수신</text>
+  <path d="M415 238 H430" class="arrow"/>
+
+  <rect x="440" y="188" width="145" height="100" rx="12" class="control"/>
+  <text x="512.5" y="216" class="node-title">NodePort 규칙</text>
+  <text x="512.5" y="241" class="detail">Endpoint 선택</text>
+  <text x="512.5" y="265" class="detail">DNAT → Pod IP</text>
+  <path d="M585 238 H600" class="arrow"/>
+
+  <rect x="610" y="188" width="145" height="100" rx="12" class="control"/>
+  <text x="682.5" y="216" class="node-title">Routing Table</text>
+  <text x="682.5" y="241" class="detail">CNI 경로 선택</text>
+  <text x="682.5" y="265" class="detail">Worker로 송신</text>
+  <path d="M755 238 H840" class="arrow"/>
+  <text x="797" y="216" class="detail">Node 간 전달</text>
+
+  <text x="270" y="338" class="note">목적지 변경: 192.168.58.2:30080 → 10.244.2.7:3000</text>
+  <text x="270" y="370" class="note">kube-proxy가 Service·EndpointSlice를 보고 전달 규칙을 미리 준비한다</text>
+  <text x="270" y="489" class="note">API Server는 이 Packet 경로에 참여하지 않는다</text>
+
+  <rect x="850" y="188" width="290" height="100" rx="12" class="worker"/>
+  <text x="995" y="223" class="node-title">Worker NIC / Tunnel</text>
+  <text x="995" y="253" class="detail">10.244.2.7:3000 수신</text>
+  <path d="M995 288 V318" class="arrow"/>
+
+  <rect x="850" y="328" width="290" height="70" rx="12" class="worker"/>
+  <text x="995" y="354" class="node-title">Pod IP Route</text>
+  <text x="995" y="381" class="detail">대상 Pod의 Host veth에서 TX</text>
+  <path d="M995 398 V428" class="arrow"/>
+
+  <rect x="850" y="438" width="290" height="70" rx="12" class="pod"/>
+  <text x="995" y="464" class="node-title">대상 Pod의 eth0에서 RX</text>
+  <text x="995" y="490" class="detail">Application이 3000 Port에서 수신</text>
+
+  <text x="30" y="557" class="note">화살표는 요청 방향을 나타낸다. 응답은 연결 상태와 Network 설정에 따라 역방향으로 돌아간다.</text>
+</svg>

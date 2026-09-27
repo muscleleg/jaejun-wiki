@@ -1,0 +1,488 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.md. Do not edit directly. source-sha256:4f8fabf0c9e8dd875ec89068223c3e039f1399f63c21bf6e3ce48c2eabe025d1 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Device Plugin과 DRA는 모두 특수 장치를 Container에 연결한다. 최종 결과만 보면 비슷하지만, 구체적인 장치를 선택하는 주체와 kubelet이 전달받는 정보가 다르다.">
+  <meta name="source-sha256" content="4f8fabf0c9e8dd875ec89068223c3e039f1399f63c21bf6e3ce48c2eabe025d1">
+  <title>Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?">
+  <meta property="og:description" content="Device Plugin과 DRA는 모두 특수 장치를 Container에 연결한다. 최종 결과만 보면 비슷하지만, 구체적인 장치를 선택하는 주체와 kubelet이 전달받는 정보가 다르다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html","name":"Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?","description":"Device Plugin과 DRA는 모두 특수 장치를 Container에 연결한다. 최종 결과만 보면 비슷하지만, 구체적인 장치를 선택하는 주체와 kubelet이 전달받는 정보가 다르다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html"},"headline":"Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-manager-vs-dra-manager.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"Device Plugin에서 DRA까지: 장치 할당의 기반 개념","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/dra-device-plugin-to-dra-foundations.html"},{"@type":"ListItem","position":8,"name":"Device Plugin과 DRA Driver는 장치를 어떻게 다르게 게시하고 준비할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-plugin-vs-dra-node-plugin.html"},{"@type":"ListItem","position":9,"name":"Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/dra-device-plugin-to-dra-foundations.html">Device Plugin에서 DRA까지: 장치 할당의 기반 개념</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-device-plugin-vs-dra-node-plugin.html">Device Plugin과 DRA Driver는 장치를 어떻게 다르게 게시하고 준비할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Device Manager와 DRA Manager는 장치를 어떻게 다르게 선택하고 준비할까?</h1>
+      <p class="lead">Device Plugin과 DRA는 모두 특수 장치를 Container에 연결한다. 최종 결과만 보면 비슷하지만, 구체적인 장치를 선택하는 주체와 kubelet이 전달받는 정보가 다르다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#device-manager-node">Device Manager는 Node 내부의 장치를 선택한다</a>
+        <a href="#dra-scheduler">DRA에서는 Scheduler가 구체적인 장치를 선택한다</a>
+        <a href="#section-7beb5806e396">조건 기반 요청과 실제 장치의 연결이 동적으로 결정된다</a>
+        <a href="#resourceslice-cdi-spec">ResourceSlice와 CDI Spec은 역할이 다르다</a>
+        <a href="#dra-manager">DRA Manager는 선택된 장치를 실행 직전에 준비한다</a>
+        <a href="#section-4c0e0821b635">장치를 미리 준비한다는 것은 실행 직전에 준비한다는 뜻이다</a>
+        <a href="#dynamic-allocation-cdi">Dynamic Allocation과 CDI는 서로 다른 문제를 해결한다</a>
+        <a href="#manager">두 Manager가 분리된 이유</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Device Plugin과 DRA는 모두 특수 장치를 Container에 연결한다. 최종 결과만 보면 비슷하지만, 구체적인 장치를 선택하는 주체와 kubelet이 전달받는 정보가 다르다.</p>
+<p>Device Plugin 방식에서는 Node가 정해진 뒤 kubelet의 Device Manager가 실제 장치를 선택한다. DRA 방식에서는 Scheduler가 구체적인 장치와 Node를 먼저 선택하고, kubelet의 DRA Manager는 선택된 장치를 Node에서 준비한다.</p>
+<pre><code class="language-text">Device Plugin
+  → Scheduler가 Node 선택
+  → Device Manager가 실제 장치 선택
+
+DRA
+  → Scheduler가 실제 장치와 Node 선택
+  → DRA Manager가 선택된 장치 준비
+</code></pre>
+</div>
+        <section id="device-manager-node" class="markdown-section">
+<h2>Device Manager는 Node 내부의 장치를 선택한다</h2>
+<p>Device Manager는 kubelet 밖의 별도 프로그램이 아니라 kubelet 내부에 있는 관리자다.</p>
+<p>각 Node에서 실행되는 Device Plugin은 발견한 장치 ID와 상태를 <code>ListAndWatch</code>를 통해 Device Manager에 전달한다.</p>
+<pre><code class="language-text">Device Plugin
+  → GPU-0: Healthy
+  → GPU-1: Healthy
+  → kubelet Device Manager에 전달
+</code></pre>
+<p>Device Manager는 이 정보를 바탕으로 Node에 어떤 장치가 있으며, 어떤 장치가 이미 할당됐는지를 관리한다.</p>
+<p>kubelet은 Healthy 상태인 GPU 개수를 Node의 확장 자원으로 API Server에 보고한다.</p>
+<pre><code class="language-yaml">status:
+  capacity:
+    nvidia.com/gpu: &quot;2&quot;
+  allocatable:
+    nvidia.com/gpu: &quot;2&quot;
+</code></pre>
+<p>Pod는 실제 GPU ID가 아니라 필요한 개수만 요청한다.</p>
+<pre><code class="language-yaml">resources:
+  limits:
+    nvidia.com/gpu: 1
+</code></pre>
+<p>Scheduler는 GPU 한 개를 제공할 수 있는 Node를 선택하지만, Node 안의 <code>GPU-0</code>과 <code>GPU-1</code> 중 무엇을 사용할지는 고르지 않는다.</p>
+<p>Pod가 Node에 배치되면 해당 Node의 kubelet이 Container 생성을 준비한다. 이 과정에서 Device Manager가 사용 가능한 장치 ID를 선택한다.</p>
+<pre><code class="language-text">Device Manager가 관리하는 상태
+  ├─ GPU-0: 다른 Container가 사용 중
+  └─ GPU-1: 사용 가능
+
+Pod 요청
+  → GPU 한 개 필요
+
+Device Manager
+  → GPU-1 선택
+</code></pre>
+<p>장치가 선택되면 Device Manager는 해당 Device Plugin에 <code>Allocate</code>를 요청한다.</p>
+<pre><code class="language-text">kubelet Device Manager
+  → Allocate(GPU-1)
+  → Device Plugin
+</code></pre>
+<p>Device Plugin은 GPU 자체를 kubelet에 전달하지 않는다. Container가 선택된 GPU에 접근하는 데 필요한 설정을 반환한다.</p>
+<pre><code class="language-text">Allocate 응답
+  ├─ Device File
+  ├─ Mount
+  ├─ Environment Variable
+  ├─ Annotation
+  └─ CDI Device ID
+</code></pre>
+<p>kubelet은 이 설정을 Pod의 Image·Command·Volume 같은 일반 설정과 합쳐 Container Runtime에 전달한다.</p>
+<pre><code class="language-text">Pod 설정
+        +
+Device Plugin의 Allocate 응답
+        ↓
+CRI ContainerConfig
+        ↓
+Container Runtime
+        ↓
+GPU에 접근할 수 있는 Container 생성
+</code></pre>
+<p>Device Plugin 방식에서는 Node가 먼저 선택되고, 그 안에서 사용할 장치를 Device Manager가 나중에 선택한다.</p>
+
+</section>
+<section id="dra-scheduler" class="markdown-section">
+<h2>DRA에서는 Scheduler가 구체적인 장치를 선택한다</h2>
+<p>DRA 방식에서는 DRA Driver가 개별 장치와 속성을 <code>ResourceSlice</code>로 게시한다.</p>
+<pre><code class="language-text">ResourceSlice
+  ├─ gpu-0
+  │   ├─ model: A100
+  │   ├─ memory: 40GiB
+  │   └─ node: node-a
+  ├─ gpu-1
+  │   ├─ model: A100
+  │   ├─ memory: 80GiB
+  │   └─ node: node-b
+  └─ gpu-2
+      ├─ model: T4
+      ├─ memory: 16GiB
+      └─ node: node-c
+</code></pre>
+<p>Workload는 <code>ResourceClaim</code>을 통해 필요한 장치의 조건을 선언한다.</p>
+<pre><code class="language-text">ResourceClaim
+  → model이 A100인 장치 한 개 필요
+</code></pre>
+<p><code>A100</code>은 구체적인 표현이다. 다만 구체적인 장치 인스턴스가 아니라, 원하는 장치의 구체적인 속성이다.</p>
+<pre><code class="language-text">구체적인 장치 조건
+  → model=A100
+  → memory&gt;=40GiB
+  → vendor=nvidia
+
+구체적인 장치 인스턴스
+  → driver: gpu.example.com
+  → pool: node-a-gpus
+  → device: gpu-0
+</code></pre>
+<p>ResourceClaim에는 원하는 속성을 구체적으로 적지만, 실제로 할당될 장치 인스턴스까지 미리 정하지는 않는다.</p>
+<pre><code class="language-text">ResourceClaim이 정하는 것
+  → A100 조건을 만족하는 장치 한 개
+
+ResourceClaim이 아직 정하지 않는 것
+  → 반드시 node-a의 gpu-0을 사용한다
+</code></pre>
+<p>Scheduler는 ResourceClaim의 조건과 현재 ResourceSlice의 장치 정보를 비교한다.</p>
+<pre><code class="language-text">ResourceClaim
+“A100 한 개 필요”
+        +
+현재 장치 상태
+  ├─ gpu-0: A100, 사용 중
+  ├─ gpu-1: A100, 사용 가능
+  └─ gpu-2: T4, 사용 가능
+        ↓
+Scheduler
+  → gpu-1 선택
+  → node-b 선택
+</code></pre>
+<p>선택 결과는 ResourceClaim의 상태에 기록된다.</p>
+<pre><code class="language-yaml">status:
+  allocation:
+    devices:
+      results:
+        - driver: gpu.example.com
+          pool: node-b-gpus
+          device: gpu-1
+</code></pre>
+<p>Pod가 <code>node-b</code>에 도착했을 때는 이미 사용할 장치가 <code>gpu-1</code>으로 결정돼 있다.</p>
+<p>따라서 kubelet의 DRA Manager는 장치를 다시 선택하지 않는다. ResourceClaim의 할당 결과를 읽고, 선택된 장치를 Node에서 사용할 수 있도록 준비한다.</p>
+
+</section>
+<section id="section-7beb5806e396" class="markdown-section">
+<h2>조건 기반 요청과 실제 장치의 연결이 동적으로 결정된다</h2>
+<p><code>Dynamic Resource Allocation</code>에서 <code>Dynamic</code>은 장치 조건을 자세히 적을 수 있다는 의미가 아니다.</p>
+<p>속성 기반 요청은 Workload가 어떤 장치를 원하는지 표현하는 방법이다.</p>
+<pre><code class="language-text">속성 기반 요청
+  → model이 A100인 장치 한 개 필요
+</code></pre>
+<p>동적 할당은 이 조건 기반 요청을 현재 사용할 수 있는 실제 장치 인스턴스와 연결하는 과정이다.</p>
+<pre><code class="language-text">조건 기반 요청
+“A100 한 개 필요”
+        ↓
+Pod를 스케줄링하는 시점의 장치 상태 확인
+        ↓
+현재 사용할 수 있는 gpu-1 선택
+</code></pre>
+<p>따라서 “추상적인 요청”보다는 <strong>장치 ID를 고정하지 않은 조건 기반 요청</strong>이라고 표현하는 편이 더 정확하다. 요구 조건 자체는 구체적일 수 있지만, 이 조건을 만족하는 실제 장치는 여러 개일 수 있다.</p>
+<pre><code class="language-text">gpu-0: A100 40GiB
+gpu-1: A100 80GiB
+gpu-3: A100 40GiB
+</code></pre>
+<p>어떤 장치가 선택될지는 현재 사용 상태와 접근 가능한 Node에 따라 달라진다.</p>
+<pre><code class="language-text">첫 번째 요청 시점
+  → gpu-0 사용 가능
+  → gpu-0 할당
+
+두 번째 요청 시점
+  → gpu-0 사용 중
+  → gpu-1 사용 가능
+  → gpu-1 할당
+</code></pre>
+<p>ResourceClaim을 작성하는 시점에는 원하는 조건을 선언한다. 실제 장치 인스턴스는 Scheduler가 Pod를 배치할 때 결정한다.</p>
+<pre><code class="language-text">요청 시점
+  → 필요한 장치의 속성과 수량 선언
+
+스케줄링 시점
+  → 현재 조건을 만족하는 실제 장치 선택
+
+사용 종료 시점
+  → 할당 반환
+  → 이후 다른 Claim의 선택 후보가 됨
+</code></pre>
+<p>이처럼 장치 ID를 고정하지 않은 조건 기반 요청과 실제 장치 인스턴스 사이의 연결이 현재 상태에 따라 만들어지고 반환되기 때문에 <code>Dynamic Resource Allocation</code>이라고 부른다.</p>
+<p>동적이라는 말이 다음 동작을 뜻하는 것은 아니다.</p>
+<pre><code class="language-text">실행 중인 Pod에 GPU가 자동으로 증가한다       X
+물리 GPU가 Node 사이를 자동으로 이동한다      X
+장치의 모델이나 메모리가 동적으로 바뀐다       X
+
+조건에 맞는 실제 장치를 나중에 할당한다        O
+할당 결과와 반환을 Claim의 수명주기로 관리한다 O
+</code></pre>
+<p>Device Plugin 방식에서도 kubelet이 실제 GPU ID를 나중에 선택하므로 완전히 정적이지는 않다. DRA의 차이는 조건 기반 요청과 개별 장치 인벤토리를 Scheduler가 직접 비교하고, 구체적인 할당 결과를 ResourceClaim에 명시적으로 기록한다는 데 있다.</p>
+
+</section>
+<section id="resourceslice-cdi-spec" class="markdown-section">
+<h2>ResourceSlice와 CDI Spec은 역할이 다르다</h2>
+<p>DRA 흐름에서는 서로 다른 목적으로 사용되는 두 종류의 장치 정보가 등장한다.</p>
+<pre><code class="language-text">ResourceSlice
+  → Scheduler가 장치를 선택하기 위한 정보
+
+CDI Spec
+  → Container Runtime이 선택된 장치를 연결하기 위한 정보
+</code></pre>
+<p>ResourceSlice에는 개별 장치의 이름·속성·용량과 접근 가능한 Node가 들어간다.</p>
+<pre><code class="language-text">ResourceSlice
+  → 어떤 장치를 선택할 수 있는가?
+</code></pre>
+<p>CDI(Container Device Interface) Spec에는 선택된 장치를 Container에 연결하는 방법이 들어간다.</p>
+<pre><code class="language-text">CDI Spec
+  → 선택된 장치를 Container에 어떻게 연결할 것인가?
+</code></pre>
+<p>예를 들어 CDI Spec에는 다음과 같은 설정이 포함될 수 있다.</p>
+<pre><code class="language-yaml">kind: nvidia.com/gpu
+devices:
+  - name: gpu-1
+    containerEdits:
+      deviceNodes:
+        - path: /dev/nvidia1
+      env:
+        - NVIDIA_VISIBLE_DEVICES=GPU-5678
+      mounts:
+        - hostPath: /host/nvidia/lib
+          containerPath: /usr/local/nvidia/lib
+</code></pre>
+<p>ResourceSlice와 CDI Spec은 모두 장치를 설명하지만 사용 주체와 목적이 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>정보</th>
+<th>사용 주체</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ResourceSlice</td>
+<td>Scheduler</td>
+<td>요청 조건에 맞는 장치와 Node 선택</td>
+</tr>
+<tr>
+<td>CDI Spec</td>
+<td>Container Runtime</td>
+<td>선택된 장치를 Container에 연결</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="dra-manager" class="markdown-section">
+<h2>DRA Manager는 선택된 장치를 실행 직전에 준비한다</h2>
+<p>Scheduler가 장치와 Node를 선택하고 Pod가 해당 Node에 배치되면 kubelet의 DRA Manager가 ResourceClaim을 읽는다.</p>
+<pre><code class="language-text">Pod가 node-b에 배치됨
+  → DRA Manager가 ResourceClaim 확인
+  → driver: gpu.example.com
+  → device: gpu-1
+</code></pre>
+<p>DRA Manager는 Driver 이름에 대응하는 DRA Node Plugin을 찾아 <code>NodePrepareResources</code>를 요청한다.</p>
+<pre><code class="language-text">kubelet DRA Manager
+  → NodePrepareResources
+  → DRA Node Plugin
+</code></pre>
+<p>DRA Node Plugin은 선택된 장치를 Container가 사용할 수 있도록 Node 로컬 상태를 준비한다. 구현에 따라 Driver 설정을 적용하거나 CDI Spec을 생성·갱신하고, kubelet에 CDI Device ID를 반환한다.</p>
+<pre><code class="language-text">NodePrepareResources(gpu-1)
+  → 선택된 GPU의 Node 로컬 상태 준비
+  → CDI Spec 준비
+  → CDI Device ID 반환
+</code></pre>
+<p>반환되는 값은 다음과 같은 CDI 장치 이름일 수 있다.</p>
+<pre><code class="language-text">nvidia.com/gpu=gpu-1
+</code></pre>
+<p>kubelet은 이 CDI Device ID를 Container Runtime에 전달한다.</p>
+<pre><code class="language-text">kubelet
+  → CDI Device ID 전달
+
+Container Runtime
+  → Node의 CDI Spec 검색
+  → Device File 추가
+  → Driver Library Mount
+  → 환경 변수 추가
+  → Container Process 생성
+</code></pre>
+
+</section>
+<section id="section-4c0e0821b635" class="markdown-section">
+<h2>장치를 미리 준비한다는 것은 실행 직전에 준비한다는 뜻이다</h2>
+<p>DRA가 ResourceClaim이 생성되자마자 모든 후보 장치의 CDI Spec을 새로 만드는 것은 아니다.</p>
+<pre><code class="language-text">ResourceClaim 선언
+  → 즉시 모든 후보 장치 준비
+</code></pre>
+<p>이런 흐름이 아니다.</p>
+<p>먼저 Scheduler가 구체적인 장치 인스턴스와 Node를 선택한다. 그다음 Pod가 선택된 Node에서 실행되기 직전에 해당 장치를 준비한다.</p>
+<pre><code class="language-text">ResourceClaim으로 조건 선언
+  → Scheduler가 실제 장치와 Node 선택
+  → Pod를 Node에 배치
+  → NodePrepareResources
+  → 선택된 장치의 CDI 설정 준비
+  → Container 생성
+</code></pre>
+<p>따라서 DRA의 장치 준비는 모든 장치를 사전에 준비하는 방식이라기보다, 선택된 장치를 Container 시작 직전에 준비하는 방식에 가깝다.</p>
+
+</section>
+<section id="dynamic-allocation-cdi" class="markdown-section">
+<h2>Dynamic Allocation과 CDI는 서로 다른 문제를 해결한다</h2>
+<p>DRA의 동적 할당은 조건 기반 요청을 구체적인 장치 인스턴스와 연결하는 과정이다.</p>
+<pre><code class="language-text">ResourceClaim
+“A100 한 개 필요”
+        ↓
+현재 장치 상태와 비교
+        ↓
+gpu-1 할당
+</code></pre>
+<p>CDI는 이미 선택된 장치를 Container에 연결하는 방법을 표현한다.</p>
+<pre><code class="language-text">선택된 gpu-1
+        ↓
+CDI Device ID
+        ↓
+Device File·Mount·환경 변수 적용
+        ↓
+Container에서 GPU 사용
+</code></pre>
+<p>따라서 DRA가 동적으로 만드는 것은 장치 자체나 CDI Spec이 아니다.</p>
+<pre><code class="language-text">DRA가 동적으로 결정하는 것
+  → 조건 기반 요청과 실제 장치 인스턴스 사이의 할당 관계
+
+CDI가 표현하는 것
+  → 할당된 장치를 Container에 연결하는 Runtime 설정
+</code></pre>
+
+</section>
+<section id="manager" class="markdown-section">
+<h2>두 Manager가 분리된 이유</h2>
+<p>Device Manager와 DRA Manager는 모두 Container가 장치를 사용하도록 돕지만 입력과 책임이 다르다.</p>
+<p>Device Manager 방식이 먼저 등장하고 그 한계를 보완하는 DRA가 추가된 과정과, 기존 경로가 호환성을 위해 함께 유지되는 이유는 <a href="kubernetes-device-manager-to-dra-evolution.html">Device Manager에서 DRA로: Kubernetes는 왜 두 장치 할당 경로를 유지할까?</a>에서 이어서 살펴본다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>Device Manager</th>
+<th>DRA Manager</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>입력</td>
+<td>Pod의 정수 확장 자원 요청</td>
+<td>ResourceClaim의 할당 결과</td>
+</tr>
+<tr>
+<td>구체적인 장치 선택</td>
+<td>Device Manager</td>
+<td>Scheduler</td>
+</tr>
+<tr>
+<td>Plugin API</td>
+<td><code>Allocate</code></td>
+<td><code>NodePrepareResources</code></td>
+</tr>
+<tr>
+<td>관리 단위</td>
+<td>Pod·Container에 할당한 장치 ID</td>
+<td>ResourceClaim의 준비 상태</td>
+</tr>
+<tr>
+<td>Container 종료</td>
+<td>내부 장치 할당 해제</td>
+<td><code>NodeUnprepareResources</code> 호출</td>
+</tr>
+<tr>
+<td>Runtime 전달</td>
+<td>Device·Mount·환경 변수 또는 CDI</td>
+<td>주로 CDI Device ID</td>
+</tr>
+</tbody></table>
+</div>
+<p>Device Manager는 다음 질문을 처리한다.</p>
+<pre><code class="language-text">이 Node의 사용 가능한 장치 중
+이 Container에 어떤 장치를 줄 것인가?
+</code></pre>
+<p>DRA Manager는 다음 질문을 처리한다.</p>
+<pre><code class="language-text">ResourceClaim에 이미 할당된 이 장치를
+이 Node에서 어떻게 사용할 수 있게 준비할 것인가?
+</code></pre>
+<p>입력 객체, 장치 선택 주체, Plugin API와 수명주기가 다르기 때문에 kubelet은 두 경로를 별도의 Manager로 관리한다.</p>
+<p>전체 흐름을 압축하면 다음과 같다.</p>
+<pre><code class="language-text">Device Plugin 방식
+
+Device Plugin이 장치 상태 보고
+  → Scheduler가 GPU 개수로 Node 선택
+  → Device Manager가 Node 내부 장치 ID 선택
+  → Allocate
+  → Container 생성
+</code></pre>
+<pre><code class="language-text">DRA 방식
+
+DRA Driver가 ResourceSlice 게시
+  → Workload가 ResourceClaim으로 구체적인 조건 선언
+  → Scheduler가 현재 상태에 맞는 장치 인스턴스와 Node 선택
+  → ResourceClaim에 할당 결과 기록
+  → DRA Manager가 선택된 장치 준비
+  → NodePrepareResources
+  → CDI Device ID 전달
+  → Container 생성
+</code></pre>
+<p>Device Manager는 개수 요청을 Node 내부의 실제 장치에 연결하는 관리자다. DRA Manager는 Scheduler가 ResourceClaim에 동적으로 할당한 장치를 Node에서 준비하고 해제하는 관리자다.</p>
+<p>DRA에서 동적인 것은 GPU 자체가 아니다. Workload가 선언한 구체적인 조건과 현재 사용할 수 있는 실제 장치 인스턴스 사이의 할당 관계가 동적으로 결정된다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-device-manager-to-dra-evolution.html">Device Manager에서 DRA로: Kubernetes는 왜 두 장치 할당 경로를 유지할까?</a><ul><li><a href="kubernetes-device-plugin-gpu-model-mig-selection-boundary.html">Device Plugin은 GPU 모델과 MIG 장치를 어디까지 구분할 수 있을까?</a><ul><li><a href="kubernetes-device-plugin-vs-dra-gpu-card-selection.html">Device Plugin과 DRA는 GPU를 어디까지 선택할 수 있을까?</a></li></ul></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

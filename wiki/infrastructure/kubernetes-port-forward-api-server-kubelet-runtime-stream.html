@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.md. Do not edit directly. source-sha256:ae3f7522c280f463b0d4d4405a1d5277f1d1cc62b8178946f26ed963932cfa21 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="kubectl의 로컬 포트에서 API Server, kubelet과 Runtime을 거쳐 선택된 Pod의 포트로 스트림을 연결하는 과정을 설명한다.">
+  <meta name="source-sha256" content="ae3f7522c280f463b0d4d4405a1d5277f1d1cc62b8178946f26ed963932cfa21">
+  <title>API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?">
+  <meta property="og:description" content="kubectl의 로컬 포트에서 API Server, kubelet과 Runtime을 거쳐 선택된 Pod의 포트로 스트림을 연결하는 과정을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html","name":"API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?","description":"kubectl의 로컬 포트에서 API Server, kubelet과 Runtime을 거쳐 선택된 Pod의 포트로 스트림을 연결하는 과정을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html"},"headline":"API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-port-forward-api-server-kubelet-runtime-stream.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"외부 클라이언트에서 Pod에 접속하는 두 경로: Service와 Port Forward","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-external-service-vs-port-forward.html"},{"@type":"ListItem","position":6,"name":"같은 Control Plane Node를 거쳐도 Service와 Port Forward는 무엇이 다를까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-control-plane-service-vs-port-forward.html"},{"@type":"ListItem","position":7,"name":"API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-external-service-vs-port-forward.html">외부 클라이언트에서 Pod에 접속하는 두 경로: Service와 Port Forward</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-control-plane-service-vs-port-forward.html">같은 Control Plane Node를 거쳐도 Service와 Port Forward는 무엇이 다를까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>API Server는 Port Forward 요청을 어떻게 Pod까지 전달할까?</h1>
+      <p class="lead">kubectl의 로컬 포트에서 API Server, kubelet과 Runtime을 거쳐 선택된 Pod의 포트로 스트림을 연결하는 과정을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9f16d96672f5">kubectl이 포트포워딩할 Pod와 Port를 결정한다</a>
+        <a href="#section-74668a9d4fa3">API Server가 인증하고 Pod의 Node를 찾는다</a>
+        <a href="#section-ffdc7ba5217f">API Server가 대상 Node의 kubelet로 스트림을 연결한다</a>
+        <a href="#section-ae9cc0763bc0">kubelet이 Container Runtime에 Pod Sandbox 연결을 요청한다</a>
+        <a href="#section-218995cd33e3">클라이언트의 데이터가 같은 통로를 왕복한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Port Forward에서 API Server가 요청을 받는다고 해서, API Server가 Pod의 Application에 보낼 HTTP 요청을 새로 만드는 것은 아니다. API Server는 대상 Pod가 실행 중인 Node를 찾고, <code>kubectl</code>과 그 Node의 kubelet 사이에 양방향 스트리밍 연결을 이어 준다.</p>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">클라이언트 애플리케이션
+  ⇄ localhost의 kubectl
+  ⇄ API Server
+  ⇄ 대상 Node의 kubelet
+  ⇄ Container Runtime의 Port Forward
+  ⇄ Pod Network Namespace의 Application Port
+</code></pre>
+</div>
+        <section id="section-9f16d96672f5" class="markdown-section">
+<h2>kubectl이 포트포워딩할 Pod와 Port를 결정한다</h2>
+<p>다음 명령을 실행했다고 하자.</p>
+<pre><code class="language-bash">kubectl port-forward svc/grafana 3000:80
+</code></pre>
+<p><code>kubectl</code>은 <code>grafana</code> Service의 Selector와 Port 정보를 이용해 대상 Pod 하나와 실제 <code>targetPort</code>를 결정한다. Service 뒤에 Pod가 여러 개 있어도 이 포트포워딩 세션에서는 한 Pod를 선택한다.</p>
+<p>결과적으로 <code>kubectl</code>은 다음과 같은 구체적인 대상에 연결하려는 상태가 된다.</p>
+<pre><code class="language-text">대상 Pod:  observability/grafana-abc123
+대상 Port: 3000
+</code></pre>
+<p><code>kubectl</code>은 클라이언트의 <code>localhost:3000</code>에 Listener를 열고, API Server의 해당 Pod에 대한 <code>portforward</code> 하위 API로 요청한다.</p>
+<pre><code class="language-text">POST /api/v1/namespaces/observability/pods/grafana-abc123/portforward
+</code></pre>
+
+</section>
+<section id="section-74668a9d4fa3" class="markdown-section">
+<h2>API Server가 인증하고 Pod의 Node를 찾는다</h2>
+<p>API Server는 요청한 사용자가 해당 Pod에 Port Forward할 권한이 있는지 인증과 인가를 수행한다. 허용된 요청이라면 저장된 Pod 객체를 읽는다.</p>
+<p>Pod 객체에는 Scheduler가 배치한 Node가 기록돼 있다.</p>
+<pre><code class="language-yaml">spec:
+  nodeName: gpu-lab-m02
+</code></pre>
+<p>API Server는 <code>spec.nodeName</code>을 통해 <code>grafana-abc123</code> Pod가 <code>gpu-lab-m02</code>에서 실행 중이라는 사실을 알아낸다. Pod IP를 Routing Table에서 검색해 Node를 추측하는 것이 아니다.</p>
+<pre><code class="language-text">Pod observability/grafana-abc123
+  → spec.nodeName 확인
+  → gpu-lab-m02의 kubelet 선택
+</code></pre>
+
+</section>
+<section id="section-ffdc7ba5217f" class="markdown-section">
+<h2>API Server가 대상 Node의 kubelet로 스트림을 연결한다</h2>
+<p>API Server는 대상 Node의 kubelet 연결 정보를 얻고, kubelet의 Port Forward 처리 경로로 연결한다.</p>
+<pre><code class="language-text">API Server
+  → gpu-lab-m02의 kubelet
+  → /portForward/observability/grafana-abc123
+</code></pre>
+<p>이 연결은 요청 하나에 응답 하나를 돌려주고 끝나는 일반적인 REST 요청과 다르다. 포트 데이터를 계속 양방향으로 전달할 수 있도록 스트리밍 연결로 전환된다.</p>
+<pre><code class="language-text">kubectl이 보낸 Stream
+  ⇄ API Server
+  ⇄ kubelet의 Port Forward Stream
+</code></pre>
+<p>API Server가 이 안의 HTTP, gRPC 또는 다른 Application Protocol을 해석할 필요는 없다. 클라이언트와 Pod가 주고받는 Byte를 양방향 Stream 사이에서 전달한다.</p>
+
+</section>
+<section id="section-ae9cc0763bc0" class="markdown-section">
+<h2>kubelet이 Container Runtime에 Pod Sandbox 연결을 요청한다</h2>
+<p>kubelet은 Pod 이름을 통해 자신이 관리하는 Pod Sandbox를 찾는다. Pod Sandbox는 같은 Pod의 Container들이 공유하는 Network Namespace를 포함하는 실행 단위다.</p>
+<p>kubelet은 CRI(Container Runtime Interface)의 <code>PortForward</code> 요청을 이용해 Runtime에 다음 작업을 맡긴다.</p>
+<pre><code class="language-text">이 Pod Sandbox의 3000 Port로 연결할
+Streaming Endpoint를 준비하라
+</code></pre>
+<pre><code class="language-text">kubelet
+  → CRI PortForward(PodSandbox, Port 3000)
+  → Container Runtime이 Streaming Endpoint 준비
+</code></pre>
+<p>구체적인 Socket 연결 방식은 Runtime 구현에 따라 달라질 수 있다. 일반적인 Linux Runtime 구현에서는 Pod Sandbox의 Network Namespace 안에서 대상 Port로 Socket을 열고, 그 Socket과 포트포워딩 Stream 사이의 데이터를 복사한다.</p>
+<pre><code class="language-text">Container Runtime의 Port Forward
+  → Pod Network Namespace 안으로 진입
+  → localhost:3000 또는 대응하는 Pod Socket에 연결
+  → Application과 양방향 Byte 전달
+</code></pre>
+
+</section>
+<section id="section-218995cd33e3" class="markdown-section">
+<h2>클라이언트의 데이터가 같은 통로를 왕복한다</h2>
+<p>포트포워딩 통로가 만들어진 뒤 브라우저가 <code>localhost:3000</code>으로 HTTP 요청을 보내면 그 데이터는 다음 순서로 이동한다.</p>
+<pre><code class="language-text">브라우저의 HTTP Byte
+  → kubectl의 Local Listener
+  → API Server Stream
+  → kubelet과 Runtime의 Port Forward Stream
+  → Pod의 3000 Port
+  → Grafana Application
+</code></pre>
+<p>응답은 같은 연결을 역방향으로 이동한다.</p>
+<pre><code class="language-text">Grafana 응답 Byte
+  → Runtime
+  → kubelet
+  → API Server
+  → kubectl
+  → 브라우저
+</code></pre>
+<p>이 경로에서는 Service ClusterIP, kube-proxy의 Endpoint 선택, Service DNAT가 사용되지 않는다. CNI가 준비한 일반적인 Pod IP 전달 경로를 따라 외부 Packet을 보내는 대신, Kubernetes의 관리 경로가 대상 Node의 kubelet에 도달하고 Runtime이 Pod Sandbox의 Port에 직접 연결한다.</p>
+<p>따라서 API Server의 역할은 Application 요청을 대신 수행하는 것이 아니다. Pod 객체에서 대상 Node를 찾고, <code>kubectl</code>의 Stream과 대상 kubelet의 Port Forward Stream이 이어지도록 중계하는 것이 핵심이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

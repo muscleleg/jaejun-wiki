@@ -1,0 +1,493 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.md. Do not edit directly. source-sha256:f1ac28cd1ef1ce8e4a85e06c7f974c69ec73716f2acfeda23a2a04271d662b03 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="이 실습의 목적은 실제 A100을 MIG Mode로 바꾸는 것이 아니다. Fake GPU Operator가 읽는 장치 목록을 1g.5gb Profile의 장치 일곱 개로 바꾸고, DRA에서 각 장치가 독립적인 선택·할당 단위로 동작하는지 확인하는 것이다.">
+  <meta name="source-sha256" content="f1ac28cd1ef1ce8e4a85e06c7f974c69ec73716f2acfeda23a2a04271d662b03">
+  <title>Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?">
+  <meta property="og:description" content="이 실습의 목적은 실제 A100을 MIG Mode로 바꾸는 것이 아니다. Fake GPU Operator가 읽는 장치 목록을 1g.5gb Profile의 장치 일곱 개로 바꾸고, DRA에서 각 장치가 독립적인 선택·할당 단위로 동작하는지 확인하는 것이다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html","name":"Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?","description":"이 실습의 목적은 실제 A100을 MIG Mode로 바꾸는 것이 아니다. Fake GPU Operator가 읽는 장치 목록을 1g.5gb Profile의 장치 일곱 개로 바꾸고, DRA에서 각 장치가 독립적인 선택·할당 단위로 동작하는지 확인하는 것이다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html"},"headline":"Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/fake-gpu-dra-mig-instance-allocation-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":6,"name":"Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/README.html"},{"@type":"ListItem","position":7,"name":"MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-mig-instance-allocation.html"},{"@type":"ListItem","position":8,"name":"Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/README.html">Kubernetes는 DRA로 GPU를 어떻게 선택하고 관리할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-dra-selection-sharing/kubernetes-dra-mig-instance-allocation.html">MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Fake GPU로 MIG 인스턴스의 할당과 소진을 어떻게 재현했을까?</h1>
+      <p class="lead">이 실습의 목적은 실제 A100을 MIG Mode로 바꾸는 것이 아니다. Fake GPU Operator가 읽는 장치 목록을 1g.5gb Profile의 장치 일곱 개로 바꾸고, DRA에서 각 장치가 독립적인 선택·할당 단위로 동작하는지 확인하는 것이다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-8681ea994cc8">원래 장치 구성을 백업한다</a>
+        <a href="#fake-mig">Fake MIG 장치 일곱 개를 선언한다</a>
+        <a href="#dra-plugin-topology">DRA Plugin이 Topology를 다시 읽게 한다</a>
+        <a href="#mig-profile-deviceclass">MIG Profile을 요청하는 DeviceClass를 만든다</a>
+        <a href="#claim-instance">첫 번째 Claim으로 Instance 한 개를 할당한다</a>
+        <a href="#pool">남은 여섯 개를 할당해 Pool을 소진한다</a>
+        <a href="#instance-pending">추가 요청은 가용 Instance가 없어 Pending된다</a>
+        <a href="#instance-claim">Instance 하나를 반환하면 대기 중인 Claim에 재할당된다</a>
+        <a href="#minikube-kubelet">Minikube에서는 종료 정리가 kubelet 재시작까지 지연됐다</a>
+        <a href="#a100-gpu">원래 A100 전체 GPU 구성으로 복구한다</a>
+        <a href="#section-d0adfe01fc2f">이 실습이 확인한 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>이 실습의 목적은 실제 A100을 MIG Mode로 바꾸는 것이 아니다. Fake GPU Operator가 읽는 장치 목록을 <code>1g.5gb</code> Profile의 장치 일곱 개로 바꾸고, DRA에서 각 장치가 독립적인 선택·할당 단위로 동작하는지 확인하는 것이다.</p>
+<pre><code class="language-text">확인할 흐름
+→ MIG Profile 장치 7개 게시
+→ Claim으로 1개와 6개 할당
+→ 추가 요청 Pending
+→ 장치 반환
+→ 대기 중인 Claim에 재할당
+</code></pre>
+<p>실제 MIG의 일반 원리와 DRA 할당 단위는 <a href="kubernetes-dra-mig-instance-allocation.html">MIG 인스턴스는 DRA에서 어떻게 하나의 장치가 될까?</a>에서 먼저 설명한다. 이 문서는 Fake GPU 환경에서 그 할당 구조를 재현한 과정과 검증 범위만 다룬다.</p>
+</div>
+        <section id="section-8681ea994cc8" class="markdown-section">
+<h2>원래 장치 구성을 백업한다</h2>
+<p>실습 전 <code>gpu-lab-m02</code>에는 40GiB A100 전체 GPU 두 개가 게시돼 있었다. 실습이 끝난 뒤 같은 상태로 되돌릴 수 있도록 기존 Topology ConfigMap을 별도 이름으로 백업했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-operator get configmap topology-gpu-lab-m02 -o json \
+| jq &#39;
+    .metadata.name = &quot;topology-gpu-lab-m02-before-mig&quot;
+    | .metadata.labels = {&quot;lab-backup&quot;:&quot;true&quot;}
+    | del(
+        .metadata.uid,
+        .metadata.resourceVersion,
+        .metadata.creationTimestamp,
+        .metadata.managedFields,
+        .metadata.ownerReferences
+      )
+  &#39; \
+| kubectl apply -f -
+</code></pre>
+
+</section>
+<section id="fake-mig" class="markdown-section">
+<h2>Fake MIG 장치 일곱 개를 선언한다</h2>
+<p>Fake GPU Operator v0.2.0의 Mock NVML 경로는 실제 MIG Instance를 자동으로 열거하지 못했다. 따라서 실습에서는 Topology의 <code>gpus</code> 목록을 같은 Profile의 독립 장치 일곱 개로 교체했다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: topology-gpu-lab-m02
+  namespace: gpu-operator
+  labels:
+    node-name: gpu-lab-m02
+    node-topology: &quot;true&quot;
+data:
+  topology.yml: |
+    gpuMemory: 5120
+    gpuProduct: NVIDIA-A100-SXM4-40GB-MIG-1g.5gb
+    gpus:
+      - id: MIG-gpu-lab-m02-1g5gb-0
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-1
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-2
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-3
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-4
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-5
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+      - id: MIG-gpu-lab-m02-1g5gb-6
+        status:
+          allocatedBy:
+            namespace: &quot;&quot;
+            pod: &quot;&quot;
+            container: &quot;&quot;
+          podGpuUsageStatus: {}
+    migStrategy: mixed
+</code></pre>
+<p>이 목록에서 같은 것은 장치 종류와 용량이다. 각 항목의 ID는 서로 다르므로 Fake DRA Driver는 일곱 항목을 독립된 장치로 게시한다.</p>
+<pre><code class="language-text">공통 Profile
+→ NVIDIA-A100-SXM4-40GB-MIG-1g.5gb
+
+공통 Memory
+→ 5GiB
+
+고유한 장치 ID
+→ MIG-...-0부터 MIG-...-6까지
+</code></pre>
+<p>여기서 <code>migStrategy: mixed</code>는 실제 GPU를 분할한 실행 결과가 아니다. 이 Fake 구성에서는 <code>gpus</code> 목록에 직접 넣은 일곱 항목이 장치 수를 결정한다.</p>
+
+</section>
+<section id="dra-plugin-topology" class="markdown-section">
+<h2>DRA Plugin이 Topology를 다시 읽게 한다</h2>
+<p><code>gpu-lab-m02</code>에서 실행되는 DRA Plugin Pod만 다시 만들었다.</p>
+<pre><code class="language-bash">kubectl -n gpu-operator delete pod \
+  -l app.kubernetes.io/component=kubeletplugin \
+  --field-selector spec.nodeName=gpu-lab-m02
+</code></pre>
+<p>새 Plugin이 실행된 뒤 ResourceSlice에는 <code>5Gi</code> 용량과 같은 Product Name을 가진 장치 일곱 개가 나타났다.</p>
+<pre><code class="language-bash">kubectl get resourceslices -o json \
+| jq -r &#39;
+    .items[]
+    | select(.spec.nodeName == &quot;gpu-lab-m02&quot;)
+    | .metadata.name as $slice
+    | .spec.devices[]
+    | [
+        $slice,
+        .name,
+        .attributes[&quot;gpu.nvidia.com/productName&quot;].string,
+        .capacity.memory.value
+      ]
+    | @tsv
+  &#39;
+</code></pre>
+<pre><code class="language-text">관찰 결과
+→ mig-gpu-lab-m02-1g5gb-0부터 6까지 장치 7개
+→ Product: NVIDIA-A100-SXM4-40GB-MIG-1g.5gb
+→ 장치별 Memory: 5Gi
+</code></pre>
+<p>이 결과에는 물리 A100과 그 아래 MIG Instance의 부모·자식 관계가 없다. 같은 Profile의 독립 장치 일곱 개만 게시한 단순화된 구조다.</p>
+
+</section>
+<section id="mig-profile-deviceclass" class="markdown-section">
+<h2>MIG Profile을 요청하는 DeviceClass를 만든다</h2>
+<p>기존 <code>gpu.nvidia.com</code> DeviceClass와 구분하기 위해 Product Name이 Fake MIG Profile과 일치하는 장치만 허용하는 Class를 만들었다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: a100-mig-1g-5gb
+spec:
+  selectors:
+    - cel:
+        expression: &gt;-
+          device.driver == &#39;gpu.nvidia.com&#39; &amp;&amp;
+          device.attributes[&#39;gpu.nvidia.com&#39;].productName ==
+          &#39;NVIDIA-A100-SXM4-40GB-MIG-1g.5gb&#39;
+</code></pre>
+<p>이 DeviceClass는 실제 NVIDIA DRA Driver가 기본 제공하는 <code>mig.nvidia.com</code> Class를 재현한 것이 아니다. Fake 장치를 실습에서 구분하기 위해 만든 범주다.</p>
+
+</section>
+<section id="claim-instance" class="markdown-section">
+<h2>첫 번째 Claim으로 Instance 한 개를 할당한다</h2>
+<p>MIG용 DeviceClass에서 장치 한 개를 요청하고 Pod에 연결했다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: mig-1g-5gb-one
+  namespace: gpu-resource-lab
+spec:
+  devices:
+    requests:
+      - name: mig
+        exactly:
+          deviceClassName: a100-mig-1g-5gb
+          allocationMode: ExactCount
+          count: 1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mig-1g-5gb-consumer
+  namespace: gpu-resource-lab
+spec:
+  restartPolicy: Never
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: gpu
+      effect: NoSchedule
+  resourceClaims:
+    - name: mig
+      resourceClaimName: mig-1g-5gb-one
+  containers:
+    - name: consumer
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - sleep 3600
+      resources:
+        claims:
+          - name: mig
+</code></pre>
+<p>Claim에는 일곱 후보 중 하나인 <code>mig-gpu-lab-m02-1g5gb-5</code>가 기록됐고 Pod는 해당 장치에 접근할 수 있는 <code>gpu-lab-m02</code>에서 실행됐다.</p>
+<pre><code class="language-text">Claim count: 1
+→ MIG 장치 한 개 선택
+→ Claim status.allocation에 Driver·Pool·Device 기록
+→ reservedFor에 소비 Pod 기록
+→ Pod는 gpu-lab-m02에서 Running
+</code></pre>
+
+</section>
+<section id="pool" class="markdown-section">
+<h2>남은 여섯 개를 할당해 Pool을 소진한다</h2>
+<p>두 번째 Claim은 같은 DeviceClass에서 정확히 여섯 개를 요청했다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: mig-1g-5gb-remaining
+  namespace: gpu-resource-lab
+spec:
+  devices:
+    requests:
+      - name: mig
+        exactly:
+          deviceClassName: a100-mig-1g-5gb
+          allocationMode: ExactCount
+          count: 6
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mig-1g-5gb-remaining-consumer
+  namespace: gpu-resource-lab
+spec:
+  restartPolicy: Never
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: gpu
+      effect: NoSchedule
+  resourceClaims:
+    - name: mig
+      resourceClaimName: mig-1g-5gb-remaining
+  containers:
+    - name: consumer
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - sleep 3600
+      resources:
+        claims:
+          - name: mig
+</code></pre>
+<p>두 Claim의 할당을 합치면 게시된 일곱 장치가 모두 사용 중이었다.</p>
+<pre><code class="language-text">mig-1g-5gb-one
+→ 1개 할당
+
+mig-1g-5gb-remaining
+→ 6개 할당
+
+가용한 1g.5gb 장치
+→ 0개
+</code></pre>
+
+</section>
+<section id="instance-pending" class="markdown-section">
+<h2>추가 요청은 가용 Instance가 없어 Pending된다</h2>
+<p>세 번째 Claim과 Pod가 같은 Profile의 장치 한 개를 더 요청했다.</p>
+<pre><code class="language-yaml">apiVersion: resource.k8s.io/v1
+kind: ResourceClaim
+metadata:
+  name: mig-1g-5gb-extra
+  namespace: gpu-resource-lab
+spec:
+  devices:
+    requests:
+      - name: mig
+        exactly:
+          deviceClassName: a100-mig-1g-5gb
+          allocationMode: ExactCount
+          count: 1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mig-1g-5gb-extra-consumer
+  namespace: gpu-resource-lab
+spec:
+  restartPolicy: Never
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: gpu
+      effect: NoSchedule
+  resourceClaims:
+    - name: mig
+      resourceClaimName: mig-1g-5gb-extra
+  containers:
+    - name: consumer
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - sleep 3600
+      resources:
+        claims:
+          - name: mig
+</code></pre>
+<p>새 Claim의 <code>status</code>는 비어 있었고 Pod는 Pending 상태에 머물렀다.</p>
+<pre><code class="language-text">Warning  FailedScheduling
+0/3 nodes are available: 3 cannot allocate all claims.
+</code></pre>
+<p>이 결과는 <code>1g.5gb</code> 조건에 맞는 장치가 없다는 뜻이 아니다. 같은 Profile의 장치 일곱 개가 존재하지만 모두 다른 Claim에 할당된 상태였다.</p>
+
+</section>
+<section id="instance-claim" class="markdown-section">
+<h2>Instance 하나를 반환하면 대기 중인 Claim에 재할당된다</h2>
+<p>첫 번째 Claim을 사용하던 Pod를 삭제하자 해당 Claim의 <code>allocation</code>이 비었고, 반환된 <code>mig-gpu-lab-m02-1g5gb-5</code>가 대기 중이던 <code>mig-1g-5gb-extra</code>에 할당됐다. Extra Pod도 <code>gpu-lab-m02</code>에서 Running으로 바뀌었다.</p>
+<pre><code class="language-text">mig-1g-5gb-consumer 삭제
+  → mig-1g-5gb-one의 allocation 해제
+  → mig-...-5 반환
+  → mig-1g-5gb-extra에 같은 장치 할당
+  → extra Pod Running
+</code></pre>
+<p>ResourceSlice에서 장치 항목이 삭제됐다가 다시 생긴 것은 아니다. ResourceSlice는 계속 일곱 장치의 인벤토리를 유지했고, Claim의 할당 상태가 바뀌면서 장치의 가용성이 달라졌다.</p>
+
+</section>
+<section id="minikube-kubelet" class="markdown-section">
+<h2>Minikube에서는 종료 정리가 kubelet 재시작까지 지연됐다</h2>
+<p>현재 Minikube·Docker·Fake DRA Plugin 조합에서는 실습 Pod를 삭제할 때 Container가 Runtime에서 사라진 뒤에도 kubelet의 DRA 체크포인트에 Claim 사용 기록이 남는 현상이 반복됐다.</p>
+<pre><code class="language-text">Pod 삭제 요청
+→ Docker에서 Container 제거
+→ kubelet의 Container 상태 조회에서 No such container
+→ Pod 종료와 DRA Unprepare가 끝나지 않음
+→ kubelet 재시작 뒤 비활성 Pod와 Claim 상태 Reconcile
+</code></pre>
+<p>실습에서는 남은 Pod를 한 번에 삭제한 뒤 <code>gpu-lab-m02</code>의 kubelet을 한 번 재시작해 체크포인트를 정리했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab delete pod \
+  mig-1g-5gb-remaining-consumer \
+  mig-1g-5gb-extra-consumer \
+  --wait=false
+
+minikube -p gpu-lab ssh -n gpu-lab-m02 -- \
+  &quot;sudo systemctl restart kubelet&quot;
+</code></pre>
+<p>이 현상은 MIG나 DRA의 일반적인 삭제 의미가 아니다. 실험용 Runtime과 Fake Driver가 결합된 환경의 한계다. DRA 체크포인트를 통해 원인을 좁힌 과정은 <a href="kubernetes-dra-containercreating-stale-kubelet-checkpoint.html">DRA Pod가 ContainerCreating에서 멈추면 어디부터 확인해야 할까?</a>에서도 다룬다.</p>
+
+</section>
+<section id="a100-gpu" class="markdown-section">
+<h2>원래 A100 전체 GPU 구성으로 복구한다</h2>
+<p>Pod와 DRA 체크포인트가 비워진 뒤 실습 Claim과 DeviceClass를 삭제했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-resource-lab delete resourceclaim \
+  mig-1g-5gb-one \
+  mig-1g-5gb-remaining \
+  mig-1g-5gb-extra
+
+kubectl delete deviceclass a100-mig-1g-5gb
+</code></pre>
+<p>백업했던 Topology를 원래 ConfigMap 이름으로 다시 적용했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-operator get configmap topology-gpu-lab-m02-before-mig -o json \
+| jq &#39;
+    .metadata.name = &quot;topology-gpu-lab-m02&quot;
+    | .metadata.labels = {
+        &quot;node-name&quot;: &quot;gpu-lab-m02&quot;,
+        &quot;node-topology&quot;: &quot;true&quot;
+      }
+    | del(
+        .metadata.uid,
+        .metadata.resourceVersion,
+        .metadata.creationTimestamp,
+        .metadata.managedFields,
+        .metadata.ownerReferences
+      )
+  &#39; \
+| kubectl apply -f -
+</code></pre>
+<p>DRA Plugin을 다시 만든 뒤 ResourceSlice에는 원래 A100 전체 GPU 두 개가 각각 <code>40Gi</code> 장치로 나타났다.</p>
+<pre><code class="language-bash">kubectl -n gpu-operator delete pod \
+  -l app.kubernetes.io/component=kubeletplugin \
+  --field-selector spec.nodeName=gpu-lab-m02
+</code></pre>
+<pre><code class="language-text">복구 결과
+→ NVIDIA-A100-SXM4-40GB 장치 2개
+→ 장치별 Memory 40Gi
+→ migStrategy: none
+</code></pre>
+
+</section>
+<section id="section-d0adfe01fc2f" class="markdown-section">
+<h2>이 실습이 확인한 범위</h2>
+<p>이번 실습에서 확인한 것은 MIG와 같은 Profile을 가진 장치들이 DRA의 독립적인 할당 단위로 게시됐을 때의 Kubernetes 동작이다.</p>
+<pre><code class="language-text">확인한 것
+→ 같은 Profile의 장치 7개가 ResourceSlice에 독립적으로 게시됨
+→ Claim의 수량만큼 서로 다른 장치가 할당됨
+→ 전부 할당되면 추가 요청이 Pending됨
+→ 반환된 장치가 대기 중인 Claim에 재할당됨
+</code></pre>
+<p>다음 항목은 Fake GPU 환경에서 확인하지 못했다.</p>
+<pre><code class="language-text">확인하지 못한 것
+→ 실제 A100의 MIG Mode 전환
+→ 실제 GPU Instance와 Compute Instance 생성
+→ 한 물리 GPU와 그 아래 Instance의 부모·자식 관계
+→ Profile별 실제 연산 자원과 Memory 격리
+→ 장애 격리와 실제 CUDA Workload 성능
+</code></pre>
+<p>따라서 이 결과는 실제 MIG 하드웨어 분할을 증명한 것이 아니다. ResourceSlice·DeviceClass·ResourceClaim·Scheduler가 MIG와 같은 독립 장치 단위를 게시하고 선택하며, 부족과 반환을 관리하는 구조를 확인한 실습이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
