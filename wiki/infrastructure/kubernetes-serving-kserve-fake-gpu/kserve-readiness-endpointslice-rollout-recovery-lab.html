@@ -1,0 +1,272 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.md. Do not edit directly. source-sha256:860afe850dd58b81e9337f45235a1e2335e279b2ff40decc1ed199c371d0f35b -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="잘못된 Readiness Probe가 Running 상태, EndpointSlice의 ready 조건과 RollingUpdate에 미치는 영향을 확인하고 안전한 복구 흐름을 정리한다.">
+  <meta name="source-sha256" content="860afe850dd58b81e9337f45235a1e2335e279b2ff40decc1ed199c371d0f35b">
+  <title>Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?">
+  <meta property="og:description" content="잘못된 Readiness Probe가 Running 상태, EndpointSlice의 ready 조건과 RollingUpdate에 미치는 영향을 확인하고 안전한 복구 흐름을 정리한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html","name":"Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?","description":"잘못된 Readiness Probe가 Running 상태, EndpointSlice의 ready 조건과 RollingUpdate에 미치는 영향을 확인하고 안전한 복구 흐름을 정리한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html"},"headline":"Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-readiness-endpointslice-rollout-recovery-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html"},{"@type":"ListItem","position":6,"name":"Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html">KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Readiness 실패는 KServe Pod와 Endpoint에 어떻게 나타날까?</h1>
+      <p class="lead">잘못된 Readiness Probe가 Running 상태, EndpointSlice의 ready 조건과 RollingUpdate에 미치는 영향을 확인하고 안전한 복구 흐름을 정리한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#readiness-probe-application-url">Readiness Probe가 없으면 Application URL을 검사하지 않는다</a>
+        <a href="#readiness-container">Readiness 실패는 Container를 재시작하지 않는다</a>
+        <a href="#readiness-running-notready-pod">잘못된 Readiness 경로는 Running이지만 NotReady인 Pod를 만든다</a>
+        <a href="#section-0-1-pending-running">같은 0/1도 Pending과 Running에서 의미가 달랐다</a>
+        <a href="#rolling-update-pod-ready">Rolling Update는 새 Pod가 Ready가 될 때까지 진행되지 않는다</a>
+        <a href="#endpointslice">EndpointSlice에 주소가 있어도 트래픽 대상은 아닐 수 있다</a>
+        <a href="#gpu-rollout-headroom">정상 경로 복구에도 GPU Rollout Headroom이 필요하다</a>
+        <a href="#section-7204fbacacc0">상태는 위에서 아래로 한 번에 단정하지 않는다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Pod가 <code>Running</code>이라는 사실만으로 Model Server가 요청을 받을 준비가 됐다고 판단할 수는 없다. Process는 살아 있어도 모델을 아직 읽는 중이거나, 잘못된 설정 때문에 준비 상태 Endpoint가 실패할 수 있다.</p>
+<p><code>Running</code>과 <code>Ready</code>의 차이는 Readiness 경로를 실패시키면 분명하게 드러난다. Predictor의 Process는 계속 실행되지만 Endpoint 조건과 Rolling Update는 별도로 변한다. 이 관계를 알아야 GPU 부족과 Application 준비 실패가 동시에 나타날 때 원인을 분리할 수 있다.</p>
+</div>
+        <section id="readiness-probe-application-url" class="markdown-section">
+<h2>Readiness Probe가 없으면 Application URL을 검사하지 않는다</h2>
+<p>일반 Pod에 <code>readinessProbe</code>를 선언하지 않으면 kubelet이 <code>/health/ready</code> 같은 URL을 자동으로 추측하지 않는다. Container Process가 시작되고 다른 Readiness Gate가 없다면 Application 내부 상태를 확인하지 않은 채 Ready로 판단할 수 있다.</p>
+<pre><code class="language-text">Readiness Probe 없음
+→ Process 시작
+→ 별도의 HTTP·TCP·명령 검사 없음
+→ Application이 실제 준비됐는지 Kubernetes가 알 수 없음
+</code></pre>
+<p>예시 Mock Server에는 Readiness Probe를 직접 선언한다.</p>
+<pre><code class="language-yaml">readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8080
+  initialDelaySeconds: 1
+  periodSeconds: 2
+</code></pre>
+<p>그래서 kubelet이 2초마다 다음 요청을 보냈고, Prometheus의 HTTP 요청 Counter에서도 이 호출이 별도 시계열로 나타났다.</p>
+<pre><code class="language-text">GET PodIP:8080/health/ready
+→ 성공하면 Ready=true
+→ 실패하면 Ready=false
+</code></pre>
+<p>Readiness는 HTTP만 가능한 것이 아니다. TCP 연결, Container 내부 명령, gRPC Health Check도 사용할 수 있다.</p>
+
+</section>
+<section id="readiness-container" class="markdown-section">
+<h2>Readiness 실패는 Container를 재시작하지 않는다</h2>
+<p>Probe마다 실패 결과가 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>답하는 질문</th>
+<th>실패 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Readiness</td>
+<td>지금 요청을 받아도 되는가?</td>
+<td><code>Ready=false</code>, Service 트래픽 대상에서 제외</td>
+</tr>
+<tr>
+<td>Liveness</td>
+<td>Process가 복구 불가능하게 멈췄는가?</td>
+<td>kubelet이 Container 재시작</td>
+</tr>
+<tr>
+<td>Startup</td>
+<td>긴 시작 과정이 제한 시간 안에 끝났는가?</td>
+<td>반복 실패 후 Container 재시작</td>
+</tr>
+</tbody></table>
+</div>
+<p>Readiness가 실패해도 Container는 계속 실행된다.</p>
+<pre><code class="language-text">Pod Phase
+→ Running
+
+Container Ready
+→ false
+
+Service Routing
+→ 해당 Endpoint를 사용하지 않음
+</code></pre>
+<p>잘못된 경로를 정상 경로로 고치거나 Application이 다시 성공을 반환하면 다음 Probe에서 Ready가 회복될 수 있다.</p>
+
+</section>
+<section id="readiness-running-notready-pod" class="markdown-section">
+<h2>잘못된 Readiness 경로는 Running이지만 NotReady인 Pod를 만든다</h2>
+<p>Predictor의 Readiness 경로를 <code>/health/not-ready</code>로 바꿨다.</p>
+<pre><code class="language-yaml">spec:
+  predictor:
+    containers:
+      - readinessProbe:
+          httpGet:
+            path: /health/not-ready
+            port: 8080
+</code></pre>
+<p>KServe Controller는 이 변경을 Deployment의 Pod Template에 반영했고 새 ReplicaSet을 만들었다. 새 Pod의 Process는 실행됐지만 존재하지 않는 경로가 404를 반환해 다음 상태가 됐다.</p>
+<pre><code class="language-text">Phase=Running
+Ready=false
+Probe=/health/not-ready
+</code></pre>
+
+</section>
+<section id="section-0-1-pending-running" class="markdown-section">
+<h2>같은 0/1도 Pending과 Running에서 의미가 달랐다</h2>
+<p>Rollout 중 다음 세 상태가 동시에 나타났다.</p>
+<pre><code class="language-text">새 ReplicaSet의 Pod
+→ Running 0/1
+→ Process는 실행됨
+→ Readiness Probe 실패
+
+기존 ReplicaSet의 Pod 하나
+→ Running 1/1
+→ 이전 정상 Probe 유지
+
+기존 ReplicaSet의 다른 Pod
+→ Pending 0/1
+→ GPU 부족으로 Node에 배치되지 못함
+→ Probe를 시작하지도 못함
+</code></pre>
+<p>따라서 <code>0/1</code>만 보고 원인을 판단할 수 없다.</p>
+<pre><code class="language-text">Pending 0/1
+→ Scheduling과 Resource Event 확인
+
+Running 0/1
+→ Readiness Probe, Application 로그와 Event 확인
+</code></pre>
+
+</section>
+<section id="rolling-update-pod-ready" class="markdown-section">
+<h2>Rolling Update는 새 Pod가 Ready가 될 때까지 진행되지 않는다</h2>
+<p>KServe가 관리하는 Deployment는 다시 기본 <code>RollingUpdate</code> 전략을 사용했다. 원하는 Replica 수가 2이고 기본 <code>maxSurge</code>가 허용되므로 새 Pod를 추가로 만들면서 기존 Ready Pod를 유지하려 했다.</p>
+<pre><code class="language-text">기존 Ready Pod 유지
+→ 새 Pod 생성
+→ 새 Pod Ready 대기
+→ Ready가 되면 기존 Pod 축소
+</code></pre>
+<p>하지만 새 Pod가 계속 <code>Ready=false</code>였기 때문에 Rollout이 다음 단계로 진행되지 못했다. GPU 두 개도 기존 Pod와 새 NotReady Pod가 점유해 추가 Pod는 <code>Insufficient nvidia.com/gpu</code>로 Pending됐다.</p>
+<p>Scheduler Pending과 Readiness 실패는 동시에 존재할 수 있다. 각 Pod의 <code>phase</code>, <code>nodeName</code>, Probe 설정과 Event를 함께 봐야 원인을 분리할 수 있다.</p>
+
+</section>
+<section id="endpointslice" class="markdown-section">
+<h2>EndpointSlice에 주소가 있어도 트래픽 대상은 아닐 수 있다</h2>
+<p>Readiness가 실패한 두 Pod의 IP는 EndpointSlice에 계속 보였다. 그러나 각 Endpoint의 조건은 다음과 같았다.</p>
+<pre><code class="language-text">ready=false
+serving=false
+terminating=false
+</code></pre>
+<p><code>kubectl get endpointslice</code>의 기본 출력은 IP 목록을 보여주지만 <code>conditions.ready</code>를 함께 보여주지 않는다. 그래서 주소가 있다는 사실만 보면 정상 Endpoint처럼 오해할 수 있다.</p>
+<pre><code class="language-text">EndpointSlice에 주소가 존재함
+≠ Service가 그 주소로 트래픽을 보냄
+</code></pre>
+<p>현재 Service는 <code>publishNotReadyAddresses</code>를 켜지 않았으므로 기본 동작은 다음과 같다.</p>
+<pre><code class="language-text">Endpoint ready=false
+→ EndpointSlice에는 상태와 주소 기록 가능
+→ Service의 정상 트래픽 Backend로 사용하지 않음
+</code></pre>
+<p>정확한 상태는 Endpoint의 조건을 함께 조회해야 한다.</p>
+<pre><code class="language-bash">kubectl -n kserve-gpu-lab get endpointslice \
+  -l kubernetes.io/service-name=mock-model-kserve-predictor \
+  -o jsonpath=&#39;{range .items[*].endpoints[*]}Pod={.targetRef.name}{&quot; IP=&quot;}{.addresses[0]}{&quot; Ready=&quot;}{.conditions.ready}{&quot;\n&quot;}{end}&#39;
+</code></pre>
+
+</section>
+<section id="gpu-rollout-headroom" class="markdown-section">
+<h2>정상 경로 복구에도 GPU Rollout Headroom이 필요하다</h2>
+<p>InferenceService의 Readiness 경로를 다시 <code>/health/ready</code>로 고쳤다. 상위 선언과 Deployment의 새 Pod Template은 정상으로 돌아왔지만, 잘못된 Probe를 가진 Pod 두 개가 GPU 두 개를 모두 점유하고 있었다.</p>
+<pre><code class="language-text">기존 NotReady Pod 두 개
+→ GPU 두 개 점유
+
+정상 Probe를 가진 새 Pod
+→ GPU 한 개 요청
+→ 여유 GPU가 없어 Pending
+</code></pre>
+<p>복구 예시에서는 하위 Deployment를 일시적으로 <code>Recreate</code>로 바꿔 NotReady Pod들을 먼저 종료하고 GPU를 반환했다. 정상 Pod 두 개가 Running·Ready가 된 뒤 Deployment 전략은 원래의 <code>RollingUpdate</code>로 돌아왔다.</p>
+<p>복구 결과는 다음과 같았다.</p>
+<pre><code class="language-text">Predictor Pod 두 개
+→ Running
+→ Ready=true
+→ Probe=/health/ready
+→ Pod당 GPU 1개
+
+EndpointSlice
+→ Endpoint 두 개 모두 ready=true
+
+InferenceService
+→ Ready=True
+</code></pre>
+
+</section>
+<section id="section-7204fbacacc0" class="markdown-section">
+<h2>상태는 위에서 아래로 한 번에 단정하지 않는다</h2>
+<p>이런 실패는 다음 순서로 범위를 좁히면 원인을 분리하기 쉽다.</p>
+<pre><code class="language-text">InferenceService Status
+→ Deployment Rollout 상태
+→ ReplicaSet별 Pod 수
+→ Pod Phase와 Ready
+→ Scheduler Event 또는 Probe Event
+→ EndpointSlice conditions.ready
+→ 실제 Service HTTP 요청
+→ Application Metric
+</code></pre>
+<p><code>InferenceService Ready=False</code>만으로 GPU 부족인지 Application Readiness 실패인지 알 수 없다. 반대로 Pod가 <code>Running</code>이라고 Service가 요청을 전달할 수 있다고 단정할 수도 없다. Resource 할당, Process 실행, Readiness, Endpoint 조건과 실제 HTTP 응답은 서로 다른 상태다.</p>
+<p>Service 하나에 EndpointSlice가 하나 또는 여러 개 생기는 조건과 NotReady Endpoint가 Slice에 남는 의미는 <a href="kubernetes-service-endpointslice-structure.html">Service의 EndpointSlice는 언제 하나이고 언제 여러 개일까?</a>에서 더 자세히 살펴본다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

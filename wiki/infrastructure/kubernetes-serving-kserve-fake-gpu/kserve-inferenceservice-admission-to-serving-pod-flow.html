@@ -1,0 +1,426 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.md. Do not edit directly. source-sha256:f6195c53bb075c1615a6cae4783f97968f1019dd688d3df48776c7329c65ccae -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="InferenceService 생성 요청이 Mutating·Validating Webhook, Controller Reconcile과 Pod Mutator를 거쳐 실제 Serving Pod로 변환되는 흐름을 추적한다.">
+  <meta name="source-sha256" content="f6195c53bb075c1615a6cae4783f97968f1019dd688d3df48776c7329c65ccae">
+  <title>InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?">
+  <meta property="og:description" content="InferenceService 생성 요청이 Mutating·Validating Webhook, Controller Reconcile과 Pod Mutator를 거쳐 실제 Serving Pod로 변환되는 흐름을 추적한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html","name":"InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?","description":"InferenceService 생성 요청이 Mutating·Validating Webhook, Controller Reconcile과 Pod Mutator를 거쳐 실제 Serving Pod로 변환되는 흐름을 추적한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html"},"headline":"InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-inferenceservice-admission-to-serving-pod-flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html"},{"@type":"ListItem","position":6,"name":"InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html">KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>InferenceService 생성 요청은 어떻게 실제 Serving Pod가 될까?</h1>
+      <p class="lead">InferenceService 생성 요청이 Mutating·Validating Webhook, Controller Reconcile과 Pod Mutator를 거쳐 실제 Serving Pod로 변환되는 흐름을 추적한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kserve-controller-webhook-controller-manager-pod">KServe Controller와 Webhook은 같은 Controller Manager Pod 안에서 동작한다</a>
+        <a href="#predictor">Predictor는 실제 추론 요청을 처리하는 구성요소다</a>
+        <a href="#webhookconfiguration">WebhookConfiguration은 호출 조건과 목적지를 기록한다</a>
+        <a href="#webhook-inferenceservice">첫 번째 Webhook은 InferenceService 기본값을 채운다</a>
+        <a href="#webhook-inferenceservice-2">두 번째 Webhook은 완성된 InferenceService를 검사한다</a>
+        <a href="#kserve-controller-service-deployment">KServe Controller가 Service와 Deployment를 만든다</a>
+        <a href="#webhook-pod">세 번째 Webhook은 Pod 생성 요청을 보완한다</a>
+        <a href="#pod-kubernetes">저장된 Pod는 Kubernetes의 일반 실행 경로를 지난다</a>
+        <a href="#server-side-dry-run-webhook">Server-side Dry-run은 저장 없이 Webhook 결과를 보여준다</a>
+        <a href="#custom-predictor">Custom Predictor를 배포하면 하위 객체 관계가 드러난다</a>
+        <a href="#ready-gpu">Ready 상태는 GPU 사용을 의미하지 않는다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><code>InferenceService</code>를 생성하면 KServe가 곧바로 Container를 실행하는 것이 아니다. 생성 요청은 먼저 Admission Webhook에서 기본값과 유효성을 확인하고, 최종 객체가 저장된 뒤 KServe Controller와 Kubernetes Controller들이 실제 Deployment·ReplicaSet·Pod를 만든다. Pod 생성 요청에도 KServe 전용 Mutating Webhook이 다시 개입한다.</p>
+<pre><code class="language-text">InferenceService 저장 전
+  → InferenceService Mutating Webhook
+  → InferenceService Validating Webhook
+
+InferenceService 저장 후
+  → KServe Controller
+  → Deployment·Service
+  → ReplicaSet·Pod 생성 요청
+  → KServe Pod Mutator
+</code></pre>
+</div>
+        <section id="kserve-controller-webhook-controller-manager-pod" class="markdown-section">
+<h2>KServe Controller와 Webhook은 같은 Controller Manager Pod 안에서 동작한다</h2>
+<p>현재 설치에서는 <code>kserve-controller-manager</code> Pod 하나가 보이지만, 그 안의 Manager Process에는 여러 역할이 함께 들어 있다. <code>InferenceService Controller</code>와 각 Mutator·Validator는 별도 Pod 이름이 아니라 같은 프로그램 안에서 실행되는 Controller와 Webhook Handler다.</p>
+<pre><code class="language-text">kserve-controller-manager Pod
+│
+├─ manager Container
+│  │
+│  └─ KServe Manager Process
+│     │
+│     ├─ InferenceService Controller
+│     │  ├─ API Server에 저장된 InferenceService를 Watch
+│     │  ├─ 필요한 Deployment·Service 상태 계산
+│     │  └─ API Server에 Deployment·Service 생성·수정 요청
+│     │
+│     └─ Webhook HTTPS Server
+│        ├─ InferenceService Mutator
+│        │  └─ 저장 전 InferenceService의 기본값을 채울 Patch 반환
+│        ├─ InferenceService Validator
+│        │  └─ 저장 전 InferenceService를 검사해 허용·거부 응답
+│        └─ Pod Mutator
+│           └─ 저장 전 KServe Pod에 적용할 Patch 반환
+│
+└─ 보조 Container
+   └─ 설치 형태에 따라 메트릭·접근 프록시 같은 보조 역할
+</code></pre>
+<p><code>READY 2/2</code>는 Pod 안의 Container 두 개가 Ready라는 뜻이지, Controller 하나와 Mutator 하나가 각각 별도 Container라는 뜻은 아니다. Controller와 여러 Webhook Handler는 보통 <code>manager</code> Container의 같은 Process 안에 등록되어 동작한다.</p>
+<p>두 역할은 같은 Process에 있어도 API Server와 연결되는 방향이 다르다.</p>
+<pre><code class="language-text">Watch 경로
+API Server의 저장된 InferenceService
+  → InferenceService Controller가 변화 감지
+  → Controller가 API Server에 Deployment·Service 생성 요청
+
+Webhook 경로
+API Server의 InferenceService·Pod 저장 전 요청
+  → kserve-webhook-server-service
+  → 같은 Pod의 Webhook HTTPS Server
+  → 요청 Path에 맞는 Mutator·Validator 실행
+  → Patch 또는 허용·거부 결과를 API Server에 반환
+</code></pre>
+<p>따라서 Webhook이 Deployment와 Service를 만드는 것은 아니다. 저장된 <code>InferenceService</code>를 Watch한 Controller가 두 객체의 생성을 요청한다. Pod Mutator도 Pod를 직접 저장하지 않고 수정 Patch만 반환하며, 이를 실제 Pod 생성 후보에 적용해 저장하는 주체는 API Server다.</p>
+
+</section>
+<section id="predictor" class="markdown-section">
+<h2>Predictor는 실제 추론 요청을 처리하는 구성요소다</h2>
+<p><code>InferenceService</code>는 모델 서빙 전체 구성을 나타내고, 그 안에서 실제 추론 요청을 처리하는 구성요소가 <code>predictor</code>다. 별도의 Predictor 타입을 선택했다기보다 <code>spec.predictor</code> 영역에 실행할 Model Server Container를 선언한 것이다.</p>
+<pre><code class="language-yaml">spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: mock-model-server:local
+</code></pre>
+<p>이 선언을 역할별로 읽으면 다음과 같다.</p>
+<pre><code class="language-text">InferenceService 이름
+→ mock-model-kserve
+
+실제 추론 담당 구성요소
+→ predictor
+
+Predictor에서 실행할 서버
+→ mock-model-server:local
+</code></pre>
+<p>KServe Controller는 Predictor를 실행하는 하위 리소스 이름에 <code>predictor</code>를 붙였다.</p>
+<pre><code class="language-text">InferenceService/mock-model-kserve
+└─ Predictor
+   ├─ Deployment/mock-model-kserve-predictor
+   ├─ Pod/mock-model-kserve-predictor-...
+   └─ Service/mock-model-kserve-predictor
+</code></pre>
+<p>예시 Mock Server의 <code>/health/ready</code>, <code>/v1/chat/completions</code>, <code>/metrics</code>는 모두 Predictor Pod가 제공한다. GPU 요청도 Predictor Container에 선언하면 KServe가 생성한 Deployment와 Pod까지 전달된다.</p>
+<p>KServe는 필요에 따라 입력 전처리를 맡는 Transformer나 예측 설명을 제공하는 Explainer 같은 다른 구성요소를 둘 수 있다. 아래 예시는 Transformer나 Explainer 없이 Custom Predictor만 사용한다.</p>
+
+</section>
+<section id="webhookconfiguration" class="markdown-section">
+<h2>WebhookConfiguration은 호출 조건과 목적지를 기록한다</h2>
+<p>KServe Webhook 설정은 Node의 파일이 아니라 API Server에 저장된 클러스터 범위 객체다.</p>
+<pre><code class="language-bash">kubectl get mutatingwebhookconfiguration \
+  inferenceservice.serving.kserve.io \
+  -o yaml
+
+kubectl get validatingwebhookconfiguration \
+  inferenceservice.serving.kserve.io \
+  -o yaml
+</code></pre>
+<p>실제 Mutating 설정에는 두 Webhook이 있었다.</p>
+<pre><code class="language-text">inferenceservice.kserve-webhook-server.defaulter
+  → InferenceService CREATE·UPDATE
+  → /mutate-serving-kserve-io-v1beta1-inferenceservice
+
+inferenceservice.kserve-webhook-server.pod-mutator
+  → KServe Label이 있는 Pod CREATE
+  → /mutate-pods
+</code></pre>
+<p>Validating 설정에는 다음 Webhook이 있었다.</p>
+<pre><code class="language-text">inferenceservice.kserve-webhook-server.validator
+  → InferenceService CREATE·UPDATE
+  → /validate-serving-kserve-io-v1beta1-inferenceservice
+</code></pre>
+<p><code>rules</code>는 어떤 Kubernetes API 요청에 반응할지를 정한다.</p>
+<pre><code class="language-yaml">rules:
+  - apiGroups:
+      - serving.kserve.io
+    apiVersions:
+      - v1beta1
+    operations:
+      - CREATE
+      - UPDATE
+    resources:
+      - inferenceservices
+</code></pre>
+<p><code>clientConfig</code>는 조건이 맞았을 때 어느 Webhook 서버로 보낼지를 정한다.</p>
+<pre><code class="language-yaml">clientConfig:
+  service:
+    name: kserve-webhook-server-service
+    namespace: kserve
+    path: /mutate-serving-kserve-io-v1beta1-inferenceservice
+    port: 443
+</code></pre>
+<p><code>operations: CREATE</code>는 HTTP Method가 아니다. Kubernetes 객체에 수행하려는 작업 종류다. HTTP <code>POST</code>라는 값은 YAML에 없으며, Admission Webhook Protocol이 API Server가 <code>AdmissionReview</code> JSON을 POST하도록 고정한다.</p>
+<pre><code class="language-http">POST /mutate-serving-kserve-io-v1beta1-inferenceservice HTTP/1.1
+Host: kserve-webhook-server-service.kserve.svc:443
+Content-Type: application/json
+</code></pre>
+<p>Mutating Webhook은 <code>allowed</code>와 JSON Patch를 돌려주고, API Server가 Patch를 생성 후보에 적용한다. Validating Webhook은 객체를 바꾸지 않고 허용·거부를 응답한다. <code>failurePolicy: Fail</code>이므로 Webhook 호출이 실패하거나 제한 시간 안에 응답하지 못하면 원래 생성·수정 요청도 실패한다.</p>
+
+</section>
+<section id="webhook-inferenceservice" class="markdown-section">
+<h2>첫 번째 Webhook은 InferenceService 기본값을 채운다</h2>
+<p>사용자가 보낸 YAML은 아직 저장된 객체가 아니다. API Server는 저장 전에 Defaulter를 호출한다.</p>
+<pre><code class="language-text">사용자가 보낸 InferenceService
+  → 아직 저장 전
+  → Defaulter에 AdmissionReview POST
+  → JSON Patch 응답
+  → API Server가 기본값 적용
+</code></pre>
+<p>원본에 CPU·Memory와 배포 모드가 없다면 KServe Defaulter는 <code>inferenceservice-config</code>의 값을 읽어 CPU·Memory를 추가하고 기본 배포 모드를 정할 수 있다. 아래 예시 환경의 기본 배포 모드는 <code>Standard</code>다.</p>
+<pre><code class="language-yaml">resources:
+  limits:
+    cpu: &quot;1&quot;
+    memory: 2Gi
+  requests:
+    cpu: &quot;1&quot;
+    memory: 2Gi
+</code></pre>
+<p>사용자가 이미 지정한 값은 유지한다. GPU는 기본 설정에 없으므로 자동으로 추가하지 않는다.</p>
+
+</section>
+<section id="webhook-inferenceservice-2" class="markdown-section">
+<h2>두 번째 Webhook은 완성된 InferenceService를 검사한다</h2>
+<p>API Server는 Mutating 결과가 적용된 객체를 Validator에 보낸다.</p>
+<pre><code class="language-text">Defaulter가 보완한 InferenceService
+  → Validator
+  → allowed: true 또는 false
+</code></pre>
+<p>Validator는 Predictor 구현, Autoscaling, Storage URI, Multi-node, Canary와 서로 충돌하는 설정 등을 검사한다. 실패하면 객체는 저장되지 않고 <code>kubectl</code>에 오류가 돌아온다. 성공하면 API Server가 최종 <code>InferenceService</code>를 etcd에 저장한다.</p>
+<pre><code class="language-text">Mutating과 Validating 통과
+  → API Server가 최종 InferenceService를 etcd에 저장
+  → 이 시점에 InferenceService 생성 완료
+</code></pre>
+
+</section>
+<section id="kserve-controller-service-deployment" class="markdown-section">
+<h2>KServe Controller가 Service와 Deployment를 만든다</h2>
+<p>KServe InferenceService Controller는 저장된 객체를 Watch한다. 현재 Standard 배포에서는 <code>InferenceService</code>를 바탕으로 Service와 Deployment를 만든다.</p>
+<pre><code class="language-text">InferenceService 저장
+  → KServe Controller가 발견
+  ├─ Service 생성
+  └─ Deployment 생성
+</code></pre>
+<p>Deployment의 Pod Template에는 다음 Label이 들어간다.</p>
+<pre><code class="language-yaml">metadata:
+  labels:
+    serving.kserve.io/inferenceservice: mock-model-kserve
+</code></pre>
+<p>이 Label은 Webhook 서버 주소가 아니라 이후 생성되는 Pod가 KServe Pod Mutator의 적용 대상인지 고르는 표식이다.</p>
+
+</section>
+<section id="webhook-pod" class="markdown-section">
+<h2>세 번째 Webhook은 Pod 생성 요청을 보완한다</h2>
+<p>Deployment Controller가 ReplicaSet을 만들고 ReplicaSet Controller가 API Server에 Pod CREATE 요청을 보낸다. Pod는 아직 저장되지 않았지만 Deployment의 Pod Template Label은 생성 후보에 복사되어 있다.</p>
+<pre><code class="language-text">ReplicaSet Controller
+  → KServe Label이 있는 Pod 생성 후보
+  → API Server
+</code></pre>
+<p>API Server는 Pod 생성 후보의 Label을 다음 <code>objectSelector</code>와 비교한다.</p>
+<pre><code class="language-yaml">objectSelector:
+  matchExpressions:
+    - key: serving.kserve.io/inferenceservice
+      operator: Exists
+</code></pre>
+<p>조건이 맞으면 API Server가 KServe Webhook Service의 <code>/mutate-pods</code>에 AdmissionReview를 POST한다.</p>
+<pre><code class="language-text">Pod의 Label
+  → Webhook 적용 대상을 고르는 조건
+
+clientConfig.service
+  → 실제 수정 코드를 실행할 Webhook 서버 주소
+</code></pre>
+<p>KServe Pod Mutator는 조건에 따라 Storage Initializer, 모델 Volume·VolumeMount, Storage Credential, Agent, Metrics 또는 Modelcar 설정을 추가한다. 모든 Pod에 모든 설정을 넣는 것은 아니다. 별도 모델 다운로드가 필요 없는 Custom Container에서는 변경이 작거나 없을 수 있다.</p>
+<p>Webhook은 Pod를 직접 저장하지 않는다. 수정 Patch를 API Server에 반환하고 API Server가 최종 Pod에 적용한 뒤 etcd에 저장한다.</p>
+
+</section>
+<section id="pod-kubernetes" class="markdown-section">
+<h2>저장된 Pod는 Kubernetes의 일반 실행 경로를 지난다</h2>
+<pre><code class="language-text">최종 Pod 저장
+  → Scheduler가 Node 선택
+  → 선택된 Node의 kubelet이 Pod 발견
+  → Container Runtime이 Container 생성
+  → Mock Model Server 실행
+</code></pre>
+<p>KServe Webhook은 Scheduler나 kubelet을 대체하지 않는다. Pod가 저장되기 전에 KServe 실행에 필요한 선언을 보완할 뿐이다.</p>
+
+</section>
+<section id="server-side-dry-run-webhook" class="markdown-section">
+<h2>Server-side Dry-run은 저장 없이 Webhook 결과를 보여준다</h2>
+<p>다음 요청은 API Server와 Webhook을 실제로 통과하지만 객체를 저장하지 않는다.</p>
+<pre><code class="language-bash">kubectl apply --dry-run=server -o yaml -f - &lt;&lt;&#39;YAML&#39;
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: webhook-observation
+  namespace: kserve-gpu-lab
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: mock-model-server:local
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 8080
+YAML
+</code></pre>
+<p>반환된 객체에는 원본에 없던 배포 모드와 CPU·Memory 기본값이 있었다. KServe 로그에는 Defaulter의 기본값 적용과 Validator의 <code>validate create</code>가 차례로 나타났다. Dry-run이므로 <code>kubectl get</code>으로는 객체가 조회되지 않았다.</p>
+<p>빈 <code>predictor: {}</code>도 시험했다. Webhook 호출은 일어났지만 설치된 KServe v0.20 Defaulter가 정상적인 검증 오류만 반환하지 못하고 <code>index out of range</code> Panic을 냈다. 이는 빈 Predictor가 유효하다는 뜻이 아니라 해당 버전의 예외 처리 경계가 드러난 결과다.</p>
+
+</section>
+<section id="custom-predictor" class="markdown-section">
+<h2>Custom Predictor를 배포하면 하위 객체 관계가 드러난다</h2>
+<p>다음 Custom Predictor를 실제로 생성했다.</p>
+<pre><code class="language-yaml">apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: mock-model-kserve
+  namespace: kserve-gpu-lab
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: mock-model-server:local
+        imagePullPolicy: IfNotPresent
+        ports:
+          - name: http1
+            containerPort: 8080
+            protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 1
+          periodSeconds: 2
+</code></pre>
+<p>원본에 <code>resources</code>가 없어도 저장된 <code>spec</code>에는 CPU·Memory 기본값이 들어갈 수 있다. 기본값의 원본은 다음처럼 조회할 수 있다.</p>
+<pre><code class="language-bash">kubectl -n kserve \
+  get configmap inferenceservice-config \
+  -o json |
+jq -r &#39;.data.inferenceService&#39; |
+jq &#39;.resource&#39;
+</code></pre>
+<pre><code class="language-json">{
+  &quot;cpuLimit&quot;: &quot;1&quot;,
+  &quot;cpuRequest&quot;: &quot;1&quot;,
+  &quot;memoryLimit&quot;: &quot;2Gi&quot;,
+  &quot;memoryRequest&quot;: &quot;2Gi&quot;
+}
+</code></pre>
+<p><code>InferenceService</code>는 <code>Ready=True</code>가 됐고 Status에는 <code>IngressReady=True</code>, <code>PredictorReady=True</code>, <code>Ready=True</code>, <code>observedGeneration=1</code>이 기록됐다.</p>
+<pre><code class="language-text">spec
+  → 사용자 선언
+  → 저장 전 Mutating Webhook이 기본값 보완
+
+status
+  → 저장 후 KServe Controller가 하위 상태를 관찰해 기록
+</code></pre>
+<p>실제 객체는 다음처럼 이어졌다.</p>
+<pre><code class="language-text">InferenceService/mock-model-kserve
+├─ Deployment/mock-model-kserve-predictor
+│  └─ ReplicaSet/mock-model-kserve-predictor-6dd6cb987
+│     └─ Pod/mock-model-kserve-predictor-6dd6cb987-g49hv
+│
+└─ Service/mock-model-kserve-predictor
+   └─ EndpointSlice
+      └─ 10.244.0.9:8080
+</code></pre>
+<p>OwnerReference는 <code>InferenceService → Deployment → ReplicaSet → Pod</code>로 이어졌다. Service는 InferenceService가 소유하지만 Pod는 소유하지 않고 <code>app=isvc.mock-model-kserve-predictor</code> Selector로 Ready Pod를 선택했다.</p>
+
+</section>
+<section id="ready-gpu" class="markdown-section">
+<h2>Ready 상태는 GPU 사용을 의미하지 않는다</h2>
+<p>이 Pod에는 GPU가 없다. 사용자가 <code>nvidia.com/gpu</code>를 요청하지 않았고 KServe 기본 Resource에도 GPU가 없기 때문이다.</p>
+<pre><code class="language-text">CPU·Memory
+  → KServe ConfigMap에 기본값 존재
+  → Defaulter가 추가
+
+nvidia.com/gpu
+  → 기본값 없음
+  → 사용자가 직접 선언해야 함
+</code></pre>
+<p>KServe는 Image나 모델 이름을 보고 GPU 필요 여부를 추측하지 않는다. <code>Ready=True</code>와 <code>modelStatus: Loaded</code>는 Mock Server가 Readiness에 성공하고 KServe가 하위 상태를 종합한 결과일 뿐, CUDA 연산이나 GPU 할당을 증명하지 않는다.</p>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<pre><code class="language-text">1. 사용자가 InferenceService 생성 요청
+2. API Server가 InferenceService Mutating Webhook 호출
+3. API Server가 InferenceService Validating Webhook 호출
+4. API Server가 최종 InferenceService를 etcd에 저장
+5. KServe InferenceService Controller가 저장된 객체를 Watch
+6. Controller가 Service와 Deployment 생성
+7. Deployment Controller가 ReplicaSet 생성
+8. ReplicaSet Controller가 Pod 생성 요청
+9. API Server가 Pod Label과 objectSelector 비교
+10. API Server가 /mutate-pods 호출
+11. KServe Pod Mutator가 수정 Patch 응답
+12. API Server가 최종 Pod를 etcd에 저장
+13. Scheduler가 Node 선택
+14. kubelet이 Container 실행
+</code></pre>
+<p><code>InferenceService</code>에 <code>nvidia.com/gpu</code>를 명시했을 때 그 요청이 Deployment와 Pod를 거쳐 GPU Node 배치로 이어지는 과정은 <a href="kserve-gpu-request-multigpu-replica-rollout-lab.html">KServe의 GPU 요청은 Multi-GPU Pod와 여러 Replica로 어떻게 이어질까?</a>에 정리되어 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
