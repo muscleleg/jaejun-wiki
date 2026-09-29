@@ -1,0 +1,293 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.md. Do not edit directly. source-sha256:0c8315d927e35ce71089b4ca74e31b9cf5ed15c5a41bd26bf41abf1751b1faab -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="InferenceService의 선언과 실제 Serving 상태를 KServe·Deployment·ReplicaSet·HPA Controller가 어떻게 수렴시키며, Controller 중지 시 상태가 왜 오래될 수 있는지 설명한다.">
+  <meta name="source-sha256" content="0c8315d927e35ce71089b4ca74e31b9cf5ed15c5a41bd26bf41abf1751b1faab">
+  <title>KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?">
+  <meta property="og:description" content="InferenceService의 선언과 실제 Serving 상태를 KServe·Deployment·ReplicaSet·HPA Controller가 어떻게 수렴시키며, Controller 중지 시 상태가 왜 오래될 수 있는지 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html","name":"KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?","description":"InferenceService의 선언과 실제 Serving 상태를 KServe·Deployment·ReplicaSet·HPA Controller가 어떻게 수렴시키며, Controller 중지 시 상태가 왜 오래될 수 있는지 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html"},"headline":"KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-controller-reconcile-recovery/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html"},{"@type":"ListItem","position":6,"name":"KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html">KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>KServe의 선언 상태는 Controller Reconcile로 어떻게 복구될까?</h1>
+      <p class="lead">InferenceService의 선언과 실제 Serving 상태를 KServe·Deployment·ReplicaSet·HPA Controller가 어떻게 수렴시키며, Controller 중지 시 상태가 왜 오래될 수 있는지 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9c1f53384f57">배포가 성공했다는 사실만으로 지속적인 운영을 설명할 수는 없다</a>
+        <a href="#controller">Controller가 멈추면 선언과 실제 상태의 차이는 사라지지 않는다</a>
+        <a href="#controller-2">하나의 Controller가 모든 하위 객체를 직접 복구하지는 않는다</a>
+        <a href="#watch-reconcile">Watch는 변화를 발견하고 Reconcile은 원하는 결과를 계산한다</a>
+        <a href="#pod-container">Pod 재생성과 Container 재시작은 서로 다른 상태 변화다</a>
+        <a href="#desired-current-ready">Desired·Current·Ready는 같은 숫자가 아니다</a>
+        <a href="#http">관리 흐름이 복구됐다는 사실과 HTTP 요청 성공은 별도로 확인해야 한다</a>
+        <a href="#pod-controller">Pod 삭제는 Controller 책임과 요청 연속성을 함께 확인하는 가장 작은 장애 실험이다</a>
+        <a href="#kubernetes">복구 실험이 증명하는 범위는 Kubernetes 상태 관리다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>KServe의 <code>InferenceService</code>를 생성하면 Admission Webhook이 선언을 보정·검증하고, KServe Controller가 <code>Deployment</code>와 <code>Service</code>를 만든다. 이어서 Kubernetes Controller들이 <code>ReplicaSet</code>과 <code>Pod</code>를 만들고, Ready 상태가 된 Pod가 Service Endpoint로 연결되면 Model Server가 HTTP 요청에 응답한다.</p>
+<pre><code class="language-text">InferenceService
+  → KServe Controller
+  → Deployment·Service
+  → ReplicaSet
+  → Predictor Pod
+  → Ready Endpoint
+  → HTTP 응답
+</code></pre>
+<p>이 흐름은 최초 배포가 어떻게 만들어지는지는 설명하지만, 실행 중인 Pod가 사라지거나 준비 상태를 잃었을 때 왜 다시 복구되는지는 충분히 설명하지 못한다. Kubernetes에서 객체를 생성하는 일은 한 번의 절차로 끝나지 않는다. Controller가 API Server의 현재 상태를 계속 관찰하며 선언된 상태와 실제 상태의 차이를 줄이는 <strong>Reconcile</strong>이 실행 상태를 유지한다.</p>
+<p>이 문서는 InferenceService부터 Pod까지 이어지는 여러 Controller의 책임을 구분하고, Pod 삭제 후 Replica·Endpoint·HTTP 상태가 어떻게 복구되는지를 설명한다. 배포·GPU 요청·Service 통신의 기준선은 <a href="../kubernetes-serving-kserve-fake-gpu/README.html">KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?</a>에서 별도로 다룬다.</p>
+</div>
+        <section id="section-9c1f53384f57" class="markdown-section">
+<h2>배포가 성공했다는 사실만으로 지속적인 운영을 설명할 수는 없다</h2>
+<p>Model Server가 한 번 실행됐다는 사실과 Kubernetes가 원하는 서버 상태를 계속 유지한다는 사실은 다르다. 실행 중인 Pod는 Node 장애, Process 오류, 사용자의 삭제, Rollout 같은 이유로 언제든 사라질 수 있다.</p>
+<p>예를 들어 Predictor Replica를 두 개 유지하도록 선언했다고 하자.</p>
+<pre><code class="language-text">원하는 상태
+  → Predictor Pod 2개
+
+현재 상태
+  → Ready Pod 1개
+</code></pre>
+<p>이 차이를 방치하면 서비스 용량이 줄어든 상태가 계속된다. Controller는 원하는 상태와 현재 상태를 비교하고 부족한 객체를 만들거나 불필요한 객체를 정리해 다시 선언에 가까운 상태로 수렴시킨다.</p>
+<pre><code class="language-text">원하는 상태 읽기
+  → 현재 상태 관찰
+  → 차이 계산
+  → 필요한 생성·수정·삭제 수행
+  → 변경된 상태를 다시 관찰
+</code></pre>
+<p>이 반복이 Reconcile이다. 따라서 Reconcile은 “Pod가 삭제되면 실행되는 특별한 복구 명령”이라기보다, 평상시에도 계속 수행되는 상태 수렴 과정에 가깝다.</p>
+
+</section>
+<section id="controller" class="markdown-section">
+<h2>Controller가 멈추면 선언과 실제 상태의 차이는 사라지지 않는다</h2>
+<ul>
+<li><a href="kserve-pod-deployment-controller-recovery-lab.html">Pod·Deployment·Controller가 사라지면 누가 KServe를 복구할까?</a></li>
+</ul>
+<p><code>InferenceService</code>는 원하는 Serving 상태를 저장하는 객체이지, 스스로 Deployment를 만드는 실행 Process가 아니다. OwnerReference도 소유 관계와 Garbage Collection의 기준을 표현할 뿐, 삭제된 객체를 재생성하지 않는다.</p>
+<pre><code class="language-text">InferenceService와 OwnerReference 존재
+  +
+KServe Controller 실행 중
+  → 누락된 Deployment 복구
+
+InferenceService와 OwnerReference 존재
+  +
+KServe Controller 중지
+  → 누락된 Deployment가 복구되지 않음
+</code></pre>
+<p>실습에서는 KServe Controller를 중지한 뒤 Predictor Deployment를 삭제하자 InferenceService와 HPA만 남고 Deployment·ReplicaSet·Pod는 복구되지 않았다. Controller를 다시 실행하자 기존 InferenceService를 읽어 새 Deployment가 생성됐고, Deployment Controller·ReplicaSet Controller·HPA Controller가 각자의 상태를 차례로 맞췄다.</p>
+<p>이때 Predictor Pod가 모두 사라졌는데도 InferenceService에는 잠시 <code>Ready=True</code>가 남아 있었다. Kubernetes의 <code>status</code>는 조회 순간마다 실시간 계산되는 값이 아니라 담당 Controller가 마지막으로 관찰해 기록한 값이다. Controller가 멈추면 오래된 상태가 남을 수 있으므로 상위 Condition 하나만으로 실제 Serving 상태를 단정해서는 안 된다.</p>
+
+</section>
+<section id="controller-2" class="markdown-section">
+<h2>하나의 Controller가 모든 하위 객체를 직접 복구하지는 않는다</h2>
+<p>InferenceService 아래에 여러 객체가 만들어지더라도 KServe Controller 하나가 Deployment·ReplicaSet·Pod를 모두 직접 생성하고 유지하는 것은 아니다. 각 Controller는 자신이 담당하는 객체와 한 단계 아래의 상태를 관리한다.</p>
+<pre><code class="language-text">InferenceService
+└─ KServe InferenceService Controller
+   ├─ Predictor Deployment 유지
+   ├─ Predictor Service 유지
+   └─ 하위 상태를 InferenceService Status에 반영
+
+Deployment
+└─ Deployment Controller
+   └─ 현재 Revision의 ReplicaSet 관리
+
+ReplicaSet
+└─ ReplicaSet Controller
+   └─ 원하는 수의 Pod 관리
+
+Pod
+├─ Scheduler가 실행할 Node 선택
+└─ 선택된 Node의 kubelet이 Container 실행·상태 보고
+</code></pre>
+<p>이 책임 경계 때문에 삭제한 객체의 종류에 따라 직접 복구하는 주체가 달라진다.</p>
+<pre><code class="language-text">Predictor Pod 삭제
+  → ReplicaSet Controller가 부족한 Pod를 새로 생성
+
+현재 ReplicaSet 삭제
+  → Deployment Controller가 필요한 ReplicaSet 상태를 복구
+
+KServe가 관리하는 Deployment 삭제
+  → KServe Controller가 InferenceService 선언을 기준으로 다시 생성
+</code></pre>
+<p>실제 소유 관계는 이름만 보고 추측하지 않고 <code>ownerReferences</code>, Label, Selector와 Controller 상태를 함께 확인해야 한다. 상위 객체는 선언의 출발점이고, 직접적인 생성과 복구는 각 소유 계층의 Controller가 나누어 담당한다.</p>
+
+</section>
+<section id="watch-reconcile" class="markdown-section">
+<h2>Watch는 변화를 발견하고 Reconcile은 원하는 결과를 계산한다</h2>
+<p>Controller가 모든 객체를 매 순간 전체 조회하는 것으로만 이해하면 동작을 지나치게 단순화하게 된다. Kubernetes Controller는 보통 API 객체의 변화를 Watch하고, 처리해야 할 객체의 식별자를 작업 대상으로 넣은 뒤 Reconcile에서 최신 상태를 다시 읽어 필요한 동작을 계산한다.</p>
+<pre><code class="language-text">API 객체 생성·수정·삭제
+  → Watch를 통해 변화 감지
+  → 처리할 객체 식별
+  → 최신 선언 상태와 실제 상태 조회
+  → Reconcile
+  → API 객체 생성·수정·상태 갱신
+</code></pre>
+<p>Watch Event 자체가 최종 복구 동작을 모두 담고 있는 것은 아니다. Event는 다시 판단해야 할 대상을 알려주고, Reconcile은 현재 상태를 기준으로 실제 조치를 결정한다. 같은 Reconcile이 반복돼도 최종 상태가 불필요하게 계속 바뀌지 않도록 작성되는 것이 중요하다.</p>
+
+</section>
+<section id="pod-container" class="markdown-section">
+<h2>Pod 재생성과 Container 재시작은 서로 다른 상태 변화다</h2>
+<p>Pod가 삭제된 뒤 새 Pod가 만들어지는 현상을 기존 Pod의 재시작으로 표현하면 상태를 잘못 읽게 된다.</p>
+<pre><code class="language-text">Container 재시작
+  → 같은 Pod UID 안에서 Container가 다시 실행
+  → restartCount 증가
+
+Pod 재생성
+  → 이전 Pod 삭제
+  → 새로운 이름·UID를 가진 Pod 생성
+  → 새 Pod의 restartCount는 보통 0부터 시작
+</code></pre>
+<p>ReplicaSet Controller가 대체 Pod를 만들면 Kubernetes에는 새로운 Pod 객체가 생긴다. 따라서 복구 여부를 확인하려면 Pod 이름만이 아니라 UID·생성 시간·OwnerReference를 비교해야 한다. <code>restartCount</code>만으로는 Pod 교체를 발견할 수 없다.</p>
+
+</section>
+<section id="desired-current-ready" class="markdown-section">
+<h2>Desired·Current·Ready는 같은 숫자가 아니다</h2>
+<p>복구 과정에서는 원하는 Replica 수, 생성된 Replica 수, 실제 요청을 받을 수 있는 Replica 수가 잠시 달라질 수 있다.</p>
+<pre><code class="language-text">Desired
+  → 유지하려는 Replica 수
+
+Current
+  → 현재 존재하거나 관리 중인 Replica 수
+
+Ready
+  → Readiness를 통과해 준비된 Replica 수
+</code></pre>
+<p>Replica 두 개 중 하나를 삭제하면 상태는 다음과 같이 움직일 수 있다.</p>
+<pre><code class="language-text">삭제 전
+Desired=2, Current=2, Ready=2
+
+삭제 직후
+Desired=2, Current=1~2, Ready=1
+
+대체 Pod 생성·시작 중
+Desired=2, Current=2, Ready=1
+
+Readiness 통과 뒤
+Desired=2, Current=2, Ready=2
+</code></pre>
+<p>정확한 필드명과 집계 시점은 객체와 Controller 구현에 따라 다를 수 있다. 핵심은 숫자 하나만 보는 것이 아니라, 선언 수량·객체 생성·요청 준비 상태를 서로 다른 단계로 읽는 것이다.</p>
+
+</section>
+<section id="http" class="markdown-section">
+<h2>관리 흐름이 복구됐다는 사실과 HTTP 요청 성공은 별도로 확인해야 한다</h2>
+<p>Controller가 다루는 <strong>관리 흐름</strong>과 Client 요청이 이동하는 <strong>데이터 흐름</strong>은 서로 연결돼 있지만 같은 흐름은 아니다.</p>
+<pre><code class="language-text">관리 흐름
+InferenceService
+  → KServe Controller
+  → Deployment
+  → ReplicaSet
+  → Pod 생성·상태 집계
+
+HTTP 데이터 흐름
+Client
+  → Service
+  → Ready Endpoint
+  → Predictor Pod
+  → Model Server 응답
+</code></pre>
+<p>Pod 두 개 중 하나가 사라져도 남은 Ready Endpoint가 요청을 처리하면 HTTP 응답은 계속 성공할 수 있다. 반대로 Desired·Current 수량이 다시 같아졌더라도 새 Pod가 아직 Ready가 아니거나 Service 설정이 잘못됐다면 HTTP 요청은 실패할 수 있다.</p>
+<pre><code class="language-text">Reconcile 진행 중 + Ready Endpoint 존재
+  → 관리 상태는 변하는 중
+  → HTTP 요청은 성공할 수 있음
+
+Replica 수 복구 + Readiness 실패
+  → 객체 수는 정상
+  → HTTP 요청 대상은 부족하거나 없을 수 있음
+</code></pre>
+<p>따라서 복구 검증은 Kubernetes 객체 상태와 실제 HTTP 응답을 동시에 관찰해야 한다. InferenceService <code>Ready=True</code> 한 항목이나 Pod <code>Running</code> 한 항목만으로 전체 Serving 복구를 단정해서는 안 된다.</p>
+
+</section>
+<section id="pod-controller" class="markdown-section">
+<h2>Pod 삭제는 Controller 책임과 요청 연속성을 함께 확인하는 가장 작은 장애 실험이다</h2>
+<p>복구를 검증하려면 먼저 정상 상태의 기준선을 남겨야 한다.</p>
+<pre><code class="language-text">InferenceService Status
+Deployment Desired·Current·Ready
+ReplicaSet과 Pod OwnerReference
+Pod 이름·UID·restartCount
+EndpointSlice의 주소와 ready 조건
+실제 HTTP 응답
+</code></pre>
+<p>그다음 Predictor Pod 하나를 삭제하고 다음 변화가 이어지는지 관찰한다.</p>
+<pre><code class="language-text">1. 기존 Pod가 Terminating 또는 삭제 상태로 전환
+2. Ready Endpoint에서 기존 Pod 제외
+3. ReplicaSet Controller가 새 Pod 생성
+4. Scheduler가 Node 선택
+5. kubelet이 Container 실행
+6. Readiness 성공
+7. 새 Pod가 Endpoint에 포함
+8. Desired·Current·Ready가 다시 수렴
+</code></pre>
+<p>이 과정에서 Event는 객체 생성·배치·Probe 실패 같은 상태 전환을, Controller Log는 Reconcile 판단과 오류를, Metric은 시간에 따른 Replica·Ready·요청 상태를 보여 줄 수 있다. 어떤 관찰 수단이 실제 환경에서 제공되는지 확인하고, 하나의 출력만으로 전체 원인을 추측하지 않는다.</p>
+
+</section>
+<section id="kubernetes" class="markdown-section">
+<h2>복구 실험이 증명하는 범위는 Kubernetes 상태 관리다</h2>
+<p>Fake GPU와 Mock Model Server를 사용해도 다음 내용은 실제 Kubernetes 객체와 Controller 흐름으로 검증할 수 있다.</p>
+<pre><code class="language-text">검증할 수 있는 것
+  → 객체 소유 관계
+  → Controller별 생성·복구 책임
+  → Replica와 Ready 상태의 변화
+  → Endpoint 제외·재등록
+  → 복구 중 HTTP 요청 결과
+</code></pre>
+<p>그러나 이 결과만으로 실제 모델 가중치 재로딩 시간, CUDA Context 복구, GPU 메모리 해제, NCCL Group 재구성 같은 실제 GPU Runtime 동작을 증명할 수는 없다. 이 문서의 복구 범위는 Kubernetes Control Plane과 Mock Serving Data Plane이며, 실제 GPU Runtime 복구는 별도의 환경에서 다시 검증해야 한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kserve-pod-deployment-controller-recovery-lab.html">Pod·Deployment·Controller가 사라지면 누가 KServe를 복구할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

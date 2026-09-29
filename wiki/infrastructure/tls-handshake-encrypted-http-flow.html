@@ -1,0 +1,555 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/tls-handshake-encrypted-http-flow.md. Do not edit directly. source-sha256:c4a491f7ec9d91f6b03f3f633f6b05b9833b31a8c192ae2f3d2338acd6e7bcd2 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TLS 1.3에서 Group 협상과 ECDHE 공통 비밀값 생성, 인증서 체인과 CertificateVerify 검증, 방향별 키 파생을 거쳐 암호화된 HTTP 요청과 응답으로 이어지는 흐름을 설명한다.">
+  <meta name="source-sha256" content="c4a491f7ec9d91f6b03f3f633f6b05b9833b31a8c192ae2f3d2338acd6e7bcd2">
+  <title>TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?">
+  <meta property="og:description" content="TLS 1.3에서 Group 협상과 ECDHE 공통 비밀값 생성, 인증서 체인과 CertificateVerify 검증, 방향별 키 파생을 거쳐 암호화된 HTTP 요청과 응답으로 이어지는 흐름을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html","name":"TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?","description":"TLS 1.3에서 Group 협상과 ECDHE 공통 비밀값 생성, 인증서 체인과 CertificateVerify 검증, 방향별 키 파생을 거쳐 암호화된 HTTP 요청과 응답으로 이어지는 흐름을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html"},"headline":"TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-network-transport-web","name":"TCP·HTTP·TLS","identifier":"topics-network-transport-web"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"네트워크 링크·IP·라우팅","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_link_ip_routing.html"},{"@type":"ListItem","position":5,"name":"네트워크 TCP·HTTP·TLS","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_tcp_http_tls.html"},{"@type":"ListItem","position":6,"name":"TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_link_ip_routing.html">네트워크 링크·IP·라우팅</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_tcp_http_tls.html">네트워크 TCP·HTTP·TLS</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?</h1>
+      <p class="lead">TLS 1.3에서 Group 협상과 ECDHE 공통 비밀값 생성, 인증서 체인과 CertificateVerify 검증, 방향별 키 파생을 거쳐 암호화된 HTTP 요청과 응답으로 이어지는 흐름을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-2f86a58d438c">접속하기 전부터 가지고 있는 것</a>
+        <a href="#section-1">1. 클라이언트가 지원 가능한 통신 방법을 제시한다</a>
+        <a href="#section-2-group">2. 서버가 사용할 Group 하나를 선택한다</a>
+        <a href="#section-3">3. 양쪽이 같은 공통 비밀값을 계산한다</a>
+        <a href="#section-4-handshake">4. 공통 비밀값으로 Handshake 암호화 키를 만든다</a>
+        <a href="#section-5">5. 서버가 인증서 체인을 보낸다</a>
+        <a href="#section-6">6. 클라이언트가 인증서 체인을 검증한다</a>
+        <a href="#section-7-server-private-key">7. 서버가 Server Private Key를 실제로 가지고 있음을 증명한다</a>
+        <a href="#section-8-finished-handshake">8. Finished 메시지로 Handshake 전체를 확인한다</a>
+        <a href="#section-9-http-key">9. 공통 비밀값으로 HTTP 요청용·응답용 Key를 만든다</a>
+        <a href="#section-10-key">10. 요청과 응답에서 서로 다른 Key를 사용한다</a>
+        <a href="#section-11-http">11. 암호화된 HTTP 요청과 응답을 주고받는다</a>
+        <a href="#section-59166e75325a">전체 흐름</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>HTTPS는 처음부터 HTTP 요청을 암호화해 보내는 것이 아니다. 먼저 TLS Handshake를 통해 서버의 신원을 확인하고 양쪽이 공통 비밀값을 만든다. 그 비밀값으로 실제 요청·응답용 암호화 키를 만든 뒤 HTTP 통신을 시작한다.</p>
+<pre><code class="language-text">TLS Handshake
+  → 통신 규칙 협의
+  → 서버 신원 검증
+  → 공통 비밀값 생성
+  → 방향별 암호화 키 생성
+
+HTTPS 통신
+  → 암호화된 HTTP 요청
+  → 암호화된 HTTP 응답
+</code></pre>
+</div>
+        <section id="section-2f86a58d438c" class="markdown-section">
+<h2>접속하기 전부터 가지고 있는 것</h2>
+<p>클라이언트와 서버는 통신 전에 모든 값을 공유하고 있는 것은 아니다. 각자 필요한 정보만 가지고 있다.</p>
+<pre><code class="language-text">클라이언트
+├─ 신뢰하는 Root CA 인증서
+│  └─ Root CA Public Key 포함
+└─ 자신이 지원하는 TLS Version·암호 알고리즘·Key Exchange Group 목록
+
+서버
+├─ Server Certificate
+│  └─ Server Public Key 포함
+├─ Intermediate CA Certificate
+├─ Server Private Key
+└─ 자신이 지원하는 TLS 설정 목록
+</code></pre>
+<p>Root CA 인증서는 일반적으로 운영체제나 브라우저의 신뢰 저장소에 미리 설치되어 있다. 클라이언트가 서버에 처음 접속하면서 Root CA 인증서를 받는 것은 아니다.</p>
+<p>서버의 Private Key는 서버 밖으로 전달되지 않는다.</p>
+
+</section>
+<section id="section-1" class="markdown-section">
+<h2>1. 클라이언트가 지원 가능한 통신 방법을 제시한다</h2>
+<p>클라이언트가 서버에 TLS 연결을 시작하면서 <code>ClientHello</code>를 보낸다.</p>
+<pre><code class="language-text">ClientHello
+├─ 지원하는 TLS Version
+├─ 지원하는 암호 알고리즘
+├─ 지원하는 Key Exchange Group
+└─ 선택 후보 Group으로 만든 Client Key Share
+</code></pre>
+<p>예를 들면 클라이언트가 다음 Group을 지원할 수 있다.</p>
+<pre><code class="language-text">supported_groups
+├─ X25519
+├─ secp256r1
+└─ secp384r1
+</code></pre>
+<p>Group은 ECDHE 계산에 사용할 수학 규칙과 공통 기준점 <code>G</code>를 정의한다. 따라서 클라이언트와 서버가 통신 전부터 우연히 같은 <code>G</code>를 선택하고 있는 것이 아니다.</p>
+<pre><code class="language-text">Named Group 선택
+  → 사용할 수학 규칙 결정
+  → 그 Group에 정의된 공통 기준점 G 결정
+</code></pre>
+<p>클라이언트는 보통 선호하는 Group에 대해 자신의 일회용 비밀값 <code>X</code>를 만든다.</p>
+<pre><code class="language-text">클라이언트만 아는 일회용 비밀값
+→ X
+
+Group의 공통 기준점
+→ G
+
+외부로 보낼 Client Key Share
+→ GX
+</code></pre>
+<p>여기서 <code>GX</code>는 이해를 위한 개념 표기다. 실제로 <code>G</code>와 <code>X</code>를 문자열처럼 붙이는 것이 아니라 타원곡선 연산을 수행한 결과다.</p>
+<p>클라이언트는 <code>X</code>를 보내지 않고 계산 결과인 <code>GX</code>만 <code>ClientHello</code>에 넣어 보낸다.</p>
+
+</section>
+<section id="section-2-group" class="markdown-section">
+<h2>2. 서버가 사용할 Group 하나를 선택한다</h2>
+<p>서버는 ClientHello의 목록과 자신이 지원하는 목록을 비교한다.</p>
+<pre><code class="language-text">클라이언트 지원
+→ X25519, secp256r1, secp384r1
+
+서버 지원
+→ X25519, secp256r1
+
+공통 후보
+→ X25519, secp256r1
+</code></pre>
+<p>공통 후보가 여러 개여도 모두 사용하는 것은 아니다. 서버가 자신의 정책과 우선순위에 따라 이번 연결에서 사용할 Group 하나를 선택한다.</p>
+<pre><code class="language-text">서버의 최종 선택
+→ X25519
+</code></pre>
+<p>서버는 선택한 Group에 맞춰 자신만의 일회용 비밀값 <code>Y</code>를 만든다.</p>
+<pre><code class="language-text">서버만 아는 일회용 비밀값
+→ Y
+
+선택된 Group의 공통 기준점
+→ G
+
+외부로 보낼 Server Key Share
+→ GY
+</code></pre>
+<p>서버는 <code>ServerHello</code>로 다음 정보를 보낸다.</p>
+<pre><code class="language-text">ServerHello
+├─ 선택한 TLS Version
+├─ 선택한 암호 알고리즘
+├─ 선택한 Group: X25519
+└─ Server Key Share: GY
+</code></pre>
+<p>클라이언트는 서버가 자신이 제안했던 후보 중 하나를 선택했는지 확인한다. 정상적인 선택이라면 클라이언트와 서버는 이제 동일한 Group과 <code>G</code>를 사용한다.</p>
+<pre><code class="language-text">ClientHello
+→ 사용 가능한 후보 제시
+
+ServerHello
+→ 그 후보 중 하나를 최종 선택
+
+이후 연결
+→ 선택된 Group 하나만 사용
+</code></pre>
+<p>공통으로 지원하는 Group이 없다면 TLS Handshake는 실패한다.</p>
+<p>공통 Group은 있지만 ClientHello에 그 Group의 적절한 Key Share가 없다면, 서버는 <code>HelloRetryRequest</code>를 통해 해당 Group의 Key Share를 다시 보내 달라고 요청할 수도 있다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>3. 양쪽이 같은 공통 비밀값을 계산한다</h2>
+<p>이제 양쪽이 알고 있는 값은 다음과 같다.</p>
+<pre><code class="language-text">클라이언트
+├─ 자신의 비밀값 X
+└─ 서버가 보낸 GY
+
+서버
+├─ 자신의 비밀값 Y
+└─ 클라이언트가 보낸 GX
+</code></pre>
+<p>클라이언트는 서버가 보낸 <code>GY</code>에 자신의 <code>X</code>를 적용한다.</p>
+<pre><code class="language-text">클라이언트
+→ GY에 X 적용
+→ GYX
+</code></pre>
+<p>서버는 클라이언트가 보낸 <code>GX</code>에 자신의 <code>Y</code>를 적용한다.</p>
+<pre><code class="language-text">서버
+→ GX에 Y 적용
+→ GXY
+</code></pre>
+<p>ECDHE의 수학적 성질에 의해 두 결과는 같다.</p>
+<pre><code class="language-text">GYX = GXY
+</code></pre>
+<p>따라서 양쪽은 서로의 비밀값을 전송하지 않고도 같은 공통 비밀값을 얻는다.</p>
+<pre><code class="language-text">클라이언트가 계산한 공통 비밀값
+= GXY
+
+서버가 계산한 공통 비밀값
+= GXY
+</code></pre>
+<p><code>X</code>와 <code>Y</code>는 네트워크에 전달되지 않는다. 공격자가 <code>GX</code>와 <code>GY</code>를 보더라도 <code>X</code>, <code>Y</code> 또는 공통 비밀값을 현실적인 시간 안에 역산하기 어렵다는 성질을 이용한다.</p>
+
+</section>
+<section id="section-4-handshake" class="markdown-section">
+<h2>4. 공통 비밀값으로 Handshake 암호화 키를 만든다</h2>
+<p>TLS는 ECDHE로 얻은 공통 비밀값을 그대로 암호화 키로 사용하지 않는다. 양쪽은 공통 비밀값과 지금까지 주고받은 Handshake 내용의 Hash를 HKDF라는 키 생성 절차에 넣는다.</p>
+<pre><code class="language-text">ECDHE 공통 비밀값
+        +
+Handshake 내용의 Hash
+        ↓
+TLS 1.3 Key Schedule
+        ↓
+Handshake 통신용 Key 생성
+</code></pre>
+<p>클라이언트와 서버는 같은 입력과 같은 TLS 규칙으로 계산하므로 같은 Handshake Key를 만들어 낼 수 있다.</p>
+<p>이 시점부터 TLS 1.3의 인증서 관련 메시지 등은 Handshake Key로 보호될 수 있다. 다만 아직 서버 인증이 완료된 것은 아니다. 지금까지는 양쪽이 같은 비밀값을 만들었다는 단계다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>5. 서버가 인증서 체인을 보낸다</h2>
+<p>서버는 클라이언트가 자신의 신원을 확인할 수 있도록 인증서 체인을 보낸다.</p>
+<p>일반적으로 전송 순서는 다음과 같다.</p>
+<pre><code class="language-text">서버가 클라이언트에게 전송
+1. Server Certificate
+2. Intermediate CA Certificate
+</code></pre>
+<p>Root CA Certificate는 보통 보내지 않는다. 클라이언트가 이미 신뢰 저장소에 가지고 있기 때문이다.</p>
+<p>Server Certificate에는 다음과 같은 정보가 들어 있다.</p>
+<pre><code class="language-text">Server Certificate
+├─ 서버 이름
+├─ Server Public Key
+├─ 유효 기간
+├─ 발급한 CA 정보
+└─ Intermediate CA의 서명
+</code></pre>
+<p>Intermediate CA Certificate에는 다음과 같은 정보가 들어 있다.</p>
+<pre><code class="language-text">Intermediate CA Certificate
+├─ Intermediate CA 이름
+├─ Intermediate CA Public Key
+├─ 유효 기간
+├─ 발급한 Root CA 정보
+└─ Root CA의 서명
+</code></pre>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>6. 클라이언트가 인증서 체인을 검증한다</h2>
+<p>서버가 인증서를 보내는 순서와 클라이언트가 신뢰 관계를 검증하는 논리적 방향은 다르다.</p>
+<p>클라이언트는 자신이 이미 신뢰하는 Root CA에서 시작한다.</p>
+<pre><code class="language-text">클라이언트가 이미 가진 Root CA Public Key
+        ↓
+Intermediate CA Certificate의 서명 검증
+        ↓
+신뢰할 수 있는 Intermediate CA Public Key 확보
+        ↓
+Server Certificate의 서명 검증
+        ↓
+신뢰할 수 있는 Server Public Key 확보
+</code></pre>
+<p>서명은 인증서 내용과 결합되어 있다.</p>
+<pre><code class="language-text">CA가 인증서를 발급할 때
+
+인증서 내용
+  → Hash 계산
+  → CA Private Key로 Hash에 서명
+  → 인증서에 서명 포함
+</code></pre>
+<p>클라이언트는 다음과 같이 검증한다.</p>
+<pre><code class="language-text">받은 인증서 내용으로 Hash 다시 계산
+        +
+CA Public Key로 서명 검증
+        ↓
+둘이 일치하면 인증서 내용이 변조되지 않았다고 판단
+</code></pre>
+<p>공격자가 서버 이름이나 Public Key를 바꾸면 인증서 내용의 Hash가 달라져 서명 검증이 실패한다.</p>
+<p>클라이언트는 서명만 보는 것이 아니라 다음 항목도 확인한다.</p>
+<pre><code class="language-text">검증 항목
+├─ 인증서 체인이 신뢰하는 Root CA로 이어지는가?
+├─ 접속한 서버 이름과 인증서의 이름이 일치하는가?
+├─ 인증서가 유효 기간 안에 있는가?
+└─ 인증서 용도가 서버 인증에 적합한가?
+</code></pre>
+
+</section>
+<section id="section-7-server-private-key" class="markdown-section">
+<h2>7. 서버가 Server Private Key를 실제로 가지고 있음을 증명한다</h2>
+<p>공격자가 정상 서버의 인증서를 복사하는 것만으로는 충분하지 않다. 인증서에는 Server Public Key가 들어 있지만, 실제 서버는 그와 짝이 맞는 Server Private Key를 가지고 있어야 한다.</p>
+<p>서버는 <code>CertificateVerify</code> 메시지를 만든다.</p>
+<pre><code class="language-text">지금까지 주고받은 Handshake 내용
+├─ ClientHello
+├─ 선택된 Group
+├─ GX
+├─ ServerHello
+├─ GY
+└─ 기타 Handshake 정보
+
+        ↓ Hash 계산
+
+Server Private Key로 서명
+        ↓
+
+CertificateVerify
+</code></pre>
+<p>클라이언트는 검증이 끝난 Server Certificate의 Public Key로 이 서명을 확인한다.</p>
+<pre><code class="language-text">Server Certificate 속 Server Public Key
+        +
+받은 CertificateVerify
+        +
+클라이언트가 직접 계산한 Handshake Hash
+        ↓
+서명 검증
+</code></pre>
+<p>성공하면 클라이언트는 다음 두 가지를 연결해서 확인한 것이다.</p>
+<pre><code class="language-text">이 인증서는 신뢰할 수 있는 CA가 발급했다
++
+현재 통신 중인 서버가 인증서의 Private Key를 실제로 가지고 있다
+</code></pre>
+<p>중간 공격자가 정상 인증서를 복사해도 Server Private Key가 없으므로 올바른 <code>CertificateVerify</code>를 만들 수 없다.</p>
+<p>또한 공격자가 중간에서 <code>GX</code>, <code>GY</code> 또는 선택된 Group을 바꾸면 양쪽의 Handshake Hash가 달라져 검증에 실패한다.</p>
+
+</section>
+<section id="section-8-finished-handshake" class="markdown-section">
+<h2>8. Finished 메시지로 Handshake 전체를 확인한다</h2>
+<p>서버와 클라이언트는 <code>Finished</code> 메시지를 교환한다. 이 메시지는 지금까지의 Handshake 내용과 양쪽이 계산한 Key가 서로 일치하는지 확인하는 역할을 한다.</p>
+<pre><code class="language-text">서버
+→ Server Finished 전송
+
+클라이언트
+→ 서버의 Finished 검증
+→ Client Finished 전송
+
+서버
+→ 클라이언트의 Finished 검증
+</code></pre>
+<p>Finished 검증이 성공했다는 것은 다음 조건이 맞는다는 뜻이다.</p>
+<pre><code class="language-text">양쪽이 본 Handshake 내용이 일치함
++
+양쪽이 같은 ECDHE 공통 비밀값을 계산함
++
+Handshake 메시지가 중간에서 변조되지 않음
+</code></pre>
+<p>서버는 클라이언트 내부에서 인증서 검증 코드가 실행된 순간을 직접 볼 수는 없다. 클라이언트가 검증에 실패하면 연결을 중단한다. 검증을 통과한 클라이언트가 정상적인 <code>Finished</code>를 보내면 서버는 Handshake가 성공했다고 판단한다.</p>
+
+</section>
+<section id="section-9-http-key" class="markdown-section">
+<h2>9. 공통 비밀값으로 HTTP 요청용·응답용 Key를 만든다</h2>
+<p>Handshake가 끝나면 양쪽은 공통 비밀값을 실제 HTTP 데이터에 그대로 사용하지 않는다.</p>
+<p>양쪽은 동일한 공통 비밀값과 Handshake Hash를 TLS의 동일한 키 생성 규칙에 넣어 방향별 Key를 만든다.</p>
+<pre><code class="language-text">공통 비밀값 GXY
+        +
+Handshake Hash
+        +
+TLS 1.3 Key 생성 규칙
+        ↓
+├─ 클라이언트 → 서버용 Key A
+└─ 서버 → 클라이언트용 Key B
+</code></pre>
+<p>클라이언트와 서버는 모두 <code>GXY</code>를 가지고 있고 같은 계산 방법을 사용하므로, 별도로 Key A와 Key B를 전송하지 않아도 동일한 결과를 얻는다.</p>
+<pre><code class="language-text">클라이언트가 계산한 Key A
+= 서버가 계산한 Key A
+
+클라이언트가 계산한 Key B
+= 서버가 계산한 Key B
+</code></pre>
+<p>원리를 단순화하면 다음과 같다.</p>
+<pre><code class="language-text">Key A
+= 키 생성 함수(GXY, &quot;클라이언트 → 서버&quot;)
+
+Key B
+= 키 생성 함수(GXY, &quot;서버 → 클라이언트&quot;)
+</code></pre>
+<p>실제 TLS 1.3은 이런 단순 문자열 대신 HKDF와 <code>client application traffic secret</code>, <code>server application traffic secret</code> 등의 정해진 규칙을 사용한다.</p>
+<p>중요한 것은 양쪽이 서로 다른 키를 임의로 만드는 것이 아니라는 점이다.</p>
+<pre><code class="language-text">같은 재료
+→ GXY
+
+같은 계산 방법
+→ TLS 1.3 Key Schedule
+
+같은 방향 구분
+→ 클라이언트 방향 또는 서버 방향
+
+결과
+→ 양쪽에서 동일한 방향별 Key 생성
+</code></pre>
+
+</section>
+<section id="section-10-key" class="markdown-section">
+<h2>10. 요청과 응답에서 서로 다른 Key를 사용한다</h2>
+<p>클라이언트와 서버는 Key A와 Key B를 둘 다 가지고 있다. 다만 방향에 따라 사용하는 방식이 다르다.</p>
+<pre><code class="language-text">HTTP 요청: 클라이언트 → 서버
+
+클라이언트
+→ Key A로 요청 암호화
+
+서버
+→ Key A로 요청 복호화
+</code></pre>
+<pre><code class="language-text">HTTP 응답: 서버 → 클라이언트
+
+서버
+→ Key B로 응답 암호화
+
+클라이언트
+→ Key B로 응답 복호화
+</code></pre>
+<p>하나의 Key를 양방향에서 섞어 쓰지 않고 방향별로 분리하면, 요청과 응답의 암호화 상태 및 메시지 번호를 독립적으로 관리할 수 있다. 또한 한 방향의 Key와 관련된 문제가 반대 방향까지 그대로 번지는 것을 줄일 수 있다.</p>
+<p>즉, <code>GXY</code>가 Key A와 Key B로 갑자기 대체된 것이 아니다.</p>
+<pre><code class="language-text">GXY
+→ 실제 통신 Key를 만드는 공통 재료
+
+Key A
+→ 클라이언트에서 서버로 가는 데이터용
+
+Key B
+→ 서버에서 클라이언트로 가는 데이터용
+</code></pre>
+
+</section>
+<section id="section-11-http" class="markdown-section">
+<h2>11. 암호화된 HTTP 요청과 응답을 주고받는다</h2>
+<p>Handshake가 성공하면 클라이언트가 HTTP 요청을 만든다.</p>
+<pre><code class="language-http">GET /models HTTP/1.1
+Host: example.com
+</code></pre>
+<p>이 요청은 그대로 네트워크에 나가지 않는다.</p>
+<pre><code class="language-text">HTTP 요청
+  → Key A로 암호화
+  → 무결성 검사용 인증 Tag 추가
+  → 서버로 전송
+</code></pre>
+<p>서버는 같은 Key A로 복호화하고 인증 Tag를 검증한다.</p>
+<pre><code class="language-text">암호화된 요청 수신
+  → Key A로 인증 Tag 검증
+  → Key A로 복호화
+  → 원래 HTTP 요청 처리
+</code></pre>
+<p>서버의 HTTP 응답은 Key B로 암호화된다.</p>
+<pre><code class="language-text">HTTP 응답
+  → Key B로 암호화
+  → 인증 Tag 추가
+  → 클라이언트로 전송
+</code></pre>
+<p>클라이언트는 같은 Key B로 검증하고 복호화한다.</p>
+<pre><code class="language-text">암호화된 응답 수신
+  → Key B로 인증 Tag 검증
+  → Key B로 복호화
+  → 원래 HTTP 응답 확인
+</code></pre>
+<p>공격자가 암호문을 중간에서 수정하면 인증 Tag 검증이 실패한다. 따라서 수신자는 데이터가 변조됐음을 확인하고 해당 데이터를 폐기한다.</p>
+
+</section>
+<section id="section-59166e75325a" class="markdown-section">
+<h2>전체 흐름</h2>
+<ul>
+<li><a href="kserve-apiserver-webhook-tls-cert-manager.html">KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?</a></li>
+</ul>
+<pre><code class="language-text">1. 클라이언트
+   → 지원하는 TLS 설정과 Group 후보를 ClientHello로 제시
+   → 자신의 일회용 Key Share GX 전송
+
+2. 서버
+   → 공통 후보 중 Group 하나 선택
+   → ServerHello로 선택 결과와 GY 전송
+
+3. 클라이언트와 서버
+   → 각각 X와 Y를 외부에 보내지 않고
+   → 같은 ECDHE 공통 비밀값 GXY 계산
+
+4. 양쪽
+   → GXY로 Handshake 통신용 Key 생성
+
+5. 서버
+   → Server Certificate와 Intermediate CA Certificate 전송
+   → Server Private Key로 CertificateVerify 생성
+
+6. 클라이언트
+   → Root CA Public Key로 Intermediate Certificate 검증
+   → Intermediate Public Key로 Server Certificate 검증
+   → Server Public Key로 CertificateVerify 검증
+
+7. 양쪽
+   → Finished 메시지로 Handshake 내용과 Key 일치 확인
+
+8. 양쪽
+   → 같은 GXY와 같은 TLS 계산 규칙으로
+   → 요청 방향 Key A와 응답 방향 Key B를 각각 생성
+
+9. 클라이언트
+   → Key A로 HTTP 요청 암호화
+
+10. 서버
+    → Key A로 요청 복호화
+    → Key B로 HTTP 응답 암호화
+
+11. 클라이언트
+    → Key B로 응답 복호화
+</code></pre>
+<p>핵심만 압축하면 다음과 같다.</p>
+<pre><code class="language-text">인증서 체인
+→ 서버가 누구인지 검증
+
+CertificateVerify
+→ 서버가 인증서의 Private Key를 실제로 가졌는지 검증
+
+ECDHE
+→ 네트워크로 비밀값을 보내지 않고 같은 공통 비밀값 GXY 생성
+
+TLS Key Schedule
+→ GXY에서 요청·응답 방향별 Key를 동일하게 생성
+
+대칭키 암호화
+→ HTTP 요청과 응답의 기밀성과 무결성 보호
+</code></pre>
+<p>따라서 HTTPS는 다음 구조다.</p>
+<blockquote>
+<p>TLS Handshake로 서버를 인증하고 공통 비밀값을 만든 뒤, 그 값에서 양쪽이 동일한 방향별 암호화 키를 만들어 HTTP 요청과 응답을 보호하는 통신이다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kserve-apiserver-webhook-tls-cert-manager.html">KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?</a><ul><li><a href="inferenceservice-to-serving-pod-webhook-flow.html">InferenceService는 어떻게 실제 Serving Pod가 될까?</a><ul><li><a href="kubectl-label-selector-kserve-pods.html">`kubectl -l`은 Label Selector 조건이다</a></li>
+<li><a href="kubectl-explain-kubernetes-resource-schema.html">kubectl explain으로 Kubernetes 객체의 사용 가능한 필드 확인하기</a></li>
+<li><a href="inferenceservice-predictor-role.html">InferenceService의 Predictor는 무엇일까?</a></li></ul></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

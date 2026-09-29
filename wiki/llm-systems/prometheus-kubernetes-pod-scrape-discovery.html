@@ -1,0 +1,512 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.md. Do not edit directly. source-sha256:ee9cfb2bb9333cac0d054257ce0a8634581aa34903d907f6879a384ae6427148 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prometheus의 Kubernetes Pod Service Discovery와 relabel_configs가 Annotation을 바탕으로 Scrape 대상과 최종 URL을 만드는 흐름을 설명한다.">
+  <meta name="source-sha256" content="ee9cfb2bb9333cac0d054257ce0a8634581aa34903d907f6879a384ae6427148">
+  <title>Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?">
+  <meta property="og:description" content="Prometheus의 Kubernetes Pod Service Discovery와 relabel_configs가 Annotation을 바탕으로 Scrape 대상과 최종 URL을 만드는 흐름을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html","name":"Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?","description":"Prometheus의 Kubernetes Pod Service Discovery와 relabel_configs가 Annotation을 바탕으로 Scrape 대상과 최종 URL을 만드는 흐름을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html"},"headline":"Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus-kubernetes-pod-scrape-discovery.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Prometheus는 어떻게 vLLM의 Metrics를 수집하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/prometheus_scraping_vllm_metrics.html"},{"@type":"ListItem","position":5,"name":"Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/prometheus_scraping_vllm_metrics.html">Prometheus는 어떻게 vLLM의 Metrics를 수집하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>Prometheus ConfigMap의 Job은 Kubernetes Pod를 어떻게 Scrape 대상으로 만들까?</h1>
+      <p class="lead">Prometheus의 Kubernetes Pod Service Discovery와 relabel_configs가 Annotation을 바탕으로 Scrape 대상과 최종 URL을 만드는 흐름을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#prometheus-configmap">Prometheus ConfigMap에는 수집 설정이 들어 있다</a>
+        <a href="#prometheus-job-kubernetes-job">Prometheus Job은 Kubernetes Job과 다르다</a>
+        <a href="#section-45e1c7737df0">고정된 서버는 주소를 직접 등록한다</a>
+        <a href="#kubernetes-pod">Kubernetes에서는 Pod 주소를 자동으로 발견한다</a>
+        <a href="#kubernetes-prometheus-label">Kubernetes 정보는 Prometheus의 임시 Label로 변환된다</a>
+        <a href="#relabel-configs"><code>relabel_configs</code>는 후보를 필터링하고 주소를 완성한다</a>
+        <a href="#source-labels"><code>source_labels</code>는 입력값을 읽는다</a>
+        <a href="#regex-action"><code>regex</code>와 <code>action</code>이 후보 유지 여부를 결정한다</a>
+        <a href="#target-label"><code>target_label</code>은 처리 결과를 저장한다</a>
+        <a href="#pod-ip-port-target-label">Pod IP와 Port도 <code>target_label</code>에 저장한다</a>
+        <a href="#target-label-url">특별한 Target Label이 최종 URL을 만든다</a>
+        <a href="#section-047f0296ad70">현재 설정을 확인한 이유</a>
+        <a href="#section-bad6fdbd4091">전체 구조를 한 번에 정리한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Prometheus의 기본 동작은 단순하다.</p>
+<pre><code class="language-text">수집 대상 주소를 정한다
+→ 해당 주소의 /metrics를 주기적으로 호출한다
+→ 반환된 Metric을 저장한다
+</code></pre>
+<p>고정된 서버라면 수집 주소를 직접 적으면 된다. 하지만 Kubernetes에서는 Pod가 재생성될 때 IP가 달라진다. 따라서 Prometheus는 Kubernetes API에서 현재 Pod를 발견하고, 그중 Metric을 제공하는 Pod만 골라 최종 Scrape 주소를 만든다.</p>
+</div>
+        <section id="prometheus-configmap" class="markdown-section">
+<h2>Prometheus ConfigMap에는 수집 설정이 들어 있다</h2>
+<p>현재 Prometheus 설정은 다음 ConfigMap에 저장되어 있다.</p>
+<pre><code class="language-bash">kubectl -n observability get configmap prometheus-server
+</code></pre>
+<p>그 안의 <code>prometheus.yml</code>에는 다음과 같은 내용이 들어 있다.</p>
+<pre><code class="language-text">Prometheus 설정
+├─ Scrape 주기
+├─ Target 발견 방법
+├─ Target 필터링 규칙
+├─ Metric 수집 주소와 경로
+└─ 수집한 Metric에 붙일 Label
+</code></pre>
+<p>다음 명령으로 <code>prometheus.yml</code> 내용을 읽을 수 있다.</p>
+<pre><code class="language-bash">kubectl -n observability get configmap prometheus-server \
+  -o jsonpath=&#39;{.data.prometheus\.yml}&#39;
+</code></pre>
+<p>ConfigMap이 직접 Metric을 수집하는 것은 아니다.</p>
+<pre><code class="language-text">ConfigMap
+→ prometheus.yml 보관
+
+Prometheus Server
+→ ConfigMap의 설정을 읽음
+→ 설정에 따라 Target 발견
+→ /metrics 반복 호출
+</code></pre>
+
+</section>
+<section id="prometheus-job-kubernetes-job" class="markdown-section">
+<h2>Prometheus Job은 Kubernetes Job과 다르다</h2>
+<p>Prometheus 설정의 <code>job_name</code>은 Kubernetes의 일회성 <code>Job</code> 객체가 아니다.</p>
+<p>Prometheus Job은 <strong>같은 방식으로 Target을 발견하고 Scrape하는 설정 묶음</strong>이다.</p>
+<pre><code class="language-yaml">scrape_configs:
+  - job_name: kubernetes-pods
+    kubernetes_sd_configs:
+      - role: pod
+</code></pre>
+<pre><code class="language-text">job_name: kubernetes-pods
+→ 이 수집 설정 묶음의 이름
+
+kubernetes_sd_configs
+→ Kubernetes API를 사용해 Target 자동 발견
+
+role: pod
+→ Kubernetes 객체 중 Pod를 발견
+</code></pre>
+<p>Prometheus Job은 다음 내용을 묶는다.</p>
+<pre><code class="language-text">Prometheus Job
+├─ Target을 어디서 찾을 것인가?
+├─ 발견한 후보 중 무엇을 수집할 것인가?
+├─ 어떤 IP와 Port로 요청할 것인가?
+├─ HTTP와 HTTPS 중 무엇을 사용할 것인가?
+├─ 어떤 Path를 호출할 것인가?
+└─ 수집 Metric에 어떤 Label을 붙일 것인가?
+</code></pre>
+<p>수집된 Metric에는 기본적으로 Job 이름도 Label로 붙는다.</p>
+<pre><code class="language-promql">mock_model_server_requests_total{
+  job=&quot;kubernetes-pods&quot;
+}
+</code></pre>
+
+</section>
+<section id="section-45e1c7737df0" class="markdown-section">
+<h2>고정된 서버는 주소를 직접 등록한다</h2>
+<p>IP가 바뀌지 않는 서버라면 <code>static_configs</code>에 주소를 직접 적을 수 있다.</p>
+<pre><code class="language-yaml">scrape_configs:
+  - job_name: mock-server
+    static_configs:
+      - targets:
+          - 10.0.0.5:8080
+</code></pre>
+<p>Prometheus는 다음 주소를 반복해서 호출한다.</p>
+<pre><code class="language-text">http://10.0.0.5:8080/metrics
+</code></pre>
+<p>전체 흐름은 단순하다.</p>
+<pre><code class="language-text">Config에 주소 직접 등록
+→ Prometheus가 해당 주소의 /metrics 수집
+</code></pre>
+
+</section>
+<section id="kubernetes-pod" class="markdown-section">
+<h2>Kubernetes에서는 Pod 주소를 자동으로 발견한다</h2>
+<p>Kubernetes에서는 Pod가 교체될 때 IP가 달라진다.</p>
+<pre><code class="language-text">처음 생성된 Pod
+→ 10.244.2.31
+
+재생성된 Pod
+→ 10.244.1.44
+
+다시 재생성된 Pod
+→ 10.244.3.12
+</code></pre>
+<p>Pod IP를 <code>static_configs</code>에 직접 적으면 Pod가 교체될 때마다 Prometheus 설정을 수정해야 한다.</p>
+<p>그래서 Kubernetes Service Discovery를 사용한다.</p>
+<pre><code class="language-yaml">- job_name: kubernetes-pods
+  kubernetes_sd_configs:
+    - role: pod
+</code></pre>
+<p>이 설정은 다음 의미다.</p>
+<pre><code class="language-text">Prometheus
+→ Kubernetes API를 Watch
+→ 현재 존재하는 Pod와 Container Port 발견
+→ Pod가 교체되면 새 IP 자동 반영
+</code></pre>
+<p><code>role: pod</code>는 모든 Pod를 실제로 Scrape하라는 뜻은 아니다. 우선 모든 Pod를 <strong>Target 후보로 발견하라</strong>는 뜻이다.</p>
+<pre><code class="language-text">role: pod
+→ 전체 Pod 후보 발견
+
+relabel_configs
+→ 후보 중 실제 수집 대상을 선택
+
+최종 Target
+→ /metrics Scrape
+</code></pre>
+
+</section>
+<section id="kubernetes-prometheus-label" class="markdown-section">
+<h2>Kubernetes 정보는 Prometheus의 임시 Label로 변환된다</h2>
+<p>Pod에 다음 Annotation이 있다고 하자.</p>
+<pre><code class="language-yaml">metadata:
+  annotations:
+    prometheus.io/scrape: &quot;true&quot;
+    prometheus.io/path: /metrics
+    prometheus.io/port: &quot;8080&quot;
+</code></pre>
+<p>Prometheus는 Kubernetes API에서 이 정보를 읽고 Target 후보를 처리하기 위한 임시 Key-Value로 바꾼다.</p>
+<pre><code class="language-text">Pod의 원본 Annotation
+metadata.annotations[&quot;prometheus.io/scrape&quot;]
+→ &quot;true&quot;
+
+Prometheus의 임시 Label
+__meta_kubernetes_pod_annotation_prometheus_io_scrape
+→ &quot;true&quot;
+</code></pre>
+<p>다른 정보도 같은 방식으로 표현된다.</p>
+<pre><code class="language-text">Pod IP
+→ __meta_kubernetes_pod_ip
+
+Pod 이름
+→ __meta_kubernetes_pod_name
+
+Namespace
+→ __meta_kubernetes_namespace
+
+Node 이름
+→ __meta_kubernetes_pod_node_name
+
+prometheus.io/path
+→ __meta_kubernetes_pod_annotation_prometheus_io_path
+
+prometheus.io/port
+→ __meta_kubernetes_pod_annotation_prometheus_io_port
+</code></pre>
+<p><code>__meta_*</code> 값은 Kubernetes 객체에 다시 저장되는 값이 아니다. Prometheus가 발견한 Target 후보를 처리하는 동안에만 사용하는 임시 정보다.</p>
+
+</section>
+<section id="relabel-configs" class="markdown-section">
+<h2><code>relabel_configs</code>는 후보를 필터링하고 주소를 완성한다</h2>
+<p><code>relabel_configs</code>는 이름만 보면 Label 이름만 바꾸는 기능처럼 보인다. 하지만 실제로는 발견한 Target 후보를 처리하는 규칙 목록이다.</p>
+<pre><code class="language-text">relabel_configs
+├─ Target 후보 유지
+├─ Target 후보 제거
+├─ Pod IP와 Port 조합
+├─ HTTP·HTTPS 결정
+├─ /metrics 경로 설정
+└─ Namespace·Pod·Node Label 추가
+</code></pre>
+<p>각 규칙은 위에서부터 순서대로 적용된다.</p>
+
+</section>
+<section id="source-labels" class="markdown-section">
+<h2><code>source_labels</code>는 입력값을 읽는다</h2>
+<p>현재 Prometheus 설정에는 다음 규칙이 있다.</p>
+<pre><code class="language-yaml">- action: keep
+  regex: true
+  source_labels:
+    - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+</code></pre>
+<p><code>source_labels</code>는 규칙이 어느 값을 읽을지 지정한다.</p>
+<pre><code class="language-text">source_labels
+→ 입력값을 읽는 곳
+</code></pre>
+<p>여기서는 다음 Pod Annotation을 읽는다.</p>
+<pre><code class="language-yaml">metadata:
+  annotations:
+    prometheus.io/scrape: &quot;true&quot;
+</code></pre>
+<p>대응 관계는 다음과 같다.</p>
+<pre><code class="language-text">Pod의 실제 Annotation
+prometheus.io/scrape: &quot;true&quot;
+
+                 ↓ Prometheus가 변환
+
+source_labels가 읽는 임시 값
+__meta_kubernetes_pod_annotation_prometheus_io_scrape=true
+</code></pre>
+
+</section>
+<section id="regex-action" class="markdown-section">
+<h2><code>regex</code>와 <code>action</code>이 후보 유지 여부를 결정한다</h2>
+<p>동일한 규칙에서:</p>
+<pre><code class="language-yaml">regex: true
+action: keep
+</code></pre>
+<p>의미는 다음과 같다.</p>
+<pre><code class="language-text">regex: true
+→ source_labels에서 읽은 값이 true인지 검사
+
+action: keep
+→ true와 일치하는 후보만 유지
+</code></pre>
+<p>Pod별 결과는 다음과 같다.</p>
+<pre><code class="language-text">Pod A
+prometheus.io/scrape: &quot;true&quot;
+→ 읽은 값: true
+→ regex와 일치
+→ 유지
+
+Pod B
+prometheus.io/scrape: &quot;false&quot;
+→ 읽은 값: false
+→ regex와 불일치
+→ 제거
+
+Pod C
+Annotation 없음
+→ 읽은 값: 빈 문자열
+→ regex와 불일치
+→ 제거
+</code></pre>
+<p>결국 이 규칙은 다음 문장을 설정으로 표현한 것이다.</p>
+<blockquote>
+<p>모든 Pod 후보 중 <code>metadata.annotations[&quot;prometheus.io/scrape&quot;]</code> 값이 <code>&quot;true&quot;</code>인 Pod만 Scrape 대상으로 유지한다.</p>
+</blockquote>
+
+</section>
+<section id="target-label" class="markdown-section">
+<h2><code>target_label</code>은 처리 결과를 저장한다</h2>
+<p><code>source_labels</code>가 입력이라면 <code>target_label</code>은 출력이다.</p>
+<pre><code class="language-text">source_labels
+→ 어디서 값을 읽을까?
+
+regex·replacement·action
+→ 값을 어떻게 처리할까?
+
+target_label
+→ 처리한 값을 어디에 저장할까?
+</code></pre>
+<p>Metric 경로를 정하는 규칙을 보자.</p>
+<pre><code class="language-yaml">- action: replace
+  regex: (.+)
+  source_labels:
+    - __meta_kubernetes_pod_annotation_prometheus_io_path
+  target_label: __metrics_path__
+</code></pre>
+<p>Pod에 다음 Annotation이 있으면:</p>
+<pre><code class="language-yaml">prometheus.io/path: /metrics
+</code></pre>
+<p>다음처럼 처리된다.</p>
+<pre><code class="language-text">source_labels에서 읽은 값
+→ /metrics
+
+target_label에 저장
+→ __metrics_path__=/metrics
+</code></pre>
+<p>Prometheus는 <code>__metrics_path__</code> 값을 실제 요청 경로로 사용한다.</p>
+
+</section>
+<section id="pod-ip-port-target-label" class="markdown-section">
+<h2>Pod IP와 Port도 <code>target_label</code>에 저장한다</h2>
+<p>IPv4 Pod 주소를 만드는 규칙은 다음과 같다.</p>
+<pre><code class="language-yaml">- action: replace
+  source_labels:
+    - __meta_kubernetes_pod_annotation_prometheus_io_port
+    - __meta_kubernetes_pod_ip
+  regex: (\d+);((([0-9]+?)(\.|$)){4})
+  replacement: $2:$1
+  target_label: __address__
+</code></pre>
+<p>KServe Pod의 정보가 다음과 같다고 하자.</p>
+<pre><code class="language-text">prometheus.io/port
+→ 8080
+
+Pod IP
+→ 10.244.2.31
+</code></pre>
+<p>여러 <code>source_labels</code> 값은 기본적으로 <code>;</code>로 연결된다.</p>
+<pre><code class="language-text">8080;10.244.2.31
+</code></pre>
+<p>정규식과 <code>replacement</code>를 적용하면:</p>
+<pre><code class="language-text">$1
+→ 8080
+
+$2
+→ 10.244.2.31
+
+replacement: $2:$1
+→ 10.244.2.31:8080
+</code></pre>
+<p>결과는 <code>target_label</code>에 저장된다.</p>
+<pre><code class="language-text">__address__
+→ 10.244.2.31:8080
+</code></pre>
+
+</section>
+<section id="target-label-url" class="markdown-section">
+<h2>특별한 Target Label이 최종 URL을 만든다</h2>
+<p>Prometheus는 다음 Label들을 특별하게 해석한다.</p>
+<pre><code class="language-text">__scheme__
+→ http 또는 https
+
+__address__
+→ IP:Port
+
+__metrics_path__
+→ 요청 경로
+</code></pre>
+<p>세 값을 연결하면 실제 Scrape URL이 된다.</p>
+<pre><code class="language-text">__scheme__
+→ http
+
+__address__
+→ 10.244.2.31:8080
+
+__metrics_path__
+→ /metrics
+</code></pre>
+<pre><code class="language-text">최종 URL
+→ http://10.244.2.31:8080/metrics
+</code></pre>
+<p>반면 일반적인 <code>target_label</code>은 Metric을 구분하는 Label로 남는다.</p>
+<pre><code class="language-yaml">- action: replace
+  source_labels:
+    - __meta_kubernetes_namespace
+  target_label: namespace
+</code></pre>
+<pre><code class="language-text">읽은 값
+→ kserve-gpu-lab
+
+최종 Metric Label
+→ namespace=&quot;kserve-gpu-lab&quot;
+</code></pre>
+<p>Pod와 Node도 같은 방식으로 저장된다.</p>
+<pre><code class="language-text">pod=&quot;mock-model-kserve-predictor-xxxx&quot;
+node=&quot;gpu-lab-m03&quot;
+</code></pre>
+
+</section>
+<section id="section-047f0296ad70" class="markdown-section">
+<h2>현재 설정을 확인한 이유</h2>
+<p>Mock Model Server는 이미 <code>/metrics</code>를 제공하고 있었다.</p>
+<pre><code class="language-text">직접 wget /metrics
+→ Metric 응답 확인
+</code></pre>
+<p>하지만 Prometheus Targets에는 KServe Model Server가 없었다. 따라서 어떤 방식으로 등록해야 하는지 확인할 필요가 있었다.</p>
+<p>가능한 방법은 여러 가지였다.</p>
+<pre><code class="language-text">Prometheus ConfigMap에 주소 직접 등록
+Service Annotation 사용
+Pod Annotation 사용
+ServiceMonitor 사용
+</code></pre>
+<p>현재 <code>kubernetes-pods</code> Job을 확인한 결과 다음 동작이 이미 준비되어 있었다.</p>
+<pre><code class="language-text">Kubernetes Pod 자동 발견
+→ role: pod
+
+scrape=true인 Pod만 유지
+→ relabel_configs의 keep 규칙
+
+Annotation에서 Path와 Port 확인
+→ relabel_configs의 replace 규칙
+</code></pre>
+<p>따라서 Prometheus ConfigMap에 KServe Pod IP를 직접 추가할 필요가 없다.</p>
+<p>KServe가 생성하는 Pod에 다음 Annotation이 들어가게 하면 된다.</p>
+<pre><code class="language-yaml">metadata:
+  annotations:
+    prometheus.io/scrape: &quot;true&quot;
+    prometheus.io/path: /metrics
+    prometheus.io/port: &quot;8080&quot;
+</code></pre>
+<p>그러면 흐름은 다음과 같아진다.</p>
+<pre><code class="language-text">InferenceService
+→ KServe Pod 생성
+→ Pod에 Prometheus Annotation 포함
+
+Prometheus kubernetes-pods Job
+→ Kubernetes API에서 Pod 발견
+→ scrape=true 확인
+→ Pod IP·Port·Path 조합
+→ 최종 Target 생성
+→ /metrics 반복 수집
+</code></pre>
+
+</section>
+<section id="section-bad6fdbd4091" class="markdown-section">
+<h2>전체 구조를 한 번에 정리한다</h2>
+<pre><code class="language-text">Prometheus ConfigMap
+└─ prometheus.yml
+   └─ scrape_configs
+      └─ Job: kubernetes-pods
+         │
+         ├─ kubernetes_sd_configs
+         │  └─ Kubernetes API에서 모든 Pod 후보 발견
+         │
+         ├─ relabel_configs
+         │  ├─ scrape=true인 Pod만 유지
+         │  ├─ Pod IP와 Port로 __address__ 생성
+         │  ├─ Path를 __metrics_path__에 저장
+         │  └─ Namespace·Pod·Node Label 생성
+         │
+         └─ 최종 Scrape
+            └─ http://PodIP:Port/metrics
+</code></pre>
+<p>한 문장으로 정리하면:</p>
+<blockquote>
+<p>Prometheus Job은 Target 발견과 수집 방법을 묶은 설정이다. 고정 서버는 <code>static_configs</code>에 주소를 직접 적고, Kubernetes에서는 <code>kubernetes_sd_configs</code>로 변하는 Pod를 자동 발견한다. <code>relabel_configs</code>는 발견된 후보 중 Annotation 조건에 맞는 Pod만 남기고, <code>source_labels</code>에서 읽은 값을 가공하여 <code>target_label</code>에 주소·경로·식별 Label로 저장한다. 그 결과 만들어진 최종 URL을 Prometheus가 반복 Scrape한다. <a href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/" rel="noopener noreferrer">Prometheus Configuration</a></p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

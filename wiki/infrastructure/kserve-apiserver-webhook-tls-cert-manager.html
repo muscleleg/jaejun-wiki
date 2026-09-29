@@ -1,0 +1,402 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.md. Do not edit directly. source-sha256:46fe2a51520542d28d98584089e02ec7324ef5fac5190f7a6fcf94f3c5816fb8 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KServe Chart가 선언한 Issuer와 Certificate를 cert-manager가 Secret과 caBundle로 완성하고, API Server가 KServe Admission Webhook을 안전하게 호출하는 과정을 설명한다.">
+  <meta name="source-sha256" content="46fe2a51520542d28d98584089e02ec7324ef5fac5190f7a6fcf94f3c5816fb8">
+  <title>KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?">
+  <meta property="og:description" content="KServe Chart가 선언한 Issuer와 Certificate를 cert-manager가 Secret과 caBundle로 완성하고, API Server가 KServe Admission Webhook을 안전하게 호출하는 과정을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html","name":"KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?","description":"KServe Chart가 선언한 Issuer와 Certificate를 cert-manager가 Secret과 caBundle로 완성하고, API Server가 KServe Admission Webhook을 안전하게 호출하는 과정을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html"},"headline":"KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-network-transport-web","name":"TCP·HTTP·TLS","identifier":"topics-network-transport-web"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kserve-apiserver-webhook-tls-cert-manager.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"네트워크 링크·IP·라우팅","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_link_ip_routing.html"},{"@type":"ListItem","position":5,"name":"네트워크 TCP·HTTP·TLS","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_tcp_http_tls.html"},{"@type":"ListItem","position":6,"name":"TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/tls-handshake-encrypted-http-flow.html"},{"@type":"ListItem","position":7,"name":"KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_link_ip_routing.html">네트워크 링크·IP·라우팅</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_tcp_http_tls.html">네트워크 TCP·HTTP·TLS</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/tls-handshake-encrypted-http-flow.html">TLS Handshake는 어떻게 암호화된 HTTP 통신으로 이어질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>KServe 설치는 어떻게 API Server와 Webhook의 TLS를 자동으로 준비할까?</h1>
+      <p class="lead">KServe Chart가 선언한 Issuer와 Certificate를 cert-manager가 Secret과 caBundle로 완성하고, API Server가 KServe Admission Webhook을 안전하게 호출하는 과정을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#cert-manager-kserve">cert-manager를 KServe보다 먼저 설치한다</a>
+        <a href="#kserve-chart">KServe Chart는 인증서가 아니라 인증서 선언을 만든다</a>
+        <a href="#cert-manager-secret">cert-manager가 실제 인증서와 Secret을 만든다</a>
+        <a href="#kserve-webhook-secret-mount">KServe Webhook 서버가 Secret을 Mount한다</a>
+        <a href="#webhookconfiguration-api-server">WebhookConfiguration은 API Server의 클라이언트 설정이다</a>
+        <a href="#cainjector-cabundle">cainjector가 caBundle을 자동으로 채운다</a>
+        <a href="#certificate">하나의 Certificate에서 서버와 클라이언트 설정이 갈라진다</a>
+        <a href="#inferenceservice-tls">InferenceService가 생성될 때 TLS가 사용된다</a>
+        <a href="#actual-kserve-webhook-tls-verification">실제 클러스터에서 Webhook TLS 연결을 확인했다</a>
+        <a href="#helm-controller">Helm 설치가 관계를 선언하고 Controller가 완성한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>KServe에서 <code>InferenceService</code>를 생성하면 Kubernetes API Server는 객체를 저장하기 전에 KServe Admission Webhook을 호출한다. 이때 API Server는 TLS Client이고 KServe Webhook은 TLS Server다.</p>
+<pre><code class="language-text">Kubernetes API Server
+  → TLS Client
+
+KServe Admission Webhook
+  → TLS Server
+</code></pre>
+<p>따라서 양쪽에 서로 다른 TLS 설정이 필요하다.</p>
+<pre><code class="language-text">KServe Webhook
+→ 자신의 신원을 증명할 tls.crt·tls.key 필요
+
+Kubernetes API Server
+→ Webhook 인증서를 신뢰할 caBundle 필요
+</code></pre>
+<p>KServe는 이 인증서 준비를 직접 구현하지 않고 cert-manager의 인증서 발급과 CA 주입 기능을 이용한다.</p>
+</div>
+        <section id="cert-manager-kserve" class="markdown-section">
+<h2>cert-manager를 KServe보다 먼저 설치한다</h2>
+<p>KServe Resources Chart는 cert-manager가 정의한 <code>Issuer</code>와 <code>Certificate</code> 객체를 생성한다. cert-manager가 먼저 설치되지 않았다면 API Server는 이 객체 형식을 알 수 없고 인증서를 발급할 Controller도 없다.</p>
+<p>cert-manager를 설치하면 세 가지 주요 구성요소가 실행된다.</p>
+<pre><code class="language-text">cert-manager Controller
+→ Certificate를 읽어 인증서 발급
+→ 인증서와 Private Key를 Secret으로 관리·갱신
+
+cert-manager cainjector
+→ 인증서의 CA 데이터를 WebhookConfiguration.caBundle에 주입
+
+cert-manager Webhook
+→ Issuer·Certificate 같은 cert-manager 객체 검증
+</code></pre>
+<p>KServe Webhook의 TLS 준비에는 주로 Controller와 cainjector가 사용된다.</p>
+
+</section>
+<section id="kserve-chart" class="markdown-section">
+<h2>KServe Chart는 인증서가 아니라 인증서 선언을 만든다</h2>
+<p>KServe Resources Chart는 다음 <code>Issuer</code>를 생성한다.</p>
+<pre><code class="language-yaml">apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: kserve
+spec:
+  selfSigned: {}
+</code></pre>
+<p><code>selfSigned: {}</code>는 설정이 누락된 것이 아니다. 외부 CA 주소나 CA Secret 없이 Self-signed 방식으로 인증서를 발급하겠다는 의미다.</p>
+<p>이어 Webhook 서버용 <code>Certificate</code> 객체를 만든다.</p>
+<pre><code class="language-yaml">apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: serving-cert
+  namespace: kserve
+spec:
+  commonName: kserve-webhook-server-service.kserve.svc
+  dnsNames:
+    - kserve-webhook-server-service.kserve.svc
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+  secretName: kserve-webhook-server-cert
+</code></pre>
+<p>이 객체는 실제 인증서 파일이 아니라 필요한 인증서의 조건을 선언한다.</p>
+<pre><code class="language-text">인증서의 DNS 이름
+→ kserve-webhook-server-service.kserve.svc
+
+발급 방법
+→ selfsigned-issuer
+
+결과를 저장할 Secret
+→ kserve-webhook-server-cert
+</code></pre>
+
+</section>
+<section id="cert-manager-secret" class="markdown-section">
+<h2>cert-manager가 실제 인증서와 Secret을 만든다</h2>
+<p>cert-manager Controller는 <code>Certificate serving-cert</code>를 발견하면 Private Key를 만들고, 그 키로 인증서 자신에게 서명한다.</p>
+<pre><code class="language-text">cert-manager
+→ tls.key 생성
+→ Public Key와 Service DNS를 담은 인증서 생성
+→ tls.key로 인증서 자체에 서명
+→ Self-signed tls.crt 완성
+</code></pre>
+<p>그 결과를 <code>Certificate.spec.secretName</code>에 지정된 Secret에 저장한다.</p>
+<pre><code class="language-text">Secret kserve-webhook-server-cert
+├─ tls.crt
+├─ tls.key
+└─ ca.crt
+</code></pre>
+<p><code>secretName</code>은 미리 존재하는 Secret을 가리킨다는 뜻이 아니다. cert-manager에게 발급 결과를 어느 이름의 Secret으로 만들지 알려주는 값이다.</p>
+<p>현재 KServe 기본 구성에는 별도의 <code>ca.key</code>가 없다.</p>
+<pre><code class="language-text">일반 사설 CA 방식
+
+ca.key
+→ tls.crt에 서명
+</code></pre>
+<pre><code class="language-text">현재 SelfSigned 방식
+
+tls.key
+→ tls.crt 자신에게 서명
+</code></pre>
+<p>Self-signed 인증서 자체가 이 연결의 신뢰 기준으로도 사용된다.</p>
+
+</section>
+<section id="kserve-webhook-secret-mount" class="markdown-section">
+<h2>KServe Webhook 서버가 Secret을 Mount한다</h2>
+<p>KServe Chart가 만든 <code>kserve-controller-manager</code> Deployment는 인증서 Secret을 Volume으로 참조한다.</p>
+<pre><code class="language-yaml">volumes:
+  - name: cert
+    secret:
+      secretName: kserve-webhook-server-cert
+</code></pre>
+<p>Container에는 다음 경로로 Mount된다.</p>
+<pre><code class="language-yaml">volumeMounts:
+  - name: cert
+    mountPath: /tmp/k8s-webhook-server/serving-certs
+    readOnly: true
+</code></pre>
+<p>Pod 안에서는 다음 파일로 보인다.</p>
+<pre><code class="language-text">/tmp/k8s-webhook-server/serving-certs/
+├─ tls.crt
+└─ tls.key
+</code></pre>
+<p>KServe에서는 Controller와 Admission Webhook이 같은 <code>manager</code> Process에서 실행된다.</p>
+<pre><code class="language-text">kserve-controller-manager Pod
+└─ manager Process
+   ├─ KServe Resource Reconcile
+   └─ HTTPS Admission Webhook
+      ├─ Port 9443
+      ├─ tls.crt
+      └─ tls.key
+</code></pre>
+<p>Webhook Service는 API Server가 사용하는 주소를 제공한다.</p>
+<pre><code class="language-text">kserve-webhook-server-service.kserve.svc:443
+        ↓
+kserve-controller-manager Pod:9443
+</code></pre>
+<p>이제 KServe Webhook 서버 측 TLS 준비가 끝났다.</p>
+
+</section>
+<section id="webhookconfiguration-api-server" class="markdown-section">
+<h2>WebhookConfiguration은 API Server의 클라이언트 설정이다</h2>
+<p>KServe Chart는 다음과 같은 <code>MutatingWebhookConfiguration</code>과 <code>ValidatingWebhookConfiguration</code>도 만든다.</p>
+<pre><code class="language-yaml">metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kserve/serving-cert
+
+webhooks:
+  - clientConfig:
+      service:
+        name: kserve-webhook-server-service
+        namespace: kserve
+        port: 443
+</code></pre>
+<p>이 객체는 Webhook 서버가 아니라 API Server가 읽는다.</p>
+<pre><code class="language-text">clientConfig.service
+→ API Server가 어느 Webhook으로 접속할지 지정
+
+clientConfig.caBundle
+→ API Server가 어떤 인증서를 신뢰할지 지정
+</code></pre>
+<p>Helm이 객체를 만드는 시점에는 실제 인증서가 아직 발급되지 않았으므로 <code>caBundle</code>에 인증서 값을 미리 넣을 수 없다. 대신 다음 Annotation으로 cainjector에게 작업을 요청한다.</p>
+<pre><code class="language-yaml">cert-manager.io/inject-ca-from: kserve/serving-cert
+</code></pre>
+<p>의미는 다음과 같다.</p>
+<pre><code class="language-text">kserve Namespace의 serving-cert Certificate에서
+CA 인증서 데이터를 가져와
+이 WebhookConfiguration의 caBundle에 넣어라
+</code></pre>
+
+</section>
+<section id="cainjector-cabundle" class="markdown-section">
+<h2>cainjector가 caBundle을 자동으로 채운다</h2>
+<p><code>cert-manager-cainjector</code>는 WebhookConfiguration을 계속 Watch한다. KServe 객체의 Annotation을 발견하면 <code>serving-cert</code>의 발급 결과를 읽고 Kubernetes API를 통해 <code>caBundle</code>을 수정한다.</p>
+<p>변경 전:</p>
+<pre><code class="language-yaml">clientConfig:
+  service:
+    name: kserve-webhook-server-service
+    namespace: kserve
+</code></pre>
+<p>변경 후:</p>
+<pre><code class="language-yaml">clientConfig:
+  service:
+    name: kserve-webhook-server-service
+    namespace: kserve
+  caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0t...
+</code></pre>
+<p><code>caBundle</code>에는 Private Key가 들어가지 않는다.</p>
+<pre><code class="language-text">들어가는 것
+→ Self-signed 인증서의 공개된 CA 데이터
+
+들어가지 않는 것
+├─ tls.key
+└─ 다른 Private Key
+</code></pre>
+<p>이 작업이 API Server의 전역 Root CA 저장소를 변경하는 것은 아니다. <code>caBundle</code>은 해당 KServe Webhook을 호출할 때만 사용하는 전용 신뢰 설정이다.</p>
+<pre><code class="language-text">모든 TLS 연결에서 KServe 인증서 신뢰
+→ X
+
+KServe Webhook 호출에서만 신뢰
+→ O
+</code></pre>
+
+</section>
+<section id="certificate" class="markdown-section">
+<h2>하나의 Certificate에서 서버와 클라이언트 설정이 갈라진다</h2>
+<p>전체 구조에서 가장 중요한 부분은 하나의 <code>Certificate serving-cert</code>가 두 경로로 연결된다는 점이다.</p>
+<pre><code class="language-text">서버 측 경로
+
+Certificate serving-cert
+→ cert-manager가 Secret 생성
+→ tls.crt·tls.key 저장
+→ KServe Pod에 Mount
+→ Webhook HTTPS 서버가 사용
+</code></pre>
+<pre><code class="language-text">클라이언트 측 경로
+
+Certificate serving-cert
+→ cainjector가 신뢰 인증서 확인
+→ WebhookConfiguration.caBundle에 주입
+→ API Server가 Webhook 인증서 검증에 사용
+</code></pre>
+<p>cert-manager는 실제 TLS 통신을 중계하지 않는다. 통신 전에 양쪽이 사용할 인증서 상태를 준비하고 계속 동기화할 뿐이다.</p>
+
+</section>
+<section id="inferenceservice-tls" class="markdown-section">
+<h2>InferenceService가 생성될 때 TLS가 사용된다</h2>
+<ul>
+<li><a href="inferenceservice-to-serving-pod-webhook-flow.html">InferenceService는 어떻게 실제 Serving Pod가 될까?</a></li>
+</ul>
+<p>사용자가 <code>InferenceService</code>를 생성하면 다음 흐름이 실행된다.</p>
+<pre><code class="language-text">1. 사용자가 InferenceService 생성 요청
+
+2. Kubernetes API Server
+   → KServe WebhookConfiguration 확인
+
+3. API Server
+   → clientConfig.service의 주소로 HTTPS 연결
+
+4. KServe Webhook
+   → Pod에 Mount된 tls.crt 제시
+   → tls.key로 Private Key 보유 증명
+
+5. API Server
+   → clientConfig.caBundle로 tls.crt 검증
+   → Service DNS 이름 검증
+
+6. TLS Handshake 성공
+
+7. API Server
+   → 암호화된 AdmissionReview 전송
+
+8. KServe Webhook
+   → 기본값 추가 또는 설정 검증
+   → 허용·거부 결과 반환
+</code></pre>
+
+</section>
+<section id="actual-kserve-webhook-tls-verification" class="markdown-section">
+<h2>실제 클러스터에서 Webhook TLS 연결을 확인했다</h2>
+<p>설치된 객체를 조회해 Helm 선언이 cert-manager와 KServe Pod의 실제 상태로 이어졌는지 확인했다.</p>
+<pre><code class="language-bash">kubectl -n kserve get issuer selfsigned-issuer
+kubectl -n kserve get certificate serving-cert
+kubectl -n kserve get certificaterequest
+kubectl -n kserve get secret kserve-webhook-server-cert
+</code></pre>
+<p><code>selfsigned-issuer</code>와 <code>serving-cert</code>는 <code>Ready=True</code>였고, <code>kserve-webhook-server-cert</code> Secret에는 <code>tls.crt</code>, <code>tls.key</code>, <code>ca.crt</code>가 저장돼 있었다. Certificate의 <code>secretName</code>은 미리 만든 Secret을 요구한 것이 아니라 cert-manager가 발급 결과를 그 이름으로 생성하도록 지정한 값이었다.</p>
+<p>서버 인증서를 해석하자 Subject와 Issuer가 모두 <code>CN=kserve-webhook-server-service.kserve.svc</code>였고 SAN에도 <code>DNS:kserve-webhook-server-service.kserve.svc</code>가 들어 있었다. 이는 현재 Chart가 별도 CA 인증서로 서버 인증서를 발급한 구조가 아니라 Webhook 서버 인증서 자체에 서명한 SelfSigned 구성을 사용한다는 관찰과 일치한다.</p>
+<p>KServe Controller Manager Deployment에는 같은 Secret이 <code>/tmp/k8s-webhook-server/serving-certs</code>에 Mount돼 있었다. Webhook Service는 <code>kserve-webhook-server-service.kserve.svc:443</code>을 <code>kserve-controller-manager Pod:9443</code>으로 연결했다.</p>
+<p>MutatingWebhookConfiguration과 ValidatingWebhookConfiguration의 <code>caBundle</code>을 인증서로 해석했을 때 Secret의 Self-signed 인증서와 같은 SHA-256 Fingerprint가 확인됐다. 따라서 서버 측과 클라이언트 측 연결은 다음처럼 실제 객체로 이어졌다.</p>
+<pre><code class="language-text">서버 측
+
+Certificate serving-cert
+→ Secret의 tls.crt·tls.key
+→ KServe Pod에 Mount
+→ Webhook이 HTTPS 서버 인증에 사용
+</code></pre>
+<pre><code class="language-text">클라이언트 측
+
+Certificate serving-cert
+→ cainjector
+→ WebhookConfiguration.caBundle
+→ API Server가 Webhook 인증서 검증에 사용
+</code></pre>
+<p>이 검증을 통해 cert-manager가 TLS 요청을 중계한 것이 아니라, API Server와 KServe Webhook이 직접 HTTPS로 통신할 수 있도록 양쪽 설정을 미리 만들고 계속 Reconcile한다는 점을 확인했다.</p>
+
+</section>
+<section id="helm-controller" class="markdown-section">
+<h2>Helm 설치가 관계를 선언하고 Controller가 완성한다</h2>
+<p>“Helm 설치와 동시에 TLS가 설정된다”는 말은 결과적으로는 맞지만, 모든 값이 Helm 명령 하나 안에서 즉시 만들어진다는 뜻은 아니다.</p>
+<pre><code class="language-text">Helm
+→ Issuer·Certificate·Secret 참조·WebhookConfiguration 선언
+
+cert-manager Controller
+→ 인증서와 Secret 생성
+
+cainjector
+→ caBundle 주입
+
+kubelet
+→ Secret을 KServe Pod에 Mount
+
+KServe manager
+→ HTTPS Webhook 서버 실행
+
+API Server
+→ caBundle로 Webhook 인증서 검증
+</code></pre>
+<p>이 작업들은 각 Controller의 Reconcile을 통해 비동기로 완성된다. 설치 직후 잠시 Secret이 없거나 <code>caBundle</code>이 비어 있을 수 있지만, cert-manager가 정상이라면 원하는 상태로 맞춰진다.</p>
+<p>결국 KServe Chart는 cert-manager의 기능을 다음과 같이 이용한다.</p>
+<blockquote>
+<p>KServe Chart가 SelfSigned Issuer와 Webhook용 Certificate를 선언하면 cert-manager가 <code>tls.crt</code>와 <code>tls.key</code>를 Secret으로 만든다. KServe Webhook은 이 Secret을 Mount해 TLS Server가 되고, cainjector는 같은 인증서의 신뢰 데이터를 WebhookConfiguration의 <code>caBundle</code>에 주입한다. API Server는 그 <code>caBundle</code>을 이용해 KServe Webhook을 검증하는 TLS Client가 된다.</p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="inferenceservice-to-serving-pod-webhook-flow.html">InferenceService는 어떻게 실제 Serving Pod가 될까?</a><ul><li><a href="kubectl-label-selector-kserve-pods.html">`kubectl -l`은 Label Selector 조건이다</a></li>
+<li><a href="kubectl-explain-kubernetes-resource-schema.html">kubectl explain으로 Kubernetes 객체의 사용 가능한 필드 확인하기</a></li>
+<li><a href="inferenceservice-predictor-role.html">InferenceService의 Predictor는 무엇일까?</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

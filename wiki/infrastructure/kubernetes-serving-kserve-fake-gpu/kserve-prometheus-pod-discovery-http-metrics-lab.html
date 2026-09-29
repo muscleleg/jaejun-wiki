@@ -1,0 +1,335 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.md. Do not edit directly. source-sha256:a5fa4168d7fb90531dfe00960525799472ff0b2c6ebc3d6988b088f8081ec352 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod Annotation, Kubernetes Service Discovery와 relabel 설정이 Predictor의 HTTP Metric Target과 PromQL 시계열로 이어지는 과정을 해석한다.">
+  <meta name="source-sha256" content="a5fa4168d7fb90531dfe00960525799472ff0b2c6ebc3d6988b088f8081ec352">
+  <title>Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?">
+  <meta property="og:description" content="Pod Annotation, Kubernetes Service Discovery와 relabel 설정이 Predictor의 HTTP Metric Target과 PromQL 시계열로 이어지는 과정을 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html","name":"Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?","description":"Pod Annotation, Kubernetes Service Discovery와 relabel 설정이 Predictor의 HTTP Metric Target과 PromQL 시계열로 이어지는 과정을 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html"},"headline":"Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/kserve-prometheus-pod-discovery-http-metrics-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html"},{"@type":"ListItem","position":6,"name":"Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-serving-kserve-fake-gpu/README.html">KServe는 GPU를 요청하는 모델 서버를 어떻게 배포하고 운영할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Prometheus는 KServe Predictor의 HTTP Metric을 어떻게 발견하고 수집할까?</h1>
+      <p class="lead">Pod Annotation, Kubernetes Service Discovery와 relabel 설정이 Predictor의 HTTP Metric Target과 PromQL 시계열로 이어지는 과정을 해석한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#prometheus-job-scrape">Prometheus Job은 Scrape 규칙 한 묶음이다</a>
+        <a href="#relabel-configs">relabel_configs가 발견 후보를 필터링하고 주소를 만든다</a>
+        <a href="#discovery-inferenceservice">기존 Discovery 규칙이 있다면 InferenceService만 수정한다</a>
+        <a href="#metric-mock-server">Metric 이름과 값은 Mock Server가 만들었다</a>
+        <a href="#metric-label">같은 Metric 이름도 Label 조합마다 다른 시계열이다</a>
+        <a href="#status-label">성공과 실패 응답은 status Label로 분리된다</a>
+        <a href="#counter-rate">Counter와 Rate는 서로 다른 질문에 답한다</a>
+        <a href="#predictor-pod-label">두 Predictor의 요청 수는 pod Label로 구분할 수 있다</a>
+        <a href="#pod-http-metric">Pod 상태와 HTTP Metric은 서로 대신할 수 없다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Mock Model Server는 <code>/metrics</code>에서 Prometheus 형식의 Application Metric을 노출했다. 그러나 Endpoint가 존재한다는 이유만으로 Prometheus가 자동으로 모든 서버를 Scrape하는 것은 아니다. Prometheus 설정에는 어떤 대상을 발견하고, 그중 무엇을 실제 Target으로 유지하며, 어느 주소와 경로를 호출할지가 정의돼 있어야 한다.</p>
+<p>Prometheus 설정에 이미 <code>kubernetes-pods</code> Scrape Job이 있다면 ConfigMap을 수정할 필요가 없다. 그 Job의 발견 규칙이 요구하는 Annotation을 KServe Predictor Pod에 전달하면 된다. 먼저 기존 설정을 읽어야 하는 이유는 새 Job을 중복해서 만들지 않고 현재 Discovery 계약을 재사용하기 위해서다.</p>
+</div>
+        <section id="prometheus-job-scrape" class="markdown-section">
+<h2>Prometheus Job은 Scrape 규칙 한 묶음이다</h2>
+<p>Prometheus 설정의 <code>job_name</code>은 Kubernetes <code>Job</code> 객체가 아니다. 한 종류의 Target을 어떻게 찾고 Scrape할지 묶어 놓은 <code>scrape_config</code>의 이름이다.</p>
+<pre><code class="language-text">Prometheus Job
+├─ Target 후보를 어디서 찾을지
+├─ 후보 중 무엇을 남길지
+├─ 어느 주소와 경로를 호출할지
+├─ 어떤 Label을 붙일지
+└─ 얼마마다 Scrape할지
+</code></pre>
+<p>Target을 고정 주소로 직접 적는 방법도 있다.</p>
+<pre><code class="language-yaml">- job_name: fixed-server
+  static_configs:
+    - targets:
+        - 10.0.0.10:8080
+</code></pre>
+<p>Kubernetes에서는 Pod IP가 계속 바뀔 수 있으므로 Service Discovery를 사용할 수 있다.</p>
+<pre><code class="language-yaml">- job_name: kubernetes-pods
+  kubernetes_sd_configs:
+    - role: pod
+</code></pre>
+<p><code>role: pod</code>는 Kubernetes API에서 Pod들을 Target 후보로 발견한다는 뜻이다. 모든 Pod를 실제로 Scrape한다는 뜻은 아니다.</p>
+
+</section>
+<section id="relabel-configs" class="markdown-section">
+<h2>relabel_configs가 발견 후보를 필터링하고 주소를 만든다</h2>
+<p>예시 환경의 <code>kubernetes-pods</code> Job에는 다음 규칙이 있다.</p>
+<pre><code class="language-yaml">relabel_configs:
+  - action: keep
+    regex: true
+    source_labels:
+      - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+</code></pre>
+<p>Prometheus는 Kubernetes에서 읽은 Pod Metadata를 임시 Discovery Label로 바꿔 표현한다.</p>
+<pre><code class="language-yaml">metadata:
+  annotations:
+    prometheus.io/scrape: &quot;true&quot;
+</code></pre>
+<p>이 Annotation은 Prometheus 내부에서 다음 후보 Label로 보인다.</p>
+<pre><code class="language-text">__meta_kubernetes_pod_annotation_prometheus_io_scrape=&quot;true&quot;
+</code></pre>
+<p>따라서 위 <code>keep</code> 규칙은 다음 의미다.</p>
+<pre><code class="language-text">Pod 후보의 prometheus.io/scrape Annotation 값을 읽음
+→ 값이 true와 일치하면 후보 유지
+→ 일치하지 않거나 없으면 후보 제거
+</code></pre>
+<p><code>source_labels</code>는 후보에서 읽을 값을 정한다. <code>target_label</code>은 가공 결과를 어느 최종 Label이나 Scrape 전용 필드에 쓸지 정한다.</p>
+<pre><code class="language-yaml">- action: replace
+  source_labels:
+    - __meta_kubernetes_pod_annotation_prometheus_io_path
+  target_label: __metrics_path__
+</code></pre>
+<pre><code class="language-text">source_labels
+→ Pod의 prometheus.io/path Annotation 값 읽기
+
+target_label: __metrics_path__
+→ Prometheus가 호출할 HTTP 경로로 사용
+</code></pre>
+<p>같은 방식으로 <code>prometheus.io/port</code>와 Pod IP를 결합해 <code>__address__</code>를 만들고, <code>prometheus.io/scheme</code>을 <code>__scheme__</code>에 반영할 수 있다. Namespace·Pod·Node 정보는 일반 Label로 보존해 PromQL에서 필터링할 수 있다.</p>
+
+</section>
+<section id="discovery-inferenceservice" class="markdown-section">
+<h2>기존 Discovery 규칙이 있다면 InferenceService만 수정한다</h2>
+<p>기존 Prometheus Job이 요구하는 계약은 다음과 같았다.</p>
+<pre><code class="language-yaml">prometheus.io/scrape: &quot;true&quot;
+prometheus.io/path: /metrics
+prometheus.io/port: &quot;8080&quot;
+</code></pre>
+<p>이 규칙을 이미 Prometheus ConfigMap이 지원하고 있었으므로 ConfigMap을 새로 수정할 필요가 없었다. KServe가 생성할 Pod에 Annotation을 전달하기 위해 <code>InferenceService</code>의 Predictor에 선언했다.</p>
+<pre><code class="language-yaml">spec:
+  predictor:
+    annotations:
+      prometheus.io/scrape: &quot;true&quot;
+      prometheus.io/path: /metrics
+      prometheus.io/port: &quot;8080&quot;
+</code></pre>
+<p>KServe Controller가 이 값을 하위 객체에 전달했다.</p>
+<pre><code class="language-text">InferenceService의 predictor.annotations
+  → Deployment의 Pod Template Annotation
+  → 실제 Predictor Pod Annotation
+  → Prometheus의 kubernetes-pods Job이 후보 유지
+</code></pre>
+<p>Prometheus Targets 화면에는 다음 상태가 나타난다.</p>
+<pre><code class="language-text">Scrape URL
+→ http://Predictor-Pod-IP:8080/metrics
+
+job
+→ kubernetes-pods
+
+namespace
+→ kserve-gpu-lab
+
+health
+→ UP
+</code></pre>
+<p>Annotation 변경은 Pod Template 변경이므로 새 ReplicaSet을 만든다. GPU에 여유가 없다면 새 GPU Pod는 Pending되고, 기존 Pod가 GPU를 반환한 뒤에야 Running이 될 수 있다. 따라서 Metric 수집 설정처럼 Application 실행과 무관해 보이는 변경도 GPU Workload에서는 Rollout Headroom을 요구할 수 있다.</p>
+
+</section>
+<section id="metric-mock-server" class="markdown-section">
+<h2>Metric 이름과 값은 Mock Server가 만들었다</h2>
+<p><code>mock_model_server_requests_total</code>은 Prometheus가 자동으로 만든 Metric이 아니다. Mock Server가 메모리에서 HTTP 요청 횟수를 세고 <code>/metrics</code> 응답에 직접 렌더링했다.</p>
+<pre><code class="language-text">Mock Model Server
+→ Metric 이름·Label·값 생성
+→ /metrics에 노출
+
+Prometheus
+→ /metrics를 주기적으로 Scrape
+→ 시계열 저장
+
+PromQL
+→ 저장된 시계열 조회·계산
+</code></pre>
+<p>Application이 만든 Label은 다음 세 가지였다.</p>
+<pre><code class="language-text">method
+path
+status
+</code></pre>
+<p>반면 다음 Label은 Prometheus가 Kubernetes Discovery 과정에서 추가했다.</p>
+<pre><code class="language-text">namespace
+pod
+node
+job
+instance
+</code></pre>
+
+</section>
+<section id="metric-label" class="markdown-section">
+<h2>같은 Metric 이름도 Label 조합마다 다른 시계열이다</h2>
+<p>Metric 이름만 조회했을 때 세 종류의 결과가 나타났다.</p>
+<pre><code class="language-text">GET /health/ready 200
+→ kubelet의 Readiness Probe
+
+GET /metrics 200
+→ Prometheus의 Scrape
+
+POST /v1/chat/completions 200
+→ 실제 추론 요청
+</code></pre>
+<p>Prometheus는 Metric 이름과 모든 Label의 조합이 같은 데이터만 하나의 시계열로 취급한다.</p>
+<pre><code class="language-text">mock_model_server_requests_total
+├─ method=GET, path=/health/ready, status=200
+├─ method=GET, path=/metrics, status=200
+└─ method=POST, path=/v1/chat/completions, status=200
+</code></pre>
+<p>실제 추론 요청만 보려면 Label을 제한했다.</p>
+<pre><code class="language-promql">mock_model_server_requests_total{
+  namespace=&quot;kserve-gpu-lab&quot;,
+  method=&quot;POST&quot;,
+  path=&quot;/v1/chat/completions&quot;,
+  status=&quot;200&quot;
+}
+</code></pre>
+
+</section>
+<section id="status-label" class="markdown-section">
+<h2>성공과 실패 응답은 status Label로 분리된다</h2>
+<p>정상 OpenAI 호환 요청을 보내자 <code>status=&quot;200&quot;</code> Counter가 증가했다. 존재하지 않는 <code>/does-not-exist</code> 경로를 호출하자 Mock Server는 404를 반환하고 다음 시계열을 만들었다.</p>
+<pre><code class="language-text">mock_model_server_requests_total{
+  method=&quot;GET&quot;,
+  path=&quot;/does-not-exist&quot;,
+  status=&quot;404&quot;
+}
+</code></pre>
+<p>404 요청 직후 PromQL에 바로 나타나지는 않았다. Application의 Counter는 즉시 증가했지만 Prometheus는 다음 Scrape 전까지 이전 값만 가지고 있었기 때문이다.</p>
+<pre><code class="language-text">404 요청 발생
+→ Mock Server 메모리 Counter 즉시 증가
+→ 다음 Prometheus Scrape
+→ 새 404 시계열 저장
+→ PromQL 결과에 표시
+</code></pre>
+<p>Application의 <code>/metrics</code> 원본을 직접 확인하면 Prometheus Scrape를 기다리지 않고 현재 값을 볼 수 있다. Prometheus 화면에서 보이는 값에는 Service Discovery와 Scrape 주기만큼 지연이 있을 수 있다.</p>
+
+</section>
+<section id="counter-rate" class="markdown-section">
+<h2>Counter와 Rate는 서로 다른 질문에 답한다</h2>
+<p><code>requests_total</code>은 Pod가 시작된 뒤 지금까지 누적된 요청 수다. 최근 5분 동안 Counter가 1에서 6으로 증가했다면 총증가량은 5건이다.</p>
+<pre><code class="language-text">increase(counter[5m])
+→ 최근 5분 동안 증가한 요청 수
+→ 약 5건
+
+rate(counter[5m])
+→ 최근 5분의 초당 평균 증가율
+→ 5 / 300초
+→ 약 0.0167 requests/second
+</code></pre>
+<p>분당 평균 요청 수로 보고 싶다면 <code>rate()</code>에 60을 곱할 수 있다.</p>
+<pre><code class="language-promql">rate(
+  mock_model_server_requests_total{
+    path=&quot;/v1/chat/completions&quot;
+  }[5m]
+) * 60
+</code></pre>
+<p><code>increase()</code>와 <code>rate()</code>는 Scrape된 표본을 바탕으로 구간 경계를 추정하므로 결과가 소수로 보일 수 있다. 실제 요청이 소수 건 발생했다는 뜻은 아니다.</p>
+
+</section>
+<section id="predictor-pod-label" class="markdown-section">
+<h2>두 Predictor의 요청 수는 pod Label로 구분할 수 있다</h2>
+<p>GPU 한 개짜리 Predictor Replica 두 개에 요청 20건을 보냈다. Prometheus에서 <code>pod</code>별 Counter를 집계한 결과는 8건과 12건이었다.</p>
+<pre><code class="language-promql">sum by (pod) (
+  mock_model_server_requests_total{
+    namespace=&quot;kserve-gpu-lab&quot;,
+    method=&quot;POST&quot;,
+    path=&quot;/v1/chat/completions&quot;,
+    status=&quot;200&quot;
+  }
+)
+</code></pre>
+<p>처음 조회에서는 한 Pod만 보였지만 잠시 뒤 두 Pod 모두 Target <code>up=1</code>이 됐고 전체 20건이 나타났다. Service의 Endpoint 전파와 Prometheus의 Target 발견·Scrape는 서로 다른 비동기 과정이다.</p>
+
+</section>
+<section id="pod-http-metric" class="markdown-section">
+<h2>Pod 상태와 HTTP Metric은 서로 대신할 수 없다</h2>
+<p>Kubernetes 상태 Metric은 Pod가 실행 중인지 답한다.</p>
+<pre><code class="language-promql">kube_pod_status_phase{
+  namespace=&quot;kserve-gpu-lab&quot;,
+  pod=~&quot;mock-model-kserve-predictor-.*&quot;,
+  phase=&quot;Running&quot;
+} == 1
+</code></pre>
+<p>Application Metric은 실제 HTTP 요청이 들어오고 있는지 답한다.</p>
+<pre><code class="language-promql">rate(
+  mock_model_server_requests_total{
+    namespace=&quot;kserve-gpu-lab&quot;,
+    path=&quot;/v1/chat/completions&quot;
+  }[5m]
+)
+</code></pre>
+<pre><code class="language-text">Pod Running=1, 요청 Rate&gt;0
+→ Process가 실행 중이고 실제 요청도 처리 중
+
+Pod Running=1, 요청 Rate=0
+→ Process는 실행 중이지만 요청이 없거나 도달하지 않음
+
+Pod Running=0
+→ HTTP보다 먼저 Pod 실행 상태를 확인해야 함
+</code></pre>
+<p>이 Metric은 실제 GPU 사용률도 증명하지 않는다. 실제 GPU 상태를 판단하려면 DCGM Exporter 같은 Runtime·Hardware Metric이 필요하다.</p>
+<pre><code class="language-text">mock_model_server_requests_total
+→ HTTP 요청 수
+
+mock_model_server_request_duration_seconds_*
+→ Mock Server가 만든 합성 처리 시간
+
+DCGM GPU Metric
+→ 실제 GPU 사용률·메모리·온도 등
+</code></pre>
+<p>Mock Request Duration을 실제 Model Inference Latency, TTFT나 TPOT로 해석해서는 안 된다. 이 예시가 설명하는 범위는 Predictor Pod 발견, HTTP Metric Scrape, 성공·실패 Label과 Replica별 요청 분산까지다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

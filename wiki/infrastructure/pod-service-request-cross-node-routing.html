@@ -1,0 +1,312 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/pod-service-request-cross-node-routing.md. Do not edit directly. source-sha256:34024c62978ed5997e18d7e11d1ce1713f1caecc8dbb13951108b2a03777de88 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Service ClusterIP 요청이 EndpointSlice·kube-proxy·CNI·Linux Kernel을 거쳐 Ready Pod까지 전달되는 과정을 순서대로 설명한다.">
+  <meta name="source-sha256" content="34024c62978ed5997e18d7e11d1ce1713f1caecc8dbb13951108b2a03777de88">
+  <title>Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?">
+  <meta property="og:description" content="Service ClusterIP 요청이 EndpointSlice·kube-proxy·CNI·Linux Kernel을 거쳐 Ready Pod까지 전달되는 과정을 순서대로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html","name":"Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?","description":"Service ClusterIP 요청이 EndpointSlice·kube-proxy·CNI·Linux Kernel을 거쳐 Ready Pod까지 전달되는 과정을 순서대로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html"},"headline":"Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/pod-service-request-cross-node-routing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Pod의 Service 요청은 어떻게 다른 Node의 Pod까지 도달할까?</h1>
+      <p class="lead">Service ClusterIP 요청이 EndpointSlice·kube-proxy·CNI·Linux Kernel을 거쳐 Ready Pod까지 전달되는 과정을 순서대로 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-c3bbf94aaf27">요청 전에 전달 경로가 준비된다</a>
+        <a href="#pod-packet-veth-node">Pod의 Packet은 veth를 통해 Node로 나온다</a>
+        <a href="#kube-proxy-service-ip-pod-ip">kube-proxy가 만든 규칙이 Service IP를 Pod IP로 바꾼다</a>
+        <a href="#cni-pod-node-packet">CNI가 목적 Pod가 있는 Node로 Packet을 보낸다</a>
+        <a href="#node-packet-pod-veth">목적 Node는 Packet을 Pod의 veth로 전달한다</a>
+        <a href="#node-pod-endpoint">여러 Node에 Pod가 있으면 Endpoint 하나를 선택한다</a>
+        <a href="#connection-tracking">응답은 Connection Tracking을 통해 돌아온다</a>
+        <a href="#pod-ip-service">Pod IP로 직접 요청하면 Service 변환은 생략된다</a>
+        <a href="#section-233d841d7518">전체 책임을 구분한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes에서 Pod는 다른 Pod의 IP를 직접 기억하기보다 Service 주소로 요청한다. Service 뒤에 있는 Pod가 교체되거나 여러 Node에 흩어져 있어도, 요청은 Ready 상태인 Pod 하나로 전달된다.</p>
+<p>이 과정에는 세 가지 역할이 이어진다.</p>
+<pre><code class="language-text">EndpointSlice
+→ Service가 사용할 수 있는 Pod IP 목록 기록
+
+kube-proxy
+→ Service IP를 선택된 Pod IP로 변환하는 규칙 구성
+
+CNI
+→ 선택된 Pod IP가 있는 Node까지 Packet 전달
+</code></pre>
+</div>
+        <section id="section-c3bbf94aaf27" class="markdown-section">
+<h2>요청 전에 전달 경로가 준비된다</h2>
+<p>다음과 같은 Service와 Pod가 있다고 하자.</p>
+<pre><code class="language-text">요청하는 Pod A
+├─ Node: gpu-lab-m02
+└─ IP: 10.244.1.20
+
+Service
+├─ ClusterIP: 10.96.10.20
+└─ Port: 80
+
+Model Server Pod B
+├─ Node: gpu-lab-m03
+├─ IP: 10.244.2.31
+└─ Port: 8080
+</code></pre>
+<p>EndpointSlice Controller는 Service의 Selector와 일치하는 Pod를 찾아 EndpointSlice에 기록한다.</p>
+<pre><code class="language-yaml">endpoints:
+  - addresses:
+      - 10.244.2.31
+    nodeName: gpu-lab-m03
+    conditions:
+      ready: true
+    targetRef:
+      kind: Pod
+      name: mock-model-kserve-predictor-xxxx
+ports:
+  - port: 8080
+</code></pre>
+<p>각 Node의 kube-proxy는 Service와 EndpointSlice를 Watch한다. 그리고 다음과 같은 전달 규칙을 Node Kernel에 미리 구성한다.</p>
+<pre><code class="language-text">10.96.10.20:80으로 들어오는 요청
+→ Ready Endpoint인 10.244.2.31:8080으로 변환
+</code></pre>
+<p>CNI는 별도로 Node별 Pod CIDR과 Node Network를 연결한다.</p>
+<pre><code class="language-text">10.244.2.0/24
+→ gpu-lab-m03에 있는 Pod Network
+</code></pre>
+<p>EndpointSlice와 kube-proxy는 어떤 Pod IP를 사용할지 준비하고, CNI는 그 Pod IP까지 실제로 도달할 경로를 준비한다.</p>
+
+</section>
+<section id="pod-packet-veth-node" class="markdown-section">
+<h2>Pod의 Packet은 veth를 통해 Node로 나온다</h2>
+<p>Pod 안의 Process가 Service로 요청을 보낸다.</p>
+<pre><code class="language-text">목적지
+→ 10.96.10.20:80
+</code></pre>
+<p>Pod는 독립된 Network Namespace를 가지고 있다. Pod의 <code>eth0</code>는 veth 한쪽에 연결되고, 반대쪽은 Node Network에 연결된다.</p>
+<pre><code class="language-text">Pod A의 Process
+  → Pod의 eth0
+  → Pod 쪽 veth
+  → Node 쪽 veth
+  → gpu-lab-m02의 Linux Network Stack
+</code></pre>
+<p>따라서 Pod가 보낸 Packet은 veth를 통과해 출발 Node의 Kernel로 들어온다.</p>
+
+</section>
+<section id="kube-proxy-service-ip-pod-ip" class="markdown-section">
+<h2>kube-proxy가 만든 규칙이 Service IP를 Pod IP로 바꾼다</h2>
+<p>kube-proxy Process가 요청 Packet을 매번 직접 받아 처리하는 것은 아니다. kube-proxy는 Service와 EndpointSlice의 변화를 관찰하고, 그 결과를 iptables·nftables·IPVS 같은 Kernel 전달 규칙으로 만들어 둔다.</p>
+<pre><code class="language-text">kube-proxy
+→ Service와 EndpointSlice Watch
+→ Node Kernel에 전달 규칙 구성
+</code></pre>
+<p>실제 Packet은 미리 설치된 규칙을 통과한다.</p>
+<pre><code class="language-text">변환 전
+Destination = 10.96.10.20:80
+
+변환 후
+Destination = 10.244.2.31:8080
+</code></pre>
+<p>이처럼 Packet의 목적지를 Service ClusterIP에서 실제 Endpoint Pod IP로 바꾸는 것을 DNAT이라고 한다.</p>
+<pre><code class="language-text">Service IP
+→ 실제 네트워크 인터페이스가 가진 일반적인 IP가 아님
+→ kube-proxy가 만든 규칙이 처리하는 가상 주소
+
+Endpoint Pod IP
+→ 실제 Packet이 최종적으로 도달해야 하는 주소
+</code></pre>
+
+</section>
+<section id="cni-pod-node-packet" class="markdown-section">
+<h2>CNI가 목적 Pod가 있는 Node로 Packet을 보낸다</h2>
+<p>목적지가 <code>10.244.2.31</code>로 바뀌면 Linux Kernel은 이 IP로 가는 경로를 조회한다.</p>
+<pre><code class="language-text">목적 Pod IP
+→ 10.244.2.31
+
+소속된 Pod CIDR
+→ 10.244.2.0/24
+
+해당 Pod CIDR의 Node
+→ gpu-lab-m03
+</code></pre>
+<p>이 경로는 CNI가 구성한다. CNI 구현에 따라 Linux Routing Table에 직접 경로를 넣거나, 목적 Node까지 Overlay Tunnel을 만들거나, eBPF Map을 사용할 수 있다.</p>
+<pre><code class="language-text">gpu-lab-m02
+  → CNI 경로 또는 Tunnel
+  → gpu-lab-m03
+</code></pre>
+<p>여기서 역할을 구분해야 한다.</p>
+<pre><code class="language-text">kube-proxy
+→ Endpoint 중 하나를 선택
+→ Service IP를 Pod IP로 변환
+
+CNI
+→ 변환된 Pod IP가 있는 Node로 Packet 운반
+</code></pre>
+
+</section>
+<section id="node-packet-pod-veth" class="markdown-section">
+<h2>목적 Node는 Packet을 Pod의 veth로 전달한다</h2>
+<p>Packet이 <code>gpu-lab-m03</code>에 도착하면 이 Node는 <code>10.244.2.31</code>이 자신의 로컬 Pod IP라는 것을 알고 있다.</p>
+<pre><code class="language-text">gpu-lab-m03의 Linux Network Stack
+  → 10.244.2.31과 연결된 veth 확인
+  → Pod B의 eth0로 전달
+  → Model Server의 8080 Port에 도착
+</code></pre>
+<p>전체 요청 경로를 연결하면 다음과 같다.</p>
+<pre><code class="language-text">Pod A의 Process
+  → Pod A의 eth0
+  → veth
+  → 출발 Node의 Linux Network Stack
+  → Service IP를 Endpoint Pod IP로 DNAT
+  → CNI가 목적 Node로 전달
+  → 목적 Node의 veth
+  → Pod B의 eth0
+  → Model Server Process
+</code></pre>
+
+</section>
+<section id="node-pod-endpoint" class="markdown-section">
+<h2>여러 Node에 Pod가 있으면 Endpoint 하나를 선택한다</h2>
+<p>Service 뒤에 여러 Ready Pod가 있다면 EndpointSlice에는 여러 주소가 들어간다.</p>
+<pre><code class="language-text">EndpointSlice
+├─ 10.244.1.15 → gpu-lab-m02의 Pod
+├─ 10.244.2.31 → gpu-lab-m03의 Pod
+└─ 10.244.3.12 → 다른 Node의 Pod
+</code></pre>
+<p>kube-proxy가 구성한 규칙은 요청 연결마다 후보 중 하나를 선택한다.</p>
+<pre><code class="language-text">요청 1
+→ 10.244.1.15 선택
+
+요청 2
+→ 10.244.2.31 선택
+
+요청 3
+→ 10.244.3.12 선택
+</code></pre>
+<p>선택된 Pod가 로컬 Node에 있으면 Node 간 전달 없이 로컬 veth로 향한다. 다른 Node에 있다면 CNI의 Node 간 경로를 사용한다.</p>
+<pre><code class="language-text">로컬 Endpoint 선택
+→ 현재 Node에서 바로 목적 Pod의 veth로 전달
+
+원격 Endpoint 선택
+→ CNI Network를 거쳐 목적 Node로 전달
+</code></pre>
+
+</section>
+<section id="connection-tracking" class="markdown-section">
+<h2>응답은 Connection Tracking을 통해 돌아온다</h2>
+<p>Model Server가 응답하면 Packet은 반대 방향으로 돌아간다.</p>
+<pre><code class="language-text">Model Server Pod
+→ 목적 Node
+→ CNI Network
+→ 요청을 보낸 Node
+→ Client Pod
+</code></pre>
+<p>Node Kernel은 처음 요청에서 수행한 NAT 관계를 Connection Tracking에 보관한다.</p>
+<pre><code class="language-text">Client가 요청한 주소
+→ Service IP 10.96.10.20:80
+
+실제로 요청을 처리한 주소
+→ Pod IP 10.244.2.31:8080
+</code></pre>
+<p>응답 Packet에는 역변환이 적용된다. 그래서 Client Pod는 실제 Pod IP를 몰라도 자신이 요청한 Service와 계속 통신한 것처럼 볼 수 있다.</p>
+
+</section>
+<section id="pod-ip-service" class="markdown-section">
+<h2>Pod IP로 직접 요청하면 Service 변환은 생략된다</h2>
+<p>처음부터 Pod IP인 <code>10.244.2.31:8080</code>으로 요청하면 kube-proxy의 Service 선택과 DNAT 단계가 필요 없다.</p>
+<pre><code class="language-text">Service IP로 요청
+→ veth
+→ Service 규칙으로 Endpoint 선택·DNAT
+→ CNI
+→ 목적 Pod
+
+Pod IP로 직접 요청
+→ veth
+→ CNI
+→ 목적 Pod
+</code></pre>
+<p>하지만 Pod IP는 Pod가 재생성될 때 바뀔 수 있다. Service는 변하지 않는 주소를 제공하고, EndpointSlice가 현재 Ready한 Pod IP를 계속 갱신한다.</p>
+
+</section>
+<section id="section-233d841d7518" class="markdown-section">
+<h2>전체 책임을 구분한다</h2>
+<pre><code class="language-text">Service
+→ 변하지 않는 접근 주소와 Port 제공
+
+EndpointSlice
+→ 현재 사용할 수 있는 Pod IP·Port·Node·Ready 상태 기록
+
+kube-proxy
+→ Service와 EndpointSlice를 보고 Kernel 전달 규칙 구성
+
+veth
+→ Pod Network Namespace와 Node Network 연결
+
+CNI
+→ Pod IP 할당과 Node 간 Packet 전달 경로 구성
+
+Linux Kernel
+→ NAT·Routing·Connection Tracking을 실제 Packet에 적용
+</code></pre>
+<p>결국 Service 요청은 다음 순서로 전달된다.</p>
+<blockquote>
+<p>Pod의 Packet이 veth를 통해 Node Kernel로 나오고, kube-proxy가 미리 만든 규칙이 Service IP를 Ready한 Endpoint Pod IP로 바꾼다. CNI가 그 Pod IP가 있는 Node까지 Packet을 운반하고, 목적 Node의 veth를 거쳐 최종 Pod Process에 전달한다.</p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
