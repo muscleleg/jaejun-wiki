@@ -1,0 +1,219 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.md. Do not edit directly. source-sha256:6be2a934d2135c8e5cc7c22ef83a209c1c69963aa017f57f6dd8217e0d898da1 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod의 DNS search·ndots 설정과 BusyBox nslookup의 접미사 처리 차이로 발생한 NXDOMAIN을 전체 DNS 이름 조회와 비교한다.">
+  <meta name="source-sha256" content="6be2a934d2135c8e5cc7c22ef83a209c1c69963aa017f57f6dd8217e0d898da1">
+  <title>Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?">
+  <meta property="og:description" content="Pod의 DNS search·ndots 설정과 BusyBox nslookup의 접미사 처리 차이로 발생한 NXDOMAIN을 전체 DNS 이름 조회와 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html","name":"Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?","description":"Pod의 DNS search·ndots 설정과 BusyBox nslookup의 접미사 처리 차이로 발생한 NXDOMAIN을 전체 DNS 이름 조회와 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html"},"headline":"Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-short-dns-busybox-nslookup-search.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html"},{"@type":"ListItem","position":6,"name":"새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html"},{"@type":"ListItem","position":7,"name":"CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html"},{"@type":"ListItem","position":8,"name":"Pod에서 도메인은 어떻게 실제 요청으로 이어질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-pod-dns-resolution-before-request.html"},{"@type":"ListItem","position":9,"name":"Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-kubelet-runtime-cni-pod-status.html">kubelet은 Pod 실행을 어떻게 Runtime과 CNI에 맡기고 상태를 보고할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-status-to-cluster-service-routing.html">새로 생성된 Pod는 어떻게 Cluster 전체에서 접근 가능해질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-coredns-api-watch-service-discovery.html">CoreDNS는 Service 정보를 어떻게 알아내고 DNS 응답을 갱신할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-pod-dns-resolution-before-request.html">Pod에서 도메인은 어떻게 실제 요청으로 이어질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Pod에서 짧은 DNS 주소는 왜 조회되지 않았을까?</h1>
+      <p class="lead">Pod의 DNS search·ndots 설정과 BusyBox nslookup의 접미사 처리 차이로 발생한 NXDOMAIN을 전체 DNS 이름 조회와 비교한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1988aaf58775">짧은 주소는 실패하고 전체 주소는 성공했다</a>
+        <a href="#dns">DNS에 등록된 것은 전체 이름이다</a>
+        <a href="#section-c7a0a8640589">짧은 이름은 조회하는 쪽에서 전체 이름으로 보완한다</a>
+        <a href="#ndots">ndots는 어떤 이름부터 조회할지 정한다</a>
+        <a href="#busybox-nslookup">이번 BusyBox nslookup은 접미사를 붙이지 않았다</a>
+        <a href="#section-d17e0a4d172f">끝의 점은 입력한 이름 그대로 조회하라는 표시다</a>
+        <a href="#section-4b5978be240c">조회 실패는 대상의 부재와 구분해야 한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Pod 안에서 사용할 수 있다고 생각한 주소를 <code>nslookup</code>으로 조회했지만 <code>NXDOMAIN</code>이 발생했다. 그런데 주소 뒤에 <code>svc.cluster.local</code>을 붙이자 정상적으로 IP가 반환됐다.</p>
+<p>이 현상은 대상 Pod가 없어서 발생한 것이 아니었다. <strong>DNS에 등록된 전체 이름과, 생략된 이름을 보완하는 조회 프로그램의 동작이 달랐기 때문</strong>이었다.</p>
+<p>주소 조회 실패를 이해하려면 DNS 서버에 무엇이 등록돼 있는지뿐 아니라, 프로그램이 실제로 어떤 이름을 질문하는지도 확인해야 한다.</p>
+</div>
+        <section id="section-1988aaf58775" class="markdown-section">
+<h2>짧은 주소는 실패하고 전체 주소는 성공했다</h2>
+<p>검증 환경에서는 Worker Pod에 다음 주소가 환경 변수로 전달돼 있었다. 이 주소의 대상은 같은 실행 그룹의 Leader Pod였다.</p>
+<pre><code class="language-text">gpu-gang-group-0.gpu-gang-group.gpu-group-lab
+</code></pre>
+<p>Worker 안에서 이 이름을 조회했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab exec gpu-gang-group-0-1 -- \
+  nslookup gpu-gang-group-0.gpu-gang-group.gpu-group-lab
+</code></pre>
+<p>결과는 다음과 같았다.</p>
+<pre><code class="language-text">NXDOMAIN
+</code></pre>
+<p><code>NXDOMAIN</code>은 DNS 서버가 <strong>질문받은 이름을 찾지 못했다</strong>는 응답이다. 대상 Pod가 실행 중인지, 특정 포트에서 서버가 응답하는지까지 판단한 결과는 아니다.</p>
+<p>동일한 이름 뒤에 <code>svc.cluster.local</code>을 붙여 다시 조회했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab exec gpu-gang-group-0-1 -- \
+  nslookup gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+</code></pre>
+<p>이번에는 IP가 반환됐다.</p>
+<pre><code class="language-text">Name: gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+Address: 10.244.1.46
+</code></pre>
+<p>이 IP는 대상 Pod의 IP와 일치했다. 따라서 DNS 등록이 누락됐다고 보기보다는, <strong>두 명령이 서로 다른 DNS 이름을 질문한 이유</strong>를 확인해야 했다.</p>
+
+</section>
+<section id="dns" class="markdown-section">
+<h2>DNS에 등록된 것은 전체 이름이다</h2>
+<p>이 예시에서 등록된 전체 이름은 다음 구조였다.</p>
+<pre><code class="language-text">gpu-gang-group-0 . gpu-gang-group . gpu-group-lab . svc.cluster.local
+Pod hostname      Headless Service Namespace       클러스터 DNS 도메인
+</code></pre>
+<p>Pod에 <code>hostname</code>과 <code>subdomain</code>이 설정되고, 같은 Namespace에 해당 <code>subdomain</code>과 이름이 같은 Headless Service가 있으면 Kubernetes는 이러한 Pod별 DNS 이름을 제공할 수 있다. 모든 Pod 이름이 조건 없이 이 형태로 등록되는 것은 아니다. <a href="https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/" rel="noopener noreferrer">Kubernetes Pod DNS 설명</a></p>
+<p>여기서 중요한 것은 다음 두 이름이 DNS 서버 입장에서는 서로 다르다는 점이다.</p>
+<pre><code class="language-text">gpu-gang-group-0.gpu-gang-group.gpu-group-lab
+
+gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+</code></pre>
+<p>짧은 이름 자체가 별도로 등록돼 있지 않다면, 그대로 질문했을 때 조회되지 않는 것은 자연스러운 결과다.</p>
+<p>그렇다면 Kubernetes에서 짧은 이름을 사용할 수 있다고 하는 이유는 무엇일까?</p>
+
+</section>
+<section id="section-c7a0a8640589" class="markdown-section">
+<h2>짧은 이름은 조회하는 쪽에서 전체 이름으로 보완한다</h2>
+<p>Kubernetes는 Pod에 DNS 검색 설정을 제공한다. 검증 환경의 Worker에서는 다음 명령으로 설정을 확인했다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab exec gpu-gang-group-0-1 -- \
+  cat /etc/resolv.conf
+</code></pre>
+<p>출력은 다음과 같았다.</p>
+<pre><code class="language-text">nameserver 10.96.0.10
+search gpu-group-lab.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+</code></pre>
+<p><code>nameserver</code>는 DNS 질문을 보낼 서버이고, <code>search</code>는 입력한 이름 뒤에 붙여 찾아볼 접미사 목록이다.</p>
+<p>이 설정을 적용하는 이름 조회 기능은 짧은 이름에 접미사를 붙여 후보를 만든다. 예를 들어 <code>svc.cluster.local</code>을 붙이면 다음 이름이 된다.</p>
+<pre><code class="language-text">입력한 이름
+gpu-gang-group-0.gpu-gang-group.gpu-group-lab
+
+접미사를 붙인 이름
+gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+</code></pre>
+<p>이렇게 구성한 전체 이름을 DNS 서버에 질문하면 등록된 IP를 받을 수 있다.</p>
+<p><strong>DNS 서버가 짧은 이름을 알아서 보완하는 것이 아니다. 프로그램의 이름 조회 기능이 설정을 읽고 보완한 이름을 질문한다.</strong> Kubernetes의 짧은 이름 사용은 이러한 검색 동작을 활용하는 것이다. <a href="https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/" rel="noopener noreferrer">Kubernetes DNS 검색 설정</a></p>
+
+</section>
+<section id="ndots" class="markdown-section">
+<h2>ndots는 어떤 이름부터 조회할지 정한다</h2>
+<p>“짧은 이름”은 글자 수로 판단하는 개념이 아니다. 일반적인 Resolver, 즉 프로그램의 이름 조회 기능은 <code>ndots</code> 설정으로 조회 순서를 결정한다.</p>
+<p><code>ndots:5</code>에서는 보통 다음 순서로 시도한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>입력 이름의 점 개수</th>
+<th>먼저 조회하는 이름</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>5개 미만</td>
+<td><code>search</code> 접미사를 붙인 이름</td>
+</tr>
+<tr>
+<td>5개 이상</td>
+<td>입력한 이름 그대로</td>
+</tr>
+</tbody></table>
+</div>
+<p>첫 시도가 실패하면 다른 후보를 조회할 수 있다. 따라서 <code>ndots</code>는 접미사를 붙일지 말지를 절대적으로 제한하는 설정이 아니라 <strong>조회 우선순위를 정하는 설정</strong>이다. <a href="https://man7.org/linux/man-pages/man5/resolv.conf.5.html" rel="noopener noreferrer">Resolver 설정 설명</a></p>
+<p>예시의 짧은 주소에는 점이 두 개 있으므로, 이 규칙을 따르는 조회 기능은 검색 접미사를 먼저 적용할 수 있다.</p>
+<p>이 규칙은 외부 도메인에도 적용된다. <code>naver.com</code>에는 점이 한 개 있으므로 <code>ndots:5</code>에서는 보통 다음 후보를 순서대로 조회한다.</p>
+<pre><code class="language-text">naver.com.gpu-group-lab.svc.cluster.local
+naver.com.svc.cluster.local
+naver.com.cluster.local
+naver.com
+</code></pre>
+<p>프로그램은 <code>naver.com</code>이라는 문자열만 보고 외부 주소라고 판단해 검색 규칙을 생략하지 않는다. 이 때문에 외부 도메인 조회에도 추가 DNS 질문이 발생할 수 있다.</p>
+
+</section>
+<section id="busybox-nslookup" class="markdown-section">
+<h2>이번 BusyBox nslookup은 접미사를 붙이지 않았다</h2>
+<p>검증에 사용한 도구는 BusyBox 1.36.1의 <code>nslookup</code>이었다.</p>
+<p>이 구현은 <strong>입력 이름에 점이 하나라도 있으면 검색 접미사를 붙이지 않고 그대로 조회한다.</strong> 따라서 일반적인 Resolver의 <code>ndots:5</code> 동작과 같지 않았다. <a href="https://github.com/mirror/busybox/blob/1_36_1/networking/nslookup.c#L797-L804" rel="noopener noreferrer">BusyBox 구현</a></p>
+<p>실패와 성공의 원인은 다음과 같이 정리된다.</p>
+<pre><code class="language-text">짧은 이름 입력
+  → 이름에 점이 있으므로 접미사 보완 생략
+  → 짧은 이름 그대로 DNS에 질문
+  → 등록된 이름이 아니므로 NXDOMAIN
+
+전체 이름 입력
+  → 등록된 이름 그대로 DNS에 질문
+  → 대상 Pod의 IP 반환
+</code></pre>
+<p><code>/etc/resolv.conf</code>에 검색 설정이 있다는 사실만으로 모든 도구가 동일하게 이름을 보완하는 것은 아니다. 도구가 시스템의 이름 조회 기능을 사용하는지, 자체 DNS 조회 기능을 구현했는지에 따라 결과가 달라질 수 있다.</p>
+<p>따라서 BusyBox <code>nslookup</code>에서 짧은 주소가 실패했다는 이유만으로 실제 애플리케이션도 그 주소를 사용할 수 없다고 단정해서는 안 된다.</p>
+
+</section>
+<section id="section-d17e0a4d172f" class="markdown-section">
+<h2>끝의 점은 입력한 이름 그대로 조회하라는 표시다</h2>
+<p>DNS 이름 맨 끝에 점을 붙이면 생략 없는 절대 이름으로 지정할 수 있다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab exec gpu-gang-group-0-1 -- \
+  nslookup gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local.
+</code></pre>
+<p>끝의 점은 <strong>검색 접미사를 더 붙이지 말고 입력한 이름 그대로 조회하라</strong>는 뜻이다. 외부 도메인도 <code>naver.com.</code>처럼 지정할 수 있다.</p>
+<p>반대로 짧은 이름에 점을 붙이면:</p>
+<pre><code class="language-text">gpu-gang-group-0.gpu-gang-group.gpu-group-lab.
+</code></pre>
+<p>생략된 부분을 보완하지 못하게 된다. 등록된 전체 이름과 다르므로 여전히 조회되지 않는다. 마지막 점은 이름을 고치는 기능이 아니라 조회 방식을 명확하게 지정하는 표시다.</p>
+
+</section>
+<section id="section-4b5978be240c" class="markdown-section">
+<h2>조회 실패는 대상의 부재와 구분해야 한다</h2>
+<p>이 사례에서는 전체 이름으로 조회한 IP가 대상 Pod의 IP와 일치했다. 짧은 이름의 실패 원인은 대상이 없거나 DNS 등록이 빠진 것이 아니라, 조회 도구가 검색 접미사를 적용하지 않은 데 있었다.</p>
+<p>따라서 짧은 주소의 조회가 실패하면 <strong>등록된 전체 이름도 실패하는지, Pod의 검색 설정은 무엇인지, 조회 도구가 그 설정을 어떻게 적용하는지</strong>를 구분해서 확인해야 한다.</p>
+<p>그리고 DNS 조회 성공은 이름을 IP로 변환할 수 있다는 뜻일 뿐이다. 그 IP의 특정 포트에 연결할 수 있는지와 애플리케이션이 정상적으로 응답하는지는 별도로 확인해야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

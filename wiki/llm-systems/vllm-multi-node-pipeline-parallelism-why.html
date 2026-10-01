@@ -1,0 +1,138 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.md. Do not edit directly. source-sha256:cfc8b78fd9541ab0e352b32ce471d0b7316e6ca568d5189344a5bae6b9106ff5 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="모델이 한 Node의 GPU 메모리에 들어가지 않을 때 Pipeline Parallelism으로 Layer를 여러 Node에 나누는 이유와 통신 비용, Kubernetes 실행 그룹의 필요성을 설명한다.">
+  <meta name="source-sha256" content="cfc8b78fd9541ab0e352b32ce471d0b7316e6ca568d5189344a5bae6b9106ff5">
+  <title>모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism">
+  <meta property="og:description" content="모델이 한 Node의 GPU 메모리에 들어가지 않을 때 Pipeline Parallelism으로 Layer를 여러 Node에 나누는 이유와 통신 비용, Kubernetes 실행 그룹의 필요성을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html","name":"모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism","description":"모델이 한 Node의 GPU 메모리에 들어가지 않을 때 Pipeline Parallelism으로 Layer를 여러 Node에 나누는 이유와 통신 비용, Kubernetes 실행 그룹의 필요성을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html"},"headline":"모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/vllm-multi-node-pipeline-parallelism-why.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">LLM 시스템·에이전트</span>
+      <h1>모델 하나를 여러 Node에 나누는 이유: 통신 비용을 감수하는 Pipeline Parallelism</h1>
+      <p class="lead">모델이 한 Node의 GPU 메모리에 들어가지 않을 때 Pipeline Parallelism으로 Layer를 여러 Node에 나누는 이유와 통신 비용, Kubernetes 실행 그룹의 필요성을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#node-gpu">한 Node의 GPU 메모리로 부족할 때 모델을 나눈다</a>
+        <a href="#section-0c8b473fe22e">모델 가중치를 계속 옮기는 것이 아니라 계산 결과를 전달한다</a>
+        <a href="#node">같은 Node에서도 통신 비용은 발생한다</a>
+        <a href="#pod">모델을 나누면 Pod들도 하나의 실행 그룹이 된다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>모델을 실행하는 데 필요한 GPU가 한 Node에 모두 있다면, Pod 하나에 GPU 여러 개를 연결해 실행할 수 있다. 하지만 모델 가중치와 KV Cache, 연산용 메모리가 그 Node의 GPU 메모리에도 들어가지 않는다면 다른 Node의 GPU까지 사용해야 한다.</p>
+<p>이때 선택할 수 있는 구성이 Pipeline Parallelism(PP)이다. 모델의 Layer를 여러 Node에 나눠 배치하고, Node 사이에 중간 계산 결과를 전달하면서 모델 하나를 실행한다. 네트워크 통신 비용이 발생하지만, 더 많은 GPU 메모리를 확보해 모델을 실행할 수 있게 된다. <a href="https://docs.vllm.ai/en/v0.22.1/serving/parallelism_scaling/#distributed-inference-strategies-for-a-single-model-replica" rel="noopener noreferrer">vLLM 분산 실행 가이드</a></p>
+</div>
+        <section id="node-gpu" class="markdown-section">
+<h2>한 Node의 GPU 메모리로 부족할 때 모델을 나눈다</h2>
+<p>예를 들어 모델 가중치만 300GB이고, 각 Node의 GPU 메모리 총량이 192GB라고 가정하자. 한 Node에는 모델 전체를 올릴 수 없지만, 두 Node에 모델을 나눠 올리는 구성을 검토할 수 있다.</p>
+<pre><code class="language-less">Node A: GPU 메모리 총 192GB
+  → 모델의 앞쪽 Layer 배치
+
+Node B: GPU 메모리 총 192GB
+  → 모델의 뒤쪽 Layer 배치
+</code></pre>
+<p>두 Node의 메모리가 하나의 공유 메모리로 합쳐지는 것은 아니다. 각각의 GPU가 자신에게 배치된 모델 부분을 보관하고 계산한다. 실제 실행에는 가중치 외에도 KV Cache와 연산용 메모리가 필요하므로, 단순히 메모리 총량이 모델 크기보다 크다고 실행이 보장되지는 않는다.</p>
+
+</section>
+<section id="section-0c8b473fe22e" class="markdown-section">
+<h2>모델 가중치를 계속 옮기는 것이 아니라 계산 결과를 전달한다</h2>
+<p>PP에서는 각 단계의 모델 가중치를 담당 GPU에 올려둔다. 요청이 들어오면 앞쪽 Layer를 계산한 결과를 다음 단계로 전달한다.</p>
+<pre><code class="language-css">입력
+  ↓
+Node A의 GPU
+  → 앞쪽 Layer 계산
+  → 중간 계산 결과를 네트워크로 전달
+  ↓
+Node B의 GPU
+  → 뒤쪽 Layer 계산
+  → 최종 결과 생성
+</code></pre>
+<p>따라서 모델 전체를 매번 Node 사이로 복사하는 구조는 아니다. 모델의 각 부분은 해당 GPU에 남아 있고, 연산을 이어가는 데 필요한 데이터가 이동한다.</p>
+<p>Tensor Parallelism(TP)은 분할 기준이 다르다. TP는 한 Layer 내부의 행렬 연산을 여러 GPU에 나누고, PP는 Layer들을 여러 단계로 나눈다. 그래서 각 Node 내부에는 TP를 적용하고, Node 사이에는 PP를 적용하는 구성도 가능하다. <a href="https://docs.vllm.ai/en/v0.22.1/serving/parallelism_scaling/#multi-node-deployment" rel="noopener noreferrer">vLLM TP·PP 구성</a></p>
+
+</section>
+<section id="node" class="markdown-section">
+<h2>같은 Node에서도 통신 비용은 발생한다</h2>
+<p>Pod 하나가 GPU 여러 개를 사용하더라도 각 GPU는 별도의 메모리를 가진다. GPU들이 계산 결과를 교환하고 동기화해야 하므로, 한 Pod나 한 프로세스라는 이유로 통신 비용이 사라지지는 않는다.</p>
+<p>같은 Node에서는 NVLink 같은 연결을 활용할 수 있다. 여러 Node로 확장하면 네트워크를 거쳐야 하므로 통신 지연과 대역폭의 영향이 커진다. InfiniBand와 GPUDirect RDMA 같은 기술은 이 비용을 줄여주지만 없애지는 못한다. <a href="https://docs.vllm.ai/en/v0.22.1/serving/parallelism_scaling/#optimizing-network-communication-for-tensor-parallelism" rel="noopener noreferrer">vLLM 통신 최적화 설명</a></p>
+<p>따라서 한 Node에 모델이 충분히 들어간다면 그 안에서 실행하는 구성이 우선이다. 여러 Node를 사용하는 것은 더 큰 모델이나 실행 메모리 요구를 감당하기 위해 통신 비용을 받아들이는 선택이다.</p>
+
+</section>
+<section id="pod" class="markdown-section">
+<h2>모델을 나누면 Pod들도 하나의 실행 그룹이 된다</h2>
+<ul>
+<li><p><a href="lws-exclusive-topology-node-label-placement.html">LWS는 Node Label 값이 같은 곳에 실행 그룹을 배치한다</a></p>
+</li>
+<li><p><a href="../infrastructure/lws-leader-worker-group-size-replicas-recovery.html">LWS는 왜 Leader 개수를 따로 정하지 않고 size로 그룹을 구성할까?</a></p>
+</li>
+</ul>
+<p>Kubernetes에서는 각 Node에 모델의 일부를 실행하는 Pod를 배치할 수 있다.</p>
+<pre><code class="language-css">하나의 모델 실행 그룹
+├─ Node A의 Pod → 앞쪽 Layer 실행
+└─ Node B의 Pod → 뒤쪽 Layer 실행
+</code></pre>
+<p>이 구성에서는 어느 한 Pod만 실행돼서는 전체 모델의 추론을 완료할 수 없다. 그래서 필요한 GPU와 Pod들을 함께 확보하고, 구성원 사이의 연결과 복구를 관리해야 한다. LeaderWorkerSet과 Gang Scheduling이 필요한 배경이 여기에 있다.</p>
+<p>Prefill·Decode 분리는 별도의 구성이다. PP는 모델의 Layer를 나누는 방식이고, Prefill·Decode 분리는 입력 처리와 토큰 생성 단계를 서로 다른 서버에 맡기는 방식이다. Prefill 서버와 Decode 서버 각각이 내부적으로 TP나 PP를 사용할 수도 있다. <a href="https://docs.vllm.ai/en/stable/features/disagg_prefill/" rel="noopener noreferrer">vLLM Prefill·Decode 분리</a></p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="../infrastructure/lws-leader-worker-group-size-replicas-recovery.html">LWS는 왜 Leader 개수를 따로 정하지 않고 size로 그룹을 구성할까?</a></li>
+<li><a href="lws-exclusive-topology-node-label-placement.html">LWS는 Node Label 값이 같은 곳에 실행 그룹을 배치한다</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

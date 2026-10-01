@@ -1,0 +1,242 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.md. Do not edit directly. source-sha256:ac0526ac105b2272d56c32f87c7eae7178cfe9b95d79dc12729da7aeb36cfd03 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPU 부족 시 기본 Scheduler의 부분 배치와 Volcano의 Gang 대기를 비교한다.">
+  <meta name="source-sha256" content="ac0526ac105b2272d56c32f87c7eae7178cfe9b95d79dc12729da7aeb36cfd03">
+  <title>GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?">
+  <meta property="og:description" content="GPU 부족 시 기본 Scheduler의 부분 배치와 Volcano의 Gang 대기를 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html","name":"GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?","description":"GPU 부족 시 기본 Scheduler의 부분 배치와 Volcano의 Gang 대기를 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html"},"headline":"GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/default-vs-gang-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html"},{"@type":"ListItem","position":6,"name":"GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</h1>
+      <p class="lead">GPU 부족 시 기본 Scheduler의 부분 배치와 Volcano의 Gang 대기를 비교한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-f0e8f7cac27c">비교 전에 실제로 사용할 수 있는 GPU를 확인한다</a>
+        <a href="#section-c6998f90f054">기본 Scheduler는 들어갈 수 있는 Pod부터 배치한다</a>
+        <a href="#section-d3e2223800ed">동일한 자원 조건에서 Volcano는 그룹을 기다리게 한다</a>
+        <a href="#section-686078043d14">그룹 요구량을 줄이면 대기 조건이 해소된다</a>
+        <a href="#section-5472df120eb8">배치 성공은 분산 모델 실행 성공이 아니다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>세 Pod가 함께 하나의 서버를 구성한다면 두 Pod만 실행돼도 서버가 완성되지 않을 수 있다. 기본 Scheduler의 개별 Pod 배치와 Gang Scheduler의 그룹 조건을 비교하면, 그룹을 만드는 Controller와 그룹을 배치하는 Scheduler를 따로 두는 이유가 드러난다.</p>
+<p>비교 조건은 GPU를 하나씩 요청하는 Leader 한 개·Worker 두 개와 가용 GPU 두 개다. 예시 이름은 검증 환경의 이름이며, 모의 GPU와 BusyBox를 사용했으므로 판단 대상은 GPU 연산이 아니라 Kubernetes의 배치다.</p>
+</div>
+        <section id="section-f0e8f7cac27c" class="markdown-section">
+<h2>비교 전에 실제로 사용할 수 있는 GPU를 확인한다</h2>
+<p>Node의 <code>allocatable</code>은 게시된 용량이지 다른 Pod의 요청을 뺀 잔량이 아니다. 다음 두 조회로 게시량과 기존 요청을 함께 확인한다.</p>
+<pre><code class="language-bash">kubectl get nodes \
+  -o custom-columns=&#39;NODE:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu&#39;
+kubectl describe node gpu-lab-m03
+</code></pre>
+<p>비교 시작 시 <code>gpu-lab-m03</code>만 GPU 두 개를 게시했고 다른 GPU Workload를 정리한 상태였다. <code>gpu-lab-m02</code>는 Device Plugin이 배치되지 않아 게시량이 0이었다. 이 환경 조건과 기존 KServe Workload 정지는 <a href="fake-gpu-environment.html">Fake GPU 환경은 실행 그룹 배치의 어디까지 검증할까?</a>에 기록한다.</p>
+<p>LWS와 Volcano의 설치·연동이 필요하다면 <a href="lws-volcano-installation.html">LWS와 Volcano는 어떻게 설치하고 함께 사용할까?</a>를 따른다. 아래 Manifest들은 <code>gpu-group-lab</code> Namespace에서 비교에 사용한 요청을 재현하는 구성이다.</p>
+
+</section>
+<section id="section-c6998f90f054" class="markdown-section">
+<h2>기본 Scheduler는 들어갈 수 있는 Pod부터 배치한다</h2>
+<p>기본 Scheduler를 명시한 비교용 전체 Manifest다. 각 역할은 GPU 한 개를 요청하므로 그룹의 총 요구량은 세 개다.</p>
+<pre><code class="language-yaml">apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: gpu-partial-group
+  namespace: gpu-group-lab
+spec:
+  replicas: 1
+  startupPolicy: LeaderCreated
+  leaderWorkerTemplate:
+    size: 3
+    leaderTemplate:
+      spec:
+        schedulerName: default-scheduler
+        containers:
+          - name: leader
+            image: busybox:1.36
+            command: [&quot;sh&quot;, &quot;-c&quot;, &quot;sleep 3600&quot;]
+            resources:
+              requests:
+                nvidia.com/gpu: 1
+              limits:
+                nvidia.com/gpu: 1
+    workerTemplate:
+      spec:
+        schedulerName: default-scheduler
+        containers:
+          - name: worker
+            image: busybox:1.36
+            command: [&quot;sh&quot;, &quot;-c&quot;, &quot;sleep 3600&quot;]
+            resources:
+              requests:
+                nvidia.com/gpu: 1
+              limits:
+                nvidia.com/gpu: 1
+</code></pre>
+<p><code>LeaderCreated</code>는 Leader Pod 객체가 만들어지면 Worker 생성을 진행하는 정책이다. Leader가 먼저 Ready여야 Worker를 만드는 흐름으로 혼동하지 않는다.</p>
+<p>적용 후에는 Pod가 어느 Node에 배치됐는지까지 확인한다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab get pods \
+  -l leaderworkerset.sigs.k8s.io/name=gpu-partial-group -o wide
+</code></pre>
+<p>관찰된 결과는 Leader와 Worker 하나가 Running, 나머지 Worker 하나가 Pending이었다. 먼저 배치된 두 Pod는 GPU를 하나씩 점유했다. 이 Pod들이 실제로 서로 의존하는 모델 Process였다면, 자원은 사용 중으로 계산되지만 완전한 서버는 없는 상태다.</p>
+
+</section>
+<section id="section-d3e2223800ed" class="markdown-section">
+<h2>동일한 자원 조건에서 Volcano는 그룹을 기다리게 한다</h2>
+<p>공정한 비교를 위해 먼저 기본 Scheduler 그룹을 지워 GPU를 반환했다. 다음 삭제는 해당 실습 그룹과 그 종속 객체를 대상으로 한다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab delete leaderworkerset gpu-partial-group \
+  --cascade=foreground
+</code></pre>
+<p>이 옵션으로 무엇을 기다리는지는 <a href="kubectl-group-inspection-deletion.html">LWS 실습에서 Pod 위치·변경·종속 객체 삭제를 확인하는 명령</a>에 설명한다. 남은 Pod와 자원 점유를 확인한 후 다음 그룹을 생성한다.</p>
+<pre><code class="language-yaml">apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: gpu-gang-group
+  namespace: gpu-group-lab
+spec:
+  replicas: 1
+  startupPolicy: LeaderCreated
+  leaderWorkerTemplate:
+    size: 3
+    leaderTemplate:
+      spec:
+        schedulerName: volcano
+        containers:
+          - name: leader
+            image: busybox:1.36
+            command: [&quot;sh&quot;, &quot;-c&quot;, &quot;sleep 3600&quot;]
+            resources:
+              requests:
+                nvidia.com/gpu: 1
+              limits:
+                nvidia.com/gpu: 1
+    workerTemplate:
+      spec:
+        schedulerName: volcano
+        containers:
+          - name: worker
+            image: busybox:1.36
+            command: [&quot;sh&quot;, &quot;-c&quot;, &quot;sleep 3600&quot;]
+            resources:
+              requests:
+                nvidia.com/gpu: 1
+              limits:
+                nvidia.com/gpu: 1
+</code></pre>
+<p>Leader·Worker 모두 Volcano를 사용한다. LWS 연동 기능은 세 Pod를 같은 PodGroup에 연결했다. 다음 조회에서는 PodGroup의 최소 구성원·자원 조건과 Pod의 Node 배정 여부를 함께 읽는다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab get pods \
+  -l leaderworkerset.sigs.k8s.io/name=gpu-gang-group -o wide
+kubectl -n gpu-group-lab get podgroup -o yaml
+kubectl -n gpu-group-lab get events --sort-by=.lastTimestamp
+</code></pre>
+<p>관찰된 값은 <code>minMember: 3</code>, <code>minResources.nvidia.com/gpu: 3</code>이었다. 가용 GPU가 두 개라서 세 Pod 모두 Node 미배정 Pending이었고, PodGroup에는 <code>NotEnoughResources</code>가 나타났다. 이 구성에서는 일부 구성원만 먼저 GPU를 점유하는 배치가 일어나지 않았다. <a href="https://volcano.sh/docs/scheduler/plugins/gang/" rel="noopener noreferrer">Volcano Gang Plugin</a></p>
+
+</section>
+<section id="section-686078043d14" class="markdown-section">
+<h2>그룹 요구량을 줄이면 대기 조건이 해소된다</h2>
+<p>GPU 공급은 그대로 두고 <code>size</code>를 세 개에서 두 개로 바꿨다. Leader 한 개와 Worker 한 개가 각각 GPU 하나를 요청하므로 총 요구량도 두 개가 된다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab patch leaderworkerset gpu-gang-group \
+  --type=merge -p=&#39;{&quot;spec&quot;:{&quot;leaderWorkerTemplate&quot;:{&quot;size&quot;:2}}}&#39;
+</code></pre>
+<p>두 Pod가 모두 <code>gpu-lab-m03</code>에서 Running으로 바뀌고 LWS의 Ready 그룹 수는 1이 됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>배치 방식</th>
+<th>그룹 GPU 요구량</th>
+<th>가용 GPU</th>
+<th>관찰 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>기본 Scheduler</td>
+<td>3</td>
+<td>2</td>
+<td>2 Running, 1 Pending</td>
+</tr>
+<tr>
+<td>Volcano Gang</td>
+<td>3</td>
+<td>2</td>
+<td>3 Pending, Node 미배정</td>
+</tr>
+<tr>
+<td>Volcano Gang, <code>size: 2</code></td>
+<td>2</td>
+<td>2</td>
+<td>2 Running, Ready 그룹 1</td>
+</tr>
+</tbody></table>
+</div>
+<p>마지막 행은 GPU 공급이 같은 상태에서도 그룹의 요구량을 줄이면 배치 조건을 충족할 수 있음을 보여 준다. 다른 Workload가 자원을 반환해도 그룹의 전체 조건이 충족되면 다시 배치 후보가 되지만, Queue·우선순위·다른 배치 조건도 함께 만족해야 한다.</p>
+<p>그룹 수를 늘렸을 때도 Gang 조건은 실행 그룹별로 평가된다는 점은 <a href="lws-size-replicas-lab.html">LWS의 size와 replicas는 어떤 Pod와 StatefulSet을 만들까?</a>에서 설명한다.</p>
+<p>요구량을 줄이는 대신 여러 Node의 GPU를 사용할 수도 있다. 세 구성원으로 다시 구성하고 두 Node에 걸쳐 배치할 수 있게 하는 전체 설정은 <a href="multi-node-gpu-group-placement.html">하나의 GPU 실행 그룹은 어떻게 여러 Node에 걸쳐 배치될까?</a>에 정리한다.</p>
+
+</section>
+<section id="section-5472df120eb8" class="markdown-section">
+<h2>배치 성공은 분산 모델 실행 성공이 아니다</h2>
+<p>관찰한 Running과 LWS Ready는 BusyBox 대기 Process가 실행된 결과다. vLLM이나 NCCL을 초기화하지 않았으므로 추론 가능한 모델 서버가 만들어졌다는 뜻은 아니다.</p>
+<p>Gang은 배치를 허용할 조건을 다루고, 각 Container의 시작과 모델 초기화는 이후에 진행된다. 이 경계와 Readiness의 역할은 <a href="gang-readiness-serving.html">Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</a>에서 설명한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="lws-volcano-installation.html">LWS와 Volcano는 어떻게 설치하고 함께 사용할까?</a></li>
+<li><a href="kubectl-group-inspection-deletion.html">LWS 실습에서 Pod 위치·변경·종속 객체 삭제를 확인하는 명령</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

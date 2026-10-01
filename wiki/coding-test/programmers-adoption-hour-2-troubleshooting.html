@@ -1,0 +1,468 @@
+<!doctype html>
+<!-- Generated from content/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.md. Do not edit directly. source-sha256:157bf013011513fcb54e4cdcf1f95ba1b741dabce4b0ad1c4f397a30beea701e -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="없는 시간대를 포함하는 입양 집계 문제에서 UNION ALL·재귀 CTE·LEFT JOIN·그룹 기준·COUNT와 NULL 처리의 시행착오와 두 풀이를 정리한다.">
+  <meta name="source-sha256" content="157bf013011513fcb54e4cdcf1f95ba1b741dabce4b0ad1c4f397a30beea701e">
+  <title>입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계">
+  <meta property="og:description" content="없는 시간대를 포함하는 입양 집계 문제에서 UNION ALL·재귀 CTE·LEFT JOIN·그룹 기준·COUNT와 NULL 처리의 시행착오와 두 풀이를 정리한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html","name":"입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계","description":"없는 시간대를 포함하는 입양 집계 문제에서 UNION ALL·재귀 CTE·LEFT JOIN·그룹 기준·COUNT와 NULL 처리의 시행착오와 두 풀이를 정리한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html"},"headline":"입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-algorithm-problem-solving","name":"코딩 테스트 로드맵·문제 해결","identifier":"topics-algorithm-problem-solving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/programmers-adoption-hour-2-troubleshooting.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"코딩 테스트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-coding-test"},{"@type":"ListItem","position":4,"name":"코딩 테스트 학습 기록","item":"https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/index.html"},{"@type":"ListItem","position":5,"name":"입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-coding-test">코딩 테스트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/coding-test/index.html">코딩 테스트 학습 기록</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">코딩 테스트</span>
+      <h1>입양 시각 구하기(2): 없는 시간대·재귀 조회·LEFT JOIN과 집계</h1>
+      <p class="lead">없는 시간대를 포함하는 입양 집계 문제에서 UNION ALL·재귀 CTE·LEFT JOIN·그룹 기준·COUNT와 NULL 처리의 시행착오와 두 풀이를 정리한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#problem-and-status">문제와 이번 학습의 도달점</a>
+        <a href="#missing-hour-groups">첫 시도: GROUP BY만으로 없는 시간은 생기지 않는다</a>
+        <a href="#literal-hours">SELECT 상수와 UNION ALL로 시간 목록 만들기</a>
+        <a href="#join-preservation">INNER·LEFT·RIGHT·FULL JOIN의 보존 기준</a>
+        <a href="#recursive-basics">WITH RECURSIVE의 가장 작은 예제</a>
+        <a href="#self-reference-and-columns">왜 정의 중인 hours를 FROM에서 읽을 수 있는가</a>
+        <a href="#syntax-troubleshooting">작성 중 나온 문법 오류와 교정</a>
+        <a href="#group-left-hour">GROUP BY는 보존된 시간 목록을 기준으로 한다</a>
+        <a href="#count-placeholder-row">LEFT JOIN 다음 COUNT(*)가 빈 시간에도 1인 이유</a>
+        <a href="#final-solution">최종 참고 풀이: 시간 목록 → JOIN → 집계</a>
+        <a href="#preaggregate-solution">다른 참고 풀이: 먼저 집계 → JOIN → NULL을 0으로</a>
+        <a href="#evidence-and-recheck">도움받은 범위와 다음 재현 확인</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="problem-and-status" class="markdown-section">
+<h2>문제와 이번 학습의 도달점</h2>
+<p><a href="https://school.programmers.co.kr/learn/courses/30/lessons/59413" rel="noopener noreferrer">프로그래머스 입양 시각 구하기(2)</a>는 <code>ANIMAL_OUTS</code>의 입양 기록을 시간대별로 세되, 입양이 없는 시간까지 0시부터 23시까지 모두 출력하는 문제다. 결과 열은 <code>HOUR</code>, <code>COUNT</code>이며 시간 오름차순으로 정렬한다. <code>DATETIME</code>에서 시간을 얻고, 실제 입양 기록의 존재 여부는 NULL이 아닌 <code>ANIMAL_ID</code>로 구별한다.</p>
+<p>이번에는 기본 시간대 집계에서 시작해 시간 목록 만들기, 재귀 CTE, LEFT JOIN, 집계 순서와 NULL 처리까지 설명을 받으며 쿼리를 수정했다. 마지막에는 LEFT JOIN으로 보존된 행 때문에 <code>COUNT(*)</code>가 1이 되고, 실제 동물 ID를 세면 0이 된다는 이유를 자기 말로 설명했다. 아래 최종 쿼리는 수정 안내를 반영한 풀이 참고 코드다. 최종 제출과 전체 테스트 통과, 도움 없는 재구현은 확인하지 않았다.</p>
+<p>기본 COUNT·GROUP BY·별칭·JOIN 학습은 <a href="sql-query-aggregation-join-troubleshooting.html">SQL 조회·집계·JOIN에서 헷갈린 점과 다섯 문제 풀이</a>에 기록돼 있다.</p>
+
+</section>
+<section id="missing-hour-groups" class="markdown-section">
+<h2>첫 시도: GROUP BY만으로 없는 시간은 생기지 않는다</h2>
+<p>처음 떠올린 쿼리는 다음과 같다.</p>
+<pre><code class="language-sql">SELECT HOUR(DATETIME), COUNT(*) AS &#39;COUNT&#39;
+FROM ANIMAL_OUTS
+GROUP BY HOUR(DATETIME);
+</code></pre>
+<p>이 쿼리는 원본에 존재하는 행을 시간값으로 묶는다. 9시에 두 기록, 10시에 한 기록만 있으면 결과는 9→2, 10→1이다. 0시에 기록이 없으면 묶을 행 자체가 없어서 0시 그룹도 없다. COUNT가 없던 그룹을 생성해 주지는 않는다.</p>
+<p>따라서 출력에 필요한 0~23시 목록을 먼저 만들고, 그 목록에 실제 기록을 연결해야 한다. 시간 목록이 결과의 기준이 된다.</p>
+
+</section>
+<section id="literal-hours" class="markdown-section">
+<h2>SELECT 상수와 UNION ALL로 시간 목록 만들기</h2>
+<p><code>SELECT 0 AS n;</code>은 테이블을 읽지 않고 값 0을 가진 한 행을 만든다. 그 결과의 열 이름은 <code>n</code>이다. <code>FROM</code>은 이 경우 필요 없다.</p>
+<pre><code class="language-sql">SELECT 0 AS n
+UNION ALL
+SELECT 1
+UNION ALL
+SELECT 2;
+</code></pre>
+<p>각 SELECT는 한 행을 내고, <code>UNION ALL</code>은 같은 열 구조의 결과들을 세로로 합친다. 첫 SELECT의 열 이름 <code>n</code>이 합쳐진 결과의 열 이름이 된다. <code>ALL</code>은 중복 행도 그대로 남긴다는 뜻이다. 이것 자체에는 반복 기능이 없다. 최종 표시 순서는 별도의 ORDER BY로 정한다.</p>
+<p>합쳐진 조회 결과를 FROM 안에서 괄호로 감싸고 이름을 붙이면, 그 결과의 열을 조회할 수 있다.</p>
+<pre><code class="language-sql">SELECT hours.n
+FROM (
+    SELECT 0 AS n
+    UNION ALL
+    SELECT 1
+    UNION ALL
+    SELECT 2
+) AS hours
+ORDER BY hours.n;
+</code></pre>
+<p>여기서 <code>hours</code>는 조회 결과의 이름이고 <code>n</code>은 그 결과의 열 이름이다. 물리 테이블을 CREATE하거나 값을 INSERT한 것은 아니다.</p>
+<p>처음 제시된 하드코딩 풀이 전체는 다음 구조다.</p>
+<pre><code class="language-sql">SELECT hours.n AS HOUR, COUNT(a.ANIMAL_ID) AS COUNT
+FROM (
+    SELECT 0 AS n
+    UNION ALL SELECT 1
+    UNION ALL SELECT 2
+    UNION ALL SELECT 3
+    UNION ALL SELECT 4
+    UNION ALL SELECT 5
+    UNION ALL SELECT 6
+    UNION ALL SELECT 7
+    UNION ALL SELECT 8
+    UNION ALL SELECT 9
+    UNION ALL SELECT 10
+    UNION ALL SELECT 11
+    UNION ALL SELECT 12
+    UNION ALL SELECT 13
+    UNION ALL SELECT 14
+    UNION ALL SELECT 15
+    UNION ALL SELECT 16
+    UNION ALL SELECT 17
+    UNION ALL SELECT 18
+    UNION ALL SELECT 19
+    UNION ALL SELECT 20
+    UNION ALL SELECT 21
+    UNION ALL SELECT 22
+    UNION ALL SELECT 23
+) AS hours
+LEFT JOIN ANIMAL_OUTS AS a
+    ON hours.n = HOUR(a.DATETIME)
+GROUP BY hours.n
+ORDER BY hours.n;
+</code></pre>
+
+</section>
+<section id="join-preservation" class="markdown-section">
+<h2>INNER·LEFT·RIGHT·FULL JOIN의 보존 기준</h2>
+<p>JOIN은 연결 조건에 맞는 행을 조합한다. 이 문제의 조건은 <code>hours.n = HOUR(a.DATETIME)</code>이다. 9시 목록 행에는 9시에 입양된 모든 기록이 연결된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>종류</th>
+<th>조건에 맞는 행</th>
+<th>조건에 맞는 상대가 없는 행</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>INNER JOIN, 일반 JOIN</td>
+<td>양쪽의 일치하는 행 조합</td>
+<td>제외</td>
+</tr>
+<tr>
+<td>LEFT JOIN</td>
+<td>일치하는 행 조합</td>
+<td>왼쪽 행을 남기고 오른쪽 열을 NULL로 채움</td>
+</tr>
+<tr>
+<td>RIGHT JOIN</td>
+<td>일치하는 행 조합</td>
+<td>오른쪽 행을 남기고 왼쪽 열을 NULL로 채움</td>
+</tr>
+<tr>
+<td>FULL OUTER JOIN</td>
+<td>일치하는 행 조합</td>
+<td>양쪽의 미매칭 행 모두 보존</td>
+</tr>
+</tbody></table>
+</div>
+<p>MySQL에서는 일반 <code>JOIN</code>을 INNER JOIN으로 사용할 수 있으며, FULL OUTER JOIN을 직접 지원하지 않는다. LEFT와 RIGHT의 왼쪽·오른쪽은 쿼리에 적은 위치를 뜻한다. 보존한다는 것은 모든 원본 행이 결과에 나타날 기회를 유지한다는 뜻이다. 상대가 여러 행이면 한 원본 행이 여러 결과 행으로 늘어날 수 있다. <a href="https://dev.mysql.com/doc/refman/8.4/en/join.html" rel="noopener noreferrer">MySQL JOIN 문법</a></p>
+<p>학습 중에는 “왼쪽은 다 있고 오른쪽은 조인되는 일부가 표시된다”라고 LEFT JOIN을 정리했다. 이 문제에서는 시간 목록을 왼쪽에 두어야 빈 시간도 남는다. 실제 동물 테이블에 NULL 동물이 추가되는 것이 아니라, 조회 결과에서 미매칭 오른쪽 열이 NULL로 채워진다.</p>
+
+</section>
+<section id="recursive-basics" class="markdown-section">
+<h2>WITH RECURSIVE의 가장 작은 예제</h2>
+<p>숫자 목록을 길게 쓰지 않으려면 MySQL 8.0 이상에서 재귀 CTE를 사용할 수 있다. <code>WITH</code>는 한 SQL 문에서 사용할 조회 결과에 이름을 붙이고, <code>RECURSIVE</code>는 그 정의 안에서 자기 이름을 참조할 수 있게 한다. RECURSIVE만 독립적으로 쓰는 문법은 아니다.</p>
+<pre><code class="language-sql">WITH RECURSIVE numbers AS (
+    SELECT 1 AS n
+
+    UNION ALL
+
+    SELECT n + 1
+    FROM numbers
+    WHERE n &lt; 2
+)
+SELECT n
+FROM numbers
+ORDER BY n;
+</code></pre>
+<p>결과는 1과 2다. 이 예제의 재귀 부분이 한 번만 새 행을 만들어서 반복 역할이 잘 드러나지 않았다. <code>WHERE n &lt; 4</code>로 바꾸면 1→2→3→4까지 이어진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>이번 입력</th>
+<th>조건 판단</th>
+<th>새로 생성한 행</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>시작 SELECT</td>
+<td>없음</td>
+<td>없음</td>
+<td>1</td>
+</tr>
+<tr>
+<td>재귀 1회</td>
+<td>1</td>
+<td>1 &lt; 4</td>
+<td>2</td>
+</tr>
+<tr>
+<td>재귀 2회</td>
+<td>2</td>
+<td>2 &lt; 4</td>
+<td>3</td>
+</tr>
+<tr>
+<td>재귀 3회</td>
+<td>3</td>
+<td>3 &lt; 4</td>
+<td>4</td>
+</tr>
+<tr>
+<td>재귀 4회</td>
+<td>4</td>
+<td>4 &lt; 4는 거짓</td>
+<td>없음, 종료</td>
+</tr>
+</tbody></table>
+</div>
+<p>여기서 역할을 나누어 읽으면 된다. 첫 SELECT는 시작 행을 만든다. 자기 이름을 읽는 재귀 SELECT는 직전 단계에서 새로 생긴 행을 입력으로 사용한다. UNION ALL은 시작 행과 단계별 결과를 합친다. 새 행을 만들지 못하면 재귀 평가가 끝난다. 단순히 WHERE 조건만으로 일반 SELECT가 반복 실행되는 것은 아니다. <a href="https://dev.mysql.com/doc/refman/8.4/en/with.html" rel="noopener noreferrer">MySQL 재귀 CTE 설명</a></p>
+
+</section>
+<section id="self-reference-and-columns" class="markdown-section">
+<h2>왜 정의 중인 hours를 FROM에서 읽을 수 있는가</h2>
+<p>가장 오래 막힌 부분은 “아직 정의가 끝나지 않은 hours를 어떻게 FROM으로 쓰지?”와 “앞의 별칭 n이 왜 열이 되지?”였다.</p>
+<pre><code class="language-sql">WITH RECURSIVE hours AS (
+    SELECT 0 AS n
+    UNION ALL
+    SELECT n + 1
+    FROM hours
+    WHERE n &lt; 23
+)
+SELECT n FROM hours ORDER BY n;
+</code></pre>
+<p><code>hours</code>라는 빈 물리 테이블을 만들고 값을 집어넣는 문장으로 이해할 필요는 없다. 재귀 CTE 정의에서는 시작 SELECT가 결과의 열 구조와 초기 행을 제공하고, 재귀 부분이 같은 이름으로 직전 단계의 새 행을 읽을 수 있다. 이 자기 참조를 허용하는 것이 RECURSIVE의 역할이다.</p>
+<p><code>SELECT 0 AS n</code>의 AS는 변수를 선언하지 않는다. SELECT가 내는 결과 열에 이름 <code>n</code>을 붙인다. CTE 결과를 읽는 재귀 SELECT가 <code>FROM hours</code>를 적었기 때문에 그 열 <code>n</code>을 사용할 수 있다. SELECT 별칭을 정의했다고 모든 위치에서 전역 변수처럼 쓸 수 있는 것은 아니다. 열 이름을 명시하는 <code>WITH RECURSIVE hours(n) AS (...)</code> 형태도 가능하다.</p>
+<p>이 숫자 예제에서는 첫 재귀 입력이 0이고 출력이 1이다. 다음 입력은 1이고 출력은 2다. 매번 누적 결과 전체 <code>[0, 1, 2, ...]</code>를 다시 입력으로 쓰는 것으로 이해하면 이전 숫자들이 반복 생성되는 잘못된 그림이 된다.</p>
+<p>종료 조건 <code>n &lt; 23</code>은 입력값을 검사한다. 입력 22는 조건을 통과하여 23을 만든다. 입력 23에서는 새 행이 없으므로 결과에 24가 생기지 않는다. 바깥 SELECT의 ORDER BY가 최종 결과를 0~23 순서로 표시한다.</p>
+<p>재귀 CTE는 숫자 생성만을 위한 문법도 아니다. 실제 <code>employees(id, manager_id)</code> 테이블에서 한 직원부터 시작해 부하 직원을 계속 찾아갈 때도 재귀 결과 이름을 통해 다음 단계의 대상을 읽을 수 있다.</p>
+<pre><code class="language-sql">WITH RECURSIVE team AS (
+    SELECT id, manager_id
+    FROM employees
+    WHERE id = 1
+    UNION ALL
+    SELECT e.id, e.manager_id
+    FROM employees AS e
+    JOIN team AS t ON e.manager_id = t.id
+)
+SELECT * FROM team;
+</code></pre>
+<p>이것은 설명용 예제이며 직접 실행한 기록은 없다. 관리자 관계가 순환하지 않는다고 가정한 구조다.</p>
+
+</section>
+<section id="syntax-troubleshooting" class="markdown-section">
+<h2>작성 중 나온 문법 오류와 교정</h2>
+<p>첫 재귀 쿼리 시도는 다음 구조였다.</p>
+<pre><code class="language-sql">WITH RECURSIVE AS hours (
+    SELECT 0 AS n
+    UNION ALL
+    SELECT n + 1
+    FROM hours.n &lt; 23
+)
+SELECT * FROM hours;
+</code></pre>
+<p>이름과 AS 순서를 <code>WITH RECURSIVE hours AS (...)</code>로 고쳐야 한다. FROM은 읽을 조회 결과 <code>hours</code>를 적는 자리이고, 행 조건은 <code>WHERE n &lt; 23</code>에 적는다. 점은 <code>hours.n</code>처럼 소속 열을 나타낼 때 쓰며 FROM과 WHERE를 대신하지 않는다.</p>
+<p>다음에는 <code>SELECT *</code>를 WITH 앞에 두고, CTE 괄호 바로 뒤에 LEFT JOIN을 붙였다. CTE 정의를 마친 다음 SELECT ... FROM hours LEFT JOIN ... ON ...이라는 본 조회 문장을 써야 한다. WITH 자체에 JOIN을 붙이는 구조가 아니다.</p>
+<p>집계 SELECT를 JOIN 대상 괄호 안에 넣으면 파생 테이블 이름과 출력 열 이름도 필요하다.</p>
+<pre><code class="language-sql">LEFT JOIN (
+    SELECT HOUR(DATETIME) AS HOUR, COUNT(*) AS CNT
+    FROM ANIMAL_OUTS
+    GROUP BY HOUR(DATETIME)
+) AS stats ON hours.n = stats.HOUR
+</code></pre>
+<p>괄호 밖에는 stats가 내보낸 HOUR·CNT만 보인다. 내부 원본의 <code>ANIMAL_OUTS.DATETIME</code>을 바깥 ON에서 그대로 참조할 수 없다. 시간을 얻는 함수는 <code>HOUR()</code>이며 <code>HOURS()</code>가 아니다.</p>
+<p>주석을 건 테스트에서는 MySQL 1064 오류가 <code>COUNT (*)</code> 근처를 가리켰다. MySQL의 <code>#</code>는 그 줄 끝까지 주석 처리한다. 오류 메시지에 뒤쪽 주석까지 인용됐다고 주석을 실행한 것은 아니다. MySQL 기본 함수 해석에서는 COUNT 이름과 괄호 사이 공백이 영향을 줄 수 있으므로 <code>COUNT(*)</code>로 붙여 쓰는 것이 안전하다. <code>IGNORE_SPACE</code> SQL 모드를 쓰면 이 공백을 허용한다. <a href="https://dev.mysql.com/doc/refman/8.4/en/function-resolution.html" rel="noopener noreferrer">MySQL 함수 이름 해석 규칙</a></p>
+<p>마지막 시도의 <code>LEFT JOIN(ANIMAL_OUTS)</code>처럼 테이블 이름을 괄호로 감싼 부분은 MySQL에서 그 자체로 문법 오류라고 단정할 수 없다. 가독성을 위해 <code>LEFT JOIN ANIMAL_OUTS</code>로 쓰면 된다. GROUP BY를 hours.n으로 고친 뒤에도 “에러”라고 했지만 추가 오류 메시지가 제공되지 않았으므로 이후 실제 실행 오류의 원인은 확정하지 않았다. 실행 오류와 채점 오답은 구별해야 한다.</p>
+
+</section>
+<section id="group-left-hour" class="markdown-section">
+<h2>GROUP BY는 보존된 시간 목록을 기준으로 한다</h2>
+<p>JOIN 뒤 첫 시도는 오른쪽 시간을 기준으로 묶었다.</p>
+<pre><code class="language-sql">SELECT hours.n, COUNT(*)
+FROM hours
+LEFT JOIN ANIMAL_OUTS
+    ON hours.n = HOUR(ANIMAL_OUTS.DATETIME)
+GROUP BY HOUR(ANIMAL_OUTS.DATETIME)
+ORDER BY hours.n;
+</code></pre>
+<p>0시와 1시 모두 기록이 없으면 오른쪽 DATETIME은 두 행에서 모두 NULL이다. 오른쪽 시간으로 묶으면 이 두 행이 같은 NULL 그룹으로 합쳐진다. 그러면 hours.n은 0인지 1인지 단일 값으로 정해지지 않아 엄격한 그룹화 설정에서 문제가 된다. 시간마다 한 결과를 얻으려면 <code>GROUP BY hours.n</code>을 사용해야 한다.</p>
+<p>“그룹별 작은 테이블을 만든다”는 생각은 논리적 행 묶음을 떠올리는 데 도움이 된다. 실제로 시간마다 영구 테이블을 만드는 것은 아니다. 공통 기준값 hours.n과 그 묶음의 집계를 출력하는 구조다.</p>
+
+</section>
+<section id="count-placeholder-row" class="markdown-section">
+<h2>LEFT JOIN 다음 COUNT(*)가 빈 시간에도 1인 이유</h2>
+<p>GROUP BY를 hours.n으로 고쳤지만 COUNT(*)는 그대로 남아 있었다. 이것은 시간별 분리를 고쳐도 빈 시간의 개수가 틀리는 원인이다.</p>
+<p>9시에 입양 두 건이 있고 0시에는 없다고 가정하면, LEFT JOIN 결과 일부는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>hours.n</th>
+<th>a.ANIMAL_ID</th>
+<th>a.DATETIME</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>NULL</td>
+<td>NULL</td>
+</tr>
+<tr>
+<td>9</td>
+<td>A1</td>
+<td>09시 기록</td>
+</tr>
+<tr>
+<td>9</td>
+<td>A2</td>
+<td>09시 기록</td>
+</tr>
+</tbody></table>
+</div>
+<p>0시에도 왼쪽 행을 보존하기 위한 결과 행이 하나 있다. <code>COUNT(*)</code>는 그 행도 센다. <code>COUNT(a.ANIMAL_ID)</code>는 열 값이 NULL인 행을 세지 않는다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>시간 그룹</th>
+<th>COUNT(*)</th>
+<th>COUNT(a.ANIMAL_ID)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>9</td>
+<td>2</td>
+<td>2</td>
+</tr>
+</tbody></table>
+</div>
+<p>별표는 “모든 열의 값 개수를 합산한다”는 뜻이 아니다. COUNT(*)는 입력 행 수, COUNT(표현식)은 표현식 결과가 NULL이 아닌 행 수다. <a href="https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html" rel="noopener noreferrer">MySQL COUNT 정의</a></p>
+<p>학습 마지막에 “그룹 안에 해당 시간의 NULL인 행도 잡히기 때문에 ID로 카운트한다”라고 설명했다. 정확히는 오른쪽에 실제 NULL 동물 한 마리가 있는 것이 아니라 미매칭 왼쪽 행의 오른쪽 열을 NULL로 채운 결과 행이 존재한다. 그래서 실제 기록에서 NULL이 될 수 없는 오른쪽 ID를 센다.</p>
+
+</section>
+<section id="final-solution" class="markdown-section">
+<h2>최종 참고 풀이: 시간 목록 → JOIN → 집계</h2>
+<pre><code class="language-sql">WITH RECURSIVE hours AS (
+    SELECT 0 AS n
+    UNION ALL
+    SELECT n + 1
+    FROM hours
+    WHERE n &lt; 23
+)
+SELECT hours.n AS HOUR, COUNT(a.ANIMAL_ID) AS COUNT
+FROM hours
+LEFT JOIN ANIMAL_OUTS AS a
+    ON hours.n = HOUR(a.DATETIME)
+GROUP BY hours.n
+ORDER BY hours.n;
+</code></pre>
+<p>처리 흐름은 시간 목록 생성 → 모든 시간 보존 및 입양 기록 연결 → 왼쪽 시간별 그룹 → 실제 ID 수 집계 → 시간순 정렬이다. 빈 시간에도 결과 행이 있으므로 바깥 집계가 0을 직접 계산한다. 이 풀이에서는 COUNT 결과에 COALESCE를 적용할 필요가 없다.</p>
+
+</section>
+<section id="preaggregate-solution" class="markdown-section">
+<h2>다른 참고 풀이: 먼저 집계 → JOIN → NULL을 0으로</h2>
+<p>사용자가 직접 구성하려고 한 다른 접근은 실제 입양 기록을 먼저 집계한 다음, 시간 목록에 그 요약 결과를 연결하는 방식이었다.</p>
+<pre><code class="language-sql">WITH RECURSIVE hours AS (
+    SELECT 0 AS n
+    UNION ALL
+    SELECT n + 1
+    FROM hours
+    WHERE n &lt; 23
+)
+SELECT hours.n AS HOUR, COALESCE(stats.CNT, 0) AS COUNT
+FROM hours
+LEFT JOIN (
+    SELECT HOUR(DATETIME) AS HOUR, COUNT(*) AS CNT
+    FROM ANIMAL_OUTS
+    GROUP BY HOUR(DATETIME)
+) AS stats ON hours.n = stats.HOUR
+ORDER BY hours.n;
+</code></pre>
+<p>내부 집계는 원본의 실제 행만 읽으므로 COUNT(*)를 써도 된다. 하지만 없는 시간은 stats에 행 자체가 없다. LEFT JOIN 뒤 그 시간의 stats.CNT는 숫자 0이 아니라 NULL이다. COALESCE는 왼쪽부터 첫 NULL이 아닌 값을 반환하므로 <code>COALESCE(stats.CNT, 0)</code>은 값이 있으면 그 값, NULL이면 0을 표시한다. <a href="https://dev.mysql.com/doc/refman/8.4/en/comparison-operators.html#function_coalesce" rel="noopener noreferrer">MySQL COALESCE 정의</a></p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>비교</th>
+<th>먼저 JOIN하고 집계</th>
+<th>먼저 집계하고 JOIN</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>COUNT 입력</td>
+<td>보존 행까지 포함된 JOIN 결과</td>
+<td>실제 입양 기록</td>
+</tr>
+<tr>
+<td>집계 표현식</td>
+<td>COUNT(a.ANIMAL_ID)</td>
+<td>COUNT(*)</td>
+</tr>
+<tr>
+<td>빈 시간 처리</td>
+<td>NULL ID를 세지 않아 0</td>
+<td>없는 stats 행이 NULL이므로 COALESCE로 0 표시</td>
+</tr>
+<tr>
+<td>바깥 GROUP BY</td>
+<td>필요</td>
+<td>내부에서 이미 집계했으므로 불필요</td>
+</tr>
+</tbody></table>
+</div>
+<p>학습 중에는 “나는 집계하고 조인한 것이고, 다른 답은 조인하고 집계해서 달랐구나”라고 두 풀이의 차이를 짚었다. 이 순서 차이가 COUNT(*)와 COUNT(ID), COALESCE 사용 여부를 결정한다.</p>
+
+</section>
+<section id="evidence-and-recheck" class="markdown-section">
+<h2>도움받은 범위와 다음 재현 확인</h2>
+<p>기본 HOUR·COUNT·GROUP BY 쿼리는 직접 작성했다. 시간 목록이 필요하다는 이유를 설명받고, UNION ALL·재귀 CTE·JOIN 종류와 NULL 처리 문법을 단계적으로 배웠다. WITH 위치, 자기 참조, 별칭과 열의 범위, 그룹 기준, COUNT 대상을 수정하는 안내를 받았다. 재귀 입력과 누적 결과의 차이는 반복 질문으로 확인했으며, 집계와 JOIN의 순서 및 NULL 채움 행의 개수 문제는 자기 말로 정리했다.</p>
+<p>증적은 이 학습 과정과 실제 작성 시도에 대한 근거다. 정답 쿼리를 안내받았다는 사실을 독립 풀이 완료나 전체 테스트 통과로 바꾸지 않는다. 개념 설명용 행 표는 설명에 사용한 예시이며 직접 실행한 결과로 기록하지 않는다.</p>
+<p>다음 재풀이에서는 0~23 목록을 스스로 작성하고, 기록이 없는 시간·한 건인 시간·여러 건인 시간의 결과를 확인한다. 특히 <code>GROUP BY hours.n</code>을 선택하는 이유와 <code>COUNT(a.ANIMAL_ID)</code>가 0을 만드는 이유를 코드 없이 설명한 뒤 최종 쿼리의 전체 채점을 확인한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

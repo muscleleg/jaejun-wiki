@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.md. Do not edit directly. source-sha256:e2ddfba805b2a9187a5dd339a945e6c8d1d6c7cb91f82a2747bf3bd60a992fd1 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LWS 실행 그룹의 생성·Gang 배치·Node와 Rack 선택·합류·복구·서빙 준비를 하나의 흐름으로 설명한다.">
+  <meta name="source-sha256" content="e2ddfba805b2a9187a5dd339a945e6c8d1d6c7cb91f82a2747bf3bd60a992fd1">
+  <title>Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?">
+  <meta property="og:description" content="LWS 실행 그룹의 생성·Gang 배치·Node와 Rack 선택·합류·복구·서빙 준비를 하나의 흐름으로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html","name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","description":"LWS 실행 그룹의 생성·Gang 배치·Node와 Rack 선택·합류·복구·서빙 준비를 하나의 흐름으로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html"},"headline":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</h1>
+      <p class="lead">LWS 실행 그룹의 생성·Gang 배치·Node와 Rack 선택·합류·복구·서빙 준비를 하나의 흐름으로 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9b346af9a267">전체 문서 트리</a>
+        <a href="#section-33ac7cb8fccf">실행 그룹 단위의 관리가 필요한 이유</a>
+        <a href="#section-8e002d67903b">여러 Pod가 여러 서버인지, 하나의 서버인지 먼저 구분한다</a>
+        <a href="#section-2e78bcaf6f3b">그룹을 만들었다고 그룹 단위로 배치되는 것은 아니다</a>
+        <a href="#section-07f5966b3416">GPU 총량이 충분해도 배치할 수 있는 Node 조합이 필요하다</a>
+        <a href="#section-2b3c892258c0">배치된 Pod는 서로를 찾아 실제 실행 그룹을 구성해야 한다</a>
+        <a href="#section-e3075e89b792">Worker 장애에서는 객체 복구와 서버 복구를 나누어 본다</a>
+        <a href="#section-79de103f0705">생성·배치·준비·요청 성공은 서로 다른 책임이다</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="section-9b346af9a267" class="markdown-section">
+<h2>전체 문서 트리</h2>
+<p>중복 교차 참조는 생략하고 주요 연결 기준으로 구성했다.</p>
+<ul>
+<li><a href="README.html">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</a><ul>
+<li><a href="distributed-model-execution-group.html">하나의 모델을 여러 Pod로 실행할 때 Leader와 Worker는 왜 한 그룹일까?</a></li>
+<li><a href="lws-size-replicas-lab.html">LWS의 size와 replicas는 어떤 Pod와 StatefulSet을 만들까?</a></li>
+<li><a href="default-vs-gang-lab.html">GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</a><ul>
+<li><a href="lws-volcano-installation.html">LWS와 Volcano는 어떻게 설치하고 함께 사용할까?</a></li>
+<li><a href="kubectl-group-inspection-deletion.html">LWS 실습에서 Pod 위치·변경·종속 객체 삭제를 확인하는 명령</a></li>
+</ul>
+</li>
+<li><a href="multi-node-gpu-group-placement.html">하나의 GPU 실행 그룹은 어떻게 여러 Node에 걸쳐 배치될까?</a><ul>
+<li><a href="lws-exclusive-topology.html">exclusive-topology는 실행 그룹을 같은 Rack에 어떻게 모을까?</a></li>
+</ul>
+</li>
+<li><a href="leader-discovery-bootstrap.html">LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</a><ul>
+<li><a href="pod-dns-search.html">Pod의 짧은 DNS 이름은 왜 실패하고 전체 주소는 조회됐을까?</a></li>
+</ul>
+</li>
+<li><a href="gang-readiness-serving.html">Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</a></li>
+<li><a href="group-recovery-lab.html">Worker 하나를 삭제했는데 왜 실행 그룹 전체가 다시 만들어질까?</a></li>
+<li><a href="lws-ownership-podgroup.html">Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</a></li>
+<li><a href="fake-gpu-environment.html">Fake GPU 환경은 실행 그룹 배치의 어디까지 검증할까?</a><ul>
+<li><a href="kserve-stop-resume.html">KServe의 stop 어노테이션으로 GPU를 비우고 다시 실행하기</a></li>
+</ul>
+</li>
+<li><a href="LEARNING_CHECKLIST.html">Multi-node 실행 그룹과 Gang·Topology 배치 학습 체크리스트</a></li>
+</ul>
+</li>
+</ul>
+
+</section>
+<section id="section-33ac7cb8fccf" class="markdown-section">
+<h2>실행 그룹 단위의 관리가 필요한 이유</h2>
+<p>GPU 모델 서버를 Kubernetes에 배포하려면 Pod에 GPU를 요청하고, Scheduler가 그 요청을 수용할 Node를 고르게 한다. Deployment 같은 Controller는 필요한 Pod 수를 유지하고, Service는 준비된 Pod로 요청을 전달한다. 각 Pod가 완전한 모델 서버라면 하나가 먼저 실행돼도 그 서버부터 요청을 처리할 수 있다.</p>
+<p>그러나 하나의 모델을 여러 GPU Pod가 나누어 실행한다면 Pod 하나는 서버의 복제본이 아니라 서버를 구성하는 일부다. 필요한 구성원 하나가 빠지면 나머지가 GPU를 점유하고도 추론을 시작하지 못할 수 있다. 이때는 Pod 수뿐 아니라 <strong>완전한 실행 그룹을 구성할 자원·위치·준비 상태</strong>를 함께 판단해야 한다.</p>
+<p>LeaderWorkerSet(LWS)은 그룹의 크기와 구성원 설정을 담는 Kubernetes 확장 객체다. 이 선언을 읽는 LWS Controller가 그룹을 만들고 복구한다. Volcano 같은 Gang Scheduler는 생성된 구성원들의 배치 조건을 판단한다.</p>
+<pre><code class="language-text">LeaderWorkerSet
+  → 실행 그룹의 구성 선언
+
+LWS Controller
+  → StatefulSet과 PodGroup 생성
+  → StatefulSet Controller가 구성원 Pod 생성
+
+PodGroup
+  → 최소 구성원 수와 자원 등 그룹의 배치 조건 기록
+
+Volcano Scheduler
+  → PodGroup과 각 Pod의 조건을 읽고 Node 배치 판단
+</code></pre>
+<p>배치된 Process들을 연결하고 모델을 실행하는 프로그램은 vLLM 같은 분산 Runtime이다. Kubernetes 객체의 생성·배치와 실제 모델 실행은 이처럼 서로 다른 주체가 담당한다.</p>
+
+</section>
+<section id="section-8e002d67903b" class="markdown-section">
+<h2>여러 Pod가 여러 서버인지, 하나의 서버인지 먼저 구분한다</h2>
+<p>독립 Replica는 각각 모델과 요청 처리 기능을 갖춘 서버다. 반면 분산 실행 그룹은 여러 Process가 계산과 상태를 나누어 함께 하나의 서버를 구성한다. 같은 Pod 세 개라도 확장과 장애의 의미가 달라진다.</p>
+<pre><code class="language-text">독립 서버 Replica 3개
+  → 서버 3개
+  → 하나가 준비되면 그 서버부터 요청 처리 가능
+
+분산 실행 그룹의 구성원 3개
+  → 함께 서버 1개 구성
+  → 필요한 구성원이 모두 참여해야 실행 가능
+</code></pre>
+<p>단일 Node의 GPU 메모리나 자원만으로 모델을 수용하기 어렵다면 Node 간 통신 비용을 감수하고 실행을 나눌 수 있다. Leader와 Worker는 이러한 실행 관계를 표현하는 역할이지, 주 서버와 대기 중인 예비 서버라는 뜻은 아니다. 통신 비용, 모델 병렬화와 Leader 역할의 관계는 <a href="distributed-model-execution-group.html">하나의 모델을 여러 Pod로 실행할 때 Leader와 Worker는 왜 한 그룹일까?</a>에서 설명한다.</p>
+<p>이 관계를 Kubernetes 객체로 유지하려면 그룹의 크기와 그룹 수를 따로 선언해야 한다. LWS의 <code>size</code>는 Leader를 포함한 그룹의 Pod 수이고, <code>replicas</code>는 그런 그룹을 몇 벌 만들지 정한다. <code>size: 3</code>, <code>replicas: 2</code>는 Worker 여섯 개가 아니라 Leader 두 개와 Worker 네 개로 이루어진 두 그룹이다. 실제 객체 수로 이 차이를 확인하는 과정은 <a href="lws-size-replicas-lab.html">LWS의 size와 replicas는 어떤 Pod와 StatefulSet을 만들까?</a>에서 살펴본다.</p>
+
+</section>
+<section id="section-2e78bcaf6f3b" class="markdown-section">
+<h2>그룹을 만들었다고 그룹 단위로 배치되는 것은 아니다</h2>
+<p>LWS가 관련 Pod들을 생성해도 기본 Scheduler는 개별 Pod의 배치 가능성을 판단한다. 그룹에 GPU 세 개가 필요한데 두 개만 남았다면 두 Pod가 먼저 실행되고 마지막 Pod는 기다릴 수 있다. 독립 서버라면 일부라도 서비스를 제공하지만, 세 구성원이 모두 필요한 모델이라면 GPU 두 개를 점유하고도 완전한 서버는 없는 상태가 된다.</p>
+<p>Gang Scheduling은 이 부분 배치 문제를 줄이기 위해 최소 구성원과 자원 요구량을 함께 판단한다. LWS와 Volcano 연동에서는 <code>PodGroup</code>이 그룹의 배치 조건을 표현하고, 각 Pod의 <code>schedulerName: volcano</code>가 담당 Scheduler를 지정한다. LWS 설치나 PodGroup 생성만으로 모든 Pod가 자동으로 Volcano를 쓰는 것은 아니다.</p>
+<p>GPU 두 개에 GPU 하나씩 요청하는 세 Pod를 제출한 비교에서는 기본 Scheduler가 <code>2 Running + 1 Pending</code>, Volcano가 <code>3 Pending</code>을 만들었다. 그룹 요구량을 두 개로 줄이자 Volcano도 배치를 허용했다. 구성과 판단 근거는 <a href="default-vs-gang-lab.html">GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</a>에 정리한다.</p>
+<p>이때 함께 배치한다는 말은 모든 Container가 같은 순간에 시작한다는 뜻이 아니다. 그룹을 배치할 조건이 갖춰졌다는 의미이며, 이후 실행과 준비 상태는 별도로 확인해야 한다.</p>
+
+</section>
+<section id="section-07f5966b3416" class="markdown-section">
+<h2>GPU 총량이 충분해도 배치할 수 있는 Node 조합이 필요하다</h2>
+<p>그룹은 여러 Node에 걸칠 수 있지만 Pod 하나의 GPU 요청은 한 Node에서 충족해야 한다. 예를 들어 두 Node에 가용 GPU가 각각 두 개 있다면, GPU 한 개씩 요청하는 세 구성원을 두 Node에 나눠 배치할 수 있다. Pod 하나가 GPU 세 개를 요청한다면 두 Node의 GPU를 합쳐 그 Pod에 줄 수는 없다.</p>
+<p>GPU가 있는 Node라도 Taint를 허용하지 않으면 해당 Pod의 배치 후보에서 제외된다. 따라서 GPU 게시량과 기존 요청뿐 아니라 Leader·Worker의 배치 조건도 확인해야 한다. 세 구성원의 전체 Manifest와 실제 Node 분포를 연결하는 과정은 <a href="multi-node-gpu-group-placement.html">하나의 GPU 실행 그룹은 어떻게 여러 Node에 걸쳐 배치될까?</a>에서 살펴본다.</p>
+<p>여러 Node에 걸친 모델 실행에서는 구성원 사이의 통신도 중요하다. Rack은 여러 서버가 속한 물리적 배치 영역이며, 이를 기준으로 구성원을 모으려면 Node Label로 영역을 구분한다. LWS의 <code>exclusive-topology</code>는 같은 그룹을 같은 Label 값의 영역 안에 모으고, 같은 LWS의 서로 다른 그룹 Replica는 영역을 분리하는 규칙이다. 같은 Rack에 Node가 여러 개 있을 수 있다.</p>
+<pre><code class="language-text">같은 그룹의 Leader·Worker
+  → 같은 Rack 안에 모음
+
+같은 LWS의 서로 다른 그룹 Replica
+  → 다른 Rack으로 분리
+</code></pre>
+<p>이 조건이 있으면 클러스터 전체 GPU 총량뿐 아니라 그룹을 수용할 수 있는 영역이 있는지 확인해야 한다. 어노테이션이 읽는 Label 키와 값, 그룹별 배치 규칙은 <a href="lws-exclusive-topology.html">exclusive-topology는 실행 그룹을 같은 Rack에 어떻게 모을까?</a>에서 설명한다. Label은 Scheduler가 읽는 위치 정보일 뿐, 실제 네트워크 대역폭이나 GPU 간 고속 연결까지 보장하지는 않는다.</p>
+
+</section>
+<section id="section-2b3c892258c0" class="markdown-section">
+<h2>배치된 Pod는 서로를 찾아 실제 실행 그룹을 구성해야 한다</h2>
+<p>Node가 정해지면 kubelet이 Container를 실행하지만, 모델 실행 Process의 식별 번호인 Rank나 구성원 사이의 통신 연결은 분산 Runtime이 구성한다. LWS는 Leader 주소와 그룹 크기, 구성원 인덱스를 전달한다. 실행 프로그램은 이 정보를 사용해 합류하고 모델과 통신 상태를 초기화한다.</p>
+<p>Worker에 모든 Worker 주소가 보이지 않아도 공통 접속점을 통해 그룹을 구성할 수 있다. 다만 주소를 받았다는 사실과 실제로 그룹에 합류했다는 사실은 다르다. 환경 변수와 Headless Service가 맡는 범위는 <a href="leader-discovery-bootstrap.html">LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</a>에서 설명한다.</p>
+<p>실행 상태도 같은 원칙으로 구분해야 한다. <code>Running</code>은 Container가 실행되고 있다는 뜻이고, <code>Ready</code>는 설정된 준비 조건을 통과했다는 뜻이다. 준비 검사가 모델 로딩과 그룹 상태를 확인하지 않는다면 모든 Pod가 Ready여도 추론 서버라고 판단할 수 없다. <a href="gang-readiness-serving.html">Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</a>는 HTTP API가 있는 Leader와 API가 없는 Worker에서 무엇을 확인해야 하는지 설명한다.</p>
+
+</section>
+<section id="section-e3075e89b792" class="markdown-section">
+<h2>Worker 장애에서는 객체 복구와 서버 복구를 나누어 본다</h2>
+<p>분산 Runtime의 통신과 요청 상태가 여러 Process에 걸쳐 있다면 Worker 하나만 새로 만들어도 기존 추론이 자동으로 이어지지는 않는다. LWS는 재시작 정책에 따라 복구 범위를 결정하며, <code>RecreateGroupOnPodRestart</code>에서는 한 구성원의 실패로 그룹 전체를 다시 만들 수 있다.</p>
+<p>관찰된 구성에서는 Worker 하나를 삭제했을 때 Leader와 두 Worker의 UID가 모두 바뀌고 새 그룹이 Running으로 복귀했다. 이때도 객체를 다시 만드는 것과 실행에 필요한 GPU를 확보하는 것은 별개의 단계다. 교체 범위를 UID와 Event로 읽는 방법은 <a href="group-recovery-lab.html">Worker 하나를 삭제했는데 왜 실행 그룹 전체가 다시 만들어질까?</a>에서 다룬다.</p>
+<p>그룹의 객체 소유 관계는 이 복구 범위를 이해하는 단서다. 실제로 Worker StatefulSet과 PodGroup의 Owner가 Leader Pod였던 이유는 <a href="lws-ownership-podgroup.html">Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</a>에서 살펴본다. Owner는 소유 관계를 나타내는 객체이고, 그 객체를 읽고 생성·삭제 작업을 수행하는 주체는 Controller다.</p>
+
+</section>
+<section id="section-79de103f0705" class="markdown-section">
+<h2>생성·배치·준비·요청 성공은 서로 다른 책임이다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인할 질문</th>
+<th>담당 주체와 근거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>필요한 구성원이 만들어졌는가?</td>
+<td>LWS·StatefulSet Controller, 소유 관계와 Pod 수</td>
+</tr>
+<tr>
+<td>그룹 전체가 배치될 수 있는가?</td>
+<td>Volcano, PodGroup·자원·Node 조건·Event</td>
+</tr>
+<tr>
+<td>Container가 실행됐는가?</td>
+<td>kubelet·Container Runtime, Pod 상태</td>
+</tr>
+<tr>
+<td>모델과 구성원 간 통신이 준비됐는가?</td>
+<td>분산 Runtime, 그 의미를 검사하도록 구성한 Readiness</td>
+</tr>
+<tr>
+<td>요청이 실제로 처리됐는가?</td>
+<td>모델 서버, 추론 응답과 애플리케이션 관측</td>
+</tr>
+</tbody></table>
+</div>
+<p>따라서 복구나 배치가 끝났다는 판단은 어느 단계까지 확인했는지와 함께 말해야 한다. 그룹이 생성됐다는 사실은 GPU 확보를, GPU 확보는 모델 초기화를, 모델 초기화는 모든 요청의 성공을 대신 증명하지 않는다.</p>
+<p>문서의 배치·복구 사례는 모의 GPU와 대기용 Container로 객체와 Scheduling 정책을 확인한 결과다. 실제 모델 계산과 GPU 통신 성능은 포함하지 않으며, 환경 구성과 검증 한계는 <a href="fake-gpu-environment.html">Fake GPU 환경은 실행 그룹 배치의 어디까지 검증할까?</a>에 분리한다. 배운 개념과 그 확인 근거는 <a href="LEARNING_CHECKLIST.html">Multi-node 실행 그룹과 Gang·Topology 배치 학습 체크리스트</a>에서 관리한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="distributed-model-execution-group.html">하나의 모델을 여러 Pod로 실행할 때 Leader와 Worker는 왜 한 그룹일까?</a></li>
+<li><a href="lws-size-replicas-lab.html">LWS의 size와 replicas는 어떤 Pod와 StatefulSet을 만들까?</a></li>
+<li><a href="default-vs-gang-lab.html">GPU가 부족할 때 기본 Scheduler와 Gang Scheduler는 어떻게 다르게 배치할까?</a><ul><li><a href="lws-volcano-installation.html">LWS와 Volcano는 어떻게 설치하고 함께 사용할까?</a></li>
+<li><a href="kubectl-group-inspection-deletion.html">LWS 실습에서 Pod 위치·변경·종속 객체 삭제를 확인하는 명령</a></li></ul></li>
+<li><a href="multi-node-gpu-group-placement.html">하나의 GPU 실행 그룹은 어떻게 여러 Node에 걸쳐 배치될까?</a><ul><li><a href="lws-exclusive-topology.html">exclusive-topology는 실행 그룹을 같은 Rack에 어떻게 모을까?</a></li></ul></li>
+<li><a href="leader-discovery-bootstrap.html">LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</a><ul><li><a href="pod-dns-search.html">Pod의 짧은 DNS 이름은 왜 실패하고 전체 주소는 조회됐을까?</a></li></ul></li>
+<li><a href="gang-readiness-serving.html">Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</a></li>
+<li><a href="group-recovery-lab.html">Worker 하나를 삭제했는데 왜 실행 그룹 전체가 다시 만들어질까?</a></li>
+<li><a href="lws-ownership-podgroup.html">Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</a></li>
+<li><a href="fake-gpu-environment.html">Fake GPU 환경은 실행 그룹 배치의 어디까지 검증할까?</a><ul><li><a href="kserve-stop-resume.html">KServe의 stop 어노테이션으로 GPU를 비우고 다시 실행하기</a></li></ul></li>
+<li><a href="LEARNING_CHECKLIST.html">Multi-node 실행 그룹과 Gang·Topology 배치 학습 체크리스트</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

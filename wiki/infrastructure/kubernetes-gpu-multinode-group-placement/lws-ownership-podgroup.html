@@ -1,0 +1,171 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.md. Do not edit directly. source-sha256:ecebb5a234f85c784e1dacc592e325a1c473973061231f9460793b1d61c91367 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LWS·StatefulSet·PodGroup의 Owner 관계와 각 Controller의 생성·복구 책임을 설명한다.">
+  <meta name="source-sha256" content="ecebb5a234f85c784e1dacc592e325a1c473973061231f9460793b1d61c91367">
+  <title>Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유">
+  <meta property="og:description" content="LWS·StatefulSet·PodGroup의 Owner 관계와 각 Controller의 생성·복구 책임을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html","name":"Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유","description":"LWS·StatefulSet·PodGroup의 Owner 관계와 각 Controller의 생성·복구 책임을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html"},"headline":"Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/lws-ownership-podgroup.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html"},{"@type":"ListItem","position":6,"name":"Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Leader Pod가 Worker StatefulSet과 PodGroup의 Owner인 이유</h1>
+      <p class="lead">LWS·StatefulSet·PodGroup의 Owner 관계와 각 Controller의 생성·복구 책임을 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1c3f11af8853">같은 이름의 Leader Pod와 Worker StatefulSet은 다른 객체다</a>
+        <a href="#section-6046c7cd2a09">Owner와 생성 주체를 나누면 복구 흐름이 보인다</a>
+        <a href="#section-b38be891f71b">PodGroup은 Volcano가 읽는 배치 조건이지 Pod 생성기가 아니다</a>
+        <a href="#section-246c56282d01">삭제 범위와 배치 상태를 같은 것으로 읽지 않는다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes에서는 Pod도 다른 객체의 Owner가 될 수 있다. <code>ownerReferences</code>는 부모 객체가 직접 자식 객체를 실행하거나 생성한다는 뜻이 아니라, 객체 사이의 소유 관계를 기록하는 필드이기 때문이다.</p>
+<p>LWS에서 Worker StatefulSet의 Owner가 Leader Pod로 나타나는 이유도 여기에 있다. 객체를 만드는 주체는 LWS Controller지만, Worker들의 수명을 해당 그룹의 Leader와 연결하도록 소유 관계를 기록한다.</p>
+</div>
+        <section id="section-1c3f11af8853" class="markdown-section">
+<h2>같은 이름의 Leader Pod와 Worker StatefulSet은 다른 객체다</h2>
+<p>LWS v0.11.0, Volcano v1.14.0의 검증 구성에서는 다음 관계가 관찰됐다. 여기의 Volcano 연동은 LWS Helm 설정의 <code>schedulerProvider: volcano</code>를 사용하는 기존 연동 경로다.</p>
+<pre><code class="language-text">LeaderWorkerSet gpu-gang-group
+├─ StatefulSet gpu-gang-group          [Leader Pod 관리]
+│  └─ Pod gpu-gang-group-0             [그룹 0의 Leader]
+│     ├─ StatefulSet gpu-gang-group-0  [그룹 0의 Worker 관리]
+│     │  ├─ Pod gpu-gang-group-0-1
+│     │  └─ Pod gpu-gang-group-0-2
+│     └─ PodGroup gpu-gang-group-0-648f4bc4c6
+└─ Service gpu-gang-group              [Headless Service]
+</code></pre>
+<p><code>Pod/gpu-gang-group-0</code>과 <code>StatefulSet/gpu-gang-group-0</code>은 이름만 같다. Kind가 다르므로 충돌하지 않는다. LWS v0.11.0은 Leader Pod 이름으로 Worker StatefulSet을 만들고 Leader Pod를 Owner로 설정한다. 이 이름을 별도로 지정하는 필드를 이용한 구성은 아니다. <a href="https://github.com/kubernetes-sigs/lws/blob/v0.11.0/pkg/controllers/pod_controller.go" rel="noopener noreferrer">LWS Pod Controller 구현</a></p>
+<p>소유 관계는 Kind와 이름을 함께 출력하면 구분하기 쉽다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab get statefulset,pod,podgroup \
+  -o custom-columns=&#39;KIND:.kind,NAME:.metadata.name,OWNER_KIND:.metadata.ownerReferences[0].kind,OWNER_NAME:.metadata.ownerReferences[0].name&#39;
+</code></pre>
+<p>배열의 첫 Owner를 보여 주는 조회이므로 여러 Owner가 있는 일반 객체의 전체 관계를 조사할 때는 <code>-o yaml</code>로 <code>ownerReferences</code> 전체를 확인한다.</p>
+
+</section>
+<section id="section-6046c7cd2a09" class="markdown-section">
+<h2>Owner와 생성 주체를 나누면 복구 흐름이 보인다</h2>
+<p>LWS 객체와 Leader Pod는 저장된 선언과 상태다. 이들이 스스로 API를 호출하는 것은 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>작업</th>
+<th>수행 주체</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Leader StatefulSet 생성·조정</td>
+<td>LWS Controller</td>
+</tr>
+<tr>
+<td>Leader Pod 생성</td>
+<td>StatefulSet Controller</td>
+</tr>
+<tr>
+<td>Leader에 대응하는 Worker StatefulSet 생성</td>
+<td>LWS Controller</td>
+</tr>
+<tr>
+<td>Worker Pod 생성</td>
+<td>StatefulSet Controller</td>
+</tr>
+<tr>
+<td>이 연동 경로의 PodGroup 생성</td>
+<td>LWS Controller의 Volcano 연동 기능</td>
+</tr>
+<tr>
+<td>PodGroup과 Pod의 배치 조건 평가</td>
+<td>Volcano Scheduler</td>
+</tr>
+<tr>
+<td>Owner 삭제에 따른 종속 객체 정리</td>
+<td>Kubernetes Garbage Collector</td>
+</tr>
+</tbody></table>
+</div>
+<p>Leader Pod를 Owner로 두면 Leader가 삭제될 때 그 그룹의 Worker StatefulSet과 PodGroup도 정리되는 관계를 표현할 수 있다. 그룹 재생성 정책과 이 소유 관계가 결합해 새 Leader에 대응하는 새 구성원들이 만들어진다.</p>
+<p>다만 <code>ownerReferences</code> 자체가 모든 그룹 복구 정책을 결정하는 것은 아니다. 실패 시 Leader를 지울지 같은 조정은 LWS Controller가 정책을 읽고 수행한다. <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/" rel="noopener noreferrer">Kubernetes Owner와 Dependent</a></p>
+
+</section>
+<section id="section-b38be891f71b" class="markdown-section">
+<h2>PodGroup은 Volcano가 읽는 배치 조건이지 Pod 생성기가 아니다</h2>
+<p><code>PodGroup</code>은 Kubernetes 기본 Kind가 아니라 Volcano가 설치한 확장 API다. 검증된 그룹의 주요 필드는 다음과 같았다. 조회 결과에서 핵심 필드만 발췌한 것이며 직접 생성할 Manifest는 아니다.</p>
+<pre><code class="language-yaml">apiVersion: scheduling.volcano.sh/v1beta1
+kind: PodGroup
+metadata:
+  name: gpu-gang-group-0-648f4bc4c6
+  namespace: gpu-group-lab
+spec:
+  minMember: 3
+  minResources:
+    nvidia.com/gpu: &quot;3&quot;
+  queue: default
+</code></pre>
+<p><code>minMember</code>는 배치에 필요한 최소 구성원 수를 나타내고, <code>minResources</code>는 자원 조건을 표현한다. 이 구성에서는 Leader와 두 Worker가 GPU를 하나씩 요청하므로 세 구성원과 GPU 세 개가 필요했다. 각 Pod에는 같은 PodGroup을 가리키는 <code>scheduling.k8s.io/group-name</code> 어노테이션이 들어 있었다. <a href="https://volcano.sh/docs/concepts/podgroup/" rel="noopener noreferrer">Volcano PodGroup</a></p>
+<p>따라서 “Volcano가 Leader와 Worker를 생성해서 묶었다”는 설명은 정확하지 않다. LWS가 구성원과 PodGroup을 만들고 연결하며, Volcano가 그것을 읽어 배치 여부를 판단한다.</p>
+<p>Owner 역시 모든 LWS 버전·연동 방식에서 Leader Pod라고 일반화하지 않는다. v0.11.0 소스에도 별도의 Scheduling API 경로에서는 LWS를 Owner로 두는 분기가 있다. 여기서 확인한 것은 기존 Volcano 연동 경로의 실제 객체 관계다. <a href="https://github.com/kubernetes-sigs/lws/blob/v0.11.0/pkg/schedulerprovider/volcano_provider.go" rel="noopener noreferrer">LWS Volcano Provider 구현</a></p>
+
+</section>
+<section id="section-246c56282d01" class="markdown-section">
+<h2>삭제 범위와 배치 상태를 같은 것으로 읽지 않는다</h2>
+<p>Owner 관계는 무엇이 함께 정리되는지를 설명하고, PodGroup은 어떤 조건에서 함께 배치되는지를 설명한다. 둘이 같은 그룹을 가리켜도 책임은 다르다.</p>
+<p>삭제 시 자식 객체 정리를 기다리는 옵션은 <a href="kubectl-group-inspection-deletion.html">LWS 실습에서 Pod 위치·변경·종속 객체 삭제를 확인하는 명령</a>에 정리한다. Worker 장애 후 전체 UID가 바뀌는 실제 관찰은 <a href="group-recovery-lab.html">Worker 하나를 삭제했는데 왜 실행 그룹 전체가 다시 만들어질까?</a>에서 이어진다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
