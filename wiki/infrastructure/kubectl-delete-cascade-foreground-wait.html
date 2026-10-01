@@ -1,0 +1,136 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.md. Do not edit directly. source-sha256:ef5ee37c8fca84ff109e4d235f15721139225feb27f0b305e48115ab2df8a072 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ownerReferences에 따른 연쇄 삭제와 foreground·background 삭제 순서, kubectl의 wait 옵션이 담당하는 대기 범위를 구분한다.">
+  <meta name="source-sha256" content="ef5ee37c8fca84ff109e4d235f15721139225feb27f0b305e48115ab2df8a072">
+  <title>`kubectl delete --cascade=foreground`는 무엇을 기다릴까?</title>
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="`kubectl delete --cascade=foreground`는 무엇을 기다릴까?">
+  <meta property="og:description" content="ownerReferences에 따른 연쇄 삭제와 foreground·background 삭제 순서, kubectl의 wait 옵션이 담당하는 대기 범위를 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html","name":"`kubectl delete --cascade=foreground`는 무엇을 기다릴까?","description":"ownerReferences에 따른 연쇄 삭제와 foreground·background 삭제 순서, kubectl의 wait 옵션이 담당하는 대기 범위를 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html"},"headline":"`kubectl delete --cascade=foreground`는 무엇을 기다릴까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-practice-review","name":"실습 메모·재검토","identifier":"topics-kubernetes-practice-review"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubectl-delete-cascade-foreground-wait.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes 아키텍처·워크로드·RBAC","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_architecture_workloads_rbac.html"},{"@type":"ListItem","position":5,"name":"Kubernetes 실습 메모 재검토","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes_practice_notes_review.html"},{"@type":"ListItem","position":6,"name":"`kubectl delete --cascade=foreground`는 무엇을 기다릴까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes_architecture_workloads_rbac.html">Kubernetes 아키텍처·워크로드·RBAC</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes_practice_notes_review.html">Kubernetes 실습 메모 재검토</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">`kubectl delete --cascade=foreground`는 무엇을 기다릴까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>`kubectl delete --cascade=foreground`는 무엇을 기다릴까?</h1>
+      <p class="lead">ownerReferences에 따른 연쇄 삭제와 foreground·background 삭제 순서, kubectl의 wait 옵션이 담당하는 대기 범위를 구분한다.</p>
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-973e3f177bbb">하위 객체는 이름이 아니라 소유 관계로 찾는다</a>
+        <a href="#foreground"><code>foreground</code>는 하위 객체를 정리하는 동안 상위 객체를 남겨 둔다</a>
+        <a href="#background">기본값인 <code>background</code>도 하위 객체를 삭제한다</a>
+        <a href="#section-20d2fe7c4753">삭제 순서와 명령의 대기는 별개다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes에서 상위 객체를 삭제하면, 그 객체가 소유한 하위 객체도 함께 정리될 수 있다. 예를 들어 LeaderWorkerSet이 구성한 StatefulSet과 Pod는 소유 관계를 따라 삭제된다.</p>
+<p>하지만 <strong>삭제를 요청했다는 사실과 관련 객체가 모두 정리됐다는 사실은 다르다.</strong> <code>--cascade</code>는 이 연쇄 삭제를 어떤 순서로 진행할지 정하는 옵션이다.</p>
+<p><strong><code>--cascade</code>의 기본값은 <code>background</code>다.</strong> 옵션을 생략하면 상위 객체를 먼저 삭제하고 하위 객체는 비동기로 정리한다. <code>--cascade=foreground</code>를 명시하면 필요한 하위 객체 정리가 끝날 때까지 상위 객체의 삭제 완료를 미룬다.</p>
+</div>
+        <section id="section-973e3f177bbb" class="markdown-section">
+<h2>하위 객체는 이름이 아니라 소유 관계로 찾는다</h2>
+<p>Kubernetes는 <code>ownerReferences</code>를 통해 객체의 소유 관계를 확인한다. 같은 이름이나 Label이 붙어 있다는 이유만으로 함께 삭제하는 것은 아니다.</p>
+<p>LeaderWorkerSet의 관계를 단순화하면 다음과 같다.</p>
+<pre><code>LeaderWorkerSet
+  └─ StatefulSet
+       └─ Pod
+</code></pre>
+<p>상위 객체를 삭제하면 Kubernetes의 Garbage Collector가 이 소유 관계를 따라 종속 객체를 정리한다.</p>
+
+</section>
+<section id="foreground" class="markdown-section">
+<h2><code>foreground</code>는 하위 객체를 정리하는 동안 상위 객체를 남겨 둔다</h2>
+<p>다음 명령은 <code>gpu-partial-group</code>과 그 종속 객체들을 foreground 방식으로 삭제한다.</p>
+<pre><code class="language-sql">kubectl -n gpu-group-lab delete leaderworkerset gpu-partial-group \
+  --cascade=foreground
+</code></pre>
+<p>삭제 요청을 받은 LeaderWorkerSet은 즉시 사라지는 대신, 삭제 진행 상태로 남는다. Kubernetes는 삭제를 막는 종속 객체들을 정리한 뒤 상위 객체의 삭제를 완료한다.</p>
+<pre><code>LeaderWorkerSet 삭제 요청
+  → LeaderWorkerSet을 삭제 진행 상태로 표시
+  → 소유한 StatefulSet과 Pod 정리
+  → 필요한 하위 객체 정리가 끝나면
+  → LeaderWorkerSet 삭제 완료
+</code></pre>
+<p>따라서 Pod 종료나 하위 객체 정리가 지연되면 상위 객체도 한동안 남아 있을 수 있다. <a href="https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-cascading-deletion" rel="noopener noreferrer">Kubernetes foreground 삭제 설명</a></p>
+
+</section>
+<section id="background" class="markdown-section">
+<h2>기본값인 <code>background</code>도 하위 객체를 삭제한다</h2>
+<p><code>--cascade</code>의 기본값은 <code>background</code>다. 이 방식에서는 상위 객체를 먼저 삭제하고, 종속 객체를 뒤에서 정리한다.</p>
+<pre><code>background
+  → 상위 객체 먼저 삭제
+  → 하위 객체는 이후 비동기로 정리
+
+foreground
+  → 하위 객체를 정리하는 동안 상위 객체 유지
+  → 필요한 정리가 끝나면 상위 객체 삭제 완료
+</code></pre>
+<p>차이는 <strong>하위 객체를 삭제하느냐가 아니라, 상위 객체의 삭제를 언제 완료하느냐</strong>에 있다. Background 삭제에서는 상위 객체가 조회되지 않아도 Pod가 잠시 남아 있을 수 있다. <a href="https://kubernetes.io/docs/concepts/architecture/garbage-collection/#background-cascading-deletion" rel="noopener noreferrer">Kubernetes background 삭제 설명</a></p>
+
+</section>
+<section id="section-20d2fe7c4753" class="markdown-section">
+<h2>삭제 순서와 명령의 대기는 별개다</h2>
+<p><code>--cascade=foreground</code>는 Kubernetes가 적용할 삭제 정책이다. 터미널의 <code>kubectl</code>이 삭제 완료를 기다리는지는 <code>--wait</code>가 결정한다.</p>
+<pre><code class="language-bash">--cascade=foreground
+  → 종속 객체 정리와 상위 객체 삭제의 순서를 지정
+
+--wait=true
+  → kubectl이 삭제 대상 객체가 사라질 때까지 대기
+</code></pre>
+<p><code>kubectl delete</code>의 <code>--wait</code> 기본값은 <code>true</code>다. 그래서 foreground 삭제와 함께 사용하면, 상위 객체의 삭제가 완료될 때까지 명령이 기다린다. <a href="https://kubernetes.io/docs/reference/kubectl/generated/kubectl_delete/" rel="noopener noreferrer">kubectl delete 옵션</a></p>
+<p>이 방식은 이전 Workload를 정리한 뒤 다음 작업을 진행할 때 유용하다. 다만 <strong>foreground는 강제 삭제 옵션이 아니다.</strong> Container 종료 대기 시간을 없애거나, 정리가 막힌 객체를 무조건 지우는 기능은 아니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

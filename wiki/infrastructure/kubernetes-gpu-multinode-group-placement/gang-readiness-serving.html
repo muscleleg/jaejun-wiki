@@ -1,0 +1,144 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.md. Do not edit directly. source-sha256:456749582153fe25ac6a13b2e9f29f2f21ab1b76643037f30cc3db10fafd7695 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gang 배치·Pod Running·Readiness·실제 추론 성공을 별도의 확인 단계로 구분한다.">
+  <meta name="source-sha256" content="456749582153fe25ac6a13b2e9f29f2f21ab1b76643037f30cc3db10fafd7695">
+  <title>Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?">
+  <meta property="og:description" content="Gang 배치·Pod Running·Readiness·실제 추론 성공을 별도의 확인 단계로 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html","name":"Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?","description":"Gang 배치·Pod Running·Readiness·실제 추론 성공을 별도의 확인 단계로 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html"},"headline":"Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/gang-readiness-serving.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html"},{"@type":"ListItem","position":6,"name":"Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>Gang 배치와 Pod Ready는 언제 서빙 가능 상태를 의미할까?</h1>
+      <p class="lead">Gang 배치·Pod Running·Readiness·실제 추론 성공을 별도의 확인 단계로 구분한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-506f0163bd1e">배치·실행·준비·요청 성공은 서로 다른 확인이다</a>
+        <a href="#section-25dac034b4a0">HTTP API가 있는 서버는 그 API가 검사하는 의미를 확인한다</a>
+        <a href="#section-2a1998896ae4">HTTP API가 없는 Worker도 준비 상태를 검사할 수 있다</a>
+        <a href="#section-9327def9af18">Readiness 실패는 Container를 죽이는 동작이 아니다</a>
+        <a href="#section-3f8207b2887b">준비 검사는 의미를 보장하고 실제 요청은 결과를 확인한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Gang Scheduler가 그룹 배치를 허용했다는 것은 필요한 자원과 배치 조건을 만족했다는 뜻이다. vLLM의 모델 로딩이나 Worker 합류를 Scheduler가 대신 확인했다는 뜻은 아니다.</p>
+<p>Pod 상태를 서빙 가능 여부와 연결하려면 애플리케이션의 준비 상태를 검사하는 Readiness가 필요하다. 그 검사가 없다면 대기용 <code>sleep</code> Process도 Running과 Ready가 될 수 있다.</p>
+</div>
+        <section id="section-506f0163bd1e" class="markdown-section">
+<h2>배치·실행·준비·요청 성공은 서로 다른 확인이다</h2>
+<pre><code class="language-text">Gang 조건 충족
+  → 그룹을 배치할 자원·Node 조합 확보
+
+Pod Running
+  → Container가 실행되는 단계
+
+Pod Ready
+  → 설정된 준비 조건 통과
+
+추론 요청 성공
+  → 실제 애플리케이션 요청 처리 확인
+</code></pre>
+<p>LWS의 Ready 그룹 수 역시 Pod의 준비 상태를 바탕으로 집계되는 지표이지, LWS가 모델에 추론 요청을 보내 검증한 결과가 아니다. 준비 조건이 모델 상태를 반영하지 않는다면 그룹이 Ready여도 잘못된 모델 설정이나 미완성 통신을 놓칠 수 있다.</p>
+<p>검증에 사용한 BusyBox Container에는 모델 Runtime도 모델용 Readiness 검사도 없었다. 세 Pod의 Ready는 Kubernetes 배치·실행 확인에는 유효하지만 모델 서버 준비의 증거는 아니다.</p>
+
+</section>
+<section id="section-25dac034b4a0" class="markdown-section">
+<h2>HTTP API가 있는 서버는 그 API가 검사하는 의미를 확인한다</h2>
+<p>모델 서버가 준비 상태를 반환하는 HTTP API를 제공하면 kubelet이 그 경로를 호출하도록 <code>readinessProbe</code>를 설정할 수 있다. 다음은 포트 8000에서 <code>/health</code>를 제공하는 Container에 넣는 설정 부분이다.</p>
+<pre><code class="language-yaml">readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+</code></pre>
+<p>이 설정은 API 서버를 새로 만드는 것이 아니다. 해당 Container가 그 포트·경로를 실제로 제공해야 한다. URL만 존재하는지보다 그 API가 모델과 Engine의 어떤 상태를 검사하는지가 중요하다.</p>
+<p>vLLM에는 Engine 상태를 확인하는 <code>/health</code> 구현이 있으며, 사용할 버전·실행 모드에서 그 검사 범위를 확인해야 한다. 해당 경로를 지정했다고 모든 Worker의 모든 실패나 추론 정확성까지 검증된다고 확대하지 않는다. <a href="https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/serve/instrumentator/health.py" rel="noopener noreferrer">vLLM Health 구현</a></p>
+
+</section>
+<section id="section-2a1998896ae4" class="markdown-section">
+<h2>HTTP API가 없는 Worker도 준비 상태를 검사할 수 있다</h2>
+<p>Worker가 요청을 받는 HTTP 서버가 아니라 계산 Process만 실행한다면 존재하지 않는 <code>/health</code>를 요청하면 안 된다. Container 내부에서 Runtime의 상태를 확인할 수 있는 명령이나 스크립트를 <code>exec</code> Probe로 실행하는 방법이 있다.</p>
+<pre><code class="language-yaml">readinessProbe:
+  exec:
+    command:
+      - /opt/app/check-worker-ready
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+</code></pre>
+<p><code>/opt/app/check-worker-ready</code>는 구현해야 할 예시 경로이며 vLLM에 기본 제공되는 명령이 아니다. Container 이미지에 해당 실행 파일이 있어야 하고, 준비됐을 때 종료 코드 0, 그렇지 않으면 0이 아닌 값을 반환하도록 만든다. <a href="https://kubernetes.io/docs/concepts/workloads/pods/probes/" rel="noopener noreferrer">Kubernetes Probe 동작</a></p>
+<p>검사는 Runtime의 상태 조회 명령, 로컬 통신 인터페이스나 애플리케이션이 제공한 건강 상태를 이용할 수 있다. 단지 Process가 존재하거나 GPU 파일이 보이는지만 검사하면 Worker 합류와 모델 준비를 증명하지 못한다.</p>
+<p>또 다른 설계는 Leader의 준비 검사에서 필수 Worker들의 합류와 상태를 확인하는 것이다. 이것은 Leader의 Ready를 그룹 준비 상태와 연결하는 방법이지 Worker Pod의 Ready를 자동으로 변경하는 기능은 아니다. 어떤 방식을 택하든 확인할 수 있는 Runtime 상태가 먼저 필요하다.</p>
+
+</section>
+<section id="section-9327def9af18" class="markdown-section">
+<h2>Readiness 실패는 Container를 죽이는 동작이 아니다</h2>
+<p>Readiness가 실패하면 kubelet은 Container를 준비되지 않은 상태로 보고한다. 실행 중인 Process를 그 이유만으로 종료하거나 재시작하지는 않는다. 따라서 <code>Running</code>이면서 <code>Ready=false</code>인 상태가 가능하다. 재시작을 목적으로 하는 Liveness와 구분해야 한다. <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/" rel="noopener noreferrer">Readiness·Liveness·Startup Probe 설정</a></p>
+<p>일반적인 Service는 준비된 Endpoint를 요청 대상으로 사용하므로 Readiness를 올바르게 구성하면 준비되지 않은 서버에 요청을 보내는 것을 줄일 수 있다. 다만 구성원 발견용 Headless Service의 <code>publishNotReadyAddresses: true</code>처럼 준비 전 주소를 게시하는 설정은 별도다. DNS에 주소가 나타나는 것과 실제 서빙 트래픽을 받아도 되는 것을 구분해야 한다.</p>
+
+</section>
+<section id="section-3f8207b2887b" class="markdown-section">
+<h2>준비 검사는 의미를 보장하고 실제 요청은 결과를 확인한다</h2>
+<p>“Readiness를 잘 구성했다면 Pod 상태로 서빙 준비를 볼 수 있는가?”에는 그렇다고 답할 수 있다. 단, 잘 구성했다는 말에는 모델 초기화·필수 구성원·통신 등 그 서버가 필요로 하는 조건을 실제로 검사한다는 전제가 포함된다.</p>
+<p>이 준비 상태는 트래픽 투입 여부를 판단하는 신호다. 실제 요청·응답 검증은 그 위에서 API 경로와 모델 실행이 동작하는지 확인한다. 한 번의 성공이 모든 이후 요청이나 성능을 보장하지는 않는다.</p>
+<p>HTTP와 <code>exec</code> 설정은 준비 상태를 연결하는 방법의 예시다. 실제 적용에서는 실행 중인 서버가 제공하는 API나 상태 검사 명령에 맞춰 포트·경로·검사 내용을 정해야 한다. 위 설정을 BusyBox 그룹에 적용해 모델 준비 상태를 검증한 결과는 아니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

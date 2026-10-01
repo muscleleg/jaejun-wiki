@@ -1,0 +1,168 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.md. Do not edit directly. source-sha256:d5d2c0bf2dc5a52668829c0f94837d059ee8a051e1ed1ca78d8232e3cac71ec0 -->
+<html lang="ko">
+<head>
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LWS가 Worker에게 제공하는 Leader 주소·그룹 크기·인덱스와 Runtime 합류의 경계를 설명한다.">
+  <meta name="source-sha256" content="d5d2c0bf2dc5a52668829c0f94837d059ee8a051e1ed1ca78d8232e3cac71ec0">
+  <title>LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20260904-code-math-1">
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20260905-non-home-ui-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20260911-wiki-typography-8">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?">
+  <meta property="og:description" content="LWS가 Worker에게 제공하는 Leader 주소·그룹 크기·인덱스와 Runtime 합류의 경계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html","name":"LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?","description":"LWS가 Worker에게 제공하는 Leader 주소·그룹 크기·인덱스와 Runtime 합류의 경계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html"},"headline":"LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/leader-discovery-bootstrap.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 GPU를 어떻게 Pod에 할당할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html"},{"@type":"ListItem","position":5,"name":"Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html"},{"@type":"ListItem","position":6,"name":"LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+<link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20260905-1">
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-pod-allocation-lab.html">Kubernetes는 GPU를 어떻게 Pod에 할당할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/kubernetes-gpu-multinode-group-placement/README.html">Kubernetes는 여러 GPU Pod를 하나의 실행 그룹으로 어떻게 배치할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero">
+      <span class="eyebrow">Cloud·Infrastructure</span>
+      <h1>LWS는 Worker에게 왜 Leader 주소와 자기 인덱스만 전달할까?</h1>
+      <p class="lead">LWS가 Worker에게 제공하는 Leader 주소·그룹 크기·인덱스와 Runtime 합류의 경계를 설명한다.</p>
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </header>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-41bbf61f0c9f">환경 변수는 합류에 필요한 기본 정보다</a>
+        <a href="#section-488f07264575">Pod 이름과 Headless Service가 안정적인 접속 이름을 제공한다</a>
+        <a href="#section-0d46d73a298d">주소 전달 이후의 합류와 통신은 실행 프로그램이 담당한다</a>
+        <a href="#section-cae6ce190e51">짧은 주소가 실패하면 DNS 등록과 조회 방식부터 나눈다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>여러 Pod가 하나의 모델을 실행하려면 각 Process가 그룹에 합류하고 필요한 통신 상대를 알아야 한다. LWS는 이 초기 구성을 돕는 정보를 Pod에 전달하지만, vLLM이나 다른 분산 Runtime의 통신 관계를 직접 만드는 것은 아니다.</p>
+<p>따라서 Worker의 환경 변수에 모든 Worker 주소가 없다는 것은 누락이라기보다 책임의 경계다. 공통 접속점과 자기 위치를 받으면 실행 프로그램이 그 정보를 바탕으로 그룹을 구성할 수 있다.</p>
+</div>
+        <section id="section-41bbf61f0c9f" class="markdown-section">
+<h2>환경 변수는 합류에 필요한 기본 정보다</h2>
+<p>세 구성원 그룹의 Worker 1에서 다음 값이 관찰됐다.</p>
+<pre><code class="language-yaml">env:
+  - name: LWS_LEADER_ADDRESS
+    value: gpu-gang-group-0.gpu-gang-group.gpu-group-lab
+  - name: LWS_GROUP_SIZE
+    value: &quot;3&quot;
+  - name: LWS_WORKER_INDEX
+    value: &quot;1&quot;
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>변수</th>
+<th>이 구성에서 읽는 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>LWS_LEADER_ADDRESS</code></td>
+<td>그룹 Leader에 접근할 DNS 이름</td>
+</tr>
+<tr>
+<td><code>LWS_GROUP_SIZE</code></td>
+<td>Leader를 포함한 구성원 수</td>
+</tr>
+<tr>
+<td><code>LWS_WORKER_INDEX</code></td>
+<td>그룹 안에서 자기 구성원의 인덱스</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 변수들은 모든 Worker의 주소나 모델 레이어 목록을 담지 않는다. 또한 “Leader가 모든 역할을 나중에 새로 배정한다”는 뜻도 아니다. 실행 프로그램이 인덱스·실행 옵션·합류 과정으로 역할과 통신 관계를 결정한다. <a href="https://lws.sigs.k8s.io/docs/reference/labels-annotations-and-environment-variables/" rel="noopener noreferrer">LWS 환경 변수</a></p>
+
+</section>
+<section id="section-488f07264575" class="markdown-section">
+<h2>Pod 이름과 Headless Service가 안정적인 접속 이름을 제공한다</h2>
+<p>검증 구성의 Leader Pod에는 다음 값이 있었다.</p>
+<pre><code class="language-text">hostname  = gpu-gang-group-0
+subdomain = gpu-gang-group
+namespace = gpu-group-lab
+</code></pre>
+<p>같은 Namespace에는 <code>clusterIP: None</code>인 Headless Service <code>gpu-gang-group</code>이 있었다. 관련 설정만 읽으면 다음과 같다.</p>
+<pre><code class="language-yaml">spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    leaderworkerset.sigs.k8s.io/name: gpu-gang-group
+</code></pre>
+<p>이 조합으로 Leader의 전체 DNS 이름은 다음 형태가 된다. <code>cluster.local</code>은 검증 클러스터의 DNS 도메인이며 다른 환경에서는 다를 수 있다.</p>
+<pre><code class="language-text">&lt;Pod hostname&gt;.&lt;Service 이름&gt;.&lt;Namespace&gt;.svc.&lt;클러스터 도메인&gt;
+
+gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+</code></pre>
+<p>Headless Service에는 일반 ClusterIP가 없고, DNS를 통해 연결된 Endpoint 주소를 찾는다. Service 자체의 이름을 조회하는 것과 위처럼 특정 Pod Hostname을 포함해 조회하는 것은 다르다. 여기서는 Leader Pod의 이름으로 Leader IP를 찾는다. <a href="https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/" rel="noopener noreferrer">Kubernetes Pod·Service DNS</a></p>
+<p><code>publishNotReadyAddresses: true</code>는 Ready 이전에도 구성원 발견이 가능하도록 하는 설정이다. 서로를 찾아야 Ready가 될 수 있는 초기화 과정에 필요할 수 있다. 그러나 DNS에서 IP가 조회된다고 해당 Pod가 이미 모델 요청을 받을 준비가 됐다는 뜻은 아니다.</p>
+
+</section>
+<section id="section-0d46d73a298d" class="markdown-section">
+<h2>주소 전달 이후의 합류와 통신은 실행 프로그램이 담당한다</h2>
+<p>가능한 초기화 흐름은 다음과 같다. 실제 절차와 프로토콜은 Runtime에 따라 달라진다.</p>
+<pre><code class="language-text">LWS
+  → Leader 주소·그룹 크기·인덱스 전달
+
+각 Container의 실행 프로그램
+  → 역할에 맞는 명령 실행
+  → 공통 접속점으로 합류
+  → 필요한 Rank·통신 상대와 연결 구성
+  → 모델 초기화와 계산 시작
+</code></pre>
+<p>vLLM의 LWS 예시에서는 Leader와 Worker의 실행 옵션을 달리하거나 Worker를 Headless 실행으로 띄우는 구성을 제공한다. Worker에도 해당 프로그램과 의존성이 있어야 한다. Worker 사이의 계산 데이터가 반드시 Leader를 경유하는 것도 아니다. <a href="https://docs.vllm.ai/en/stable/deployment/frameworks/lws/" rel="noopener noreferrer">vLLM LWS 배포</a></p>
+<p>검증 Container는 <code>sleep</code>만 실행했으므로 환경 변수가 있어도 실제 합류가 발생하지 않았다. 확인한 것은 변수 주입과 DNS 조회이고, Runtime 등록·GPU 통신은 아니다.</p>
+
+</section>
+<section id="section-cae6ce190e51" class="markdown-section">
+<h2>짧은 주소가 실패하면 DNS 등록과 조회 방식부터 나눈다</h2>
+<p>Worker에서 환경 변수에 적힌 짧은 이름을 BusyBox <code>nslookup</code>으로 조회했을 때는 <code>NXDOMAIN</code>이었지만, 전체 DNS 이름은 Leader의 실제 IP인 <code>10.244.1.46</code>으로 조회됐다.</p>
+<pre><code class="language-bash">kubectl -n gpu-group-lab exec gpu-gang-group-0-1 -- \
+  nslookup gpu-gang-group-0.gpu-gang-group.gpu-group-lab.svc.cluster.local
+</code></pre>
+<p>이 차이는 주소 등록 자체가 없다는 증거가 아니라 조회 도구가 짧은 이름을 처리하는 방식부터 확인해야 한다는 단서다. 실제 원인과 <code>search</code>·<code>ndots</code>·끝의 점을 읽는 방법은 <a href="pod-dns-search.html">Pod의 짧은 DNS 이름은 왜 실패하고 전체 주소는 조회됐을까?</a>에 정리한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="pod-dns-search.html">Pod의 짧은 DNS 이름은 왜 실패하고 전체 주소는 조회됐을까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
