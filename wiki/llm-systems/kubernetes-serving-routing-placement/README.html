@@ -1,0 +1,289 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-routing-placement/README.md. Do not edit directly. source-sha256:8bb184f0cc0d723850ad3656a8aa879ff7ef71742c93278e506b7e17f8c2c6ad -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ready 후보 안에서 Queue·Prefix·KV 상태와 가중치로 요청 목적지를 고르는 과정을 두 모델 서버 시뮬레이터의 관찰로 설명한다.">
+  <meta name="source-sha256" content="8bb184f0cc0d723850ad3656a8aa879ff7ef71742c93278e506b7e17f8c2c6ad">
+  <title>Ready인 모델 서버 중 요청은 어디로 보내야 할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Ready인 모델 서버 중 요청은 어디로 보내야 할까?">
+  <meta property="og:description" content="Ready 후보 안에서 Queue·Prefix·KV 상태와 가중치로 요청 목적지를 고르는 과정을 두 모델 서버 시뮬레이터의 관찰로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html","name":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?","description":"Ready 후보 안에서 Queue·Prefix·KV 상태와 가중치로 요청 목적지를 고르는 과정을 두 모델 서버 시뮬레이터의 관찰로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html"},"headline":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Ready인 모델 서버 중 요청은 어디로 보내야 할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Ready인 모델 서버 중 요청은 어디로 보내야 할까?</h1>
+      <p class="lead">Ready 후보 안에서 Queue·Prefix·KV 상태와 가중치로 요청 목적지를 고르는 과정을 두 모델 서버 시뮬레이터의 관찰로 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">요청이 도착하는 것과 적절한 서버를 고르는 것은 다르다</a>
+        <a href="#section-2">선택을 이해하려면 EPP의 담당 범위와 실제 설정부터 알아야 한다</a>
+        <a href="#section-3">한쪽에 대기열을 만들면 부하를 보는 선택을 확인할 수 있다</a>
+        <a href="#section-4">부하가 비슷해도 같은 Prefix를 처리한 서버를 다시 고를 이유가 있다</a>
+        <a href="#section-5">EPP가 기억하는 Prefix와 엔진의 KV Cache는 다르다</a>
+        <a href="#section-6">세 기준은 서로 다른 것을 점수로 바꾸고 weight는 그 중요도를 조정한다</a>
+        <a href="#section-7">요청 분배가 달라져도 GPU 배치가 달라지는 것은 아니다</a>
+        <a href="#section-8">세부 질문을 찾아 읽는 문서 구조</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>모델 서버 Pod를 배치하고 Gateway에서 응답을 받았다고 해서 요청을 어디로 보낼지에 관한 판단이 끝난 것은 아니다. 같은 요청을 처리할 수 있는 Pod가 두 개여도 한쪽에는 대기 요청이 쌓여 있고, 다른 한쪽에는 이번 입력의 앞부분을 처리한 캐시가 남아 있을 수 있다.</p>
+<p><strong>LLM-aware Routing은 준비된 서버 중에서 부하와 요청의 특성을 고려해 목적지를 고르는 일이다.</strong> 서버를 어느 Node에 배치하고 GPU를 얼마나 할당할지와는 다른 판단이다. 이 차이는 EPP의 설정을 읽고, 한쪽에 부하를 만들고, 반복되는 입력과 달라지는 입력의 선택 결과를 비교하면 구체적으로 드러난다.</p>
+<p>여기서는 llm-d Router EPP v0.9.0과 두 모델 서버 시뮬레이터를 사용한 관찰을 바탕으로 설명한다. 실제 GPU의 추론 성능이 아니라 <strong>선택에 쓰이는 정보와 요청 목적지의 관계</strong>를 확인한 구성이다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>요청이 도착하는 것과 적절한 서버를 고르는 것은 다르다</h2>
+<p>Gateway는 외부 요청을 받고 HTTPRoute 규칙에 맞는 Backend를 사용한다. Backend가 InferencePool이면 Pool에 선언된 Label 조건과 Port로 모델 서버 후보를 구성하고, EPP에 Endpoint 선택을 요청한다. 실제 모델 요청을 전달하는 주체는 Gateway다.</p>
+<pre><code class="language-text">Client 요청
+  → Gateway: HTTPRoute에 연결된 InferencePool 사용
+  → EPP: 그 Pool의 후보 중 이번 요청의 목적지 선택
+  → Gateway: 선택된 모델 Pod로 HTTP 요청 전달
+  → 모델 서버: 추론 요청 처리
+</code></pre>
+<p>Pod Ready는 후보가 될 수 있는지 판단하는 출발점이다. Ready인 두 서버 중 어디가 덜 바쁜지, 어디가 이번 입력을 재사용하기 좋은지까지 알려주지는 않는다. 따라서 후보를 제거해서 남은 Pod로 보내는 실험과, <strong>두 후보를 유지한 채 선택 기준을 비교하는 실험</strong>은 다른 질문에 답한다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>선택을 이해하려면 EPP의 담당 범위와 실제 설정부터 알아야 한다</h2>
+<p>InferencePool의 <code>endpointPickerRef</code>는 Gateway가 선택을 요청할 EPP Service를 가리킨다. 이것만 지정한다고 EPP가 그 Pool을 담당하도록 자동 설정되지는 않는다. EPP의 시작 인수인 <code>--pool-name</code>과 <code>--pool-namespace</code>도 맞아야 한다.</p>
+<p>검증 구성의 EPP는 <code>llm-d-lab</code>의 <code>llmd-pool</code>을 감시했고, <code>/config/default-plugins.yaml</code>을 읽었다. ConfigMap에 <code>payload-agnostic.yaml</code>도 있었지만 두 파일을 동시에 사용하는 것은 아니었다. 먼저 실제로 읽는 파일을 알아야 그 파일 안의 정책을 해석할 수 있다.</p>
+<p>설정 안에서도 두 목록의 역할이 다르다.</p>
+<pre><code class="language-text">plugins
+  → 사용할 구성요소를 만들고 개별 설정을 전달
+
+schedulingProfiles[].plugins
+  → 요청 선택에 적용할 평가 기준과 가중치를 연결
+</code></pre>
+<p>기본 구성에는 Queue·KV Cache 사용 비율·Prefix Scorer가 등록돼 있었고, 선택 프로파일에도 각각 가중치 2·2·3으로 들어 있었다. Queue만 비교할 때는 프로파일을 Queue 하나로, Prefix만 비교할 때는 Prefix 하나로 바꾸었다. 여러 기준을 한꺼번에 사용하면 관측한 선택이 어느 기준 때문인지 분리하기 어렵기 때문이다.</p>
+<p>설정의 양방향 연결은 <a href="pool-epp-scope.html">Pool에 EPP를 지정했는데 왜 EPP에도 Pool을 설정해야 할까?</a>, 등록과 사용의 구분은 <a href="plugin-configuration.html">EPP Plugin은 어디에 추가하고 선택 정책에는 어떻게 연결할까?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>한쪽에 대기열을 만들면 부하를 보는 선택을 확인할 수 있다</h2>
+<p>부하 차이를 만들기 위해 시뮬레이터를 동시 처리 1개·첫 토큰 지연 5초로 설정하고, 모델 Pod 하나에 직접 요청을 보냈다. 이때 사용한 <code>18081</code>은 모델 Deployment의 포트포워딩 주소였다. Deployment나 Service를 대상으로 포트포워딩해도 연결 대상은 Pod 하나이므로, 한쪽에만 부하를 만드는 데 사용할 수 있었다.</p>
+<p>반면 <code>18080</code>은 Gateway로 들어가는 주소였다. 이 경로의 요청은 EPP의 선택을 거친다. 두 주소를 나눈 목적은 <strong>직접 요청으로 상태 차이를 만들고, Gateway 요청으로 그 차이에 따른 선택을 보는 것</strong>이었다.</p>
+<p>처음에는 대기열 <code>0/17</code>과 특정 Pod의 선택 카운터 증가를 따로 확인했다. 이것만으로 선택 원인을 단정할 수는 없었다. 대기열을 본 시점과 요청을 보낸 시점이 다르면, 그 사이에 부하가 끝났을 수 있기 때문이다.</p>
+<p>이후 같은 수집 구간을 대조한 결과는 다음과 같았다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>모델 Pod 식별자 끝부분</th>
+<th align="right">해당 구간 대기열</th>
+<th align="right">성공 선택 카운터</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>hdzml</code></td>
+<td align="right">0 유지</td>
+<td align="right">4 → 10</td>
+</tr>
+<tr>
+<td><code>jv57n</code></td>
+<td align="right">4 유지</td>
+<td align="right">6 → 6</td>
+</tr>
+</tbody></table>
+</div>
+<p>Queue만 사용한 정책에서 대기열이 작은 후보의 선택 횟수가 증가했다. 또 모델 직접 부하와 Gateway 부하를 동시에 지속했을 때는 양쪽 대기열이 <code>4/4</code>가 됐다. 이는 양쪽 서버에 대기가 생겼다는 관찰이지, 요청이 정확히 반씩 배분됐거나 GPU 처리 능력이 늘어났다는 뜻은 아니다.</p>
+<p>설정·부하 명령·결과를 연결한 과정은 <a href="queue-routing-lab.html">한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</a>에 정리했다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>부하가 비슷해도 같은 Prefix를 처리한 서버를 다시 고를 이유가 있다</h2>
+<p>가장 한가한 서버가 항상 계산을 가장 적게 하는 서버는 아니다. 앞서 <code>1 2 3</code>에 해당하는 입력을 처리한 서버가 그 KV Cache를 유지하고 있다면, <code>1 2 3 4 5</code>를 받을 때 앞부분을 재사용할 수 있다. 실제 재사용은 엔진의 토큰·캐시 블록 단위와 상태에 달려 있지만, 이미 처리한 앞부분이 있는 서버를 선호할 이유는 분명하다.</p>
+<p>이를 선택 결과로 보기 위해 프로파일을 Prefix만 사용하도록 바꾸고, 시뮬레이터의 인위적인 지연을 해제했다. 새 모델 Pod 두 개가 준비된 뒤 같은 긴 입력을 40회 순차 전송했을 때 한 Pod의 선택 횟수가 40 증가했다. 그 뒤 입력 맨 앞에 난수를 붙여 Prefix를 바꾼 요청에서는 두 Pod의 선택 횟수가 모두 증가했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>비교</th>
+<th>확인한 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>같은 긴 입력 40회</td>
+<td><code>s47wr</code> 선택 카운터 40, 다른 새 후보는 선택 시계열 미표시</td>
+</tr>
+<tr>
+<td>입력 맨 앞을 난수로 변경한 후</td>
+<td><code>s47wr: 40 → 86</code>, <code>59clw: 미표시 → 34</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>두 번째 비교의 증가량 합계는 80이다. 40회 반복문 한 번의 결과라고 축소해 기록하지 않는다. 이 기록에서 확인할 수 있는 핵심은 고정 Prefix에서 보였던 편중과 달리, Prefix를 바꾼 뒤 양쪽 후보의 선택이 관측됐다는 점이다.</p>
+<p>요청 길이 초과로 발생한 HTTP 400, 입력을 줄인 방법, Pod 교체 전후 기준값까지 <a href="prefix-routing-lab.html">같은 Prefix와 달라진 Prefix는 EPP의 선택을 어떻게 바꿀까?</a>에 모았다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>EPP가 기억하는 Prefix와 엔진의 KV Cache는 다르다</h2>
+<p>이 결과를 이해하려면 EPP가 무엇을 기억하는지 알아야 한다. 사용한 <code>prefix-cache-scorer</code> 구성은 입력 Prefix와 선택한 Endpoint의 관계를 메모리의 인덱스로 유지한다. 다음 요청의 앞부분이 어느 후보의 기록과 얼마나 일치하는지 비교해 재사용 가능성을 추정한다.</p>
+<p><strong>EPP가 KV 텐서를 저장하거나 GPU에서 캐시 적중을 직접 증명하는 것은 아니다.</strong> 선택 이력에 기록된 서버라도 엔진이 캐시를 지웠거나 요청 처리에 실패했을 수 있다. 따라서 “EPP가 같은 서버를 골랐다”와 “엔진이 실제로 계산을 재사용했다”는 구분해야 한다.</p>
+<p>이 차이에서 두 질문이 더 나온다. 하나는 문자열을 주고 EPP 인덱스에 있는지 조회할 수 있는가이고, 다른 하나는 실제 엔진의 Prefix Cache를 사용자별로 나눌 수 있는가다. 두 질문은 각각 <a href="prefix-index.html">EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</a> 아래의 상세 문서에서 다룬다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>세 기준은 서로 다른 것을 점수로 바꾸고 weight는 그 중요도를 조정한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th>답하려는 질문</th>
+<th>높은 점수의 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Queue</td>
+<td>받아둔 요청 중 대기 중인 요청이 얼마나 많은가?</td>
+<td>비교 후보 중 대기열이 작다</td>
+</tr>
+<tr>
+<td>KV Cache 사용 비율</td>
+<td>엔진이 관리하는 KV Cache 공간이 얼마나 사용됐는가?</td>
+<td>사용 비율이 낮다</td>
+</tr>
+<tr>
+<td>Prefix</td>
+<td>이번 입력의 앞부분을 이 후보에서 재사용할 가능성이 얼마나 있는가?</td>
+<td>일치하는 Prefix 블록 비율이 높다</td>
+</tr>
+</tbody></table>
+</div>
+<p>KV Cache 사용 비율이 높다는 것은 이번 프롬프트와 잘 일치한다는 뜻이 아니다. 모델 가중치 등을 포함한 GPU 전체 메모리 사용률과도 다르다. 반대로 Prefix 점수는 요청마다 달라질 수 있다.</p>
+<p>EPP는 원본 대기열 수와 캐시 사용량을 그대로 더하지 않는다. Scorer가 만든 점수에 가중치를 곱하고, 후보별 합계를 비교한다. v0.9.0의 이 선택 경로는 다음처럼 이해할 수 있다.</p>
+<pre><code class="language-text">Pod별 최종 점수
+  = Queue 점수 × Queue weight
+  + KV 사용 비율 점수 × KV weight
+  + Prefix 점수 × Prefix weight
+</code></pre>
+<p>Queue를 중요하게 보면 한가한 서버를 더 선호하고, Prefix를 중요하게 보면 앞부분을 재사용할 가능성이 큰 서버를 더 선호한다. <code>weight: 2, 3</code>은 요청을 2:3으로 나눠 보내라는 뜻이 아니다. 계산식과 예시는 <a href="scoring-and-weights.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a>에 정리했다. 혼합 가중치를 바꾸는 설명은 계산 예시이며, 별도의 혼합 정책 성능 실험 결과는 아니다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>요청 분배가 달라져도 GPU 배치가 달라지는 것은 아니다</h2>
+<p>여기서 달라진 것은 이미 준비된 모델 서버 중 어느 쪽으로 요청을 보냈는가다. 책임을 나누면 세 가지 결정이 보인다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>결정 주체</th>
+<th>선택하는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kubernetes Scheduler</td>
+<td>Pod를 어느 Node에 배치할지</td>
+</tr>
+<tr>
+<td>EPP</td>
+<td>이번 요청을 어느 모델 Endpoint로 보낼지</td>
+</tr>
+<tr>
+<td>추론 엔진</td>
+<td>받은 요청들을 어떻게 배치하고 토큰 계산을 진행할지</td>
+</tr>
+</tbody></table>
+</div>
+<p>EPP가 다른 Pod를 골랐다고 GPU를 재할당하거나 Pod를 다른 Node로 옮기는 것은 아니다. 실험 준비 중 모델 실행 인수를 바꾸어 Pod가 교체된 일은 Deployment의 롤아웃이고, 준비된 두 Pod 사이에서 요청 목적지가 달라진 일은 라우팅이다.</p>
+<p>Round Robin처럼 순서에 따라 나누는 방식과 달리, 여기서는 모델 서버의 상태와 요청 Prefix가 선택 입력이 됐다. 일반적인 부하분산에도 부하 기반 정책은 있으므로 “LLM-aware만 부하를 본다”가 차이는 아니다. <strong>LLM 계산에 관련된 상태와 요청의 재사용 가능성을 선택에 반영한다는 점</strong>이 중요하다.</p>
+<p>이 실험으로 설정·상태·선택 결과를 연결하는 방법을 확인했다. 실제 KV Cache 적중, GPU 계산 감소, TTFT·처리량 개선을 확인하려면 실제 엔진과 GPU에서 별도로 측정해야 한다. 요청이 한곳에 몰렸을 때도 곧바로 GPU를 더 할당할 것이 아니라, 후보가 충분한지와 부하·Prefix·선택 정책 중 무엇이 그 결과를 만들었는지부터 구분할 수 있다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>세부 질문을 찾아 읽는 문서 구조</h2>
+<ul>
+<li><a href="pool-epp-scope.html">Pool에 EPP를 지정했는데 왜 EPP에도 Pool을 설정해야 할까?</a></li>
+<li><a href="plugin-configuration.html">EPP Plugin은 어디에 추가하고 선택 정책에는 어떻게 연결할까?</a><ul>
+<li><a href="default-vs-payload-agnostic.html">default와 payload-agnostic은 요청에서 무엇을 다르게 보는가?</a></li>
+<li><a href="plugin-catalog.html">선택 기준을 늘리려면 어떤 EPP Plugin을 검토할 수 있을까?</a></li>
+<li><a href="configmap-reload.html">ConfigMap을 바꾼 뒤 언제 재시작을 생략할 수 있을까?</a></li>
+</ul>
+</li>
+<li><a href="queue-routing-lab.html">한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</a><ul>
+<li><a href="port-forward-single-pod.html">Service로 포트포워딩해도 왜 Pod 하나로만 요청이 갈까?</a></li>
+<li><a href="metrics-interpretation.html">대기열과 선택 카운터는 각각 무엇을 증명할까?</a></li>
+</ul>
+</li>
+<li><a href="prefix-routing-lab.html">같은 Prefix와 달라진 Prefix는 EPP의 선택을 어떻게 바꿀까?</a><ul>
+<li><a href="jq-json-curl.html">jq로 JSON을 만들고 curl에 넘기는 명령은 어떻게 읽을까?</a></li>
+</ul>
+</li>
+<li><a href="prefix-index.html">EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</a><ul>
+<li><a href="prefix-index-query.html">문자열을 주고 EPP에 Prefix가 기록돼 있는지 조회할 수 있을까?</a></li>
+<li><a href="prefix-user-isolation.html">Prefix Cache는 사용자를 구분할까? 사용자별로 나누려면 무엇이 필요할까?</a></li>
+</ul>
+</li>
+<li><a href="scoring-and-weights.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a></li>
+</ul>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="pool-epp-scope.html">Pool에 EPP를 지정했는데 왜 EPP에도 Pool을 설정해야 할까?</a></li>
+<li><a href="plugin-configuration.html">EPP Plugin은 어디에 추가하고 선택 정책에는 어떻게 연결할까?</a><ul><li><a href="default-vs-payload-agnostic.html">default와 payload-agnostic은 요청에서 무엇을 다르게 보는가?</a></li>
+<li><a href="plugin-catalog.html">선택 기준을 늘리려면 어떤 EPP Plugin을 검토할 수 있을까?</a></li>
+<li><a href="configmap-reload.html">ConfigMap을 바꾼 뒤 언제 재시작을 생략할 수 있을까?</a></li></ul></li>
+<li><a href="queue-routing-lab.html">한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</a><ul><li><a href="port-forward-single-pod.html">Service로 포트포워딩해도 왜 Pod 하나로만 요청이 갈까?</a></li>
+<li><a href="metrics-interpretation.html">대기열과 선택 카운터는 각각 무엇을 증명할까?</a></li></ul></li>
+<li><a href="prefix-routing-lab.html">같은 Prefix와 달라진 Prefix는 EPP의 선택을 어떻게 바꿀까?</a><ul><li><a href="jq-json-curl.html">jq로 JSON을 만들고 curl에 넘기는 명령은 어떻게 읽을까?</a></li></ul></li>
+<li><a href="prefix-index.html">EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</a><ul><li><a href="prefix-index-query.html">문자열을 주고 EPP에 Prefix가 기록돼 있는지 조회할 수 있을까?</a></li>
+<li><a href="prefix-user-isolation.html">Prefix Cache는 사용자를 구분할까? 사용자별로 나누려면 무엇이 필요할까?</a></li></ul></li>
+<li><a href="scoring-and-weights.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

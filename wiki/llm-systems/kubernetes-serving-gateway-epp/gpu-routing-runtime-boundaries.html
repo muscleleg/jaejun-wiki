@@ -1,0 +1,270 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.md. Do not edit directly. source-sha256:4853fffac47de11bbb6ce92f5e1a552713ca840ad09755401e3f5dd9116d4aec -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="장치 할당·그룹 배치·HTTP 대상 선택·TP·NCCL·P/D·KV Transfer의 책임과 검증 범위를 구분한다.">
+  <meta name="source-sha256" content="4853fffac47de11bbb6ce92f5e1a552713ca840ad09755401e3f5dd9116d4aec">
+  <title>GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?">
+  <meta property="og:description" content="장치 할당·그룹 배치·HTTP 대상 선택·TP·NCCL·P/D·KV Transfer의 책임과 검증 범위를 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html","name":"GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?","description":"장치 할당·그룹 배치·HTTP 대상 선택·TP·NCCL·P/D·KV Transfer의 책임과 검증 범위를 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html"},"headline":"GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gpu-routing-runtime-boundaries.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</h1>
+      <p class="lead">장치 할당·그룹 배치·HTTP 대상 선택·TP·NCCL·P/D·KV Transfer의 책임과 검증 범위를 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">GPU를 요청하는 주체와 HTTP 목적지를 고르는 주체는 다르다</a>
+        <a href="#section-02">실행 그룹과 요청 후보 집합은 같은 묶음이 아니다</a>
+        <a href="#section-03">서버 하나를 골라도 그 안에서 어떤 계산을 실행할지는 남는다</a>
+        <a href="#section-04">TP와 NCCL은 요청이 서버에 도착한 뒤의 계산·통신에 속한다</a>
+        <a href="#section-05">Prefill과 Decode를 나누면 중간 상태 전달이 필요하다</a>
+        <a href="#section-06">Flow Control은 요청 수용과 대기를 다루며 Pod Pending과 다르다</a>
+        <a href="#section-07">실패한 지점을 설정의 책임과 연결한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>모델 서버의 요청이 느리거나 실패하면 GPU 수, Pod 배치, Gateway 설정, 엔진의 실행 상태가 모두 관련돼 보일 수 있다. 하지만 어느 설정을 바꿔야 하는지 판단하려면 <strong>서버가 실행될 곳을 정하는 결정, 요청을 받을 서버를 정하는 결정, GPU에서 계산할 작업을 정하는 결정</strong>을 나눠야 한다.</p>
+<p>Kubernetes는 서버의 자원과 실행 Node를 정하고, Gateway·EPP는 들어온 HTTP 요청의 목적지를 정한다. 추론 Runtime은 그 서버가 확보한 GPU와 Worker를 사용해 모델을 계산한다.</p>
+<p>이 세 결정을 하나의 요청 처리 과정에 대입하면 HTTP Routing이 해결하는 범위와 TP·PP·NCCL 같은 실행 설정이 필요한 위치를 구분할 수 있다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>GPU를 요청하는 주체와 HTTP 목적지를 고르는 주체는 다르다</h2>
+<p>Device Plugin 방식에서 Driver 구현은 GPU 같은 자원을 Node에 게시하고, Pod는 <code>nvidia.com/gpu</code>의 수량을 요청한다. DRA 방식에서 Driver는 ResourceSlice로 장치를 게시하고, ResourceClaim은 장치 조건과 요청을 표현한다. Pod는 할당된 Claim을 사용한다.</p>
+<p>두 방식 모두 Pod가 실행될 자원과 위치를 정하는 과정이다. DRA의 선택 조건과 Driver 전용 설정을 선언하는 것만으로 실제 모델 로딩·연산·메모리 격리까지 Kubernetes가 수행하는 것은 아니다.</p>
+<pre><code class="language-text">Workload 선언
+  → Controller가 Pod 생성·유지
+  → Scheduler가 자원·접근 가능한 Node와 배치 조건 비교
+  → kubelet·장치 구현·Runtime이 Container에 장치 연결
+  → 모델 서버가 가중치 로딩·엔진 준비
+  → 준비 상태가 Readiness에 반영
+  → 준비된 서버가 요청 후보가 됨
+</code></pre>
+<p>할당과 준비의 정확한 순서는 장치 구현과 API 경로에 따라 달라질 수 있다. 핵심은 <strong>서버가 사용할 GPU 확보가 HTTP 요청마다 반복되는 작업이 아니라는 점</strong>이다.</p>
+<p>Gateway·EPP는 준비된 모델 서버 후보 중 요청 대상을 선택한다. EPP가 어떤 Pod를 선택했다고 그 Pod가 다른 Node로 이동하거나 새로운 GPU를 받는 것은 아니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>실행 그룹과 요청 후보 집합은 같은 묶음이 아니다</h2>
+<p>LWS 같은 Controller는 Leader·Worker Pod들을 하나의 실행 그룹으로 관리할 수 있다. Gang Scheduler는 필요한 구성원을 배치할 자원을 함께 판단하고, Topology 조건은 그 그룹이 놓일 영역을 제한한다. 그러나 Gang 배치는 엔진의 Worker 연결이나 모델 로딩 완료를 대신 보장하지 않는다.</p>
+<p>InferencePool은 HTTP 요청 후보 집합이다. 분산 엔진에서 Leader가 HTTP 입구라면 여러 실행 그룹의 Leader들만 Pool에 포함할 수 있다.</p>
+<pre><code class="language-text">InferencePool의 HTTP 후보
+├─ 실행 그룹 A의 진입점 → A의 GPU·Worker로 계산
+└─ 실행 그룹 B의 진입점 → B의 GPU·Worker로 계산
+</code></pre>
+<p>각 그룹의 Worker를 모두 독립 서버처럼 요청 후보로 등록하는 것은 그 Worker가 실제 HTTP API를 제공하고 독립 요청을 처리할 수 있을 때만 타당하다. Leader라는 이름이 붙었다는 사실만으로 HTTP 서버라고 판단해서도 안 된다.</p>
+<p><code>llmd-model-sim</code> 검증에 적용하면 Pool의 두 후보는 각각 요청을 처리하는 독립 Replica였다. Leader 하나와 Worker 하나를 묶은 실행 그룹이 아니며, EPP가 Worker에 모델의 일부 계산을 분배한 결과도 아니다. 위 실행 그룹 그림은 실제 분산 엔진을 연결할 때 Pool의 후보를 어디에 두는지 설명하는 확장 예시다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>서버 하나를 골라도 그 안에서 어떤 계산을 실행할지는 남는다</h2>
+<p>HTTP 요청이 실행 그룹의 입구에 도착했다면, 이제 엔진이 그 요청을 실제 계산으로 구성해야 한다. EPP는 Endpoint를 선택한다. vLLM 같은 모델 엔진의 Scheduler는 들어온 요청의 토큰과 KV Cache 예산 등을 고려해 어떤 계산을 다음 Batch에서 실행할지 정한다. Kubernetes Scheduler는 Pod의 실행 Node를 정한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>이름</th>
+<th>선택 대상</th>
+<th>주요 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kubernetes Scheduler</td>
+<td>Pod와 Node·자원 조건</td>
+<td>Pod 배치</td>
+</tr>
+<tr>
+<td>EPP의 선택 정책</td>
+<td>준비된 서버 Endpoint와 요청 정보</td>
+<td>이번 요청의 목적지</td>
+</tr>
+<tr>
+<td>모델 엔진 Scheduler</td>
+<td>엔진 안의 요청·토큰·실행 예산</td>
+<td>GPU 계산 Batch</td>
+</tr>
+</tbody></table>
+</div>
+<p>세 계층에 모두 Scheduling이라는 표현이 있어도 같은 설정이나 큐를 공유한다는 뜻은 아니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>TP와 NCCL은 요청이 서버에 도착한 뒤의 계산·통신에 속한다</h2>
+<p>Tensor Parallelism(TP)은 모델 계산의 Tensor를 여러 GPU에 나눠 수행하는 방식이다. Pipeline Parallelism(PP)은 모델의 Layer 구간 등을 여러 실행 단계로 나누는 방식이다. TP를 곧바로 “GPU마다 다른 Layer를 하나씩 실행”하는 구조로 설명해서는 안 된다.</p>
+<p>NCCL은 NVIDIA GPU들 사이의 Tensor 통신과 Collective 연산을 제공하는 라이브러리다. 어떤 GPU 통신을 사용할지와 모델 실행의 분산 설정은 추론 Runtime이 관리한다. Runtime 구성은 GPU 여러 개를 가진 Pod 하나일 수도 있고, 여러 Pod·Node로 확장될 수도 있다. <a href="https://docs.vllm.ai/en/latest/serving/parallelism_scaling/" rel="noopener noreferrer">vLLM의 병렬 실행과 확장</a></p>
+<pre><code class="language-text">Gateway·EPP
+  → 요청을 받을 모델 서버 선택·전달
+
+모델 서버의 추론 Runtime
+  → 요청을 계산 Batch로 구성
+  → TP·PP 등 설정에 맞춰 GPU·Worker 실행
+  → 필요한 GPU Tensor 통신 수행
+  → 결과를 HTTP 응답으로 반환
+</code></pre>
+<p>EPP가 GPU별 Tensor를 나누거나 NCCL 통신을 지휘하는 것은 아니다. HTTP 전달 지연에 엔진 대기·계산·통신이 포함될 수 있어도 Gateway의 지연 Metric만으로 각 내부 비용을 분해할 수는 없다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>Prefill과 Decode를 나누면 중간 상태 전달이 필요하다</h2>
+<p>일반적인 Causal Language Model 추론에서는 입력 토큰을 처리하는 Prefill과 응답 토큰을 생성하는 Decode가 이어진다.</p>
+<ul>
+<li>Prefill: 입력 토큰을 계산하고 이후 Attention 계산에 재사용할 Key·Value를 KV Cache에 저장한다.</li>
+<li>Decode: 이미 계산한 토큰의 KV Cache를 재사용하면서 새 토큰을 생성하고 상태를 확장한다.</li>
+</ul>
+<p>같은 엔진이 둘 다 수행할 수도 있지만, 별도 모델 서버 인스턴스로 분리할 수도 있다. 긴 입력 처리와 지속적인 토큰 생성의 자원 사용·지연을 따로 관리하고 서로의 간섭을 줄이려는 구성이다. 분리했다고 처리량이 항상 개선된다고 가정할 수는 없다. <a href="https://docs.vllm.ai/en/latest/features/disagg_prefill/" rel="noopener noreferrer">vLLM의 Disaggregated Prefilling</a></p>
+<p>분리된 Decode 서버에는 Prefill에서 계산한 상태가 필요하다.</p>
+<pre><code class="language-text">Prefill 서버
+  → 입력 토큰 처리
+  → KV Cache 생성
+           │
+           │ 추론 Runtime의 KV Transfer Connector로 전달
+           ▼
+Decode 서버
+  → 전달받은 상태 사용
+  → 후속 응답 토큰 생성
+</code></pre>
+<p>이 그림은 <strong>계산·캐시의 의존 관계</strong>다. HTTP 요청이 반드시 Client → Prefill → Decode 순서로 프록시를 통과한다는 완전한 네트워크 그림은 아니다. 요청과 두 서버를 연결하는 조정 계층, EPP의 참여 방법은 구현과 배포 방식에 따라 달라진다.</p>
+<p>EPP의 Prefix Cache Scorer가 재사용 가능성을 평가하는 기능과 KV Transfer도 다르다. 전자는 요청 대상 선택이고 후자는 실제 KV Cache 상태 전달이다. 선택 정보만으로 캐시 데이터가 다른 GPU에 복사되지는 않는다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>Flow Control은 요청 수용과 대기를 다루며 Pod Pending과 다르다</h2>
+<p>서버를 골라도 그 서버가 요청을 바로 실행할 여유가 없을 수 있다. Gateway·EPP·모델 서버의 구현은 요청을 거절하거나 대기·동시 실행 수를 제한할 수 있다. 이를 요청 Admission·Flow Control의 문제로 구분한다.</p>
+<pre><code class="language-text">GPU 부족 → Pod가 Scheduling Pending → 서버 자체를 준비하지 못함
+
+요청 과부하 → 실행 중인 서버의 Queue·수용 제한 → 요청이 대기하거나 거절됨
+</code></pre>
+<p>InferenceService 생성 시의 Kubernetes Admission Webhook은 API 객체를 저장하기 전 검사·수정하는 경로다. 모델 HTTP 요청을 받을지 판단하는 Admission과 같은 이벤트가 아니다. 이 문서는 요청 수용 제어의 위치를 구분하며, 구체적인 Queue·한도·취소 정책은 별도 검증 대상이다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>실패한 지점을 설정의 책임과 연결한다</h2>
+<p>서버 자체가 배치되지 않았다면 자원·Node 조건을 확인하고, 준비된 서버에 요청이 가지 않으면 Route·후보 선택을 확인한다. 요청이 도착한 뒤 계산이나 Worker 통신이 실패한다면 추론 Runtime의 설정과 상태를 확인한다. 각 설정을 맡은 계층에 연결하면 진단 범위도 줄어든다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>주로 표현하는 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pod 자원 요청·DRA Claim</td>
+<td>장치 요청·할당 사용</td>
+</tr>
+<tr>
+<td>LWS·Gang·Topology</td>
+<td>실행 그룹 생성·배치 조건</td>
+</tr>
+<tr>
+<td>모델 서버의 Readiness</td>
+<td>모델·Worker 준비 상태</td>
+</tr>
+<tr>
+<td>Gateway·HTTPRoute</td>
+<td>진입점과 요청 조건별 Backend</td>
+</tr>
+<tr>
+<td>InferencePool·EPP 설정</td>
+<td>후보 집합·선택 정책</td>
+</tr>
+<tr>
+<td>엔진의 TP·PP·KV Transfer 설정</td>
+<td>실제 계산 분산·통신·상태 전달</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 책임 구분에서 실제로 확인한 것과 개념으로 위치만 정리한 것은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>다룬 범위</th>
+<th>근거·확인 방식</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Gateway → Pool·EPP → Simulator 요청 전달</td>
+<td>일반·Streaming 응답, Gateway·EPP 로그</td>
+</tr>
+<tr>
+<td>실행 중 서버 후보의 변경</td>
+<td>Replica 2→1→2와 EPP 후보 수·선택 활동</td>
+</tr>
+<tr>
+<td>Kubernetes 배치와 HTTP 대상 선택의 차이</td>
+<td>객체와 선택 대상을 나눠 개념 정리</td>
+</tr>
+<tr>
+<td>실제 엔진의 TP·PP·NCCL·P/D·KV Transfer</td>
+<td>요청 전달 뒤의 실행 책임으로 설명했으며 여기서는 실행하지 않음</td>
+</tr>
+<tr>
+<td>요청 과부하·Flow Control</td>
+<td>Pod Scheduling 대기와 다른 위치임을 정리했으며 제한 정책을 시험하지 않음</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 <code>llmd-model-sim</code>은 GPU 요청 없이 실행했고 <code>Qwen/Qwen3-32B</code>라는 API 모델명으로 응답했다. 이 응답과 선택 Metric은 HTTP 연결을 확인하는 근거지만 실제 가중치 로딩·CUDA 계산·TP·NCCL 성능·P/D 캐시 전달을 실행했다는 근거는 아니다. <a href="gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a>는 HTTP 연결과 관측의 검증 범위를 명시한다.</p>
+<p>이 책임 관계를 이해하면 서버 배치·HTTP 전달·GPU 계산을 하나의 흐름으로 연결하면서도, 문제가 생긴 위치에 맞는 설정과 관측값을 고를 수 있다. Kubernetes에서 서버를 준비하고, Gateway·EPP로 그 서버에 요청을 연결하며, 추론 Runtime에서 계산을 수행하는 각각의 과정이 모두 이어져야 사용자가 추론 결과를 받는다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

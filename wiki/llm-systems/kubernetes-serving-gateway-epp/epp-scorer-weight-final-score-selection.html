@@ -1,0 +1,215 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.md. Do not edit directly. source-sha256:2ca9b887e018af62cf493b90bbb35ad9d4254463f87eb0def22f3d8f410b8e2b -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pod별 Scorer 점수에 weight를 적용해 종합 점수를 계산하고 Picker로 선택하는 과정과 가중치 변경 효과를 예제로 설명한다.">
+  <meta name="source-sha256" content="2ca9b887e018af62cf493b90bbb35ad9d4254463f87eb0def22f3d8f410b8e2b">
+  <title>EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?">
+  <meta property="og:description" content="Pod별 Scorer 점수에 weight를 적용해 종합 점수를 계산하고 Picker로 선택하는 과정과 가중치 변경 효과를 예제로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html","name":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?","description":"Pod별 Scorer 점수에 weight를 적용해 종합 점수를 계산하고 Picker로 선택하는 과정과 가중치 변경 효과를 예제로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html"},"headline":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-httproute-inferencepool-epp-endpoint-selection.html"},{"@type":"ListItem","position":7,"name":"EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html"},{"@type":"ListItem","position":8,"name":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</h1>
+      <p class="lead">Pod별 Scorer 점수에 weight를 적용해 종합 점수를 계산하고 Picker로 선택하는 과정과 가중치 변경 효과를 예제로 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-weight-pod-scorer">1. weight는 Pod가 아니라 Scorer에 설정한다</a>
+        <a href="#section-2-scorer-pod">2. 각 Scorer가 모든 후보 Pod의 점수를 계산한다</a>
+        <a href="#section-3-scorer-weight-pod">3. Scorer 점수에 weight를 곱해 Pod별로 합산한다</a>
+        <a href="#section-4-pod">4. 최종 점수를 비교해 Pod를 선택한다</a>
+        <a href="#section-5-weight">5. weight를 바꾸면 무엇이 달라질까?</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>EPP는 요청을 보낼 후보 Pod들을 여러 기준으로 평가합니다. 이때 각 기준의 평가 점수를 만드는 것이 <strong>Scorer</strong>이고, 그 점수를 최종 판단에 얼마나 반영할지 정하는 값이 **<code>weight</code>**입니다.</p>
+<p>핵심은 <strong>각 Pod에 대해 Scorer별 점수를 구하고, 해당 가중치를 곱해 합산한 뒤 비교한다</strong>는 것입니다.</p>
+</div>
+        <section id="section-1-weight-pod-scorer" class="markdown-section">
+<h2>1. weight는 Pod가 아니라 Scorer에 설정한다</h2>
+<p>다음은 두 Scorer를 사용하는 프로파일 예시입니다.</p>
+<pre><code class="language-yaml">schedulingProfiles:
+- name: default
+  plugins:
+  - pluginRef: queue-scorer
+    weight: 2
+  - pluginRef: prefix-cache-scorer
+    weight: 3
+</code></pre>
+<p>이 설정의 의미는 다음과 같습니다.</p>
+<pre><code>queue-scorer가 계산한 점수        → 2를 곱해 반영
+prefix-cache-scorer가 계산한 점수 → 3을 곱해 반영
+</code></pre>
+<p>Pod A에 가중치 <code>2</code>, Pod B에 가중치 <code>3</code>을 부여한 것이 아닙니다. <strong>모든 후보 Pod를 동일한 가중치 설정으로 평가합니다.</strong></p>
+
+</section>
+<section id="section-2-scorer-pod" class="markdown-section">
+<h2>2. 각 Scorer가 모든 후보 Pod의 점수를 계산한다</h2>
+<p>선택 가능한 Pod가 A와 B 두 개라면, 각 Scorer는 두 Pod를 각각 평가합니다.</p>
+<pre><code class="language-css">queue-scorer
+├─ Pod A의 대기열 평가 → 점수 계산
+└─ Pod B의 대기열 평가 → 점수 계산
+
+prefix-cache-scorer
+├─ Pod A의 Prefix 일치 정보 평가 → 점수 계산
+└─ Pod B의 Prefix 일치 정보 평가 → 점수 계산
+</code></pre>
+<p>계산 결과가 다음과 같다고 가정하겠습니다. 아래 숫자는 설명용 예시입니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>후보 Pod</th>
+<th>queue-scorer 점수</th>
+<th>prefix-cache-scorer 점수</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td>1.0</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>B</td>
+<td>0.5</td>
+<td>0.8</td>
+</tr>
+</tbody></table>
+</div>
+<p>아직은 기준별 점수만 있는 상태입니다. 대기열 기준에서는 A가 유리하고, Prefix 기준에서는 B가 유리하므로 두 평가를 합쳐야 합니다.</p>
+
+</section>
+<section id="section-3-scorer-weight-pod" class="markdown-section">
+<h2>3. Scorer 점수에 weight를 곱해 Pod별로 합산한다</h2>
+<p>가중치를 적용한 비교 점수는 다음처럼 계산합니다.</p>
+<pre><code class="language-markdown">Pod별 가중합
+  = (Scorer 1 점수 × Scorer 1의 weight)
+  + (Scorer 2 점수 × Scorer 2의 weight)
+  + …
+</code></pre>
+<p>예시 설정의 가중치 <code>2</code>와 <code>3</code>을 적용하면 다음과 같습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>후보 Pod</th>
+<th>대기열 점수 × 2</th>
+<th>Prefix 점수 × 3</th>
+<th>가중합</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td><code>1.0 × 2 = 2.0</code></td>
+<td><code>0.2 × 3 = 0.6</code></td>
+<td><strong>2.6</strong></td>
+</tr>
+<tr>
+<td>B</td>
+<td><code>0.5 × 2 = 1.0</code></td>
+<td><code>0.8 × 3 = 2.4</code></td>
+<td><strong>3.4</strong></td>
+</tr>
+</tbody></table>
+</div>
+<p>여기서 곱하는 대상은 <strong>Scorer가 이미 계산한 점수</strong>입니다. 대기 요청 개수나 입력 토큰 수에 가중치를 직접 곱하는 것이 아닙니다.</p>
+<p>가중평균 형태로 표현하면 가중합을 가중치 합으로 나눕니다.</p>
+<pre><code class="language-yaml">가중치 합 = 2 + 3 = 5
+
+Pod A: 2.6 / 5 = 0.52
+Pod B: 3.4 / 5 = 0.68
+</code></pre>
+<p>모든 후보를 같은 값으로 나누므로, 가중합으로 비교하든 가중평균으로 비교하든 순위는 같습니다.</p>
+
+</section>
+<section id="section-4-pod" class="markdown-section">
+<h2>4. 최종 점수를 비교해 Pod를 선택한다</h2>
+<p>기본 <code>max-score-picker</code> 구성에서는 가장 높은 최종 점수를 얻은 후보를 선택합니다. 최고 점수가 같은 후보가 여러 개라면 그중 하나를 무작위로 선택합니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/docs/architecture.md#routing-flow" rel="noopener noreferrer">llm-d Router v0.9.0의 선택 흐름</a></p>
+<p>앞의 예시에서는 다음과 같이 결정됩니다.</p>
+<pre><code class="language-less">Pod A: 2.6
+Pod B: 3.4
+  ↓
+Pod B 선택
+</code></pre>
+<p>Pod B가 모든 평가 기준에서 우수해서 선택된 것은 아닙니다. <strong>가중치를 반영해 종합했을 때 더 높은 점수를 얻었기 때문에 선택된 것</strong>입니다.</p>
+
+</section>
+<section id="section-5-weight" class="markdown-section">
+<h2>5. weight를 바꾸면 무엇이 달라질까?</h2>
+<p>같은 Scorer 점수에서 대기열 가중치만 <code>2</code>에서 <code>4</code>로 높여 보겠습니다.</p>
+<pre><code class="language-yaml">Pod A: 1.0 × 4 + 0.2 × 3 = 4.6
+Pod B: 0.5 × 4 + 0.8 × 3 = 4.4
+  ↓
+Pod A 선택
+</code></pre>
+<p>Pod 상태와 기준별 점수는 그대로인데, 최종 선택은 B에서 A로 바뀌었습니다. 대기열 점수의 영향력이 커졌기 때문입니다.</p>
+<p>따라서 <code>weight</code>는 <strong>특정 기준이 최종 점수에 기여하는 크기를 조절하는 값</strong>입니다. <code>2</code>와 <code>3</code>을 설정했다고 요청을 Pod별로 <code>40% : 60%</code> 배분한다는 뜻은 아닙니다.</p>
+<p>전체 과정을 요약하면 다음과 같습니다.</p>
+<pre><code>선택 가능한 후보 Pod
+  → 각 Scorer가 Pod별 점수 계산
+  → 각 점수에 해당 weight 적용
+  → Pod별 종합 점수 계산
+  → Picker가 점수를 비교해 최종 Pod 선택
+</code></pre>
+<p><strong>Scorer는 평가하고, weight는 평가의 영향력을 조절하며, Picker는 종합된 점수를 바탕으로 최종 목적지를 선택합니다.</strong></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.md. Do not edit directly. source-sha256:b0af9752ff73773b5c84d2008ea5d32bfb7cf14222a89259c128ed1731825db6 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="EPP의 Prefix 선택 이력과 엔진 KV Cache를 구분하고 블록 일치 비율이 점수가 되는 과정을 설명한다.">
+  <meta name="source-sha256" content="b0af9752ff73773b5c84d2008ea5d32bfb7cf14222a89259c128ed1731825db6">
+  <title>EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?">
+  <meta property="og:description" content="EPP의 Prefix 선택 이력과 엔진 KV Cache를 구분하고 블록 일치 비율이 점수가 되는 과정을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html","name":"EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?","description":"EPP의 Prefix 선택 이력과 엔진 KV Cache를 구분하고 블록 일치 비율이 점수가 되는 과정을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html"},"headline":"EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/prefix-index.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html"},{"@type":"ListItem","position":6,"name":"EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-routing-placement/README.html">Ready인 모델 서버 중 요청은 어디로 보내야 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>EPP는 Prefix를 무엇으로 기억하고 점수로 바꿀까?</h1>
+      <p class="lead">EPP의 Prefix 선택 이력과 엔진 KV Cache를 구분하고 블록 일치 비율이 점수가 되는 과정을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">엔진은 계산 결과를 저장하고 EPP는 선택 이력을 저장한다</a>
+        <a href="#section-2">요청 앞부분을 블록으로 비교하고 후보별 일치 길이를 얻는다</a>
+        <a href="#section-3">점수는 존재 여부가 아니라 일치 비율이다</a>
+        <a href="#section-4">선택된 Endpoint를 기록하는 시점은 처리 성공 이후가 아니다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>같은 입력을 보냈을 때 EPP가 같은 Pod를 선호한다면, 그 Pod에 Prefix Cache가 있다는 사실을 어떻게 아는지 궁금해진다. <strong>사용한 approximate Prefix 구성은 GPU 캐시를 직접 조회하는 것이 아니라, 입력 Prefix와 선택한 Endpoint의 관계를 기억해 재사용 가능성을 추정한다.</strong></p>
+<p>설명 범위는 llm-d Router EPP v0.9.0의 <code>prefix-cache-scorer</code>와 <code>approx-prefix-cache-producer</code>다. 모든 캐시 인식 라우팅 구현이 이 방식이라는 뜻은 아니다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>엔진은 계산 결과를 저장하고 EPP는 선택 이력을 저장한다</h2>
+<p>추론 엔진의 Prefix Cache는 이미 처리한 입력 앞부분의 KV 텐서를 재사용하는 기능이다. 예를 들어 개념적으로 <code>1 2 3</code> 다음에 <code>1 2 3 4 5</code>가 들어오면 앞부분을 재사용하고 새 뒷부분을 계산할 수 있다. 실제로는 토큰·블록 경계와 캐시 상태 등의 조건이 맞아야 한다.</p>
+<p>EPP는 그 KV 텐서를 소유하지 않는다. 입력에서 만든 Prefix 블록 해시와 Endpoint의 관계를 메모리에 유지한다.</p>
+<pre><code class="language-text">모델 서버의 캐시
+  → 앞부분의 계산 결과인 KV 텐서
+
+EPP의 Prefix 인덱스
+  → 앞부분의 블록 해시와, 그 요청을 보내도록 선택한 Endpoint의 관계
+</code></pre>
+<p>따라서 “EPP가 프롬프트를 캐싱한다”는 표현은 입력을 통째로 저장하거나 응답을 캐싱한다는 뜻으로 읽으면 안 된다. 라우팅에 필요한 Prefix 기록을 유지한다는 뜻이다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>요청 앞부분을 블록으로 비교하고 후보별 일치 길이를 얻는다</h2>
+<p>처리 흐름은 다음과 같다.</p>
+<pre><code class="language-text">요청 본문 해석
+  → 입력의 토큰 정보 준비
+  → Prefix 블록 해시 생성
+  → 후보별 기존 인덱스와 앞에서부터 비교
+  → 후보별 일치 블록 수 산출
+  → Prefix Scorer의 점수로 사용
+</code></pre>
+<p>중간에 같은 문장이 있다는 것과 입력의 앞부분이 이어서 일치하는 것은 다르다. 그래서 <a href="prefix-routing-lab.html">반복 요청 실험</a>에서는 난수를 끝이 아니라 맨 앞에 넣었다.</p>
+<p>이 버전에서 명시적인 다른 토큰화 설정이 없으면 자동 연결되는 토큰 Producer는 추정 경로를 사용할 수 있다. 이를 실제 모델의 Tokenizer 결과와 무조건 동일하다고 보면 안 된다. 또한 approximate Producer는 최소 64토큰의 블록 크기를 적용한다. 세 숫자 예시는 원리 설명이지, 세 토큰을 보내면 바로 같은 비율의 점수가 나온다는 실행 예가 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/requestcontrol/dataproducer/approximateprefix/README.md" rel="noopener noreferrer">Approximate Prefix Producer 문서</a></p>
+<p>Scorer가 필요한 Producer는 의존 관계에 따라 자동 등록될 수 있다. ConfigMap의 등록 목록에 <code>prefix-cache-scorer</code>만 보인다고 그 Scorer가 입력 처리·인덱스 갱신을 혼자 모두 수행하는 것은 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/docs/architecture.md" rel="noopener noreferrer">Plugin 의존 관계</a></p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>점수는 존재 여부가 아니라 일치 비율이다</h2>
+<pre><code class="language-text">Prefix 점수 = 후보의 일치 Prefix 블록 수 / 요청 전체 블록 수
+</code></pre>
+<p>요청이 4블록이고 A는 3블록, B는 1블록이 일치한다면 각각 0.75와 0.25다. 사용할 정보나 블록이 없으면 이 경로에서는 0을 반환한다. “캐싱됐다/안 됐다”만으로 점수를 정하는 것이 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/prefix/README.md" rel="noopener noreferrer">Prefix Scorer 구현 설명</a></p>
+<p>이 점수는 <a href="scoring-and-weights.html">가중치 계산</a>에 들어간다. Prefix만 쓰면 일치 비율이 큰 후보를 선호하고, Queue와 함께 쓰면 부하와 재사용 가능성 사이에서 가중합을 비교한다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>선택된 Endpoint를 기록하는 시점은 처리 성공 이후가 아니다</h2>
+<p>후보를 선택한 뒤 <code>PreRequest</code> 경로에서 입력 Prefix와 선택된 Endpoint의 관계를 비동기로 인덱스에 추가한다. 모델의 정상 처리 완료와 실제 캐시 잔존을 검증한 후 기록하는 방식이 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/requestcontrol/dataproducer/approximateprefix/plugin.go" rel="noopener noreferrer">등록과 비교 코드</a></p>
+<p>이 차이는 중요하다. 모델이 HTTP 400을 반환하거나 내부 캐시를 비워도 EPP의 선택 기록은 별도로 존재할 수 있다. EPP 재시작은 메모리의 기록을 잃게 하고, 인덱스 내부의 용량 제한·LRU·정리 정책도 기록에 영향을 준다. EPP 인덱스와 엔진 캐시가 동일한 시점에 같은 내용을 유지한다고 보장하지 않는다.</p>
+<p>따라서 EPP의 Prefix 점수는 <strong>해당 후보에서 재사용할 가능성에 관한 선택 입력</strong>이다. 실제 엔진에서 얼마나 재사용했는지는 엔진 측 지표와 성능으로 별도 확인해야 한다.</p>
+<p>특정 문자열을 인덱스에서 조회하는 문제는 <a href="prefix-index-query.html">Prefix 조회 API와 적중 통계의 차이</a>, 엔진 캐시를 사용자별로 나누는 문제는 <a href="prefix-user-isolation.html">사용자별 Prefix Cache 격리</a>에서 설명한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="prefix-index-query.html">문자열을 주고 EPP에 Prefix가 기록돼 있는지 조회할 수 있을까?</a></li>
+<li><a href="prefix-user-isolation.html">Prefix Cache는 사용자를 구분할까? 사용자별로 나누려면 무엇이 필요할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
