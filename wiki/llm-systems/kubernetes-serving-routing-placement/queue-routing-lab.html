@@ -1,0 +1,243 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.md. Do not edit directly. source-sha256:1ceae2bad541fced9edbe620f2cb3c8a1aa5015e90bc293d03f6a6603460b473 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="단일 Pod 직접 부하와 Gateway 요청을 분리해 같은 관측 구간의 대기열과 Endpoint 선택 변화를 대조한다.">
+  <meta name="source-sha256" content="1ceae2bad541fced9edbe620f2cb3c8a1aa5015e90bc293d03f6a6603460b473">
+  <title>한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?">
+  <meta property="og:description" content="단일 Pod 직접 부하와 Gateway 요청을 분리해 같은 관측 구간의 대기열과 Endpoint 선택 변화를 대조한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html","name":"한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?","description":"단일 Pod 직접 부하와 Gateway 요청을 분리해 같은 관측 구간의 대기열과 Endpoint 선택 변화를 대조한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html"},"headline":"한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/queue-routing-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html"},{"@type":"ListItem","position":6,"name":"한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-routing-placement/README.html">Ready인 모델 서버 중 요청은 어디로 보내야 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>한 Pod에 대기열을 만들면 EPP의 선택은 어떻게 달라질까?</h1>
+      <p class="lead">단일 Pod 직접 부하와 Gateway 요청을 분리해 같은 관측 구간의 대기열과 Endpoint 선택 변화를 대조한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">상태를 만드는 경로와 선택을 시험하는 경로를 나눈다</a>
+        <a href="#section-2">Queue만 선택에 반영하고 대기열이 유지되도록 만든다</a>
+        <a href="#section-3">먼저 연결을 확인한 뒤 한쪽 부하를 유지한다</a>
+        <a href="#section-4">Gateway 요청 전후에 선택 횟수를 비교한다</a>
+        <a href="#section-5">따로 본 숫자와 같은 구간에서 대조한 결과를 구분한다</a>
+        <a href="#section-6">양쪽 대기열이 차는 것은 분배와 처리 한계가 함께 드러난 결과다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>두 모델 Pod가 모두 Ready여도 대기 요청 수는 다를 수 있다. 이 차이를 선택에 반영하는지 확인하려면 <strong>한 Pod에 직접 부하를 만들고, 별도의 Gateway 요청이 어느 후보를 선택하는지 같은 시간대에 비교해야 한다.</strong></p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>상태를 만드는 경로와 선택을 시험하는 경로를 나눈다</h2>
+<p>검증 환경은 <code>llm-d-lab</code> Namespace의 모델 시뮬레이터 두 개, <code>llmd-pool</code>, <code>llmd-pool-epp</code>, <code>llm-d-gateway</code>였다. EPP는 llm-d Router v0.9.0, 시뮬레이터는 <code>ghcr.io/llm-d/llm-d-inference-sim:v0.8.2</code>를 사용했다. <code>Qwen/Qwen3-32B</code>는 시뮬레이터가 제공하는 API 모델 이름이며 실제 32B 모델을 GPU에 로딩해 측정한 것이 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>주소</th>
+<th>경로</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>127.0.0.1:18081</code></td>
+<td>모델 Pod 하나에 직접 연결</td>
+<td>한쪽에만 부하 만들기</td>
+</tr>
+<tr>
+<td><code>127.0.0.1:18080</code></td>
+<td>Gateway → EPP 선택 → 모델 Pod</td>
+<td>선택 정책의 결과 보기</td>
+</tr>
+<tr>
+<td><code>127.0.0.1:19090</code></td>
+<td>Prometheus</td>
+<td>EPP가 노출한 상태·선택 횟수 조회</td>
+</tr>
+</tbody></table>
+</div>
+<p>포트포워딩은 별도 터미널에서 유지했다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab port-forward deployment/llmd-model-sim 18081:8000
+</code></pre>
+<pre><code class="language-bash">kubectl -n llm-d-lab port-forward service/llm-d-gateway 18080:80
+</code></pre>
+<p>Deployment를 지정한 첫 명령은 모델 Pod 하나를 선택한다. 둘째 명령도 Gateway Pod 하나를 선택하지만, 그 Gateway가 다시 EPP를 통해 모델 목적지를 고른다. 자세한 차이는 <a href="port-forward-single-pod.html">포트포워딩의 단일 Pod 연결</a>에 설명했다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Queue만 선택에 반영하고 대기열이 유지되도록 만든다</h2>
+<p>활성 파일 <code>default-plugins.yaml</code>의 등록 목록은 유지하고 선택 프로파일만 다음처럼 제한했다.</p>
+<pre><code class="language-yaml">schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: queue-scorer
+        weight: 2
+</code></pre>
+<p>ConfigMap을 편집한 뒤 EPP를 재시작했다. <a href="plugin-configuration.html">등록과 프로파일의 차이</a>를 먼저 확인해야 같은 이름이 두 번 등장하는 이유를 혼동하지 않는다.</p>
+<p>모델 서버의 최초 실행 인수에는 모델 이름과 포트만 있었다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab get deployment llmd-model-sim \
+  -o jsonpath=&#39;{.spec.template.spec.containers[0].args}{&quot;\n&quot;}&#39;
+</code></pre>
+<p>대기열을 보기 쉽게 만들기 위해 시뮬레이터에 동시 처리 제한 1개와 첫 토큰 지연 5초를 주었다. <code>max-num-seqs</code>는 동시 처리 수, <code>time-to-first-token</code>은 시간 형식으로 지정하는 첫 토큰 지연이다. <a href="https://github.com/llm-d/llm-d-inference-sim/blob/v0.8.2/docs/configuration.md" rel="noopener noreferrer">시뮬레이터 v0.8.2 설정</a></p>
+<p>다음은 실험 설정을 재현하는 명령이며 실행하면 모델 Pod가 롤아웃된다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab patch deployment llmd-model-sim --type=json \
+  -p=&#39;[{&quot;op&quot;:&quot;replace&quot;,&quot;path&quot;:&quot;/spec/template/spec/containers/0/args&quot;,&quot;value&quot;:[&quot;--model&quot;,&quot;Qwen/Qwen3-32B&quot;,&quot;--port&quot;,&quot;8000&quot;,&quot;--max-num-seqs&quot;,&quot;1&quot;,&quot;--time-to-first-token&quot;,&quot;5s&quot;]}]&#39;
+
+kubectl -n llm-d-lab rollout status deployment llmd-model-sim
+kubectl -n llm-d-lab get pods -l app=llmd-model-sim -o wide
+</code></pre>
+<p>이 변경으로 모델 Pod의 해시가 <code>8b696fd68</code>에서 <code>64ccbd477c</code>로 바뀌었다. 기존 Pod에 연결한 포트포워딩은 다시 열어야 할 수 있다. 이후 실제 대기열 비교 대상은 <code>hdzml</code>과 <code>jv57n</code>으로 끝나는 두 Pod였다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>먼저 연결을 확인한 뒤 한쪽 부하를 유지한다</h2>
+<p>초기의 20개 병렬 요청은 포트포워딩이 닫혀 있어 <code>curl: (7)</code>·<code>HTTP 000</code>으로 실패했다. 부하가 전달된 실험으로 세지 않았다. 연결 복구 후 다음 요청의 HTTP 200을 확인했다.</p>
+<pre><code class="language-bash">curl -i --max-time 10 http://127.0.0.1:18081/v1/models
+</code></pre>
+<p>이후 한쪽 모델에 부하가 전달되자 대기열 <code>hdzml=0</code>, <code>jv57n=17</code>을 관측했다. 더 지속적으로 비교하기 위해서는 다음처럼 다섯 실행 흐름이 각각 8번 순차 요청을 보내도록 했다.</p>
+<pre><code class="language-bash">(
+  for worker in {1..5}; do
+    (
+      for request in {1..8}; do
+        curl -fsS --max-time 90 \
+          http://127.0.0.1:18081/v1/chat/completions \
+          -H &#39;Content-Type: application/json&#39; \
+          -d &#39;{
+            &quot;model&quot;: &quot;Qwen/Qwen3-32B&quot;,
+            &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}],
+            &quot;max_tokens&quot;: 1,
+            &quot;stream&quot;: false
+          }&#39; \
+          -o /dev/null \
+          -w &#39;직접 부하: HTTP %{http_code}\n&#39; || break
+      done
+    ) &amp;
+  done
+  wait
+)
+</code></pre>
+<p>최대 동시 요청은 5개, 모두 성공하면 총 요청은 40개다. <code>&amp;</code>는 각 실행 흐름을 병렬로 시작하고 <code>wait</code>는 종료를 기다린다. 처리 제한이 1개이므로 한 요청이 처리되고 네 요청이 기다리면서 대기열 4가 유지될 수 있다. 터미널이 응답을 기다리는 것을 곧바로 프로그램이 멈췄다고 해석하지 않는다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>Gateway 요청 전후에 선택 횟수를 비교한다</h2>
+<p>부하가 계속되는 동안 대기열을 확인한다.</p>
+<pre><code class="language-promql">llm_d_epp_per_endpoint_queue_size{job=&quot;llmd-epp&quot;}
+</code></pre>
+<p>그다음 성공 선택 카운터의 기준값을 읽는다.</p>
+<pre><code class="language-promql">sum by (endpoint_name) (
+  llm_d_epp_scheduler_attempts_total{job=&quot;llmd-epp&quot;, status=&quot;success&quot;}
+)
+</code></pre>
+<p>Gateway에 요청하고 수집이 반영된 뒤 어느 Endpoint의 값이 증가했는지 비교한다.</p>
+<pre><code class="language-bash">curl -sS --max-time 20 \
+  http://127.0.0.1:18080/v1/chat/completions \
+  -H &#39;Content-Type: application/json&#39; \
+  -d &#39;{
+    &quot;model&quot;: &quot;Qwen/Qwen3-32B&quot;,
+    &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}],
+    &quot;max_tokens&quot;: 1,
+    &quot;stream&quot;: false
+  }&#39; \
+  -o /dev/null \
+  -w &#39;Gateway 요청: HTTP %{http_code}\n&#39;
+</code></pre>
+<p>한 건은 빨리 처리되어 대기열에 포착되지 않을 수 있다. HTTP 200과 선택 카운터 증가를 보았는데 Queue가 0인 것은 모순이 아니다. <a href="metrics-interpretation.html">지표별 의미</a>를 구분해야 한다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>따로 본 숫자와 같은 구간에서 대조한 결과를 구분한다</h2>
+<p>처음 확인한 <code>hdzml</code> 선택 카운터 증가 후 값 2는 그 Pod가 선택됐음을 보여줬다. 이후 <code>jv57n</code> 선택 값 1이 나타난 것도 다른 후보를 골랐다는 뜻이다. 이 두 화면만으로 Queue 정책의 실패나 성공을 단정할 수는 없다. 선택 순간에도 이전의 대기열 차이가 유지됐는지 확인되지 않았기 때문이다.</p>
+<p>그 한계를 보완한 Prometheus 원시 수집 이력은 다음과 같다. 기록된 Unix 시각 구간은 <code>1790949810.040~1790949915.049</code>다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th align="right">구간 내 대기열</th>
+<th align="right">구간 내 성공 선택 횟수</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>llmd-model-sim-64ccbd477c-hdzml</code></td>
+<td align="right">0 유지</td>
+<td align="right">4 → 10</td>
+</tr>
+<tr>
+<td><code>llmd-model-sim-64ccbd477c-jv57n</code></td>
+<td align="right">4 유지</td>
+<td align="right">6 → 6</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>Queue 단독 정책에서 대기열이 작은 후보의 선택 횟수가 증가했다.</strong> 이것은 해당 구간의 관찰이며, 마지막에 보낸 요청 한 건이 카운터를 6 증가시켰다는 뜻은 아니다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>양쪽 대기열이 차는 것은 분배와 처리 한계가 함께 드러난 결과다</h2>
+<p>추가로 직접 부하 반복문과, 주소를 <code>18080</code>으로 바꾼 동일한 Gateway 부하 반복문을 각각 다른 터미널에서 동시에 실행했다. 두 경로가 모두 완료되면 각 40개씩이고, 실행 중에는 각 경로 최대 5개가 동시에 진행된다.</p>
+<p>이때 두 모델의 대기열이 <code>4/4</code>로 관측됐다. 한쪽만 쌓이던 상태와 달리 양쪽에 대기가 생겼다. 그러나 Queue 값 두 개만으로 Gateway의 모든 요청이 반대쪽으로 갔다거나 정확히 반씩 분배됐다고 역산할 수는 없다.</p>
+<p>선택 정책은 기존 서버 중 목적지를 고른다. 서버의 동시 처리 제한이나 GPU 계산 능력을 늘리는 기능은 아니다. 부하 차이의 영향이 확인되면, 다음 질문은 <strong>대기열이 비슷해도 요청 Prefix 때문에 선택이 달라질 수 있는가</strong>다. 그 비교는 <a href="prefix-routing-lab.html">Prefix 실험</a>으로 이어진다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="port-forward-single-pod.html">Service로 포트포워딩해도 왜 Pod 하나로만 요청이 갈까?</a></li>
+<li><a href="metrics-interpretation.html">대기열과 선택 카운터는 각각 무엇을 증명할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

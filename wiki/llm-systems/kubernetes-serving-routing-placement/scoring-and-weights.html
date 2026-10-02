@@ -1,0 +1,148 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.md. Do not edit directly. source-sha256:8211d9e098e80edc0aa467019a829fb710f80834594fc8de2a27bf466668e5be -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Queue·KV 사용 비율·Prefix 점수를 가중합으로 결합해 Endpoint를 선택하는 계산과 동점 처리를 설명한다.">
+  <meta name="source-sha256" content="8211d9e098e80edc0aa467019a829fb710f80834594fc8de2a27bf466668e5be">
+  <title>EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?">
+  <meta property="og:description" content="Queue·KV 사용 비율·Prefix 점수를 가중합으로 결합해 Endpoint를 선택하는 계산과 동점 처리를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html","name":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?","description":"Queue·KV 사용 비율·Prefix 점수를 가중합으로 결합해 Endpoint를 선택하는 계산과 동점 처리를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html"},"headline":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/scoring-and-weights.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"Ready인 모델 서버 중 요청은 어디로 보내야 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-routing-placement/README.html"},{"@type":"ListItem","position":6,"name":"EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-routing-placement/README.html">Ready인 모델 서버 중 요청은 어디로 보내야 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</h1>
+      <p class="lead">Queue·KV 사용 비율·Prefix 점수를 가중합으로 결합해 Endpoint를 선택하는 계산과 동점 처리를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">서로 다른 단위의 정보를 먼저 점수로 바꾼다</a>
+        <a href="#section-2">weight는 계산된 점수의 기여도를 바꾼다</a>
+        <a href="#section-3">최종 점수가 높으면 선택되고, 동점이면 다른 규칙이 필요하다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Queue·KV Cache·Prefix를 함께 고려한다면 어느 쪽을 더 중요하게 볼지 정해야 한다. EPP의 <code>weight</code>는 이 중요도를 조정한다. <strong>각 Scorer가 계산한 점수에 가중치를 곱하고, Pod별 합계를 비교하는 방식</strong>이다. 원본 메트릭에 곧바로 가중치를 곱하거나 요청 비율을 지정하는 설정은 아니다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>서로 다른 단위의 정보를 먼저 점수로 바꾼다</h2>
+<p>대기 요청 4건, KV 사용 비율 0.8, Prefix 일치 블록 3개는 단위가 다르다. 그대로 더할 수 없으므로 Scorer가 각 정보를 0~1 범위의 선택 점수로 바꾼다. 여기서는 llm-d Router EPP v0.9.0의 세 Scorer를 기준으로 설명한다.</p>
+<p>예시 구성에서는 EPP의 <code>metrics-data-source</code>가 모델 서버의 <code>/metrics</code>를 직접 읽고, <code>core-metrics-extractor</code>가 엔진별 이름을 공통 상태로 해석한다. vLLM 형식의 <code>vllm:num_requests_waiting</code>은 대기 요청 수, <code>vllm:kv_cache_usage_perc</code>는 KV 사용 비율로 연결된다. EPP가 선택할 때 Prometheus에 쿼리를 보내는 구조는 아니다. Prometheus는 EPP가 관측한 상태와 선택 결과를 다시 수집해 사람이 확인하게 한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/datalayer/extractor/metrics/README.md" rel="noopener noreferrer">엔진별 메트릭 해석</a></p>
+<h3>Queue는 후보 사이에서 대기열이 작은 쪽에 높은 점수를 준다</h3>
+<pre><code class="language-text">Queue 점수 = (후보 중 최대 대기열 - 해당 Pod 대기열)
+             / (후보 중 최대 대기열 - 후보 중 최소 대기열)
+</code></pre>
+<p>대기열이 0·5·10이면 점수는 각각 1·0.5·0이다. 모든 후보의 대기열이 같으면 모두 1을 받는다. 따라서 점수 1은 반드시 대기열 0이라는 뜻이 아니다. 대기열 4·8에서도 4인 후보가 1을 받는다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/queuedepth/README.md" rel="noopener noreferrer">Queue Scorer 계산</a></p>
+<h3>KV Cache 사용 비율은 캐시 공간의 사용 정도를 본다</h3>
+<pre><code class="language-text">KV 점수 = 1 - KV Cache 사용 비율
+</code></pre>
+<p>사용 비율이 0.8이면 점수는 0.2다. 여기의 비율은 80이 아니라 0~1 범위다. 이 기준은 <strong>엔진이 관리하는 KV Cache 공간이 얼마나 차 있는가</strong>를 본다. 모델 가중치 등을 포함한 GPU 전체 메모리 사용률도 아니고, 이번 요청과 캐시가 얼마나 일치하는지도 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/kvcacheutilization/README.md" rel="noopener noreferrer">KV Cache Scorer 계산</a></p>
+<h3>Prefix는 이번 요청의 앞부분이 얼마나 일치하는지 본다</h3>
+<pre><code class="language-text">Prefix 점수 = 해당 후보에서 일치한 Prefix 블록 수 / 요청의 전체 블록 수
+</code></pre>
+<p>전체 4블록 중 앞에서 이어지는 3블록이 일치하면 0.75다. “기록이 있다/없다”의 두 값만 주는 방식이 아니다. 사용할 블록 정보가 없으면 이 경로의 점수는 0이다. 일치 판단은 <a href="prefix-index.html">Prefix 인덱스</a>를 이용하며, 실제 GPU 캐시 적중 보장과는 다르다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/prefix/README.md" rel="noopener noreferrer">Prefix Scorer 계산</a></p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>weight는 계산된 점수의 기여도를 바꾼다</h2>
+<p>Queue와 Prefix만 사용하는 설명용 예를 보자.</p>
+<pre><code class="language-yaml">schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: queue-scorer
+        weight: 2
+      - pluginRef: prefix-cache-scorer
+        weight: 3
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>후보</th>
+<th align="right">Queue 점수</th>
+<th align="right">Prefix 점수</th>
+<th align="right">가중합</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">1.0</td>
+<td align="right">0.2</td>
+<td align="right">1.0 × 2 + 0.2 × 3 = <strong>2.6</strong></td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">0.0</td>
+<td align="right">1.0</td>
+<td align="right">0.0 × 2 + 1.0 × 3 = <strong>3.0</strong></td>
+</tr>
+</tbody></table>
+</div>
+<p>A가 Queue 기준으로는 더 좋지만, Prefix까지 합치면 B가 높다. Queue weight만 4로 바꾸면 A는 4.6, B는 3.0이 되어 순위가 바뀐다. <strong>가중치는 기준 사이의 상충을 조정하는 값</strong>이다.</p>
+<p>v0.9.0 구현은 Scorer 점수를 0~1 범위로 제한한 뒤 <code>점수 × weight</code>를 후보별로 누적한다. 실제 구현의 값은 가중합이며, 가중치 합으로 나누는 가중평균이 아니다. 모든 후보를 같은 가중치 합으로 나눠 설명해도 순위는 같지만 구현과 설명을 구분한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/scheduling/scheduler_profile.go" rel="noopener noreferrer">점수 결합 코드</a></p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>최종 점수가 높으면 선택되고, 동점이면 다른 규칙이 필요하다</h2>
+<p>이 구성의 기본 Picker는 최고 점수 후보를 고르고, 최고 점수가 동점이면 그 후보들 중 무작위로 고른다. 따라서 같은 정책을 사용해도 동점 상태에서는 다른 Pod로 갈 수 있다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/docs/architecture.md" rel="noopener noreferrer">기본 Picker와 선택 구조</a></p>
+<p><code>weight: 2, 3</code>은 “요청을 2:3으로 분배한다”가 아니다. 점수가 계속 한쪽에 유리하면 그쪽이 반복 선택될 수 있다. 모든 가중치를 같은 비율로 늘려도 점수 순위는 달라지지 않는다. 한 Scorer만 사용하는 실험에서는 양의 가중치 1과 2가 후보 순위를 바꾸지 않는다.</p>
+<p>Queue 단독·Prefix 단독 실험은 각각의 선택 입력과 결과를 비교했다. 이 문서의 혼합 점수 표는 계산 원리를 설명하는 예시다. 실제 운영의 최적 가중치나 혼합 정책의 처리량 개선을 측정한 결과로 읽지 않는다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

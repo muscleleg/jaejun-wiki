@@ -1,0 +1,459 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.md. Do not edit directly. source-sha256:8355dcb05dbad966bd56ba630abebaff12b5df69cceb5faefc29ad9d33658c87 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="두 Simulator와 Gateway·Route·Pool·EPP를 연결하고 일반·Streaming 응답 및 Replica 2→1→2 후보 변화를 검증한다.">
+  <meta name="source-sha256" content="8355dcb05dbad966bd56ba630abebaff12b5df69cceb5faefc29ad9d33658c87">
+  <title>두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기">
+  <meta property="og:description" content="두 Simulator와 Gateway·Route·Pool·EPP를 연결하고 일반·Streaming 응답 및 Replica 2→1→2 후보 변화를 검증한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html","name":"두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기","description":"두 Simulator와 Gateway·Route·Pool·EPP를 연결하고 일반·Streaming 응답 및 Replica 2→1→2 후보 변화를 검증한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html"},"headline":"두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</h1>
+      <p class="lead">두 Simulator와 Gateway·Route·Pool·EPP를 연결하고 일반·Streaming 응답 및 Replica 2→1→2 후보 변화를 검증한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">두 서버를 하나의 서비스로 제공하려면 어떤 연결이 필요할까?</a>
+        <a href="#section-02">같은 연결을 재현하려면 API와 구현체 조합을 정한다</a>
+        <a href="#section-03">입구를 선언하려면 API 종류와 처리 프로그램이 준비돼야 한다</a>
+        <a href="#section-04">공통 HTTP 입구를 만들고 실행 상태를 확인한다</a>
+        <a href="#section-05">입구가 전달할 같은 API의 서버 후보를 준비한다</a>
+        <a href="#section-06">후보를 묶는 Pool과 후보 중 한 곳을 고르는 EPP를 연결한다</a>
+        <a href="#section-07">입구의 어떤 요청을 Pool에 연결할지 정한다</a>
+        <a href="#section-08">선언한 경로가 동작하는지는 실제 응답으로 확인한다</a>
+        <a href="#section-09">응답이 도착한 경로를 선택 로그와 메트릭으로 확인한다</a>
+        <a href="#section-10">서버 수가 바뀌어도 같은 입구로 새 요청을 보낼 수 있는지 확인한다</a>
+        <a href="#section-11">관찰 결과가 설명하는 요청 경로의 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>같은 모델 API를 제공하는 서버가 두 개 있어도, Client가 사용할 공통 입구와 요청을 보낼 서버를 정하는 연결은 따로 필요하다. 연결을 구성한 뒤에는 서버 하나를 줄였을 때도 같은 입구가 남은 후보로 새 요청을 전달하는지 확인할 수 있어야 한다.</p>
+<p>이 문서는 <strong>두 서버를 하나의 요청 경로로 연결하고, 서버 수 변화가 선택과 응답에 반영되는 과정</strong>을 따라간다. 각 선언은 경로의 한 역할을 만들고, 상태·응답·로그·메트릭은 그 역할이 실제로 이어졌는지 판단할 근거가 된다.</p>
+<p>예시는 2026-10-01의 Minikube 구성에서 모델 API와 메트릭을 제공하는 Simulator를 사용한 결과다. 실제 가중치·CUDA 계산 없이 HTTP 연결을 확인하는 구성이며, 아래 서버 수 변경과 설치 명령은 검증 전용 환경을 전제로 한다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>두 서버를 하나의 서비스로 제공하려면 어떤 연결이 필요할까?</h2>
+<p>Client에는 공통 입구를 제공하고, 입구에는 요청 규칙을 적용하며, 그 규칙이 가리키는 후보 집합에서 실제 서버를 골라야 한다. 선언하는 연결과 프로그램 사이의 요청 경로를 펼치면 다음과 같다.</p>
+<pre><code class="language-text">설정
+  Gateway/llm-d-gateway
+    └─ HTTPRoute/llmd-model-route: /v1/ → InferencePool/llmd-pool
+         ├─ selector: app=llmd-model-sim → Simulator Pod 두 개
+         └─ endpointPickerRef → EPP Service/llmd-pool-epp
+
+요청
+  Client → Gateway 프록시
+              ├─ Route 규칙 적용
+              ├─ EPP에 목적지 선택 요청
+              └─ 선택된 Simulator Pod:8000에 HTTP 요청 전달
+</code></pre>
+<p>이 구성에서 확인하려는 질문에 맞춰 선언과 관측을 연결한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인할 질문</th>
+<th>필요한 구성·변경</th>
+<th>판단할 근거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>공통 입구가 실제로 실행됐는가?</td>
+<td>CRD·Controller 설치와 Gateway 선언</td>
+<td>Gateway 반영 상태와 프록시 실행</td>
+</tr>
+<tr>
+<td>입구에서 두 서버까지 요청이 연결되는가?</td>
+<td>Simulator·Pool·EPP·Route 연결</td>
+<td>Route 참조 해결과 일반·Streaming 응답</td>
+</tr>
+<tr>
+<td>어떤 규칙과 선택을 거쳐 응답했는가?</td>
+<td>Gateway·EPP 관측 연결</td>
+<td>Route·선택 Endpoint·응답·후보 수</td>
+</tr>
+<tr>
+<td>서버 수가 바뀌어도 경로를 유지하는가?</td>
+<td>Simulator Replica 2→1→2</td>
+<td>후보 변화와 남은 Endpoint 쪽 새 선택 활동</td>
+</tr>
+</tbody></table>
+</div>
+<p>각 절의 설정은 이 질문을 해결하기 위해 추가한다. 출력을 읽을 때도 객체가 존재하는지만 보지 않고, 그 객체가 맡은 연결이 다음 단계로 이어졌는지 확인한다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>같은 연결을 재현하려면 API와 구현체 조합을 정한다</h2>
+<p>Gateway API와 InferencePool은 선언 형식이고, Controller·프록시·EPP는 그 선언을 처리하는 프로그램이다. 재현할 때는 이들이 서로 지원하는 API와 통신을 사용해야 하므로 조합을 명시한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>검증에 사용한 버전·이름</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kubernetes·Minikube</td>
+<td>v1.34.0·v1.37.0, Docker 기반 ARM64 환경</td>
+</tr>
+<tr>
+<td>Gateway API</td>
+<td>v1.5.1 Standard CRD</td>
+</tr>
+<tr>
+<td>Inference Extension</td>
+<td>v1.5.0의 InferencePool v1 CRD</td>
+</tr>
+<tr>
+<td>Gateway Controller·프록시</td>
+<td>agentgateway v1.1.0</td>
+</tr>
+<tr>
+<td>EPP Chart·이미지</td>
+<td>llm-d-router-gateway v0.9.0</td>
+</tr>
+<tr>
+<td>모델 Simulator</td>
+<td>llm-d-inference-sim v0.8.2</td>
+</tr>
+<tr>
+<td>Prometheus Chart</td>
+<td>29.33.0</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 조합에서 연결된 결과를 모든 버전의 호환 보장으로 일반화하지 않는다. Gateway API·Inference Extension의 API 정의, Gateway 구현체의 지원과 EPP의 Protocol을 함께 확인한다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>입구를 선언하려면 API 종류와 처리 프로그램이 준비돼야 한다</h2>
+<p>API Server가 Gateway·InferencePool 종류를 알아야 선언을 저장할 수 있다. API 종류가 없던 예시 환경에서는 먼저 두 CRD를 등록했다.</p>
+<pre><code class="language-bash">kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/releases/download/v1.5.0/v1-manifests.yaml
+</code></pre>
+<p>첫 명령은 Gateway API 자원 종류를, 두 번째는 InferencePool 종류를 등록한다. 이때 가능한 것은 해당 Kind의 객체를 API Server에 저장하는 일이다. <strong>저장된 객체를 읽어 동작시킬 프로그램은 아직 별도로 필요하다.</strong> 따라서 다음 단계에서 Gateway Controller를 설치하며, EPP는 모델 후보를 준비한 뒤 설치한다. 예시 출력의 <code>unrecognized format int32/int64</code> 경고와 객체 생성 성공 여부도 구분했다.</p>
+<pre><code class="language-bash">kubectl api-resources --api-group=gateway.networking.k8s.io
+kubectl get crd inferencepools.inference.networking.k8s.io
+</code></pre>
+<p>agentgateway 전용 CRD Chart와 Controller Chart는 <code>agentgateway-system</code> Namespace에 v1.1.0으로 설치했다. 전용 CRD도 설정의 종류를 정의하는 것이지 설정 객체나 실행 Pod 자체는 아니다. Controller 설치 Values에는 다음을 사용했다.</p>
+<pre><code class="language-yaml">inferenceExtension:
+  enabled: true
+</code></pre>
+<p>일반 Service Backend에는 필요하지 않지만, 이 구성에서는 InferencePool 지원을 사용한다. 설치 상태와 적용 Values는 다음처럼 읽는다. 구현체 설치 명령은 사용하는 배포 버전의 <a href="https://agentgateway.dev/docs/kubernetes/latest/documentation/quickstart/" rel="noopener noreferrer">agentgateway 공식 설치 안내</a>를 따른다.</p>
+<pre><code class="language-bash">helm list -n agentgateway-system
+helm get values agentgateway -n agentgateway-system
+kubectl -n agentgateway-system get deployment,pods
+kubectl get gatewayclass -o wide
+</code></pre>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>공통 HTTP 입구를 만들고 실행 상태를 확인한다</h2>
+<p>Controller와 Class가 준비되면 Client가 접속할 개별 입구를 선언할 수 있다. 다음 선언은 <code>agentgateway</code> Class를 사용해 HTTP 80번 입구를 만든다. Namespace를 먼저 생성한 상태를 전제로 한다.</p>
+<pre><code class="language-yaml">apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: llm-d-gateway
+  namespace: llm-d-lab
+spec:
+  gatewayClassName: agentgateway
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+</code></pre>
+<p>Controller가 생성한 <code>llm-d-gateway</code> Deployment·Pod·Service는 실제 프록시를 실행하고 노출한다. 검증에서는 Gateway의 <code>Accepted=True</code>·<code>Programmed=True</code>, 프록시 <code>1/1 Running</code>, LoadBalancer Service의 내부 주소와 NodePort가 확인됐다. 외부 IP는 <code>&lt;pending&gt;</code>이었으므로 공인 LoadBalancer 접근을 검증한 결과는 아니다.</p>
+<p>여기까지 준비된 것은 HTTP 입구다. 이 입구로 받은 요청을 처리할 서버와 연결 규칙은 아직 필요하므로, 다음에는 같은 API를 제공하는 서버 후보 두 개를 준비한다. 객체 이름·구현체·Service의 차이는 <a href="../gateway-api-agentgateway-llmd-gateway-relationship.html">Gateway API, agentgateway와 llm-d-gateway는 어떤 관계일까?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>입구가 전달할 같은 API의 서버 후보를 준비한다</h2>
+<p>요청 대상 선택을 확인하려면 같은 요청을 처리할 서버 후보가 여러 개 있어야 한다. 아래 Deployment는 실제 검증 구성의 핵심 필드를 재현한다. Namespace는 <code>llm-d-lab</code>이며 실제 GPU 요청과 모델 준비 Probe는 넣지 않았다.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmd-model-sim
+  namespace: llm-d-lab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llmd-model-sim
+  template:
+    metadata:
+      labels:
+        app: llmd-model-sim
+        inference.networking.k8s.io/engine-type: vllm
+    spec:
+      containers:
+        - name: model-sim
+          image: ghcr.io/llm-d/llm-d-inference-sim:v0.8.2
+          args: [&quot;--model&quot;, &quot;Qwen/Qwen3-32B&quot;, &quot;--port&quot;, &quot;8000&quot;]
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: 10m
+</code></pre>
+<p><code>Qwen/Qwen3-32B</code>는 Simulator가 사용하는 모델 API 이름이다. 실제 32B 가중치를 로딩했다는 뜻이 아니다. 엔진 Label의 이전 키는 이 EPP 버전에서 호환 지원됐으며 신규 구성에는 지원 여부를 확인해 권장 키를 사용한다.</p>
+<p>Deployment는 <code>Desired=2 Ready=2 Available=2</code>였고 Pod 두 개는 서로 다른 Node·IP를 가졌다. 자동으로 항상 서로 다른 Node에 배치되는 선언은 아니며, 그것은 관찰된 결과다. 이 두 Replica는 독립적인 HTTP 서버 후보이지 하나의 TP·PP 실행 그룹을 구성한 것이 아니다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>후보를 묶는 Pool과 후보 중 한 곳을 고르는 EPP를 연결한다</h2>
+<p>서버 두 개가 실행됐어도 Gateway가 어느 서버로 보낼지 정하는 연결은 없다. Pool은 두 Pod를 후보로 묶고, EPP는 요청마다 그 후보 중 목적지를 고른다. 다음 명령은 이 두 역할을 함께 설치하며 Pool의 후보 Label과 EPP 자원 설정을 지정한다.</p>
+<pre><code class="language-bash">helm upgrade --install llmd-pool \
+  oci://ghcr.io/llm-d/charts/llm-d-router-gateway \
+  --version v0.9.0 \
+  --namespace llm-d-lab \
+  --set router.modelServers.matchLabels.app=llmd-model-sim \
+  --set router.epp.resources.requests.cpu=100m \
+  --set router.epp.resources.requests.memory=128Mi \
+  --set router.epp.resources.limits.memory=512Mi
+</code></pre>
+<p>생성된 것은 EPP Deployment·Service·ConfigMap·계정과 권한 등의 관련 객체, 그리고 <code>InferencePool/llmd-pool</code>이다. Pool은 <code>app=llmd-model-sim</code> 후보와 모델 Port <code>8000</code>, EPP Service <code>llmd-pool-epp:9002</code>를 연결했다.</p>
+<p>아래는 이 연결을 보여 주는 Pool과 EPP Service의 핵심 필드다. <code>selector</code>는 Simulator Pod들을 후보로 묶고, <code>endpointPickerRef</code>는 선택을 요청할 EPP Service를 가리킨다.</p>
+<pre><code class="language-yaml">apiVersion: inference.networking.k8s.io/v1
+kind: InferencePool
+metadata:
+  name: llmd-pool
+  namespace: llm-d-lab
+spec:
+  appProtocol: http
+  selector:
+    matchLabels:
+      app: llmd-model-sim
+  targetPorts:
+    - number: 8000
+  endpointPickerRef:
+    group: &quot;&quot;
+    kind: Service
+    name: llmd-pool-epp
+    port:
+      number: 9002
+    failureMode: FailOpen
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llmd-pool-epp
+  namespace: llm-d-lab
+spec:
+  selector:
+    llm-d-router-gateway: llmd-pool-epp
+  ports:
+    - name: grpc
+      port: 9002
+      targetPort: 9002
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+</code></pre>
+<p><code>8000</code>은 선택된 모델 서버에 HTTP 요청을 보낼 Port이고, <code>9002</code>는 Gateway가 EPP에 선택을 요청할 gRPC Port다. 두 역할을 구분하면 모델 서버용 Service가 없어도 EPP의 선택 결과로 모델 Pod IP에 요청을 보낼 수 있다는 점을 읽을 수 있다.</p>
+<p>EPP는 <code>--pool-name llmd-pool</code>, <code>--pool-namespace llm-d-lab</code>, <code>--config-file /config/default-plugins.yaml</code>로 실행됐다. Service의 <code>9090</code>은 메트릭이고 Container의 <code>9003</code>은 gRPC Health Probe Port다. 초기 Liveness Probe 연결 시간 초과와 재시작도 관찰됐으며, 조회 시점에는 Ready였다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab get deployment,pods,service,inferencepool
+kubectl -n llm-d-lab get inferencepool llmd-pool -o yaml
+kubectl -n llm-d-lab get deployment llmd-pool-epp -o yaml
+kubectl -n llm-d-lab get configmap llmd-pool-epp -o yaml
+</code></pre>
+<p>이 차트는 Pool의 EPP 참조와 EPP의 담당 Pool 실행 인수를 함께 맞춘다. 서로 다른 후보를 가진 Pool에서 EPP를 나눠야 하는 이유는 <a href="../llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a>에 정리돼 있다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>입구의 어떤 요청을 Pool에 연결할지 정한다</h2>
+<p>입구와 후보 집합이 준비됐으므로, 이제 어떤 요청을 그 후보 집합으로 연결할지 정한다. 이 Route는 Gateway의 <code>http</code> Listener에 붙고 <code>/v1/</code> 요청의 Backend로 Pool을 사용한다. Route가 EPP Pod를 직접 Backend로 지정하는 것이 아니라, EPP가 연결된 Pool을 지정한다.</p>
+<pre><code class="language-yaml">apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: llmd-model-route
+  namespace: llm-d-lab
+spec:
+  parentRefs:
+    - name: llm-d-gateway
+      sectionName: http
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/
+      backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: llmd-pool
+</code></pre>
+<p><code>hostnames</code>가 없으므로 Route 자체는 특정 도메인으로 제한하지 않는다. 동일 경로를 다른 모델 서비스에도 사용할 때의 분리는 <a href="../httproute-hostnames-shared-api-path.html">여러 모델 서비스가 같은 /v1/ 경로를 사용하려면 HTTPRoute를 어떻게 나눌까?</a>에서 다룬다.</p>
+<p>YAML의 Spec만 출력됐을 때는 반영 완료를 단정하지 않았다. Controller와 Node 상태를 점검한 뒤 Route의 <code>Accepted=True</code>·<code>ResolvedRefs=True</code>, Gateway의 <code>attachedRoutes=1</code>을 확인했다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab get httproute llmd-model-route -o yaml
+kubectl -n llm-d-lab describe gateway llm-d-gateway
+</code></pre>
+<p>상태가 비어 있던 메모리 압박 사례는 <a href="gateway-node-memory-pressure.html">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</a>에 분리했다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>선언한 경로가 동작하는지는 실제 응답으로 확인한다</h2>
+<p>Mac에서 외부 LoadBalancer 대신 Gateway Service의 Port를 로컬로 연결했다. 이 연결은 클러스터 내부 Backend까지 모든 외부 네트워크 경로를 검증한 것은 아니다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab port-forward service/llm-d-gateway 18080:80
+</code></pre>
+<p>별도 터미널에서 일반 요청을 보낸다.</p>
+<pre><code class="language-bash">curl -sS --max-time 30 \
+  http://127.0.0.1:18080/v1/chat/completions \
+  -H &#39;Content-Type: application/json&#39; \
+  -d &#39;{&quot;model&quot;:&quot;Qwen/Qwen3-32B&quot;,&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;Hello&quot;}],&quot;max_tokens&quot;:16,&quot;stream&quot;:false}&#39;
+</code></pre>
+<p>Streaming 요청은 <code>stream=true</code>로 바꾸고 <code>curl -N</code>으로 출력 버퍼링을 줄여 확인한다.</p>
+<pre><code class="language-bash">curl -sS -N --max-time 30 \
+  http://127.0.0.1:18080/v1/chat/completions \
+  -H &#39;Content-Type: application/json&#39; \
+  -d &#39;{&quot;model&quot;:&quot;Qwen/Qwen3-32B&quot;,&quot;messages&quot;:[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:&quot;Hello&quot;}],&quot;max_tokens&quot;:16,&quot;stream&quot;:true}&#39;
+</code></pre>
+<p>검증에서 일반 JSON 응답과 Streaming 응답의 수신이 확인됐다. 직접 Simulator에 접속한 것이 아니라 Gateway 입구로 보낸 요청이므로, <strong>입구에 적용된 규칙을 통해 Backend까지 연결된다</strong>는 것을 확인한 결과다. 다만 이 응답만으로 EPP의 선택 참여까지 증명되지는 않으므로 다음 로그를 대조한다. Streaming의 모든 종료·취소·재시도 동작을 시험했다는 뜻도 아니다.</p>
+
+</section>
+<section id="section-09" class="markdown-section">
+<h2>응답이 도착한 경로를 선택 로그와 메트릭으로 확인한다</h2>
+<p>Pool은 <code>FailOpen</code>이었다. 그러므로 HTTP 응답만 보고 반드시 EPP가 선택했다고 단정하지 않고 Gateway·EPP 로그를 대조했다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab logs deployment/llm-d-gateway --tail=100
+kubectl -n llm-d-lab logs deployment/llmd-pool-epp --tail=100
+</code></pre>
+<p>일반 요청 시점의 Gateway 로그에 HTTP 200, <code>route=llm-d-lab/llmd-model-route</code>, <code>inferencepool.selected_endpoint=10.244.0.61:8000</code>이 나타났다. EPP 로그에서도 요청 수신·모델명 처리·프록시에 선택 응답을 반환하는 동작이 확인됐다. 이 IP는 해당 시점의 예시이며 이후 Pod 변경 때 달라질 수 있다.</p>
+<p>EPP의 TPOT 계산용 Latency 값 오류도 같은 과정에서 나타났다. HTTP 요청 전달이 성공한 사실을 모든 메트릭 계산의 정상성으로 확대하지 않는다.</p>
+<p>관측을 지속하려면 EPP의 <code>/metrics</code>도 읽을 수 있어야 했다. 무인증 조회의 <code>Unauthorized</code>와 토큰 조회의 <code>Authentication failed</code>를 구분하고, EPP 계정의 TokenReview·SubjectAccessReview 권한을 보완한 뒤 HTTP 200을 확인했다. 이후 Prometheus 자동 수집에서도 후보 2, Endpoint별 Queue 0, 특정 Endpoint의 성공 선택 시도가 확인됐다. 인증 실패가 해소된 과정은 <a href="../llmd-epp-metrics-delegated-authentication-authorization.html">EPP는 Kubernetes 권한으로 메트릭 접근을 어떻게 제어할까?</a>에 분리했다.</p>
+<p>선택 점수의 입력과 설정은 <a href="../llmd-epp-engine-metric-mapping-and-scoring.html">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</a>에서 설명한다. 관측값이 선택과 응답의 어디까지 증명하는지는 <a href="prometheus-gateway-epp-metrics.html">Gateway와 EPP 메트릭은 요청 경로의 어디까지 증명할까?</a>에서 구분한다. 실제 자동 수집 설정은 <a href="prometheus-gateway-epp-scrape.html">Gateway와 EPP의 /metrics를 Prometheus 수집 대상으로 어떻게 연결할까?</a>에 정리돼 있다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>서버 수가 바뀌어도 같은 입구로 새 요청을 보낼 수 있는지 확인한다</h2>
+<p>지금까지는 고정된 두 후보로 요청이 전달되는지를 확인했다. 다음에는 <strong>Route의 대상 Pool은 그대로 두고, 그 Pool에 속한 서버 수만 바꿔도 선택 후보가 갱신되는지</strong> 확인한다. 이를 위해 Replica를 2에서 1로 줄였다. 이 명령은 실제 서버 수를 줄이므로 검증 환경에서만 사용한다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab scale deployment llmd-model-sim --replicas=1
+</code></pre>
+<p>Prometheus에서 다음을 확인했다.</p>
+<pre><code class="language-promql">llm_d_epp_ready_endpoints{job=&quot;llmd-epp&quot;}
+
+sum by (endpoint_name) (
+  llm_d_epp_scheduler_attempts_total{job=&quot;llmd-epp&quot;,status=&quot;success&quot;}
+)
+</code></pre>
+<p>관찰은 Ready 후보 감소 → 새 Gateway 요청의 응답 수신 → 다른 남은 Endpoint 쪽 선택 활동의 순서로 연결됐다. 정확한 반영 시간, 해당 선택 활동의 Pod 이름과 증가량은 측정 기록에 남기지 않았다.</p>
+<p>복구는 다음처럼 수행했다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab scale deployment llmd-model-sim --replicas=2
+</code></pre>
+<p>EPP의 Ready 후보 수가 다시 늘어났다. Gateway와 HTTPRoute를 변경하지 않은 상태에서 후보 감소·재추가가 반영된 것이다. 복구한 새 Pod가 실제 요청 대상으로 선택되는지는 이 복구 관찰만으로 확인되지 않는다.</p>
+
+</section>
+<section id="section-11" class="markdown-section">
+<h2>관찰 결과가 설명하는 요청 경로의 범위</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>범위</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>API·Controller·Gateway·Route·Pool·EPP 연결</td>
+<td>객체·상태와 실행 구성으로 확인</td>
+</tr>
+<tr>
+<td>일반·Streaming 요청</td>
+<td>Simulator 응답 수신 확인</td>
+</tr>
+<tr>
+<td>EPP의 참여와 Endpoint 선택</td>
+<td>Gateway·EPP 로그 및 Endpoint 선택 Metric으로 관측</td>
+</tr>
+<tr>
+<td>Gateway·EPP 자동 Scrape</td>
+<td>Prometheus Query에서 실제 저장 확인</td>
+</tr>
+<tr>
+<td>후보 감소·복구</td>
+<td>Ready 수 변경과 감소 후 새 요청·선택 활동 확인</td>
+</tr>
+<tr>
+<td>모든 실패 유형의 주입</td>
+<td>수행하지 않음</td>
+</tr>
+<tr>
+<td>장애 중 진행 중 요청의 무손실 전환·정확한 수렴 지연</td>
+<td>검증하지 않음</td>
+</tr>
+<tr>
+<td>모델별 정확한 선택·부하에 따른 Scorer 효과</td>
+<td>검증하지 않음</td>
+</tr>
+<tr>
+<td>CUDA·TP·NCCL·P/D·KV Transfer 성능</td>
+<td>실행하지 않음</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 결과로 공통 입구와 실제 서버 주소를 따로 관리하는 이유를 설명할 수 있다. <strong>Route는 Pool을 계속 가리키고, EPP는 바뀌는 후보 중 한 곳을 선택하며, Gateway는 그 결과에 따라 요청을 전달한다.</strong> 서버 수 변경이 있어도 Client가 접속할 입구와 요청 규칙을 그대로 둘 수 있었던 이유다.</p>
+<p>같은 관측 방법은 문제 위치를 좁히는 데도 쓰인다. 선언 상태, 후보 수, 선택 로그, Client 응답을 차례로 연결하면 어느 단계까지 정상인지 판단할 수 있다. 실제 GPU 계산과 분산 Worker 성능을 평가하려면 그 뒤 모델 엔진의 실행 관측을 더해야 한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="gateway-node-memory-pressure.html">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.md. Do not edit directly. source-sha256:1ec0b4b5f76b635e1e259a19ad1331af87906ed8ee459c579eee3e505cba649d -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HTTPRoute 상태 공백과 Controller 불안정을 Node 컨테이너 메모리 한도와 연결해 진단한 사례를 설명한다.">
+  <meta name="source-sha256" content="1ec0b4b5f76b635e1e259a19ad1331af87906ed8ee459c579eee3e505cba649d">
+  <title>HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?">
+  <meta property="og:description" content="HTTPRoute 상태 공백과 Controller 불안정을 Node 컨테이너 메모리 한도와 연결해 진단한 사례를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html","name":"HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?","description":"HTTPRoute 상태 공백과 Controller 불안정을 Node 컨테이너 메모리 한도와 연결해 진단한 사례를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html"},"headline":"HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-operations","name":"설치·운영 아카이브","identifier":"topics-kubernetes-operations"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-node-memory-pressure.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html"},{"@type":"ListItem","position":7,"name":"HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</h1>
+      <p class="lead">HTTPRoute 상태 공백과 Controller 불안정을 Node 컨테이너 메모리 한도와 연결해 진단한 사례를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">Spec 저장과 Controller 반영을 분리한다</a>
+        <a href="#section-02">프로그램이 불안정하다면 실제로 적용되는 메모리 한도를 찾는다</a>
+        <a href="#section-03">한도를 보완한 후 상태 반영과 요청 성공을 다시 확인했다</a>
+        <a href="#section-04">메모리 압박은 Route 실패의 여러 원인 중 하나다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>HTTPRoute를 생성했는데 상태가 비어 있다면 요청 규칙을 고쳐야 할지, 그 규칙을 처리하는 프로그램을 점검해야 할지부터 구분해야 한다. API Server에 Spec이 저장된 뒤에도 Controller가 선언을 읽고 프록시에 반영하는 과정이 남기 때문이다.</p>
+<p>Docker 기반 Minikube의 한 사례에서는 <code>llmd-model-route</code>의 Spec만 존재하고 반영 상태가 나타나지 않았다. Controller 불안정과 Node 컨테이너의 메모리 압박을 확인한 뒤 한도를 보완하자 Route 상태와 요청 응답이 나타났다.</p>
+<p>이 사례를 통해 <strong>설정 자체의 문제와 설정을 반영할 실행 환경의 문제를 어떤 증거로 구분하는지</strong> 설명한다. Node 메모리 압박은 이 환경에서 관찰한 원인이며 모든 Route 상태 공백의 원인은 아니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>Spec 저장과 Controller 반영을 분리한다</h2>
+<p>문제 시점에는 HTTPRoute Spec이 존재했지만 Status가 비어 있고 Gateway의 <code>attachedRoutes=0</code>이었다. agentgateway Controller에는 API Server Lease 갱신 시간 초과와 <code>leader election lost</code> 종료가 나타났다. EPP도 Liveness Probe 시간 초과 등으로 재시작했다.</p>
+<p>Controller가 계속 종료되면 Route가 올바르더라도 설정 반영이 진행되지 않을 수 있다. 먼저 객체와 실행 주체의 상태를 함께 확인한다.</p>
+<pre><code class="language-bash">kubectl -n llm-d-lab get httproute llmd-model-route -o yaml
+kubectl -n llm-d-lab describe gateway llm-d-gateway
+kubectl -n agentgateway-system get pods -o wide
+kubectl -n agentgateway-system logs deployment/agentgateway --tail=100
+kubectl -n llm-d-lab describe pod -l llm-d-router-gateway=llmd-pool-epp
+kubectl get events -A --sort-by=.metadata.creationTimestamp
+</code></pre>
+<p>출력에서는 재시작 횟수뿐 아니라 Lease·Probe·OOM 관련 원인과 발생 대상, 시간 순서를 읽는다. 여러 Replica를 가진 Deployment의 로그 한 번으로 모든 Pod의 기록을 봤다고 가정하지 않는다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>프로그램이 불안정하다면 실제로 적용되는 메모리 한도를 찾는다</h2>
+<p>Controller와 EPP가 재시작한다면 해당 Process가 어느 자원 한도 안에서 실행되는지 확인해야 한다. Docker 기반 Minikube에서는 Kubernetes가 보여 주는 Node 용량 외에, Node를 담은 Docker 컨테이너의 한도도 영향을 준다.</p>
+<p>예시 환경에서 Node API에는 Docker VM의 약 8GiB 메모리가 표시됐지만, <code>gpu-lab</code> Node 컨테이너의 실제 cgroup 메모리 한도는 2GiB였다. 사용량이 그 한도에 근접했고 커널 로그에는 CoreDNS·Grafana의 memory cgroup OOM 종료가 있었다.</p>
+<pre><code class="language-text">Docker VM 전체 메모리
+  ≠ 개별 Minikube Node 컨테이너의 cgroup 한도
+  ≠ 개별 Kubernetes Container의 resources.limits.memory
+</code></pre>
+<p>어느 한도에 걸렸는지 구분하지 않고 EPP Container Limit만 늘리면 문제를 해결하지 못할 수 있다. Node 컨테이너의 호스트 런타임 한도도 확인해야 한다.</p>
+<pre><code class="language-bash">docker inspect gpu-lab --format &#39;{{.HostConfig.Memory}}&#39;
+docker stats --no-stream gpu-lab
+
+minikube -p gpu-lab ssh -n gpu-lab -- \
+  &#39;sudo cat /sys/fs/cgroup/memory.max; sudo cat /sys/fs/cgroup/memory.current&#39;
+
+minikube -p gpu-lab ssh -n gpu-lab -- \
+  &#39;sudo dmesg | tail -n 80&#39;
+</code></pre>
+<p><code>memory.max</code> 등의 경로는 cgroup v2를 사용하는 해당 환경의 예시다. 다른 Runtime과 cgroup 버전에서는 확인 위치가 다르다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>한도를 보완한 후 상태 반영과 요청 성공을 다시 확인했다</h2>
+<p>Minikube v1.37.0의 <code>start --memory=4096 --dry-run</code>은 기존 클러스터의 메모리 변경을 지원하지 않는다고 경고했다. 기존 클러스터를 삭제·재생성하지 않고 보존하며 Docker Node 컨테이너 한도를 늘렸고, 이후 사용량 <code>2.61GiB / 4GiB</code>와 Controller·EPP Ready 상태가 관찰됐다.</p>
+<p>그 뒤 Route의 <code>Accepted=True</code>·<code>ResolvedRefs=True</code>, Gateway <code>attachedRoutes=1</code>과 실제 Gateway 요청 응답이 확인됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인 지점</th>
+<th>보완 전</th>
+<th>보완 후</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Node 컨테이너 메모리</td>
+<td>실제 한도 2GiB에 사용량 근접</td>
+<td>한도 4GiB, 관찰 사용량 2.61GiB</td>
+</tr>
+<tr>
+<td>설정을 반영하는 프로그램</td>
+<td>Controller 종료·EPP 재시작 관찰</td>
+<td>Controller·EPP Ready 관찰</td>
+</tr>
+<tr>
+<td>Route 연결과 요청</td>
+<td>Status 비어 있음·attachedRoutes 0</td>
+<td>Route 반영 상태·attachedRoutes 1·HTTP 응답 확인</td>
+</tr>
+</tbody></table>
+</div>
+<p>이는 압박 해소 후 기능 회복을 관찰한 결과다. 각 Process 종료 원인을 독립적인 실험으로 모두 입증한 결과는 아니다. 특히 Node의 cgroup OOM 기록을 곧바로 모든 Pod의 Container Limit 초과로 해석하지 않는다.</p>
+<p>운영 환경에서는 Node Runtime 설정 변경을 그대로 복제하지 않는다. 호스트의 가용 메모리, 다른 Workload, Node 교체 또는 유지보수 방법과 영속 설정을 검토해야 한다. Docker의 일시 한도 변경은 Minikube가 재생성한 Node에 자동으로 유지된다는 보장도 없다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>메모리 압박은 Route 실패의 여러 원인 중 하나다</h2>
+<p>Controller가 정상인데 Route가 <code>Accepted=False</code> 또는 <code>ResolvedRefs=False</code>라면 Listener 연결 허용 조건, Backend 존재와 지원 종류, Namespace 간 참조 등을 확인한다. 반대로 Controller 로그와 Node 압박이 문제라면 Route 규칙을 무작정 바꾸기 전에 설정을 반영하는 주체부터 복구해야 한다.</p>
+<p>이 사례에서는 <strong>Route 선언 → Controller의 설정 반영 → 프록시의 요청 전달</strong> 중 설정 반영을 맡는 단계가 불안정했다. 따라서 Backend 모델의 문제를 찾기 전에 Controller가 설정을 처리할 수 있는 환경부터 확인한 것이다. 정상 요청 연결과 이 사례의 위치는 <a href="gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a>에 정리돼 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

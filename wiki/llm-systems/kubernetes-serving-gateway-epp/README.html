@@ -1,0 +1,340 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/README.md. Do not edit directly. source-sha256:649b795a4df37ab05979c3de78a3364d7cd15a62ad17d4f87943ed6bfaef9ceb -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPU 서버 준비부터 Gateway·HTTPRoute·InferencePool·EPP의 요청 전달, 관측과 후보 변경까지 연결한다.">
+  <meta name="source-sha256" content="649b795a4df37ab05979c3de78a3364d7cd15a62ad17d4f87943ed6bfaef9ceb">
+  <title>GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?">
+  <meta property="og:description" content="GPU 서버 준비부터 Gateway·HTTPRoute·InferencePool·EPP의 요청 전달, 관측과 후보 변경까지 연결한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html","name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","description":"GPU 서버 준비부터 Gateway·HTTPRoute·InferencePool·EPP의 요청 전달, 관측과 후보 변경까지 연결한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},"headline":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</h1>
+      <p class="lead">GPU 서버 준비부터 Gateway·HTTPRoute·InferencePool·EPP의 요청 전달, 관측과 후보 변경까지 연결한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">문서 안내</a>
+        <a href="#section-02">모델 서버가 준비돼도 사용자의 요청 경로는 필요하다</a>
+        <a href="#section-03">공통 입구를 만들려면 선언과 실행 프로그램을 연결해야 한다</a>
+        <a href="#section-04">입구가 생기면 요청별 목적지를 정해야 한다</a>
+        <a href="#section-05">같은 요청을 처리할 서버가 여러 개면 한 곳을 골라야 한다</a>
+        <a href="#section-06">서버 상태를 선택에 쓰려면 메트릭을 같은 기준으로 읽어야 한다</a>
+        <a href="#section-07">응답이 도착하면 실제로 어떤 경로를 사용했는지 확인한다</a>
+        <a href="#section-08">지속적으로 경로를 관찰하려면 수집·후보·선택·응답을 나눠 읽는다</a>
+        <a href="#section-09">서버 수가 바뀌어도 입구와 전달 규칙을 유지할 수 있다</a>
+        <a href="#section-10">요청 전달 구조를 알면 실패한 단계를 좁힐 수 있다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU를 할당하고 모델 서버를 실행하는 목적은 사용자의 추론 요청을 처리하는 것이다. 서버가 여러 개라면 그다음 문제가 생긴다. 사용자는 어느 주소에 접속해야 하는가? 같은 모델을 제공하는 서버 중 누가 요청을 받아야 하는가? 서버가 사라지거나 추가되면 요청 경로는 어떻게 바뀌어야 하는가?</p>
+<p>모델 서버를 서비스로 제공하려면 <strong>공통 접속 주소, 요청별 전달 규칙, 서버 상태에 맞는 목적지 선택</strong>이 필요하다. Gateway와 HTTPRoute는 입구와 전달 규칙을 만들고, InferencePool과 EPP(Endpoint Picker)는 요청을 받을 서버 후보와 선택 과정을 연결한다. 실제 응답과 관측값을 따라가면 이 구성요소들이 왜 필요하고 어디서 역할이 나뉘는지 알 수 있다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>문서 안내</h2>
+<ul>
+<li><a href="../gateway-api-agentgateway-llmd-gateway-relationship.html">Gateway API, agentgateway와 llm-d-gateway는 어떤 관계일까?</a><ul>
+<li><a href="../../infrastructure/kubernetes-serving-kserve-fake-gpu/kubernetes-external-http-service-ingress-gateway-istio.html">외부 HTTP 요청을 Service로 연결하는 세 가지 방법: Ingress, Gateway API, Istio</a></li>
+<li><a href="../httproute-hostnames-shared-api-path.html">여러 모델 서비스가 같은 /v1/ 경로를 사용하려면 HTTPRoute를 어떻게 나눌까?</a></li>
+</ul>
+</li>
+<li><a href="../llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a><ul>
+<li><a href="inferencepool-composition-boundaries.html">InferencePool·실행 그룹·모델·EPP Replica의 수는 어떤 관계일까?</a></li>
+<li><a href="epp-shared-pool-failure-path.html">다른 Pool의 EPP를 참조하면 선택은 어디서 실패할까?</a></li>
+<li><a href="../llmd-epp-engine-metric-mapping-and-scoring.html">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</a></li>
+<li><a href="../llmd-epp-ready-endpoints-pod-readiness-metrics-freshness.html">EPP의 Ready Endpoint 수는 Pod Ready와 어떻게 다를까?</a></li>
+</ul>
+</li>
+<li><a href="prometheus-gateway-epp-metrics.html">Gateway와 EPP 메트릭은 요청 경로의 어디까지 증명할까?</a><ul>
+<li><a href="prometheus-gateway-epp-scrape.html">Gateway와 EPP의 /metrics를 Prometheus 수집 대상으로 어떻게 연결할까?</a><ul>
+<li><a href="prometheus-kubernetes-discovery-relabel.html">Prometheus의 Kubernetes 발견과 relabel은 어떻게 Scrape 주소를 만들까?</a></li>
+<li><a href="../llmd-epp-metrics-delegated-authentication-authorization.html">EPP는 Kubernetes 권한으로 메트릭 접근을 어떻게 제어할까?</a><ul>
+<li><a href="rbac-service-specific-metrics.html">같은 /metrics 경로의 서비스들을 Kubernetes 권한으로 어떻게 구분할까?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="promql-request-rate-and-latency.html">PromQL의 rate·increase·sum by는 요청 수와 평균 지연을 어떻게 계산할까?</a></li>
+</ul>
+</li>
+<li><a href="gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a><ul>
+<li><a href="gateway-node-memory-pressure.html">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</a></li>
+</ul>
+</li>
+<li><a href="gpu-routing-runtime-boundaries.html">GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</a></li>
+</ul>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>모델 서버가 준비돼도 사용자의 요청 경로는 필요하다</h2>
+<p>모델 서버는 먼저 실행할 자원을 확보해야 한다. Device Plugin 방식에서는 Pod가 <code>nvidia.com/gpu</code> 같은 자원의 수량을 요청한다. DRA 방식에서는 ResourceClaim에 장치 조건을 선언하고 Pod가 그 할당을 사용한다. Scheduler가 배치 가능한 Node를 선택하고, kubelet과 장치 관리 구현이 Container의 장치 사용을 준비한다.</p>
+<p>그 GPU에서 모델을 로딩하고 추론 엔진을 준비하는 주체는 모델 서버다. 모델 로딩이나 분산 Worker 연결이 필요한 경우에는 그 준비 상태가 Readiness 검사에 반영돼야 한다.</p>
+<p>이 과정을 마친 서버에 직접 접속할 수 있더라도, 사용자에게 각 Pod의 주소를 알려주는 방식은 서버가 늘거나 교체될 때마다 접속 대상을 바꿔야 한다. 여러 서버를 하나의 서비스로 제공하려면 <strong>사용자가 접속할 공통 입구와, 입구에서 실제 서버까지 연결하는 규칙</strong>이 필요하다.</p>
+<pre><code class="language-text">서버를 준비하는 과정
+GPU 요청·장치 연결 → 모델 서버 실행 → 모델 로딩·Readiness
+
+사용자의 요청을 처리하는 과정
+공통 입구 → 요청에 맞는 서버 선택 → 서버로 전달 → 응답 반환
+</code></pre>
+<p>두 과정은 연결되지만 선택 대상이 다르다. GPU 할당은 서버가 사용할 자원을 정하고, 요청 Routing은 이미 준비된 서버 중 이번 요청을 받을 곳을 정한다. HTTP 요청마다 GPU를 새로 할당하는 구조는 아니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>공통 입구를 만들려면 선언과 실행 프로그램을 연결해야 한다</h2>
+<p>Gateway API는 이 입구와 전달 규칙을 Kubernetes 객체로 표현한다. <code>Gateway</code>에는 어떤 Protocol·Port로 요청을 받을지 적고, <code>GatewayClass</code>를 통해 그 선언을 담당할 구현체를 선택한다. 구현체의 Controller가 선언을 읽어 실제 프록시를 구성하며, 프록시가 HTTP 요청을 받는다.</p>
+<p>예를 들어 다음처럼 입구를 선언할 수 있다.</p>
+<pre><code class="language-text">Gateway / llm-d-gateway
+  gatewayClassName: agentgateway
+  Listener: HTTP 80
+
+agentgateway Controller
+  → 이 선언을 읽음
+  → 프록시 Deployment와 접속용 Service 구성
+
+프록시 Pod
+  → agentgateway 프로그램 실행
+  → HTTP 80번으로 들어온 요청 처리
+</code></pre>
+<p>여기서 <code>llm-d-gateway</code>는 만든 입구의 이름이고, agentgateway는 그 입구를 구현하는 소프트웨어다. 같은 이름의 Gateway·Deployment·Service는 각각 입구 설정, 프록시 실행 관리, 프록시에 접속할 주소를 맡는다.</p>
+<p>이 관계를 알면 객체 목록에 같은 이름이 여러 번 나와도 실제 요청을 받는 프로그램을 찾을 수 있다. Gateway의 <code>Accepted</code>·<code>Programmed</code> 상태와 프록시 실행 상태는 선언이 실행 구성으로 이어졌는지 판단할 근거가 된다. 객체별 YAML과 실행 주체의 연결은 <a href="../gateway-api-agentgateway-llmd-gateway-relationship.html">Gateway API, agentgateway와 llm-d-gateway는 어떤 관계일까?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>입구가 생기면 요청별 목적지를 정해야 한다</h2>
+<p>HTTP 입구가 있다는 사실만으로 어느 모델 서비스에 보낼지는 정해지지 않는다. 하나의 입구에 여러 모델 서비스를 연결하려면 요청의 Host·Path·Header 등을 보고 Backend를 구분해야 한다. 이 규칙을 담는 객체가 <code>HTTPRoute</code>다.</p>
+<p>예시 구성의 <code>llmd-model-route</code>는 <code>parentRefs</code>로 <code>llm-d-gateway</code>의 <code>http</code> Listener에 연결하고, <code>/v1/</code> 요청의 Backend를 <code>InferencePool/llmd-pool</code>로 지정했다.</p>
+<pre><code class="language-text">Client → llm-d-gateway 프록시
+           → 연결된 HTTPRoute 규칙 적용
+           → /v1/ 조건과 일치
+           → llmd-pool을 Backend로 사용
+</code></pre>
+<p>HTTPRoute는 규칙을 저장하는 객체다. Controller가 그 규칙을 프록시에 반영하므로 요청을 HTTPRoute라는 별도 서버에 보내는 단계는 없다. 예시에서 Route의 <code>Accepted=True</code>·<code>ResolvedRefs=True</code>와 Gateway의 <code>attachedRoutes=1</code>을 읽은 이유도 이 연결이 받아들여졌는지 확인하기 위해서다.</p>
+<p>여러 모델 서비스가 같은 <code>/v1/chat/completions</code> 경로를 사용한다면 Host나 Header처럼 요청을 구분할 조건을 더해야 한다. 도메인 조건은 들어온 요청을 비교하는 규칙이며, Client가 해당 입구에 도착하도록 하는 DNS 설정도 필요하다. 이 관계는 <a href="../httproute-hostnames-shared-api-path.html">여러 모델 서비스가 같은 /v1/ 경로를 사용하려면 HTTPRoute를 어떻게 나눌까?</a>에서 풀어 설명한다.</p>
+<p>입구와 전달 규칙이라는 역할은 Ingress·Istio 구성에도 대입할 수 있다. 표현하는 객체가 어떻게 달라지는지는 <a href="../../infrastructure/kubernetes-serving-kserve-fake-gpu/kubernetes-external-http-service-ingress-gateway-istio.html">외부 HTTP 요청을 Service로 연결하는 세 가지 방법: Ingress, Gateway API, Istio</a>에서 비교한다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>같은 요청을 처리할 서버가 여러 개면 한 곳을 골라야 한다</h2>
+<p>Route가 모델 서비스의 범위를 정했다면, 그 안에서 실제 요청을 받을 서버를 골라야 한다. 이때 <code>InferencePool</code>은 후보 Pod의 범위와 접속 Port를 선언하고, EPP는 그 후보 중 이번 요청의 목적지를 선택한다.</p>
+<p>예시에서는 같은 API를 제공하는 <code>llmd-model-sim</code> Pod 두 개를 준비했다. Helm은 이 후보들을 연결하는 <code>InferencePool/llmd-pool</code>과 선택을 맡는 <code>llmd-pool-epp</code> Deployment·Service를 함께 만들었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>Pool에 들어간 설정</th>
+<th>해결하는 문제</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>selector.matchLabels.app: llmd-model-sim</code></td>
+<td>어떤 Pod들을 이 모델 서비스의 후보로 삼을지</td>
+</tr>
+<tr>
+<td><code>targetPorts[].number: 8000</code></td>
+<td>선택한 모델 서버의 어느 Port로 접속할지</td>
+</tr>
+<tr>
+<td><code>endpointPickerRef</code>의 Service <code>llmd-pool-epp</code>, Port <code>9002</code></td>
+<td>후보 중 한 곳을 누구에게 선택하게 할지</td>
+</tr>
+</tbody></table>
+</div>
+<p>Pool에는 고정된 Pod 이름 목록을 적지 않는다. Selector로 후보 범위를 정하고, EPP가 그 범위에 속한 Pod의 주소와 준비 상태를 관리한다. EPP Service는 선택을 요청할 주소이고, 모델 Pod의 <code>8000</code>은 실제 모델 요청을 전달할 주소다.</p>
+<pre><code class="language-text">Gateway 프록시
+  ├─ EPP에 요청 정보 전달
+  │    → EPP가 담당 Pool의 후보 중 Endpoint 선택
+  │    ← 선택된 모델 서버의 IP·Port
+  └─ 그 모델 서버에 HTTP 요청 전달
+</code></pre>
+<p>이 구조에서는 Gateway가 모델 Pod IP·Port에 직접 접속할 수 있어야 한다. 모델 서버용 Service를 반드시 거치는 구성은 아니다. 또한 Pool은 Pod를 생성하거나 GPU를 할당하지 않는다.</p>
+<p>EPP는 자신이 담당하는 후보 정보를 미리 관리하므로, 여러 Pool에서 같은 EPP Service를 참조한다고 담당 후보가 자동으로 합쳐지지는 않는다. Pool별 EPP가 필요한 이유는 <a href="../llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>서버 상태를 선택에 쓰려면 메트릭을 같은 기준으로 읽어야 한다</h2>
+<p>후보가 여러 개라면 각 서버의 대기 요청이나 KV Cache 상태를 선택에 활용할 수 있다. 이를 위해 EPP는 모델 서버 메트릭을 수집하고, 추론 엔진별로 다른 메트릭 이름을 공통 상태로 변환한 뒤 평가 규칙을 적용한다.</p>
+<p>예시의 모델 서버는 <code>vllm:num_requests_waiting</code> 같은 이름의 값을 제공했다. 반면 EPP의 활성 설정에는 Queue·KV Cache·Prefix Scorer와 가중치 <code>2·2·3</code>이 들어 있었다. 두 출력은 다음 과정으로 연결된다.</p>
+<pre><code class="language-text">후보 Pod의 엔진 Label
+  → 해당 엔진의 메트릭 매핑 선택
+  → 모델 서버에서 대기열·캐시 상태 수집
+  → 공통 상태를 Scorer의 점수로 변환
+  → 점수에 가중치를 적용해 Endpoint 선택
+</code></pre>
+<p>가중치는 메트릭 원본에 바로 곱하는 값이 아니다. 대기 요청 수 <code>0</code>도 평가 규칙에 따라 높은 점수가 될 수 있다. 실제로 조회한 대기 요청·처리 중 요청·KV Cache 값은 모두 <code>0</code>이었지만, 그 값만으로 특정 Pod가 선택된 이유까지 알 수는 없다.</p>
+<p>이 연결을 이해하면 엔진이 바뀌었을 때 Pod Label, 메트릭 매핑, 활성 Scorer 중 어디를 확인해야 하는지 알 수 있다. 매핑과 점수 계산 예시는 <a href="../llmd-epp-engine-metric-mapping-and-scoring.html">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</a>에 정리돼 있다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>응답이 도착하면 실제로 어떤 경로를 사용했는지 확인한다</h2>
+<p>객체의 연결을 만든 목적은 Client의 요청을 모델 서버까지 전달하는 것이다. 이를 확인하기 위해 Gateway Service의 <code>80</code>번 포트를 로컬 <code>18080</code>으로 연결하고, <code>/v1/chat/completions</code>에 일반 요청과 <code>stream=true</code>인 Streaming 요청을 보냈다.</p>
+<p>이 예시의 서버는 실제 GPU와 가중치를 실행하는 엔진 대신 모델 API와 메트릭을 제공하는 Simulator다. 따라서 요청 경로를 확인하는 데 집중할 수 있다.</p>
+<pre><code class="language-text">Client가 Gateway 입구에 POST
+  → 프록시가 Route 규칙으로 Pool 결정
+  → EPP가 후보 중 목적지 선택
+  → 프록시가 선택된 Simulator:8000에 요청
+  → 일반 응답 또는 Streaming Chunk 반환
+</code></pre>
+<p>두 방식의 응답이 도착했고, Gateway 로그에는 적용된 <code>llm-d-lab/llmd-model-route</code>와 선택 Endpoint, HTTP <code>200</code>이 나타났다. EPP 로그에서도 선택 응답 반환을 확인했다. 이 결과는 선언한 연결이 실제 선택과 전달로 이어진다는 근거다.</p>
+<p>서로 다른 위치의 증거를 함께 보는 이유도 있다. EPP가 Endpoint를 골라도 모델 서버가 오류를 반환할 수 있고, <code>FailOpen</code> 구성에서는 EPP 호출이 실패해도 Gateway의 대체 동작으로 응답이 올 수 있다. <strong>선택 성공과 응답 성공을 함께 확인해야 실제 경로를 설명할 수 있다.</strong></p>
+<p>명령과 상태 출력, 일반·Streaming 요청을 연결한 절차는 <a href="gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a>에서 따라갈 수 있다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>지속적으로 경로를 관찰하려면 수집·후보·선택·응답을 나눠 읽는다</h2>
+<p>요청 한 번의 로그로 연결을 확인했다면, 서버 상태가 변하는 동안에도 같은 경로가 유지되는지 관찰할 수 있어야 한다. Prometheus는 Gateway와 EPP가 제공하는 메트릭을 저장해 이 변화를 조회하게 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>관측값</th>
+<th>알 수 있는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>up{job=&quot;llmd-epp&quot;}=1</code></td>
+<td>Prometheus가 EPP 메트릭을 읽는 데 성공함</td>
+</tr>
+<tr>
+<td><code>llm_d_epp_ready_endpoints=2</code></td>
+<td>EPP의 집계 조건을 만족하는 후보가 두 개임</td>
+</tr>
+<tr>
+<td>Endpoint별 성공 선택 Counter</td>
+<td>어느 후보의 선택 시도가 기록됐는지</td>
+</tr>
+<tr>
+<td>Gateway의 Route·HTTP Status·처리 시간</td>
+<td>어떤 규칙을 적용했고 어떤 응답을 얼마나 걸려 처리했는지</td>
+</tr>
+</tbody></table>
+</div>
+<p>EPP가 모델 서버 메트릭을 읽는 것은 선택할 상태를 얻는 통신이다. Prometheus가 EPP·Gateway 메트릭을 읽는 것은 선택과 전달의 동작을 관찰하는 통신이다. 이 둘을 구분하면 메트릭이 어디서 나와 어디에 사용되는지 연결할 수 있다.</p>
+<p>예시에서는 Gateway를 기존 Pod 발견 Job으로 수집하고, 인증이 필요한 EPP에는 별도 Job을 연결했다. 토큰과 검사 권한을 맞춘 뒤 <code>up=1</code>과 후보 수 <code>2</code>를 조회했다. 실제 수집 설정은 <a href="prometheus-gateway-epp-scrape.html">Gateway와 EPP의 /metrics를 Prometheus 수집 대상으로 어떻게 연결할까?</a>에, 각 값으로 요청 경로를 읽는 방법은 <a href="prometheus-gateway-epp-metrics.html">Gateway와 EPP 메트릭은 요청 경로의 어디까지 증명할까?</a>에 정리돼 있다.</p>
+
+</section>
+<section id="section-09" class="markdown-section">
+<h2>서버 수가 바뀌어도 입구와 전달 규칙을 유지할 수 있다</h2>
+<p>Pod 주소를 Route에 직접 적지 않는 이유는 서버가 교체되거나 늘어날 때 드러난다. Route는 Pool을 계속 참조하고, Pool에 속한 실제 후보는 Pod 변화에 따라 갱신된다.</p>
+<p><code>llmd-model-sim</code>의 Replica를 <code>2 → 1 → 2</code>로 바꾸는 동안 Gateway와 HTTPRoute 선언은 유지했다. 축소 후에는 EPP Ready 후보 수가 감소하고, 새 요청의 응답과 남은 Endpoint 쪽 선택 활동이 나타났다. 다시 늘린 뒤에는 후보 수가 증가했다.</p>
+<p>이 관찰은 <strong>Client의 입구, 요청을 분류하는 규칙, 실제 서버 후보의 수명주기를 따로 관리할 수 있다</strong>는 점을 보여 준다. 복구한 새 Pod의 실제 요청 수신과 정확한 반영 지연까지 측정한 결과는 아니다.</p>
+<p>후보 갱신에는 준비 상태도 필요하다. EPP는 Kubernetes Pod Ready를 읽어 후보를 관리하며, llm-d Router EPP v0.9.0의 Ready Endpoint 메트릭은 후보의 메트릭 최신성도 반영한다. 모델 로딩·Worker 연결이 필요한 서버라면 그 상태가 Readiness에 반영돼야 한다. 집계 조건과 Kubernetes가 없는 환경의 차이는 <a href="../llmd-epp-ready-endpoints-pod-readiness-metrics-freshness.html">EPP의 Ready Endpoint 수는 Pod Ready와 어떻게 다를까?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>요청 전달 구조를 알면 실패한 단계를 좁힐 수 있다</h2>
+<p>이 구성에서 Kubernetes는 서버가 실행될 자원과 위치를 관리하고, Controller는 입구와 Route 선언을 프록시에 반영한다. EPP는 준비된 후보 중 목적지를 고르며, 프록시는 요청을 전달한다. 실제 GPU 계산은 요청을 받은 모델 엔진이 수행한다.</p>
+<p>따라서 요청이 실패했을 때도 다음처럼 확인할 위치가 달라진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>나타난 문제</th>
+<th>확인할 단계</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>서버 Pod가 Pending</td>
+<td>GPU 가용량·Node 조건·Scheduling</td>
+</tr>
+<tr>
+<td>서버가 Running이지만 Ready가 아님</td>
+<td>모델 로딩·Probe·Worker 연결</td>
+</tr>
+<tr>
+<td>Route 상태가 비거나 연결이 거절됨</td>
+<td>Controller 실행·Listener 조건·Backend 참조</td>
+</tr>
+<tr>
+<td>Pool에 후보가 없거나 선택이 실패함</td>
+<td>Selector·Pod Ready·EPP 설정과 메트릭</td>
+</tr>
+<tr>
+<td>Endpoint 선택 뒤 오류 응답이 옴</td>
+<td>Gateway·모델 서버의 연결과 처리</td>
+</tr>
+<tr>
+<td>메트릭 조회만 실패함</td>
+<td>Scrape 주소·토큰·권한</td>
+</tr>
+</tbody></table>
+</div>
+<p>실제로 Route 상태가 비어 있던 경우에는 Node 메모리 압박과 Controller 불안정을 확인했고, 한도를 보완한 뒤 상태 반영과 요청 응답이 나타났다. 이 진단은 <a href="gateway-node-memory-pressure.html">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</a>에 정리돼 있다.</p>
+<p>이 구조를 통해 <strong>사용자가 어느 입구로 들어오고, 어떤 규칙으로 후보 집합이 정해지며, 누가 목적지를 선택하고 전달하는지</strong>를 서버 실행부터 응답까지 연결해 설명할 수 있다. 서버 수가 바뀌어도 그 관계를 유지하는 방법과, 요청이 멈췄을 때 확인할 위치도 같은 구조에서 나온다.</p>
+<p>Simulator로 확인한 범위는 HTTP 연결·선택·관측과 후보 변경이다. TP·NCCL의 계산·통신, Prefill/Decode 분리와 KV Transfer는 실제 추론 Runtime에서 확인할 영역이다. 각 계층의 연결은 <a href="gpu-routing-runtime-boundaries.html">GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</a>에서 구분한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="../llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a><ul><li><a href="../llmd-epp-engine-metric-mapping-and-scoring.html">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</a><ul><li><a href="epp-plugin-extension.html">기본 EPP 설정에 어떤 Plugin을 추가해 선택 기준을 확장할 수 있을까?</a></li>
+<li><a href="epp-default-versus-payload-agnostic.html">EPP의 두 선택 정책: 요청 내용까지 고려할까, 본문 해석 없이 고를까?</a></li>
+<li><a href="epp-prefix-index-query-metrics-boundary.html">내 요청의 Prefix가 EPP에 등록돼 있는지 직접 확인할 수 있을까?</a></li>
+<li><a href="epp-scorer-weight-final-score-selection.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a></li></ul></li>
+<li><a href="../llmd-epp-ready-endpoints-pod-readiness-metrics-freshness.html">EPP의 Ready Endpoint 수는 Pod Ready와 어떻게 다를까?</a></li>
+<li><a href="inferencepool-composition-boundaries.html">InferencePool·실행 그룹·모델·EPP Replica의 수는 어떤 관계일까?</a></li>
+<li><a href="epp-shared-pool-failure-path.html">다른 Pool의 EPP를 참조하면 선택은 어디서 실패할까?</a></li>
+<li><a href="inferencepool-epp-watch-configuration.html">InferencePool에 EPP를 연결해도 EPP의 감시 대상은 바뀌지 않는다</a></li></ul></li>
+<li><a href="../gateway-api-agentgateway-llmd-gateway-relationship.html">Gateway API, agentgateway와 llm-d-gateway는 어떤 관계일까?</a><ul><li><a href="../httproute-hostnames-shared-api-path.html">여러 모델 서비스가 같은 /v1/ 경로를 사용하려면 HTTPRoute를 어떻게 나눌까?</a></li></ul></li>
+<li><a href="prometheus-gateway-epp-metrics.html">Gateway와 EPP 메트릭은 요청 경로의 어디까지 증명할까?</a><ul><li><a href="prometheus-gateway-epp-scrape.html">Gateway와 EPP의 /metrics를 Prometheus 수집 대상으로 어떻게 연결할까?</a><ul><li><a href="../llmd-epp-metrics-delegated-authentication-authorization.html">EPP는 Kubernetes 권한으로 메트릭 접근을 어떻게 제어할까?</a><ul><li><a href="rbac-service-specific-metrics.html">같은 /metrics 경로의 서비스들을 Kubernetes 권한으로 어떻게 구분할까?</a></li></ul></li>
+<li><a href="prometheus-kubernetes-discovery-relabel.html">Prometheus의 Kubernetes 발견과 relabel은 어떻게 Scrape 주소를 만들까?</a></li></ul></li>
+<li><a href="promql-request-rate-and-latency.html">PromQL의 rate·increase·sum by는 요청 수와 평균 지연을 어떻게 계산할까?</a></li></ul></li>
+<li><a href="gateway-simulator-lab.html">두 모델 서버 시뮬레이터로 Gateway 요청 경로와 후보 변경을 검증하기</a><ul><li><a href="gateway-node-memory-pressure.html">HTTPRoute 상태가 비어 있을 때 Node 메모리 압박을 어떻게 구분할까?</a></li></ul></li>
+<li><a href="gpu-routing-runtime-boundaries.html">GPU 할당·요청 Routing·추론 Runtime은 어디서 책임이 나뉠까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

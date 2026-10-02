@@ -1,0 +1,348 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.md. Do not edit directly. source-sha256:b7b5d7458c845572c23f2920c1e49ff5095c2819fe19f027d9d7fa5eb7239817 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="엔진 Label·메트릭 매핑·공통 상태·Scorer와 가중치가 Endpoint 선택으로 이어지는 흐름을 설명한다.">
+  <meta name="source-sha256" content="b7b5d7458c845572c23f2920c1e49ff5095c2819fe19f027d9d7fa5eb7239817">
+  <title>EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?">
+  <meta property="og:description" content="엔진 Label·메트릭 매핑·공통 상태·Scorer와 가중치가 Endpoint 선택으로 이어지는 흐름을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html","name":"EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?","description":"엔진 Label·메트릭 매핑·공통 상태·Scorer와 가중치가 Endpoint 선택으로 이어지는 흐름을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html"},"headline":"EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-core","name":"아키텍처·워크로드·RBAC","identifier":"topics-kubernetes-core"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-epp-engine-metric-mapping-and-scoring.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llmd-httproute-inferencepool-epp-endpoint-selection.html"},{"@type":"ListItem","position":7,"name":"EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llmd-httproute-inferencepool-epp-endpoint-selection.html">서로 다른 InferencePool은 왜 EPP를 따로 배포해야 할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>EPP는 추론 엔진별 메트릭을 어떻게 읽고 Endpoint 점수를 계산할까?</h1>
+      <p class="lead">엔진 Label·메트릭 매핑·공통 상태·Scorer와 가중치가 Endpoint 선택으로 이어지는 흐름을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#httproute-pool-epp-pod">상태를 비교하기 전에 어느 서버들이 후보인지 정한다</a>
+        <a href="#pod-label-label">후보를 찾은 뒤에는 그 서버의 메트릭 형식을 알아야 한다</a>
+        <a href="#epp-pod">EPP는 각 모델 Pod의 메트릭을 직접 수집한다</a>
+        <a href="#section-ffbd514c43f9">엔진마다 다른 메트릭 이름을 공통 상태값으로 바꾼다</a>
+        <a href="#section-a241dc192835">평가 규칙이 점수를 계산하고 가중치는 그 점수에 적용된다</a>
+        <a href="#section-b8c1fe93e6d0">선택과 전달의 책임은 끝까지 분리된다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>같은 추론 API를 제공하는 서버도 대기 요청 수와 KV Cache 사용량은 다를 수 있다. 이 차이를 바탕으로 요청 대상을 고르려면, 선택 주체인 EPP가 각 서버의 상태를 읽고 비교할 수 있어야 한다.</p>
+<p>그런데 모델 서버는 <code>vllm:num_requests_waiting</code> 같은 메트릭을 내보내고, EPP 설정에는 <code>queue-scorer</code> 같은 Plugin과 가중치가 적혀 있다. 추론 엔진이 달라지면 메트릭 이름도 달라진다. 이 둘을 연결하는 것이 <strong>엔진별 메트릭 매핑과 공통 상태를 평가하는 Scorer</strong>다.</p>
+<p>llm-d Router EPP v0.9.0의 설정을 따라가며, 어떤 Pod의 어떤 값을 읽고 그 값이 어떻게 선택 점수로 이어지는지 설명한다. <code>llmd-model-sim</code>의 메트릭과 <code>ConfigMap/llmd-pool-epp</code>는 이 연결을 확인하는 예시다.</p>
+</div>
+        <section id="httproute-pool-epp-pod" class="markdown-section">
+<h2>상태를 비교하기 전에 어느 서버들이 후보인지 정한다</h2>
+<p>EPP가 메트릭을 읽으려면 먼저 비교할 서버의 범위를 알아야 한다. Gateway는 HTTPRoute의 요청 조건에 따라 Backend를 정하고, Backend가 InferencePool이면 그 Pool이 후보와 선택 주체를 연결한다.</p>
+<p>Pool의 두 설정이 이 범위를 정한다.</p>
+<ul>
+<li><code>selector</code>: 요청을 처리할 후보 모델 Pod들을 지정한다.</li>
+<li><code>endpointPickerRef</code>: 후보 중 목적지를 선택할 EPP Service를 참조한다.</li>
+</ul>
+<pre><code class="language-text">사용자 요청
+  → Gateway가 수신
+  → HTTPRoute 규칙에 따라 InferencePool 선택
+  → Gateway가 해당 Pool의 EPP에 선택 요청
+  → EPP가 후보 Pod 중 목적지 선택
+  → Gateway가 선택된 Pod로 실제 추론 요청 전달
+</code></pre>
+<p>HTTPRoute와 InferencePool은 설정 객체이지 요청을 받아 다시 전송하는 서버가 아니다. 실제 통신을 수행하는 주체는 Gateway와 EPP다.</p>
+
+</section>
+<section id="pod-label-label" class="markdown-section">
+<h2>후보를 찾은 뒤에는 그 서버의 메트릭 형식을 알아야 한다</h2>
+<p>InferencePool의 Selector로 <strong>어떤 Pod들을 비교할지</strong> 정하면, EPP는 Kubernetes API에서 해당 Pod들의 주소와 Ready 상태를 읽어 후보 목록을 유지한다.</p>
+<p>후보를 찾았다고 그 서버가 메트릭을 어떤 이름과 의미로 제공하는지까지 정해지는 것은 아니다. 엔진 종류 Label은 <strong>각 후보에 적용할 메트릭 매핑</strong>을 알려 준다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pool의 <code>selector.matchLabels</code></td>
+<td>후보 Pod 목록을 정함</td>
+</tr>
+<tr>
+<td>Pod의 <code>llm-d.ai/engine-type</code></td>
+<td>해당 Pod에 적용할 엔진별 메트릭 매핑을 정함</td>
+</tr>
+</tbody></table>
+</div>
+<p>실제 Pod Template에는 두 용도의 Label이 함께 있었다.</p>
+<pre><code class="language-yaml">metadata:
+  labels:
+    app: llmd-model-sim
+    inference.networking.k8s.io/engine-type: vllm
+</code></pre>
+<p><code>app=llmd-model-sim</code>은 Pool 후보를 찾는 조건이다. 이 버전이 호환 지원한 <code>inference.networking.k8s.io/engine-type=vllm</code>은 메트릭을 vLLM 형식으로 읽으라는 표시다. 권장 키 <code>llm-d.ai/engine-type</code>도 같은 용도의 엔진 식별 키다.</p>
+<p>엔진 Label이 없으면 기본적으로 vLLM 매핑을 사용한다. 메트릭 이름을 보고 엔진을 자동 탐지하는 것은 아니다. 현재 버전에서는 이전 Label인 <code>inference.networking.k8s.io/engine-type</code>도 호환용으로 인식한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/datalayer/extractor/metrics/README.md#configuration" rel="noopener noreferrer">엔진 식별과 기본값</a></p>
+<p>예시 Simulator Deployment의 <code>spec.template.metadata.labels</code>에는 이전 키의 <code>vllm</code> 값이 명시돼 있었고, 생성된 Pod에 복사됐다. EPP가 Pod를 보고 자동 부착한 Label은 아니다. 신규 구성에는 해당 버전의 권장 키를 사용하고, Label이 없어도 동작하는 기본값에 의존하기 전에 메트릭 계약을 확인한다.</p>
+
+</section>
+<section id="epp-pod" class="markdown-section">
+<h2>EPP는 각 모델 Pod의 메트릭을 직접 수집한다</h2>
+<p>후보 목록을 알아도 모델 서버 내부의 대기열과 캐시 상태까지 알 수 있는 것은 아니다. 이를 위해 EPP는 모델 서버가 제공하는 메트릭 Endpoint를 주기적으로 조회한다.</p>
+<p>HTTP 방식으로 <code>/metrics</code>를 사용하도록 설정했다면 다음과 같은 통신이 발생한다.</p>
+<pre><code class="language-text">EPP
+  ├─ GET http://Pod A의 메트릭 주소/metrics
+  └─ GET http://Pod B의 메트릭 주소/metrics
+</code></pre>
+<p>이 구성에서 EPP는 Prometheus 서버에 상태를 질의하지 않는다. <strong>Prometheus 형식으로 노출된 메트릭을 직접 읽는다.</strong></p>
+<p>수집은 사용자 요청마다 모든 Pod에 물어보는 방식이 아니라 별도로 진행된다. 요청 선택 시에는 수집해 저장한 상태를 활용하므로, 그 값은 실시간 상태와 약간의 시차가 있을 수 있다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/datalayer/source/http/datasource.go" rel="noopener noreferrer">HTTP 수집 구현</a>, <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/datalayer/collector.go" rel="noopener noreferrer">주기적 수집 구현</a></p>
+
+</section>
+<section id="section-ffbd514c43f9" class="markdown-section">
+<h2>엔진마다 다른 메트릭 이름을 공통 상태값으로 바꾼다</h2>
+<p>vLLM과 SGLang은 같은 상태를 서로 다른 이름으로 노출할 수 있다. EPP의 <code>core-metrics-extractor</code>는 엔진 Label에 맞는 매핑을 선택해, 이 값을 공통 내부 상태로 변환한다.</p>
+<p>설치한 버전의 기본 매핑은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>공통 내부 상태</th>
+<th>vLLM 메트릭</th>
+<th>SGLang 메트릭</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>대기 요청 수</td>
+<td><code>vllm:num_requests_waiting</code></td>
+<td><code>sglang:num_queue_reqs</code></td>
+</tr>
+<tr>
+<td>처리 중인 요청 수</td>
+<td><code>vllm:num_requests_running</code></td>
+<td><code>sglang:num_running_reqs</code></td>
+</tr>
+<tr>
+<td>KV Cache 사용 비율</td>
+<td><code>vllm:kv_cache_usage_perc</code></td>
+<td><code>sglang:token_usage</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>이 연결은 EPP에 제공되는 엔진별 기본 매핑이다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/datalayer/extractor/metrics/factories.go" rel="noopener noreferrer">v0.9.0 기본 매핑</a></p>
+<p><code>Qwen/Qwen3-32B</code> API 이름을 사용하는 Simulator를 조회했을 때 나온 세 값은 다음처럼 읽는다. 실제 vLLM에서 가중치를 로딩해 얻은 GPU 상태가 아니라, Simulator가 제공한 vLLM 형식 메트릭이다.</p>
+<pre><code class="language-text">vllm:num_requests_waiting 0  → 조회 시점 대기 요청 수 0
+vllm:num_requests_running 0  → 조회 시점 처리 중인 요청 수 0
+vllm:kv_cache_usage_perc 0   → Simulator가 노출한 KV Cache 사용 비율 0
+</code></pre>
+<p>세 값이 0이라고 EPP의 최종 점수가 모두 0이라는 뜻은 아니다. Scorer는 각 값을 자기 규칙으로 점수로 변환하고, Prefix 평가는 별도 정보도 사용한다. 또한 이 출력만으로 EPP의 수집 성공이나 특정 Pod가 선택된 이유까지 확인할 수는 없다.</p>
+<pre><code class="language-text">vLLM Pod
+  → vLLM 매핑 선택
+  → vllm:num_requests_waiting에서 값 읽기
+  → 공통 내부 상태인 “대기 요청 수”에 저장
+
+SGLang Pod
+  → SGLang 매핑 선택
+  → sglang:num_queue_reqs에서 값 읽기
+  → 같은 공통 내부 상태인 “대기 요청 수”에 저장
+</code></pre>
+<p>이 변환 덕분에 점수 계산기는 원래 메트릭 이름을 몰라도 대기 요청 수를 비교할 수 있다.</p>
+<p>엔진이나 버전이 바뀌어 필요한 메트릭을 다른 이름·의미로 제공한다면 매핑도 확인해야 한다. 엔진 Label만 바꾼다고 모든 구현과 버전이 자동으로 호환되는 것은 아니다. 기본 매핑으로 처리할 수 없는 경우에는 <code>engineConfigs</code>로 메트릭 연결을 지정할 수 있다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/datalayer/extractor/metrics/README.md#custom-engine-configuration-example" rel="noopener noreferrer">사용자 지정 매핑</a></p>
+
+</section>
+<section id="section-a241dc192835" class="markdown-section">
+<h2>평가 규칙이 점수를 계산하고 가중치는 그 점수에 적용된다</h2>
+<ul>
+<li><p><a href="kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a></p>
+</li>
+<li><p><a href="kubernetes-serving-gateway-epp/epp-prefix-index-query-metrics-boundary.html">내 요청의 Prefix가 EPP에 등록돼 있는지 직접 확인할 수 있을까?</a></p>
+</li>
+<li><p><a href="kubernetes-serving-gateway-epp/epp-default-versus-payload-agnostic.html">EPP의 두 선택 정책: 요청 내용까지 고려할까, 본문 해석 없이 고를까?</a></p>
+</li>
+<li><p><a href="kubernetes-serving-gateway-epp/epp-plugin-extension.html">기본 EPP 설정에 어떤 Plugin을 추가해 선택 기준을 확장할 수 있을까?</a></p>
+</li>
+</ul>
+<p>상태를 수집하는 것과 목적지를 선택하는 것은 다른 단계다. 수집한 상태를 어떻게 평가할지는 EPP의 플러그인 설정으로 정한다.</p>
+<p>다음은 설정 파일을 담는 ConfigMap 예시다. 내부의 <code>EndpointPickerConfig</code>는 EPP가 읽는 파일 내용이다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llmd-pool-epp
+  namespace: llm-d-lab
+data:
+  default-plugins.yaml: |
+    apiVersion: llm-d.ai/v1alpha1
+    kind: EndpointPickerConfig
+    plugins:
+      - type: queue-scorer
+      - type: kv-cache-utilization-scorer
+      - type: prefix-cache-scorer
+      - type: metrics-data-source
+        parameters:
+          scheme: http
+          path: /metrics
+          insecureSkipVerify: true
+      - type: core-metrics-extractor
+    schedulingProfiles:
+      - name: default
+        plugins:
+          - pluginRef: queue-scorer
+            weight: 2
+          - pluginRef: kv-cache-utilization-scorer
+            weight: 2
+          - pluginRef: prefix-cache-scorer
+            weight: 3
+</code></pre>
+<h3>EPP가 읽는 설정 파일을 먼저 확인한다</h3>
+<p>ConfigMap에는 <code>default-plugins.yaml</code> 외에 <code>payload-agnostic.yaml</code>도 있었다. 실제 EPP 인수의 <code>--config-file /config/default-plugins.yaml</code>이 사용하는 파일을 결정한다. ConfigMap의 내용만 보고 두 정책이 동시에 적용된다고 해석하면 안 된다.</p>
+<p>ConfigMap의 파일을 Container의 <code>/config</code>에 마운트하고 EPP가 해당 경로를 읽는 구조다. 파일 안의 <code>apiVersion</code>·<code>kind: EndpointPickerConfig</code>는 EPP 설정의 형식을 나타낸다. 이 문자열이 있다고 Kubernetes에 별도의 EndpointPickerConfig 객체를 생성하는 것은 아니다.</p>
+<p>대체 파일은 <code>passthrough-parser</code>와 <code>active-request-scorer</code>·<code>session-affinity-scorer</code>를 사용한다. 요청 Body를 해석하기 어려운 형식에서 활성 요청 수와 세션 연결성을 사용하는 다른 정책이며, 기본 Prefix 정책과 같은 설정이 아니다. 해당 차트에서는 <code>router.epp.pluginsConfigFile</code>로 파일을 선택할 수 있지만, 예시 검증은 기본 파일을 사용했다.</p>
+<h3>활성 Profile의 Scorer가 공통 상태값을 평가한다</h3>
+<p>위 기본 파일에서 <code>metrics-data-source</code>와 <code>core-metrics-extractor</code>는 수집·변환을 담당한다. <code>schedulingProfiles</code>에 지정한 평가 규칙은 후보별 점수를 계산한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>평가 규칙</th>
+<th>평가 방향</th>
+<th align="right">가중치</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>queue-scorer</code></td>
+<td>대기 요청이 적은 후보에 높은 점수</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td><code>kv-cache-utilization-scorer</code></td>
+<td>KV Cache 사용 비율이 낮은 후보에 높은 점수</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td><code>prefix-cache-scorer</code></td>
+<td>이번 요청의 Prefix를 재사용할 가능성이 높은 후보에 높은 점수</td>
+<td align="right">3</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>가중치는 메트릭 원본 값이 아니라 평가 규칙이 만든 점수에 적용된다.</strong> 대기 요청 수 자체에 <code>2</code>를 곱해 선택하는 구조가 아니다.</p>
+<p>또한 수집한 메트릭을 모두 점수에 사용하는 것도 아니다. 예를 들어 처리 중인 요청 수를 수집하더라도, 위 설정의 대기열 점수는 대기 요청 수를 입력으로 사용한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/queuedepth/README.md" rel="noopener noreferrer">대기열 평가 문서</a>, <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/kvcacheutilization/README.md" rel="noopener noreferrer">KV Cache 평가 문서</a></p>
+<p>처음 사용하는 운영자는 활성 설정 파일 → Plugin별 공식 README의 입력과 평가 규칙 → 엔진 매핑 → 실제 모델 메트릭을 대조할 수 있다. 공식 설명으로 알 수 없는 정확한 기본값·버전별 동작은 고정한 버전의 구현을 확인한다. 추론 엔진이 바뀌어도 EPP가 임의로 메트릭 의미를 추측하는 구조는 아니다.</p>
+<h3>대기 요청 수 0은 Queue 점수 0을 뜻하지 않는다</h3>
+<p>v0.9.0의 <code>queue-scorer</code>는 후보 사이의 가장 짧은 대기열에 <code>1</code>, 가장 긴 대기열에 <code>0</code>을 주고, 그 사이를 비례해 평가한다. 모든 후보의 대기열 길이가 같으면 모두 <code>1</code>을 받는다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/queuedepth/README.md" rel="noopener noreferrer">Queue Scorer의 평가 규칙</a></p>
+<p>다음은 계산 원리를 위한 예시이며 실행 중 얻은 점수는 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>후보</th>
+<th align="right">대기 요청 수</th>
+<th align="right">Queue 점수</th>
+<th align="right">가중치 2를 적용한 Queue 항목</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td>B</td>
+<td align="right">3</td>
+<td align="right">0.5</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td>C</td>
+<td align="right">6</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+</tbody></table>
+</div>
+<p>두 후보의 대기 요청 수가 모두 <code>0</code>이라면 Queue 점수는 둘 다 <code>1</code>이다. KV Cache Scorer 역시 사용 비율 <code>0</code>을 점수 <code>1</code>로 평가한다. 해당 메트릭이 정상 수집·변환됐다는 전제에서, 두 후보의 대기열과 KV Cache 사용량이 모두 <code>0</code>이면 <strong>이 두 평가 항목만으로는 후보의 우열을 가릴 수 없다.</strong> Prefix 점수 등 다른 입력과 최종 선택 결과를 별도로 확인해야 한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/scheduling/scorer/kvcacheutilization/README.md" rel="noopener noreferrer">KV Cache Scorer의 평가 규칙</a></p>
+<p><code>vllm:num_requests_running</code>도 수집할 수 있지만 위 Queue 규칙의 입력은 처리 중인 수가 아니라 <strong>대기 요청 수</strong>다. Metric 세 개가 보인다는 사실과 Scorer 세 개가 각각 그 Metric을 일대일로 사용한다는 설명도 같지 않다.</p>
+<h3>Prefix 평가는 메트릭의 캐시 사용량과 다른 정보다</h3>
+<p>KV Cache 사용 비율은 캐시가 얼마나 차 있는지 표현하지만, 이번 요청의 입력이 어느 서버에서 재사용될 수 있는지는 알려주지 않는다. 기본적인 근사 방식에서는 요청 내용과 이전에 선택한 Endpoint 기록으로 Prefix 재사용 가능성을 추정한다. <code>/metrics</code>에서 실제 GPU 캐시 내용을 가져오는 방식은 아니다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/pkg/epp/framework/plugins/requestcontrol/dataproducer/approximateprefix/README.md" rel="noopener noreferrer">Prefix 재사용 추정</a></p>
+
+</section>
+<section id="section-b8c1fe93e6d0" class="markdown-section">
+<h2>선택과 전달의 책임은 끝까지 분리된다</h2>
+<p>전체 동작은 상태를 준비하는 과정과 요청을 처리하는 과정으로 나누어 볼 수 있다.</p>
+<pre><code class="language-text">상태 준비
+  Kubernetes에서 후보 Pod·주소·Ready 확인
+    → 엔진 Label로 메트릭 매핑 선택
+    → 각 Pod의 메트릭 수집
+    → 공통 내부 상태값으로 저장
+
+요청 처리
+  Gateway가 요청 수신
+    → HTTPRoute에 따라 InferencePool 선택
+    → EPP에 목적지 선택 요청
+    → EPP가 후보별 점수 계산·가중치 반영
+    → 선택한 Endpoint를 Gateway에 반환
+    → Gateway가 모델 Pod로 실제 요청 전달
+</code></pre>
+<p>EPP는 이 설정에서 종합 점수가 가장 높은 후보를 선택하며, 동점이면 기본 선택기가 동점 후보 중 무작위로 선택한다. <a href="https://github.com/llm-d/llm-d-router/blob/v0.9.0/docs/architecture.md" rel="noopener noreferrer">EPP 선택 구조</a></p>
+<p>결국 <strong>InferencePool은 후보와 EPP를 연결하고, 엔진 Label은 메트릭 해석 방식을 정하며, EPP는 평가 규칙으로 목적지를 선택한다. 실제 추론 요청을 전달하는 주체는 Gateway다.</strong></p>
+<p>이 연결을 알면 메트릭과 설정을 읽는 순서도 정해진다. 후보 Pod의 엔진 Label에서 매핑을 찾고, 실제 <code>/metrics</code>의 값이 어떤 공통 상태로 변환되는지 대조한 뒤, 활성 Profile의 Scorer와 가중치를 읽는다. 그 결과를 선택 로그와 비교해야 설정이 요청 처리에 어떻게 쓰이는지 설명할 수 있다.</p>
+<p>예시에서 직접 확인한 근거도 <code>/metrics</code>의 세 값, 활성 <code>default-plugins.yaml</code>과 실행 인수, Gateway·EPP 로그의 선택 결과였다. Scorer별 실제 점수나 부하에 따른 선택 효과까지 측정하지는 않았다. 그 효과를 평가하려면 입력 상태를 바꾼 뒤 점수·선택·응답을 함께 관찰해야 한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kubernetes-serving-gateway-epp/epp-plugin-extension.html">기본 EPP 설정에 어떤 Plugin을 추가해 선택 기준을 확장할 수 있을까?</a></li>
+<li><a href="kubernetes-serving-gateway-epp/epp-default-versus-payload-agnostic.html">EPP의 두 선택 정책: 요청 내용까지 고려할까, 본문 해석 없이 고를까?</a></li>
+<li><a href="kubernetes-serving-gateway-epp/epp-prefix-index-query-metrics-boundary.html">내 요청의 Prefix가 EPP에 등록돼 있는지 직접 확인할 수 있을까?</a></li>
+<li><a href="kubernetes-serving-gateway-epp/epp-scorer-weight-final-score-selection.html">EPP는 weight를 적용해 Pod별 최종 점수를 어떻게 계산하고 선택할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
