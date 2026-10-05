@@ -1,0 +1,145 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.md. Do not edit directly. source-sha256:90dd2503e1400fd99385041a122c1eccb94600f796c7934eed809a40829fb704 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Running·Waiting·KV 사용률·VRAM·GPU 사용률을 함께 읽고 병목 단정의 한계를 설명한다.">
+  <meta name="source-sha256" content="90dd2503e1400fd99385041a122c1eccb94600f796c7934eed809a40829fb704">
+  <title>메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?">
+  <meta property="og:description" content="Running·Waiting·KV 사용률·VRAM·GPU 사용률을 함께 읽고 병목 단정의 한계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html","name":"메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?","description":"Running·Waiting·KV 사용률·VRAM·GPU 사용률을 함께 읽고 병목 단정의 한계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html"},"headline":"메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/gpu-kv-observation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html"},{"@type":"ListItem","position":5,"name":"메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html">GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</h1>
+      <p class="lead">Running·Waiting·KV 사용률·VRAM·GPU 사용률을 함께 읽고 병목 단정의 한계를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">KV 공간에 여유가 있다는 사실만으로 계산도 여유롭다고 말할 수 없다</a>
+        <a href="#section-2">VRAM 점유량과 KV 사용률이 다르게 움직이는 이유</a>
+        <a href="#section-3">GPU 사용률 100%가 알려주는 것</a>
+        <a href="#section-4">병목을 판단하려면 지표의 시점을 맞춘다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>부하가 끝난 뒤 Running·Waiting·KV 사용률을 읽으면 모두 0일 수 있다. 그것은 현재 유휴 상태라는 뜻이지 부하 중에도 대기나 메모리 사용이 없었다는 뜻은 아니다.</p>
+<p>Client 시간만으로 원인을 추측하지 않으려면 요청을 보내는 동안 엔진·GPU 상태를 별도 작업으로 수집한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>읽어야 하는 상태</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>vllm:num_requests_running</td>
+<td>엔진이 Running 상태로 관리하는 요청 수</td>
+</tr>
+<tr>
+<td>vllm:num_requests_waiting</td>
+<td>엔진에서 실행을 기다리는 요청 수</td>
+</tr>
+<tr>
+<td>vllm:kv_cache_usage_perc</td>
+<td>확보한 KV 공간 중 현재 사용 중인 비율</td>
+</tr>
+<tr>
+<td>nvidia-smi memory.used</td>
+<td>GPU 메모리 점유량</td>
+</tr>
+<tr>
+<td>nvidia-smi utilization.gpu</td>
+<td>표본 구간에 GPU Kernel이 실행된 시간의 비율</td>
+</tr>
+</tbody></table>
+</div>
+<p>예시의 동시 128개 관측 부하에서 Running 최대는 128, Waiting 최대는 0, KV 사용률 최대는 3.77%였다. 요청이 끝나고 새 요청이 들어오므로 Running은 시간에 따라 변했다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>KV 공간에 여유가 있다는 사실만으로 계산도 여유롭다고 말할 수 없다</h2>
+<p>KV 사용률이 낮으면 그 관측에서 KV 용량 고갈을 지연의 원인으로 지목할 근거는 약하다. 그러나 저장할 공간과 계산을 수행하는 속도는 다른 문제다. 메모리가 남아 있어도 GPU 계산·메모리 접근·스케줄링 경합으로 요청이 느려질 수 있다.</p>
+<p>반대로 이를 곧바로 “GPU가 낼 수 있는 최고 성능에 도달했다”로 확장할 수도 없다. Kernel 효율·메모리 대역폭·스케줄링·Client 부담을 분리하지 않았고, 동시성을 높였을 때 처리량도 계속 증가했기 때문이다.</p>
+<p>이 결과가 뒷받침하는 해석은 <strong>부하 증가가 GPU 실행과 요청 지연에 영향을 줬지만, 지배적인 물리 병목과 최대 처리량까지 특정하지는 못했다</strong>는 것이다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>VRAM 점유량과 KV 사용률이 다르게 움직이는 이유</h2>
+<p>BF16 초기화 로그에서 모델 로딩은 15.27 GiB, KV용 공간은 19.4 GiB, KV 용량은 141,280토큰이었다. 부하 중 GPU 메모리는 약 37,091 MiB / 46,068 MiB로 유지됐다.</p>
+<p>vLLM은 KV용 공간을 미리 확보할 수 있다. 그래서 요청이 늘어도 nvidia-smi의 전체 점유량은 비슷한 반면, 확보한 KV 공간 안의 사용률은 달라질 수 있다. 가중치·KV·기타 Runtime 메모리를 나눠 보아야 하는 이유다.</p>
+<p>gpu_memory_utilization=0.8은 이러한 메모리 예산을 정하는 조건이다. GPU 계산 사용률을 80%로 제한하는 설정이 아니다. 로그의 4096토큰 요청 기준 34.49x 역시 KV 용량으로 계산한 추정이며 실제 처리량이나 Sequence 상한과 같지 않다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>GPU 사용률 100%가 알려주는 것</h2>
+<p>NVIDIA가 정의하는 GPU 사용률은 표본 구간에서 하나 이상의 GPU Kernel이 실행된 시간의 비율이다. 100%는 그 구간에 GPU가 바빴다는 신호이며, 모든 연산 장치나 메모리 대역폭을 이론적 최대 효율로 사용했다는 증거는 아니다. <a href="https://docs.nvidia.com/deploy/nvidia-smi/index.html#utilization" rel="noopener noreferrer">NVIDIA 사용률 설명</a></p>
+<p>예시에서도 유휴 시 0%, 부하 중 100%가 관측됐다. 이 값을 지연·처리량·엔진 상태와 함께 읽어야 하며, 사용률 하나로 최적화 여지가 없다고 결론내리지 않는다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>병목을 판단하려면 지표의 시점을 맞춘다</h2>
+<p>여기에 사용한 최대값은 수집 표본 중 최대다. 여러 지표의 최대가 같은 순간에 나왔다고 합산하지 않는다. 부하 종료 뒤의 0과 관측 간격의 의미는 <a href="observation-sampling.html">부하가 끝난 뒤의 메트릭과 표본 최대값을 어떻게 읽어야 할까?</a>에서 설명한다.</p>
+<p>확보한 KV 공간에 여유가 있고 GPU가 바쁘게 실행됐다는 근거는 있다. 그러나 특정 Kernel·대역폭·Client 병목을 분리한 결과는 아니므로 GPU의 물리적 최대 성능에 도달했다고 확정하지 않는다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="observation-sampling.html">부하가 끝난 뒤의 메트릭과 표본 최대값을 어떻게 읽어야 할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

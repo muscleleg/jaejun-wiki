@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/programmers-fatigue-backtracking.md. Do not edit directly. source-sha256:900738569f3eecf5820ef8457d8163e70778ce518cdd43bf4ee72892718f5bed -->
+<!-- Generated from content/wiki/coding-test/programmers-fatigue-backtracking.md. Do not edit directly. source-sha256:674c7fe82343159549a8aa0759be92be077dc334afd23f9671339160e784bf11 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="답과 설명을 참고했던 피로도 첫 풀이에서 출발해 선택·탐색·복원의 본질과 공유 정답 변수 대신 재귀 반환값으로 최댓값을 계산하는 백트래킹 구현을 정리한 기록">
-  <meta name="source-sha256" content="900738569f3eecf5820ef8457d8163e70778ce518cdd43bf4ee72892718f5bed">
+  <meta name="source-sha256" content="674c7fe82343159549a8aa0759be92be077dc334afd23f9671339160e784bf11">
   <title>프로그래머스 피로도: 반환값 기반 백트래킹</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261003-shell-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261003-shell-1">
@@ -73,6 +73,7 @@
         <a href="#section-972f351fb83f">여행경로와의 차이</a>
         <a href="#section-75aed0fe7077">다시 풀 때 확인할 것</a>
         <a href="#depth-return-understanding">마지막에 잡힌 이해: 가장 깊은 줄기를 위로 올린다</a>
+        <a href="#review-2026-10-03">2026-10-03 복습: 반환값과 공유 best를 구분했다</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p>프로그래머스 「피로도」를 풀면서 백트래킹의 탐색 구조와 정답을 수집하는 방식을 구분해 이해한 기록이다. 2026년 9월 21일 첫 풀이에서는 답과 설명을 참고했고, 이후 「여행경로」와 비교하면서 같은 선택·탐색·복원 구조를 다시 확인했다. 이번에는 모든 재귀 호출이 하나의 <code>answer</code>를 갱신하는 방식뿐 아니라, 각 호출이 자기 상태의 최댓값을 반환하는 방식으로 다시 작성했다.</p>
@@ -225,6 +226,52 @@ visited[i] = False
 <li><code>return best</code>: 고른 최대 깊이를 부모 호출에 전달한다.</li>
 </ul>
 <p>각 호출의 <code>best</code>는 서로 다른 지역변수다. 새로운 <code>dfs()</code>가 시작되면 새로운 <code>best = 0</code>이 만들어지지만, 같은 호출 안에서는 첫 번째 자식을 처리한 뒤 갱신된 <code>best</code>를 유지한 채 다음 형제 자식과 계속 비교한다. 따라서 <code>return</code>을 반복문 안에서 바로 실행하면 첫 번째 가능한 줄기만 보고 끝나므로 안 되고, 모든 자식을 확인한 뒤 <code>best</code>를 반환해야 한다.</p>
+
+</section>
+<section id="review-2026-10-03" class="markdown-section">
+<h2>2026-10-03 복습: 반환값과 공유 best를 구분했다</h2>
+<h3>탐색은 했지만 결과를 반환하지 않았다</h3>
+<p>처음에는 선택한 던전을 True로 표시하고 재귀 탐색 후 False로 복원하는 구조를 작성했다. 그러나 재귀의 result를 리스트에 모아 놓고 마지막에는 현재 호출의 count만 반환했다. 최초 호출은 count가 0이므로 더 깊이 탐색했어도 최종 답은 0이었다.</p>
+<h3>반환값 방식에서는 count와 best가 다르다</h3>
+<p>count는 현재 호출까지 방문한 총개수이며, 각 호출의 best를 count로 초기화한다. 더 갈 수 없는 경우에는 그대로 반환하고, 갈 수 있으면 자식이 반환한 최댓값을 비교한다.</p>
+<pre><code class="language-python">def solution(k, dungeons):
+    visited = [False] * len(dungeons)
+
+    def dfs(current, count):
+        best = count
+        for i, (need, cost) in enumerate(dungeons):
+            if current &gt;= need and not visited[i]:
+                visited[i] = True
+                result = dfs(current - cost, count + 1)
+                visited[i] = False
+                best = max(best, result)
+        return best
+
+    return dfs(k, 0)
+</code></pre>
+<p>이 방식의 result는 자식 호출의 best다. 현재 호출의 count가 1이어도 자식이 3을 반환하면 best는 3이 되고 count는 여전히 1이다. 이전 문서의 <code>1 + dfs(...)</code>처럼 앞으로 추가로 갈 개수를 반환하는 방식과 달리, 이 코드는 지금까지 방문한 개수를 포함한 최종 총개수를 반환한다.</p>
+<h3>세 가지 결과 수집 방식을 비교했다</h3>
+<p>각 호출에서 <code>answer.append(count)</code>를 하고 마지막에 <code>max(answer)</code>를 구하는 방식도 작성했다. 중간 경로의 count까지 포함해도 최댓값을 구하므로 정답을 얻지만, 탐색한 호출 수만큼 리스트 공간이 필요하다.</p>
+<p>그다음 바깥의 best를 nonlocal로 공유하면서 자식이 count를 반환하도록 혼합한 방식도 시도했다. 그 코드도 동작하지만 반환값과 공유 상태를 동시에 쓰므로, 결국 반환값 없이 공유 best만 갱신하는 형태가 더 직관적이라고 느꼈다. 과거에는 공유 변수 방식이 불편했지만 이번 복습에서는 아래 방식이 더 편하게 느껴졌다. 이전 기록을 지우지 않고 이번의 선호 변화로 남긴다.</p>
+<h3>마지막에 선택한 공유 best 방식</h3>
+<pre><code class="language-python">def solution(k, dungeons):
+    visited = [0] * len(dungeons)
+    best = 0
+
+    def dfs(current, count):
+        nonlocal best
+        best = max(count, best)
+        for i, (need, cost) in enumerate(dungeons):
+            if current &gt;= need and not visited[i]:
+                visited[i] = True
+                dfs(current - cost, count + 1)
+                visited[i] = False
+
+    dfs(k, 0)
+    return best
+</code></pre>
+<p>모든 호출이 바깥의 best 하나를 갱신한다. 각 호출은 현재 방문 개수로 최고 기록을 갱신한 뒤 선택·탐색·선택 취소를 반복한다. 자식의 반환값을 받아 위로 전달할 필요는 없다. 더 갈 수 있는 던전이 없으면 반복문에서 재귀 호출이 일어나지 않고 자연스럽게 반환된다.</p>
+<p>이번에는 설명과 수정 도움을 받으며 세 방식을 비교하고 공유 best 코드까지 작성했다. 이번 복습의 별도 채점 결과는 제시하지 않았으므로 전체 통과나 도움 없는 독립 풀이로 기록하지 않는다.</p>
 
 </section>
         

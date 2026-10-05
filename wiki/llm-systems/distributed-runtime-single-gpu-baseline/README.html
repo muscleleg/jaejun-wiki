@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.md. Do not edit directly. source-sha256:238c2c8482af9e4609e7b51d3dc06d8ed724f1f2f209c5ad27be28af8a03e573 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A40 한 장의 vLLM 기준선으로 동시 요청과 입력·출력 길이에 따른 지연·처리량·GPU·KV 상태를 해석한다.">
+  <meta name="source-sha256" content="238c2c8482af9e4609e7b51d3dc06d8ed724f1f2f209c5ad27be28af8a03e573">
+  <title>GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?">
+  <meta property="og:description" content="A40 한 장의 vLLM 기준선으로 동시 요청과 입력·출력 길이에 따른 지연·처리량·GPU·KV 상태를 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html","name":"GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?","description":"A40 한 장의 vLLM 기준선으로 동시 요청과 입력·출력 길이에 따른 지연·처리량·GPU·KV 상태를 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html"},"headline":"GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?</h1>
+      <p class="lead">A40 한 장의 vLLM 기준선으로 동시 요청과 입력·출력 길이에 따른 지연·처리량·GPU·KV 상태를 해석한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">서버를 고르는 일 다음에는 서버 안의 계산을 이해해야 한다</a>
+        <a href="#section-2">무엇을 바꿨는지 알려면 나머지 계산 조건을 고정해야 한다</a>
+        <a href="#section-3">요청 하나의 지연과 서버 전체 처리량은 함께 봐야 한다</a>
+        <a href="#section-4">입력과 출력을 나눠 바꾸면 느려진 계산이 무엇인지 보인다</a>
+        <a href="#section-5">GPU·메모리 지표 하나만으로 병목을 확정할 수는 없다</a>
+        <a href="#section-6">반복해도 유지되는 차이를 분산 비교의 출발점으로 삼는다</a>
+        <a href="#section-7">비교 기준에는 수치와 그 수치를 만든 조건이 함께 남아야 한다</a>
+        <a href="#section-8">문서 트리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU를 여러 장 쓰거나 Prefill과 Decode를 분리했을 때 무엇이 좋아졌는지 판단하려면, 같은 모델과 요청을 GPU 한 장으로 처리한 결과가 먼저 필요하다. 서버가 답변을 반환한다는 사실만으로는 요청이 늘 때 어디에서 기다리고, 어떤 계산이 시간을 차지하며, 메모리에 얼마나 여유가 있는지 알 수 없다.</p>
+<p><strong>단일 GPU 기준선은 같은 계산 조건에서 요청 수와 길이를 바꾸고, 지연·처리량·서버 상태의 변화를 함께 설명할 수 있는 비교 기준이다.</strong> A40 한 장의 Qwen3-8B BF16 실행 결과를 통해 이 관계를 살펴본다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>서버를 고르는 일 다음에는 서버 안의 계산을 이해해야 한다</h2>
+<p>Kubernetes는 자원 할당과 Pod 배치를, Gateway·EPP는 요청을 보낼 서버의 선택을 담당한다. 선택된 서버 안에서 모델을 실행하는 것은 vLLM과 GPU다. 요청 경로가 정상이어도 모델 서버의 처리 능력은 따로 확인해야 한다.</p>
+<p>모델 서버는 입력을 Token으로 바꾸고, Prefill에서 입력을 처리한 뒤, Decode로 다음 Token을 이어 생성한다. KV Cache는 이미 처리한 Token의 Attention용 Key·Value를 보관한다. 긴 입력은 Prefill의 일을 늘리고 긴 출력은 Decode를 오래 지속시킨다. 따라서 요청 한 건은 일정한 계산량이 아니다.</p>
+<p>이 차이를 분리해서 측정해야 이후 Replica·Tensor Parallel·P/D 구성에서 늘어난 자원과 통신 비용을 같은 기준으로 비교할 수 있다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>무엇을 바꿨는지 알려면 나머지 계산 조건을 고정해야 한다</h2>
+<p>모델 이름이 같아도 Revision·Tokenizer·Chat Template·자료형·실제 입력과 출력 길이가 다르면 계산 조건이 달라진다. 기준선에서는 이 조건을 고정한 뒤 동시 요청 수, 출력 길이, 입력 길이를 구분해 바꾼다.</p>
+<p>예시의 조건은 A40 한 장·Qwen3-8B·BF16·Prefix Caching 비활성이다. 조건의 전체 목록과 자료형·실행 설정을 고정하는 이유는 <a href="baseline-contract.html">성능을 비교하려면 무엇을 같은 조건으로 고정해야 할까?</a>에서 설명한다.</p>
+<p>성능 측정은 서버 초기화가 끝나고 정상적인 생성 응답을 확인한 상태에서 시작한다. 시작 비용과 정상 처리 성능이 섞이지 않도록 예열도 본 측정에서 분리한다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>요청 하나의 지연과 서버 전체 처리량은 함께 봐야 한다</h2>
+<p>응답이 느리다는 말은 첫 내용이 늦게 나오는지, 이후 Token이 느리게 생성되는지, 전체 답변이 긴지를 구분하지 못한다. TTFT는 첫 내용까지, TPOT는 이후 Token당 시간, E2E는 전체 완료 시간을 나타낸다. 처리량은 같은 구간에 서버가 완료한 요청 수나 생성한 Token 수다.</p>
+<p>A40 예시에서 동시 요청을 1개에서 128개로 늘리자 평균 E2E는 약 0.65초에서 1.33초로 늘었지만 전체 출력은 약 32토큰/초에서 1932토큰/초로 증가했다. <strong>개별 요청이 느려지는 동안에도 서버 전체 처리량은 높아질 수 있다.</strong> 지연 증가만으로 포화점에 도달했다고 판단할 수 없는 이유다.</p>
+<p>계산식과 Streaming 측정의 경계는 <a href="latency-throughput.html">첫 응답, 생성 속도, 전체 처리량은 어떻게 다를까?</a>에서, 동시 요청 수와 총 요청 수를 정하는 방법은 <a href="request-workers.html">동시 요청 2개와 총 요청 10개는 어떻게 다른가?</a>에서 설명한다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>입력과 출력을 나눠 바꾸면 느려진 계산이 무엇인지 보인다</h2>
+<p>출력을 21토큰에서 128토큰으로 늘렸을 때 단일 요청의 Token당 생성 시간은 약 29ms로 비슷했지만 전체 완료 시간은 약 0.65초에서 3.74초로 길어졌다. Decode를 더 오래 반복한 결과다.</p>
+<p>출력을 128토큰으로 고정하고 입력을 20토큰에서 1062토큰으로 늘리면 첫 응답 시간이 증가했다. 동시 8개에서는 Token 생성 간격과 전체 완료도 늦어졌고 Waiting도 관측됐다. 같은 서버에서 Prefill과 Decode가 함께 실행되므로 긴 입력의 영향이 첫 응답 구간에만 머물지 않을 수 있다.</p>
+<p>이 관계는 P/D 분리를 검토할 이유가 되지만, 분리 뒤 KV 전송 비용까지 감안한 성능은 별도 실험이 필요하다. 요청 구성과 비교값은 <a href="request-lengths.html">긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?</a>에 있다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>GPU·메모리 지표 하나만으로 병목을 확정할 수는 없다</h2>
+<p>부하가 끝난 뒤 Running·Waiting·KV 사용률이 0인 것은 현재 유휴 상태다. 부하 중 상태를 설명하려면 요청 처리와 같은 시간에 관측해야 한다. 또한 확보된 VRAM 점유량과 그 안의 KV 사용률은 다른 값이다.</p>
+<p>예시에서는 KV 공간에 여유가 있었고 부하 중 GPU 사용률은 100%까지 관측됐다. 이것은 GPU가 바쁘게 실행됐다는 근거이며, 모든 계산 자원을 최고 효율로 사용했거나 최대 처리량에 도달했다는 증거는 아니다. 실제로 동시 요청 128개까지 처리량이 계속 증가했다.</p>
+<p>메모리 여유·GPU 사용률·엔진 상태를 함께 해석하는 방법은 <a href="gpu-kv-observation.html">메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</a>에서 설명한다. 대기에 영향을 줄 수 있는 실행 자리와 Token 예산은 <a href="scheduler-limits.html">max_num_seqs와 Token Budget은 무엇을 제한할까?</a>에서 구분한다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>반복해도 유지되는 차이를 분산 비교의 출발점으로 삼는다</h2>
+<p>초기 실행의 컴파일 비용이 대표 응답 시간에 섞이지 않게 예열을 분리하고, 같은 조건을 반복해 변동 폭을 확인한다. A40 예시에서는 동시 8개·출력 128토큰으로 입력 두 조건을 각각 3회 반복해도 긴 입력의 지연 증가·처리량 감소가 유지됐다.</p>
+<p>예열과 반복이 각각 해결하는 문제는 <a href="warmup-and-repeatability.html">예열과 반복 측정은 왜 따로 필요한가?</a>에 있다. 전체 조건의 수치와 실제 확인 범위는 <a href="bf16-baseline-results.html">A40의 BF16 단일 GPU 기준선은 어떤 수치로 나타날까?</a>에서 볼 수 있다.</p>
+<p>이 기준선은 요청 수와 길이에 따른 성능 변화를 설명한다. 실제 OOM·KV 고갈, 최대 처리량 포화점, Open-loop 수용량, 전체 모델 품질, GPU 간 통신과 P/D 성능까지 검증한 자료는 아니다. 새 Multi-GPU 호스트에서는 같은 조건의 TP=1도 다시 측정해 호스트 차이를 구분한다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>비교 기준에는 수치와 그 수치를 만든 조건이 함께 남아야 한다</h2>
+<p>평균값만 있으면 요청 길이·실패 여부·측정 구간을 다시 확인할 수 없다. 실행 설정, 요청별 시간과 Token 수, 같은 시간대의 엔진·GPU 표본을 함께 보존해야 다른 구성의 결과와 비교할 수 있다. 측정 코드와 원본의 위치는 <a href="measurement-artifacts.html">성능 결과를 다시 검토하려면 어떤 원본을 보존해야 할까?</a>에 있다.</p>
+<p>기준선의 핵심은 숫자 한 개가 아니라 <strong>같은 조건에서 무엇을 바꿨고, 지연·처리량·상태가 왜 달라졌으며, 그 근거로 어디까지 말할 수 있는가</strong>다. 이후 GPU 수나 실행 방식을 바꿀 때도 이 비교 조건과 관측 경계를 유지한다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>문서 트리</h2>
+<p>단일 GPU의 측정과 해석을 설명하는 글만 묶었다. 각 제목을 누르면 해당 글로 이동한다.</p>
+<ul>
+<li>비교 조건<ul>
+<li><a href="baseline-contract.html">성능을 비교하려면 무엇을 같은 조건으로 고정해야 할까?</a></li>
+</ul>
+</li>
+<li>지연·처리량과 요청 조건<ul>
+<li><a href="latency-throughput.html">첫 응답, 생성 속도, 전체 처리량은 어떻게 다를까?</a><ul>
+<li><a href="request-workers.html">동시 요청 2개와 총 요청 10개는 어떻게 다른가?</a></li>
+</ul>
+</li>
+<li><a href="request-lengths.html">긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?</a><ul>
+<li><a href="scheduler-limits.html">max_num_seqs와 Token Budget은 무엇을 제한할까?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>관측과 결과 해석<ul>
+<li><a href="gpu-kv-observation.html">메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</a><ul>
+<li><a href="observation-sampling.html">부하가 끝난 뒤의 메트릭과 표본 최대값을 어떻게 읽어야 할까?</a></li>
+</ul>
+</li>
+<li><a href="warmup-and-repeatability.html">예열과 반복 측정은 왜 따로 필요한가?</a><ul>
+<li><a href="repeatability-results.html">같은 요청 조건을 반복해도 입력 길이의 성능 차이가 유지될까?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>기준값과 측정 원본<ul>
+<li><a href="bf16-baseline-results.html">A40의 BF16 단일 GPU 기준선은 어떤 수치로 나타날까?</a></li>
+<li><a href="measurement-artifacts.html">성능 결과를 다시 검토하려면 어떤 원본을 보존해야 할까?</a></li>
+</ul>
+</li>
+</ul>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="baseline-contract.html">성능을 비교하려면 무엇을 같은 조건으로 고정해야 할까?</a></li>
+<li><a href="latency-throughput.html">첫 응답, 생성 속도, 전체 처리량은 어떻게 다를까?</a><ul><li><a href="request-workers.html">동시 요청 2개와 총 요청 10개는 어떻게 다른가?</a></li></ul></li>
+<li><a href="request-lengths.html">긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?</a><ul><li><a href="scheduler-limits.html">max_num_seqs와 Token Budget은 무엇을 제한할까?</a></li>
+<li><a href="long-prefill-decode-latency.html">긴 입력은 왜 첫 응답뿐 아니라 토큰 생성 속도까지 느리게 할까?</a></li></ul></li>
+<li><a href="gpu-kv-observation.html">메모리가 남고 GPU 사용률이 100%라면 무엇이 병목일까?</a><ul><li><a href="observation-sampling.html">부하가 끝난 뒤의 메트릭과 표본 최대값을 어떻게 읽어야 할까?</a></li></ul></li>
+<li><a href="warmup-and-repeatability.html">예열과 반복 측정은 왜 따로 필요한가?</a><ul><li><a href="repeatability-results.html">같은 요청 조건을 반복해도 입력 길이의 성능 차이가 유지될까?</a></li></ul></li>
+<li><a href="bf16-baseline-results.html">A40의 BF16 단일 GPU 기준선은 어떤 수치로 나타날까?</a></li>
+<li><a href="measurement-artifacts.html">성능 결과를 다시 검토하려면 어떤 원본을 보존해야 할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

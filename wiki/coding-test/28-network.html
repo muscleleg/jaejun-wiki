@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/28-network.md. Do not edit directly. source-sha256:cd93134e3c9fcd10c36416e9015df8a400d7c13bf1cb3d1bd06547eb5e4b0802 -->
+<!-- Generated from content/wiki/coding-test/28-network.md. Do not edit directly. source-sha256:5152dc942aee97c1f012aec0b577452591ffb387bacfb6cb322d3bc7db71482b -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="인접 행렬의 한 행을 현재 컴퓨터의 이웃 목록으로 읽고, 아직 방문하지 않은 시작점마다 DFS를 수행해 연결 요소 수를 셌다.">
-  <meta name="source-sha256" content="cd93134e3c9fcd10c36416e9015df8a400d7c13bf1cb3d1bd06547eb5e4b0802">
+  <meta name="source-sha256" content="5152dc942aee97c1f012aec0b577452591ffb387bacfb6cb322d3bc7db71482b">
   <title>네트워크</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261003-shell-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261003-shell-1">
@@ -68,6 +68,7 @@
         <a href="#document-section-3">DFS 시작 횟수가 연결 요소 개수다</a>
         <a href="#document-section-4">인접 행렬에서는 시간 복잡도가 O(n²)이다</a>
         <a href="#document-section-5">확인한 완료 증거</a>
+        <a href="#review-2026-10-03">2026-10-03 복습: 배열 전체와 특정 원소를 혼동했다</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p><strong>이 문제 복습</strong><a href="#graph">그래프 해석</a><a href="#dfs">DFS 흐름</a><a href="#count">연결 요소</a><a href="#complexity">복잡도</a><a href="#evidence">검증 증거</a><a href="index.html">← 전체 문제</a></p>
@@ -118,6 +119,52 @@
 <li>각 정점은 한 번 방문해도 매번 행 전체를 읽으므로 <code>O(n²)</code>임을 설명했다.</li>
 <li>직접 구현한 뒤 프로그래머스 전체 테스트에 통과했다.</li>
 </ul>
+
+</section>
+<section id="review-2026-10-03" class="markdown-section">
+<h2>2026-10-03 복습: 배열 전체와 특정 원소를 혼동했다</h2>
+<h3>잘못 작성한 조건과 수정</h3>
+<p>DFS 안에서 다음 조건을 작성했다.</p>
+<pre><code class="language-python">if computers[i] == 1 and not visited:
+    dfs(i)
+</code></pre>
+<p>두 곳 모두 특정 원소 대신 배열 전체를 검사한 것이 문제였다.</p>
+<ul>
+<li><code>computers[i]</code>는 i번 컴퓨터의 연결 정보가 담긴 행 전체다. 리스트를 숫자 1과 비교하므로 연결 여부를 검사하지 못한다.</li>
+<li><code>computers[cur][i]</code>는 현재 컴퓨터 cur와 후보 컴퓨터 i의 연결 여부를 나타내는 0 또는 1이다.</li>
+<li><code>not visited</code>는 방문 배열이 비어 있는지 검사한다. <code>[0, 0, 0]</code>도 원소가 있는 리스트이므로 참으로 평가되고, 그 부정은 False다. 내부 값이 모두 0이라고 리스트 전체가 거짓이 되는 것은 아니다.</li>
+<li><code>not visited[i]</code>는 i번 컴퓨터가 아직 미방문인지 검사한다.</li>
+</ul>
+<p>올바른 조건은 다음과 같다.</p>
+<pre><code class="language-python">if computers[cur][i] == 1 and not visited[i]:
+    dfs(i)
+</code></pre>
+<h3>자기 자신과 중복 방문을 처리하는 방법</h3>
+<p>DFS에 들어오면 먼저 <code>visited[cur] = True</code>로 표시한다. 따라서 자기 자신으로 연결된 대각선 값이 1이어도 <code>not visited[cur]</code>가 False라 다시 들어가지 않는다. 별도 자기 자신 제외 조건은 필요 없다.</p>
+<p>이미 방문한 A를 B에서도 발견하면 B에서 A로 향하는 연결만 건너뛴다. B의 탐색 전체를 종료하지 않으며, B의 다른 미방문 이웃은 계속 탐색한다.</p>
+<p>네트워크에서는 한 번 확인한 컴퓨터를 다시 False로 되돌리지 않는다. 모든 경로의 선택 조합을 비교하는 피로도와 달리, 연결된 컴퓨터들의 그룹을 한 번씩 확인하는 것이 목적이기 때문이다.</p>
+<h3>한 그룹을 표시한 뒤 바깥 반복에서 중복 집계를 막는다</h3>
+<p><code>[[1, 1, 0], [1, 1, 0], [0, 0, 1]]</code>에서 DFS를 0번부터 시작하면 visited는 <code>[True, True, False]</code>가 된다.</p>
+<p>바깥 반복이 1번을 만나면 이미 방문한 상태라 answer를 증가시키지 않는다. 2번은 미방문이므로 새 그룹을 하나 세고 DFS를 시작한다. 그룹을 담는 리스트를 따로 만들지 않아도 DFS 시작 횟수로 네트워크 개수를 구할 수 있다.</p>
+<h3>조건을 수정한 코드</h3>
+<pre><code class="language-python">def solution(n, computers):
+    answer = 0
+    visited = [0] * n
+
+    def dfs(cur):
+        visited[cur] = True
+        for i in range(n):
+            if computers[cur][i] == 1 and not visited[i]:
+                dfs(i)
+
+    for i in range(n):
+        if not visited[i]:
+            answer += 1
+            dfs(i)
+
+    return answer
+</code></pre>
+<p>이번 복습에서는 설명을 따라 그룹 방문과 중복 집계 방지 흐름을 이해한 뒤 직접 작성하는 과정에서 두 인덱스를 빠뜨렸다. 위 코드는 그 조건을 교정한 형태이며, 이번 복습의 별도 채점 결과는 아직 제시하지 않았다. 기존 문서의 과거 전체 통과 결과와 구분한다.</p>
 
 </section>
         
