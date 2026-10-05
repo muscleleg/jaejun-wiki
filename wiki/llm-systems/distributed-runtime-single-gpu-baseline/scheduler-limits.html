@@ -1,0 +1,90 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.md. Do not edit directly. source-sha256:1c308cc1f2a0ebbbf6c9e2b85594e5df29f8755bc6a0016277e5252a9f6ac73c -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261003-shell-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sequence 상한·배치 Token Budget·Context 길이의 역할과 대기 해석의 한계를 구분한다.">
+  <meta name="source-sha256" content="1c308cc1f2a0ebbbf6c9e2b85594e5df29f8755bc6a0016277e5252a9f6ac73c">
+  <title>max_num_seqs와 Token Budget은 무엇을 제한할까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="max_num_seqs와 Token Budget은 무엇을 제한할까?">
+  <meta property="og:description" content="Sequence 상한·배치 Token Budget·Context 길이의 역할과 대기 해석의 한계를 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html","name":"max_num_seqs와 Token Budget은 무엇을 제한할까?","description":"Sequence 상한·배치 Token Budget·Context 길이의 역할과 대기 해석의 한계를 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html"},"headline":"max_num_seqs와 Token Budget은 무엇을 제한할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/scheduler-limits.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html"},{"@type":"ListItem","position":5,"name":"긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-single-gpu-baseline/request-lengths.html"},{"@type":"ListItem","position":6,"name":"max_num_seqs와 Token Budget은 무엇을 제한할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/distributed-runtime-single-gpu-baseline/README.html">GPU 한 장의 vLLM 기준선으로 무엇을 판단할 수 있을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/distributed-runtime-single-gpu-baseline/request-lengths.html">긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">max_num_seqs와 Token Budget은 무엇을 제한할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>max_num_seqs와 Token Budget은 무엇을 제한할까?</h1>
+      <p class="lead">Sequence 상한·배치 Token Budget·Context 길이의 역할과 대기 해석의 한계를 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">Sequence 수와 Token 예산의 차이</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>긴 입력에서 Waiting이 생겼다고 메모리가 부족했다고 바로 판단할 수는 없다. 엔진이 한 번에 실행할 수 있는 Sequence 수와 Token 예산도 확인해야 한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>Sequence 수와 Token 예산의 차이</h2>
+<p>max_num_seqs=256은 한 Iteration에 처리할 Sequence 수의 상한이다. 요청 하나당 Sequence 하나를 만드는 예시에서는 실행 참여 자리 최대 256개로 이해할 수 있다. 요청 8개를 받았다고 256개가 찰 때까지 기다리는 것은 아니며, 요청이 많아도 다른 제약 때문에 256개보다 적게 실행할 수 있다. Waiting을 포함한 전체 HTTP 접수 한도나 보장된 처리 능력도 아니다.</p>
+<p>max_num_batched_tokens=2048은 한 Iteration에 처리할 Token 예산이다. 요청 전체의 Context 한도 4096과 다르다. Chunked Prefill이 활성화돼 있으면 긴 Prefill 작업을 나누어 스케줄링할 수 있다. <a href="https://docs.vllm.ai/en/latest/configuration/engine_args/#schedulerconfig" rel="noopener noreferrer">vLLM Scheduler 설정</a></p>
+<p>따라서 Client 동시성, 서버 Running·Waiting, Sequence 상한, Token Budget은 서로 연결되지만 같은 개념이 아니다. 긴 입력에서 관측한 Waiting 3을 Token Budget 하나의 결과로 확정하려면 별도 원인 분리 실험이 필요하다.</p>
+<p>예시의 Context 한도 4096은 요청의 입력·출력 길이, 배치 Token Budget 2048은 한 Iteration의 실행 예산, max_num_seqs 256은 참여 Sequence 수에 관한 값이다. 1062토큰 입력 8개가 들어온 상황은 짧은 입력 8개와 요청 수는 같아도 Prefill 계산량이 다르다.</p>
+<p>256·2048은 vLLM 0.29.0의 같은 환경·인수로 설정을 해석한 값이며, 실행 중 서버를 API로 직접 조회한 결과는 아니다. 예시의 실측 관계는 <a href="request-lengths.html">긴 입력과 긴 출력은 LLM 서버에 어떤 부담을 줄까?</a>에 있다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
