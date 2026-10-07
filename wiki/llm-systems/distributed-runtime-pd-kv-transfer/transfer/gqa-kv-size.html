@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.md. Do not edit directly. source-sha256:87d9a97dd53429650f0640d7c55ed8904999ee4abe7193bdd08788b283c149c7 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Qwen3-8B의 실제 KV Head 수로 계산한 캐시 크기에는 GQA 절감이 이미 반영되며 블록 올림은 별개임을 설명한다.">
+  <meta name="source-sha256" content="87d9a97dd53429650f0640d7c55ed8904999ee4abe7193bdd08788b283c149c7">
+  <title>GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다">
+  <meta property="og:description" content="Qwen3-8B의 실제 KV Head 수로 계산한 캐시 크기에는 GQA 절감이 이미 반영되며 블록 올림은 별개임을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html","name":"GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다","description":"Qwen3-8B의 실제 KV Head 수로 계산한 캐시 크기에는 GQA 절감이 이미 반영되며 블록 올림은 별개임을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html"},"headline":"GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-model-memory","name":"모델 메모리","identifier":"topics-model-memory"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/gqa-kv-size.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html"},{"@type":"ListItem","position":5,"name":"KV 전달을 어떻게 측정할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html"},{"@type":"ListItem","position":6,"name":"KV 크기와 블록 단위 전송량","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/kv-size.html"},{"@type":"ListItem","position":7,"name":"GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html">P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html">KV 전달을 어떻게 측정할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/kv-size.html">KV 크기와 블록 단위 전송량</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</h1>
+      <p class="lead">Qwen3-8B의 실제 KV Head 수로 계산한 캐시 크기에는 GQA 절감이 이미 반영되며 블록 올림은 별개임을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#cache-contents">캐시에 쌓이는 것은 가중치가 아니라 토큰의 K와 V다</a>
+        <a href="#model-head-count">Qwen3-8B의 8은 모델에 정해진 KV Head 수다</a>
+        <a href="#gqa-size-comparison">같은 조건의 MHA와 비교하면 절감이 이미 보인다</a>
+        <a href="#block-rounding-is-separate">94.64 MiB와 실제 96.75 MiB의 차이는 다른 문제다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>KV Cache의 이론적 크기는 실제 모델의 K/V Head 수로 계산한다. GQA 모델의 KV Head 수를 이미 사용했다면, 그 계산값에서 GQA 절감률을 다시 적용하면 안 된다.</p>
+<p>이를 이해하려면 모델의 구조가 정하는 크기와, 저장·전송 블록 때문에 늘어나는 크기를 구분해야 한다.</p>
+</div>
+        <section id="cache-contents" class="markdown-section">
+<h2>캐시에 쌓이는 것은 가중치가 아니라 토큰의 K와 V다</h2>
+<p>모델은 토큰을 처리하면서 레이어마다 K·V 벡터를 만든다. 캐시는 이 계산 결과를 보관한다. K/V Projection 가중치를 토큰마다 복사하는 것이 아니며 Q도 이 캐시에 저장하지 않는다.</p>
+<p>일반적인 전체 문맥 캐시에서는 처리한 토큰이 늘면 토큰 방향 길이가 늘어난다. Head의 개수가 매번 늘어나는 것은 아니다. GQA는 이 고정된 K/V Head 수를 Q Head 수보다 작게 설계하여 토큰 하나당 저장량을 줄인다.</p>
+<p>왜 작은 K/V를 여러 Q가 공유해도 각 Q의 출력은 남는지, 가중치의 행과 출력의 열이 어떻게 다른지는 <a href="../../../transformer/transformer_gqa_kv_projection_cache_learning.html">GQA의 Projection과 공유 구조</a>에 설명했다.</p>
+
+</section>
+<section id="model-head-count" class="markdown-section">
+<h2>Qwen3-8B의 8은 모델에 정해진 KV Head 수다</h2>
+<p>고정 Revision <code>b968826d9c46dd6066d109eabc6255188de91218</code>의 Qwen3-8B 설정은 다음과 같다. <a href="https://huggingface.co/Qwen/Qwen3-8B/blob/b968826d9c46dd6066d109eabc6255188de91218/config.json" rel="noopener noreferrer">모델 config.json</a></p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th align="right">값</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>num_attention_heads</code></td>
+<td align="right">32</td>
+<td>Q Head 수</td>
+</tr>
+<tr>
+<td><code>num_key_value_heads</code></td>
+<td align="right">8</td>
+<td>K Head 8개와 V Head 8개</td>
+</tr>
+<tr>
+<td><code>head_dim</code></td>
+<td align="right">128</td>
+<td>Head 하나의 벡터 차원</td>
+</tr>
+<tr>
+<td><code>num_hidden_layers</code></td>
+<td align="right">36</td>
+<td>KV를 보관하는 레이어 수</td>
+</tr>
+</tbody></table>
+</div>
+<p>Q Head 네 개가 K/V Head 한 쌍을 공유하는 구조다. KV Head가 8개인 이유는 해당 모델이 그렇게 설계·학습되었기 때문이다. GPU가 8개여서도 아니고, 모든 GQA 모델에 적용되는 고정값도 아니다. 이 설정만으로 설계자가 왜 다른 수 대신 8을 선택했는지까지 알 수는 없다.</p>
+<p>GQA는 vLLM에서 임의로 켜서 기존 MHA 체크포인트를 그대로 압축하는 옵션이 아니다. 서버는 모델의 설정과 학습된 Projection 가중치에 맞춰 실행한다. Head 수만 바꾸면 가중치 모양과 계산 구조가 맞지 않을 수 있다.</p>
+
+</section>
+<section id="gqa-size-comparison" class="markdown-section">
+<h2>같은 조건의 MHA와 비교하면 절감이 이미 보인다</h2>
+<p>요청 하나의 논리적 KV 크기는 다음 항목을 곱해 계산한다.</p>
+<pre><code class="language-text">레이어 수 × 토큰 수 × KV Head 수 × Head 차원 × K/V 두 종류 × 원소당 bytes
+</code></pre>
+<p>BF16 원소당 2 bytes, 36개 레이어, Head 차원 128을 적용하면 다음과 같다. MHA 행은 다른 조건을 고정하고 K/V Head도 Q와 같은 32개라고 가정한 산술 비교이며, 별도 모델을 실행한 결과가 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th align="right">KV Head 수</th>
+<th align="right">토큰 하나의 KV</th>
+<th align="right">673토큰의 KV</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Qwen3-8B의 GQA</td>
+<td align="right">8</td>
+<td align="right">144 KiB</td>
+<td align="right">94.640625 MiB</td>
+</tr>
+<tr>
+<td>같은 나머지 조건의 가상 MHA</td>
+<td align="right">32</td>
+<td align="right">576 KiB</td>
+<td align="right">378.5625 MiB</td>
+</tr>
+</tbody></table>
+</div>
+<p>GQA 행의 계산은 <code>36 × 673 × 8 × 128 × 2 × 2 = 99,237,888 bytes</code>다. 이미 KV Head 8개를 넣었으므로 MHA 가정의 4분의 1이다. 여기서 다시 4로 나누는 것은 같은 절감을 두 번 적용하는 오류다.</p>
+<p>이 비교가 보여주는 것은 KV 저장량의 차이다. 모델의 품질이나 전체 생성 속도도 정확히 4배 차이난다는 뜻은 아니다.</p>
+
+</section>
+<section id="block-rounding-is-separate" class="markdown-section">
+<h2>94.64 MiB와 실제 96.75 MiB의 차이는 다른 문제다</h2>
+<p>논리적 계산은 실제 토큰 673개만 센다. 관찰된 전달은 16토큰 크기 블록 43개, 즉 688개 토큰 슬롯에 해당했다.</p>
+<pre><code class="language-text">논리적 KV: 673 × 144 KiB = 94.640625 MiB
+블록 전송: 688 × 144 KiB = 96.75 MiB
+차이:       15 × 144 KiB = 2.109375 MiB
+</code></pre>
+<p>따라서 실제 전송량이 더 큰 이유를 GQA 적용 여부로 설명하면 안 된다. Head 수는 모델 구조의 문제이고, 남는 15개 슬롯은 이 전달 방식의 블록 경계 문제다. 근거와 길이별 대조는 상위 문서 <a href="kv-size.html">KV 크기와 블록 단위 전송량</a>을 참고한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

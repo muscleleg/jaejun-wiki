@@ -1,0 +1,234 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.md. Do not edit directly. source-sha256:a9e1e1ce3da7f8a83d2ac588b06027e03ad5c87d7cacdba2e8aa3696bb24fc48 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="같은 머신 안의 TP=1·2 비교로 순차 지연과 동시 요청 처리량의 변화 및 검증 한계를 해석한다.">
+  <meta name="source-sha256" content="a9e1e1ce3da7f8a83d2ac588b06027e03ad5c87d7cacdba2e8aa3696bb24fc48">
+  <title>TP는 응답 지연과 처리량을 얼마나 바꿨을까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TP는 응답 지연과 처리량을 얼마나 바꿨을까?">
+  <meta property="og:description" content="같은 머신 안의 TP=1·2 비교로 순차 지연과 동시 요청 처리량의 변화 및 검증 한계를 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html","name":"TP는 응답 지연과 처리량을 얼마나 바꿨을까?","description":"같은 머신 안의 TP=1·2 비교로 순차 지연과 동시 요청 처리량의 변화 및 검증 한계를 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html"},"headline":"TP는 응답 지연과 처리량을 얼마나 바꿨을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"TP는 응답 지연과 처리량을 얼마나 바꿨을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>TP는 응답 지연과 처리량을 얼마나 바꿨을까?</h1>
+      <p class="lead">같은 머신 안의 TP=1·2 비교로 순차 지연과 동시 요청 처리량의 변화 및 검증 한계를 해석한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">비교할 것은 GPU 수 외의 조건을 유지한 요청이다</a>
+        <a href="#section-02">순차 요청으로 한 요청의 지연 변화를 본다</a>
+        <a href="#section-03">동시 요청으로 여러 요청의 지연과 처리량을 함께 본다</a>
+        <a href="#section-04">두 배가 되지 않은 이유를 하나로 확정하지 않는다</a>
+        <a href="#section-05">이 결과로 말할 수 있는 것과 없는 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>계산을 나눠도 원래 결과와 같다는 사실은 TP의 정확성을 이해하는 출발점입니다. 그러나 실제 요청에는 계산 외에 통신·스케줄링·응답 전달이 포함됩니다. TP의 성능은 <strong>같은 머신에서 같은 요청을 처리할 때 전체 시간이 어떻게 달라지는지</strong>로 확인해야 합니다.</p>
+<p>이 문서는 A40 한 장의 TP=1과 두 장의 TP=2를 차례로 실행한 기록을 설명합니다. 독립 모델 서버 두 개에 요청을 나눠 보낸 비교가 아닙니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>비교할 것은 GPU 수 외의 조건을 유지한 요청이다</h2>
+<p>모델은 Qwen/Qwen3-8B, 정밀도는 BF16이며 모델·토크나이저 Revision을 고정했습니다. Prefix Cache를 끄고, 입력은 짧은 동일 문장, 출력은 128토큰으로 맞췄습니다. 예열은 측정에서 제외했습니다.</p>
+<p>TP=1을 종료하고 GPU 작업이 해제된 뒤 TP=2를 시작했습니다. 두 서버를 동시에 띄우면 자원 경쟁이 섞이기 때문입니다. 전체 옵션과 측정 절차는 <a href="reproduction.html">같은 조건의 TP 비교를 어떻게 재현할까?</a>에 분리했습니다.</p>
+<p>지표는 세 가지 요청 지연과 한 가지 전체 처리량을 구분합니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>이 측정에서의 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TTFT</td>
+<td>요청 시작부터 첫 내용 청크 수신까지</td>
+</tr>
+<tr>
+<td>TPOT</td>
+<td>첫 내용부터 마지막 내용까지의 시간을 출력 토큰 수−1로 나눈 값</td>
+</tr>
+<tr>
+<td>E2E</td>
+<td>요청 시작부터 Streaming 완료 표식 수신까지</td>
+</tr>
+<tr>
+<td>전체 출력 처리량</td>
+<td>전체 요청의 출력 토큰 합 ÷ 전체 측정 시간</td>
+</tr>
+</tbody></table>
+</div>
+<p>청크 수신 시각으로 계산하므로 클라이언트에서 관측한 근사 지표입니다. GPU 내부의 개별 토큰 생성 시각이나 커널 실행 시간과 동일하지 않습니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>순차 요청으로 한 요청의 지연 변화를 본다</h2>
+<p>이전 할당의 동일 머신에서 요청을 하나씩 보내며 조건마다 예열 1회·측정 5회를 수행했습니다. 입력은 21토큰, 출력은 모두 128토큰이었습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>평균 지표</th>
+<th align="right">TP=1</th>
+<th align="right">TP=2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TTFT</td>
+<td align="right">약 49.0ms</td>
+<td align="right">약 34.3ms</td>
+</tr>
+<tr>
+<td>E2E</td>
+<td align="right">약 3.732초</td>
+<td align="right">약 2.146초</td>
+</tr>
+<tr>
+<td>TPOT</td>
+<td align="right">약 29.0ms</td>
+<td align="right">약 16.6ms</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 조건에서는 TP=2가 첫 응답과 이후 생성 지연을 줄였습니다. E2E 기준 약 1.74배의 속도 차이였습니다. 단, 순차 요청만으로 동시에 얼마나 많은 요청을 처리할 수 있는지는 알 수 없습니다.</p>
+<p>원시 출력은 실습 노트북〔비공개 보존 자료〕 1–9번에 보존돼 있습니다. 별도의 새 할당에서 수행한 아래 실험과 머신이 다르므로, 두 표를 직접 비교해 동시 요청 증가만의 효과로 해석하지 않습니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>동시 요청으로 여러 요청의 지연과 처리량을 함께 본다</h2>
+<p>새 A40 두 장 할당에서는 <strong>동시 요청 8개, 총 40개</strong>로 비교했습니다. TP=1과 TP=2 모두 같은 머신 안에서 실행했고, 각 조건마다 예열 8개를 먼저 완료했습니다.</p>
+<p>클라이언트는 최대 8개의 요청을 진행하며, 하나가 끝나면 다음 요청을 보냈습니다. 두 조건 모두 40개 요청이 입력 21·출력 128토큰, 종료 <code>length</code>로 정상 완료됐습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th align="right">TP=1</th>
+<th align="right">TP=2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>평균 TTFT</td>
+<td align="right">99.936ms</td>
+<td align="right">78.765ms</td>
+</tr>
+<tr>
+<td>평균 E2E</td>
+<td align="right">3.861초</td>
+<td align="right">2.272초</td>
+</tr>
+<tr>
+<td>평균 TPOT</td>
+<td align="right">29.615ms</td>
+<td align="right">17.270ms</td>
+</tr>
+<tr>
+<td>전체 측정 시간</td>
+<td align="right">19.362초</td>
+<td align="right">11.399초</td>
+</tr>
+<tr>
+<td>완료 요청 처리량</td>
+<td align="right">2.066요청/초</td>
+<td align="right">3.509요청/초</td>
+</tr>
+<tr>
+<td>전체 출력 처리량</td>
+<td align="right">264.435토큰/초</td>
+<td align="right">449.153토큰/초</td>
+</tr>
+</tbody></table>
+</div>
+<p>출력 토큰 합은 두 조건 모두 <code>40 × 128 = 5,120</code>으로 같았습니다. TP=2가 이 일을 더 짧은 시간에 마쳤으므로 전체 출력 처리량이 높아졌습니다.</p>
+<pre><code class="language-text">처리량 비율 = 449.153 / 264.435 ≈ 1.70배
+E2E 감소율  = 1 − 2.272 / 3.861 ≈ 41.2%
+</code></pre>
+<p>첫 토큰 이후의 생성 지연도 약 29.6→17.3ms로 감소했습니다. <strong>통신 비용이 생겼어도 이 조건에서는 계산 분담의 이점이 나타난 것</strong>입니다. TP=1 원시 결과〔비공개 보존 자료〕, TP=2 원시 결과〔비공개 보존 자료〕</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>두 배가 되지 않은 이유를 하나로 확정하지 않는다</h2>
+<p>GPU별 계산이 줄어도 모든 작업이 정확히 절반이 되지는 않습니다. GPU 간 데이터 교환·동기화, 분할되지 않는 작업, 작은 행렬에서의 실행 효율 등이 전체 시간에 영향을 줄 수 있습니다.</p>
+<p>소규모 AllReduce에서 통신 비용을 관찰했지만, 실제 vLLM 요청 안의 통신 시간을 따로 분리해 잰 것은 아닙니다. 따라서 “두 배에 부족한 0.30배는 전부 NCCL 비용”이라는 식으로 역산할 수 없습니다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>이 결과로 말할 수 있는 것과 없는 것</h2>
+<p>이 실험은 <strong>같은 머신·같은 요청·동시성 8 조건에서 TP=2가 지연과 처리량을 개선했다</strong>는 근거입니다. TP=2의 두 GPU를 합친 처리량이지 GPU 한 장당 처리량이 1.70배가 된 것은 아닙니다.</p>
+<p>최대 처리량을 찾기 위한 포화 실험, 긴 입력 전반의 효과, 응답 지연 분포와 SLO, 두 독립 Replica와의 비용 효율 비교는 하지 않았습니다. 평균값만으로 tail latency를 설명할 수도 없습니다. 답변 내용의 품질 동등성을 별도로 평가하지 않았으며, 출력 길이와 정상 완료 조건을 맞춘 성능 비교입니다.</p>
+<h3>같은 계산인데 TP=1·2의 값이 달라질 수 있는 이유</h3>
+<p>수학적으로는 같은 행렬 곱이라도 컴퓨터가 소수를 표현하는 정밀도에는 한계가 있습니다. TP=1에서 계산하는 경우와 TP=2에서 각 GPU가 부분합을 만든 뒤 합치는 경우는 연산 순서가 달라질 수 있습니다. 그 과정에서 발생하는 반올림 오차가 달라져 최종 값에 작은 차이가 생길 수 있습니다.</p>
+<p>이는 GPU마다 모든 계산을 끝낸 뒤 소수점을 한 번씩 반올림한다는 뜻은 아닙니다. 계산 중간이나 값을 다른 정밀도로 변환할 때에도 반올림이 발생할 수 있습니다. 어떤 정밀도로 곱하고 누적하는지는 실제 연산 구현에 따라 달라집니다. 핵심은 <strong>계산을 분할하고 합치는 순서가 달라지면 제한된 정밀도로 표현한 결과도 조금 달라질 수 있다</strong>는 것입니다.</p>
+<p>모델은 다음 토큰 후보마다 점수인 Logit을 계산합니다. 가장 높은 점수의 토큰을 고르는 Greedy 방식에서도, 상위 후보의 점수가 아주 비슷하면 작은 수치 차이로 순위가 바뀔 수 있습니다. 하나의 토큰이 달라지면 그 토큰이 다음 생성의 입력에 포함되므로 이후 문장도 달라질 수 있습니다.</p>
+<pre><code class="language-text">연산 순서·반올림 오차 차이
+→ 다음 토큰 후보 점수의 작은 차이
+→ 점수가 비슷한 후보의 순위가 바뀔 수 있음
+→ 선택한 토큰이 달라지면 이후 생성도 달라질 수 있음
+</code></pre>
+<p>항상 출력이 달라진다는 뜻은 아닙니다. 출력이 다르다고 바로 TP 구현 오류인 것도 아니고, 자연스러운 문장이 나왔다고 계산의 정확성이 보장되는 것도 아닙니다. 차이가 발견되면 먼저 모델·Revision·Tokenizer·입력·dtype·생성 설정이 같은지 구분하고, 수치 차이와 계산 오류를 분리해서 봐야 합니다.</p>
+<h3>작은 계산의 검증과 실제 모델 출력 검증을 구분한다</h3>
+<p>작은 행렬 예제에서는 원래 계산과 결과가 일치했고, 작은 Attention에서는 최대 절대 오차 약 0.00000024로 일치했습니다. 이 값은 해당 예제의 관측 결과이지 실제 Qwen 모델 전체에 적용할 허용오차는 아닙니다.</p>
+<p>실제 Qwen 모델의 TP=1·2 성능 비교에서는 입력·출력 길이와 정상 완료 조건을 맞췄지만, 출력 Token의 최초 불일치나 Logit·Logprob의 수치 차이를 별도로 검증하지 않았습니다. 따라서 <strong>성능 개선은 관찰했고, 실제 모델 출력의 동등성은 별도로 검증하지 않았다</strong>고 정리해야 합니다. 여기서 설명한 수치 차이의 가능성은 결과를 해석하는 원리이며, 이번 모델에서 그 차이를 실제로 측정했다는 뜻은 아닙니다.</p>
+<p>성능 결론과 별도로 GPU당 가중치·KV 공간은 어떻게 달라졌는지 <a href="../memory/README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a>에서 확인할 수 있습니다. 속도와 수용 가능한 캐시 용량은 연결돼 있지만 같은 지표는 아닙니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="reproduction.html">같은 조건의 TP 비교를 어떻게 재현할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

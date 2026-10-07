@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.md. Do not edit directly. source-sha256:84bd71df4bd243e0d1324f0ffec1445ff7311e8cab18a5d51af26ba50d8cd5d1 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AllReduce·AllGather, NCCL과 전송 경로의 역할을 구분하고 텐서 크기별 통신 비용을 해석한다.">
+  <meta name="source-sha256" content="84bd71df4bd243e0d1324f0ffec1445ff7311e8cab18a5d51af26ba50d8cd5d1">
+  <title>GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?">
+  <meta property="og:description" content="AllReduce·AllGather, NCCL과 전송 경로의 역할을 구분하고 텐서 크기별 통신 비용을 해석한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html","name":"GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?","description":"AllReduce·AllGather, NCCL과 전송 경로의 역할을 구분하고 텐서 크기별 통신 비용을 해석한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html"},"headline":"GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/communication/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</h1>
+      <p class="lead">AllReduce·AllGather, NCCL과 전송 경로의 역할을 구분하고 텐서 크기별 통신 비용을 해석한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">AllReduce는 같은 위치를 더해 모든 참가자가 결과를 갖게 한다</a>
+        <a href="#section-02">AllGather는 더하지 않고 Rank 순서로 수집한다</a>
+        <a href="#section-03">NCCL, Collective, 전송 경로는 서로 다른 질문에 답한다</a>
+        <a href="#section-04">결과를 합치는 데에도 시간이 든다</a>
+        <a href="#section-05">성공·실패와 속도를 구분한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Tensor Parallel(TP)은 하나의 모델 계산을 여러 GPU에 분담하는 방식입니다. GPU마다 계산을 나눴다면 다음 계산에 필요한 결과를 서로 전달해야 합니다. 통신의 목적은 모두의 값을 한곳에 모으는 것만이 아닙니다. <strong>서로 다른 조각을 보존해서 수집할지, 같은 출력의 부분값을 더할지</strong>를 먼저 구분해야 합니다.</p>
+<p>NCCL은 이런 GPU 간 통신 연산을 제공하는 라이브러리입니다. 모델의 어느 가중치를 어느 GPU에 둘지 자동으로 결정하는 기능은 아닙니다. 모델 구현이 분할 방법과 필요한 통신을 정하고, NCCL을 통해 그 통신을 수행합니다. 따라서 NCCL을 살펴보는 목적은 API 이름을 외우는 것이 아니라 <strong>분할한 계산을 완성하는 데 필요한 작업과 비용을 이해하는 것</strong>입니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>AllReduce는 같은 위치를 더해 모든 참가자가 결과를 갖게 한다</h2>
+<p>두 GPU에서 다음 텐서를 준비하고 AllReduce SUM을 실행했습니다.</p>
+<pre><code class="language-text">Rank 0 / GPU 0: [1, 1, 1, 1] ─┐
+                              ├─ 같은 위치끼리 합산
+Rank 1 / GPU 1: [2, 2, 2, 2] ─┘
+
+Rank 0 / GPU 0: [3, 3, 3, 3]
+Rank 1 / GPU 1: [3, 3, 3, 3]
+</code></pre>
+<p>양쪽 Rank에서 검증이 성공했습니다. Rank 0만 결과를 받는 것이 아니라 모든 참가자의 텐서가 합산 결과로 바뀌었습니다. Row Parallel이 만든 같은 출력 위치의 부분합을 결합할 때 이 연산이 대응합니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>AllGather는 더하지 않고 Rank 순서로 수집한다</h2>
+<p>서로 다른 출력 조각이라면 값 자체를 더하면 안 됩니다. AllGather 예제에서는 Rank 0의 <code>[1, 1]</code>과 Rank 1의 <code>[2, 2]</code>를 양쪽에서 수집했습니다.</p>
+<pre><code class="language-text">각 Rank의 수신 리스트: [[1, 1], [2, 2]]
+torch.cat으로 연결:    [1, 1, 2, 2]
+</code></pre>
+<p>결과의 순서는 먼저 도착한 순서가 아니라 그룹의 Rank 순서입니다. 화면 로그에서 Rank 1이 먼저 출력되거나 두 출력 줄이 붙더라도 수집 순서가 바뀐 것은 아닙니다. AllGather가 수집하고, <code>torch.cat</code>이 텐서를 이어 붙인다는 역할도 구분할 수 있습니다.</p>
+<p>이 예제가 Column 결과를 모았다고 해서 모든 Column 계산 뒤에 AllGather가 필요한 것은 아닙니다. 다음 Row가 이미 나뉜 조각을 그대로 받을 수 있다면 중간 수집을 생략할 수 있습니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>NCCL, Collective, 전송 경로는 서로 다른 질문에 답한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>답하는 질문</th>
+<th>예시</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>호출 인터페이스</td>
+<td>프로그램에서 무엇을 호출하는가?</td>
+<td><code>torch.distributed</code></td>
+</tr>
+<tr>
+<td>통신 라이브러리</td>
+<td>GPU 통신 기능을 어떤 라이브러리가 수행하는가?</td>
+<td>NCCL</td>
+</tr>
+<tr>
+<td>통신 연산</td>
+<td>결과를 어떤 의미로 결합하는가?</td>
+<td>AllReduce, AllGather</td>
+</tr>
+<tr>
+<td>전송 방식·경로</td>
+<td>데이터를 어떤 경로로 옮기는가?</td>
+<td>GPU 간 P2P, 호스트 메모리를 이용하는 SHM</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>dist</code>는 <code>torch.distributed</code>를 짧게 부른 이름입니다. NCCL backend를 사용하는 그룹에서 Collective를 호출했습니다. 같은 AllReduce라도 실제 전송 경로는 장치 연결과 지원 기능, 설정에 따라 달라질 수 있습니다.</p>
+<p>vLLM TP=2 서버 로그에는 양 방향으로 <code>via SHM/direct/direct</code>가 기록됐습니다. 이는 P2P를 끄고 SHM을 허용한 설정뿐 아니라, 해당 실행에서 관측한 경로의 근거입니다. 반면 작은 텐서 실험은 WARN 수준 로그만 출력했으므로 그 출력만으로 경로까지 확인했다고 말하지 않습니다. TP=2 서버 로그〔비공개 보존 자료〕</p>
+<p>프로세스 두 개가 각각 어떤 GPU를 사용하는지는 통신 연산과 별도 문제입니다. 그 관계는 <a href="processes-and-ranks.html">프로세스 두 개는 어떻게 GPU 한 장씩을 선택할까?</a>, 하드웨어 경로는 <a href="topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a>에서 설명합니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>결과를 합치는 데에도 시간이 든다</h2>
+<p>같은 값을 더하는 기능을 확인한 뒤에는 비용을 측정해야 TP 성능을 해석할 수 있습니다. 각 GPU의 float32 텐서를 4KiB부터 64MiB까지 바꾸며 크기별 예열 5회·측정 30회를 수행했습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>GPU당 입력 텐서 크기</th>
+<th align="right">평균 AllReduce 시간</th>
+<th align="right">AlgBW</th>
+<th align="right">BusBW</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>4KiB</td>
+<td align="right">0.059ms</td>
+<td align="right">0.070GB/s</td>
+<td align="right">0.070GB/s</td>
+</tr>
+<tr>
+<td>64KiB</td>
+<td align="right">0.068ms</td>
+<td align="right">0.959GB/s</td>
+<td align="right">0.959GB/s</td>
+</tr>
+<tr>
+<td>1MiB</td>
+<td align="right">0.185ms</td>
+<td align="right">5.662GB/s</td>
+<td align="right">5.662GB/s</td>
+</tr>
+<tr>
+<td>16MiB</td>
+<td align="right">1.796ms</td>
+<td align="right">9.344GB/s</td>
+<td align="right">9.344GB/s</td>
+</tr>
+<tr>
+<td>64MiB</td>
+<td align="right">6.822ms</td>
+<td align="right">9.837GB/s</td>
+<td align="right">9.837GB/s</td>
+</tr>
+</tbody></table>
+</div>
+<p>작은 텐서에서도 시간이 0이 되지 않습니다. 호출·동기화 등 고정 비용이 상대적으로 크게 작용할 수 있기 때문입니다. 데이터가 커지면 소요 시간도 증가했고, 이 측정의 큰 텐서 구간에서는 유효 대역폭이 약 9–10GB/s로 나타났습니다.</p>
+<p>측정은 CPU 시계로 AllReduce 호출부터 GPU 완료 대기까지 포함했습니다. 따라서 순수 하드웨어 링크의 최대 대역폭이나 덧셈 커널만의 시간이 아닙니다. 같은 회차의 두 Rank 중 더 긴 시간을 사용했고, 측정값을 모으는 추가 통신은 타이머 밖에서 수행했습니다.</p>
+<p>AlgBW는 GPU당 텐서 바이트를 시간으로 나눈 값입니다. AllReduce의 BusBW 환산은 <code>AlgBW × 2(N−1)/N</code>을 사용했으므로, N=2에서는 두 수치가 같습니다. 이는 실제 버스의 모든 바이트를 직접 계측했다는 뜻이 아닙니다. 계산식은 <a href="https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md" rel="noopener noreferrer">NCCL Tests의 성능 지표 설명</a>을 따른 것이며, 실행 자체는 노트북의 소규모 PyTorch 코드입니다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>성공·실패와 속도를 구분한다</h2>
+<p>연산 결과가 맞는지, 선택한 경로로 통신이 끝나는지, 어느 정도 빠른지는 별도 검증입니다. 작은 텐서 합산 성공만으로 대규모 모델의 모든 통신이 안정적이라고 결론 내리지 않습니다.</p>
+<p>초기화 정체와 GPU 오류, P2P 우회 후 성공한 기록은 <a href="troubleshooting.html">TP 초기화 실패에서 무엇까지 원인으로 말할 수 있을까?</a>에 분리했습니다. 경고나 마지막 로그 한 줄로 근본 원인을 단정하지 않는 것이 핵심입니다.</p>
+<h3>실제 모델은 어디서 부분합을 합치는가?</h3>
+<p>살펴본 TP 구조에서는 각 GPU가 담당 Q·K·V와 Head의 Attention을 계산합니다. Head 출력을 먼저 모으는 대신 각자 출력 투영 W_O의 대응 행을 곱하고, 그 부분합을 AllReduce로 더합니다. FFN도 담당 gate/up 조각을 계산하고 활성화·곱셈을 거친 뒤, down 투영의 부분합을 AllReduce로 더합니다.</p>
+<p>즉, 모델 전체를 각자 계산한 뒤 마지막에 한 번만 합치는 것이 아닙니다. 다음 계산에 완성된 값이 필요한 지점에서 합치며, 이 구조가 여러 Transformer 블록에서 반복됩니다. 정규화 등을 생략하면 다음 흐름입니다.</p>
+<pre><code class="language-text">담당 QKV → 담당 Head의 Attention → W_O 부분합
+                                  ↓ AllReduce
+                          완성된 Attention 출력
+                                  ↓ Residual 연결
+담당 gate/up → 활성화·곱셈 → down 부분합
+                                  ↓ AllReduce
+                             완성된 FFN 출력
+                                  ↓ Residual 연결
+                                다음 블록
+</code></pre>
+<p>Residual 연결은 앞서 들어온 값을 해당 블록의 계산 결과에 더하는 단계입니다. 각 AllReduce에는 GPU 사이의 데이터 교환·합산과 필요한 동기화 비용이 있으므로, GPU당 계산을 줄여도 결과 결합에 드는 시간은 남습니다. 구체적인 분할은 <a href="../computation/attention-ffn.html">Attention·FFN의 Column·Row 연결</a>에서 설명합니다.</p>
+<h3>통신 원리를 확인한 것과 실제 요청의 통신 시간을 잰 것은 다르다</h3>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인 대상</th>
+<th>확인한 범위</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>작은 AllReduce 실험</td>
+<td>텐서 크기별 호출·완료 대기 시간을 측정함</td>
+</tr>
+<tr>
+<td>설치된 vLLM 소스</td>
+<td>부분합을 만드는 위치와 AllReduce 호출 조건을 확인함</td>
+</tr>
+<tr>
+<td>실제 vLLM 실행</td>
+<td>SHM 전송 경로와 전체 요청 지연·처리량을 확인함</td>
+</tr>
+<tr>
+<td>실제 요청 한 건의 통신 비용</td>
+<td>추론 구간의 정확한 Collective 호출 횟수·소요 시간은 별도로 측정하지 않음</td>
+</tr>
+</tbody></table>
+</div>
+<p>위 흐름은 소스로 확인한 계산 구조이며, 실행을 계측해서 얻은 호출 횟수 표가 아닙니다. 작은 통신 벤치마크의 시간을 그대로 실제 모델의 총 통신 시간으로 대입할 수도 없습니다. 따라서 TP=2의 출력 처리량이 약 1.70배였다고 말할 수는 있지만, 두 배에 못 미친 차이가 전부 NCCL 통신 때문이라고 단정할 수는 없습니다.</p>
+<p>원시 코드·출력은 실습 노트북〔비공개 보존 자료〕의 10·11·16번에 있습니다. 이 실험이 주는 성능 해석의 기준은 <strong>계산이 줄어도 결과 결합 비용은 남는다</strong>는 것입니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="processes-and-ranks.html">프로세스 두 개는 어떻게 GPU 한 장씩을 선택할까?</a></li>
+<li><a href="topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a></li>
+<li><a href="troubleshooting.html">TP 초기화 실패에서 무엇까지 원인으로 말할 수 있을까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

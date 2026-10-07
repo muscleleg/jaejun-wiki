@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- Generated from content/wiki/transformer/transformer_mha_kv_cache_gqa_learning.md. Do not edit directly. source-sha256:50e97a6848d2cef64f5dfce9bb9fbf59c58c031d59e91e5233f1b71a6bdb2aaf -->
+<!-- Generated from content/wiki/transformer/transformer_mha_kv_cache_gqa_learning.md. Do not edit directly. source-sha256:3940a495703cf1a1e5ed7293f0f43fe9f8c01dcf0090748e21997317107ebc81 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
-  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
 <!-- static-shell:styles:end -->
   <!-- search-indexing:start -->
   <meta name="robots" content="noindex">
@@ -25,10 +25,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="하나의 Q/K/V Projection을 Head별로 나눠 학습하고 다시 조합하는 MHA 구조에서 KV Cache의 증가와 이를 줄이는 GQA까지 연결합니다.">
-  <meta name="source-sha256" content="50e97a6848d2cef64f5dfce9bb9fbf59c58c031d59e91e5233f1b71a6bdb2aaf">
+  <meta name="source-sha256" content="3940a495703cf1a1e5ed7293f0f43fe9f8c01dcf0090748e21997317107ebc81">
   <title>MHA의 학습 구조에서 KV Cache와 GQA까지</title>
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_mha_kv_cache_gqa_learning.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -502,16 +502,39 @@ V Cache: [batch, 4, sequence, head_dim]
 </section>
 <section id="kv-cache-gqa" class="markdown-section">
 <h2>KV Cache가 커지는 문제를 줄이기 위해 GQA가 등장한다</h2>
-<p>MHA에서는 새로운 토큰을 생성할 때마다 그 토큰의 모든 K Head와 V Head가 KV Cache에 추가된다.</p>
-<pre><code class="language-text">토큰 1 생성
-→ K Head 4개, V Head 4개 저장
-
-토큰 2 생성
-→ K Head 4개, V Head 4개 추가
-
-토큰 3 생성
-→ K Head 4개, V Head 4개 추가
-</code></pre>
+<p>MHA에서 Head 수는 고정되어 있다. 캐시에 추가되는 것은 새로운 Head가 아니라, 새로 처리한 토큰이 각 Head에서 만든 K·V 벡터다. 캐시는 Projection 가중치가 아닌 계산 결과를 보관한다.</p>
+<p>Head가 4개이고 처리한 토큰이 하나씩 늘어난다면 한 레이어의 캐시는 다음처럼 자란다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>처리한 토큰 수</th>
+<th align="right">K 벡터 개수</th>
+<th align="right">V 벡터 개수</th>
+<th align="right">Head 수</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td align="right">1 × 4</td>
+<td align="right">1 × 4</td>
+<td align="right">4</td>
+</tr>
+<tr>
+<td>2</td>
+<td align="right">2 × 4</td>
+<td align="right">2 × 4</td>
+<td align="right">4</td>
+</tr>
+<tr>
+<td>3</td>
+<td align="right">3 × 4</td>
+<td align="right">3 × 4</td>
+<td align="right">4</td>
+</tr>
+</tbody></table>
+</div>
+<p>입력의 토큰도 캐시에 들어가며, 생성한 토큰도 다음 forward의 입력으로 처리될 때 그 토큰의 K/V가 계산되어 추가된다. 단순히 다음 토큰을 선택한 순간에 그 토큰의 모든 레이어 KV가 이미 생기는 것은 아니다.</p>
 <p>생성하는 문장이 길어질수록 <code>sequence</code>가 커지므로 KV Cache도 계속 커진다.</p>
 <p>또한 Transformer에는 Attention Layer가 여러 개 있다. 각 Layer가 자신만의 K와 V를 저장해야 하므로 실제로는 모든 Layer의 KV Cache가 함께 증가한다.</p>
 <pre><code class="language-text">긴 문장 생성
@@ -564,6 +587,7 @@ GQA:
 K Head 2개 + V Head 2개 저장
 </code></pre>
 <p>이 예제에서는 KV Cache의 Head 방향 크기가 절반으로 줄어든다.</p>
+<p>Q Head별 Attention 결과는 그대로 네 개다. Head 차원이 2라면 결과를 이어 붙인 토큰 벡터도 여전히 8차원이다. Projection의 가중치와 결과 Shape, 공유 후 출력이 유지되는 이유는 <a href="transformer_gqa_kv_projection_cache_learning.html">GQA는 왜 K/V Projection부터 작게 만들어야 하는가</a>에 분리했다.</p>
 <p>따라서 MHA에서 GQA로 이어지는 핵심 흐름은 다음과 같다.</p>
 <blockquote>
 <p>MHA는 Q와 같은 수의 K/V Head를 사용하므로 토큰 생성이 길어질수록 KV Cache가 크게 증가한다. GQA는 이 부담을 줄이기 위해 여러 Q Head가 더 적은 K/V Head를 공유하도록 만든 구조다.</p>

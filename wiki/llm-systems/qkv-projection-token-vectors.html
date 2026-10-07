@@ -1,0 +1,236 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/qkv-projection-token-vectors.md. Do not edit directly. source-sha256:fd63b14e329c631b6bbd638179c0b8370276e92743fb7fd5b064512daf652b7b -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="각 토큰 벡터에 서로 다른 QKV 가중치를 적용하는 과정과, 배치·토큰 위치를 유지하면서 입력별 결과가 독립적으로 만들어지는 원리를 설명한다.">
+  <meta name="source-sha256" content="fd63b14e329c631b6bbd638179c0b8370276e92743fb7fd5b064512daf652b7b">
+  <title>입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?">
+  <meta property="og:description" content="각 토큰 벡터에 서로 다른 QKV 가중치를 적용하는 과정과, 배치·토큰 위치를 유지하면서 입력별 결과가 독립적으로 만들어지는 원리를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html","name":"입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?","description":"각 토큰 벡터에 서로 다른 QKV 가중치를 적용하는 과정과, 배치·토큰 위치를 유지하면서 입력별 결과가 독립적으로 만들어지는 원리를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html"},"headline":"입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-transformer","name":"Transformer","identifier":"topics-transformer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-transformer","name":"Transformer","identifier":"transformer-transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/qkv-projection-token-vectors.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tensor-parallel-transformer-computation.html"},{"@type":"ListItem","position":6,"name":"멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html"},{"@type":"ListItem","position":7,"name":"입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/tensor-parallel-transformer-computation.html">Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/multihead-attention-column-parallel.html">멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?</h1>
+      <p class="lead">각 토큰 벡터에 서로 다른 QKV 가중치를 적용하는 과정과, 배치·토큰 위치를 유지하면서 입력별 결과가 독립적으로 만들어지는 원리를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">1. 입력에는 토큰마다 벡터 하나가 들어 있다</a>
+        <a href="#section-2-q-k-v">2. Q·K·V 프로젝션에는 각각 다른 가중치가 있다</a>
+        <a href="#section-3">3. <code>[시퀀스, 차원]</code> 입력을 세 프로젝션에 각각 넣는다</a>
+        <a href="#section-4">4. 결과의 각 행은 해당 프로젝션을 거친 토큰 벡터다</a>
+        <a href="#section-5-q-k-v">5. 배치의 각 입력은 자기 Q·K·V를 독립적으로 만든다</a>
+        <a href="#q-k-v">정리: 가중치가 적용된 토큰별 벡터가 Q·K·V다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Transformer의 입력을 <code>[배치, 시퀀스, 차원]</code>이라고 설명하면서 Q·K·V 가중치를 <code>[차원, 차원]</code>이라고 설명하면, 토큰 여러 개가 그 가중치와 어떻게 계산되는지 헷갈릴 수 있다.</p>
+<p>핵심은 다음과 같다.</p>
+<blockquote>
+<p><strong>각 토큰 벡터에 Q·K·V용 가중치를 각각 적용한다. 계산 후에도 토큰마다 행 하나가 유지되고, 그 행의 값이 Q용·K용·V용으로 변환된다. 배치에 여러 입력이 있으면 이 계산은 입력마다 독립적으로 이루어진다.</strong></p>
+</blockquote>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>1. 입력에는 토큰마다 벡터 하나가 들어 있다</h2>
+<p>입력 토큰을 벡터로 바꾼 뒤의 모양이 다음과 같다고 하자.</p>
+<pre><code class="language-css">[배치, 시퀀스 길이, 벡터 차원]
+[  2,          10,       512]
+</code></pre>
+<p>각 숫자는 다음 의미다.</p>
+<pre><code>배치 2       → 입력 시퀀스가 2개
+시퀀스 10    → 입력마다 토큰 자리가 10개
+차원 512     → 토큰 하나를 숫자 512개로 표현
+</code></pre>
+<p>배치에서 입력 하나만 꺼내 보면 <code>[10, 512]</code>다.</p>
+<pre><code class="language-css">입력 X
+
+토큰 1 → [512개의 숫자]
+토큰 2 → [512개의 숫자]
+토큰 3 → [512개의 숫자]
+  …
+토큰 10 → [512개의 숫자]
+</code></pre>
+<p>즉, <strong>행 하나가 토큰 하나의 벡터</strong>다. 토큰 자리가 10개이므로 행이 10개 있다.</p>
+<p>여기서 10은 이번 입력 텐서의 길이이지, 모델이 지원하는 최대 길이는 아니다.</p>
+
+</section>
+<section id="section-2-q-k-v" class="markdown-section">
+<h2>2. Q·K·V 프로젝션에는 각각 다른 가중치가 있다</h2>
+<p>이 입력을 Q·K·V로 바꾸는 Linear 변환을 각각 Q 프로젝션, K 프로젝션, V 프로젝션이라고 부른다.</p>
+<p>여기에는 서로 다른 가중치 세 개가 있다.</p>
+<pre><code>W_Q → 입력 벡터를 Q 벡터로 바꾸는 가중치
+W_K → 입력 벡터를 K 벡터로 바꾸는 가중치
+W_V → 입력 벡터를 V 벡터로 바꾸는 가중치
+</code></pre>
+<p>입력 차원과 Q·K·V의 출력 차원을 모두 512로 둔 예시에서는 다음과 같다.</p>
+<pre><code class="language-yaml">W_Q: [512 × 512]
+W_K: [512 × 512]
+W_V: [512 × 512]
+</code></pre>
+<p>이 글에서는 <code>입력 × 가중치</code>로 계산하도록 가중치를 <code>[입력 차원 × 출력 차원]</code> 형태로 표현한다. 실제 모델에서는 Q·K·V의 출력 차원이 서로 다를 수도 있다.</p>
+<p>여기서 <strong><code>W_Q</code>는 가중치이고, <code>Q</code>는 그 가중치를 적용해서 나온 결과</strong>다. K와 V도 마찬가지다.</p>
+<pre><code class="language-css">입력 X × 가중치 W_Q → 결과 Q
+입력 X × 가중치 W_K → 결과 K
+입력 X × 가중치 W_V → 결과 V
+</code></pre>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>3. <code>[시퀀스, 차원]</code> 입력을 세 프로젝션에 각각 넣는다</h2>
+<p>입력 하나의 모양은 <code>[10, 512]</code>이고, 가중치는 각각 <code>[512, 512]</code>다.</p>
+<p>따라서 계산은 다음처럼 이루어진다.</p>
+<pre><code class="language-css">                      ┌─ W_Q [512×512] → Q [10×512]
+입력 X [10×512] ──────┼─ W_K [512×512] → K [10×512]
+                      └─ W_V [512×512] → V [10×512]
+</code></pre>
+<p>Q를 만들고 그 Q로 K를 만드는 순서가 아니다. <strong>같은 입력 X에 서로 다른 가중치를 각각 적용</strong>한다.</p>
+<p>계산 후에도 결과는 <code>[시퀀스, 차원]</code> 형태다.</p>
+<pre><code>입력 X: [토큰 10개 × 벡터 차원 512]
+
+Q 결과: [토큰 10개 × Q 벡터 차원 512]
+K 결과: [토큰 10개 × K 벡터 차원 512]
+V 결과: [토큰 10개 × V 벡터 차원 512]
+</code></pre>
+<p>행 개수는 유지된다. 각 행에 담긴 벡터값이 달라진다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>4. 결과의 각 행은 해당 프로젝션을 거친 토큰 벡터다</h2>
+<p>입력의 첫 번째 토큰 벡터를 <code>x₁</code>이라고 하자.</p>
+<p>이 벡터에 가중치 세 개를 각각 적용하면 다음 결과가 나온다.</p>
+<pre><code class="language-css">                ┌─ W_Q와 곱함 → q₁
+토큰 1의 x₁ ────┼─ W_K와 곱함 → k₁
+                └─ W_V와 곱함 → v₁
+</code></pre>
+<p>같은 토큰에서 출발했지만, 서로 다른 가중치를 거쳤으므로 Q용·K용·V용 벡터가 만들어진다.</p>
+<p>다른 토큰에도 같은 방식으로 적용한다.</p>
+<pre><code class="language-css">입력 토큰 벡터       Q 프로젝션 결과    K 프로젝션 결과    V 프로젝션 결과
+
+x₁                  q₁                k₁                v₁
+x₂                  q₂                k₂                v₂
+x₃                  q₃                k₃                v₃
+…                   …                 …                 …
+x₁₀                 q₁₀               k₁₀               v₁₀
+</code></pre>
+<p>이 벡터들을 행으로 모아 놓은 것이 Q·K·V 행렬이다.</p>
+<pre><code class="language-css">입력 X          결과 Q          결과 K          결과 V
+
+[x₁ ]           [q₁ ]           [k₁ ]           [v₁ ]
+[x₂ ]           [q₂ ]           [k₂ ]           [v₂ ]
+[x₃ ]           [q₃ ]           [k₃ ]           [v₃ ]
+[ … ]           [ … ]           [ … ]           [ … ]
+[x₁₀]           [q₁₀]           [k₁₀]           [v₁₀]
+</code></pre>
+<p>따라서 각 행은 다음처럼 읽으면 된다.</p>
+<ul>
+<li>Q의 첫 번째 행: <strong>첫 번째 토큰 벡터가 Q 프로젝션을 거친 결과</strong></li>
+<li>K의 첫 번째 행: <strong>첫 번째 토큰 벡터가 K 프로젝션을 거친 결과</strong></li>
+<li>V의 첫 번째 행: <strong>첫 번째 토큰 벡터가 V 프로젝션을 거친 결과</strong></li>
+</ul>
+<p><code>q₁, q₂, q₃</code>라고 구분할 수 있는 이유도 이것이다. 서로 다른 시퀀스가 아니라, <strong>같은 시퀀스 안에서 토큰 위치별로 만들어진 Q 벡터</strong>다.</p>
+
+</section>
+<section id="section-5-q-k-v" class="markdown-section">
+<h2>5. 배치의 각 입력은 자기 Q·K·V를 독립적으로 만든다</h2>
+<p>배치가 2라면 입력 시퀀스가 두 개 있다는 뜻이다.</p>
+<p>각 입력에 같은 모델 가중치를 적용하지만, Q·K·V 결과는 입력마다 따로 만들어진다.</p>
+<pre><code class="language-yaml">입력 시퀀스 A: X_A [10×512]
+  ├─ W_Q 적용 → Q_A [10×512]
+  ├─ W_K 적용 → K_A [10×512]
+  └─ W_V 적용 → V_A [10×512]
+
+입력 시퀀스 B: X_B [10×512]
+  ├─ W_Q 적용 → Q_B [10×512]
+  ├─ W_K 적용 → K_B [10×512]
+  └─ W_V 적용 → V_B [10×512]
+</code></pre>
+<p><strong>독립적이라는 것은 입력마다 가중치가 따로 있다는 뜻이 아니다.</strong> 가중치는 공유하고, 입력에 따라 만들어지는 Q·K·V가 각각 존재한다는 뜻이다.</p>
+<pre><code class="language-less">공유하는 것: W_Q, W_K, W_V
+따로 만들어지는 것: 입력 A의 Q·K·V, 입력 B의 Q·K·V
+</code></pre>
+<p>이후 일반적인 Self-Attention에서도 입력 A는 A의 Q·K·V끼리, 입력 B는 B의 Q·K·V끼리 계산한다. 배치에 함께 들어 있다고 해서 A의 Q가 B의 K를 참고하는 것은 아니다.</p>
+<p>배치 전체를 하나의 텐서로 표현하면 다음과 같다.</p>
+<pre><code class="language-css">입력 X [2, 10, 512]
+          │
+          ├─ Q 프로젝션 → Q [2, 10, 512]
+          ├─ K 프로젝션 → K [2, 10, 512]
+          └─ V 프로젝션 → V [2, 10, 512]
+</code></pre>
+<p>배치와 토큰 위치는 유지되고, 각 위치의 벡터가 해당 프로젝션을 거친 값으로 바뀐다.</p>
+
+</section>
+<section id="q-k-v" class="markdown-section">
+<h2>정리: 가중치가 적용된 토큰별 벡터가 Q·K·V다</h2>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-css">입력 [배치, 시퀀스, 벡터 차원]
+  ↓
+각 입력의 토큰 벡터에 Q·K·V 가중치를 각각 적용
+  ↓
+배치와 토큰 위치를 유지한 Q·K·V 생성
+  ↓
+각 행은 해당 위치의 토큰이 프로젝션을 거친 벡터
+</code></pre>
+<p>Q·K·V 가중치는 토큰 벡터를 변환하는 행렬이고, Q·K·V 결과는 그 변환을 거친 토큰 벡터들의 모음이다.</p>
+<blockquote>
+<p><strong>입력의 각 행이 토큰 벡터였다면, Q의 각 행은 Q 프로젝션을 거친 토큰 벡터이고, K와 V의 각 행도 마찬가지다. 배치에 여러 입력이 있더라도 가중치만 공유할 뿐, 각 입력의 Q·K·V와 Attention 계산은 독립적으로 유지된다.</strong></p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

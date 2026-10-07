@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.md. Do not edit directly. source-sha256:9d7c7b6109952087692694d14e56dc57bec6cb2eed195a61d431e2e62ae55571 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="P/D의 간섭 분리 이점과 KV 전달 비용을 동일 GPU 자원의 독립 서버와 비교한다.">
+  <meta name="source-sha256" content="9d7c7b6109952087692694d14e56dc57bec6cb2eed195a61d431e2e62ae55571">
+  <title>역할 분리는 언제 이득이 되는가?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="역할 분리는 언제 이득이 되는가?">
+  <meta property="og:description" content="P/D의 간섭 분리 이점과 KV 전달 비용을 동일 GPU 자원의 독립 서버와 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html","name":"역할 분리는 언제 이득이 되는가?","description":"P/D의 간섭 분리 이점과 KV 전달 비용을 동일 GPU 자원의 독립 서버와 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html"},"headline":"역할 분리는 언제 이득이 되는가?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/performance/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html"},{"@type":"ListItem","position":5,"name":"역할 분리는 언제 이득이 되는가?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html">P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">역할 분리는 언제 이득이 되는가?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>역할 분리는 언제 이득이 되는가?</h1>
+      <p class="lead">P/D의 간섭 분리 이점과 KV 전달 비용을 동일 GPU 자원의 독립 서버와 비교한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-b2c0ef8e43">Prefill 계산이 길다는 사실만으로 충분하지 않다</a>
+        <a href="#section-861152ee0c">GPU 수와 역할 배분을 분리해서 비교한다</a>
+        <a href="#section-78a3be57d9">TPOT 개선과 전체 개선은 다른 결론이다</a>
+        <a href="#section-a027f3bec6">결과를 어디까지 일반화할 수 있는가</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>P/D 분리는 Prefill과 Decode에 서로 다른 자원 배분·처리 조건을 적용할 수 있게 한다. 하지만 Prefill 계산을 없애는 것이 아니고, 기존에 한 GPU 안에서 재사용하던 KV를 다른 곳으로 전달해야 한다. 성능 판단은 이득과 새 비용을 같이 비교하는 일이다.</p>
+</div>
+        <section id="section-b2c0ef8e43" class="markdown-section">
+<h2>Prefill 계산이 길다는 사실만으로 충분하지 않다</h2>
+<p>한 서버에서 긴 입력을 처리하는 동안 다른 요청의 토큰 생성이 영향을 받는다면 단계 분리가 도움이 될 여지가 있다. 역할별 자원 배분과 TTFT·토큰 간격의 별도 조정이 목적이 될 수 있다. <a href="https://docs.vllm.ai/en/latest/features/disagg_prefill/#why-disaggregated-prefilling" rel="noopener noreferrer">vLLM의 P/D 목적 설명</a></p>
+<p>그러나 요청 하나의 Prefill 계산 자체가 오래 걸리는 경우, 같은 GPU 성능으로 서버만 나눈다고 그 계산이 사라지지 않는다. 긴 입력은 KV 크기도 늘린다. 따라서 “Prefill이 무거우면 P/D”가 아니라 <strong>분리로 줄이는 대기·간섭이 추가 전달·조정 비용을 상쇄하는가</strong>를 봐야 한다.</p>
+<p>TTFT가 큰 경우에도 먼저 이유를 나눈다. Prefill 계산이 오래 걸린 것인지, 요청이 몰려 순서를 기다린 것인지, P/D에서는 KV 인계가 늦어진 것인지에 따라 대응이 다르다. P/D는 역할별 증설·간섭 분리를 위한 선택지이지 “TTFT가 크면 자동으로 해결하는 옵션”이 아니다.</p>
+<p>반대로 전체 처리량 최대화만 서비스의 목표일 필요도 없다. 첫 응답 시간과 생성 중 토큰 간격에 각각 허용 범위가 있다면 둘을 동시에 만족하는 처리 능력으로 비교해야 한다. 이 자료에서는 그런 서비스 목표를 정한 부하 탐색까지 수행하지 않았다.</p>
+
+</section>
+<section id="section-861152ee0c" class="markdown-section">
+<h2>GPU 수와 역할 배분을 분리해서 비교한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>한 요청이 거치는 서버</th>
+<th>비교에서 묻는 질문</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>단독 서버</td>
+<td>한 대가 입력부터 출력까지 처리</td>
+<td>기본 지연·처리량은 얼마인가?</td>
+</tr>
+<tr>
+<td>독립 서버 N개</td>
+<td>N개 중 한 대만 처리</td>
+<td>같은 자원으로 요청을 나누면 어떤가?</td>
+</tr>
+<tr>
+<td>1P·1D</td>
+<td>P 한 대를 거친 뒤 D 한 대</td>
+<td>기본 전달 비용은 얼마인가?</td>
+</tr>
+<tr>
+<td>2P·1D</td>
+<td>두 P 중 하나 → D 한 대</td>
+<td>KV 제공과 Prefill을 분산하면 어떤가?</td>
+</tr>
+<tr>
+<td>1P·2D</td>
+<td>P 한 대 → 두 D 중 하나</td>
+<td>Decode와 KV 수신을 분산하면 어떤가?</td>
+</tr>
+</tbody></table>
+</div>
+<p>P/D가 단독보다 빠르더라도 GPU 수가 더 많다면 구조 자체의 이점으로 단정할 수 없다. 같은 GPU 수의 독립 서버도 비교해야 한다. 이 환경의 동시 16개 조건에서는 독립 3개가 2P·1D보다 E2E·처리량 모두 좋았다.</p>
+<p>2P·1D가 1P·2D보다 좋았다는 관찰도 “P의 계산 능력이 부족했다”로 바로 연결하지 않는다. 당시 KV 수신 평균도 약 2.8초 차이 났다. 제공 측 집중, 전달 경합 등 가능한 설명이 있지만 어느 자원이 원인인지 직접 계측하지 않았다.</p>
+
+</section>
+<section id="section-78a3be57d9" class="markdown-section">
+<h2>TPOT 개선과 전체 개선은 다른 결론이다</h2>
+<p>별도 스트리밍 비교의 조건은 입력 673·출력 32토큰, 동시 16개, GPU 3장이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th align="right">TTFT</th>
+<th align="right">TPOT 추정</th>
+<th align="right">E2E</th>
+<th align="right">요청/초</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>독립 3개</td>
+<td align="right">303.0ms</td>
+<td align="right">41.0ms</td>
+<td align="right">1.574초</td>
+<td align="right">9.93</td>
+</tr>
+<tr>
+<td>2P·1D</td>
+<td align="right">2260.9ms</td>
+<td align="right">32.1ms</td>
+<td align="right">3.255초</td>
+<td align="right">4.71</td>
+</tr>
+</tbody></table>
+</div>
+<p>P/D는 첫 내용 이후 토큰 도착 간격이 더 짧았지만, 시작 전 대기가 커서 전체 응답은 느렸다. 토큰 생성 구간의 경쟁이 줄어든 것과 시스템 전체 처리 능력이 늘어난 것은 같은 말이 아니다.</p>
+<p>특히 <strong>동시 요청 16개가 모두 D에서 동시에 생성 중이라는 뜻은 아니다.</strong> 일부는 P 계산, 일부는 KV 수신·대기, 일부만 실제 Decode에 참여할 수 있다. 다음 설명 둘 다 관찰과 양립한다.</p>
+<ul>
+<li>D에서 Prefill 작업이 빠져 생성 간섭이 줄었을 수 있다.</li>
+<li>전달 지연 때문에 D에 도착하는 시점이 분산돼 실제 Decode 동시성이 낮아졌을 수 있다.</li>
+</ul>
+<p>실제 배치·스케줄러·전송 구간을 요청별로 연결해 추적하지 않았으므로 각 원인의 기여를 확정하지 않는다. 독립 서버가 5<del>6개씩 맡았다는 평균 분배와 P/D의 요청 16개를 비교해 “5</del>6개 Prefill+Decode가 16개 Decode보다 무겁다”고 결론내릴 수도 없다.</p>
+
+</section>
+<section id="section-a027f3bec6" class="markdown-section">
+<h2>결과를 어디까지 일반화할 수 있는가</h2>
+<p>이 자료는 고정 입력·출력 길이와 낮거나 중간 정도의 closed-loop 동시성, 한 호스트의 세 GPU에서 측정했다. 혼합 길이 요청의 tail latency, 서비스 SLO, 별도 네트워크 경로, 더 긴 출력 등의 모든 조건을 대표하지 않는다.</p>
+<p>결론은 <strong>이 조건에서는 전달 비용이 컸고, 독립 서버가 전체 지연·처리량에서 유리했다</strong>는 것이다. P/D가 항상 좋거나 항상 나쁘다는 결론은 아니다. 원본 수치와 비교 구간은 <a href="results.html">같은 조건끼리 읽는 성능 비교</a>, 측정 경계는 <a href="../transfer/metrics.html">NIXL 통계와 HTTP 시간의 경계</a>에 정리했다.</p>
+<p>답변 후반이 달라졌다는 별도 관찰도 남아 있다. 이를 단순히 부동소수점 차이로 확정하지 않는 이유와 검증 경계는 <a href="output-equivalence.html">단독과 P/D의 답변이 다르면 무엇을 확인해야 할까?</a>에 분리했다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="results.html">같은 조건끼리 읽는 성능 비교</a></li>
+<li><a href="output-equivalence.html">단독과 P/D의 답변이 다르면 무엇을 확인해야 할까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

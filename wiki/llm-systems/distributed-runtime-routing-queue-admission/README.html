@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.md. Do not edit directly. source-sha256:fac1f51c1849d801cd0145bb84605fff3b81953ef95d045ec7925585801401c5 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 모델 서버의 분배·대기·수용 제한과 취소·장애·재시도를 실제 응답으로 연결해 요청 제어의 책임을 구분한다.">
+  <meta name="source-sha256" content="fac1f51c1849d801cd0145bb84605fff3b81953ef95d045ec7925585801401c5">
+  <title>여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission">
+  <meta property="og:description" content="독립 모델 서버의 분배·대기·수용 제한과 취소·장애·재시도를 실제 응답으로 연결해 요청 제어의 책임을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html","name":"여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission","description":"독립 모델 서버의 분배·대기·수용 제한과 취소·장애·재시도를 실제 응답으로 연결해 요청 제어의 책임을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html"},"headline":"여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-routing-queue-admission/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>여러 모델 서버의 요청을 제어하는 방법: Routing·Queue·Admission</h1>
+      <p class="lead">독립 모델 서버의 분배·대기·수용 제한과 취소·장애·재시도를 실제 응답으로 연결해 요청 제어의 책임을 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">서버가 두 개여도 요청 한 건이 두 배 빨라지는 것은 아니다</a>
+        <a href="#section-2">요청을 반씩 나누는 것과 부담을 나누는 것은 다르다</a>
+        <a href="#section-3">보낼 곳을 잘 골라도 지금 처리할 자리가 없을 수 있다</a>
+        <a href="#section-4">오래 기다린 뒤 실패시킬 것인가, 처음부터 거절할 것인가</a>
+        <a href="#section-5">새 요청을 살리는 것과 진행 중 응답을 살리는 것도 다르다</a>
+        <a href="#section-6">재시도는 실패한 위치를 보고 허용해야 한다</a>
+        <a href="#section-7">요청 제어의 목적은 많이 받는 것이 아니라 유효하게 끝내는 것이다</a>
+        <a href="#section-8">문서 구조</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>모델 서버가 여러 개라면 요청을 나눠 처리할 수 있다. 하지만 서버 수가 늘었다고 해서 요청이 항상 빨라지거나, 몰려드는 요청을 모두 받아도 되거나, 처리 중인 응답이 장애에서 살아남는 것은 아니다.</p>
+<p>긴 생성을 처리하는 서버와 한가한 서버를 어떻게 구분할지, 모두 바쁠 때 얼마나 기다리게 할지, 더 받지 않을 요청은 무엇인지가 남는다. 응답 도중 사용자가 떠나거나 서버가 중단될 때도 이미 진행 중인 요청과 새 요청을 구분해야 한다.</p>
+<p><strong>서버를 늘리는 것은 처리 자원을 늘리는 일이고, Routing·Queue·Admission은 그 자원에 요청을 어떻게 배분하고 수용할지 정하는 일이다.</strong> 여기에 취소와 실패 처리가 연결되어야 요청의 시작부터 끝까지 설명할 수 있다.</p>
+<p>이를 구체적으로 보기 위해 같은 모델을 실행하는 vLLM 서버 A·B와 공통 입구인 HAProxy를 생각해 보자. 프록시는 요청을 받아 목적지를 고르고 전달하며, 선택된 vLLM 서버는 실제 토큰을 생성한다. 아래 설명은 이 구성에서 관찰한 결과를 따라 각 제어가 왜 필요한지 풀어낸다.</p>
+<pre><code class="language-text">클라이언트 → 공통 입구 HAProxy → vLLM 서버 A
+                            └→ vLLM 서버 B
+</code></pre>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>서버가 두 개여도 요청 한 건이 두 배 빨라지는 것은 아니다</h2>
+<p>독립 모델 서버 두 개는 각각 다른 요청을 처리한다. 하나의 요청 계산을 두 GPU에 나누는 Tensor Parallel과는 다른 구성이다. 요청이 적으면 서버 하나도 배치로 처리할 여지가 있어, 서버를 추가한 효과가 작게 나타날 수 있다.</p>
+<p>A40 두 장에서 같은 모델의 독립 서버를 하나씩 실행한 검증 예시에서도, 전체 동시 요청이 8개일 때 두 서버의 출력 처리량은 한 서버와 거의 같았다. 동시 요청을 128개로 높이자 두 서버의 출력 처리량은 약 19.7% 높고 평균 응답 완료 시간은 약 16.6% 짧았다. 차이는 커졌지만 두 배가 되지는 않았다.</p>
+<p>따라서 먼저 필요한 질문은 “GPU가 몇 개인가”보다 <strong>같은 요청 조건에서 처리 자원을 어떻게 이용하고 있는가</strong>다. 조건별 수치와 독립 Replica의 의미는 <a href="routing/replicas.html">모델 서버를 두 개로 늘려도 처리량이 두 배가 되지 않는 이유</a>에서 설명한다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>요청을 반씩 나누는 것과 부담을 나누는 것은 다르다</h2>
+<p>요청 수가 같아도 긴 출력이 남은 요청과 곧 끝날 요청의 부담은 다르다. 순서대로 번갈아 보내는 정책은 목적지를 고르게 선택할 수 있지만, 각 서버에 아직 남아 있는 작업까지 같게 만들지는 않는다.</p>
+<p>서버 A에 긴 요청 64개를 남겨 두고 B는 한가하게 만든 예시에서, Round Robin은 새 일반 요청 16개를 A·B에 8개씩 보냈다. A로 간 일반 요청은 평균 4.367초, B로 간 요청은 3.241초가 걸렸다. 반씩 보내는 동안에도 A의 부담은 더 컸던 것이다.</p>
+<p>활성 연결 수를 활용하는 Least Connections로 바꾸자 같은 조건의 일반 요청 16개가 모두 B로 갔고 평균 3.302초에 완료됐다. <strong>서버를 더 추가한 것이 아니라, 기존 두 서버 중 무엇을 보고 고를지 바꾼 결과</strong>다. Round Robin은 차례를 순환하고, Least Connections는 현재 연결 부하를 선택에 반영한다.</p>
+<p>이 차이가 Routing의 역할이다. 다만 연결 수 역시 GPU 작업량 그 자체는 아니다. 정책이 보는 신호와 관측 결과의 관계는 <a href="routing/README.html">Round Robin은 요청을 반씩 보내는데 왜 부하는 같아지지 않을까?</a>에서 다룬다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>보낼 곳을 잘 골라도 지금 처리할 자리가 없을 수 있다</h2>
+<p>두 서버 모두 전달 한도에 도달했다면 목적지 선택만으로 새 자리를 만들 수 없다. 이때 요청을 보관했다가 자리가 나면 넘기는 것이 Queue의 역할이다.</p>
+<p>이를 관찰하기 위해 프록시가 서버당 두 연결만 전달하도록 의도적으로 제한하고 요청 12개를 동시에 보냈다. 네 요청이 서버에서 처리되는 동안 나머지 여덟 요청은 HAProxy에서 기다렸다. 이것은 GPU가 원래 두 요청밖에 못 받는다는 의미가 아니라 대기를 드러내기 위한 통제 조건이다.</p>
+<p>같은 크기의 요청들이 약 3.2초, 6.4초, 9.6초에 네 개씩 완료됐다. 나중 요청의 지연에는 앞 요청이 끝나기를 기다린 시간이 포함되어 있었다. <strong>Queue는 순간적인 유입을 보관하지만 처리 능력을 늘리거나 기다린 시간을 없애 주지는 않는다.</strong> 또한 HAProxy에 아직 머무는 요청과 vLLM에 전달된 뒤 엔진 내부에서 기다리는 요청은 위치가 다르다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>오래 기다린 뒤 실패시킬 것인가, 처음부터 거절할 것인가</h2>
+<p>대기 기한을 1초로 줄이자 자리를 얻은 네 요청은 약 3.2초에 완료됐고, 나머지 여덟 요청은 약 1초 뒤 503으로 실패했다. 이 1초는 전체 생성 시간이 아니라 <strong>서버에 전달할 자리를 기다리는 기한</strong>이다. 이미 전달된 요청은 1초보다 오래 생성해도 완료할 수 있었다.</p>
+<p>다른 선택은 입구에서 더 받을 요청을 제한하는 것이다. 연결 한도와 Queue 제한을 제거하고 최근 IP별 유입량으로 수용 여부를 정한 예시에서는, 제한을 넘은 여덟 요청이 약 1~2ms에 429로 거절됐다. 이것이 Admission의 한 형태다. 모델의 메모리를 직접 확인한 정책은 아니며, 정한 유입량 기준으로 거절한 것이다.</p>
+<p>계속 기다리게 할 수 없다면 대기 기한을 정해야 하고, 유입 자체를 줄여야 한다면 받아들이기 전에 거절하는 Admission이 필요하다. <strong>대기 후 실패시키는 것과 입구에서 바로 거절하는 것은 성공 개수가 같더라도 다른 정책</strong>이다. 이 경계는 <a href="capacity/README.html">요청을 기다리게 하는 것과 처음부터 거절하는 것은 어떻게 다를까?</a>에서 연결한다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>새 요청을 살리는 것과 진행 중 응답을 살리는 것도 다르다</h2>
+<p>요청을 받아 처리하기 시작했다고 해서 끝까지 성공한 것은 아니다. 사용자가 연결을 닫았는데 엔진이 계속 생성한다면 더 이상 필요 없는 응답에 자원이 소비된다. 긴 Streaming 요청의 연결을 닫은 예시에서는 선택된 서버의 활성 요청 수가 1에서 0으로 바뀌었다. 클라이언트가 떠났다는 사실뿐 아니라 엔진에서도 작업이 빠졌는지를 본 것이다.</p>
+<p>서버 자체를 중단하면 다른 문제가 생긴다. A가 첫 내용을 보낸 뒤 중단된 예시에서는 기존 Streaming 응답이 정상 종료되지 않았다. 하지만 Health Check가 A를 장애 후보로 제외한 뒤에는 새 요청 네 개가 모두 B에서 완료됐다. A가 다시 준비된 뒤에는 A·B 모두 새 요청을 받았다.</p>
+<p><strong>새 요청이 계속 처리됐다는 사실이 이미 끊긴 응답까지 복구됐다는 뜻은 아니다.</strong> 후보를 갱신하는 것과 기존 생성 상태를 옮기는 것은 다르기 때문이다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>재시도는 실패한 위치를 보고 허용해야 한다</h2>
+<p>서버에 연결조차 못한 요청은 다른 정상 후보로 다시 보낼 수 있다. 실패하는 주소와 정상 서버 B를 후보로 둔 비교에서, 재시도를 끄면 네 요청 중 두 개가 실패했고 연결 실패 후 재분배를 허용하면 네 요청 모두 B에서 완료됐다.</p>
+<p>그러나 이미 생성 중인 요청을 다시 보내면 중복 처리가 생길 수 있고, 새 생성은 끊긴 생성의 연속이 아니다. 따라서 재시도 대상 오류와 횟수를 제한해야 한다. 취소·장애·재시도를 요청의 상태별로 구분한 근거는 <a href="failure/README.html">새 요청을 계속 받는 것과 기존 응답을 복구하는 것은 왜 다를까?</a>에 정리한다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>요청 제어의 목적은 많이 받는 것이 아니라 유효하게 끝내는 것이다</h2>
+<p>Routing은 처리할 후보를 고르고, Queue는 지금 못 넘기는 요청을 기다리게 하며, Admission은 더 받아들일지를 정한다. 취소·장애·재시도 정책은 진행 중이거나 실패한 요청의 다음 상태를 정한다. 하나의 좋은 분배 알고리즘이 나머지를 대신하지는 않는다.</p>
+<p>성공 수와 지연, 거절과 실패를 함께 봐야 하는 이유도 여기에 있다. 모든 요청을 언젠가 완료해도 사용자가 기다릴 수 있는 시간을 넘으면 충분한 서비스가 아닐 수 있다. 그렇다고 빠르게 거절한 요청을 빠르게 처리한 성공으로 세어서도 안 된다.</p>
+<p>이 관계는 HAProxy와 실제 vLLM 서버 두 개로 관찰한 요청 제어의 원리다. EPP 선택 정책의 우열이나 TP·P/D의 성능을 검증한 결과는 아니다. 실행 구성과 근거의 범위는 <a href="validation/README.html">두 독립 vLLM 서버로 요청 제어를 검증한 구성과 근거</a>에서 확인할 수 있다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>문서 구조</h2>
+<p>본문의 흐름을 보충하는 설명과 구현 세부사항을 다음처럼 분리했다.</p>
+<ul>
+<li><a href="routing/README.html">Round Robin은 요청을 반씩 보내는데 왜 부하는 같아지지 않을까?</a><ul>
+<li><a href="routing/replicas.html">모델 서버를 두 개로 늘려도 처리량이 두 배가 되지 않는 이유</a></li>
+<li><a href="routing/forced-target.html">한 서버에만 부하를 주어 라우팅 정책을 비교하는 방법</a></li>
+</ul>
+</li>
+<li><a href="capacity/README.html">요청을 기다리게 하는 것과 처음부터 거절하는 것은 어떻게 다를까?</a><ul>
+<li><a href="capacity/queue-config.html">HAProxy의 서버별 연결 한도와 대기 기한은 무엇을 제한할까?</a></li>
+<li><a href="capacity/rate-limit.html">HAProxy에서 IP별 유입량을 제한하고 429를 반환하는 방법</a></li>
+<li><a href="capacity/outcomes.html">성공 수와 평균 시간만으로 요청 처리 정책을 평가할 수 없는 이유</a></li>
+</ul>
+</li>
+<li><a href="failure/README.html">새 요청을 계속 받는 것과 기존 응답을 복구하는 것은 왜 다를까?</a><ul>
+<li><a href="failure/cancellation.html">클라이언트 연결을 닫으면 모델의 생성도 중단될까?</a></li>
+<li><a href="failure/health-checks.html">Health Check는 고장 난 서버를 빼고 복구한 서버를 어떻게 다시 넣을까?</a></li>
+<li><a href="failure/retries.html">연결 실패를 재시도로 복구하는 것과 생성을 이어가는 것은 다르다</a><ul>
+<li><a href="failure/retry-counters.html">재시도 카운터가 0인데 다른 서버로 재분배된 이유</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="haproxy/README.html">HAProxy 설정은 입구와 목적지, 관측 경로를 어떻게 연결할까?</a><ul>
+<li><a href="haproxy/reload.html">HAProxy 설정을 바꾸면서 처리 중인 연결을 유지하는 방법</a><ul>
+<li><a href="haproxy/process-lifetime.html">데몬화와 셸 백그라운드 실행은 어떻게 다를까?</a></li>
+</ul>
+</li>
+<li><a href="haproxy/runtime-socket.html">포트에 문자열을 보내면 서버가 명령으로 이해하는 이유</a></li>
+<li><a href="haproxy/gateway-epp.html">HAProxy와 Gateway·EPP는 어떤 역할이 같고 다를까?</a></li>
+</ul>
+</li>
+<li><a href="validation/README.html">두 독립 vLLM 서버로 요청 제어를 검증한 구성과 근거</a></li>
+</ul>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="routing/README.html">Round Robin은 요청을 반씩 보내는데 왜 부하는 같아지지 않을까?</a><ul><li><a href="routing/replicas.html">모델 서버를 두 개로 늘려도 처리량이 두 배가 되지 않는 이유</a></li>
+<li><a href="routing/forced-target.html">한 서버에만 부하를 주어 라우팅 정책을 비교하는 방법</a></li></ul></li>
+<li><a href="capacity/README.html">요청을 기다리게 하는 것과 처음부터 거절하는 것은 어떻게 다를까?</a><ul><li><a href="capacity/queue-config.html">HAProxy의 서버별 연결 한도와 대기 기한은 무엇을 제한할까?</a></li>
+<li><a href="capacity/rate-limit.html">HAProxy에서 IP별 유입량을 제한하고 429를 반환하는 방법</a></li>
+<li><a href="capacity/outcomes.html">성공 수와 평균 시간만으로 요청 처리 정책을 평가할 수 없는 이유</a></li></ul></li>
+<li><a href="failure/README.html">새 요청을 계속 받는 것과 기존 응답을 복구하는 것은 왜 다를까?</a><ul><li><a href="failure/cancellation.html">클라이언트 연결을 닫으면 모델의 생성도 중단될까?</a></li>
+<li><a href="failure/health-checks.html">Health Check는 고장 난 서버를 빼고 복구한 서버를 어떻게 다시 넣을까?</a></li>
+<li><a href="failure/retries.html">연결 실패를 재시도로 복구하는 것과 생성을 이어가는 것은 다르다</a><ul><li><a href="failure/retry-counters.html">재시도 카운터가 0인데 다른 서버로 재분배된 이유</a></li></ul></li></ul></li>
+<li><a href="haproxy/README.html">HAProxy 설정은 입구와 목적지, 관측 경로를 어떻게 연결할까?</a><ul><li><a href="haproxy/reload.html">HAProxy 설정을 바꾸면서 처리 중인 연결을 유지하는 방법</a><ul><li><a href="haproxy/process-lifetime.html">데몬화와 셸 백그라운드 실행은 어떻게 다를까?</a></li></ul></li>
+<li><a href="haproxy/runtime-socket.html">포트에 문자열을 보내면 서버가 명령으로 이해하는 이유</a></li>
+<li><a href="haproxy/gateway-epp.html">HAProxy와 Gateway·EPP는 어떤 역할이 같고 다를까?</a></li></ul></li>
+<li><a href="validation/README.html">두 독립 vLLM 서버로 요청 제어를 검증한 구성과 근거</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

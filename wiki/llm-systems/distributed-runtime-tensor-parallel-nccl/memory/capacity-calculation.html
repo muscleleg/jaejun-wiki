@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.md. Do not edit directly. source-sha256:1fe2f4bc912da92e9225a0a6f50c6e15a096db43388ada9c99fd646db36443e5 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="KV 예산 증가와 GPU당 토큰 크기 감소를 연결하고 캐시 토큰 용량·동시 수용량·처리량을 구분한다.">
+  <meta name="source-sha256" content="1fe2f4bc912da92e9225a0a6f50c6e15a096db43388ada9c99fd646db36443e5">
+  <title>KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KV 토큰 용량은 왜 두 배보다 많이 늘었을까?">
+  <meta property="og:description" content="KV 예산 증가와 GPU당 토큰 크기 감소를 연결하고 캐시 토큰 용량·동시 수용량·처리량을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html","name":"KV 토큰 용량은 왜 두 배보다 많이 늘었을까?","description":"KV 예산 증가와 GPU당 토큰 크기 감소를 연결하고 캐시 토큰 용량·동시 수용량·처리량을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html"},"headline":"KV 토큰 용량은 왜 두 배보다 많이 늘었을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-model-memory","name":"모델 메모리","identifier":"topics-model-memory"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/capacity-calculation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html"},{"@type":"ListItem","position":6,"name":"KV 토큰 용량은 왜 두 배보다 많이 늘었을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</h1>
+      <p class="lead">KV 예산 증가와 GPU당 토큰 크기 감소를 연결하고 캐시 토큰 용량·동시 수용량·처리량을 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">캐시 공간과 토큰당 크기를 함께 본다</a>
+        <a href="#section-02">엔진의 토큰 용량을 GPU별 용량처럼 다시 더하지 않는다</a>
+        <a href="#section-03">Maximum concurrency는 속도가 아니라 용량 관점의 추정이다</a>
+        <a href="#section-04">용량 증가와 처리량 증가를 구분한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>TP=2에서는 모델을 나눠 GPU당 KV용 공간이 늘 수 있고, KV Head도 나눠 토큰 하나에 필요한 GPU당 KV 메모리가 줄 수 있습니다. 두 효과가 함께 나타나면 <strong>KV 토큰 용량이 단순히 GPU 수만큼만 늘어나는 것은 아닙니다.</strong></p>
+<p>이 문서는 A40 TP=1·2 로그의 용량 수치와 그 해석 범위를 설명합니다. 처리 속도나 최대 처리량을 계산하는 문서는 아닙니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>캐시 공간과 토큰당 크기를 함께 본다</h2>
+<p>일반적인 Attention의 KV 텐서 본체를 단순화하면, GPU당 한 토큰의 KV 바이트는 다음 요소에 비례합니다.</p>
+<pre><code class="language-text">KV를 저장하는 레이어 수
+× GPU가 담당하는 KV Head 수
+× Head 차원
+× K와 V 두 개
+× 원소당 바이트
+</code></pre>
+<p>이 식은 메타데이터·블록 정렬·구현별 캐시 구성을 생략한 개념식입니다. 모델과 KV 정밀도를 그대로 두고 KV Head를 균등하게 반씩 맡는다면, GPU당 한 토큰의 KV 크기도 대략 절반이 됩니다.</p>
+<p>동시에 모델 로딩 메모리가 줄어 KV에 사용할 수 있는 공간이 18.40GiB에서 26.44GiB로 늘었습니다. 이 조건을 단순화하면 다음 비율이 됩니다.</p>
+<pre><code class="language-text">캐시 예산 증가:         26.44 / 18.40 ≈ 1.44배
+토큰당 KV 크기 감소:    약 1/2 → 같은 공간의 토큰 수 약 2배
+두 효과를 함께 적용:    약 1.44 × 2 ≈ 2.87배
+</code></pre>
+<p>실제 로그도 <code>385,072 / 134,016 ≈ 2.87</code>의 비율을 보였습니다. 수치는 블록 단위 할당 등에 영향을 받으므로 개념식을 바이트 단위의 정확한 할당 복원으로 취급하지 않습니다.</p>
+<p>KV Head 복제가 필요한 구성이나 다른 모델의 캐시 구조에서는 같은 비율이 성립하지 않을 수 있습니다. 모델·TP 크기·KV 구성에 맞춰 판단해야 합니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>엔진의 토큰 용량을 GPU별 용량처럼 다시 더하지 않는다</h2>
+<p>로그의 TP=2 <code>GPU KV cache size: 385,072 tokens</code>는 이 TP 엔진이 해당 분할 구성에서 수용할 수 있는 토큰 슬롯 수입니다. GPU 0과 GPU 1이 각각 독립적으로 385,072토큰을 처리한다는 뜻이 아닙니다.</p>
+<p>같은 토큰의 다른 KV 조각이 각 GPU에 있으므로 양쪽 공간이 함께 필요합니다. 이 수치에 GPU 수 2를 다시 곱해 엔진 용량을 770,144토큰이라고 계산하면 안 됩니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Maximum concurrency는 속도가 아니라 용량 관점의 추정이다</h2>
+<p>로그에는 다음 수치가 함께 나타났습니다.</p>
+<pre><code class="language-text">TP=1: 134,016 tokens / 4,096 tokens ≈ 32.72x
+TP=2: 385,072 tokens / 4,096 tokens ≈ 94.01x
+</code></pre>
+<p>이는 요청마다 4,096토큰의 KV 공간이 필요하다고 볼 때의 용량 추정입니다. 요청 94개를 원하는 지연 안에 처리한다는 보장이 아닙니다. 실제 처리 참여 수는 스케줄러 상한·토큰 예산·다른 실행 조건의 영향도 받습니다.</p>
+<p>또한 94.01x는 현재 94개 요청이 실행 중이라는 관측값도 아닙니다. 현재 부하는 Running·Waiting 같은 별도 지표와 응답 시간을 함께 봐야 합니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>용량 증가와 처리량 증가를 구분한다</h2>
+<p>이 구성에서 KV 토큰 용량은 약 2.87배, 동시 요청 8개 조건의 출력 처리량은 약 1.70배였습니다. 둘은 모순이 아닙니다. 캐시가 얼마나 많은 토큰 상태를 담을 수 있는지와 단위 시간에 얼마나 많은 토큰을 계산하는지는 다른 질문이기 때문입니다.</p>
+<p>로그 원본은 TP=1〔비공개 보존 자료〕과 TP=2〔비공개 보존 자료〕에 있습니다. 캐시가 저장하는 조각의 그림은 <a href="README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a>, 성능 비교는 <a href="../performance/README.html">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</a>에 있습니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

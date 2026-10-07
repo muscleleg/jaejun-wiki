@@ -1,0 +1,147 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.md. Do not edit directly. source-sha256:59d51ae6b1baca7c80170103a7a0e4837d4ae10739aa95851ec5a7f4df7d3168 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HTTP 응답과 전송 메트릭으로 원격 KV 사용 및 전달 비용을 각각 검증한다.">
+  <meta name="source-sha256" content="59d51ae6b1baca7c80170103a7a0e4837d4ae10739aa95851ec5a7f4df7d3168">
+  <title>KV 전달을 어떻게 측정할까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="KV 전달을 어떻게 측정할까?">
+  <meta property="og:description" content="HTTP 응답과 전송 메트릭으로 원격 KV 사용 및 전달 비용을 각각 검증한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html","name":"KV 전달을 어떻게 측정할까?","description":"HTTP 응답과 전송 메트릭으로 원격 KV 사용 및 전달 비용을 각각 검증한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html"},"headline":"KV 전달을 어떻게 측정할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/transfer/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html"},{"@type":"ListItem","position":5,"name":"KV 전달을 어떻게 측정할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html">P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">KV 전달을 어떻게 측정할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>KV 전달을 어떻게 측정할까?</h1>
+      <p class="lead">HTTP 응답과 전송 메트릭으로 원격 KV 사용 및 전달 비용을 각각 검증한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-645b33fc6b">Connector·라이브러리·전송 경로를 구분한다</a>
+        <a href="#section-02bc03fd19">사용 여부는 요청 전후 차이로 확인한다</a>
+        <a href="#section-07ab8669d8">입력이 길면 계산뿐 아니라 전달 상태도 커진다</a>
+        <a href="#section-2c2fa5afc0">시간을 읽을 때 측정 경계를 먼저 본다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>P/D에서는 Prefill이 만든 각 레이어의 K·V를 Decode가 사용할 수 있어야 한다. 그런데 답변이 정상이라는 사실만으로는 원격 KV 사용과 로컬 재계산을 구분할 수 없고, 전송이 성공했다는 사실만으로는 비용을 알 수 없다. 기능과 비용을 각각 관찰해야 한다.</p>
+</div>
+        <section id="section-645b33fc6b" class="markdown-section">
+<h2>Connector·라이브러리·전송 경로를 구분한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>계층</th>
+<th>역할</th>
+<th>예시</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>vLLM KV Connector</td>
+<td>요청·캐시 블록과 외부 전달을 연결</td>
+<td><code>NixlConnector</code></td>
+</tr>
+<tr>
+<td>전송 라이브러리</td>
+<td>데이터 이동을 요청하고 완료 상태를 다룸</td>
+<td>NIXL</td>
+</tr>
+<tr>
+<td>전송 backend</td>
+<td>사용 가능한 전달 기능을 제공</td>
+<td>관찰 환경의 UCX</td>
+</tr>
+<tr>
+<td>실제 데이터 경로</td>
+<td>하드웨어와 메모리를 거쳐 데이터 이동</td>
+<td>PCIe·NVLink, 직접 접근 또는 호스트 메모리 경유 등</td>
+</tr>
+</tbody></table>
+</div>
+<p>NIXL이라는 이름이 특정 물리 경로를 뜻하지는 않는다. 설치 환경에서 UCX backend와 CUDA KV buffer를 확인했지만, 그것만으로 실제 전송이 어느 길을 사용했는지 확정할 수 없다. <code>nvidia-smi topo -m</code>의 PHB·NODE도 연결 구조이지 실제 전송 trace가 아니다. <a href="https://github.com/ai-dynamo/nixl" rel="noopener noreferrer">NIXL 프로젝트</a>, <a href="https://docs.nvidia.com/nixl/user-guide/backend-selection/ucx/" rel="noopener noreferrer">UCX backend 설명</a></p>
+<p>NCCL AllReduce 실습은 여러 참여자의 부분 결과를 합치는 연산을 다뤘다. 여기서는 다른 서버가 이미 만든 KV를 가져와 재사용한다. 둘 다 데이터 이동을 수반하지만 목적과 요청 흐름은 다르며, 이번 코드의 KV 전달을 NCCL AllReduce라고 부르지 않는다.</p>
+<p>패키지 설치, Python 바인딩, side channel과 실제 GPU 데이터 경로의 차이는 <a href="library-and-paths.html">NIXL 설치와 KV가 실제로 이동하는 경로는 다른 문제다</a>에서 설명한다.</p>
+
+</section>
+<section id="section-02bc03fd19" class="markdown-section">
+<h2>사용 여부는 요청 전후 차이로 확인한다</h2>
+<p>요청이 없는 상태에서 D의 메트릭을 읽고, 새 P 요청으로 KV를 준비한 뒤 D 요청을 보낸다. 완료 후 같은 메트릭을 다시 읽는다.</p>
+<p>관찰된 단일 요청에서는 전송 +1건, 96.75 MiB, 외부 KV 입력 +673토큰, 실패 +0건이었다. HTTP 200·출력 32토큰과 함께 보면 실제 수신·사용의 근거가 된다. P가 메타데이터를 반환한 시점만으로 전송 완료를 판정해서는 안 된다.</p>
+<p>이 Pull 구성에서 사용한 전송 완료 건수·시간은 수신 D 측에서 관측했다. 따라서 D에 요청하기 전과 후를 비교한다. 이것을 “보내는 서버에는 어떠한 기록도 없다”는 뜻으로 확대하지 않는다.</p>
+
+</section>
+<section id="section-07ab8669d8" class="markdown-section">
+<h2>입력이 길면 계산뿐 아니라 전달 상태도 커진다</h2>
+<p>같은 모델·KV dtype에서 입력 토큰이 늘면 저장할 K·V도 늘어난다. 예시 모델은 토큰당 전체 레이어 KV가 144 KiB다. 673토큰의 논리량은 94.64 MiB지만 블록 단위 전달량은 96.75 MiB였다.</p>
+<p>이 차이는 토큰 수와 메모리 할당 단위가 다르기 때문이다. <a href="kv-size.html">KV 크기와 블록 단위 전송량</a>에서 모델 구조와 블록 계산을 분리한다.</p>
+
+</section>
+<section id="section-2c2fa5afc0" class="markdown-section">
+<h2>시간을 읽을 때 측정 경계를 먼저 본다</h2>
+<p>Decode HTTP 구간은 KV 준비·수신·대기·생성과 응답을 포함한다. NIXL 전송 시간은 그 안에서 다른 기준으로 수집되는 통계다. 둘을 더하면 일부 시간을 중복 계산할 수 있다.</p>
+<p>동시 전송들의 개별 시간을 합하면 실제 실험 경과 시간보다 커질 수 있다. 따라서 20건의 전송 합계가 14초라는 관찰을 “사용자가 14초 동안 전송만 기다렸다”고 읽지 않는다. 정확한 집계식과 지표 이름은 <a href="metrics.html">NIXL 통계와 HTTP 시간의 경계</a>에 정리했다.</p>
+<p>현재 자료는 <strong>얼마를 옮겼고 어느 정도 지연을 관찰했는지</strong>까지 설명한다. 어느 링크·메모리·큐가 그 지연을 만들었는지는 추가 계측 없이 특정하지 않는다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="library-and-paths.html">NIXL 설치와 KV가 실제로 이동하는 경로는 다른 문제다</a></li>
+<li><a href="kv-size.html">KV 크기와 블록 단위 전송량</a><ul><li><a href="gqa-kv-size.html">GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</a></li></ul></li>
+<li><a href="metrics.html">NIXL 통계와 HTTP 시간의 경계</a><ul><li><a href="effective-throughput.html">KV 전송 유효 처리량: 개별 전송 속도와 전체 처리량의 차이</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

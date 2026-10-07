@@ -1,0 +1,146 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.md. Do not edit directly. source-sha256:65460906cc5b1bb2e9b844dd1719bb57ebc2ff0ec23d1cf49bd18817e72090ef -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Attention의 QKV·출력 투영과 FFN의 gate/up·down에서 Column·Row가 연결되는 원리를 설명한다.">
+  <meta name="source-sha256" content="65460906cc5b1bb2e9b844dd1719bb57ebc2ff0ec23d1cf49bd18817e72090ef">
+  <title>Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?">
+  <meta property="og:description" content="Attention의 QKV·출력 투영과 FFN의 gate/up·down에서 Column·Row가 연결되는 원리를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html","name":"Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?","description":"Attention의 QKV·출력 투영과 FFN의 gate/up·down에서 Column·Row가 연결되는 원리를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html"},"headline":"Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-multi-head-attention","name":"Multi-Head","identifier":"topics-multi-head-attention"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-ffn","name":"FFN","identifier":"topics-ffn"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/attention-ffn.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"Column과 Row는 무엇을 나누고 어떻게 연결될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/README.html"},{"@type":"ListItem","position":6,"name":"Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/README.html">Column과 Row는 무엇을 나누고 어떻게 연결될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</h1>
+      <p class="lead">Attention의 QKV·출력 투영과 FFN의 gate/up·down에서 Column·Row가 연결되는 원리를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">QKV 전체를 먼저 만든 다음 옮길 필요는 없다</a>
+        <a href="#section-02">Head 안에서는 자기 Q·K·V로 Attention을 계산한다</a>
+        <a href="#section-03">출력 투영에서 Head들의 기여를 결합한다</a>
+        <a href="#section-04">FFN도 출력 차원을 나눠 계산할 수 있다</a>
+        <a href="#section-05">작은 예제와 실제 엔진을 연결하는 근거</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Transformer 레이어에는 토큰 사이의 정보를 참조하는 Attention과, 그 결과 벡터를 가공하는 FFN이 있습니다. TP는 레이어 전체를 GPU별로 하나씩 넘기는 방식이 아니라 <strong>레이어 안의 행렬 계산을 여러 GPU가 분담</strong>하게 합니다.</p>
+<p>핵심은 각 GPU가 자기 조각으로 중간 계산을 이어가고, 다른 Head·차원의 기여가 필요한 위치에서 결과를 합치는 것입니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>QKV 전체를 먼저 만든 다음 옮길 필요는 없다</h2>
+<p>수학적으로 Q는 <code>X @ W_Q</code>입니다. W_Q의 특정 열들이 특정 Head의 Q 차원을 만듭니다. 따라서 그 열만 가진 GPU는 전체 입력 X로 담당 Head의 Q를 직접 만들 수 있습니다. K·V 가중치도 같은 원리로 나눌 수 있습니다.</p>
+<pre><code class="language-text">                     같은 입력 X
+                  ↙              ↘
+GPU 0: Head 0용 W_Q·W_K·W_V      GPU 1: Head 1용 W_Q·W_K·W_V
+                  ↓              ↓
+         Head 0의 Q·K·V          Head 1의 Q·K·V
+</code></pre>
+<p>“전체 QKV를 계산한 다음 자른다”는 수학적 설명과 “담당 가중치만으로 처음부터 조각을 계산한다”는 분산 실행을 구분할 수 있습니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>Head 안에서는 자기 Q·K·V로 Attention을 계산한다</h2>
+<p>토큰 2개, Head 차원 2인 단순 MHA라면 각 GPU의 계산 크기는 다음과 같습니다.</p>
+<pre><code class="language-text">Q_head [2×2] @ K_headᵀ [2×2] → 점수 [2×2]
+스케일 조정·causal mask·softmax → Attention 가중치 [2×2]
+Attention 가중치 [2×2] @ V_head [2×2] → Head 출력 [2×2]
+</code></pre>
+<p>점수 행렬의 행은 질문하는 토큰, 열은 참조하는 토큰입니다. Q·K·V 모두 같은 Head의 조각을 쓰므로 곱의 차원이 맞습니다. Head 0의 Q에 전체 K의 전치를 곱하는 구조가 아닙니다.</p>
+<p>노트북 15번은 이 과정을 두 GPU에서 실행했습니다. 첫 토큰의 Attention 가중치는 <code>[1, 0]</code>이었는데, 미래의 두 번째 토큰을 causal mask로 가렸기 때문입니다. 두 번째 토큰은 두 토큰을 참조했고 Head별 가중치는 달랐습니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>출력 투영에서 Head들의 기여를 결합한다</h2>
+<p>Head별 계산은 독립적으로 진행할 수 있지만 Attention 블록의 출력은 여러 Head 정보를 섞어 만듭니다. 이를 담당하는 가중치가 W_O입니다.</p>
+<p>전체 계산을 쓰면 <code>[H₀ | H₁] @ W_O</code>입니다. H₀와 H₁을 한곳에 모으는 대신 W_O의 대응 행을 나누면 다음처럼 계산할 수 있습니다.</p>
+<pre><code class="language-text">GPU 0: H₀ @ W_O 위쪽 행 → 전체 출력에 대한 부분 기여
+GPU 1: H₁ @ W_O 아래쪽 행 → 전체 출력에 대한 부분 기여
+                     ↓ 같은 위치를 AllReduce SUM
+                   완성된 Attention 출력
+</code></pre>
+<p>실제 작은 예제에서 첫 토큰의 부분 기여는 다음과 같았습니다.</p>
+<pre><code class="language-text">GPU 0: [1.5, 0.625, 1.5, 0.625]
+GPU 1: [1.0, 1.000, 1.0, 1.000]
+합산:  [2.5, 1.625, 2.5, 1.625]
+</code></pre>
+<p>양쪽 Rank의 최종 값은 분산하지 않은 Attention 기준 계산과 일치했고, 최대 절대 오차는 약 <code>0.00000024</code>였습니다. <strong>Head 출력 자체를 더한 것이 아니라 W_O를 적용한 부분 결과를 더했습니다.</strong></p>
+<p>이것은 설명용 표준 MHA의 수치적 검증입니다. 실제 Qwen의 GQA, Q/K 정규화, RoPE, KV Cache 전체까지 구현한 검증은 아닙니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>FFN도 출력 차원을 나눠 계산할 수 있다</h2>
+<p>FFN은 Attention의 Head가 아니라 토큰 벡터의 중간 차원을 나눕니다. 확인한 Qwen3 구현은 다음 순서입니다.</p>
+<pre><code class="language-text">입력 토큰 벡터
+ → gate와 up 투영: Column 분할
+ → 담당 gate/up 조각의 활성화·곱셈
+ → down 투영: Row 분할
+ → 부분 결과 합산
+</code></pre>
+<p>각 GPU에 대응하는 gate와 up 조각이 함께 있으면 중간 가공을 로컬에서 이어갈 수 있습니다. 그 결과가 down 투영의 Row 입력 조각이 됩니다. 따라서 TP를 “멀티헤드 Attention을 GPU별로 맡기는 기능”으로만 한정하면 FFN의 분할을 놓칩니다.</p>
+<p>Residual Connection(잔차 연결)은 서브레이어 입력에 그 출력이 더해지는 연결입니다. 이 합산과 GPU별 부분합을 결합하는 AllReduce는 서로 다른 역할입니다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>작은 예제와 실제 엔진을 연결하는 근거</h2>
+<p>설치된 vLLM에서 QKVParallelLinear, Attention 뒤의 RowParallelLinear, FFN의 MergedColumnParallelLinear·RowParallelLinear 선언과 forward를 읽었습니다. 클래스 이름만으로 판단하지 않고 <strong>값의 전달 순서와 Row의 합산 조건</strong>을 확인했습니다.</p>
+<p>소스 발췌와 확인하지 않은 범위는 <a href="vllm-source.html">vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</a>에 분리했습니다. 전체 실행 코드와 값 비교는 실습 노트북〔비공개 보존 자료〕의 15·17–19번에 있습니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

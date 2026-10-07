@@ -1,0 +1,155 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.md. Do not edit directly. source-sha256:26ae22b99e4a60bf29ff44b2955d0d0e6e90db3840dc5ce099a1e33f3a67a383 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="설치된 vLLM 0.29.0의 Qwen3·RowParallelLinear 구현으로 입력 조각 처리와 합산 조건을 확인한다.">
+  <meta name="source-sha256" content="26ae22b99e4a60bf29ff44b2955d0d0e6e90db3840dc5ce099a1e33f3a67a383">
+  <title>vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?">
+  <meta property="og:description" content="설치된 vLLM 0.29.0의 Qwen3·RowParallelLinear 구현으로 입력 조각 처리와 합산 조건을 확인한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html","name":"vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?","description":"설치된 vLLM 0.29.0의 Qwen3·RowParallelLinear 구현으로 입력 조각 처리와 합산 조건을 확인한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html"},"headline":"vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/vllm-source.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"Column과 Row는 무엇을 나누고 어떻게 연결될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/README.html"},{"@type":"ListItem","position":6,"name":"vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/computation/README.html">Column과 Row는 무엇을 나누고 어떻게 연결될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</h1>
+      <p class="lead">설치된 vLLM 0.29.0의 Qwen3·RowParallelLinear 구현으로 입력 조각 처리와 합산 조건을 확인한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">Qwen3 Attention의 선언과 값 전달 순서</a>
+        <a href="#section-02">Row는 이미 나뉜 입력을 그대로 받을 수 있다</a>
+        <a href="#section-03">FFN의 구현은 파일 이름과 모델 이름이 다를 수 있다</a>
+        <a href="#section-04">Rank의 생성 출처까지 알아야 계산 분할을 이해하는 것은 아니다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>작은 행렬 예제가 맞더라도 실제 엔진이 같은 방식으로 연결되는지는 별도 근거가 필요합니다. 이 문서는 실습 환경의 <strong>vLLM 0.29.0에 설치된 소스 출력</strong>으로 확인한 선언·입력 분기·합산 위치를 설명합니다. 파일 이름이나 클래스 이름만을 근거로 모든 내부 동작을 확인했다고 주장하지 않습니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>Qwen3 Attention의 선언과 값 전달 순서</h2>
+<p><code>model_executor/models/qwen3.py</code>에서 QKV 투영은 <code>QKVParallelLinear</code>, 출력 투영은 <code>RowParallelLinear</code>였습니다. 실행 흐름을 추리면 다음과 같습니다. 아래는 설명에 필요한 호출을 남긴 발췌입니다.</p>
+<pre><code class="language-python">qkv, _ = self.qkv_proj(hidden_states)
+q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
+# Head별 q_norm / k_norm 처리
+q, k = self.rotary_emb(positions, q, k)
+attn_output = self.attn(q, k, v)
+output, _ = self.o_proj(attn_output)
+</code></pre>
+<p>실제 출력에는 Head 축을 구분해 Q·K를 정규화하는 코드도 있었습니다. 따라서 QKV 투영 직후 값이 어떤 처리도 없이 바로 캐싱·Attention에 사용된다고 단순화하면 안 됩니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>Row는 이미 나뉜 입력을 그대로 받을 수 있다</h2>
+<p><code>model_executor/layers/linear.py</code>의 <code>RowParallelLinear.forward</code>에는 다음 분기가 있었습니다.</p>
+<pre><code class="language-python">if self.input_is_parallel:
+    input_parallel = input_
+else:
+    split_input = split_tensor_along_last_dim(
+        input_, num_partitions=self.tp_size
+    )
+    input_parallel = split_input[self.tp_rank].contiguous()
+</code></pre>
+<p>입력이 이미 조각이면 다시 자르지 않습니다. 그렇지 않으면 마지막 차원을 나누고 TP 그룹 안의 자기 번호에 해당하는 조각을 선택합니다. 여기서 마지막 차원은 토큰의 벡터 차원이지 토큰 행이 아닙니다.</p>
+<p>이어지는 핵심은 담당 계산과 합산 조건입니다.</p>
+<pre><code class="language-python">output_parallel = self.quant_method.apply(self, input_parallel, bias_)
+
+if self.reduce_results and self.tp_size &gt; 1:
+    output = tensor_model_parallel_all_reduce(output_parallel)
+else:
+    output = output_parallel
+</code></pre>
+<p>생성자 기본값은 <code>input_is_parallel=True</code>, <code>reduce_results=True</code>였습니다. 확인한 Attention·FFN의 출력 투영 선언은 이 값을 별도로 끄지 않았습니다. 따라서 일반 TP&gt;1 경로에서 부분 결과 합산으로 연결됩니다.</p>
+<p><code>quant_method</code>라는 변수 이름만으로 모델이 양자화됐다고 판단하지 않습니다. 이 인터페이스가 선택한 실제 가중치 처리·커널은 별도 구현을 확인해야 합니다. 마찬가지로 <code>tensor_model_parallel_all_reduce</code>라는 호출만으로 모든 실행에서 NCCL이 선택됐다고 단정하지 않습니다. 통신 설정과 로그를 함께 확인합니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>FFN의 구현은 파일 이름과 모델 이름이 다를 수 있다</h2>
+<p>Qwen3에서 <code>self.mlp = Qwen3MLP(...)</code>를 따라가자 <code>qwen2.py</code>의 Qwen2MLP 구현이 출력됐습니다. Qwen3가 해당 MLP 구현을 재사용한 것이며, 실습 모델을 Qwen2로 바꾼 것은 아닙니다.</p>
+<pre><code class="language-python">self.gate_up_proj = MergedColumnParallelLinear(
+    hidden_size, [intermediate_size] * 2, bias=False,
+    # 나머지 인수 생략
+)
+self.down_proj = RowParallelLinear(
+    intermediate_size, hidden_size, bias=False,
+    # 나머지 인수 생략
+)
+self.act_fn = SiluAndMul()
+</code></pre>
+<p>위 코드는 나머지 인수를 생략한 설명용 발췌입니다. <code>forward</code>에서는 다음 순서가 확인됐습니다.</p>
+<pre><code class="language-python">gate_up, _ = self.gate_up_proj(x)
+x = self.act_fn(gate_up)
+x, _ = self.down_proj(x)
+return x
+</code></pre>
+<p><code>[intermediate_size] * 2</code>는 gate와 up 두 투영의 출력 크기입니다. Head 두 개를 뜻하지 않습니다. 이 연결 사이에는 명시적인 AllGather가 없었고, down 투영의 기본 Row 구현이 합산을 담당합니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Rank의 생성 출처까지 알아야 계산 분할을 이해하는 것은 아니다</h2>
+<p>상세 추적에서는 다음 연결까지만 확인했습니다.</p>
+<pre><code class="language-text">init_process_group(rank=rank)로 번호 등록
+ → get_rank()로 조회
+ → ranks.index(self.rank)로 TP 그룹 안의 위치 계산
+ → get_tensor_model_parallel_rank()로 사용
+</code></pre>
+<p>Worker를 생성하는 최초 호출자가 번호를 어떻게 정하는지까지 추적하지 않았습니다. 이 내용은 계산 흐름을 방해하므로 Rank 참고 노트북〔비공개 보존 자료〕에 코드·출력 그대로 분리했습니다.</p>
+<p>설치 소스 출력의 원본은 실습 노트북〔비공개 보존 자료〕 17–19번입니다. 실제 weight loader의 모든 분할 분기, 최적화·fusion 이후 실행 경로, 모델의 모든 커널을 검사한 것은 아닙니다. 이 검증의 중심은 <strong>선언이 forward의 입력 조각 처리와 부분 결과 합산으로 연결된다는 것</strong>입니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/haproxy-frontend-backend-routing.md. Do not edit directly. source-sha256:08ecd56e28dbecb609621d1c5d97628869b40c2e699ed27794d6c1a4faa0e4f5 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HAProxy의 frontend 입구와 backend 목적지를 연결하고, 기본 분배·헤더 기반 서버 선택·응답 표시·상태 점검 설정을 읽는다.">
+  <meta name="source-sha256" content="08ecd56e28dbecb609621d1c5d97628869b40c2e699ed27794d6c1a4faa0e4f5">
+  <title>HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?">
+  <meta property="og:description" content="HAProxy의 frontend 입구와 backend 목적지를 연결하고, 기본 분배·헤더 기반 서버 선택·응답 표시·상태 점검 설정을 읽는다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html","name":"HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?","description":"HAProxy의 frontend 입구와 backend 목적지를 연결하고, 기본 분배·헤더 기반 서버 선택·응답 표시·상태 점검 설정을 읽는다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html"},"headline":"HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-network-transport-web","name":"TCP·HTTP·TLS","identifier":"topics-network-transport-web"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"네트워크 링크·IP·라우팅","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_link_ip_routing.html"},{"@type":"ListItem","position":5,"name":"네트워크 TCP·HTTP·TLS","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_tcp_http_tls.html"},{"@type":"ListItem","position":6,"name":"HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_link_ip_routing.html">네트워크 링크·IP·라우팅</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_tcp_http_tls.html">네트워크 TCP·HTTP·TLS</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?</h1>
+      <p class="lead">HAProxy의 frontend 입구와 backend 목적지를 연결하고, 기본 분배·헤더 기반 서버 선택·응답 표시·상태 점검 설정을 읽는다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#frontend"><code>frontend</code>는 요청을 받을 입구를 정의한다</a>
+        <a href="#backend"><code>backend</code>는 목적지와 선택 방법을 정의한다</a>
+        <a href="#section-d0994524a598">요청 조건에 따라 특정 서버를 지정할 수 있다</a>
+        <a href="#section-036911ec82ce">응답 헤더로 선택 결과를 확인할 수 있다</a>
+        <a href="#section-6ed2120c5332">상태 점검은 사용 가능한 서버를 가려낸다</a>
+        <a href="#section-7d7ae47b9431">전체 설정을 연결해서 읽기</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>HAProxy는 클라이언트의 요청을 받아 뒤쪽 서버로 전달하는 프록시다. 설정에서는 <strong>요청을 받는 입구를 <code>frontend</code>, 전달할 서버 묶음과 선택 규칙을 <code>backend</code>로 구분</strong>한다.</p>
+<p>여기서 frontend와 backend는 웹 화면과 애플리케이션 코드를 뜻하지 않는다. <strong>HAProxy 한 프로그램 안에서 요청을 받는 쪽과 보내는 쪽을 나눈 설정 영역</strong>이다.</p>
+</div>
+        <section id="frontend" class="markdown-section">
+<h2><code>frontend</code>는 요청을 받을 입구를 정의한다</h2>
+<pre><code class="language-haproxy">frontend public_api
+    bind 127.0.0.1:8000
+    default_backend app_servers
+</code></pre>
+<p>각 줄은 다음 의미를 갖는다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>frontend public_api</code></td>
+<td><code>public_api</code>라는 이름의 입구 설정</td>
+</tr>
+<tr>
+<td><code>bind 127.0.0.1:8000</code></td>
+<td>해당 주소와 포트에서 요청을 받음</td>
+</tr>
+<tr>
+<td><code>default_backend app_servers</code></td>
+<td>기본 목적지 묶음으로 <code>app_servers</code>를 사용</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>public_api</code>와 <code>app_servers</code>는 임의로 붙인 설정 이름이다. 특히 <code>app_servers</code>는 서버의 DNS 주소가 아니라 <strong>아래에 선언할 backend의 이름</strong>이다.</p>
+<p><code>127.0.0.1</code>에 바인딩했으므로 같은 네트워크 환경 내부에서 접근하는 입구다. 외부에 직접 공개하는 설정은 아니다.</p>
+<p>입구만 정의해서는 요청을 전달할 수 없다. 연결된 backend에 실제 목적지가 있어야 한다.</p>
+
+</section>
+<section id="backend" class="markdown-section">
+<h2><code>backend</code>는 목적지와 선택 방법을 정의한다</h2>
+<ul>
+<li><a href="round-robin-assignment-vs-load.html">Round Robin의 ‘균등 분배’는 무엇을 같게 나눈다는 뜻일까?</a></li>
+</ul>
+<pre><code class="language-haproxy">backend app_servers
+    balance roundrobin
+    server server-a 127.0.0.1:8101
+    server server-b 127.0.0.1:8102
+</code></pre>
+<p><code>server</code>는 <strong>HAProxy에서 사용할 별칭과 실제 접속 주소</strong>를 연결한다.</p>
+<ul>
+<li><code>server-a</code> → <code>127.0.0.1:8101</code></li>
+<li><code>server-b</code> → <code>127.0.0.1:8102</code></li>
+</ul>
+<p>이 선언이 서버 프로그램을 실행하는 것은 아니다. 이미 실행 중인 서버의 주소를 등록하는 것이다.</p>
+<p><code>balance roundrobin</code>은 기본 분배 방법이다. 두 서버가 정상이고 같은 가중치를 가지면 요청을 순서대로 나눠 보낸다.</p>
+<pre><code class="language-text">클라이언트
+    ↓ 127.0.0.1:8000
+frontend public_api
+    ↓ default_backend app_servers
+backend app_servers
+    ├─ server-a → 127.0.0.1:8101
+    └─ server-b → 127.0.0.1:8102
+</code></pre>
+
+</section>
+<section id="section-d0994524a598" class="markdown-section">
+<h2>요청 조건에 따라 특정 서버를 지정할 수 있다</h2>
+<p>기본 분배 정책을 유지하면서 일부 요청에 예외 규칙을 적용할 수도 있다.</p>
+<pre><code class="language-haproxy">backend app_servers
+    balance roundrobin
+    use-server server-a if { req.hdr(X-Lab-Target) -i server-a }
+
+    server server-a 127.0.0.1:8101
+    server server-b 127.0.0.1:8102
+</code></pre>
+<p>핵심은 이 줄이다.</p>
+<pre><code class="language-haproxy">use-server server-a if { req.hdr(X-Lab-Target) -i server-a }
+</code></pre>
+<p>이를 풀어 읽으면 다음과 같다.</p>
+<blockquote>
+<p>요청의 <code>X-Lab-Target</code> 헤더 값이 <code>server-a</code>라면, 목적지로 <code>server-a</code>를 지정한다.</p>
+</blockquote>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>문법</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>use-server server-a</code></td>
+<td>지정된 서버를 선택</td>
+</tr>
+<tr>
+<td><code>if</code></td>
+<td>뒤의 조건이 참일 때 적용</td>
+</tr>
+<tr>
+<td><code>req.hdr(X-Lab-Target)</code></td>
+<td>요청 헤더 값을 읽음</td>
+</tr>
+<tr>
+<td><code>-i server-a</code></td>
+<td>대소문자를 구분하지 않고 값 비교</td>
+</tr>
+</tbody></table>
+</div>
+<p>따라서 정상 상태의 서버들을 대상으로 다음처럼 동작한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>선택 방식</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>X-Lab-Target: server-a</code>가 있음</td>
+<td>A로 지정</td>
+</tr>
+<tr>
+<td>해당 조건에 맞지 않음</td>
+<td>기본 분배 정책 적용</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>이 설정만으로 A에 요청이나 부하가 생기는 것은 아니다.</strong> 클라이언트가 해당 헤더를 붙여 실제 요청을 보내야 한다.</p>
+<p>또한 지정된 서버가 비정상으로 판정된 경우, 일반적인 설정에서는 해당 규칙을 무시하고 다른 선택 규칙으로 이어질 수 있다. <a href="https://docs.haproxy.org/2.8/configuration.html#4-use-server" rel="noopener noreferrer">HAProxy <code>use-server</code> 문서</a></p>
+
+</section>
+<section id="section-036911ec82ce" class="markdown-section">
+<h2>응답 헤더로 선택 결과를 확인할 수 있다</h2>
+<p>공통 입구로 요청하면 어느 서버가 처리했는지 클라이언트에서 구분하기 어려울 수 있다. 다음 설정은 선택 결과를 응답에 표시한다.</p>
+<pre><code class="language-haproxy">http-response set-header X-Lab-Backend %[srv_name]
+</code></pre>
+<p>A가 선택됐다면 응답에 다음 헤더가 붙는다.</p>
+<pre><code class="language-http">X-Lab-Backend: server-a
+</code></pre>
+<p>앞서 사용한 요청 헤더와는 역할이 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>헤더</th>
+<th>방향</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>X-Lab-Target</code></td>
+<td>클라이언트 → HAProxy</td>
+<td>특정 서버를 선택하는 조건</td>
+</tr>
+<tr>
+<td><code>X-Lab-Backend</code></td>
+<td>HAProxy → 클라이언트</td>
+<td>선택된 서버를 보여주는 표시</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>요청 헤더는 선택에 영향을 주고, 응답 헤더는 선택 결과를 알려준다.</strong></p>
+
+</section>
+<section id="section-6ed2120c5332" class="markdown-section">
+<h2>상태 점검은 사용 가능한 서버를 가려낸다</h2>
+<ul>
+<li><a href="ss-listening-server-ports-process.html"><code>ss</code>로 서버가 포트를 열고 있는지 확인하는 방법</a></li>
+</ul>
+<p>서버 주소가 등록돼 있어도 해당 서버가 종료됐거나 요청을 받을 준비가 안 됐을 수 있다.</p>
+<pre><code class="language-haproxy">option httpchk GET /health
+http-check expect status 200
+
+server server-a 127.0.0.1:8101 check inter 2s fall 3 rise 2
+server server-b 127.0.0.1:8102 check inter 2s fall 3 rise 2
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>option httpchk GET /health</code></td>
+<td><code>/health</code>에 GET 요청을 보내 점검</td>
+</tr>
+<tr>
+<td><code>http-check expect status 200</code></td>
+<td>HTTP 200을 정상 응답으로 판단</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td>해당 서버의 상태 점검 활성화</td>
+</tr>
+<tr>
+<td><code>inter 2s</code></td>
+<td>기본 점검 간격 2초</td>
+</tr>
+<tr>
+<td><code>fall 3</code></td>
+<td>연속 3회 실패하면 비정상 판정</td>
+</tr>
+<tr>
+<td><code>rise 2</code></td>
+<td>연속 2회 성공하면 정상으로 복귀</td>
+</tr>
+</tbody></table>
+</div>
+<p>상태 점검과 부하 판단은 구분해야 한다. <strong>정상 응답을 하는 서버라고 해서 한가한 서버라는 뜻은 아니다.</strong></p>
+
+</section>
+<section id="section-7d7ae47b9431" class="markdown-section">
+<h2>전체 설정을 연결해서 읽기</h2>
+<ul>
+<li><p><a href="haproxy-queue-timeout-request-rate-limit.html">HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법</a></p>
+</li>
+<li><p><a href="haproxy-graceful-reload.html">HAProxy 설정을 바꾸면서 처리 중인 연결을 유지하는 방법</a></p>
+</li>
+</ul>
+<pre><code class="language-haproxy">defaults
+    mode http
+    timeout connect 5s
+    timeout client 10m
+    timeout server 10m
+    timeout check 5s
+    retries 0
+
+frontend public_api
+    bind 127.0.0.1:8000
+    default_backend app_servers
+
+backend app_servers
+    balance roundrobin
+
+    use-server server-a if { req.hdr(X-Lab-Target) -i server-a }
+
+    option httpchk GET /health
+    http-check expect status 200
+
+    http-response set-header X-Lab-Backend %[srv_name]
+
+    server server-a 127.0.0.1:8101 check inter 2s fall 3 rise 2
+    server server-b 127.0.0.1:8102 check inter 2s fall 3 rise 2
+</code></pre>
+<p><code>defaults</code>에는 뒤쪽 설정에 적용할 HTTP 모드·타임아웃 등의 기본값을 둔다. <code>frontend</code>는 요청을 받고, <code>backend</code>는 상태와 규칙에 따라 목적지를 선택한다.</p>
+<p>설정 파일을 작성하는 셸 명령에 등장하는 <code>CONFIG</code>는 HAProxy 문법이 아니다.</p>
+<pre><code class="language-bash">cat &gt; haproxy.cfg &lt;&lt;&#39;CONFIG&#39;
+# 여기에 HAProxy 설정을 작성한다.
+CONFIG
+</code></pre>
+<p>마지막 <code>CONFIG</code>는 셸에게 <strong>파일에 적을 내용이 끝났다</strong>고 알려주는 구분자다.</p>
+<p>HAProxy 설정의 핵심은 다음 세 질문으로 정리할 수 있다.</p>
+<blockquote>
+<p><strong>어디서 요청을 받는가? 어디로 보낼 수 있는가? 그중 하나를 어떤 규칙으로 선택하는가?</strong></p>
+</blockquote>
+<p><code>frontend</code>는 입구를 정의하고, <code>backend</code>는 목적지와 선택 규칙을 정의한다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="round-robin-assignment-vs-load.html">Round Robin의 ‘균등 분배’는 무엇을 같게 나눈다는 뜻일까?</a></li>
+<li><a href="haproxy-graceful-reload.html">HAProxy 설정을 바꾸면서 처리 중인 연결을 유지하는 방법</a></li>
+<li><a href="haproxy-queue-timeout-request-rate-limit.html">HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법</a></li>
+<li><a href="ss-listening-server-ports-process.html">`ss`로 서버가 포트를 열고 있는지 확인하는 방법</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

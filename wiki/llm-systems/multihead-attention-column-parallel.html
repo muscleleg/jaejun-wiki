@@ -1,0 +1,362 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/multihead-attention-column-parallel.md. Do not edit directly. source-sha256:f72df67ea39533a83376cffb5b91c51c0447bd4a1d6976192ed66d7a4b8c43d2 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="작은 행렬로 QKV의 Head별 독립 계산과 가중치 열 분할을 연결하고, GPU별 Attention 이후 출력 투영의 부분 결과를 결합하는 원리를 설명한다.">
+  <meta name="source-sha256" content="f72df67ea39533a83376cffb5b91c51c0447bd4a1d6976192ed66d7a4b8c43d2">
+  <title>멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?">
+  <meta property="og:description" content="작은 행렬로 QKV의 Head별 독립 계산과 가중치 열 분할을 연결하고, GPU별 Attention 이후 출력 투영의 부분 결과를 결합하는 원리를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html","name":"멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?","description":"작은 행렬로 QKV의 Head별 독립 계산과 가중치 열 분할을 연결하고, GPU별 Attention 이후 출력 투영의 부분 결과를 결합하는 원리를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html"},"headline":"멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-transformer","name":"Transformer","identifier":"topics-transformer"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#transformer-transformer","name":"Transformer","identifier":"transformer-transformer"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/multihead-attention-column-parallel.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tensor-parallel-transformer-computation.html"},{"@type":"ListItem","position":6,"name":"멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/tensor-parallel-transformer-computation.html">Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>멀티헤드 어텐션은 어떻게 GPU별로 나눠 계산할까?</h1>
+      <p class="lead">작은 행렬로 QKV의 Head별 독립 계산과 가중치 열 분할을 연결하고, GPU별 Attention 이후 출력 투영의 부분 결과를 결합하는 원리를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-q-k-v">1. Q·K·V는 입력 토큰 벡터에 가중치를 곱해서 만든다</a>
+        <a href="#section-2-q-k-v-head">2. 만들어진 Q·K·V를 Head별로 나누면 어떻게 보일까?</a>
+        <a href="#section-3-q-k-v">3. Q만 나누는 것이 아니라 K와 V도 함께 나눠 계산한다</a>
+        <a href="#section-4-head-head-q-k-v">4. 각 Head는 다른 Head의 Q·K·V 없이 계산할 수 있다</a>
+        <a href="#section-5-q">5. 전체 Q를 만든 뒤 자르지 않고, 처음부터 나눠 만들 수 있다</a>
+        <a href="#section-6-gpu-q-k-v-attention">6. 각 GPU는 자기 Q·K·V를 만든 뒤 Attention까지 이어서 계산한다</a>
+        <a href="#section-7-head-head">7. Head별 계산은 따로 하지만, 마지막에는 여러 Head의 정보를 섞는다</a>
+        <a href="#section-a01d2eee11e1">정리: 따로 만들고 계산한 뒤, 필요한 지점에서 결합한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>멀티헤드 어텐션은 여러 Head가 각자 Q·K·V로 Attention을 계산한 뒤, 그 결과를 결합하는 구조다.</p>
+<p>각 Head의 계산을 따로 수행할 수 있기 때문에, GPU마다 일부 Head를 맡길 수 있다. 이때 전체 Q·K·V를 먼저 만들고 나눠 보내야 하는 것은 아니다.</p>
+<p><strong>Q·K·V를 만드는 가중치부터 나누면, 각 GPU가 자기 Head에 필요한 값만 처음부터 계산할 수 있다.</strong> 이것이 멀티헤드 어텐션과 Column Parallel이 연결되는 지점이다.</p>
+<p>작은 행렬을 통해 이 과정을 따라가 보자. 여기서는 Q·K·V의 Head 수가 같은 일반적인 멀티헤드 어텐션을 설명하며, 배치 차원은 생략한다.</p>
+</div>
+        <section id="section-1-q-k-v" class="markdown-section">
+<h2>1. Q·K·V는 입력 토큰 벡터에 가중치를 곱해서 만든다</h2>
+<ul>
+<li><a href="qkv-projection-token-vectors.html">입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?</a></li>
+</ul>
+<p>Q·K·V는 처음부터 주어지는 값이 아니다. 입력 토큰 벡터에 각각의 가중치를 곱해서 만든다.</p>
+<pre><code class="language-text">입력 X × Q용 가중치 → Q
+입력 X × K용 가중치 → K
+입력 X × V용 가중치 → V
+</code></pre>
+<p>먼저 토큰 하나의 Q를 만드는 계산부터 보자.</p>
+<pre><code class="language-text">입력 X            Q용 가중치 W_Q
+
+[1, 2]      ×     [1, 2, 3, 4]
+                  [5, 6, 7, 8]
+
+                       ↓
+
+만들어진 Q        [11, 14, 17, 20]
+</code></pre>
+<p>Q의 값들은 다음처럼 만들어진다.</p>
+<pre><code class="language-text">첫 번째 값: 1×1 + 2×5 = 11
+두 번째 값: 1×2 + 2×6 = 14
+세 번째 값: 1×3 + 2×7 = 17
+네 번째 값: 1×4 + 2×8 = 20
+</code></pre>
+<p>여기서 중요한 관계가 보인다.</p>
+<blockquote>
+<p><strong>가중치의 첫 번째 열이 Q의 첫 번째 값을 만들고, 두 번째 열이 Q의 두 번째 값을 만든다.</strong></p>
+</blockquote>
+<p>따라서 Q의 일부 값만 필요하다면, 그 값을 만드는 가중치 열만 가지고 계산할 수 있다.</p>
+<p>또한 Q의 각 값은 입력 <code>[1, 2]</code> 전체를 사용해 만들어졌다. Head별 Q를 만든다는 것은 원래 입력 벡터를 단순히 잘라서 준다는 뜻이 아니다.</p>
+
+</section>
+<section id="section-2-q-k-v-head" class="markdown-section">
+<h2>2. 만들어진 Q·K·V를 Head별로 나누면 어떻게 보일까?</h2>
+<p>토큰이 A와 B 두 개 있고, Q·K·V 각각의 벡터 차원이 4라고 하자. Head를 2개로 나누면 각 Head는 토큰마다 두 차원씩 사용한다.</p>
+<p>아래는 나누는 위치를 보여주는 예시다. Q는 앞서 사용한 가중치에 토큰 A의 입력 <code>[1, 2]</code>, 토큰 B의 입력 <code>[3, 4]</code>를 곱한 값이다. K와 V는 구조 설명을 위한 예시 값이다.</p>
+<pre><code class="language-text">Q                  Head 0       Head 1
+토큰 A의 Q →      [11, 14   |   17, 20]
+토큰 B의 Q →      [23, 30   |   37, 44]
+
+K                  Head 0       Head 1
+토큰 A의 K →      [ 2,  1   |    4,  3]
+토큰 B의 K →      [ 6,  5   |    8,  7]
+
+V                  Head 0       Head 1
+토큰 A의 V →      [10, 20   |   30, 40]
+토큰 B의 V →      [50, 60   |   70, 80]
+</code></pre>
+<p>각 Head가 가져가는 부분을 따로 놓으면 다음과 같다.</p>
+<pre><code class="language-text">Head 0
+──────────────────────────────────────
+Q₀             K₀           V₀
+[11, 14]       [2, 1]       [10, 20]
+[23, 30]       [6, 5]       [50, 60]
+
+
+Head 1
+──────────────────────────────────────
+Q₁             K₁           V₁
+[17, 20]       [4, 3]       [30, 40]
+[37, 44]       [8, 7]       [70, 80]
+</code></pre>
+<p>두 Head 모두 토큰 A와 B를 가지고 있다. 각 토큰의 벡터에서 사용하는 차원이 다를 뿐이다.</p>
+<pre><code class="language-text">Head 0 → 모든 토큰의 앞쪽 두 차원
+Head 1 → 모든 토큰의 뒤쪽 두 차원
+</code></pre>
+<p>한 토큰을 나타내는 가로 벡터를 나눈 것이지만, 행렬 전체에서 보면 <strong>열을 나눈 것</strong>이다.</p>
+<p>멀티헤드 어텐션은 이렇게 Head별로 다른 Q·K·V를 사용해 Attention을 계산한다. <a href="https://arxiv.org/html/1706.03762v7#S3.SS2.SSS2" rel="noopener noreferrer">멀티헤드 어텐션의 기본 구조</a></p>
+
+</section>
+<section id="section-3-q-k-v" class="markdown-section">
+<h2>3. Q만 나누는 것이 아니라 K와 V도 함께 나눠 계산한다</h2>
+<p>Attention에서는 먼저 Q와 K의 전치행렬을 곱한다.</p>
+<pre><code class="language-text">Q × Kᵀ
+</code></pre>
+<p>Q만 절반으로 나누고 K는 전체를 사용하면 크기가 맞지 않는다.</p>
+<pre><code class="language-text">Q 일부 [2×2] × 전체 Kᵀ [4×2]
+                  ↑
+              계산할 수 없음
+</code></pre>
+<p>하지만 같은 Head의 Q와 K를 함께 사용하면 크기가 맞는다.</p>
+<p>Head 0을 보자.</p>
+<pre><code class="language-text">Q₀ [2×2]             K₀ᵀ [2×2]
+
+[11, 14]             [2, 6]
+[23, 30]     ×       [1, 5]
+
+             → Attention 점수 [2×2]
+</code></pre>
+<p>K도 원래는 Q처럼 열을 나눴다. 그 뒤 전치했기 때문에 <code>Kᵀ</code>에서는 나뉜 부분이 행으로 보인다.</p>
+<p>만들어진 점수의 의미는 다음과 같다.</p>
+<pre><code class="language-text">                    참조할 토큰
+                    A        B
+질의 토큰 A      [A→A 점수, A→B 점수]
+질의 토큰 B      [B→A 점수, B→B 점수]
+</code></pre>
+<p>이 점수에 크기 조정과 Softmax를 적용하면, 각 토큰이 다른 토큰의 정보를 얼마나 가져올지 나타내는 가중치가 된다.</p>
+<p>그다음에는 <strong>같은 Head의 V</strong>를 곱한다.</p>
+<pre><code class="language-text">Head 0의 Attention 가중치 [2×2]
+
+                  ×
+
+Head 0의 V₀ [2×2]
+[10, 20]
+[50, 60]
+
+                  ↓
+
+Head 0의 출력 H₀ [2×2]
+</code></pre>
+<p>Head 1도 같은 과정을 자기 Q·K·V로 수행한다.</p>
+<pre><code class="language-text">Head 0: Q₀ × K₀ᵀ → 크기 조정·Softmax → V₀와 곱하기 → H₀
+Head 1: Q₁ × K₁ᵀ → 크기 조정·Softmax → V₁와 곱하기 → H₁
+</code></pre>
+<p>따라서 <strong>V를 곱할 때도 전체 벡터 차원을 사용하는 것이 아니다.</strong> 모든 토큰의 V를 대상으로 하되, 자기 Head에 해당하는 차원만 사용한다. 인과적 마스크가 있다면 미래 토큰을 참조하지 못하도록 제한한다.</p>
+
+</section>
+<section id="section-4-head-head-q-k-v" class="markdown-section">
+<h2>4. 각 Head는 다른 Head의 Q·K·V 없이 계산할 수 있다</h2>
+<p>Head 0이 출력을 만드는 데 필요한 것은 다음 세 가지다.</p>
+<pre><code class="language-text">Q₀, K₀, V₀
+</code></pre>
+<p>Head 1의 <code>Q₁, K₁, V₁</code>은 필요하지 않다.</p>
+<pre><code class="language-text">Head 0의 재료로 Head 0의 출력 계산
+Head 1의 재료로 Head 1의 출력 계산
+</code></pre>
+<p>그래서 Head별 계산을 GPU마다 나눠 맡길 수 있다.</p>
+<p>다만 <strong>열 하나하나가 전부 독립적이라는 뜻은 아니다.</strong></p>
+<p>예를 들어 Head 0에서 두 토큰 사이의 점수를 계산할 때는 다음처럼 자기 Head의 여러 차원을 함께 사용한다.</p>
+<pre><code class="language-text">토큰 A의 Q₀: [11, 14]
+토큰 B의 K₀: [ 6,  5]
+
+두 토큰 사이의 점수 = 11×6 + 14×5
+</code></pre>
+<p>따라서 독립적으로 계산할 수 있는 단위는 열 하나가 아니라 <strong>하나의 Head를 구성하는 Q·K·V 묶음</strong>이다.</p>
+<p>또한 하나의 큰 Head를 임의로 둘로 잘라 각각 Softmax를 적용하면 원래 계산과 달라진다. 멀티헤드 어텐션은 처음부터 Head마다 별도의 Attention을 계산하도록 정의된 구조다. <a href="https://arxiv.org/html/1706.03762v7#S3.SS2" rel="noopener noreferrer">Head별 Attention 계산</a></p>
+
+</section>
+<section id="section-5-q" class="markdown-section">
+<h2>5. 전체 Q를 만든 뒤 자르지 않고, 처음부터 나눠 만들 수 있다</h2>
+<p>앞에서는 만들어진 Q를 Head별로 나눠 보았다.</p>
+<pre><code class="language-text">전체 Q: [11, 14 | 17, 20]
+
+Head 0: [11, 14]
+Head 1: [17, 20]
+</code></pre>
+<p>그런데 이 값을 반드시 한 GPU에서 전부 만든 다음 나눠야 할까?</p>
+<p>그럴 필요가 없다. <strong>각 Head의 Q를 만드는 데 필요한 가중치 열만 가지고 계산하면 된다.</strong></p>
+<p>앞서 사용한 계산을 다시 보자.</p>
+<pre><code class="language-text">입력 X                 W_Q
+
+[1, 2]      ×      [1, 2 | 3, 4]
+                   [5, 6 | 7, 8]
+                        ↓
+                   [11, 14 | 17, 20]
+</code></pre>
+<p>GPU 0이 앞쪽 두 열을 맡으면 Head 0의 Q를 만든다.</p>
+<pre><code class="language-text">GPU 0
+
+[1, 2] × [1, 2] = [11, 14]
+         [5, 6]
+</code></pre>
+<p>GPU 1이 뒤쪽 두 열을 맡으면 Head 1의 Q를 만든다.</p>
+<pre><code class="language-text">GPU 1
+
+[1, 2] × [3, 4] = [17, 20]
+         [7, 8]
+</code></pre>
+<p>두 GPU 모두 입력 <code>[1, 2]</code> 전체를 사용한다. 하지만 사용하는 가중치와 계산하는 출력은 절반씩이다.</p>
+<pre><code class="language-text">전체 Q를 계산한 뒤 Head별로 나누기
+                  ↕ 같은 결과
+가중치를 먼저 나눠 Head별 Q를 각각 계산하기
+</code></pre>
+<p><strong>두 번째 방식으로 GPU에 계산을 나눠 맡기는 것이 여기서 말하는 Column Parallel이다.</strong></p>
+<p>이름의 기준은 Q를 만드는 가중치다. <code>입력 × 가중치</code>로 계산할 때, 가중치의 열을 나누기 때문에 Column Parallel이라고 부른다.</p>
+<p>K와 V도 마찬가지다. 각 GPU가 자기 Head의 K·V를 만드는 가중치 열을 맡으면 된다. <a href="https://arxiv.org/html/1909.08053v4" rel="noopener noreferrer">Megatron-LM의 Q·K·V 투영 병렬화</a></p>
+
+</section>
+<section id="section-6-gpu-q-k-v-attention" class="markdown-section">
+<h2>6. 각 GPU는 자기 Q·K·V를 만든 뒤 Attention까지 이어서 계산한다</h2>
+<p>GPU별로 필요한 가중치를 나눠주면 다음 흐름이 된다.</p>
+<pre><code class="language-text">같은 전체 입력 X
+       │
+       ├──────────────────────────────┐
+       ↓                              ↓
+
+GPU 0                           GPU 1
+Head 0용 가중치 사용             Head 1용 가중치 사용
+       ↓                              ↓
+Q₀·K₀·V₀ 생성                   Q₁·K₁·V₁ 생성
+       ↓                              ↓
+Head 0의 Attention 계산         Head 1의 Attention 계산
+       ↓                              ↓
+H₀ 생성                         H₁ 생성
+</code></pre>
+<p>Head 0 계산에는 Head 1의 Q·K·V가 필요하지 않다. 따라서 이 구간에서는 전체 Q·K·V를 한곳에 모을 필요가 없다.</p>
+<p>작은 Column Parallel 행렬 실습에서는 결과를 확인하려고 AllGather로 출력 조각을 모았다. 하지만 실제 계산에서는 <strong>다음 연산이 그 조각을 그대로 사용할 수 있다면 바로 이어서 계산해도 된다.</strong></p>
+<p>멀티헤드 어텐션이 바로 그런 경우다.</p>
+<p>Head가 8개이고 GPU가 두 장이라면, 같은 원리로 GPU마다 Head 4개씩 맡길 수 있다. 각 GPU가 담당 Head의 Q·K·V와 계산에 필요한 가중치를 가지고 있으면 된다.</p>
+
+</section>
+<section id="section-7-head-head" class="markdown-section">
+<h2>7. Head별 계산은 따로 하지만, 마지막에는 여러 Head의 정보를 섞는다</h2>
+<p>토큰 하나에 대해 각 Head가 다음 결과를 만들었다고 하자.</p>
+<pre><code class="language-text">Head 0의 결과: [a, b]
+Head 1의 결과: [c, d]
+</code></pre>
+<p>기본적인 멀티헤드 어텐션에서는 이 결과를 옆으로 붙인다.</p>
+<pre><code class="language-text">[a, b, c, d]
+</code></pre>
+<p>그다음 출력 가중치 <code>W_O</code>와 곱한다.</p>
+<pre><code class="language-text">[a, b, c, d] × W_O → 최종 Attention 출력
+</code></pre>
+<p>이 단계에서 여러 Head의 정보가 섞인다.</p>
+<p>GPU를 나눠 사용하면 값들이 서로 다른 곳에 있다.</p>
+<pre><code class="language-text">GPU 0에 있는 값: [a, b]
+GPU 1에 있는 값: [c, d]
+</code></pre>
+<p>따라서 최종 출력을 만들 때는 두 GPU가 가진 정보를 결합해야 한다.</p>
+<h3>먼저 모으고 곱하는 방법</h3>
+<pre><code class="language-text">[a, b]와 [c, d]를 모음
+          ↓
+     [a, b, c, d]
+          ↓
+      W_O와 곱함
+          ↓
+       최종 출력
+</code></pre>
+<h3>각자 곱한 다음 더하는 방법</h3>
+<p>출력 가중치도 알맞게 나누면, 각 GPU가 자기 부분을 먼저 계산할 수 있다.</p>
+<p>최종 출력값 하나가 다음 계산으로 만들어진다고 하자.</p>
+<pre><code class="language-text">a×r + b×s + c×t + d×u
+</code></pre>
+<p>이를 나누면 다음과 같다.</p>
+<pre><code class="language-text">GPU 0: a×r + b×s
+GPU 1: c×t + d×u
+
+두 결과를 더함 → 원래의 최종 출력값
+</code></pre>
+<p>출력값이 여러 개라면 각 위치에 대해 같은 원리로 계산한다.</p>
+<p><strong>Head 결과 <code>[a, b]</code>와 <code>[c, d]</code>를 그대로 더하는 것이 아니다. 각자 출력 가중치와 곱한 뒤 나온 부분 결과를 더한다.</strong></p>
+<p>이것이 이 위치에서 사용하는 Row Parallel의 기본 생각이다. 대표적인 TP 구성은 AllReduce로 이 부분 결과들을 합친다. <a href="https://arxiv.org/html/1909.08053v4" rel="noopener noreferrer">Megatron-LM의 출력 투영 병렬화</a></p>
+<p>지금 구분해야 할 핵심은 단순하다.</p>
+<blockquote>
+<p><strong>Head별 Attention은 따로 계산할 수 있지만, 여러 Head의 정보를 반영한 최종 출력은 함께 만들어야 한다.</strong></p>
+</blockquote>
+
+</section>
+<section id="section-a01d2eee11e1" class="markdown-section">
+<h2>정리: 따로 만들고 계산한 뒤, 필요한 지점에서 결합한다</h2>
+<p>멀티헤드 어텐션을 GPU별로 나누는 흐름은 다음과 같다.</p>
+<pre><code class="language-text">GPU마다 같은 입력을 받음
+  ↓
+담당 가중치 열로 자기 Head의 Q·K·V를 만듦
+  ↓
+자기 Q·K·V로 Attention을 계산함
+  ↓
+Head들의 정보를 결합해 최종 출력을 만듦
+</code></pre>
+<p>멀티헤드 어텐션은 모델의 계산 구조이고, Column Parallel은 계산을 여러 GPU에 나누는 방법이다. 멀티헤드 어텐션 자체는 GPU 한 장에서도 동작한다.</p>
+<p>둘을 연결하는 핵심은 다음이다.</p>
+<blockquote>
+<p><strong>각 Head는 자기 Q·K·V로 계산할 수 있다. 그리고 그 Q·K·V를 만드는 가중치의 열도 나눌 수 있다. 그래서 전체 Q·K·V를 먼저 만들 필요 없이, GPU마다 담당 Head의 값을 만들고 Attention까지 계산할 수 있다.</strong></p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="qkv-projection-token-vectors.html">입력 토큰 벡터는 Q·K·V 프로젝션을 거치면 어떻게 바뀔까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
