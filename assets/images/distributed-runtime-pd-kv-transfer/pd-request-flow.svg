@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="700" viewBox="0 0 960 700" role="img" aria-labelledby="title desc">
+  <title id="title">P/D 요청 흐름과 KV 데이터 이동</title>
+  <desc id="desc">시간은 위에서 아래로 흐른다. 요청 조정 코드가 Prefill에 원래 입력을 보내고 KV 메타데이터를 받는다. 이어 Decode에 원래 입력, 생성 조건, KV 정보를 보낸다. Decode가 Pull을 시작하고 실제 KV는 NIXL을 통해 Prefill에서 Decode로 이동한다. Decode는 KV를 재사용해 생성한 결과를 반환한다. 요청 조정은 실습에서는 클라이언트 코드, 서비스에서는 프록시가 수행할 수 있다.</desc>
+  <defs>
+    <marker id="http-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#315fc4"/></marker>
+    <marker id="pull-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#607086"/></marker>
+    <marker id="kv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#137a65"/></marker>
+  </defs>
+  <style>
+    text { font-family: "Apple SD Gothic Neo", "Noto Sans CJK KR", "Malgun Gothic", sans-serif; fill: #182b42; }
+    .title { font-size: 25px; font-weight: 700; }
+    .actor { font-size: 21px; font-weight: 700; }
+    .label { font-size: 18px; }
+    .note { font-size: 16px; fill: #526176; }
+    .lane { stroke: #ccd5e1; stroke-width: 1.5; stroke-dasharray: 5 6; }
+    .http { fill: none; stroke: #315fc4; stroke-width: 2.5; marker-end: url(#http-arrow); }
+    .pull { fill: none; stroke: #607086; stroke-width: 2; stroke-dasharray: 7 5; marker-end: url(#pull-arrow); }
+    .kv { fill: none; stroke: #137a65; stroke-width: 4; marker-end: url(#kv-arrow); }
+  </style>
+  <rect width="960" height="700" rx="16" fill="#ffffff"/>
+  <text x="36" y="43" class="title">P/D 요청 흐름과 KV 데이터 이동</text>
+  <text x="36" y="72" class="note">위에서 아래로 진행 · HTTP에는 KV 텐서가 아닌 전달 정보가 담긴다</text>
+
+  <rect x="40" y="98" width="260" height="76" rx="12" fill="#edf2fc"/>
+  <rect x="410" y="98" width="200" height="76" rx="12" fill="#f0f4f8"/>
+  <rect x="710" y="98" width="200" height="76" rx="12" fill="#edf7f4"/>
+  <text x="170" y="129" text-anchor="middle" class="actor">요청 조정 코드</text>
+  <text x="170" y="154" text-anchor="middle" class="note">실습: 클라이언트 · 서비스: 프록시</text>
+  <text x="510" y="130" text-anchor="middle" class="actor">Prefill 서버</text>
+  <text x="510" y="155" text-anchor="middle" class="note">입력의 KV 생성·보관</text>
+  <text x="810" y="130" text-anchor="middle" class="actor">Decode 서버</text>
+  <text x="810" y="155" text-anchor="middle" class="note">받은 KV로 생성 이어가기</text>
+  <path d="M170 174 V620 M510 174 V620 M810 174 V620" class="lane"/>
+
+  <text x="185" y="211" class="label">① Prefill 요청: 원래 입력</text>
+  <path d="M170 229 H510" class="http"/>
+  <text x="185" y="266" class="label">② 응답: KV 위치·엔진·블록 정보</text>
+  <path d="M510 284 H170" class="http"/>
+
+  <rect x="179" y="308" width="603" height="27" fill="#ffffff"/>
+  <text x="185" y="329" class="label">③ Decode 요청: 원래 입력 + 생성 조건 + KV 전달 정보</text>
+  <path d="M170 347 H810" class="http"/>
+
+  <text x="660" y="391" text-anchor="middle" class="label">④ Decode가 KV 가져오기 시작</text>
+  <path d="M810 409 H510" class="pull"/>
+  <text x="660" y="434" text-anchor="middle" class="note">Pull: Prefill 측 위치·엔진·블록 참조</text>
+
+  <text x="660" y="480" text-anchor="middle" class="label">⑤ 실제 KV 데이터 이동 · NIXL</text>
+  <path d="M510 498 H810" class="kv"/>
+  <text x="660" y="523" text-anchor="middle" class="note">Prefill GPU → Decode GPU</text>
+
+  <text x="185" y="569" class="label">⑥ KV 재사용 후 생성 결과 반환</text>
+  <path d="M810 587 H170" class="http"/>
+  <text x="185" y="613" class="note">프록시가 조정한다면, 이 결과를 사용자에게 전달한다</text>
+
+  <path d="M36 644 H924" stroke="#e2e8f0"/>
+  <path d="M40 671 H76" class="http"/>
+  <text x="88" y="677" class="note">HTTP 요청·응답</text>
+  <path d="M302 671 H338" class="pull"/>
+  <text x="350" y="677" class="note">KV 가져오기 시작</text>
+  <path d="M594 671 H630" class="kv"/>
+  <text x="642" y="677" class="note">KV 데이터 이동 (물리 경로는 별도)</text>
+</svg>

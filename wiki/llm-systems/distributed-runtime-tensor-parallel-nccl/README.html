@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.md. Do not edit directly. source-sha256:e6d0de5405bbd223d7cde2f7746b5cb76476bc2c2224672cb6d9405bd313adb2 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TP의 필요성과 Column·Row 분할, NCCL 통신, 실제 Transformer 구현, A40 성능·메모리 검증을 연결한다.">
+  <meta name="source-sha256" content="e6d0de5405bbd223d7cde2f7746b5cb76476bc2c2224672cb6d9405bd313adb2">
+  <title>하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?">
+  <meta property="og:description" content="TP의 필요성과 Column·Row 분할, NCCL 통신, 실제 Transformer 구현, A40 성능·메모리 검증을 연결한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html","name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","description":"TP의 필요성과 Column·Row 분할, NCCL 통신, 실제 Transformer 구현, A40 성능·메모리 검증을 연결한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},"headline":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</h1>
+      <p class="lead">TP의 필요성과 Column·Row 분할, NCCL 통신, 실제 Transformer 구현, A40 성능·메모리 검증을 연결한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">요청을 나누는 것과 모델 계산을 나누는 것은 다르다</a>
+        <a href="#section-02">각자 계산한 결과는 어떻게 다시 함께 사용할까?</a>
+        <a href="#section-03">계산을 나누는 방향에 따라 결과를 합치는 방법이 달라진다</a>
+        <a href="#section-04">Column 결과를 매번 모으지 않고 Row 계산으로 넘길 수 있다</a>
+        <a href="#section-05">실제 Transformer의 Attention과 FFN도 이 구조를 활용한다</a>
+        <a href="#section-06">같은 AllReduce라도 실제 데이터를 옮기는 경로는 다를 수 있다</a>
+        <a href="#section-07">통신 비용을 포함하고도 실제 응답은 빨라졌는가?</a>
+        <a href="#section-08">가중치를 나눴는데 왜 GPU 메모리는 여전히 많이 사용하는가?</a>
+        <a href="#section-09">TP를 판단하는 기준은 분할·결합·실측을 연결하는 것이다</a>
+        <a href="#section-10">문서 트리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>모델 하나를 실행할 때 GPU 한 장의 메모리가 부족하거나, 한 장이 처리하는 계산을 여러 장에 분담하고 싶을 수 있습니다. 이때 사용하는 방법 중 하나가 <strong>Tensor Parallel(TP)입니다.</strong> 모델의 가중치와 행렬 계산을 여러 GPU에 나눠, 하나의 모델을 함께 실행하는 방식입니다.</p>
+<p>하지만 계산을 나누는 것만으로 일이 끝나지는 않습니다. 나뉜 결과를 서로 전달하거나 합쳐야 하고, 그 과정에도 시간이 듭니다. 따라서 TP를 이해하려면 <strong>무엇을 나누고 무엇을 합치는지</strong>, 그리고 <strong>그 결과 실제 속도와 메모리가 어떻게 달라지는지</strong>를 연결해야 합니다. GPU 수를 늘렸다는 사실만으로 속도 향상이 보장되지는 않습니다.</p>
+<p>이 글은 작은 텐서·행렬·Attention의 결과 검증과 A40 두 장에서의 vLLM 비교를 근거로 그 관계를 설명합니다. 사용한 Qwen3-8B는 한 장에도 들어가는 모델이므로, 큰 모델의 수용 한계보다 같은 모델을 분담했을 때의 변화를 비교한 사례입니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>요청을 나누는 것과 모델 계산을 나누는 것은 다르다</h2>
+<p>독립 서버 두 대에서는 한 요청을 서버 A 또는 B가 처리합니다. 어느 서버로 보낼지는 Routing의 문제입니다. 반면 TP=2에서는 두 GPU가 <strong>같은 요청의 모델 계산에 함께 참여</strong>합니다.</p>
+<p>서버 하나를 실행했다고 프로세스까지 하나인 것은 아닙니다. 관찰한 vLLM TP=2 구성에는 GPU Worker 두 개가 있었고, 각각 한 GPU에서 담당 모델 조각을 처리했습니다. API 요청을 받는 서버와 GPU 계산을 수행하는 Worker는 구분해야 합니다.</p>
+<p>작은 분산 예제도 한 노드에 프로세스 두 개를 띄우고, 코드에서 각 프로세스가 GPU 하나를 선택하게 구성했습니다. 실행기·Rank·GPU 번호가 어떻게 연결되는지는 <a href="communication/processes-and-ranks.html">프로세스 두 개는 어떻게 GPU 한 장씩을 선택할까?</a>에 따로 설명합니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>각자 계산한 결과는 어떻게 다시 함께 사용할까?</h2>
+<p>GPU마다 계산한 값이 흩어져 있다면, 다음 계산에 필요한 형태로 결합해야 합니다. 여기에는 서로 다른 두 작업이 있습니다.</p>
+<ul>
+<li><strong>서로 다른 결과 조각을 모으기:</strong> AllGather로 각 참가자의 조각을 수집합니다.</li>
+<li><strong>같은 출력의 부분합을 더하기:</strong> AllReduce SUM으로 같은 위치의 값을 더하고, 모든 참가자가 결과를 갖습니다.</li>
+</ul>
+<p>작은 텐서 검증에서 AllGather는 <code>[1, 1]</code>과 <code>[2, 2]</code>를 Rank 순서로 수집했습니다. AllReduce SUM은 각 GPU의 1과 2를 더해 양쪽에 3을 남겼습니다. 모으는 것과 더하는 것은 같은 작업이 아닙니다.</p>
+<p><strong>NCCL은 이런 GPU 간 통신·합산 연산을 수행하는 라이브러리</strong>입니다. 모델을 어떻게 나눌지는 TP 구현의 책임이고, 나뉜 값에 어떤 통신 연산을 적용할지를 정해 NCCL에 요청합니다. NCCL 자체가 모델을 자동으로 분할하는 것은 아닙니다.</p>
+<p>통신 연산의 입력·출력과 라이브러리의 역할은 <a href="communication/README.html">GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</a>에서 더 자세히 볼 수 있습니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>계산을 나누는 방향에 따라 결과를 합치는 방법이 달라진다</h2>
+<p>행렬 곱을 <code>X @ W</code>로 쓰고, 가중치 W를 <strong>[입력 차원, 출력 차원]으로</strong> 표현하면 두 분할 방식을 구분할 수 있습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>각 GPU가 사용하는 조각</th>
+<th>계산 결과의 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Column Parallel</td>
+<td>전체 입력 X와 가중치 W의 담당 열</td>
+<td>출력의 서로 다른 열을 완성한 값</td>
+</tr>
+<tr>
+<td>Row Parallel</td>
+<td>입력 X의 담당 열과 가중치 W의 대응 행</td>
+<td>같은 출력값을 만드는 부분합</td>
+</tr>
+</tbody></table>
+</div>
+<p>Column 결과로 전체 출력을 만들려면 조각을 이어 붙입니다. Row 결과로 전체 출력을 만들려면 같은 위치의 부분합을 더합니다. 여기서 Row는 <strong>가중치의 행</strong>을 뜻하며, 입력의 토큰들을 GPU별로 나누는 것이 아닙니다.</p>
+<p>작은 행렬 예제에서는 두 방식 모두 결과를 결합한 뒤 분할하지 않은 <code>X @ W</code>와 비교해 일치함을 확인했습니다. 병렬로 실행됐다는 사실만으로 충분하지 않고, <strong>분할과 결합이 원래 계산을 보존하는지</strong> 확인한 것입니다.</p>
+<p>입력·가중치의 실제 숫자와 각 GPU의 계산은 <a href="computation/README.html">Column과 Row는 무엇을 나누고 어떻게 연결될까?</a>, 토큰 행렬과 QKV 가중치의 차이는 <a href="computation/tensor-shapes.html">토큰 벡터는 Q·K·V로 어떻게 바뀔까?</a>에 정리했습니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Column 결과를 매번 모으지 않고 Row 계산으로 넘길 수 있다</h2>
+<p>Column과 Row는 모델 전체에 둘 중 하나만 선택하는 방식이 아닙니다. 서로 다른 두 가중치를 연속 적용하는 <code>X @ W1 @ W2</code>에서는 W1을 Column으로, W2를 Row로 나눌 수 있습니다.</p>
+<p>W1 계산이 끝나면 각 GPU에 중간 결과의 일부 열이 있습니다. <strong>그 조각이 바로 다음 Row 계산에 필요한 입력 조각</strong>이라면, 전체를 모았다가 다시 나눌 필요가 없습니다. 각 GPU가 그 조각에 W2의 대응 행을 곱한 뒤, 마지막 부분합만 AllReduce로 더하면 됩니다.</p>
+<p>이 연결도 중간 AllGather 없이 분할하지 않은 <code>X @ W1 @ W2</code>와 일치했습니다. 생략한 것은 중간 수집이지 마지막 합산이 아닙니다. 또한 다음 계산이 자기 조각만으로 진행될 수 있을 때 가능한 연결이지, 임의의 연산 사이에서 항상 통신을 생략할 수 있다는 뜻은 아닙니다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>실제 Transformer의 Attention과 FFN도 이 구조를 활용한다</h2>
+<p>Attention에서는 GPU마다 담당 Head의 Q·K·V를 만드는 가중치 열을 갖고, 같은 입력에서 자기 Q·K·V 조각을 계산할 수 있습니다. 그 조각으로 담당 Head의 Attention을 수행한 뒤에는 다음처럼 연결됩니다.</p>
+<blockquote>
+<p><strong>담당 Q·K·V 계산 → 담당 Head의 Attention → Head 출력을 모으지 않고 W_O의 담당 행과 곱함 → 부분합을 AllReduce로 결합</strong></p>
+</blockquote>
+<p>합치는 것은 Head 출력 자체가 아니라 <strong>출력 투영 W_O를 적용한 뒤의 부분합</strong>입니다. 토큰 2개·Head 2개의 작은 Attention 예제에서 이 결과는 분산하지 않은 기준 계산과 최대 절대 오차 약 <code>0.00000024</code>로 일치했습니다.</p>
+<p>FFN도 차원을 확장하는 gate/up 투영을 Column으로 나누고, 담당 조각의 활성화·곱셈을 거쳐, down 투영을 Row로 계산하는 구조를 사용합니다. TP는 Attention Head만 나누는 기능이 아닙니다.</p>
+<p>설치된 vLLM 소스에서는 클래스 이름뿐 아니라 <strong>입력 전달, 부분 행렬 계산, AllReduce 호출 조건</strong>까지 확인했습니다. 작은 예제는 계산 원리의 검증이고, 소스 확인은 실제 구현에 그 구조가 연결되는 근거입니다. 실제 모델의 모든 커널이나 답변 품질까지 검증한 것은 아닙니다.</p>
+<p>Head별 계산과 FFN의 연결은 <a href="computation/attention-ffn.html">Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</a>, 구현 근거는 <a href="computation/vllm-source.html">vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</a>에서 설명합니다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>같은 AllReduce라도 실제 데이터를 옮기는 경로는 다를 수 있다</h2>
+<p>계산과 합산 방법이 맞아도 GPU 사이에서 데이터가 실제로 이동해야 실행이 끝납니다. NCCL은 통신 라이브러리이고, GPU 간 직접 전송인 P2P나 호스트 메모리를 이용하는 SHM은 전송 방식입니다. GPU 연결 구조도 별도로 확인해야 합니다.</p>
+<p>관찰한 환경에서는 초기화·통신 정체를 겪었고, P2P를 끄고 SHM을 허용한 구성에서 서버 준비와 요청 처리가 성공했습니다. 정상 실행의 서버 로그에서도 SHM 경로가 확인됐습니다. 이는 해당 환경에서 사용할 수 있었던 구성의 근거이지, 최초 실패의 근본 원인을 확정하거나 모든 RunPod에서 P2P가 안 된다는 증거는 아닙니다.</p>
+<p>연결 표와 NUMA의 의미는 <a href="communication/topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a>, 실패 현상과 우회 결과의 구분은 <a href="communication/troubleshooting.html">TP 초기화 실패에서 무엇까지 원인으로 말할 수 있을까?</a>에 분리했습니다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>통신 비용을 포함하고도 실제 응답은 빨라졌는가?</h2>
+<p>계산이 줄어도 통신 시간은 남습니다. 크기별 AllReduce 측정에서는 GPU당 4KiB 텐서가 평균 약 0.059ms, 64MiB가 약 6.822ms 걸렸습니다. 호출과 GPU 완료 대기를 포함한 측정으로, GPU를 늘린다고 모든 작업 시간이 정확히 반이 되지 않는 이유를 이해하는 근거입니다.</p>
+<p>실제 서비스에서는 <strong>요청 하나의 지연</strong>과 <strong>여러 요청의 전체 처리량</strong>을 구분해 비교했습니다. 모델·정밀도·입출력 길이를 고정하고 예열을 제외했으며, 각 비교 안에서 같은 머신의 TP=1과 TP=2를 차례로 실행했습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>검증 질문</th>
+<th>관찰한 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>요청을 하나씩 보내면 응답이 빨라지는가?</td>
+<td>평균 전체 응답 시간 약 3.732→2.146초</td>
+</tr>
+<tr>
+<td>동시 요청 8개·총 40개를 보내면 어떤가?</td>
+<td>평균 전체 응답 시간 3.861→2.272초, 전체 출력 처리량 264.44→449.15토큰/초</td>
+</tr>
+</tbody></table>
+</div>
+<p>동시 요청 비교에서는 평균 전체 응답 시간이 <strong>41.2% 감소</strong>, 출력 처리량이 <strong>1.70배 증가</strong>했습니다. 순차 비교와 동시 비교는 서로 다른 GPU 할당에서 수행했으므로, 두 행의 차이를 동시성만의 효과로 해석하지 않습니다.</p>
+<p>이 결과는 제한된 요청 조건에서 TP의 이점이 나타났다는 뜻입니다. 최대 처리량을 찾은 것도, 두 배에 못 미친 차이를 전부 통신 비용으로 분리 측정한 것도 아닙니다. TTFT·TPOT·E2E와 비교 조건은 <a href="performance/README.html">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</a>, 재현 절차는 <a href="performance/reproduction.html">같은 조건의 TP 비교를 어떻게 재현할까?</a>에 있습니다.</p>
+
+</section>
+<section id="section-08" class="markdown-section">
+<h2>가중치를 나눴는데 왜 GPU 메모리는 여전히 많이 사용하는가?</h2>
+<p>TP=2의 두 GPU는 각각 약 36.6GiB를 사용했습니다. 전체 메모리만 보면 모델이 그대로 복제된 것처럼 보일 수 있지만, 시작 로그는 다른 구성을 보여 줬습니다.</p>
+<p>GPU당 모델 로딩 메모리는 <strong>15.27→7.64GiB</strong>로 거의 절반이 됐고, KV Cache에 사용 가능한 메모리는 <strong>18.40→26.44GiB</strong>로 늘었습니다. 모델에서 아낀 공간을 KV Cache 등에 사용할 수 있었던 것입니다.</p>
+<p>KV Cache는 가중치 자체가 아니라 토큰에서 계산한 K·V를 보관합니다. 담당 KV Head를 나누는 구성에서는 <strong>두 GPU가 같은 토큰들의 캐시를 갖되, 각 토큰의 서로 다른 Head 조각을 저장</strong>합니다. 토큰 A는 GPU 0, 토큰 B는 GPU 1에만 저장하는 식의 분할이 아닙니다.</p>
+<p>이 관계를 그린 그림과 전체 VRAM·KV 예산·실제 사용량·Prefix 재사용의 구분은 <a href="memory/README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a>에 있습니다. 모델과 TP 크기에 따라 KV Head 복제가 필요한 경우도 있어 항상 정확히 반으로 나뉜다고 일반화하지 않습니다.</p>
+<p>캐시가 담을 수 있는 토큰 용량 증가와 출력 처리 속도 증가는 다른 결과입니다. 로그의 용량 증가와 동시 수용량 추정은 <a href="memory/capacity-calculation.html">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</a>에서 따로 해석합니다.</p>
+
+</section>
+<section id="section-09" class="markdown-section">
+<h2>TP를 판단하는 기준은 분할·결합·실측을 연결하는 것이다</h2>
+<p>TP 구현은 모델의 입력·가중치·계산을 Worker별로 분담합니다. Worker는 필요한 Collective를 호출하고, NCCL은 지원되는 경로에서 통신을 수행합니다. 그 결과가 원래 계산과 같은지 확인한 뒤에야, 성능과 메모리 변화를 의미 있게 해석할 수 있습니다.</p>
+<blockquote>
+<p><strong>무엇을 나눴는가 → 왜 그 방식으로 합치는가 → 실제 모델의 어디에 쓰이는가 → 통신 비용을 포함한 속도와 메모리는 어떻게 달라졌는가.</strong></p>
+</blockquote>
+<p>작은 계산의 동등성, vLLM의 분할·합산 구조, 제한된 조건의 응답 성능 개선, 모델·KV 메모리 변화를 확인했습니다. 모든 모델의 효율, 실제 답변 품질의 동등성, 최대 처리량, TP=4·NVLink·멀티노드 성능까지 검증한 것은 아닙니다.</p>
+<p>특히 두 경계를 구분해야 합니다. 작은 AllReduce의 시간은 측정했지만 실제 추론의 정확한 통신 횟수·총시간은 따로 측정하지 않았으므로, 두 배에 못 미친 성능 차이를 전부 통신 비용으로 단정하지 않습니다. 또한 TP=1·2는 수학적으로 같은 계산을 목표로 해도 연산 순서와 반올림 때문에 수치·출력이 달라질 수 있으며, 실제 모델 출력의 동등성을 검증한 것은 아닙니다.</p>
+<p>각 경계의 이유는 <a href="communication/README.html#section-05">실제 모델에서 반복되는 합산과 통신 측정 범위</a>, <a href="performance/README.html#section-05">연산 순서·반올림과 출력 차이</a>에서 설명합니다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>문서 트리</h2>
+<p>이 문서는 TP의 필요성에서 계산·통신·성능·메모리 검증까지 연결합니다. 자세한 내용은 아래 문서에서 읽을 수 있습니다.</p>
+<ul>
+<li><a href="computation/README.html">Column과 Row는 무엇을 나누고 어떻게 연결될까?</a><ul>
+<li><a href="computation/tensor-shapes.html">토큰 벡터는 Q·K·V로 어떻게 바뀔까?</a></li>
+<li><a href="computation/attention-ffn.html">Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</a></li>
+<li><a href="computation/vllm-source.html">vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</a></li>
+</ul>
+</li>
+<li><a href="communication/README.html">GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</a><ul>
+<li><a href="communication/processes-and-ranks.html">프로세스 두 개는 어떻게 GPU 한 장씩을 선택할까?</a></li>
+<li><a href="communication/topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a></li>
+<li><a href="communication/troubleshooting.html">TP 초기화 실패에서 무엇까지 원인으로 말할 수 있을까?</a></li>
+</ul>
+</li>
+<li><a href="performance/README.html">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</a><ul>
+<li><a href="performance/reproduction.html">같은 조건의 TP 비교를 어떻게 재현할까?</a></li>
+</ul>
+</li>
+<li><a href="memory/README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a><ul>
+<li><a href="memory/capacity-calculation.html">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</a></li>
+</ul>
+</li>
+</ul>
+<p>실행 코드와 저장된 출력의 원본은 TP·NCCL 실습 노트북〔비공개 보존 자료〕입니다. 문서는 읽는 흐름을, 노트북은 재현 절차와 원시 출력을 담당합니다.</p>
+<p>노트북·원시 로그·측정 JSON은 비공개 저장소에 보존돼 있어 공개 링크를 제공하지 않습니다. 이 문서 묶음의 노트북 번호는 설명을 보강한 로컬 정리본 기준입니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="computation/README.html">Column과 Row는 무엇을 나누고 어떻게 연결될까?</a><ul><li><a href="computation/tensor-shapes.html">토큰 벡터는 Q·K·V로 어떻게 바뀔까?</a></li>
+<li><a href="computation/attention-ffn.html">Attention과 FFN은 GPU별 조각을 어떻게 이어 계산할까?</a></li>
+<li><a href="computation/vllm-source.html">vLLM 코드에서 TP의 실제 동작은 어디에 나타날까?</a></li></ul></li>
+<li><a href="communication/README.html">GPU의 부분 결과는 어떻게 합쳐지고 어떤 비용이 들까?</a><ul><li><a href="communication/processes-and-ranks.html">프로세스 두 개는 어떻게 GPU 한 장씩을 선택할까?</a></li>
+<li><a href="communication/topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a></li>
+<li><a href="communication/troubleshooting.html">TP 초기화 실패에서 무엇까지 원인으로 말할 수 있을까?</a></li></ul></li>
+<li><a href="performance/README.html">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</a><ul><li><a href="performance/reproduction.html">같은 조건의 TP 비교를 어떻게 재현할까?</a></li></ul></li>
+<li><a href="memory/README.html">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</a><ul><li><a href="memory/capacity-calculation.html">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

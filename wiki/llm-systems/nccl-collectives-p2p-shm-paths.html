@@ -1,0 +1,222 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/nccl-collectives-p2p-shm-paths.md. Do not edit directly. source-sha256:485b2a87034d2d59b6c1e297cc0ab622a8efb3003c29433a42f48c002585a4fd -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NCCL·AllReduce·전송 경로를 구분하고, A40 TP=2에서 P2P를 비활성화해 SHM 경로로 초기화를 완료한 사례의 의미와 한계를 설명한다.">
+  <meta name="source-sha256" content="485b2a87034d2d59b6c1e297cc0ab622a8efb3003c29433a42f48c002585a4fd">
+  <title>NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?">
+  <meta property="og:description" content="NCCL·AllReduce·전송 경로를 구분하고, A40 TP=2에서 P2P를 비활성화해 SHM 경로로 초기화를 완료한 사례의 의미와 한계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html","name":"NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?","description":"NCCL·AllReduce·전송 경로를 구분하고, A40 TP=2에서 P2P를 비활성화해 SHM 경로로 초기화를 완료한 사례의 의미와 한계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html"},"headline":"NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tensor-parallel-transformer-computation.html"},{"@type":"ListItem","position":6,"name":"NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/tensor-parallel-transformer-computation.html">Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?</h1>
+      <p class="lead">NCCL·AllReduce·전송 경로를 구분하고, A40 TP=2에서 P2P를 비활성화해 SHM 경로로 초기화를 완료한 사례의 의미와 한계를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#nccl">NCCL·통신 연산·전송 경로는 서로 다른 구분이다</a>
+        <a href="#tp">TP에서는 나눠 계산한 결과를 통신 연산으로 합친다</a>
+        <a href="#section-30b0e4445cc1">같은 연산도 데이터를 옮기는 경로는 달라질 수 있다</a>
+        <a href="#p2p-shm">P2P 경로에서 멈췄지만 SHM 경로에서는 실행된 사례</a>
+        <a href="#nccl-nccl">바뀐 것은 NCCL이 아니라 NCCL이 사용하는 길이다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Tensor Parallel(TP)은 하나의 모델 계산을 여러 GPU에 나눠 맡기는 방식입니다. 각 GPU가 자기 부분을 계산한 뒤에는 결과를 교환하거나 합쳐야 합니다.</p>
+<p>이때 사용하는 통신 라이브러리가 <strong>NCCL</strong>입니다. 하지만 “NCCL을 사용한다”는 말만으로 데이터가 이동하는 경로까지 정해지는 것은 아닙니다. <strong>NCCL은 필요한 통신 연산을 수행하면서, 환경과 설정에 따라 실제 전송 경로를 선택합니다.</strong></p>
+<p>이 차이를 이해하면 같은 NCCL을 사용하는데도 어떤 설정에서는 서버가 멈추고, 다른 설정에서는 정상 동작하는 이유를 구분할 수 있습니다.</p>
+</div>
+        <section id="nccl" class="markdown-section">
+<h2>NCCL·통신 연산·전송 경로는 서로 다른 구분이다</h2>
+<p>NCCL은 <em>NVIDIA Collective Communications Library</em>의 약자로, 여러 GPU 사이에서 데이터를 교환하고 집계하는 통신을 수행하는 라이브러리입니다.</p>
+<p>그 역할을 이해하려면 다음 세 가지를 구분해야 합니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>의미</th>
+<th>예시</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>통신 라이브러리</td>
+<td>누가 통신을 수행하나요?</td>
+<td>NCCL</td>
+</tr>
+<tr>
+<td>통신 연산</td>
+<td>데이터를 어떻게 모으거나 합치나요?</td>
+<td>AllReduce, AllGather</td>
+</tr>
+<tr>
+<td>전송 경로</td>
+<td>데이터를 어떤 길로 옮기나요?</td>
+<td>GPU 간 직접 전송(P2P), 호스트 메모리 경유(SHM)</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 “NCCL로 AllReduce를 수행하고, 데이터를 P2P 경로로 전달한다”는 문장에는 세 가지 정보가 함께 들어 있습니다.</p>
+<p>NCCL은 라이브러리 이름이고, AllReduce는 수행할 작업이며, P2P는 그 작업에 필요한 데이터를 옮기는 방식입니다.</p>
+
+</section>
+<section id="tp" class="markdown-section">
+<h2>TP에서는 나눠 계산한 결과를 통신 연산으로 합친다</h2>
+<ul>
+<li><a href="pytorch-process-rank-nccl-allreduce.html">같은 코드를 두 번 실행해 GPU 계산을 합치는 방법 — PyTorch의 프로세스·Rank·NCCL AllReduce 이해하기</a></li>
+</ul>
+<p>일반적인 Attention의 TP 구성을 예로 들면, GPU들은 각각 담당한 Head를 계산하고 출력 투영 행렬 <code>W_O</code>의 일부를 적용합니다. 이후 각 GPU가 만든 부분 결과를 합쳐야 합니다.</p>
+<pre><code class="language-text">GPU 0: 담당 Head 계산 → 출력 투영의 부분 결과 Y₀
+GPU 1: 담당 Head 계산 → 출력 투영의 부분 결과 Y₁
+
+               AllReduce로 합산
+
+GPU 0: Y₀ + Y₁을 가지고 다음 계산
+GPU 1: Y₀ + Y₁을 가지고 다음 계산
+</code></pre>
+<p>여기서 더하는 것은 서로 다른 Head의 출력을 무작정 합산한 값이 아니라, <strong>출력 투영까지 적용한 부분 기여분</strong>입니다.</p>
+<p>NCCL의 통신 연산은 이런 작업을 수행합니다.</p>
+<ul>
+<li><strong>AllReduce:</strong> 각 GPU의 값을 합산하는 등의 연산을 수행하고, 결과를 참여 GPU 모두가 갖게 합니다.</li>
+<li><strong>AllGather:</strong> 각 GPU가 가진 데이터 조각을 모아, 전체 데이터를 참여 GPU 모두가 갖게 합니다. 값을 더하는 연산은 아닙니다.</li>
+</ul>
+<p>따라서 TP에서 NCCL을 사용한다는 것은, 모델을 나눠 계산하면서 필요한 이러한 데이터 교환을 NCCL에 맡긴다는 뜻입니다.</p>
+
+</section>
+<section id="section-30b0e4445cc1" class="markdown-section">
+<h2>같은 연산도 데이터를 옮기는 경로는 달라질 수 있다</h2>
+<p>AllReduce로 결과를 합치려면 GPU 사이에서 데이터가 이동해야 합니다. NCCL은 환경에 따라 다른 전송 경로를 사용할 수 있습니다.</p>
+<h3>P2P: GPU 메모리 사이에서 직접 전송한다</h3>
+<p>P2P는 <em>Peer-to-Peer</em>의 약자입니다. GPU 간 직접 접근을 이용해 데이터를 전달하는 방식입니다.</p>
+<p>지원되는 환경에서는 PCIe나 NVLink를 통해 GPU 메모리 사이에서 데이터를 옮기며, 서버의 DRAM에 중간 데이터를 복사하는 단계를 피할 수 있습니다.</p>
+<p>여기서 “직접”은 중간 하드웨어가 전혀 없다는 뜻이 아닙니다. PCIe 스위치 같은 연결 장치를 거칠 수 있으며, <strong>호스트 메모리에 중간 복사하지 않는다는 점</strong>이 핵심입니다.</p>
+<h3>SHM: 호스트의 공유 메모리를 경유한다</h3>
+<p>SHM은 <em>Shared Memory</em>, 즉 공유 메모리를 뜻합니다. NCCL이 호스트 메모리를 이용해 GPU 사이의 데이터를 전달하는 경로입니다.</p>
+<p>개념적으로는 다음 차이가 있습니다.</p>
+<pre><code class="language-text">P2P: GPU 0 메모리 ───────────────→ GPU 1 메모리
+
+SHM: GPU 0 메모리 → 호스트 공유 메모리 → GPU 1 메모리
+</code></pre>
+<p>SHM을 사용한다고 모델 계산을 CPU가 대신 수행하는 것은 아닙니다. <strong>모델 계산은 GPU에서 계속 수행하고, 통신에 필요한 데이터가 이동하는 경로가 달라지는 것</strong>입니다.</p>
+<p>이외에도 NCCL은 서버 사이의 통신 등에 네트워크 전송을 사용할 수 있습니다. 따라서 NCCL을 특정 하드웨어 연결 하나와 같은 의미로 보면 안 됩니다.</p>
+
+</section>
+<section id="p2p-shm" class="markdown-section">
+<h2>P2P 경로에서 멈췄지만 SHM 경로에서는 실행된 사례</h2>
+<ul>
+<li><a href="vllm-tp2-cuda-error-and-p2p-stall.html">vLLM TP=2 초기화 실패: 처음의 CUDA 오류와 이후의 P2P 통신 정체는 어떻게 달랐을까?</a></li>
+</ul>
+<p>A40 두 장에 Qwen3-8B를 TP=2로 실행한 구성에서는, NCCL이 처음에 다음 경로를 선택했습니다.</p>
+<pre><code class="language-text">via P2P/CUMEM
+</code></pre>
+<p>그러나 서버는 첫 AllReduce를 호출한 뒤 초기화가 더 진행되지 않았습니다. Worker 프로세스는 살아 있었지만 API 포트는 열리지 않았고, 로그도 같은 위치에 오래 머물렀습니다.</p>
+<p>당시에는 이미 다음 옵션을 적용한 상태였습니다.</p>
+<pre><code class="language-text">--disable-custom-all-reduce
+</code></pre>
+<p>이 옵션은 vLLM 자체 AllReduce 구현을 비활성화하는 설정입니다. <strong>NCCL의 P2P 전송까지 비활성화하는 설정은 아닙니다.</strong> NCCL을 사용하더라도 내부 전송 경로로 P2P가 선택될 수 있습니다.</p>
+<p>이를 구분하기 위해 다른 실행 조건은 유지하고 서버 실행 환경에 다음 한 줄을 추가했습니다.</p>
+<pre><code class="language-python">env[&quot;NCCL_P2P_DISABLE&quot;] = &quot;1&quot;
+</code></pre>
+<p>이 설정은 NCCL을 끄는 것이 아니라 <strong>NCCL의 GPU 간 직접 전송을 비활성화</strong>합니다. <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-disable" rel="noopener noreferrer">NVIDIA 설정 설명</a></p>
+<p>변경 후 로그에서는 다음 경로가 선택됐습니다.</p>
+<pre><code class="language-text">via SHM/direct/direct
+</code></pre>
+<p>이후 서버는 멈췄던 지점을 지나 모델 로딩과 초기화를 완료했습니다. 준비 상태 확인은 HTTP 200을 반환했고, 실제 생성 요청도 3회 모두 답변을 반환한 뒤 정상 종료했습니다.</p>
+<p>즉, 관찰된 차이는 다음과 같습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>선택된 전송 경로</th>
+<th>관찰 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P2P 사용을 허용한 기존 설정</td>
+<td><code>P2P/CUMEM</code></td>
+<td>첫 통신 이후 초기화 진행 중단</td>
+</tr>
+<tr>
+<td><code>NCCL_P2P_DISABLE=1</code> 추가</td>
+<td><code>SHM/direct/direct</code></td>
+<td>서버 준비 및 생성 요청 3회 성공</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="nccl-nccl" class="markdown-section">
+<h2>바뀐 것은 NCCL이 아니라 NCCL이 사용하는 길이다</h2>
+<p>이 비교에서 TP=2와 NCCL, 결과를 합치는 통신 연산은 그대로 유지됐습니다. 달라진 것은 <strong>데이터를 옮기는 전송 경로</strong>였습니다.</p>
+<p>따라서 해당 환경의 문제는 P2P 직접 전송 경로와 관련된 것으로 좁힐 수 있습니다. 다만 하드웨어·호스트 설정·드라이버·NCCL 중 무엇이 최종 원인인지는 이 비교만으로 확정할 수 없습니다.</p>
+<p>또한 SHM 경로로 정상 실행됐다는 것이 성능까지 동일하다는 뜻은 아닙니다. 성능 측정에서는 어떤 전송 경로를 사용했는지도 조건으로 남겨야 합니다.</p>
+<p>핵심은 다음 한 문장으로 정리할 수 있습니다.</p>
+<blockquote>
+<p><strong>NCCL은 통신을 수행하는 라이브러리이고, AllReduce는 수행할 연산이며, P2P와 SHM은 데이터를 옮기는 경로입니다. 같은 NCCL 연산도 전송 경로를 바꾸면 동작과 성능이 달라질 수 있습니다.</strong></p>
+</blockquote>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="vllm-tp2-cuda-error-and-p2p-stall.html">vLLM TP=2 초기화 실패: 처음의 CUDA 오류와 이후의 P2P 통신 정체는 어떻게 달랐을까?</a></li>
+<li><a href="pytorch-process-rank-nccl-allreduce.html">같은 코드를 두 번 실행해 GPU 계산을 합치는 방법 — PyTorch의 프로세스·Rank·NCCL AllReduce 이해하기</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

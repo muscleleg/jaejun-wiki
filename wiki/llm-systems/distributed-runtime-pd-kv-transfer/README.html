@@ -1,0 +1,207 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.md. Do not edit directly. source-sha256:5119f3e88b6efde1a8e5d34494cdf4f9209338768a3d54400f5bb2c202eb032b -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="P/D의 요청 인계와 NIXL KV 전달 비용, 동일 자원 성능 비교와 실패 처리의 검증 범위를 연결한다.">
+  <meta name="source-sha256" content="5119f3e88b6efde1a8e5d34494cdf4f9209338768a3d54400f5bb2c202eb032b">
+  <title>P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?">
+  <meta property="og:description" content="P/D의 요청 인계와 NIXL KV 전달 비용, 동일 자원 성능 비교와 실패 처리의 검증 범위를 연결한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html","name":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?","description":"P/D의 요청 인계와 NIXL KV 전달 비용, 동일 자원 성능 비교와 실패 처리의 검증 범위를 연결한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html"},"headline":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-pd-kv-transfer/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>P/D 분리와 KV 전달: 계산을 나누면 무엇이 달라질까?</h1>
+      <p class="lead">P/D의 요청 인계와 NIXL KV 전달 비용, 동일 자원 성능 비교와 실패 처리의 검증 범위를 연결한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-8c9b227448">계산 결과를 넘겨야 다른 서버가 이어서 생성할 수 있다</a>
+        <a href="#section-71b46b0f16">연결 성공과 전달 비용은 별도로 확인해야 한다</a>
+        <a href="#section-fffb2fa85f">서버를 나누었다고 전체 응답이 빨라지는 것은 아니다</a>
+        <a href="#section-bf0ce21911">KV 전달 실패도 요청 처리 정책의 일부다</a>
+        <a href="#section-6397f1b1c1">이 단원에서 남길 결론</a>
+        <a href="#section-0d0a383f82">문서 지도</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>언어 모델의 응답 생성은 크게 두 단계다. <strong>Prefill</strong>은 입력 토큰을 처리해 각 레이어의 Key·Value(K·V)를 만들고, <strong>Decode</strong>는 그 KV Cache를 재사용하며 다음 토큰을 생성한다. 한 서버는 보통 두 일을 모두 한다.</p>
+<p>요청이 많아지면 새 입력을 처리하는 일과 기존 응답을 이어 쓰는 일이 같은 GPU 자원을 사용한다. 이 두 단계를 서로 다른 서버에 맡기는 것이 Prefill/Decode 분리(P/D disaggregation)다. 역할별로 자원을 배분하고 생성 중 간섭을 줄일 여지가 생기지만, 한 서버 안에 있던 KV를 다른 서버로 옮기는 비용도 생긴다.</p>
+<p>긴 Prefill을 작은 작업으로 나누는 Chunked Prefill은 자원을 나누는 P/D와 다르다. 두 방법은 함께 사용할 수도 있다. 원리의 구분은 <a href="chunked-prefill.html">작업을 나누는 것과 자원을 나누는 것</a>에 분리했다.</p>
+<p>이 문서의 중심 질문은 “P/D를 연결할 수 있는가?”를 넘어 “계산을 나누어 얻는 이점이 KV 전달 비용보다 큰가?”다. 고정 모델을 올린 vLLM 서버와 NIXL을 사용해 요청 흐름, 실제 전송, 성능과 실패 처리를 확인한 결과를 설명한다.</p>
+</div>
+        <section id="section-8c9b227448" class="markdown-section">
+<h2>계산 결과를 넘겨야 다른 서버가 이어서 생성할 수 있다</h2>
+<p>Decode에 원래 프롬프트만 보내면 그 서버는 입력을 처음부터 계산할 수 있다. 그것만으로는 Prefill 서버의 계산을 재사용한 것이 아니다. 재사용하려면 입력에 대응하는 KV와 그것을 가져올 정보가 필요하다.</p>
+<p>넘기는 것은 모델 가중치가 아니라 각 레이어가 이 입력에 대해 만든 K·V다. 무엇이 캐시에 들어가고 새 생성에 어떤 계산이 남는지는 <a href="kv-state.html">입력의 KV 상태</a>에서 설명한다.</p>
+<p>예시 구성은 같은 모델을 올린 독립 TP=1 서버다. 클라이언트 코드가 다음 두 요청을 순서대로 수행한다.</p>
+<p><img src="../../../assets/images/distributed-runtime-pd-kv-transfer/pd-request-flow.svg" alt="P/D 요청 순서: 요청 조정 코드가 Prefill에서 KV 정보를 받은 뒤 원래 입력과 함께 Decode에 전달한다. Decode가 KV 가져오기를 시작하면 실제 KV는 Prefill에서 Decode로 이동하고, 생성 결과가 요청 조정 코드로 돌아온다." loading="lazy"></p>
+<p><strong>Decode에도 원래 입력을 보낸다.</strong> 입력을 다시 전달하는 것과 입력 전체를 GPU로 다시 계산하는 것은 다르다. Decode는 입력으로 요청을 구성하고, 이미 계산된 구간의 KV를 가져와 재사용한다. 일반 서비스에서는 프록시가 사용자 요청 하나를 받아 이 두 내부 요청을 대신 수행할 수 있다.</p>
+<p>Prefill 응답의 주소는 Decode 목적지가 아니라 <strong>KV를 가진 Prefill 측 주소</strong>다. HTTP 본문에는 KV 텐서가 아닌 메타데이터가 담긴다. 요청·응답 필드와 프록시 책임은 <a href="request-flow.html">원래 입력과 KV 정보가 이어지는 요청 흐름</a>에 정리했다.</p>
+
+</section>
+<section id="section-71b46b0f16" class="markdown-section">
+<h2>연결 성공과 전달 비용은 별도로 확인해야 한다</h2>
+<p>HTTP 200과 답변만으로는 원격 KV 재사용을 입증할 수 없다. 수신 서버의 전송 건수·바이트와 외부 KV 입력 토큰이 해당 요청만큼 증가하는지도 봐야 한다.</p>
+<p>관찰 예시에서는 입력 673토큰에 대해 KV 전송 1건, 96.75 MiB, 외부 KV 입력 673토큰 증가와 실패 0건을 확인했다. 이는 단순한 역할 이름이 아니라 실제 전달·사용이 이루어졌다는 근거다.</p>
+<p>그러나 전달에 시간이 걸린다. 입력이 길어지면 각 레이어에 저장된 K·V도 커진다. GPU가 계산을 빨리 하더라도 필요한 KV가 아직 도착하지 않았다면 그 상태를 이용한 생성을 진행할 수 없다.</p>
+<p><strong>NIXL은 전송 라이브러리이지 PCIe나 NVLink 같은 경로 이름이 아니다.</strong> 이 자료에서는 전송이 일어났고 얼마가 걸렸는지 확인했지만, 실제 물리 경로와 병목 장치는 확정하지 않았다. 계층 구분과 크기·시간의 해석은 <a href="transfer/README.html">KV 전달을 어떻게 측정할까?</a>를 참고한다.</p>
+
+</section>
+<section id="section-fffb2fa85f" class="markdown-section">
+<h2>서버를 나누었다고 전체 응답이 빨라지는 것은 아니다</h2>
+<p>P/D의 이점은 동일한 환경과 부하에서 독립 서버 구성과 비교해야 한다. GPU를 세 장 쓴다면 세 장 모두가 각각 완전한 요청을 처리하는 구성도 비교 대상이다.</p>
+<p>RTX PRO 4000 Blackwell 3장, Qwen3-8B, 입력 673·출력 32토큰, 동시 요청 16개·총 80개의 비스트리밍 비교에서는 다음을 관찰했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>같은 GPU 3장 구성</th>
+<th align="right">평균 전체 응답 시간(E2E)</th>
+<th align="right">완료 요청 처리량</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>독립 서버 3개</td>
+<td align="right">1.579초</td>
+<td align="right">9.89요청/초</td>
+</tr>
+<tr>
+<td>2P·1D</td>
+<td align="right">3.263초</td>
+<td align="right">4.57요청/초</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 조건에서는 독립 서버가 더 좋았다. P/D 구성의 KV 수신 평균은 1790.7ms였으며, 전달 비용을 무시하고 계산 분리만으로 이득을 예상할 수 없었다.</p>
+<p>별도의 스트리밍 비교에서는 P/D의 생성 중 토큰 간격(TPOT 추정)이 더 짧았지만, 첫 내용까지의 시간(TTFT)이 훨씬 길어 전체 응답은 느렸다. <strong>생성이 시작된 뒤 빠른 것과 요청 전체가 빨리 끝나는 것은 다른 문제다.</strong> Prefill 간섭 감소와 실제 Decode 동시성 감소 중 무엇이 얼마나 기여했는지는 직접 계측하지 않았다.</p>
+<p>구성 선택의 판단 기준은 <a href="performance/README.html">역할 분리는 언제 이득이 되는가?</a>, 조건별 수치와 근거는 <a href="performance/results.html">같은 조건끼리 읽는 성능 비교</a>에 분리했다.</p>
+
+</section>
+<section id="section-bf0ce21911" class="markdown-section">
+<h2>KV 전달 실패도 요청 처리 정책의 일부다</h2>
+<p>Decode에 원래 입력이 있다고 해서 KV 실패 시 반드시 재계산하는 것은 아니다. 예시 서버는 <code>kv_load_failure_policy=fail</code>로 설정했다.</p>
+<p>정상 메타데이터의 엔진 ID만 바꾸자, 연결 준비에서 ID 불일치를 감지하고 해당 요청을 HTTP 500으로 실패시켰다. 이후 새 정상 KV 정보를 넣은 요청은 1.359초에 출력 32토큰으로 완료됐다. 즉, 이 오류가 이후 정상 요청까지 막지는 않았다.</p>
+<p>다만 실패 처리 콜백에서 추가 <code>IndexError</code>도 발생했다. 이를 누락하고 “오류 처리까지 완전하다”고 말하면 안 된다. 원인→정책→응답→후속 정상 처리의 근거는 <a href="failures.html">KV 전달 실패와 이후 요청의 경계</a>에 남겼다.</p>
+
+</section>
+<section id="section-6397f1b1c1" class="markdown-section">
+<h2>이 단원에서 남길 결론</h2>
+<p>P/D는 모델 계산을 자동으로 빠르게 만드는 장치가 아니라 <strong>요청의 두 단계를 나누고 그 사이의 상태를 전달하는 구조</strong>다. 이를 판단하려면 다음을 함께 알아야 한다.</p>
+<ul>
+<li>원래 입력·생성 조건과 KV 메타데이터가 어떻게 연결되는가.</li>
+<li>실제로 KV를 가져왔는지, 얼마를 옮겼고 어느 경계에서 시간을 쟀는가.</li>
+<li>같은 GPU 수·입력·출력·동시성에서 독립 구성보다 나은가.</li>
+<li>첫 응답과 생성 중 속도, 전체 응답과 처리량이 서로 어떻게 다른가.</li>
+<li>전달 실패가 재계산인지 요청 실패인지, 이후 정상 처리가 가능한가.</li>
+</ul>
+<p>세부 전송 경로 최적화, 하드웨어 경합 원인, 출력 수치 동등성, 이기종 TP 간 전달은 여기서 입증하지 않았다. 미확인 범위를 성능 결과의 원인으로 단정하지 않는 것까지가 이 자료의 해석 경계다.</p>
+
+</section>
+<section id="section-0d0a383f82" class="markdown-section">
+<h2>문서 지도</h2>
+<ul>
+<li><p><strong>현재 문서:</strong> P/D의 목적에서 전달 비용·성능·실패까지</p>
+<ul>
+<li><a href="chunked-prefill.html">Chunked Prefill과 P/D: 작업을 나누는 것과 자원을 나누는 것</a></li>
+<li><a href="request-flow.html">원래 입력과 KV 정보가 이어지는 요청 흐름</a><ul>
+<li><a href="kv-state.html">Decode가 이어받는 것은 모델이 아니라 입력의 KV 상태다</a></li>
+<li><a href="roles.html">vLLM의 KV 역할 옵션은 무엇을 바꾸는가?</a></li>
+</ul>
+</li>
+<li><a href="transfer/README.html">KV 전달을 어떻게 측정할까?</a><ul>
+<li><a href="transfer/library-and-paths.html">NIXL 설치와 KV가 실제로 이동하는 경로는 다른 문제다</a></li>
+<li><a href="transfer/kv-size.html">KV 크기와 블록 단위 전송량</a><ul>
+<li><a href="transfer/gqa-kv-size.html">GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</a></li>
+</ul>
+</li>
+<li><a href="transfer/metrics.html">NIXL 통계와 HTTP 시간의 경계</a><ul>
+<li><a href="transfer/effective-throughput.html">KV 전송 유효 처리량: 개별 전송 속도와 전체 처리량의 차이</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="performance/README.html">역할 분리는 언제 이득이 되는가?</a><ul>
+<li><a href="performance/results.html">같은 조건끼리 읽는 성능 비교</a></li>
+<li><a href="performance/output-equivalence.html">단독과 P/D의 답변이 다르면 무엇을 확인해야 할까?</a></li>
+</ul>
+</li>
+<li><a href="failures.html">KV 전달 실패와 이후 요청의 경계</a></li>
+<li><a href="reproduction.html">재현 조건과 보존 자료</a></li>
+</ul>
+</li>
+</ul>
+<p>개별 질문으로 복습하려면 <a href="questions.html">P/D와 KV 전달을 이해할 때 생기는 질문들</a>에서 해당 설명을 찾을 수 있다. 요청 구성부터 부수적인 환경 문제까지 연결하되, 상위 문서의 중심은 계산 분리와 전달 비용의 관계에 둔다.</p>
+<p>실행 코드는 <a href="https://github.com/muscleleg/transformer-practice/blob/698ef27c884be49c11139955e200fd0bfa30777d/transformer/notebooks/transformer/distributed_runtime_pd_kv_transfer.ipynb" rel="noopener noreferrer">P/D 실습 노트북</a>에 직접 들어 있다. 각 실습은 이유·설명·코드·결과 해석 순서이며, 원본 출력은 보존하고 GPU 재실행 없이 설명을 보강했다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="request-flow.html">원래 입력과 KV 정보가 이어지는 요청 흐름</a><ul><li><a href="kv-state.html">Decode가 이어받는 것은 모델이 아니라 입력의 KV 상태다</a></li>
+<li><a href="roles.html">vLLM의 KV 역할 옵션은 무엇을 바꾸는가?</a></li></ul></li>
+<li><a href="transfer/README.html">KV 전달을 어떻게 측정할까?</a><ul><li><a href="transfer/library-and-paths.html">NIXL 설치와 KV가 실제로 이동하는 경로는 다른 문제다</a></li>
+<li><a href="transfer/kv-size.html">KV 크기와 블록 단위 전송량</a><ul><li><a href="transfer/gqa-kv-size.html">GQA의 KV Head 수는 캐시 크기에 이미 반영되어 있다</a></li></ul></li>
+<li><a href="transfer/metrics.html">NIXL 통계와 HTTP 시간의 경계</a><ul><li><a href="transfer/effective-throughput.html">KV 전송 유효 처리량: 개별 전송 속도와 전체 처리량의 차이</a></li></ul></li></ul></li>
+<li><a href="performance/README.html">역할 분리는 언제 이득이 되는가?</a><ul><li><a href="performance/results.html">같은 조건끼리 읽는 성능 비교</a></li>
+<li><a href="performance/output-equivalence.html">단독과 P/D의 답변이 다르면 무엇을 확인해야 할까?</a></li></ul></li>
+<li><a href="failures.html">KV 전달 실패와 이후 요청의 경계</a></li>
+<li><a href="reproduction.html">재현 조건과 보존 자료</a></li>
+<li><a href="questions.html">P/D와 KV 전달을 이해할 때 생기는 질문들</a></li>
+<li><a href="chunked-prefill.html">Chunked Prefill과 P/D: 작업을 나누는 것과 자원을 나누는 것</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/maze-escape-bfs-note.md. Do not edit directly. source-sha256:12252835daec267d7697367d4e11d0eb8a88c9e2b6e3961acfe9edc6984d8737 -->
+<!-- Generated from content/wiki/coding-test/maze-escape-bfs-note.md. Do not edit directly. source-sha256:36f1e8f002b92a86a69b65468bc5a6373288d5bc7b031eb4da452e3a65a399f4 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
-  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
 <!-- static-shell:styles:end -->
   <!-- search-indexing:start -->
   <meta name="robots" content="noindex">
@@ -25,10 +25,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="프로그래머스 미로 탈출에서 전역 상태 접근의 문제를 고치고, S→L·L→E를 독립 BFS 두 번으로 구현한 최종 풀이와 검증 결과를 기록한다.">
-  <meta name="source-sha256" content="12252835daec267d7697367d4e11d0eb8a88c9e2b6e3961acfe9edc6984d8737">
+  <meta name="source-sha256" content="36f1e8f002b92a86a69b65468bc5a6373288d5bc7b031eb4da452e3a65a399f4">
   <title>미로 탈출 BFS 응용 메모</title>
-  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261003-shell-1">
-  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261003-shell-1">
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/coding-test/maze-escape-bfs-note.html">
   <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
@@ -70,6 +70,8 @@
         <a href="#document-section-5">이전 문제의 조건을 그대로 가져오지 않는다</a>
         <a href="#document-section-6">다음 풀이에서 확인할 것</a>
         <a href="#document-section-7">최종 풀이 · 두 BFS로 나누고 각 탐색을 독립시킨다</a>
+        <a href="#review-2026-10-07">2026-10-07 재풀이 · 두 구간의 실패와 방문 기록 분리를 놓쳤다</a>
+        <a href="#complexity-review-2026-10-07">2026-10-07 시간복잡도 복습</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p><strong>이 메모 복습</strong><a href="#first-thought">처음 접근</a><a href="#shared-state">공유 boolean 문제</a><a href="#split">두 BFS로 분리</a><a href="#visited">visited 독립</a><a href="#assumption">이전 조건 복사</a><a href="#checkpoint">다음 확인</a><a href="#document-section-7">최종 풀이</a><a href="index.html">← 전체 문제</a></p>
@@ -209,6 +211,122 @@ def solution(maps):
 <aside class="md-component md-callout" data-component="callout"><div class="md-component-body"><p><strong>이번 문제에서 얻은 핵심</strong></p>
 <p>필수 경유점의 순서가 고정되어 있으면 복합 상태를 한 번의 BFS에 억지로 넣기보다, 구간별 최단거리 문제로 분해할 수 있는지 먼저 확인한다.</p>
 </div></aside>
+
+</section>
+<section id="review-2026-10-07" class="markdown-section">
+<h2>2026-10-07 재풀이 · 두 구간의 실패와 방문 기록 분리를 놓쳤다</h2>
+<p>이번에는 처음부터 시작점·레버·출구를 찾고 <code>S → L</code>, <code>L → E</code>를 BFS 두 번으로 나누는 구조를 구현했다. 하지만 독립적으로 완성하지 못했고, 반례와 설명을 보고 두 가지 누락을 수정했다. 두 번째 구간은 <code>레버 → 시작점</code>이 아니라 <code>레버 → 출구</code>다.</p>
+<h3>1. 시작점에서 레버로 못 가는 경우만 확인했다</h3>
+<p>처음에는 <code>start_to_levor != -1</code>만 검사하고 <code>bfs(levor, end)</code>의 결과를 바로 더했다. 레버에 도달했더라도 출구에 못 가면 두 번째 BFS가 <code>-1</code>을 반환한다. 이를 거리처럼 더하면 오답이다.</p>
+<p><code>[&quot;SLOOO&quot;, &quot;XXXXX&quot;, &quot;OOOOO&quot;, &quot;XXXXX&quot;, &quot;OOOOE&quot;]</code>에서는 레버까지 1칸이지만 출구에 갈 수 없다. 처음 코드는 <code>1 + (-1) = 0</code>을 반환하며, 정답은 <code>-1</code>이다.</p>
+<p>두 결과를 각각 저장하고 둘 다 <code>-1</code>이 아닐 때만 합산하도록 수정했다.</p>
+<h3>2. 첫 BFS에서 방문한 곳은 두 번째 BFS에서도 못 간다고 생각했다</h3>
+<p>두 BFS가 바깥의 같은 <code>visited</code>를 사용했다. 한 탐색 안에서 중복 방문을 막는 것과, 다른 탐색에서 같은 길을 다시 지나는 것은 별개다. 첫 BFS가 표시한 칸은 실제 선택 경로뿐 아니라 탐색 도중 발견한 칸도 포함한다.</p>
+<p><code>[&quot;SELOO&quot;, &quot;XXXXX&quot;, &quot;OOOOO&quot;, &quot;OOOOO&quot;, &quot;OOOOO&quot;]</code>에서는 <code>S → E → L → E</code>로 총 3칸 이동할 수 있다. 하지만 첫 BFS가 <code>E</code>를 방문 처리하면 두 번째 BFS는 <code>L → E</code>로 돌아가지 못한다.</p>
+<p>벽만 표시한 원본 배열은 그대로 두고, 호출마다 <code>deepcopy(visited)</code>로 새 방문 배열을 전달하도록 수정했다. <code>visited[:]</code>는 바깥 리스트만 복사해서 안쪽 행은 공유하므로 충분하지 않다. boolean으로 된 이 배열에서는 <code>[row[:] for row in visited]</code>도 가능하다.</p>
+<h3>도움을 받아 수정한 코드</h3>
+<p>아래는 이번에 작성한 코드다. 이전 절의 23개 테스트 통과 기록과는 다른 시도이며, 이번 수정본의 공식 채점 결과는 아직 공유되지 않았다.</p>
+<pre><code class="language-python">from copy import deepcopy
+from collections import deque
+def solution(maps):
+    answer = 0
+    visited = [[False] * len(maps[0]) for _ in range(len(maps))]
+
+    start = (None, None)
+    levor = (None, None)
+    end = (None, None)
+
+    for i, map_item in enumerate(maps):
+        for j, item in enumerate(map_item):
+            if item == &quot;S&quot;:
+                start = (i, j)
+            elif item == &quot;L&quot;:
+                levor = (i, j)
+            elif item == &quot;E&quot;:
+                end = (i, j)
+            elif item == &quot;X&quot;:
+                visited[i][j] = True
+
+    def bfs(start, destination, visited):
+        queue = deque()
+        x, y = start
+        queue.append((x, y, 0))
+        directions = ((-1, 0), (0, 1), (1, 0), (0, -1))
+
+        while queue:
+            x, y, distance = queue.popleft()
+            if (x, y) == destination:
+                return distance
+            for direction in directions:
+                next_x = x + direction[0]
+                next_y = y + direction[1]
+                if 0 &lt;= next_x &lt; len(maps) and 0 &lt;= next_y &lt; len(maps[0]):
+                    if not visited[next_x][next_y]:
+                        visited[next_x][next_y] = True
+                        queue.append((next_x, next_y, distance + 1))
+        return -1
+
+    start_to_levor = bfs(start, levor, deepcopy(visited))
+    levor_to_end = bfs(levor, end, deepcopy(visited))
+    if start_to_levor != -1 and levor_to_end != -1:
+        return start_to_levor + levor_to_end
+    return -1
+</code></pre>
+<p>시작점을 큐에 넣을 때 <code>visited[x][y] = True</code>를 표시하는 보완은 위 코드에 아직 들어 있지 않다. 따라서 시작점이 한 번 더 큐에 들어갈 수 있다. 이번에 확인한 두 실패 원인과는 구분해서 다음 구현에서 점검한다.</p>
+<h3>이번 재풀이 집계</h3>
+<ul>
+<li>확인된 과거 정답 제출 날짜는 2026-05-12, 2026-08-20, 2026-09-06으로 3일이다.</li>
+<li>2026-10-07 재풀이 시도 1회를 추가로 기록한다. 오늘 수정 과정의 여러 코드는 같은 시도 1회로 센다.</li>
+<li>새로 추적하는 ‘못 맞춘 횟수’는 이번 독립 재풀이 실패 1회다. 과거 정답 제출 날짜만으로 과거 실패 횟수를 추정하지 않는다.</li>
+<li>이번 상태는 ‘반례·설명을 받아 수정, 공식 채점 미확인’이다. 기존 정답 제출 날짜·횟수와 과거 완료 상태는 유지한다.</li>
+</ul>
+
+</section>
+<section id="complexity-review-2026-10-07" class="markdown-section">
+<h2>2026-10-07 시간복잡도 복습</h2>
+<p>이번 분석 대상은 위 재풀이의 <code>deepcopy(visited)</code>를 각각 전달하는 두 BFS 코드다. 행을 r, 열을 c로 둔다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>비용</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>방문 배열 생성</td>
+<td>O(rc)</td>
+</tr>
+<tr>
+<td>S·L·E·벽을 찾는 지도 전체 순회</td>
+<td>O(rc)</td>
+</tr>
+<tr>
+<td>boolean 2차원 방문 배열의 깊은 복사 한 번</td>
+<td>O(rc)</td>
+</tr>
+<tr>
+<td>BFS 한 번의 큐 꺼내기</td>
+<td>최대 rc+1회, O(rc)</td>
+</tr>
+<tr>
+<td>꺼낸 칸 한 개의 네 방향 검사</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>BFS 한 번 전체</td>
+<td>O(4rc) = O(rc)</td>
+</tr>
+<tr>
+<td>깊은 복사와 BFS를 각각 두 번</td>
+<td>합계 O(rc)</td>
+</tr>
+</tbody></table>
+</div>
+<p>큐에 넣는 순간 방문 표시하므로 각 일반 칸은 탐색당 최대 한 번 들어간다. 이번 코드에는 시작점의 최초 방문 표시가 없어 시작점만 한 번 더 들어갈 수 있다. 이를 포함해도 O(rc)이며, 시작점을 넣을 때 표시하면 중복을 없앨 수 있다.</p>
+<h3>한 칸의 4번과 전체 칸 수를 구분한다</h3>
+<p>배열 생성·지도 순회·복사·큐 처리 수를 각각 rc로 계산했다. 네 방향 검사에 대해서는 4라고 답했는데, 이것은 한 칸의 검사 횟수다. 전체는 최대 rc개 칸에 대해 4번씩이므로 4rc다. 두 BFS의 비용을 2rc로 표현한 뒤 상수 2를 생략하는 과정을 확인했다.</p>
+<p>배열 생성, 지도 순회, 복사 두 번, BFS 두 번은 순차 실행하므로 비용을 더한다. BFS 안에서 칸마다 방향을 확인하는 부분만 반복 횟수를 곱한다. 따라서 전체 시간복잡도는 O(rc)다. 이번 계산 학습은 추가 제출이나 이번 재풀이의 공식 채점 확인을 뜻하지 않는다.</p>
 
 </section>
         

@@ -1,0 +1,243 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.md. Do not edit directly. source-sha256:c9aa51bf84706d4a9243816c2387dcc6f2b4994d4b5ebf337b49c753071b5aeb -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서버 연결 한도와 timeout queue로 대기 시간을 제한하는 방법과 IP별 요청률을 집계해 HTTP 429로 거절하는 방법을 구분한다.">
+  <meta name="source-sha256" content="c9aa51bf84706d4a9243816c2387dcc6f2b4994d4b5ebf337b49c753071b5aeb">
+  <title>HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법">
+  <meta property="og:description" content="서버 연결 한도와 timeout queue로 대기 시간을 제한하는 방법과 IP별 요청률을 집계해 HTTP 429로 거절하는 방법을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html","name":"HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법","description":"서버 연결 한도와 timeout queue로 대기 시간을 제한하는 방법과 IP별 요청률을 집계해 HTTP 429로 거절하는 방법을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html"},"headline":"HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-network-transport-web","name":"TCP·HTTP·TLS","identifier":"topics-network-transport-web"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-queue-timeout-request-rate-limit.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"네트워크 링크·IP·라우팅","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_link_ip_routing.html"},{"@type":"ListItem","position":5,"name":"네트워크 TCP·HTTP·TLS","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/network_tcp_http_tls.html"},{"@type":"ListItem","position":6,"name":"HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/haproxy-frontend-backend-routing.html"},{"@type":"ListItem","position":7,"name":"HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_link_ip_routing.html">네트워크 링크·IP·라우팅</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/network_tcp_http_tls.html">네트워크 TCP·HTTP·TLS</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/haproxy-frontend-backend-routing.html">HAProxy 설정 읽기: 입구·목적지·요청 분배 규칙은 어떻게 연결될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>HAProxy에서 요청의 대기 시간과 유입량을 제한하는 방법</h1>
+      <p class="lead">서버 연결 한도와 timeout queue로 대기 시간을 제한하는 방법과 IP별 요청률을 집계해 HTTP 429로 거절하는 방법을 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-8df4c3951219">서버로 전달할 자리가 없으면 기다리되, 대기 시간을 제한한다</a>
+        <a href="#section-3ba1559981d9">요청이 너무 많이 들어오면 기다리게 하지 않고 거절한다</a>
+        <a href="#section-c35ec467f437">두 설정은 “기다림”과 “받아들임”을 각각 제어한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>HAProxy가 요청을 여러 서버에 분배하더라도, 모든 요청을 제한 없이 받아 처리할 수 있는 것은 아닙니다. 서버로 전달하지 못한 요청이 오래 기다리거나, 짧은 시간에 요청이 지나치게 몰릴 수 있습니다.</p>
+<p>이때 두 가지를 별도로 정할 수 있습니다.</p>
+<ul>
+<li><strong>대기 시간 제한:</strong> 서버로 전달할 자리가 생길 때까지 얼마나 기다리게 할 것인가?</li>
+<li><strong>요청 유입량 제한:</strong> 일정 시간 동안 들어오는 요청을 얼마나 허용할 것인가?</li>
+</ul>
+<p>둘 다 서비스를 보호하기 위한 설정이지만, 제한하는 대상과 실패 응답이 다릅니다.</p>
+</div>
+        <section id="section-8df4c3951219" class="markdown-section">
+<h2>서버로 전달할 자리가 없으면 기다리되, 대기 시간을 제한한다</h2>
+<p>먼저 서버별 동시 연결 수를 제한하면, 바로 전달하지 못한 요청을 HAProxy에서 기다리게 할 수 있습니다.</p>
+<pre><code class="language-bash">defaults
+    mode http
+    timeout connect 5s
+    timeout client 10m
+    timeout server 10m
+    timeout queue 1s
+
+backend model_servers
+    balance leastconn
+    server model-a 127.0.0.1:8101 maxconn 2
+    server model-b 127.0.0.1:8102 maxconn 2
+</code></pre>
+<p>두 설정을 함께 읽어야 합니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>서버별 <code>maxconn 2</code></td>
+<td>각 서버로 동시에 연결할 수 있는 수를 2개로 제한</td>
+</tr>
+<tr>
+<td><code>timeout queue 1s</code></td>
+<td>연결 자리가 없을 때 HAProxy에서 기다릴 수 있는 시간을 1초로 제한</td>
+</tr>
+</tbody></table>
+</div>
+<p>서버별 연결 한도가 모두 차 있으면 새 요청은 HAProxy의 대기열에 들어갑니다. 1초 안에 자리가 생기면 서버로 전달하고, 그렇지 않으면 <strong>HAProxy가 HTTP 503을 반환</strong>합니다. <a href="https://docs.haproxy.org/2.8/configuration.html#4-timeout%20queue" rel="noopener noreferrer">HAProxy 설정 문서 — timeout queue</a></p>
+<p>중요한 것은 <strong>1초가 전체 응답 시간 제한이 아니라는 점</strong>입니다.</p>
+<pre><code>바로 서버로 전달됨
+  → 서버에서 3.2초 동안 처리
+  → HTTP 200 가능
+
+서버로 전달할 자리가 없음
+  → HAProxy에서 1초 대기
+  → 자리가 생기지 않음
+  → HTTP 503
+</code></pre>
+<p>따라서 성공 응답에 3.2초가 걸려도 <code>timeout queue 1s</code>와 모순되지 않습니다. 서버로 전달된 뒤 처리하는 시간은 이 대기 시간 제한의 대상이 아닙니다.</p>
+
+</section>
+<section id="section-3ba1559981d9" class="markdown-section">
+<h2>요청이 너무 많이 들어오면 기다리게 하지 않고 거절한다</h2>
+<p>대기열에 넣기 전에 요청 유입량 자체를 제한할 수도 있습니다.</p>
+<p>다음은 <strong>같은 클라이언트 IP의 <code>/v1/</code> 요청을 10초 기준으로 집계하고, 설정한 기준을 넘으면 HTTP 429를 반환</strong>하는 예시입니다.</p>
+<pre><code class="language-typescript">frontend policy_api
+    bind 127.0.0.1:8003
+
+    stick-table type ip size 10k expire 30s store http_req_rate(10s)
+
+    acl model_request path_beg /v1/
+    http-request track-sc0 src if model_request
+    http-request deny deny_status 429 if model_request { sc_http_req_rate(0) gt 4 }
+
+    default_backend model_servers
+</code></pre>
+<p>설정은 <strong>기억할 공간 만들기 → 요청 집계하기 → 초과 여부 판단하기</strong> 순서로 이어집니다.</p>
+<h3>IP별 요청 유입량을 기억한다</h3>
+<pre><code class="language-typescript">stick-table type ip size 10k expire 30s store http_req_rate(10s)
+</code></pre>
+<p><code>stick-table</code>은 클라이언트별 상태를 기억하는 표입니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>type ip</code></td>
+<td>IP 주소를 기준으로 항목 구분</td>
+</tr>
+<tr>
+<td><code>size 10k</code></td>
+<td>표에 저장할 수 있는 항목 수의 상한</td>
+</tr>
+<tr>
+<td><code>expire 30s</code></td>
+<td>항목의 만료 시간</td>
+</tr>
+<tr>
+<td><code>http_req_rate(10s)</code></td>
+<td>10초 구간을 기준으로 HTTP 요청 유입량 추적</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>size 10k</code>는 허용 요청 수가 아니며, <code>expire 30s</code>도 요청 대기 시간이 아닙니다. 둘 다 <strong>집계 정보를 저장하는 표의 설정</strong>입니다.</p>
+<h3>제한할 요청만 집계한다</h3>
+<pre><code>acl model_request path_beg /v1/
+http-request track-sc0 src if model_request
+</code></pre>
+<p><code>model_request</code>는 경로가 <code>/v1/</code>로 시작하는 요청을 나타내는 조건입니다.</p>
+<p>조건에 해당하면 <code>src</code>, 즉 클라이언트 IP를 기준으로 요청을 추적합니다. <code>track-sc0</code>의 <code>0</code>은 뒤에서 이 추적 정보를 조회할 때 사용할 번호입니다.</p>
+<p>이 구성에서는 <code>/health</code> 요청이 집계 대상에 포함되지 않습니다.</p>
+<h3>기준을 넘으면 즉시 429를 반환한다</h3>
+<pre><code class="language-scss">http-request deny deny_status 429 if model_request { sc_http_req_rate(0) gt 4 }
+</code></pre>
+<p>이 문장은 다음 의미입니다.</p>
+<blockquote>
+<p><code>/v1/</code> 요청이고, 앞에서 추적한 IP의 10초 기준 요청 집계가 4를 초과하면 HTTP 429로 거절하세요.</p>
+</blockquote>
+<p><code>gt</code>는 “초과”라는 뜻입니다. 조건에 걸리면 HAProxy는 요청을 Backend로 전달하지 않고 거절 응답을 반환합니다. <a href="https://docs.haproxy.org/2.8/configuration.html" rel="noopener noreferrer">HAProxy 공식 설정 문서</a></p>
+<p><strong>여기서 4는 동시 처리 요청 수가 아닙니다.</strong> 앞선 요청이 이미 끝났더라도 짧은 시간에 계속 요청하면 제한에 걸릴 수 있습니다.</p>
+<p>또한 이 설정은 정확히 10초마다 허용 횟수를 초기화하는 고정 할당량 방식이 아니라, HAProxy의 기간 기반 요청률 카운터를 사용합니다. 집계 후 거절 여부를 판단하므로 <strong>거절된 요청도 집계에 포함</strong>됩니다.</p>
+
+</section>
+<section id="section-c35ec467f437" class="markdown-section">
+<h2>두 설정은 “기다림”과 “받아들임”을 각각 제어한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>대기 시간 제한</th>
+<th>요청 유입량 제한</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>판단 기준</td>
+<td>서버 연결 자리를 기다린 시간</td>
+<td>같은 IP에서 들어오는 요청 유입량</td>
+</tr>
+<tr>
+<td>핵심 설정</td>
+<td><code>timeout queue 1s</code></td>
+<td><code>http_req_rate(10s)</code>와 거절 조건</td>
+</tr>
+<tr>
+<td>동작</td>
+<td>일단 기다리게 한 뒤 시간 초과 시 실패</td>
+<td>기준 초과 시 바로 거절</td>
+</tr>
+<tr>
+<td>예시 응답</td>
+<td>HTTP 503</td>
+<td>HTTP 429</td>
+</tr>
+</tbody></table>
+</div>
+<p>요청 유입량 제한은 서버가 실제로 바쁜지 자동으로 판단하는 기능은 아닙니다. 서버가 한가하더라도 설정한 기준을 넘으면 거절할 수 있습니다.</p>
+<p>반대로 대기 시간 제한은 요청 수가 얼마나 많았는지가 아니라, <strong>해당 요청이 서버로 전달되지 못하고 얼마나 기다렸는지</strong>를 제한합니다.</p>
+<blockquote>
+<p><strong><code>timeout queue</code>는 “얼마나 기다리게 할지”를 정하고, 요청률 기반 <code>deny</code>는 “어떤 요청을 처음부터 거절할지”를 정합니다.</strong></p>
+</blockquote>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

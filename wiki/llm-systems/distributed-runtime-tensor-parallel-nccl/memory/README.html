@@ -1,0 +1,170 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.md. Do not edit directly. source-sha256:760ed7592c2aab0ddceda1a0cc9417dab1cac0b28afaad6e4fd34c24190c5bed -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="전체 VRAM과 모델·KV 메모리를 구분하고 같은 토큰의 KV Head 조각이 GPU별로 저장되는 구조를 설명한다.">
+  <meta name="source-sha256" content="760ed7592c2aab0ddceda1a0cc9417dab1cac0b28afaad6e4fd34c24190c5bed">
+  <title>TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?">
+  <meta property="og:description" content="전체 VRAM과 모델·KV 메모리를 구분하고 같은 토큰의 KV Head 조각이 GPU별로 저장되는 구조를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html","name":"TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?","description":"전체 VRAM과 모델·KV 메모리를 구분하고 같은 토큰의 KV Head 조각이 GPU별로 저장되는 구조를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html"},"headline":"TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-model-memory","name":"모델 메모리","identifier":"topics-model-memory"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/memory/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>TP로 가중치를 나눴는데 왜 VRAM은 여전히 많이 찰까?</h1>
+      <p class="lead">전체 VRAM과 모델·KV 메모리를 구분하고 같은 토큰의 KV Head 조각이 GPU별로 저장되는 구조를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">전체 메모리 사용량만으로 모델 복제를 판단할 수 없다</a>
+        <a href="#section-02">KV Cache는 가중치가 아니라 입력에서 계산한 K·V를 보관한다</a>
+        <a href="#section-03">같은 토큰의 K·V 조각이 두 GPU에 저장된다</a>
+        <a href="#section-04">확보한 공간, 채워진 양, 재사용 적중은 다르다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Tensor Parallel로 모델을 나누면 GPU마다 보관할 모델 조각이 작아질 수 있습니다. 그런데 <code>nvidia-smi</code>의 전체 메모리 사용량은 그만큼 줄지 않을 수 있습니다. 이유는 <strong>전체 VRAM이 모델 가중치만 담는 공간이 아니기 때문</strong>입니다.</p>
+<p>이 문서는 모델 로딩 메모리와 KV Cache용 공간을 로그로 구분하고, KV가 GPU별로 어떤 조각으로 남는지 설명합니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>전체 메모리 사용량만으로 모델 복제를 판단할 수 없다</h2>
+<p>TP=2 서버에서 두 GPU는 각각 37,511MiB, 약 36.6GiB를 사용했습니다. 이 수치에는 다음 항목들이 함께 들어갑니다.</p>
+<pre><code class="language-text">GPU 전체 사용 메모리
+  ├─ 모델 가중치 등 모델 로딩에 필요한 공간
+  ├─ KV Cache를 담기 위해 확보한 공간
+  └─ 연산용 버퍼·CUDA Graph 등 실행용 메모리
+</code></pre>
+<p>시작 로그에서 모델·KV 항목을 따로 읽자 다음 차이가 보였습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th align="right">TP=1</th>
+<th align="right">TP=2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPU당 모델 로딩 메모리</td>
+<td align="right">15.27GiB</td>
+<td align="right">각 Worker 7.64GiB</td>
+</tr>
+<tr>
+<td>Available KV cache memory</td>
+<td align="right">18.40GiB</td>
+<td align="right">26.44GiB¹</td>
+</tr>
+<tr>
+<td>엔진의 KV 토큰 용량</td>
+<td align="right">134,016</td>
+<td align="right">385,072</td>
+</tr>
+</tbody></table>
+</div>
+<p>¹ 보존된 출력에서는 Worker_TP0의 26.44GiB 로그를 확인했습니다. 모델 로딩 7.64GiB는 두 Worker 모두 출력했습니다.</p>
+<p>GPU당 모델 로딩 메모리는 약 7.63GiB 줄고, KV에 사용할 수 있는 예산은 약 8.04GiB 늘었습니다. 모델 공간을 아낀 만큼 비슷한 규모의 여유가 캐시 쪽에 생겼습니다. 다른 실행 메모리 항목도 달라질 수 있으므로 두 차이가 정확히 같을 필요는 없습니다.</p>
+<p>모델 로딩 로그는 로딩 과정에서 보고한 메모리 수치이지 순수 가중치 텐서 바이트만의 정밀 합계라고 단정하지 않습니다. CUDA Graph 메모리 로그도 별도로 있었으므로 두 숫자만 더해 전체 VRAM을 정확히 역산하지 않습니다. TP=1 서버 로그〔비공개 보존 자료〕, TP=2 서버 로그〔비공개 보존 자료〕</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>KV Cache는 가중치가 아니라 입력에서 계산한 K·V를 보관한다</h2>
+<p>프로젝션 가중치 W_K·W_V는 모델에 학습돼 있는 변환 규칙입니다. 토큰 입력에 이를 적용해 얻은 K·V 값은 이후 토큰이 과거를 참조할 때 다시 사용됩니다. 그것을 보관하는 공간이 KV Cache입니다.</p>
+<p>Q는 일반적인 KV Cache의 저장 대상이 아닙니다. 또 K는 모델에 필요한 정규화·위치 처리 등을 적용한 형태로 저장될 수 있으므로 “프로젝션 직후의 모든 QKV를 그대로 저장한다”고 표현하지 않습니다.</p>
+<p>TP에서 담당 KV Head를 분담한다면, GPU마다 그 Head의 K·V만 계산하고 보관합니다. 전체 K·V를 한곳에 모은 다음 양쪽에 똑같이 복제해야 하는 구조가 아닙니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>같은 토큰의 K·V 조각이 두 GPU에 저장된다</h2>
+<p>아래는 <strong>KV Head 2개, Head별 차원 2</strong>인 설명용 예시입니다. 숫자는 측정값이 아닙니다.</p>
+<pre><code class="language-text">                       같은 입력 토큰 A, B
+                       ↙               ↘
+          GPU 0: KV Head 0 담당       GPU 1: KV Head 1 담당
+          담당 K·V 계산·처리          담당 K·V 계산·처리
+                   ↓                         ↓
+          K Cache                    K Cache
+          토큰 A: [1, 2]             토큰 A: [3, 4]
+          토큰 B: [5, 6]             토큰 B: [7, 8]
+
+          V Cache                    V Cache
+          토큰 A: [10, 20]           토큰 A: [30, 40]
+          토큰 B: [50, 60]           토큰 B: [70, 80]
+</code></pre>
+<p>토큰 A 하나를 가로로 펼치면 무엇을 나눠 저장했는지 더 분명해집니다.</p>
+<pre><code class="language-text">                  GPU 0에 저장       GPU 1에 저장
+                  Head 0             Head 1
+토큰 A의 K     [  1,  2       |       3,  4  ]
+토큰 A의 V     [ 10, 20       |      30, 40  ]
+</code></pre>
+<p><strong>토큰 A는 GPU 0, 토큰 B는 GPU 1로 나눈 것이 아닙니다. 두 GPU 모두 A·B의 캐시를 갖되, 각 토큰의 담당 Head 조각만 갖습니다.</strong> 새 토큰 C가 들어오면 GPU마다 C의 담당 K·V 조각을 추가하고, 담당 Q와 과거의 담당 K·V로 Attention을 수행할 수 있습니다.</p>
+<p>그림은 논리적인 소유 관계입니다. 실제 캐시는 블록 등으로 관리되므로 물리적인 배열 모양까지 그대로 나타낸 것은 아닙니다. 또한 이 실습에서 캐시 메모리 내부를 덤프해 숫자를 확인한 것은 아닙니다.</p>
+<p>GQA에서는 여러 Q Head가 한 KV Head를 공유할 수 있고, TP 크기가 KV Head 수보다 큰 일부 구성에서는 KV Head가 복제됩니다. 그러므로 모든 모델·TP 크기에서 KV가 정확히 반으로 줄어든다고 일반화하지 않습니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>확보한 공간, 채워진 양, 재사용 적중은 다르다</h2>
+<p><code>Available KV cache memory: 26.44 GiB</code>는 KV용으로 사용할 수 있다고 계산한 메모리 예산입니다. 요청의 K·V가 이미 그만큼 들어 있다는 뜻이 아닙니다.</p>
+<p>실제 요청이 사용하는 KV 양은 요청의 토큰 수와 동시성 등에 따라 달라집니다. Prefix Cache hit는 새 요청의 앞부분을 기존 KV로 재사용했는지에 대한 또 다른 지표입니다. 이 성능 비교에서는 Prefix Cache를 껐지만, 진행 중 요청의 과거 토큰을 위한 KV Cache는 여전히 사용합니다.</p>
+<p>모델이 두 GPU에 나뉘면서 캐시 공간이 늘고 GPU당 토큰의 KV 부담도 줄 수 있습니다. 보존된 로그에서는 엔진 KV 토큰 용량이 약 2.87배 늘었습니다. 이 숫자를 빠르게 처리할 수 있는 요청 수로 읽으면 안 됩니다. 계산 방법과 <code>94.01x</code>의 의미는 <a href="capacity-calculation.html">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</a>에 분리했습니다.</p>
+<p>모델을 나눴다는 사실은 <strong>모델 로딩 메모리와 계산 구조</strong>로, 서비스의 메모리 상태는 <strong>전체 VRAM·KV 공간·실제 사용량을 구분해서</strong> 판단해야 합니다. 원시 관측은 실습 노트북〔비공개 보존 자료〕 24번에 있습니다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="capacity-calculation.html">KV 토큰 용량은 왜 두 배보다 많이 늘었을까?</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

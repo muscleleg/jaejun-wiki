@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.md. Do not edit directly. source-sha256:dbb48914f3700751c2188501bd1142e0fd8a62ab9a3f43fde7a69b4f29c8e4cd -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prefill·Decode 간 간섭과 KV 전달 비용을 함께 고려해 P/D 분리 도입 여부를 TTFT, 토큰 사이 지연, 응답 시간과 처리량으로 판단하는 방법을 설명한다.">
+  <meta name="source-sha256" content="dbb48914f3700751c2188501bd1142e0fd8a62ab9a3f43fde7a69b4f29c8e4cd">
+  <title>Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?">
+  <meta property="og:description" content="Prefill·Decode 간 간섭과 KV 전달 비용을 함께 고려해 P/D 분리 도입 여부를 TTFT, 토큰 사이 지연, 응답 시간과 처리량으로 판단하는 방법을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html","name":"Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?","description":"Prefill·Decode 간 간섭과 KV 전달 비용을 함께 고려해 P/D 분리 도입 여부를 TTFT, 토큰 사이 지연, 응답 시간과 처리량으로 판단하는 방법을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html"},"headline":"Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/when-to-consider-prefill-decode-disaggregation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"Prefill과 Decode를 따로 확장해도 요청은 어떻게 연결될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pd-independent-scaling-epp.html"},{"@type":"ListItem","position":6,"name":"Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pd-independent-scaling-epp.html">Prefill과 Decode를 따로 확장해도 요청은 어떻게 연결될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Prefill 부담이 클 때, 언제 P/D 분리를 검토해야 할까?</h1>
+      <p class="lead">Prefill·Decode 간 간섭과 KV 전달 비용을 함께 고려해 P/D 분리 도입 여부를 TTFT, 토큰 사이 지연, 응답 시간과 처리량으로 판단하는 방법을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-085b640ae5f1">계산 자체가 오래 걸리는 것과, 다른 요청을 방해하는 것은 다르다</a>
+        <a href="#p-d">P/D가 줄이려는 중요한 문제는 단계 사이의 간섭이다</a>
+        <a href="#ttft">TTFT가 크다는 사실만으로 도입을 결정하지 않는다</a>
+        <a href="#kv">분리의 이점은 KV 전달 비용보다 커야 한다</a>
+        <a href="#section-ce5da34183dc">결론</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LLM의 응답 처리는 크게 두 단계로 나뉜다. <strong>Prefill</strong>은 입력 토큰을 처리해 KV Cache를 만들고, <strong>Decode</strong>는 그 캐시를 활용해 출력 토큰을 순차적으로 생성한다.</p>
+<p>P/D 분리는 두 단계를 서로 다른 서버에 맡기는 구성이다. 하지만 Prefill 계산이 무겁다는 이유만으로 분리하면 반드시 빨라지는 것은 아니다.</p>
+<p>핵심은 <strong>Prefill 부담이 다른 요청에 얼마나 큰 대기와 간섭을 만들고 있으며, 분리해서 그 영향을 줄일 수 있는가</strong>다.</p>
+</div>
+        <section id="section-085b640ae5f1" class="markdown-section">
+<h2>계산 자체가 오래 걸리는 것과, 다른 요청을 방해하는 것은 다르다</h2>
+<p>긴 입력을 처리하려면 그만큼 Prefill 계산이 필요하다. 같은 계산 자원을 사용하면서 Prefill을 다른 서버로 옮기기만 한다고, 필요한 연산이 사라지지는 않는다.</p>
+<p>오히려 P/D에서는 Prefill 서버가 만든 KV를 Decode 서버로 전달해야 하므로 비용이 추가된다.</p>
+<p>따라서 요청 하나만 처리하는 상황에서는 다음처럼 될 수 있다.</p>
+<pre><code class="language-text">한 서버: Prefill → Decode
+
+P/D 분리: Prefill → KV 전달 → Decode
+</code></pre>
+<p><strong>계산 시간이 긴 문제를 해결하려면</strong>, Prefill에 적합한 병렬화나 더 많은 계산 자원을 적용하는 등의 변화가 필요하다. P/D는 그런 자원 구성을 단계별로 다르게 적용할 수 있게 하지만, 분리 자체가 계산량을 줄여 주는 것은 아니다.</p>
+
+</section>
+<section id="p-d" class="markdown-section">
+<h2>P/D가 줄이려는 중요한 문제는 단계 사이의 간섭이다</h2>
+<p>한 서버가 여러 요청을 처리하면, 어떤 요청은 입력을 처리하는 중이고 다른 요청은 이미 답변을 생성하는 중일 수 있다.</p>
+<p>이때 무거운 Prefill 작업이 GPU 자원을 사용하면, 생성 중인 요청이 다음 토큰을 내보내기까지 더 오래 기다릴 수 있다. 반대로 진행 중인 생성 작업들과 자원을 나누느라 새로운 입력의 처리가 늦어질 수도 있다.</p>
+<p>사용자에게는 두 가지 지연으로 나타난다.</p>
+<ul>
+<li><strong>TTFT 증가:</strong> 첫 응답이 나오기까지 오래 기다린다.</li>
+<li><strong>토큰 사이 지연 증가:</strong> 답변이 나오다가 중간중간 느려지거나 멈칫한다.</li>
+</ul>
+<p>P/D 분리는 입력 처리와 출력 생성에 별도의 자원을 배치해, 이러한 간섭을 줄이려는 방법이다. vLLM도 P/D의 주요 목적으로 TTFT와 토큰 사이 지연을 따로 조정하는 것, 그리고 생성 중 지연이 크게 튀는 현상을 제어하는 것을 설명한다. <a href="https://docs.vllm.ai/en/latest/features/disagg_prefill/#why-disaggregated-prefilling" rel="noopener noreferrer">vLLM의 P/D 도입 목적</a></p>
+
+</section>
+<section id="ttft" class="markdown-section">
+<h2>TTFT가 크다는 사실만으로 도입을 결정하지 않는다</h2>
+<p>TTFT가 길다면 먼저 시간이 어디에서 쓰이는지 구분해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>TTFT가 긴 원인</th>
+<th>P/D를 검토할 때의 판단</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>입력 자체의 Prefill 계산이 오래 걸림</td>
+<td>분리만으로 해결되지 않으며, Prefill 계산 자원이나 병렬화도 검토해야 한다.</td>
+</tr>
+<tr>
+<td>다른 작업과 자원을 나누느라 오래 기다림</td>
+<td>Prefill 전용 자원을 확보하면 대기·간섭을 줄일 가능성이 있다.</td>
+</tr>
+<tr>
+<td>KV 전달이나 Decode 쪽 대기가 길어짐</td>
+<td>P/D가 새로운 지연을 만들거나 병목을 다른 곳으로 옮긴 것일 수 있다.</td>
+</tr>
+</tbody></table>
+</div>
+<p>또한 P/D를 도입한 뒤에도 Prefill 서버의 처리 능력을 넘는 요청이 들어오면 그쪽에 대기열이 생긴다. <strong>자원을 나누는 것은 과부하 자체를 없애는 일이 아니다.</strong></p>
+
+</section>
+<section id="kv" class="markdown-section">
+<h2>분리의 이점은 KV 전달 비용보다 커야 한다</h2>
+<p>P/D에서는 계산 결과인 KV Cache를 다른 서버로 옮겨야 한다. 같은 서버 안의 GPU끼리 옮기더라도 전송 비용이 있으며, 입력이 길어지면 옮길 KV도 커진다.</p>
+<p>따라서 판단 기준은 단순히 “부하가 큰가”가 아니다.</p>
+<blockquote>
+<p><strong>목표로 하는 응답 지표에서, 분리로 줄어드는 대기·간섭의 이점이 KV 전달과 추가 처리 비용보다 큰가?</strong></p>
+</blockquote>
+<p>어떤 구성은 전체 요청 처리량이 늘지 않아도 생성 중 끊김을 줄이는 데 가치가 있을 수 있다. 반대로 전체 응답 시간이나 처리량이 목표라면, 독립 서버 여러 대에 요청을 나누는 방식이 더 유리할 수도 있다.</p>
+<p>그래서 같은 GPU 자원량에서 TTFT, 토큰 사이 지연, 전체 응답 시간과 처리량을 목적에 맞게 비교해야 한다.</p>
+
+</section>
+<section id="section-ce5da34183dc" class="markdown-section">
+<h2>결론</h2>
+<p><strong>“Prefill 계산이 많으면 P/D를 도입한다”보다는 다음 표현이 정확하다.</strong></p>
+<blockquote>
+<p><strong>무거운 Prefill이 요청들의 대기와 생성 지연을 유발한다면 P/D를 검토한다. 다만 분리로 얻는 이점이 KV 전달 비용을 넘어서는지 확인해야 한다.</strong></p>
+</blockquote>
+<p>P/D는 계산을 없애는 기술이 아니라, <strong>입력 처리와 출력 생성의 자원을 분리해 각각의 부담을 조절하는 구조</strong>다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

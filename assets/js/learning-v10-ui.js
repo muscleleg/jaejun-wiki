@@ -21,13 +21,38 @@
     });
   };
   applyGoal();
-  if (!(location.hash || "").startsWith("#learning-v10-history-day-")) {
-    document.querySelectorAll(".learning-v10-calendar-scroll").forEach((scroller) => {
-      const recorded = [...scroller.querySelectorAll(".learning-v10-grass-cell.has-records")];
-      const recent = recorded.at(-1);
-      if (!recent) return;
-      scroller.scrollLeft = Math.max(0, recent.offsetLeft + recent.offsetWidth - scroller.clientWidth + 16);
-    });
+  const scrollToRecent = (scroller) => {
+    const recorded = [...scroller.querySelectorAll(".learning-v10-grass-cell.has-records")];
+    const recent = recorded.at(-1);
+    if (!recent) return;
+    scroller.scrollLeft = Math.max(0, recent.offsetLeft + recent.offsetWidth - scroller.clientWidth + 16);
+  };
+  const yearSelect = document.querySelectorAll("[data-learning-v10-history-year]")[0];
+  if (yearSelect) {
+    const calendars = [...document.querySelectorAll("[data-calendar-year]")];
+    const initializedYears = new Set();
+    const showYear = (year, scroll) => {
+      if (!calendars.some((calendar) => calendar.getAttribute("data-calendar-year") === year)) return;
+      yearSelect.value = year;
+      calendars.forEach((calendar) => {
+        calendar.hidden = calendar.getAttribute("data-calendar-year") !== year;
+        if (!calendar.hidden && scroll && !initializedYears.has(year)) {
+          calendar.querySelectorAll(".learning-v10-calendar-scroll").forEach(scrollToRecent);
+        }
+      });
+      initializedYears.add(year);
+    };
+    const followDateFragment = () => {
+      const match = (location.hash || "").match(/^#learning-v10-history-day-(\d{4})-/);
+      if (match) showYear(match[1], false);
+    };
+    showYear(yearSelect.value, !(location.hash || "").startsWith("#learning-v10-history-day-"));
+    followDateFragment();
+    yearSelect.disabled = false;
+    yearSelect.addEventListener("change", () => showYear(yearSelect.value, true));
+    window.addEventListener("hashchange", followDateFragment);
+  } else if (!(location.hash || "").startsWith("#learning-v10-history-day-")) {
+    document.querySelectorAll(".learning-v10-calendar-scroll").forEach(scrollToRecent);
   }
   const grassCells = [...document.querySelectorAll("[data-learning-v10-grass-tooltip]")];
   if (grassCells.length) {

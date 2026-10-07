@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.md. Do not edit directly. source-sha256:9bfb003c7cdae4f3d93e52cf2b1b8bb24eac247fad15000c919c2fe2ae7dfce3 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="모델·Revision·정밀도·요청·측정 경계와 준비·종료·결과 보존 조건을 정리한다.">
+  <meta name="source-sha256" content="9bfb003c7cdae4f3d93e52cf2b1b8bb24eac247fad15000c919c2fe2ae7dfce3">
+  <title>같은 조건의 TP 비교를 어떻게 재현할까?</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="같은 조건의 TP 비교를 어떻게 재현할까?">
+  <meta property="og:description" content="모델·Revision·정밀도·요청·측정 경계와 준비·종료·결과 보존 조건을 정리한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html","name":"같은 조건의 TP 비교를 어떻게 재현할까?","description":"모델·Revision·정밀도·요청·측정 경계와 준비·종료·결과 보존 조건을 정리한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html"},"headline":"같은 조건의 TP 비교를 어떻게 재현할까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/reproduction.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html"},{"@type":"ListItem","position":5,"name":"TP는 응답 지연과 처리량을 얼마나 바꿨을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html"},{"@type":"ListItem","position":6,"name":"같은 조건의 TP 비교를 어떻게 재현할까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/README.html">하나의 모델을 두 GPU에 나누면 계산·통신·메모리는 어떻게 달라질까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-tensor-parallel-nccl/performance/README.html">TP는 응답 지연과 처리량을 얼마나 바꿨을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">같은 조건의 TP 비교를 어떻게 재현할까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>같은 조건의 TP 비교를 어떻게 재현할까?</h1>
+      <p class="lead">모델·Revision·정밀도·요청·측정 경계와 준비·종료·결과 보존 조건을 정리한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">비교 조건을 고정한다</a>
+        <a href="#section-02">전체 실행과 추가 비교 구간을 구분한다</a>
+        <a href="#section-03">프로세스 생성과 준비 완료를 구분한다</a>
+        <a href="#section-04">지연과 처리량의 시간 범위를 구분한다</a>
+        <a href="#section-05">안전하게 종료하고 보존한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>TP=1과 TP=2의 차이를 설명하려면 실행 가능한 코드뿐 아니라 무엇을 고정하고 무엇을 바꿨는지가 남아야 합니다. 이 문서는 실습 노트북〔비공개 보존 자료〕의 재현 조건과 관측 범위를 설명합니다. 자동으로 GPU를 대여하거나 모델을 실행하는 문서가 아닙니다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>비교 조건을 고정한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값 또는 처리</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPU</td>
+<td>NVIDIA A40, TP=1은 GPU 0, TP=2는 GPU 0·1</td>
+</tr>
+<tr>
+<td>모델</td>
+<td>Qwen/Qwen3-8B</td>
+</tr>
+<tr>
+<td>모델·토크나이저 Revision</td>
+<td><code>b968826d9c46dd6066d109eabc6255188de91218</code></td>
+</tr>
+<tr>
+<td>정밀도</td>
+<td>BF16</td>
+</tr>
+<tr>
+<td>vLLM / PyTorch</td>
+<td>0.29.0 / 2.13.0+cu130</td>
+</tr>
+<tr>
+<td>PyTorch CUDA / NCCL 버전</td>
+<td>13.0 / 2.29.7</td>
+</tr>
+<tr>
+<td>최대 모델 길이</td>
+<td>4096</td>
+</tr>
+<tr>
+<td><code>max_num_seqs</code> / <code>max_num_batched_tokens</code></td>
+<td>256 / 2048</td>
+</tr>
+<tr>
+<td><code>gpu_memory_utilization</code></td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Prefix Cache</td>
+<td>OFF</td>
+</tr>
+<tr>
+<td>자체 AllReduce</td>
+<td><code>--disable-custom-all-reduce</code></td>
+</tr>
+<tr>
+<td>NCCL 전송 설정</td>
+<td>P2P OFF, SHM 허용</td>
+</tr>
+<tr>
+<td>요청</td>
+<td>동일 문장, <code>temperature=0</code>, thinking OFF</td>
+</tr>
+<tr>
+<td>출력</td>
+<td><code>max_tokens=128</code>, <code>ignore_eos=True</code></td>
+</tr>
+</tbody></table>
+</div>
+<p><code>max_num_seqs=256</code>은 GPU 실행에 참여할 수 있는 Sequence 수의 상한이지, 256개가 모일 때까지 기다린다는 뜻이 아닙니다. Token Budget·KV 공간 등의 제약 때문에 더 적게 처리할 수 있고, 서버 전체 접수 요청 한도를 뜻하지도 않습니다.</p>
+<p>PyTorch가 표시하는 CUDA 런타임 버전, NCCL 로그의 빌드 표기, <code>nvidia-smi</code>에 표시되는 드라이버의 CUDA 지원 버전은 서로 다른 정보입니다. 이름에 CUDA가 들어간다는 이유로 같은 값이어야 한다고 보지 않습니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>전체 실행과 추가 비교 구간을 구분한다</h2>
+<p>노트북 1–9번은 환경 기록부터 순차 TP=1·2 비교·종료까지입니다. 10–16번은 모델 서버가 GPU를 점유하지 않는 상태에서 작은 통신·행렬·Attention 실험을 수행합니다. 17–19번은 설치된 소스만 읽습니다.</p>
+<p>20–25번은 동시 요청 비교를 위한 별도 구간입니다. 새 결과 폴더를 만들고 TP=1 시작 → 준비 대기 → 측정 → 종료 → TP=2 시작 → 준비 대기 → 측정·메모리 확인 → 종료로 연결됩니다.</p>
+<p>서로 다른 날짜·할당의 결과를 섞지 않습니다. 매번 새 GPU 토폴로지를 확인하고, 한 번의 비교 안에서는 같은 머신에서 TP 크기만 바꿉니다. SYS·PXB 같은 연결 차이는 <a href="../communication/topology.html">GPU 연결 표에서 SYS와 NUMA는 무엇을 뜻할까?</a>를 참고할 수 있습니다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>프로세스 생성과 준비 완료를 구분한다</h2>
+<p><code>subprocess.Popen</code>이 PID를 반환해도 모델 다운로드·로딩·컴파일·통신 초기화가 끝났다는 뜻은 아닙니다. <code>SERVER.poll()</code>이 <code>None</code>이면 프로세스가 아직 실행 중이라는 의미이며, 숫자이면 종료 코드입니다.</p>
+<p>준비 확인은 <code>/health</code>가 HTTP 200인지 검사합니다. 측정 요청에서는 별도로 Streaming 완료 표식과 토큰 수·종료 이유를 확인합니다. 노트북 정리 중에는 전체 실행이 준비되지 않은 서버로 바로 측정하지 않도록 대기 셀을 보강했습니다.</p>
+<p>현재 노트북은 준비 대기·환경 기록·마지막 종료 코드가 보강된 버전입니다. <strong>기존 출력은 원래 실행 기록으로 보존했으며, 보강한 전체 버전을 GPU에서 다시 실행한 것은 아닙니다.</strong> 새로 추가한 셀에 가짜 성공 출력을 넣지 않았습니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>지연과 처리량의 시간 범위를 구분한다</h2>
+<p>요청별 타이머는 Worker 함수 안에서 전송을 시작하기 직전에 시작합니다. 따라서 executor 안에서 차례를 기다린 시간은 요청별 E2E에 포함되지 않습니다. 전체 측정 시간은 모든 요청 완료까지 포함합니다.</p>
+<pre><code class="language-text">TTFT = 첫 내용 수신 시각 − 요청 시작 시각
+TPOT = (마지막 내용 수신 시각 − 첫 내용 수신 시각) / (출력 토큰 수 − 1)
+E2E  = 완료 표식 수신 시각 − 요청 시작 시각
+출력 처리량 = 모든 요청의 출력 토큰 합 / 전체 측정 시간
+</code></pre>
+<p>SSE 청크가 항상 토큰 하나와 일치하는 것은 아닙니다. 네트워크·버퍼링·클라이언트 처리도 포함되므로 서버 내부 토큰 생성 시간의 정밀 측정이라고 부르지 않습니다.</p>
+<p>순차 구간은 예열 1회·측정 5회, 동시 구간은 동시 8개의 예열을 끝낸 뒤 총 40개를 최대 8개씩 진행합니다. 같은 출력 길이를 맞추기 위해 조기 EOS 종료를 막았으므로 일반 대화 사용 패턴 전체를 대표하지 않습니다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>안전하게 종료하고 보존한다</h2>
+<p>서버는 <code>start_new_session=True</code>로 독립 프로세스 그룹에 시작합니다. 종료할 때는 이 노트북이 생성한 그룹만 대상으로 하고, 이름이 비슷한 모든 프로세스를 일괄 종료하지 않습니다. API 프로세스가 끝나도 GPU Worker가 남을 수 있으므로 포트와 GPU 작업 상태를 확인합니다.</p>
+<p>모델 서버 종료는 유료 Pod 반납과 다릅니다. 반납 전에는 노트북 출력·요청 JSON·원시 측정값·서버 로그가 로컬 또는 Git 원격에 보존됐는지 확인해야 합니다. 이 실습의 원격 원본은 비공개 저장소 반영을 확인한 뒤 Pod를 반납했습니다. 이후 설명 보강은 로컬 작업입니다.</p>
+<p>동시 요청 결과는 TP=1 JSON〔비공개 보존 자료〕, TP=2 JSON〔비공개 보존 자료〕, TP=1 서버 로그〔비공개 보존 자료〕, TP=2 서버 로그〔비공개 보존 자료〕에 있습니다. 소규모 계산의 임시 스크립트는 실행 후 삭제되므로 코드와 출력이 든 노트북 자체도 보존해야 합니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
