@@ -1,0 +1,158 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.md. Do not edit directly. source-sha256:0bfcf84c04e97e70fad72254ce9d95f53d9c6764294093ea0cce1baed811237d -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="‘NIXL로 KV를 받았다’는 사실만으로 NVLink나 RDMA 사용을 알 수 없다. 경로를 판정하려면 해당 상대와 해당 데이터 연산에 선택된 transport를 읽어야 한다.">
+  <meta name="source-sha256" content="0bfcf84c04e97e70fad72254ce9d95f53d9c6764294093ea0cce1baed811237d">
+  <title>UCX·NCCL 로그로 실제 전송 경로를 구분하는 법</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="UCX·NCCL 로그로 실제 전송 경로를 구분하는 법">
+  <meta property="og:description" content="‘NIXL로 KV를 받았다’는 사실만으로 NVLink나 RDMA 사용을 알 수 없다. 경로를 판정하려면 해당 상대와 해당 데이터 연산에 선택된 transport를 읽어야 한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html","name":"UCX·NCCL 로그로 실제 전송 경로를 구분하는 법","description":"‘NIXL로 KV를 받았다’는 사실만으로 NVLink나 RDMA 사용을 알 수 없다. 경로를 판정하려면 해당 상대와 해당 데이터 연산에 선택된 transport를 읽어야 한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html"},"headline":"UCX·NCCL 로그로 실제 전송 경로를 구분하는 법","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/path-evidence.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"서버 간 GPU 데이터는 어떤 경로로 이동하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/transport/README.html"},{"@type":"ListItem","position":6,"name":"UCX·NCCL 로그로 실제 전송 경로를 구분하는 법"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/transport/README.html">서버 간 GPU 데이터는 어떤 경로로 이동하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">UCX·NCCL 로그로 실제 전송 경로를 구분하는 법</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>UCX·NCCL 로그로 실제 전송 경로를 구분하는 법</h1>
+      <p class="lead">‘NIXL로 KV를 받았다’는 사실만으로 NVLink나 RDMA 사용을 알 수 없다. 경로를 판정하려면 해당 상대와 해당 데이터 연산에 선택된 transport를 읽어야 한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">설정 → 선택된 경로 → 실제 완료를 구분한다</a>
+        <a href="#section-2"><code>cuda_ipc</code>에서 P2P를 읽는 근거</a>
+        <a href="#section-3">P2P라고 확인해도 NVLink인지 PCIe인지는 별개다</a>
+        <a href="#section-4">검증 예시: Decode의 GPU 원격 읽기는 TCP였다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>‘NIXL로 KV를 받았다’는 사실만으로 NVLink나 RDMA 사용을 알 수 없다. 경로를 판정하려면 <strong>해당 상대와 해당 데이터 연산에 선택된 transport</strong>를 읽어야 한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>설정 → 선택된 경로 → 실제 완료를 구분한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>증거</th>
+<th>말할 수 있는 것</th>
+<th>이것만으로 말할 수 없는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>UCX_TLS</code>, <code>NCCL_NET</code> 환경변수</td>
+<td>허용·요청한 경로</td>
+<td>실제 payload 전달 성공</td>
+</tr>
+<tr>
+<td>상대 endpoint의 transport 로그</td>
+<td>해당 통신에 선택된 방식</td>
+<td>모든 요청의 실제 바이트 수</td>
+</tr>
+<tr>
+<td>전송 메트릭·값 검증</td>
+<td>데이터 이동·완료 또는 정확성</td>
+<td>개별 PCIe/NVLink 구간의 실측 트래픽</td>
+</tr>
+<tr>
+<td>토폴로지·링크 카운터·프로파일</td>
+<td>연결 후보와 실제 링크 사용 근거</td>
+<td>다른 시점의 모든 전송 경로</td>
+</tr>
+</tbody></table>
+</div>
+<p>UCX는 별도 서버 프로세스를 반드시 띄워 사용하는 도구가 아니다. vLLM 프로세스가 NIXL의 UCX backend를 사용하면 그 프로세스 로그에 UCX 메시지가 섞여 나온다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2><code>cuda_ipc</code>에서 P2P를 읽는 근거</h2>
+<p>IPC라는 일반 용어는 프로세스 간 통신이다. 그러나 UCX의 <strong><code>cuda_ipc</code>라는 구체적인 transport 이름</strong>은 동일 노드의 GPU P2P 전송을 가리킨다. UCX는 <code>cuda_copy</code>를 staging 복사용, <code>cuda_ipc</code>를 동일 노드 P2P용으로 구분한다. 따라서 두 용어를 단순히 ‘프로세스 간 전달’로 뭉뚱그리면 경로 정보가 사라진다. <a href="https://github.com/openucx/ucx/wiki/NVIDIA-GPU-Support" rel="noopener noreferrer">UCX의 NVIDIA GPU transport 정의</a>.</p>
+<p>다만 초기화 중 <code>cuda_ipc</code> 지원을 발견했다는 줄과 실제 원격 GPU 읽기에 그 transport를 선택했다는 줄은 다르다. GPU→GPU 원격 읽기 항목, 상대 endpoint, 완료 메트릭을 함께 확인해야 한다. 제어 메시지에 TCP나 공유 메모리가 보인다는 이유만으로 KV payload도 그 경로라고 판단하지 않는다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>P2P라고 확인해도 NVLink인지 PCIe인지는 별개다</h2>
+<p><code>cuda_ipc</code> 또는 NCCL <code>P2P/CUMEM/read</code>만으로 NVLink를 확정하지 않는다. <code>CUMEM</code>은 CUDA 메모리 관리·공유 방식에 관한 표시이며 물리 링크 이름이 아니다.</p>
+<p>판정 순서는 다음과 같다.</p>
+<ol>
+<li>실제로 통신한 두 GPU의 번호·장치 식별자를 확인한다.</li>
+<li><code>nvidia-smi topo -m</code>에서 그 쌍의 NVLink 또는 PCIe 연결 관계를 확인한다.</li>
+<li>CUDA peer access 가능 여부와 라이브러리의 P2P 선택 로그를 확인한다.</li>
+<li>물리 링크 사용을 확정해야 한다면 전송 전후 링크 카운터나 프로파일을 대조한다.</li>
+</ol>
+<p>토폴로지는 ‘그 길이 있다’는 근거다. 실제 전송 시 그 길에 데이터가 흘렀다는 계측과 같지는 않다. 대역폭이 높거나 낮다는 이유만으로 NVLink·SHM을 확정할 수도 없다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>검증 예시: Decode의 GPU 원격 읽기는 TCP였다</h2>
+<p>보존된 Decode 로그 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-b/full-20261010/pd.log</code>)의 관련 부분을 시간·프로세스 식별자 없이 표시하면 다음과 같다.</p>
+<pre><code class="language-text">ucp_context_0 inter-node cfg#2
+remote memory read by ucp_get*(multi) into cuda/GPU0 from cuda
+0..inf | software emulation | tcp/podnet1
+</code></pre>
+<p>이 줄은 다음과 같이 읽는다.</p>
+<ul>
+<li><code>inter-node cfg#2</code>: 로컬 자기 자신이 아닌 서버 간 endpoint 설정이다.</li>
+<li><code>into cuda/GPU0 from cuda</code>: 원격 GPU 메모리에서 로컬 GPU 메모리로 읽는 연산이다.</li>
+<li><code>ucp_get*</code>: UCX의 원격 읽기 API·프로토콜 계열이다.</li>
+<li><code>software emulation</code>, <code>tcp/podnet1</code>: 그 읽기 기능을 이 경우 TCP transport로 수행한다.</li>
+</ul>
+<p><strong><code>get</code>이라는 단어가 있다고 하드웨어 RDMA인 것은 아니다.</strong> 로그의 <code>self cfg#0</code>이나 host→host 제어 메시지가 아니라 이 원격 GPU 읽기 항목을 근거로 판단한다. 실제 요청 완료는 별도로 <a href="../execution/pd-flow.html">KV 메트릭</a>과 대조했다.</p>
+<p>NCCL 송수신 실험은 왕복 로그 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/gpu-pingpong.log</code>)의 <code>NET/Socket</code>을 사용한다. NIXL의 UCX 로그와 서로 다른 통신 계층의 증거다.</p>
+<p><a href="README.html">전송 경로 개요</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

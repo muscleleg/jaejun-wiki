@@ -1,0 +1,163 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.md. Do not edit directly. source-sha256:819d3dbc5c5b10adb6dbed3c1d991b4a26ef62a974ca1325db64d3852dfba10b -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서버 간 GPU 실험에서는 컨테이너가 둘이라는 사실보다 물리 호스트가 다른지가 중요하다. 이 문서는 RunPod에서 사용한 배치·사설망·포트 조건을 기록한다. 특정 Pod의 주소를 재사용하는 배포 지침은 아니다.">
+  <meta name="source-sha256" content="819d3dbc5c5b10adb6dbed3c1d991b4a26ef62a974ca1325db64d3852dfba10b">
+  <title>RunPod 두 서버를 사설 TCP 경로로 연결하는 조건</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="RunPod 두 서버를 사설 TCP 경로로 연결하는 조건">
+  <meta property="og:description" content="서버 간 GPU 실험에서는 컨테이너가 둘이라는 사실보다 물리 호스트가 다른지가 중요하다. 이 문서는 RunPod에서 사용한 배치·사설망·포트 조건을 기록한다. 특정 Pod의 주소를 재사용하는 배포 지침은 아니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html","name":"RunPod 두 서버를 사설 TCP 경로로 연결하는 조건","description":"서버 간 GPU 실험에서는 컨테이너가 둘이라는 사실보다 물리 호스트가 다른지가 중요하다. 이 문서는 RunPod에서 사용한 배치·사설망·포트 조건을 기록한다. 특정 Pod의 주소를 재사용하는 배포 지침은 아니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html"},"headline":"RunPod 두 서버를 사설 TCP 경로로 연결하는 조건","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/runpod-network.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"서로 다른 서버의 프로세스는 어떻게 같은 GPU 통신에 참여하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/connection/README.html"},{"@type":"ListItem","position":6,"name":"RunPod 두 서버를 사설 TCP 경로로 연결하는 조건"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/connection/README.html">서로 다른 서버의 프로세스는 어떻게 같은 GPU 통신에 참여하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">RunPod 두 서버를 사설 TCP 경로로 연결하는 조건</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>RunPod 두 서버를 사설 TCP 경로로 연결하는 조건</h1>
+      <p class="lead">서버 간 GPU 실험에서는 컨테이너가 둘이라는 사실보다 물리 호스트가 다른지가 중요하다. 이 문서는 RunPod에서 사용한 배치·사설망·포트 조건을 기록한다. 특정 Pod의 주소를 재사용하는 배포 지침은 아니다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">두 Pod와 두 물리 서버는 다르다</a>
+        <a href="#section-2">Global Networking의 Global은 공개 인터넷이라는 뜻이 아니다</a>
+        <a href="#section-3">서로 다른 연결의 주소를 따로 지정한다</a>
+        <a href="#section-4">RDMA가 없다고 말할 수 있는 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>서버 간 GPU 실험에서는 컨테이너가 둘이라는 사실보다 물리 호스트가 다른지가 중요하다. 이 문서는 RunPod에서 사용한 배치·사설망·포트 조건을 기록한다. 특정 Pod의 주소를 재사용하는 배포 지침은 아니다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>두 Pod와 두 물리 서버는 다르다</h2>
+<p>일반적인 컨테이너 하나가 여러 물리 서버에 걸쳐 실행되는 것은 아니다. 반대로 컨테이너 두 개가 같은 물리 서버에 배치될 수 있다. 2026-10-10 검증 환경은 RunPod의 서로 다른 <code>machineId</code>를 확인하여 A40 한 장씩 두 물리 호스트를 사용했다. 컨테이너 hostname만으로 이 차이를 판정하지 않았다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>Global Networking의 Global은 공개 인터넷이라는 뜻이 아니다</h2>
+<p>사용한 Global Networking은 계정의 Pod들을 연결하는 사설 네트워크이며, 해당 Pod 내부의 <code>podnet1</code> 인터페이스와 사설 DNS·주소를 사용했다. 공식 문서의 안내 속도는 100 Mbps다. 이는 서비스 안내값이며 측정값과 구별한다. <a href="https://docs.runpod.io/pods/networking" rel="noopener noreferrer">RunPod Global Networking</a>.</p>
+<p>사설망은 접근 가능한 범위를 좁히지만 vLLM의 사용자 인증을 대신하지 않는다. 인터넷에 모델·KV 포트를 공개하지 않는 것과 내부의 모든 참가자를 신뢰해도 되는 것은 다른 문제다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>서로 다른 연결의 주소를 따로 지정한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>연결</th>
+<th>사용한 포트·설정</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>초기 NCCL 연습</td>
+<td><code>MASTER_PORT=29500</code></td>
+<td>통신 그룹 초기화</td>
+</tr>
+<tr>
+<td>CPU TCP 기준 실험</td>
+<td>29610</td>
+<td>소켓 직접 송수신</td>
+</tr>
+<tr>
+<td>GPU 왕복 / 장애 / 재시작</td>
+<td>29611 / 29612 / 29613</td>
+<td>서로 분리한 NCCL 작업</td>
+</tr>
+<tr>
+<td>Prefill / Decode HTTP</td>
+<td>A:8100 / B:8200</td>
+<td>추론 요청과 응답</td>
+</tr>
+<tr>
+<td>NIXL side channel</td>
+<td>A:5600 / B:5601</td>
+<td>원격 엔진·메모리 메타데이터 교환</td>
+</tr>
+<tr>
+<td>PP API / 초기 연결</td>
+<td>A:8300 / 29620</td>
+<td>PP 모델 요청 / 워커 그룹 구성</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 표가 방화벽의 완전한 포트 허용 목록은 아니다. 라이브러리가 추가 데이터 채널을 만들 수 있다. 특히 NIXL side channel 포트가 KV payload 전체를 운반하는 유일한 포트라고 보면 안 된다.</p>
+<p>핵심 환경변수는 다음과 같다.</p>
+<pre><code class="language-bash"># NCCL 경로: =는 인터페이스 이름의 정확한 일치를 지정한다.
+NCCL_NET=Socket
+NCCL_IB_DISABLE=1
+NCCL_SOCKET_IFNAME=&#39;=podnet1&#39;
+NCCL_SOCKET_FAMILY=AF_INET
+GLOO_SOCKET_IFNAME=podnet1
+
+# NIXL의 UCX backend 경로: NCCL 설정과 별개다.
+UCX_TLS=tcp,cuda_copy,self
+UCX_NET_DEVICES=podnet1
+UCX_LOG_LEVEL=info
+UCX_PROTO_INFO=y
+</code></pre>
+<p><code>VLLM_HOST_IP</code>와 <code>VLLM_NIXL_SIDE_CHANNEL_HOST</code>에는 상대 서버에서 도달할 수 있는 자신의 사설 주소를 넣었다. 서로 다른 서버에서 <code>127.0.0.1</code>을 상대 주소로 광고하면 상대는 자기 자신을 찾게 된다. 실제 옵션 전체는 서버 실행 코드 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/experiments/servers.py</code>)에 보존되어 있다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>RDMA가 없다고 말할 수 있는 범위</h2>
+<p>인벤토리에는 <code>/dev/infiniband</code>가 컨테이너에 없었고, 한쪽 <code>/sys/class/infiniband</code>에는 장치 이름이 보였다. 따라서 ‘물리 호스트에 RDMA 하드웨어가 전혀 없다’고 단정하지 않는다. <strong>할당받은 컨테이너에서 RDMA 장치를 사용할 조건이 갖춰지지 않았고, 실험은 TCP로 제한했다</strong>가 정확한 결론이다. A 인벤토리 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/inventory-rank0.json</code>), B 인벤토리 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-b/full-20261010/inventory-rank1.json</code>).</p>
+<p>두 Pod는 결과 보존 후 반납했다. 주소·포트를 기록대로 복사해도 현재 연결되지는 않는다. 재현에는 새 할당의 네트워크 정보를 준비해야 한다.</p>
+<p><a href="README.html">연결 원리</a> · <a href="../memory/security.html">보안 경계</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

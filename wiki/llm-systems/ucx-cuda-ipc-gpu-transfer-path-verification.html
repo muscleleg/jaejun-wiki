@@ -1,0 +1,289 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.md. Do not edit directly. source-sha256:874d5d1a71307a3f1d9ce5d979d7bf575195d0eee5ae181c5f7d6575e9c13122 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="UCX의 역할과 CUDA IPC 구현을 통해 GPU 직접 전송과 호스트 메모리 경유를 구분하고, 토폴로지와 링크 트래픽으로 PCIe·NVLink 사용을 확인하는 근거와 한계를 설명한다.">
+  <meta name="source-sha256" content="874d5d1a71307a3f1d9ce5d979d7bf575195d0eee5ae181c5f7d6575e9c13122">
+  <title>UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지">
+  <meta property="og:description" content="UCX의 역할과 CUDA IPC 구현을 통해 GPU 직접 전송과 호스트 메모리 경유를 구분하고, 토폴로지와 링크 트래픽으로 PCIe·NVLink 사용을 확인하는 근거와 한계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html","name":"UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지","description":"UCX의 역할과 CUDA IPC 구현을 통해 GPU 직접 전송과 호스트 메모리 경유를 구분하고, 토폴로지와 링크 트래픽으로 PCIe·NVLink 사용을 확인하는 근거와 한계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html"},"headline":"UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/ucx-cuda-ipc-gpu-transfer-path-verification.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU 통신 경로가 LLM 성능에 미치는 영향 — NCCL·NIXL에서 실제 데이터 이동까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/README.html"},{"@type":"ListItem","position":5,"name":"NIXL로 KV Cache를 가져오는 과정과 검증","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html"},{"@type":"ListItem","position":6,"name":"UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/distributed-runtime-interconnect-data-movement/README.html">GPU 통신 경로가 LLM 성능에 미치는 영향 — NCCL·NIXL에서 실제 데이터 이동까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html">NIXL로 KV Cache를 가져오는 과정과 검증</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지</h1>
+      <p class="lead">UCX의 역할과 CUDA IPC 구현을 통해 GPU 직접 전송과 호스트 메모리 경유를 구분하고, 토폴로지와 링크 트래픽으로 PCIe·NVLink 사용을 확인하는 근거와 한계를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-ucx">1. UCX는 실제 데이터 전송을 처리하는 통신 라이브러리다</a>
+        <a href="#section-2-ipc-cuda-ipc">2. IPC라는 일반 용어와 <code>cuda_ipc</code>라는 구현 이름은 다르다</a>
+        <a href="#section-3-cuda-ipc-p2p">3. <code>cuda_ipc</code> 로그에서 P2P 경로를 판단하는 과정</a>
+        <a href="#section-4-p2p-pcie-nvlink">4. P2P라는 사실만으로 PCIe와 NVLink를 구분할 수는 없다</a>
+        <a href="#section-5">5. 토폴로지는 “어떤 연결이 있는가”를 알려준다</a>
+        <a href="#section-6">6. 링크 트래픽은 “그 연결을 실제로 사용했는가”를 확인하는 근거다</a>
+        <a href="#section-7">7. 관측된 사실과 해석의 범위를 구분한다</a>
+        <a href="#section-829a277fc720">정리</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU 사이에서 데이터 전송이 성공했다고 해서, 어떤 경로로 이동했는지까지 알 수 있는 것은 아니다.</p>
+<p>예를 들어 한 GPU가 만든 KV Cache를 다른 GPU로 옮길 때는 다음 두 질문을 구분해야 한다.</p>
+<ol>
+<li><strong>서버 RAM을 중간 버퍼로 사용했는가, GPU 메모리 사이에서 직접 전송했는가?</strong></li>
+<li><strong>GPU 직접 전송이었다면 PCIe를 사용했는가, NVLink를 사용했는가?</strong></li>
+</ol>
+<p>첫 번째는 <strong>소프트웨어가 선택한 전송 방식</strong>, 두 번째는 <strong>실제 하드웨어 연결의 사용 여부</strong>에 관한 질문이다. UCX 로그와 GPU 토폴로지, 링크 트래픽은 각각 이 질문의 다른 부분에 답한다.</p>
+</div>
+        <section id="section-1-ucx" class="markdown-section">
+<h2>1. UCX는 실제 데이터 전송을 처리하는 통신 라이브러리다</h2>
+<p>UCX는 <em>Unified Communication X</em>의 약자로, 여러 통신 방식을 공통 인터페이스로 제공하는 라이브러리다.</p>
+<p>NIXL의 UCX 백엔드를 사용하는 vLLM 구성에서는 다음 관계가 형성된다.</p>
+<pre><code class="language-text">vLLM의 NixlConnector
+요청 처리와 KV Cache 전달을 연결
+        ↓
+NIXL
+메모리 등록과 전송 작업을 관리
+        ↓
+UCX
+환경과 설정에 맞는 전송 방식을 선택·실행
+        ↓
+CUDA IPC / TCP / RDMA 등
+</code></pre>
+<p>NIXL은 UCX 외의 백엔드도 지원한다. 따라서 이 그림은 <strong>NIXL이 UCX를 사용하는 구성</strong>을 나타낸다. <a href="https://docs.nvidia.com/nixl/user-guide/backend-selection/" rel="noopener noreferrer">NIXL 백엔드 설명</a></p>
+<p>UCX는 NVLink 같은 물리적 연결의 이름이 아니다. <strong>UCX를 사용했다는 사실만으로 NVLink나 RDMA를 사용했다고 판단할 수는 없다.</strong></p>
+<h3>Decode 서버 로그에 UCX 로그가 있는 이유</h3>
+<p>Prefill은 입력을 처리해 KV Cache를 만들고, Decode는 그 KV를 받아 생성을 이어간다.</p>
+<p>Decode 쪽 프로세스가 NIXL과 UCX를 라이브러리로 사용하면, 해당 프로세스의 출력에 UCX 로그도 함께 나타난다.</p>
+<pre><code class="language-text">Decode 쪽 프로세스
+├─ vLLM: 필요한 KV 수신 요청
+├─ NIXL: 메모리 전송 관리
+└─ UCX: 전송 실행 및 로그 출력
+</code></pre>
+<p>따라서 <strong>Decode 서버 로그에서 UCX 로그를 읽는다는 것은, 그 프로세스 안에서 동작한 통신 라이브러리의 기록을 확인한다는 뜻</strong>이다. 별도의 UCX 서버를 띄웠다는 의미가 아니다.</p>
+
+</section>
+<section id="section-2-ipc-cuda-ipc" class="markdown-section">
+<h2>2. IPC라는 일반 용어와 <code>cuda_ipc</code>라는 구현 이름은 다르다</h2>
+<p>IPC는 <em>Inter-Process Communication</em>, 즉 프로세스 간 통신이다.</p>
+<p>이 용어 자체는 <strong>무엇을 이용해 통신하는지 말해주지 않는다.</strong> 서버 RAM을 공유하는 방식도 IPC이고, GPU 메모리를 다른 프로세스에서 접근하게 하는 방식도 IPC다.</p>
+<p>반면 <strong>UCX 로그의 <code>cuda_ipc</code>는 구체적인 전송 구현의 이름</strong>이다. “프로세스 사이에서 무언가를 보냈다”는 일반적인 표시가 아니다.</p>
+<p>이 차이를 알아야 다음 두 경로를 구분할 수 있다.</p>
+<pre><code class="language-text">호스트 메모리 경유
+GPU 0 → 서버 DRAM의 중간 버퍼 → GPU 1
+
+GPU 직접 전송
+GPU 0 ─────────────────────→ GPU 1
+</code></pre>
+<p>여기서 서버 DRAM은 CPU 내부의 SRAM 캐시가 아니라, 서버의 RAM이다.</p>
+<p>또한 NCCL의 <code>SHM</code>은 NCCL이 사용하는 호스트 공유 메모리 전송 방식의 이름이다. <strong>UCX의 모든 호스트 메모리 경유 경로가 반드시 <code>SHM</code>이라는 이름으로 출력되는 것은 아니다.</strong> 서로 다른 라이브러리의 로그 이름을 그대로 대응시키면 안 된다.</p>
+
+</section>
+<section id="section-3-cuda-ipc-p2p" class="markdown-section">
+<h2>3. <code>cuda_ipc</code> 로그에서 P2P 경로를 판단하는 과정</h2>
+<p>다음은 같은 서버의 서로 다른 GPU에서 실행된 Prefill·Decode 구성에서 관찰된 로그의 핵심 부분이다.</p>
+<pre><code class="language-text">remote memory read by ucp_get*(multi) into cuda/GPU0 from cuda/dev[0]
+0..inf | zero-copy | cuda_ipc/cuda
+</code></pre>
+<p>이 로그에서 GPU 직접 전송을 판단하는 과정은 <strong>로그 확인과 구현 해석의 결합</strong>이다.</p>
+<h3>첫째, 어떤 메모리 사이의 작업인지 읽는다</h3>
+<pre><code class="language-text">from cuda/dev[0] → into cuda/GPU0
+</code></pre>
+<p>출발지와 도착지가 CUDA GPU 메모리인 읽기 작업이다.</p>
+<p>단, 여기의 GPU 번호는 프로세스 관점의 로컬 번호일 수 있다. <strong>양쪽에 <code>0</code>이 보인다는 이유만으로 같은 물리 GPU라고 판단하지 않는다.</strong> 실제 장치 배정은 별도로 확인해야 한다.</p>
+<h3>둘째, 그 작업에 선택된 전송 구현을 읽는다</h3>
+<pre><code class="language-text">zero-copy | cuda_ipc/cuda
+</code></pre>
+<p>해당 읽기 작업에 UCX의 <code>cuda_ipc</code> 경로가 선택됐다는 뜻이다.</p>
+<p>단순히 사용 가능한 기능 목록에 <code>cuda_ipc</code>가 등장한 것과는 다르다. <strong>지원 목록은 가능성을 보여주고, 해당 작업의 프로토콜 선택 표는 어떤 구현이 선택됐는지를 보여준다.</strong></p>
+<h3>셋째, 그 구현이 데이터를 어떻게 옮기는지 확인한다</h3>
+<p>UCX의 CUDA IPC 구현은 상대 GPU 메모리를 매핑한 뒤, 그 주소와 로컬 GPU 주소 사이에서 GPU 메모리 복사를 수행한다. 대표적인 구현 흐름은 다음과 같다.</p>
+<pre><code class="language-text">상대 GPU 메모리를 내 프로세스에서 접근할 수 있게 매핑
+                         ↓
+복사 출발지: 상대 GPU 메모리 주소
+복사 도착지: 내 GPU 메모리 주소
+                         ↓
+cuMemcpyDtoDAsync로 복사
+</code></pre>
+<p>이 경로는 UCX가 서버 DRAM에 중간 버퍼를 만들어 데이터를 내려받고 다시 GPU로 올리는 방식이 아니다. <a href="https://github.com/openucx/ucx/blob/master/src/uct/cuda/cuda_ipc/cuda_ipc_ep.c" rel="noopener noreferrer">UCX CUDA IPC 구현</a></p>
+<p>따라서 판단 근거는 다음처럼 연결된다.</p>
+<pre><code class="language-text">로그: GPU→GPU 읽기에 cuda_ipc가 선택됨
+                         +
+구현: 상대 GPU 메모리를 매핑해 GPU 메모리 간 복사를 수행함
+                         ↓
+판단: 호스트 DRAM 중간 버퍼 경유가 아닌 GPU 직접 전송 경로
+</code></pre>
+<p><strong><code>IPC</code>라는 약자를 보고 P2P라고 추측한 것이 아니라, 로그가 지목한 구현의 동작을 근거로 판별하는 것이다.</strong> 버전별 세부 구현을 검증할 때는 실제 설치 버전의 소스와 대조해야 한다.</p>
+<p>여기서 P2P는 GPU 간 직접 전송이라는 일반적인 의미다. NCCL의 <code>P2P</code> 모듈을 사용했다는 뜻은 아니다.</p>
+<h3><code>zero-copy</code>만으로 판단하면 안 되는 이유</h3>
+<p><code>zero-copy</code>는 모든 상황에서 “GPU 직접 전송”을 뜻하지 않는다. 호스트 메모리 통신에도 사용되는 표현이다.</p>
+<p>이 예에서는 <strong>GPU 메모리 간 읽기라는 작업 정보와 <code>cuda_ipc</code>라는 구현 이름을 함께</strong> 본다. 또한 GPU 사이의 데이터 복사 자체는 발생하므로, “데이터가 이동하지 않았다”는 뜻도 아니다.</p>
+
+</section>
+<section id="section-4-p2p-pcie-nvlink" class="markdown-section">
+<h2>4. P2P라는 사실만으로 PCIe와 NVLink를 구분할 수는 없다</h2>
+<p>GPU 직접 전송이라는 판단은 <strong>서버 DRAM에 중간 복사했는지</strong>에 관한 것이다.</p>
+<p>하지만 직접 전송에 사용하는 하드웨어 연결은 별개의 문제다.</p>
+<pre><code class="language-text">GPU 직접 전송
+├─ PCIe를 통한 전송
+└─ NVLink를 통한 전송
+</code></pre>
+<p><code>cuda_ipc</code>는 이러한 물리적 링크의 이름이 아니다. 따라서 <strong><code>cuda_ipc</code> 로그만으로 “NVLink를 사용했다”고 확정하면 안 된다.</strong></p>
+<p>이제는 소프트웨어 로그뿐 아니라 하드웨어 정보를 봐야 한다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>5. 토폴로지는 “어떤 연결이 있는가”를 알려준다</h2>
+<p>GPU 사이에 어떤 연결이 있는지 확인할 때는 다음 명령을 사용한다.</p>
+<pre><code class="language-bash">nvidia-smi topo -m
+</code></pre>
+<p>예를 들어 다음과 같은 관계가 출력될 수 있다.</p>
+<pre><code class="language-text">        GPU0   GPU1
+GPU0     X     NV12
+GPU1    NV12     X
+</code></pre>
+<p><code>NV12</code>는 두 GPU 사이의 연결이 12개 NVLink로 구성된 연결임을 나타낸다.</p>
+<p>하지만 이것은 <strong>연결 구조를 보여주는 정보</strong>이지, 특정 KV 전송의 트래픽 기록은 아니다.</p>
+<blockquote>
+<p>NVLink가 연결돼 있다는 사실과 특정 전송이 실제 NVLink를 사용했다는 사실은 구분해야 한다.</p>
+</blockquote>
+<p>따라서 <code>cuda_ipc</code> 로그와 <code>NV12</code> 토폴로지를 함께 확인했다면, 우선 다음처럼 표현하는 것이 정확하다.</p>
+<p><strong>“NVLink 연결이 있는 환경에서 CUDA IPC 기반 GPU 직접 전송 경로가 선택됐다.”</strong></p>
+<p>실제 링크 사용을 더 직접적으로 확인하려면 전송 중 트래픽을 관측해야 한다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>6. 링크 트래픽은 “그 연결을 실제로 사용했는가”를 확인하는 근거다</h2>
+<p>특정 전송이 NVLink나 PCIe를 사용했는지 확인하려면, 다른 통신의 영향을 줄인 상태에서 해당 전송과 링크 트래픽을 연결해 관측한다.</p>
+<pre><code class="language-text">다른 GPU 통신을 최소화하고 유휴 트래픽 확인
+                         ↓
+대상 GPU 사이에서 큰 데이터를 반복 전송
+                         ↓
+전송 중 NVLink·PCIe 송수신 트래픽 관측
+                         ↓
+전송 시작·종료 및 데이터량 변화와 트래픽 변화를 비교
+</code></pre>
+<p>지원되는 환경에서는 NVIDIA DCGM 등의 도구로 NVLink·PCIe 송수신 메트릭을 수집할 수 있다. GPU·드라이버·권한에 따라 사용 가능한 항목이 다르다. <a href="https://docs.nvidia.com/datacenter/dcgm/latest/learn/modules/profiling.html" rel="noopener noreferrer">DCGM 프로파일링 메트릭</a></p>
+<p>메트릭을 읽을 때는 단위도 확인해야 한다.</p>
+<ul>
+<li><strong>누적 바이트 카운터</strong>라면 전송 전후 차이를 본다.</li>
+<li><strong>초당 바이트 메트릭</strong>이라면 전송 구간의 대역폭 변화를 본다.</li>
+</ul>
+<p>이때도 다음과 같은 오판을 주의해야 한다.</p>
+<ul>
+<li>다른 작업의 NVLink 트래픽을 대상 전송의 트래픽으로 착각하지 않는다.</li>
+<li>NVLink 값이 0이라고 곧바로 PCIe 전송이라고 단정하지 않는다. 수집 지원 여부와 측정 간격을 확인한다.</li>
+<li>PCIe 트래픽이 있다고 곧바로 호스트 RAM 경유라고 단정하지 않는다. PCIe P2P와 GPU↔RAM 복사 모두 PCIe 트래픽을 발생시킬 수 있다.</li>
+</ul>
+<p><strong>소프트웨어 전송 경로와 링크 관측을 함께 봐야 전체 경로를 해석할 수 있다.</strong></p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>7. 관측된 사실과 해석의 범위를 구분한다</h2>
+<p>같은 서버의 A100 GPU 두 장을 사용한 검증 예시에서는 다음이 확인됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>확인 항목</th>
+<th>관측된 내용</th>
+<th>알 수 있는 범위</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPU 배정</td>
+<td>서로 다른 GPU에 Prefill·Decode 배치</td>
+<td>프로세스가 사용하는 물리 GPU 구분</td>
+</tr>
+<tr>
+<td>UCX 프로토콜 로그</td>
+<td>GPU 메모리 읽기에 <code>cuda_ipc</code> 선택</td>
+<td>GPU 직접 전송 경로 선택</td>
+</tr>
+<tr>
+<td>GPU 토폴로지</td>
+<td>GPU 사이 <code>NV12</code></td>
+<td>NVLink 연결 존재</td>
+</tr>
+<tr>
+<td>해당 전송의 링크 트래픽</td>
+<td>별도로 측정하지 않음</td>
+<td>NVLink 사용을 카운터로 검증했다고는 말할 수 없음</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 결과는 GPU 직접 전송 경로와 NVLink 연결의 존재를 보여준다. 다만 <strong>특정 KV 전송이 NVLink를 사용한 사실을 링크 카운터로 실측한 결과와는 구분</strong>해야 한다.</p>
+
+</section>
+<section id="section-829a277fc720" class="markdown-section">
+<h2>정리</h2>
+<p>GPU 데이터 이동을 확인하는 과정은 세 단계로 이어진다.</p>
+<pre><code class="language-text">UCX 로그 + 해당 구현
+“GPU 직접 전송인가, 호스트 메모리 경유인가?”
+                         ↓
+GPU 토폴로지
+“PCIe·NVLink 등 어떤 연결이 있는가?”
+                         ↓
+전송과 대응하는 링크 트래픽
+“그 연결을 실제로 사용했는가?”
+</code></pre>
+<p><strong>UCX는 전송을 처리하는 라이브러리이고, <code>cuda_ipc</code>는 그 안의 구체적인 GPU 메모리 전송 구현이다. 그 구현으로 P2P 경로를 판단할 수 있지만, PCIe·NVLink 중 실제 사용한 물리적 연결은 별도의 하드웨어 관측으로 확인해야 한다.</strong></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

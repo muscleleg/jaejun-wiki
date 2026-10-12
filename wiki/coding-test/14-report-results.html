@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/14-report-results.md. Do not edit directly. source-sha256:95aaec42ca265c671c6d4645f60c0e1c388882620f7fc86aec81d8c1b2b850d6 -->
+<!-- Generated from content/wiki/coding-test/14-report-results.md. Do not edit directly. source-sha256:c5255f353bc15b71c8cfa1b9af5b0743014947c3aed50ba6554f3d1560fe15ca -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="신고 결과 받기: 문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.">
-  <meta name="source-sha256" content="95aaec42ca265c671c6d4645f60c0e1c388882620f7fc86aec81d8c1b2b850d6">
+  <meta name="source-sha256" content="c5255f353bc15b71c8cfa1b9af5b0743014947c3aed50ba6554f3d1560fe15ca">
   <title>신고 결과 받기</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
@@ -68,6 +68,7 @@
         <a href="#document-section-3">기억할 코드 형태</a>
         <a href="#document-section-4">헷갈렸던 지점</a>
         <a href="#document-section-5">다시 풀 때 확인할 것</a>
+        <a href="#complexity-review-2026-10-08">2026-10-08 시간복잡도 복습: 중첩 반복문의 총횟수</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p><strong>이 문제 복습</strong><a href="#core">핵심 개념</a><a href="#flow">풀이 흐름</a><a href="#code">핵심 코드</a><a href="#confusion">헷갈렸던 지점</a><a href="#checkpoint">다시 풀기 체크</a><a href="index.html">← 전체 문제</a></p>
@@ -113,6 +114,51 @@ report_map[name] = tmp_set
 <h2>다시 풀 때 확인할 것</h2>
 <aside class="md-component md-callout" data-component="callout"><div class="md-component-body"><p>같은 사람이 동일 사용자를 두 번 신고해도 한 번만 계산되는 이유를 설명한다.</p>
 </div></aside>
+
+</section>
+<section id="complexity-review-2026-10-08" class="markdown-section">
+<h2>2026-10-08 시간복잡도 복습: 중첩 반복문의 총횟수</h2>
+<p>사용자 수를 <code>U = len(id_list)</code>, 입력 신고 수를 <code>R = len(report)</code>로 둔다. 아이디 길이는 문제에서 제한된 상수로 보고, 딕셔너리·집합 연산은 평균 <code>O(1)</code>로 계산한다.</p>
+<h3>신고자별 집합 만들기</h3>
+<pre><code class="language-python">for info in report:
+    user, reported_user = info.split()
+    user_set = id_info_using_report.get(user, set())
+    user_set.add(reported_user)
+    id_info_using_report[user] = user_set
+</code></pre>
+<p>신고 문자열을 <code>R</code>개 읽는다. 각 신고의 분리·조회·집합 추가·할당 비용을 위 기준에서 상수로 보면 이 부분은 평균 <code>O(R)</code>다. 중복 신고를 집합에 넣어도 저장된 신고 관계 수는 입력 신고 수보다 많아지지 않는다.</p>
+<h3>대상별 신고 횟수 집계</h3>
+<pre><code class="language-python">for value_set in id_info_using_report.values():
+    for value in value_set:
+        total_info[value] = total_info.get(value, 0) + 1
+</code></pre>
+<p>중첩 반복문이지만 모든 신고 관계를 신고자별 집합에 나누어 저장한 구조다. 집합들의 크기를 모두 합하면 최대 <code>R</code>이다. 바깥 반복의 신고자 수도 <code>R</code> 이하이므로 이 부분은 평균 <code>O(R)</code>다.</p>
+<h3>사용자별 메일 수 계산</h3>
+<pre><code class="language-python">for item in id_list:
+    total = 0
+    repoted_ids = (
+        id_info_using_report[item]
+        if item in id_info_using_report else None
+    )
+    if repoted_ids is not None:
+        for repoted_id in repoted_ids:
+            if total_info[repoted_id] &gt;= k:
+                total += 1
+    answer.append(total)
+</code></pre>
+<p>복습에서는 바깥 반복의 <code>U</code>와 안쪽 신고 수 <code>R</code>을 보고 처음에 <code>U × R</code>이라고 계산했다. 여기서 <code>R</code>은 한 사람이 신고한 개수가 아니라 모든 사람이 신고한 입력의 총개수다.</p>
+<p>예를 들어 사용자가 A·B·C 세 명이고 각 집합의 원소가 3·2·1개라면 다음과 같다.</p>
+<pre><code class="language-text">사용자 확인: 3번
+신고 관계 확인: 3 + 2 + 1 = 6번
+총비용: 3 + 6 = U + R
+</code></pre>
+<p>사용자 한 명마다 전체 신고 6개를 다시 훑을 때는 <code>U × R</code>이 된다. 현재 코드는 각자의 신고 집합만 확인하므로, 안쪽 반복의 전체 횟수가 최대 <code>R</code>번이다. 신고를 하지 않은 사용자도 결과 0을 넣어야 하므로 사용자 확인 비용 <code>U</code>도 남는다.</p>
+<h3>전체 비용</h3>
+<pre><code class="language-text">신고 저장 + 신고 횟수 집계 + 사용자별 메일 수 계산
+= O(R + R + U + R)
+= O(U + R)
+</code></pre>
+<p>이는 해시 연산을 평균 상수 시간으로 보는 시간복잡도다. 반복문이 겹쳐 보인다는 이유만으로 곱하지 않고, 안쪽 작업이 전체 실행에서 실제로 몇 번 일어나는지 센다. 복습에서는 집합 원소 수의 합이 <code>R</code>을 넘지 않는다는 점을 확인한 뒤 이 계산을 이해했다.</p>
 
 </section>
         

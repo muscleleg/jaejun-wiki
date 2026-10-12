@@ -1,0 +1,280 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.md. Do not edit directly. source-sha256:5368d98cde70440d23bec00faa29df0e3f1c08751b6082976479449a4092967f -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="분산 모델의 속도는 GPU 계산 시간만으로 결정되지 않는다. 다른 GPU의 결과를 기다리는 시간과 데이터 이동, 요청 대기가 사용자 응답에 포함된다. 같은 입력을 한 서버·P/D·PP에서 처리했을 때의 차이를 보면, 계산 분담과 통신 비용을 함께 볼 수 있다.">
+  <meta name="source-sha256" content="5368d98cde70440d23bec00faa29df0e3f1c08751b6082976479449a4092967f">
+  <title>서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기">
+  <meta property="og:description" content="분산 모델의 속도는 GPU 계산 시간만으로 결정되지 않는다. 다른 GPU의 결과를 기다리는 시간과 데이터 이동, 요청 대기가 사용자 응답에 포함된다. 같은 입력을 한 서버·P/D·PP에서 처리했을 때의 차이를 보면, 계산 분담과 통신 비용을 함께 볼 수 있다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html","name":"서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기","description":"분산 모델의 속도는 GPU 계산 시간만으로 결정되지 않는다. 다른 GPU의 결과를 기다리는 시간과 데이터 이동, 요청 대기가 사용자 응답에 포함된다. 같은 입력을 한 서버·P/D·PP에서 처리했을 때의 차이를 보면, 계산 분담과 통신 비용을 함께 볼 수 있다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html"},"headline":"서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/performance/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"TP·PP·P/D는 무엇을 나누고 무엇을 주고받는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/README.html"},{"@type":"ListItem","position":6,"name":"서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/execution/README.html">TP·PP·P/D는 무엇을 나누고 무엇을 주고받는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>서버 간 분산 추론의 성능 — 계산 절약과 데이터 이동 비용을 함께 보기</h1>
+      <p class="lead">분산 모델의 속도는 GPU 계산 시간만으로 결정되지 않는다. 다른 GPU의 결과를 기다리는 시간과 데이터 이동, 요청 대기가 사용자 응답에 포함된다. 같은 입력을 한 서버·P/D·PP에서 처리했을 때의 차이를 보면, 계산 분담과 통신 비용을 함께 볼 수 있다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">먼저 네트워크 기준을 잡는다</a>
+        <a href="#section-2">동일한 입력·출력 조건에서의 결과</a>
+        <a href="#section-3">P/D에서는 첫 응답 전 KV 전송이 컸다</a>
+        <a href="#transfer-time-lower-bound">전송량과 대역폭으로 최소 시간을 계산하면</a>
+        <a href="#section-4">PP가 이 조건에서 P/D보다 덜 느린 이유</a>
+        <a href="#section-5">단정하지 않은 것</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>분산 모델의 속도는 GPU 계산 시간만으로 결정되지 않는다. 다른 GPU의 결과를 기다리는 시간과 데이터 이동, 요청 대기가 사용자 응답에 포함된다. 같은 입력을 한 서버·P/D·PP에서 처리했을 때의 차이를 보면, 계산 분담과 통신 비용을 함께 볼 수 있다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>먼저 네트워크 기준을 잡는다</h2>
+<p>검증 환경은 서로 다른 서버의 A40 한 장씩, RunPod 사설 TCP 경로다. 큰 CPU 메모리 전송은 양방향 약 12 MB/s, GPU 8 MiB payload의 왕복은 약 1.297초·유효 12.93 MB/s였다.</p>
+<p>두 결과가 비슷한 수준이라는 것은 느린 GPU 데이터 이동을 GPU 메모리 성능만으로 설명하면 안 된다는 근거다. 측정 방식이 다르므로 둘을 빼서 GPU 복사 비용을 정확히 구한 것은 아니다. <a href="transfer-measurement.html">CPU·GPU 측정 경계</a>.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>동일한 입력·출력 조건에서의 결과</h2>
+<p>Qwen3-8B, BF16, 출력 32토큰, 동시 요청 1개다. 각 길이·구성에서 예열 1회 후 3회 측정했다. 한 서버는 B에 일반 요청, P/D는 A Prefill→B Decode, PP는 A·B에 레이어를 나눠 실행했다. P/D와 한 서버는 회차별 순서를 번갈았고, PP는 별도로 서버를 다시 구성한 뒤 측정했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>입력 토큰</th>
+<th>구성</th>
+<th align="right">평균 TTFT(ms)</th>
+<th align="right">평균 E2E(s)</th>
+<th align="right">클라이언트 TPOT 추정(ms)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>128</td>
+<td>한 서버</td>
+<td align="right">61.1</td>
+<td align="right">0.969</td>
+<td align="right">29.3</td>
+</tr>
+<tr>
+<td>128</td>
+<td>P/D</td>
+<td align="right">1705.5</td>
+<td align="right">2.602</td>
+<td align="right">28.9</td>
+</tr>
+<tr>
+<td>128</td>
+<td>PP=2</td>
+<td align="right">171.2</td>
+<td align="right">1.143</td>
+<td align="right">31.4</td>
+</tr>
+<tr>
+<td>673</td>
+<td>한 서버</td>
+<td align="right">125.8</td>
+<td align="right">1.050</td>
+<td align="right">29.8</td>
+</tr>
+<tr>
+<td>673</td>
+<td>P/D</td>
+<td align="right">8674.1</td>
+<td align="right">9.571</td>
+<td align="right">28.9</td>
+</tr>
+<tr>
+<td>673</td>
+<td>PP=2</td>
+<td align="right">995.9</td>
+<td align="right">1.973</td>
+<td align="right">31.5</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>한 서버</td>
+<td align="right">313.5</td>
+<td align="right">1.280</td>
+<td align="right">31.2</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>P/D</td>
+<td align="right">25630.6</td>
+<td align="right">26.537</td>
+<td align="right">29.2</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>PP=2</td>
+<td align="right">3052.3</td>
+<td align="right">4.040</td>
+<td align="right">31.9</td>
+</tr>
+</tbody></table>
+</div>
+<p>원본: 한 서버·P/D 요약 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/pd-requests/summary.json</code>), PP 요약 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/pp-requests/summary.json</code>).</p>
+<p>TTFT는 전체 요청을 시작한 뒤 첫 내용 스트림 이벤트를 받기까지, E2E는 완료까지의 클라이언트 관측 시간이다. P/D의 TTFT에는 Prefill HTTP부터 KV를 가져오는 대기가 포함된다. TPOT는 첫·마지막 내용 이벤트의 시간 차이를 31로 나눈 추정값이다. 서버의 토큰별 커널 실행 시간이 아니다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>P/D에서는 첫 응답 전 KV 전송이 컸다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>입력 토큰</th>
+<th align="right">Prefill HTTP(s)</th>
+<th align="right">Decode HTTP(s)</th>
+<th align="right">수신 KV(MiB)</th>
+<th align="right">NIXL 전송 평균(s)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>128</td>
+<td align="right">0.068</td>
+<td align="right">2.534</td>
+<td align="right">18.00</td>
+<td align="right">1.527</td>
+</tr>
+<tr>
+<td>673</td>
+<td align="right">0.138</td>
+<td align="right">9.433</td>
+<td align="right">96.75</td>
+<td align="right">8.429</td>
+</tr>
+<tr>
+<td>2048</td>
+<td align="right">0.330</td>
+<td align="right">26.207</td>
+<td align="right">288.00</td>
+<td align="right">25.188</td>
+</tr>
+</tbody></table>
+</div>
+<p>673토큰에서는 P/D E2E가 한 서버보다 약 8.52초 늘었고 별도 NIXL 메트릭은 약 8.43초였다. 입력이 늘수록 KV와 대기가 함께 커졌으므로 <strong>이 조건에서 KV 이동이 추가 지연의 큰 부분을 설명한다</strong>고 해석할 수 있다.</p>
+<p>그러나 NIXL 시간을 Decode HTTP 시간에 다시 더하면 중복 계산이다. 전송은 Decode 구간 안에 있다. 두 평균의 근접함만으로 대기·복사·네트워크·계산의 모든 비용을 정확히 분해한 것도 아니다.</p>
+<p>TPOT가 크게 나빠지지 않았다고 전체 요청이 빨라진 것은 아니다. 캐시를 받기 전 오래 기다린 뒤 토큰 생성은 비슷한 속도로 진행할 수 있다. <a href="kv-volume.html">전송 크기 계산</a>.</p>
+
+</section>
+<section id="transfer-time-lower-bound" class="markdown-section">
+<h2>전송량과 대역폭으로 최소 시간을 계산하면</h2>
+<p>전송할 데이터가 S바이트이고 경로의 대역폭 상한이 B바이트/초라면, 데이터 이동에 필요한 이상적인 최소 시간은 <code>S ÷ B</code>다. 계산을 아무리 빨리 끝내도 이 데이터를 그 경로로 모두 보내야 한다면 이 비용을 없앨 수는 없다.</p>
+<p><a href="../connection/runpod-network.html">실습 네트워크 기록</a>에 남긴 서비스 안내값 100 Mbps를 이 경로의 대역폭 상한으로 <strong>가정</strong>해 비교한다. 100 Mbps는 초당 100,000,000비트, 즉 12,500,000바이트(12.5 MB)다. NIC 자체의 물리 성능을 측정해 얻은 상한은 아니며, 관측한 약 12 MB/s를 분모로 다시 넣은 계산도 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>입력 토큰</th>
+<th align="right">실제 KV 전송량(bytes)</th>
+<th align="right">100 Mbps 가정 하한(s)</th>
+<th align="right">NIXL 전송 실측 평균(s)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>128</td>
+<td align="right">18,874,368</td>
+<td align="right">1.510</td>
+<td align="right">1.527</td>
+</tr>
+<tr>
+<td>673</td>
+<td align="right">101,449,728</td>
+<td align="right">8.116</td>
+<td align="right">8.429</td>
+</tr>
+<tr>
+<td>2048</td>
+<td align="right">301,989,888</td>
+<td align="right">24.159</td>
+<td align="right">25.188</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 673토큰의 계산은 다음과 같다.</p>
+<pre><code class="language-text">전송량: 96.75 MiB = 101,449,728 bytes
+가정한 대역폭: 100 Mbps ÷ 8 = 12,500,000 bytes/s
+이상적인 최소 시간: 101,449,728 ÷ 12,500,000 ≈ 8.116초
+실제 NIXL 전송 평균: 약 8.429초
+</code></pre>
+<p>전송량과 시간은 앞 표와 같은 예열 제외·길이별 3회 측정 결과다. MiB는 1,048,576바이트, MB는 1,000,000바이트이므로 같은 단위로 바꿔 계산했다. 이론상 토큰 수만으로 구한 KV가 아니라 블록 단위의 실제 전송 바이트를 사용한다.</p>
+<p>세 길이 모두 실측이 이 조건부 하한과 가까운 수준이다. CPU 전송 기준선 약 12 MB/s와 함께 보면, <strong>이 환경의 KV 전달은 네트워크 대역폭 제약의 영향을 크게 받았다는 해석을 뒷받침한다.</strong></p>
+<p>단, 하한과 실측의 차이를 곧바로 GPU 복사 시간이라고 볼 수는 없다. 하한은 프로토콜 오버헤드·대기·메모리 복사 등을 제외한 이상적인 계산이고, NIXL 메트릭은 순수한 선로 전송 시간만 분리한 값이 아니다. 서비스 안내값이 실제 경로의 엄밀한 상한임을 별도로 검증한 것도 아니므로, 이 표는 <strong>100 Mbps 가정 아래의 하한 대조</strong>이지 물리 NIC 성능이나 각 비용의 정확한 분해를 증명하지 않는다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>PP가 이 조건에서 P/D보다 덜 느린 이유</h2>
+<p>P/D는 모든 레이어의 입력 KV를 넘겼다. PP는 레이어 경계의 중간 텐서를 넘긴다. 옮기는 데이터의 종류·크기·빈도가 다르므로 같은 네트워크에서도 비용이 다르다.</p>
+<p>PP 역시 한 서버보다 느렸다. 한 요청의 앞뒤 레이어는 서로 의존하고, 경계에서 통신이 추가되기 때문이다. 모델이 한 GPU에 들어가는 이 조건에서는 메모리 분할의 이득이 단일 요청 지연을 상쇄하지 못했다. 다만 높은 동시성에서의 PP 처리량은 측정하지 않았다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>단정하지 않은 것</h2>
+<ul>
+<li>RDMA라면 반드시 몇 배 빨라진다는 수치: RDMA를 측정하지 않았다.</li>
+<li>모든 P/D는 느리다는 결론: 긴 입력 간섭·높은 부하·빠른 망 등 조건이 다르다.</li>
+<li>출력 32토큰이 같으니 수치적으로 완전히 동일하다는 결론: logits 동등성 검증이 아니다.</li>
+<li>다른 GPU 환경과의 차이가 전부 네트워크 때문이라는 결론: GPU·드라이버·실행 설정도 달라질 수 있다.</li>
+</ul>
+<p>수치 연산은 커널·배치·연산 순서에 따라 달라질 수 있지만, 답변 차이를 관찰했다는 이유만으로 부동소수점 오차를 원인으로 확정하지 않는다. 입력 토큰과 첫 생성 토큰의 인계, 생성 옵션, 모델 버전도 함께 확인해야 한다.</p>
+<p>이 결과는 구성 선택의 출발점이지 모든 환경의 순위표가 아니다. <a href="../operations/configuration-choice.html">TP·PP·P/D·독립 서버 선택 기준</a>에서 해결하려는 문제와 연결한다.</p>
+<p><a href="../execution/README.html">모델 실행 구조</a> · <a href="../README.html">전체 흐름</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.md. Do not edit directly. source-sha256:c20c21ad580a8c4a3122e7f2f443eb69d91892fd98aab2831e6a4ec74f4204ea -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서버 간 GPU 작업의 복구는 연결만 다시 맺는 문제가 아니다. 실패한 통신 그룹, 사라진 GPU 메모리, 진행 중이던 요청 중 무엇을 재구성해야 하는지가 실행 구조에 따라 달라진다.">
+  <meta name="source-sha256" content="c20c21ad580a8c4a3122e7f2f443eb69d91892fd98aab2831e6a4ec74f4204ea">
+  <title>통신 상대가 죽으면 무엇을 복구해야 하는가</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="통신 상대가 죽으면 무엇을 복구해야 하는가">
+  <meta property="og:description" content="서버 간 GPU 작업의 복구는 연결만 다시 맺는 문제가 아니다. 실패한 통신 그룹, 사라진 GPU 메모리, 진행 중이던 요청 중 무엇을 재구성해야 하는지가 실행 구조에 따라 달라진다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html","name":"통신 상대가 죽으면 무엇을 복구해야 하는가","description":"서버 간 GPU 작업의 복구는 연결만 다시 맺는 문제가 아니다. 실패한 통신 그룹, 사라진 GPU 메모리, 진행 중이던 요청 중 무엇을 재구성해야 하는지가 실행 구조에 따라 달라진다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html"},"headline":"통신 상대가 죽으면 무엇을 복구해야 하는가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"통신 상대가 죽으면 무엇을 복구해야 하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">통신 상대가 죽으면 무엇을 복구해야 하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>통신 상대가 죽으면 무엇을 복구해야 하는가</h1>
+      <p class="lead">서버 간 GPU 작업의 복구는 연결만 다시 맺는 문제가 아니다. 실패한 통신 그룹, 사라진 GPU 메모리, 진행 중이던 요청 중 무엇을 재구성해야 하는지가 실행 구조에 따라 달라진다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">잠깐의 통신 지연과 프로세스 종료는 다르다</a>
+        <a href="#section-2">끊어진 그룹은 새 연결만으로 이어지지 않았다</a>
+        <a href="#section-3">왜 TP·PP는 그룹 단위 재시작을 고려하는가</a>
+        <a href="#section-4">P/D는 독립 엔진이지만 진행 중 요청은 여전히 영향을 받는다</a>
+        <a href="#section-5">운영의 복구 단위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>서버 간 GPU 작업의 복구는 연결만 다시 맺는 문제가 아니다. 실패한 통신 그룹, 사라진 GPU 메모리, 진행 중이던 요청 중 무엇을 재구성해야 하는지가 실행 구조에 따라 달라진다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>잠깐의 통신 지연과 프로세스 종료는 다르다</h2>
+<p>프로세스와 연결 상태가 살아 있는 동안 일시적인 패킷 손실을 TCP가 재전송하는 상황과, 상대 프로세스가 종료되어 통신 그룹에서 사라지는 상황은 다르다.</p>
+<p>전자는 상위 계층의 제한 시간 안에 회복하면 진행할 수 있다. 후자는 새 프로세스가 같은 주소로 떠도 이전 프로세스의 통신 상태·GPU 버퍼·진행 중 연산을 그대로 소유하지 않는다. <strong>‘B가 다시 켜졌다’가 ‘A가 기다리던 B의 연산이 이어졌다’는 뜻은 아니다.</strong></p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>끊어진 그룹은 새 연결만으로 이어지지 않았다</h2>
+<p>작은 NCCL 그룹에서 B를 의도적으로 종료하자, A의 다음 통신은 원격 연결 종료 오류로 실패했다. 이후 양쪽을 새 프로세스·새 그룹으로 시작했을 때 다시 합산에 성공했다.</p>
+<p>이 결과가 보여 주는 것은 “새 그룹으로 다시 시작할 수 있다”는 사실이다. 죽은 B를 다시 켜면 진행 중이던 연산이 저절로 이어진다는 뜻은 아니다. 오류 감지와 watchdog 종료, 원본 로그, 새 그룹의 검증값은 <a href="failure-observation.html">장애 관측 기록</a>에 분리했다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>왜 TP·PP는 그룹 단위 재시작을 고려하는가</h2>
+<p>TP·PP 워커들은 한 요청의 모델 계산에 함께 참여한다. 죽은 워커의 가중치·KV·중간 결과가 사라지고, 남은 워커의 비동기 통신·계산도 실패 상태일 수 있다. 남은 GPU의 모든 캐시 값이 반드시 손상되었다는 뜻은 아니지만, 중간 상태 그대로 안전하게 계속할 수 있다고 가정할 수 없다.</p>
+<p>PyTorch는 실패한 NCCL 비동기 작업 이후 후속 CUDA 작업이 불완전한 데이터를 사용할 위험 때문에 프로세스를 종료할 수 있다고 설명한다. <a href="https://docs.pytorch.org/docs/main/distributed.html" rel="noopener noreferrer">PyTorch distributed의 NCCL 오류·timeout 설명</a>.</p>
+<p>검증한 복구 방식은 그룹 전체를 새로 만드는 것이었다. B만 재실행하여 기존 그룹에 합류하는 방식, 요청의 중간 생성 상태를 투명하게 복원하는 방식은 검증하지 않았다. Elastic launcher의 워커 재시작 역시 이전 NCCL 연산에 새 프로세스를 끼워 넣는 것과 다르다. <a href="https://docs.pytorch.org/docs/main/elastic/run.html" rel="noopener noreferrer">torchrun의 worker failure 처리</a>.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>P/D는 독립 엔진이지만 진행 중 요청은 여전히 영향을 받는다</h2>
+<p>다음은 한 번의 Prefill→Decode KV 인계 구조에서의 상태 분석이다. 이 서버 간 실험에서 각 항목의 장애를 실제 주입한 것은 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>실패 위치</th>
+<th>사라지거나 끊기는 것</th>
+<th>필요한 대응</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>KV를 받기 전에 Prefill 종료</td>
+<td>아직 전달하지 못한 원격 KV</td>
+<td>새 Prefill 계산과 새 메타데이터로 요청 재구성</td>
+</tr>
+<tr>
+<td>KV를 완전히 받은 후 Prefill 종료</td>
+<td>제공 측 상태</td>
+<td>Decode가 필요한 상태를 모두 가졌다면 현재 생성은 계속할 수 있음</td>
+</tr>
+<tr>
+<td>Decode 종료</td>
+<td>수신한 KV·진행 중 생성 상태</td>
+<td>다른 Decode로 단순 주소 변경만 하지 말고 상태 재구성·요청 재시도</td>
+</tr>
+<tr>
+<td>잘못되거나 오래된 엔진 정보</td>
+<td>요청이 가리키는 원격 상태와 실제 엔진의 불일치</td>
+<td>오래된 정보를 폐기하고 유효한 엔진·KV 정보 확보</td>
+</tr>
+</tbody></table>
+</div>
+<p>P/D에서는 두 엔진이 하나의 TP·PP 통신 그룹일 필요가 없으므로 한쪽 종료가 다른 엔진 전체 초기화를 필수로 만들지는 않는다. 그러나 ‘독립적이니 진행 중 요청도 자동 성공한다’는 결론은 틀리다.</p>
+<p>동일 노드 P/D의 별도 검증에서는 잘못된 엔진 ID 요청이 HTTP 500이 된 뒤 새 정상 P/D 요청이 성공했다. 이는 요청 단위 오류 뒤 서비스가 살아 있었다는 예시이지, 종료된 프로세스의 자동 복구 증거는 아니다. 해당 기록은 <a href="../../distributed-runtime-pd-kv-transfer/README.html">P/D 단원 자료</a>와 구분한다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>운영의 복구 단위</h2>
+<p>통신 그룹 재시작, 모델 재로딩, 요청 재시도, 클라이언트에 이미 전달한 토큰의 처리 정책은 서로 다른 책임이다. 재시도 횟수만 늘리기보다 무엇이 유효한 상태인지 정하고 중복 생성·자원 누수를 방지해야 한다. <a href="../performance/capacity.html">요청 대기·타임아웃</a>이 이 경계를 이어 설명한다.</p>
+<p><a href="../README.html">상위 문서</a></p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="failure-observation.html">NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

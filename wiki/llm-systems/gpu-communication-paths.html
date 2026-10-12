@@ -1,0 +1,257 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/gpu-communication-paths.md. Do not edit directly. source-sha256:8d08e2b4d6d553e3557656e50efd9be8e2a39ce71b2e5a8a81b0fa0e28256e38 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SHM과 P2P의 전달 방식, PCIe와 NVLink의 연결 차이, NVSwitch의 역할을 구분하고 표시 이미지와 실제 브리지 제품으로 GPU 통신의 오해를 풀어봅니다.">
+  <meta name="source-sha256" content="8d08e2b4d6d553e3557656e50efd9be8e2a39ce71b2e5a8a81b0fa0e28256e38">
+  <title>GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch">
+  <meta property="og:description" content="SHM과 P2P의 전달 방식, PCIe와 NVLink의 연결 차이, NVSwitch의 역할을 구분하고 표시 이미지와 실제 브리지 제품으로 GPU 통신의 오해를 풀어봅니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html","name":"GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch","description":"SHM과 P2P의 전달 방식, PCIe와 NVLink의 연결 차이, NVSwitch의 역할을 구분하고 표시 이미지와 실제 브리지 제품으로 GPU 통신의 오해를 풀어봅니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html"},"headline":"GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/gpu-communication-paths.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"Transformer, 주제별 학습 문서","item":"https://muscleleg.github.io/jaejun-wiki/wiki/transformer/transformer_learning.html"},{"@type":"ListItem","position":5,"name":"Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/tensor-parallel-transformer-computation.html"},{"@type":"ListItem","position":6,"name":"NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/nccl-collectives-p2p-shm-paths.html"},{"@type":"ListItem","position":7,"name":"GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/transformer/transformer_learning.html">Transformer, 주제별 학습 문서</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/tensor-parallel-transformer-computation.html">Tensor Parallel은 Transformer의 어떤 계산을 GPU끼리 나눠 맡을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/nccl-collectives-p2p-shm-paths.html">NCCL은 무엇이고, 같은 NCCL에서도 통신 경로가 달라질 수 있을까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>GPU끼리 데이터는 어떻게 이동할까? — SHM·P2P, PCIe·NVLink와 NVSwitch</h1>
+      <p class="lead">SHM과 P2P의 전달 방식, PCIe와 NVLink의 연결 차이, NVSwitch의 역할을 구분하고 표시 이미지와 실제 브리지 제품으로 GPU 통신의 오해를 풀어봅니다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-shm-dram">1. SHM: 서버의 DRAM을 중간 버퍼로 사용한다</a>
+        <a href="#section-2-p2p-dram-gpu">2. P2P: 서버 DRAM에 중간 복사하지 않고 GPU끼리 전달한다</a>
+        <a href="#section-3-pcie-gpu">3. PCIe: GPU를 포함한 여러 장치를 연결하는 범용 연결 기술</a>
+        <a href="#section-4-nvlink-pcie">4. NVLink: PCIe와 별도로 마련된 고속 연결이다</a>
+        <a href="#section-5-nvswitch-gpu-nvlink">5. NVSwitch: 여러 GPU의 NVLink 연결을 이어주는 스위치</a>
+        <a href="#section-6-nvswitch">6. NVSwitch 없이 실제 제품에서는 몇 장까지 연결할까?</a>
+        <a href="#section-2908f1788241">정리: 전달 방식, 연결 기술, 스위치를 구분하자</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU 여러 장이 함께 계산하려면 한 GPU가 만든 결과를 다른 GPU로 전달해야 합니다. 각 GPU가 별도의 GPU 메모리를 가지고 있기 때문입니다.</p>
+<p>이때 등장하는 SHM, P2P, PCIe, NVLink, NVSwitch는 모두 같은 종류의 용어가 아닙니다.</p>
+<ul>
+<li><strong>SHM·P2P:</strong> 데이터를 어떤 방식으로 전달하는가?</li>
+<li><strong>PCIe·NVLink:</strong> 데이터를 어떤 하드웨어 연결로 옮기는가?</li>
+<li><strong>NVSwitch:</strong> 여러 NVLink 연결 사이에서 데이터를 전달하는 스위치</li>
+</ul>
+<p>이 구분을 바탕으로, 같은 서버 안에서 GPU 사이의 데이터가 이동하는 구조를 살펴보겠습니다.</p>
+</div>
+        <section id="section-1-shm-dram" class="markdown-section">
+<h2>1. SHM: 서버의 DRAM을 중간 버퍼로 사용한다</h2>
+<p>SHM은 <em>Shared Memory</em>, 즉 공유 메모리의 약자입니다. <code>SMH</code>가 아니라 <strong>SHM</strong>입니다.</p>
+<p>GPU 통신에서 NCCL의 SHM 전송 방식은 GPU끼리 직접 접근하는 대신, <strong>호스트 메모리를 중간 전달 공간으로 사용</strong>합니다. 단순화하면 다음과 같습니다.</p>
+<pre><code class="language-text">GPU 0 메모리 → 서버의 DRAM 버퍼 → GPU 1 메모리
+</code></pre>
+<p>GPU 0의 데이터를 서버 RAM에 옮겨 놓고, 그 데이터를 GPU 1로 전달하는 구조입니다. NCCL은 P2P 통신이 불가능할 때 사용할 수 있는 방식으로 SHM을 설명합니다. <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-shm-disable" rel="noopener noreferrer">NCCL의 SHM 설명</a></p>
+<p>여기서 흔히 말하는 <strong>“CPU 버퍼”는 CPU 내부의 SRAM 캐시가 아니라, CPU 쪽 시스템 메모리인 DRAM에 마련한 버퍼</strong>입니다.</p>
+<p>따라서 다음 두 가지는 구분해야 합니다.</p>
+<ul>
+<li>서버의 DRAM을 중간 저장 공간으로 사용한다.</li>
+<li>CPU 코어가 데이터를 하나씩 읽어서 다른 GPU로 복사한다.</li>
+</ul>
+<p>첫 번째가 두 번째를 의미하지는 않습니다. 메모리를 경유하는 것과 CPU 코어가 직접 복사 작업을 수행하는 것은 별개의 문제입니다.</p>
+<p>또한 SHM은 메모리 부품의 이름이 아닙니다. <strong>호스트의 공유 메모리 영역을 이용하는 전송 방식</strong>을 가리킵니다.</p>
+
+</section>
+<section id="section-2-p2p-dram-gpu" class="markdown-section">
+<h2>2. P2P: 서버 DRAM에 중간 복사하지 않고 GPU끼리 전달한다</h2>
+<p>P2P는 <em>Peer-to-Peer</em>입니다. GPU 통신에서는 한 GPU가 다른 GPU의 메모리에 직접 접근하거나 데이터를 전달하는 방식을 뜻합니다.</p>
+<p>SHM과 비교할 때 중요한 차이는 <strong>서버 DRAM에 데이터를 중간 복사하는 단계가 없다는 것</strong>입니다.</p>
+<pre><code class="language-text">호스트 메모리 경유: GPU 0 메모리 → 서버 DRAM → GPU 1 메모리
+
+P2P:              GPU 0 메모리 → GPU 간 연결 → GPU 1 메모리
+</code></pre>
+<p>CUDA도 P2P 접근을 활성화하면 GPU 사이의 메모리 복사를 호스트에 중간 저장할 필요가 없다고 설명합니다. 다만 실제 P2P 지원 여부는 GPU와 시스템 연결 구조 등에 따라 달라집니다. <a href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/multi-gpu-systems.html#multi-device-peer-to-peer-transfers-and-memory-access" rel="noopener noreferrer">CUDA의 GPU 간 P2P 설명</a></p>
+<h3>“직접”은 중간 하드웨어가 없다는 뜻이 아니다</h3>
+<p>P2P라고 해서 GPU 두 장이 반드시 케이블 하나로만 연결돼 있어야 하는 것은 아닙니다.</p>
+<p>데이터가 PCIe 스위치나 CPU 쪽 PCIe 연결 장치를 통과하더라도, 서버 DRAM을 중간 버퍼로 사용하지 않는 P2P가 가능합니다. NCCL도 P2P 경로로 PCIe 스위치, CPU 쪽 연결, NUMA 영역 간 연결 등을 구분합니다. <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-level" rel="noopener noreferrer">NCCL의 P2P 경로 설명</a></p>
+<p>따라서 “<strong>P2P는 CPU를 안 거친다</strong>”는 표현은 조금 더 정확하게 풀어야 합니다.</p>
+<blockquote>
+<p>CPU가 전송을 준비하거나 명령을 내릴 수는 있지만, 전송 데이터를 CPU 코어와 SRAM 캐시에 넣었다가 다시 꺼내 보내야 하는 것은 아닙니다. CPU 쪽 연결 하드웨어를 통과하는 것과 CPU가 데이터를 직접 처리하는 것은 다릅니다.</p>
+</blockquote>
+
+</section>
+<section id="section-3-pcie-gpu" class="markdown-section">
+<h2>3. PCIe: GPU를 포함한 여러 장치를 연결하는 범용 연결 기술</h2>
+<p>PCIe는 <em>PCI Express</em>의 약자입니다. GPU뿐 아니라 네트워크 카드와 SSD 등 여러 장치를 시스템에 연결하는 데 사용하는 표준입니다.</p>
+<p>PCIe는 단순히 “<strong>그래픽카드를 꽂는 슬롯의 모양</strong>”만을 뜻하지 않습니다. 장치 사이에서 데이터를 전송하는 규칙과 전기적 연결도 포함합니다. 여러 개의 전송 레인으로 연결 폭을 구성하며, <code>x16</code> 같은 표기가 그 레인 수를 나타냅니다. <a href="https://pcisig.com/what-pci-express-pcie-architecture" rel="noopener noreferrer">PCI-SIG의 PCIe 설명</a></p>
+<p>GPU 두 장이 PCIe에 연결돼 있다면, 지원되는 환경에서는 이 PCIe 연결을 통해 GPU끼리 P2P 통신을 할 수 있습니다.</p>
+<p>예를 들어 같은 PCIe 스위치에 연결된 GPU라면 다음과 같은 경로를 사용할 수 있습니다.</p>
+<pre><code class="language-text">GPU 0 → PCIe 스위치 → GPU 1
+</code></pre>
+<p>이때 서버 DRAM에 중간 복사하지 않는다면 PCIe를 사용하는 P2P입니다.</p>
+<p>반대로 PCIe GPU가 서버 DRAM을 버퍼로 이용해 데이터를 전달할 수도 있습니다.</p>
+<p><strong>즉, PCIe라는 사실만으로 P2P인지, 호스트 메모리 경유인지가 결정되지는 않습니다.</strong> PCIe는 연결 기술이고, P2P와 SHM은 그 연결 위에서 데이터를 전달하는 방식이기 때문입니다. <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-disable" rel="noopener noreferrer">NCCL의 P2P·SHM 구분</a></p>
+
+</section>
+<section id="section-4-nvlink-pcie" class="markdown-section">
+<h2>4. NVLink: PCIe와 별도로 마련된 고속 연결이다</h2>
+<p>NVLink는 NVIDIA의 고속 인터커넥트 기술입니다. 여기서는 지원 GPU 사이에서 많은 데이터를 주고받기 위한 연결로 이해하면 됩니다.</p>
+<p>NVLink를 이용해 GPU끼리 직접 데이터를 전달할 수 있지만, <strong>P2P와 NVLink가 같은 말은 아닙니다.</strong></p>
+<ul>
+<li>PCIe를 이용하는 P2P가 있습니다.</li>
+<li>NVLink를 이용하는 P2P도 있습니다.</li>
+</ul>
+<p>NVLink는 P2P를 구현할 수 있는 하드웨어 연결 중 하나입니다.</p>
+<h3>PCIe 슬롯에 꽂힌 GPU가 어떻게 NVLink도 사용할까?</h3>
+<p>PCIe 카드 형태의 GPU 중에는 <strong>PCIe 단자와 별도의 NVLink 단자를 모두 가진 제품</strong>이 있습니다.</p>
+<p>이런 GPU는 두 연결을 함께 사용합니다.</p>
+<ul>
+<li>PCIe 단자로 서버에 연결됩니다.</li>
+<li>별도의 NVLink 단자로 다른 GPU와 연결됩니다.</li>
+</ul>
+<p>따라서 GPU가 PCIe 슬롯에 꽂혀 있다고 해서, 그 GPU의 모든 통신이 반드시 PCIe로만 이루어지는 것은 아닙니다.</p>
+<p>실제 A100 PCIe 제품에는 카드 위쪽 가장자리에 별도의 NVLink 연결부가 있고, 여기에 브리지를 장착해 다른 A100과 연결합니다. <a href="https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/PB-10577-001_v02.pdf" rel="noopener noreferrer">NVIDIA A100 PCIe 제품 설명서</a></p>
+<p><img src="../../assets/images/gpu-communication-paths/nvlink-bridge-annotated.png" alt="GPU 네 장 위의 NVLink 브리지를 노란색 테두리와 라벨로 표시한 이미지" loading="lazy"></p>
+<p><em>사용자 제공 이미지에 NVLink 브리지 위치를 표시한 편집 이미지입니다. 노란색 선은 위치 안내선이며 실제 케이블이 아닙니다. 정확한 GPU·브리지 모델은 사진만으로 단정하지 않습니다. <a href="../../assets/images/gpu-communication-paths/nvlink-bridge-example.png">표시 전 원본</a></em></p>
+<p>사진에서 노란색으로 표시한 검은색 판 형태의 부품이 <strong>NVLink 브리지</strong>입니다. GPU 카드들을 가로질러 장착되어 있으며, 앞서 본 PCIe 연결과 별도로 카드 사이를 연결하는 부품입니다. 아래에서 설명할 NVSwitch 칩과는 구분해야 합니다.</p>
+<h3>NVLink가 PCIe 안에 들어 있는 것은 아니다</h3>
+<p>다음과 같은 이해는 잘못된 것입니다.</p>
+<blockquote>
+<p>“PCIe 슬롯의 일부 레인을 NVLink 모드로 바꿔 사용하는 것이다.”</p>
+</blockquote>
+<p>앞서 설명한 PCIe GPU의 NVLink 브리지 구성에서는 <strong>서로 다른 단자와 연결을 사용</strong>합니다. GPU 사이에 꽂는 NVLink 브리지도 별도 부품입니다.</p>
+<p>또한 모든 GPU가 일반 PCIe 카드 형태인 것도 아닙니다. SXM 같은 모듈형 GPU는 전용 보드에 장착되며, GPU 사이의 NVLink 연결도 그 보드의 설계에 따라 구성됩니다.</p>
+<p>핵심은 다음과 같습니다.</p>
+<blockquote>
+<p><strong>PCIe와 NVLink는 별개의 연결 기술이며, 하나의 GPU가 두 연결을 함께 가질 수 있습니다.</strong></p>
+</blockquote>
+
+</section>
+<section id="section-5-nvswitch-gpu-nvlink" class="markdown-section">
+<h2>5. NVSwitch: 여러 GPU의 NVLink 연결을 이어주는 스위치</h2>
+<p>GPU 수가 적다면 GPU끼리 직접 NVLink 연결을 구성할 수 있습니다. 하지만 GPU가 많아질수록 모든 GPU 쌍을 직접 연결하기가 어려워집니다.</p>
+<p>예를 들어 GPU 12장을 모든 쌍끼리 직접 연결한다면, 각 GPU는 나머지 11장과 연결돼야 합니다. GPU 쌍의 연결 관계만 계산해도 총 66개입니다. 실제 포트나 레인 수는 별개지만, 연결 설계가 복잡해지는 이유는 드러납니다.</p>
+<p><strong>NVSwitch는 이 문제를 해결하기 위한 NVLink 스위치 칩</strong>입니다. GPU가 보낸 데이터를 받아 목적지 GPU 쪽 NVLink 연결로 전달합니다.</p>
+<p><img src="../../assets/images/gpu-communication-paths/nvswitch-baseboard-annotated.png" alt="GPU 베이스보드 앞쪽의 NVSwitch 칩 네 개를 노란색 테두리와 라벨로 표시한 이미지" loading="lazy"></p>
+<p><em>사용자 제공 이미지를 바탕으로 NVSwitch 위치를 표시한 편집 이미지입니다. 노란색 선은 위치 안내선이며 실제 NVLink 배선을 그린 것이 아닙니다. <a href="../../assets/images/gpu-communication-paths/nvswitch-baseboard-original.png">표시 전 원본</a></em></p>
+<p>사진 앞쪽의 청록색 패키지 네 개가 <strong>NVSwitch</strong>이고, 뒤쪽의 큰 금속 구조물들은 GPU를 덮는 방열판입니다. 즉, NVSwitch는 소프트웨어 기능의 이름만이 아니라 GPU와 함께 보드에 장착되는 실제 칩입니다. NVIDIA의 HGX H100/H200 8-GPU 구성에는 NVSwitch 칩 네 개가 들어갑니다. <a href="https://developer.nvidia.com/blog/nvidia-nvlink-and-nvidia-nvswitch-supercharge-large-language-model-inference/" rel="noopener noreferrer">NVIDIA 공식 자료의 NVSwitch 위치 표시</a></p>
+<p>이 칩을 통한 데이터 전달 경로는 다음처럼 표현할 수 있습니다.</p>
+<pre><code class="language-text">GPU 0 → NVLink → NVSwitch → NVLink → GPU 1
+</code></pre>
+<p>GPU가 상대 GPU마다 별도 직결 경로를 갖는 대신, NVSwitch를 통해 여러 GPU에 접근하는 구조입니다. 실제 시스템은 여러 NVSwitch와 여러 링크를 조합할 수 있습니다. <a href="https://images.nvidia.com/content/pdf/nvswitch-technical-overview.pdf" rel="noopener noreferrer">NVIDIA NVSwitch 구조 설명</a></p>
+<p>여기서 두 가지를 구분해야 합니다.</p>
+<p><strong>첫째, NVSwitch는 NVLink를 대체하는 다른 통신 기술이 아닙니다.</strong></p>
+<p>NVLink 연결들을 이어주는 스위치입니다.</p>
+<p><strong>둘째, NVSwitch를 지난다고 서버 DRAM을 경유하는 것은 아닙니다.</strong></p>
+<p>스위치가 중간에 있더라도 GPU 메모리 사이의 P2P 통신을 제공할 수 있습니다. <a href="https://docs.nvidia.com/ai-enterprise/release-7/latest/infra-software/vgpu/features/nvswitch.html" rel="noopener noreferrer">NVIDIA의 NVSwitch P2P 설명</a></p>
+
+</section>
+<section id="section-6-nvswitch" class="markdown-section">
+<h2>6. NVSwitch 없이 실제 제품에서는 몇 장까지 연결할까?</h2>
+<p>이 질문은 <strong>별도 NVLink 브리지를 장착하는 제품</strong>과 <strong>전용 보드로 구성된 전체 시스템</strong>을 나눠 봐야 합니다.</p>
+<h3>별도 브리지 제품에는 2장·4장 구성이 있다</h3>
+<p>공식 제품에서 확인할 수 있는 사례는 다음과 같습니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>GPU 제품</th>
+<th>NVSwitch 없이 사용하는 연결 부품</th>
+<th align="right">연결하는 GPU 수</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RTX A6000</td>
+<td>RTX용 NVLink 브리지</td>
+<td align="right">2장</td>
+</tr>
+<tr>
+<td>A100 PCIe</td>
+<td>A100용 NVLink 브리지</td>
+<td align="right">2장</td>
+</tr>
+<tr>
+<td>H200 NVL</td>
+<td>2-way 또는 4-way NVLink 브리지</td>
+<td align="right">2장 또는 4장</td>
+</tr>
+</tbody></table>
+</div>
+<p>각 구성은 <a href="https://www.nvidia.com/en-us/products/workstations/nvlink-bridges/" rel="noopener noreferrer">RTX 브리지 공식 안내</a>, <a href="https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/PB-10577-001_v02.pdf" rel="noopener noreferrer">A100 제품 설명서</a>, <a href="https://www.nvidia.com/en-us/data-center/h200/" rel="noopener noreferrer">H200 공식 사양</a>에 명시돼 있습니다.</p>
+<p>특히 네 장을 연결하는 브리지는 단순한 가능성이 아니라 실제 부품입니다. Supermicro는 <code>GPU-NVLINK-4WAY</code>라는 제품 번호로 <strong>GPU 네 장을 연결하는 NVLink 브리지 보드</strong>를 판매합니다. <a href="https://store.supermicro.com/us_en/supermicro-nvidia-4-way-nvlink-bridge-hopper-gpu-nvlink-4way.html" rel="noopener noreferrer">Supermicro 4-way 브리지 제품</a></p>
+<p>여기서 제품명도 주의해서 읽어야 합니다.</p>
+<ul>
+<li><strong>2-slot·3-slot:</strong> 두 GPU 사이의 장착 간격</li>
+<li><strong>2-way·4-way:</strong> 연결하는 GPU 개수</li>
+</ul>
+<p>따라서 3-slot 브리지가 GPU 세 장을 연결한다는 뜻은 아닙니다.</p>
+<h3>브리지 제품의 4장을 전체 NVLink의 한계로 보면 안 된다</h3>
+<p>위에 열거한 <strong>별도 브리지 제품군에서는 H200 NVL의 4장 구성이 가장 큽니다.</strong> 하지만 이를 “업계의 모든 스위치 없는 NVLink 시스템은 최대 4장”이라고 일반화하면 틀립니다.</p>
+<p>과거 DGX-1은 NVSwitch 없이 GPU 8장을 NVLink의 <em>하이브리드 큐브 메시</em> 구조로 연결했습니다. 다만 각 GPU가 나머지 7장 모두와 직접 연결된 완전 연결 구조는 아니었습니다. <a href="https://images.nvidia.com/content/pdf/dgx1-system-architecture-whitepaper1.pdf" rel="noopener noreferrer">NVIDIA DGX-1 구조 설명</a></p>
+<p>따라서 실제 제품 기준의 결론은 다음과 같습니다.</p>
+<blockquote>
+<p><strong>PCIe GPU에 별도 브리지를 장착하는 대표 제품에는 2장·4장 구성이 있습니다. 여기서 확인한 최대 구성은 H200 NVL의 4-way이지만, 전용 보드 시스템까지 포함하면 NVSwitch 없이 8장을 연결한 사례도 있습니다.</strong></p>
+</blockquote>
+
+</section>
+<section id="section-2908f1788241" class="markdown-section">
+<h2>정리: 전달 방식, 연결 기술, 스위치를 구분하자</h2>
+<p>SHM은 <strong>서버 DRAM을 중간 버퍼로 사용하는 방식</strong>이고, P2P는 <strong>그 중간 복사 없이 GPU 메모리 사이에서 데이터를 전달하는 방식</strong>입니다.</p>
+<p>PCIe와 NVLink는 그 데이터를 옮길 수 있는 <strong>하드웨어 연결 기술</strong>입니다. PCIe로도 P2P가 가능하며, NVLink가 PCIe 안에 포함된 것은 아닙니다.</p>
+<p>NVSwitch는 <strong>여러 NVLink 연결을 이어 GPU 사이의 통신 범위를 확장하는 스위치</strong>입니다.</p>
+<p>결국 GPU 통신을 이해할 때는 다음 세 가지를 따로 물어야 합니다.</p>
+<ol>
+<li><strong>서버 DRAM에 중간 복사하는가?</strong></li>
+<li><strong>PCIe와 NVLink 중 어떤 연결을 사용하는가?</strong></li>
+<li><strong>GPU끼리 직결돼 있는가, 스위치를 통해 연결돼 있는가?</strong></li>
+</ol>
+<p>이 세 질문을 구분하면 “P2P니까 NVLink다”, “PCIe니까 CPU RAM을 거친다”, “스위치가 있으니까 직접 통신이 아니다” 같은 오해를 피할 수 있습니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
