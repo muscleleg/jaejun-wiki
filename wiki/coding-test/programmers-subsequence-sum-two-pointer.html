@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/programmers-subsequence-sum-two-pointer.md. Do not edit directly. source-sha256:1376af218767b722081bd1120c3753007b2d7ac9cbef810cacd49e38fef9051f -->
+<!-- Generated from content/wiki/coding-test/programmers-subsequence-sum-two-pointer.md. Do not edit directly. source-sha256:f7fb7b49d1a53d70033933b2a3cedeb25f0b0702d238862411f183ecdcef8136 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="완전탐색과 반복 sum()의 시간 초과를 투 포인터로 해결하고 cmp_to_key 정렬과 슬라이딩 윈도우의 동작을 이해한 과정">
-  <meta name="source-sha256" content="1376af218767b722081bd1120c3753007b2d7ac9cbef810cacd49e38fef9051f">
+  <meta name="source-sha256" content="f7fb7b49d1a53d70033933b2a3cedeb25f0b0702d238862411f183ecdcef8136">
   <title>프로그래머스 연속된 부분 수열의 합 풀이 회고</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
@@ -70,6 +70,7 @@
         <a href="#positive-number-condition">이 방식이 가능한 이유</a>
         <a href="#final-code"><code>cmp_to_key</code>를 유지한 최종 코드</a>
         <a href="#review-checklist">다시 풀 때 확인할 것</a>
+        <a href="#complexity-review-2026-10-08">2026-10-08 시간복잡도 복습: 두 포인터의 전체 이동 횟수</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p>처음에는 가능한 모든 연속 구간을 확인하고 <code>cmp_to_key</code>로 조건에 맞는 구간을 정렬했다. 논리적으로 답은 구했지만, 구간마다 슬라이싱과 <code>sum()</code>을 다시 실행하면서 시간 초과가 발생했다. 이후 구간 합을 유지하는 투 포인터로 탐색을 바꾸고 정확성 테스트 34개를 모두 통과했다.</p>
@@ -238,6 +239,53 @@ def solution(sequence, k):
 <li><code>cmp_to_key(compare)</code>를 <code>key</code>에 직접 전달했는가?</li>
 <li>비교 함수가 구간 길이와 시작 인덱스의 우선순위를 정확히 반환하는가?</li>
 </ul>
+
+</section>
+<section id="complexity-review-2026-10-08" class="markdown-section">
+<h2>2026-10-08 시간복잡도 복습: 두 포인터의 전체 이동 횟수</h2>
+<p>배열 길이를 <code>n = len(sequence)</code>으로 둔다. 이번 재풀이에서는 가장 짧은 답 후보 하나를 즉시 갱신했다. 앞 절의 과거 구현은 후보를 모아 정렬했지만, 아래 구현에는 후보 정렬이 없다.</p>
+<pre><code class="language-python">def solution(sequence, k):
+    start = 0
+    end = 0
+    size = len(sequence)
+    answer = [start, size - 1]
+    total = 0
+
+    while start &lt; size:
+        if total == k:
+            best_length = answer[1] - answer[0] + 1
+            current_length = (end - 1) - start + 1
+            if current_length &lt; best_length:
+                answer = [start, end - 1]
+            total -= sequence[start]
+            start += 1
+
+        elif total &lt; k:
+            if end == size:
+                break
+            total += sequence[end]
+            end += 1
+
+        else:
+            total -= sequence[start]
+            start += 1
+
+    return answer
+</code></pre>
+<h3>합이 포함하는 범위</h3>
+<p>반복문 시작 시 <code>total</code>은 항상 <code>start</code>부터 <code>end - 1</code>까지의 합이다. <code>start</code>는 현재 구간에 포함된 첫 원소이고, <code>end</code>는 다음에 추가할 원소를 가리킨다.</p>
+<pre><code class="language-python">current_length = (end - 1) - start + 1
+</code></pre>
+<p>이 식은 마지막 인덱스에서 시작 인덱스를 빼고 1을 더한 길이다. 정리하면 <code>end - start</code>와 같다. 합이 맞아도 후보를 저장하고 탐색을 계속해야 가장 짧은 구간을 찾는다. 길이가 더 짧을 때만 갱신하면 같은 길이에서는 먼저 찾은 작은 시작 인덱스가 유지된다.</p>
+<h3>while의 횟수를 세는 기준</h3>
+<p>반복 한 번에서는 <code>start</code> 또는 <code>end</code> 중 하나가 1 증가한다. 둘 다 0에서 시작하고 감소하지 않으며 배열 길이를 넘지 않는다. 복습에서 두 포인터가 각각 최대 <code>size</code>만큼 증가한다고 설명했다.</p>
+<pre><code class="language-text">start 증가: 전체 실행에서 최대 n번
+end 증가: 전체 실행에서 최대 n번
+이동하는 반복: 최대 2n번
+</code></pre>
+<p><code>end == size</code>에서 종료 조건을 확인하는 반복이 추가될 수 있어도 상수 횟수다. 구간 길이 비교·답 두 인덱스 저장·배열 접근·합 갱신은 한 번에 <code>O(1)</code>이다. 따라서 전체 시간복잡도는 <code>O(2n + 1) = O(n)</code>이다.</p>
+<p>매번 구간의 합을 다시 순회해 구하지 않고, 들어오는 값은 더하고 나가는 값은 뺀다는 점이 중요하다. 한 포인터가 움직일 때 다른 포인터를 처음으로 돌려놓지도 않으므로 <code>n × n</code>으로 곱하지 않는다.</p>
+<p>후보를 모두 저장·정렬했던 과거 구현의 전체 시간은 후보 개수를 <code>c</code>로 두면 <code>O(n + c log c)</code>이다. 이번 코드의 전체 시간은 <code>O(n)</code>, 입력을 제외한 추가 공간은 <code>O(1)</code>이다.</p>
 
 </section>
         

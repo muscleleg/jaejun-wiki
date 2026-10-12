@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/13-failure-rate.md. Do not edit directly. source-sha256:d165e14c4bcdeb07cd0cb03a8a32ff21dd6acd0a3e3e0a3f7894c4fe9752f143 -->
+<!-- Generated from content/wiki/coding-test/13-failure-rate.md. Do not edit directly. source-sha256:d3806fbc873d2ec87dda65264a03a33ad8e159dbf1dcc8135b0f0045e0784103 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="실패율: 문제를 풀면서 실제로 사용한 개념, 풀이의 순서와 헷갈렸던 지점을 다시 풀기 좋은 형태로 보존한다.">
-  <meta name="source-sha256" content="d165e14c4bcdeb07cd0cb03a8a32ff21dd6acd0a3e3e0a3f7894c4fe9752f143">
+  <meta name="source-sha256" content="d3806fbc873d2ec87dda65264a03a33ad8e159dbf1dcc8135b0f0045e0784103">
   <title>실패율</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
@@ -68,6 +68,7 @@
         <a href="#document-section-3">기억할 코드 형태</a>
         <a href="#document-section-4">헷갈렸던 지점</a>
         <a href="#document-section-5">다시 풀 때 확인할 것</a>
+        <a href="#complexity-review-2026-10-08">2026-10-08 시간복잡도 복습: 입력 크기를 여러 문자로 표현하기</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p><strong>이 문제 복습</strong><a href="#core">핵심 개념</a><a href="#flow">풀이 흐름</a><a href="#code">핵심 코드</a><a href="#confusion">헷갈렸던 지점</a><a href="#checkpoint">다시 풀기 체크</a><a href="index.html">← 전체 문제</a></p>
@@ -113,6 +114,41 @@ rates.sort(key=lambda x: (-x[1], x[0]))
 <h2>다시 풀 때 확인할 것</h2>
 <aside class="md-component md-callout" data-component="callout"><div class="md-component-body"><p>실패율이 같은 두 스테이지가 어떤 순서로 나오는지 설명한다.</p>
 </div></aside>
+
+</section>
+<section id="complexity-review-2026-10-08" class="markdown-section">
+<h2>2026-10-08 시간복잡도 복습: 입력 크기를 여러 문자로 표현하기</h2>
+<p>사용자 수는 <code>M = len(stages)</code>, 스테이지 수는 함수 인자 <code>N</code>이다. <code>stages</code>의 각 원소는 한 사용자가 현재 머물러 있는 스테이지 번호이므로, 배열 길이와 스테이지 개수를 구분한다.</p>
+<h3>사용자 집계와 실패율 계산</h3>
+<pre><code class="language-python">for stage in stages:
+    stage_fail_count[stage] = stage_fail_count.get(stage, 0) + 1
+
+total = len(stages)
+for i in range(1, N + 1):
+    fail_count = stage_fail_count.get(i, 0)
+    if total &gt; 0:
+        answer.append((i, fail_count / total))
+    else:
+        answer.append((i, 0))
+    total -= fail_count
+</code></pre>
+<p>첫 반복문은 사용자 <code>M</code>명을 확인하므로 해시 조회·갱신을 평균 상수 시간으로 보면 <code>O(M)</code>이다. 두 번째 반복문은 1번부터 <code>N</code>번 스테이지까지 확인하며 조회·나눗셈·추가·뺄셈을 하므로 <code>O(N)</code>이다. 복습에서는 처음에 첫 반복문도 <code>N</code>이라고 답했다가, 스테이지 5개에 사용자 100명이면 첫 반복문은 100번이라는 예시로 두 개수를 구분했다.</p>
+<h3>정렬과 번호 추출</h3>
+<pre><code class="language-python">return [
+    x[0]
+    for x in sorted(answer, key=lambda x: [-x[1], x[0]])
+]
+</code></pre>
+<p><code>answer</code>에는 스테이지마다 한 원소씩 총 <code>N</code>개가 있다. 두 값으로 정렬 키를 만드는 비용은 원소당 <code>O(1)</code>이고, 정렬의 최악 시간은 <code>O(N log N)</code>이다. 정렬 결과에서 <code>x[0]</code>을 뽑는 리스트 컴프리헨션은 <code>N</code>개를 한 번 확인하므로 <code>O(N)</code>이다.</p>
+<pre><code class="language-text">사용자 집계 + 실패율 계산 + 정렬 + 번호 추출
+= O(M + N + N log N + N)
+= O(M + N log N)
+</code></pre>
+<h3>왜 O(N log N)만 남기지 않는가</h3>
+<p>복습에서 전체도 <code>O(N log N)</code>으로 줄이는지, 최악을 기준으로 해도 <code>M</code>을 남기는지 질문했다. <code>M</code>과 <code>N</code>은 서로 다른 입력 크기이므로 <code>M</code>이 <code>N log N</code>보다 항상 작다고 할 수 없다. 예를 들어 스테이지가 5개이고 사용자가 10만 명이라면 정렬할 원소는 5개지만 사용자 집계는 10만 번 필요하다.</p>
+<p>같은 크기 <code>N</code>에 대한 선형항 <code>N</code>은 <code>N log N</code>에 흡수할 수 있다. 서로 독립적인 사용자 수 <code>M</code>을 생략하려면 <code>M</code>과 <code>N</code> 사이에 그 생략을 정당화하는 관계가 있어야 한다. 위 분석은 해시 연산의 평균 상수 시간 가정과 정렬의 최악 상한을 함께 사용한다.</p>
+<h3>시간복잡도에 n만 사용하는 것은 아니다</h3>
+<p><code>n</code>은 정해진 문법이 아니라 입력 크기에 붙이는 변수 이름이다. 서로 다른 개수를 구분해야 하면 <code>m</code>, <code>n</code>, <code>M</code>, <code>N</code> 등 여러 문자를 쓸 수 있다. 이 문제에서는 사용자 수 <code>M</code>과 스테이지 수 <code>N</code>을 따로 정의했으므로 두 크기가 최종 식에도 남는다. 복습에서는 이 설명을 통해 한 문자만 사용해야 한다는 오해를 정리했다.</p>
 
 </section>
         

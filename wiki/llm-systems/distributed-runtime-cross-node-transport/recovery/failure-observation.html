@@ -1,0 +1,132 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.md. Do not edit directly. source-sha256:4f1bfe7c3f567526280ec3add5e29b107bbabe76ea618f25a71acb22e9486736 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서버 B가 종료됐을 때 A가 무엇을 관측하는지 확인하기 위해, 작은 GPU 텐서를 합산하는 NCCL 그룹에 장애를 주입했다. 모델 요청의 자동 복원을 시험한 것이 아니라 통신 그룹의 실패·재생성을 확인한 실험이다.">
+  <meta name="source-sha256" content="4f1bfe7c3f567526280ec3add5e29b107bbabe76ea618f25a71acb22e9486736">
+  <title>NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구">
+  <meta property="og:description" content="서버 B가 종료됐을 때 A가 무엇을 관측하는지 확인하기 위해, 작은 GPU 텐서를 합산하는 NCCL 그룹에 장애를 주입했다. 모델 요청의 자동 복원을 시험한 것이 아니라 통신 그룹의 실패·재생성을 확인한 실험이다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html","name":"NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구","description":"서버 B가 종료됐을 때 A가 무엇을 관측하는지 확인하기 위해, 작은 GPU 텐서를 합산하는 NCCL 그룹에 장애를 주입했다. 모델 요청의 자동 복원을 시험한 것이 아니라 통신 그룹의 실패·재생성을 확인한 실험이다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html"},"headline":"NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/failure-observation.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"통신 상대가 죽으면 무엇을 복구해야 하는가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html"},{"@type":"ListItem","position":6,"name":"NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/recovery/README.html">통신 상대가 죽으면 무엇을 복구해야 하는가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>NCCL 상대 종료 실험 — 오류 감지와 새 그룹 복구</h1>
+      <p class="lead">서버 B가 종료됐을 때 A가 무엇을 관측하는지 확인하기 위해, 작은 GPU 텐서를 합산하는 NCCL 그룹에 장애를 주입했다. 모델 요청의 자동 복원을 시험한 것이 아니라 통신 그룹의 실패·재생성을 확인한 실험이다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">검증 예시: 작은 NCCL 그룹의 상대 종료</a>
+        <a href="#section-2">확인한 복구와 확인하지 않은 복구</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>서버 B가 종료됐을 때 A가 무엇을 관측하는지 확인하기 위해, 작은 GPU 텐서를 합산하는 NCCL 그룹에 장애를 주입했다. 모델 요청의 자동 복원을 시험한 것이 아니라 통신 그룹의 실패·재생성을 확인한 실험이다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>검증 예시: 작은 NCCL 그룹의 상대 종료</h2>
+<p>이 장애 실험은 실제 모델의 PP나 P/D 요청을 죽인 것이 아니라, GPU 텐서 AllReduce를 실행하는 두 프로세스로 수행했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>순서</th>
+<th>관찰</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>정상 상태 확인</td>
+<td>두 Rank가 AllReduce와 barrier 완료</td>
+</tr>
+<tr>
+<td>B 종료</td>
+<td>B가 의도적으로 <code>exit(23)</code></td>
+</tr>
+<tr>
+<td>A의 후속 통신</td>
+<td>원격 연결 종료·NCCL 오류 발생</td>
+</tr>
+<tr>
+<td>A 종료</td>
+<td>watchdog의 비동기 오류 이후 프로세스 abort, 관측 종료 코드 134</td>
+</tr>
+<tr>
+<td>재시작</td>
+<td>A·B 모두 새 프로세스와 새 통신 그룹으로 실행</td>
+</tr>
+<tr>
+<td>새 그룹 검증</td>
+<td>양쪽 모두 <code>[3,3,3,3]</code>, 검증 성공</td>
+</tr>
+</tbody></table>
+</div>
+<p>원본: 실험 코드 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/experiments/transport.py</code>), A 실패 로그 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/failure.log</code>), B 종료 기록 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-b/full-20261010/failure-rank1.json</code>), A 복구 결과 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-a/full-20261010/recovery-rank0.json</code>), B 복구 결과 (로컬 보존 자료: <code>research/distributed_runtime_cross_node_transport/runs/archive-b/full-20261010/recovery-rank1.json</code>).</p>
+<p>로그에서 13:18:07 UTC에 오류가 감지되고, 이후 디버그 정보 수집 대기를 거쳐 13:19:08경 watchdog 예외가 종료로 이어졌다. 이 전체 간격을 네트워크 오류 감지 시간이라고 부르지 않는다.</p>
+<p>Python <code>try/except</code>가 있더라도 C++ watchdog이 프로세스를 종료하면 Python의 예외 저장 코드까지 실행되지 않을 수 있다. A의 실패 JSON이 없는 이유이며, 원본 로그를 삭제하거나 성공 형태의 JSON으로 대체하지 않았다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>확인한 복구와 확인하지 않은 복구</h2>
+<p>복구 실행에서는 A와 B를 모두 새 프로세스로 시작하고 새 통신 그룹을 만들었다. 양쪽에서 합산 결과가 3으로 확인됐다.</p>
+<p>B만 다시 실행해 기존 그룹에 투명하게 합류하는지, 중단된 모델 요청의 KV와 생성 상태를 복원하는지, 서비스가 자동으로 요청을 재시도하는지는 이 실험의 검증 범위가 아니다.</p>
+<p>오류를 처음 감지한 시각, 진단 정보 수집 시간, 프로세스 종료 시각은 구분해야 한다. 이 구분 없이 전체 시간을 “네트워크 장애를 알아차리는 데 걸린 시간”으로 쓰면 측정의 의미가 달라진다.</p>
+<p><a href="README.html">복구할 상태의 범위</a> · <a href="../README.html">전체 흐름</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

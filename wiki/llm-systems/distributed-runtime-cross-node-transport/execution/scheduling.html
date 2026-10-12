@@ -1,0 +1,135 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.md. Do not edit directly. source-sha256:09ef99bd7223bd90a1079e3398224069bb1634acd613643b530fe66a2d661ae0 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PP를 사용해도 여러 사용자 요청이 엔진에 들어오므로 대기열과 토큰 스케줄링이 필요하다. 하지만 ‘요청이 엔진에서 대기한다’와 ‘PP의 다음 단계가 중간 결과를 기다린다’는 서로 다른 상태다.">
+  <meta name="source-sha256" content="09ef99bd7223bd90a1079e3398224069bb1634acd613643b530fe66a2d661ae0">
+  <title>PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다">
+  <meta property="og:description" content="PP를 사용해도 여러 사용자 요청이 엔진에 들어오므로 대기열과 토큰 스케줄링이 필요하다. 하지만 ‘요청이 엔진에서 대기한다’와 ‘PP의 다음 단계가 중간 결과를 기다린다’는 서로 다른 상태다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html","name":"PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다","description":"PP를 사용해도 여러 사용자 요청이 엔진에 들어오므로 대기열과 토큰 스케줄링이 필요하다. 하지만 ‘요청이 엔진에서 대기한다’와 ‘PP의 다음 단계가 중간 결과를 기다린다’는 서로 다른 상태다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html"},"headline":"PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/execution/scheduling.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/README.html"},{"@type":"ListItem","position":5,"name":"요청이 계속 들어오면 — 전송량·대기열·구성 선택","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-cross-node-transport/operations/README.html"},{"@type":"ListItem","position":6,"name":"PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/README.html">GPU가 서로 다른 서버에 있다면 — 연결부터 모델 실행과 복구까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-cross-node-transport/operations/README.html">요청이 계속 들어오면 — 전송량·대기열·구성 선택</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>PP의 대기열과 동시 실행 — 요청 대기와 단계 대기는 다르다</h1>
+      <p class="lead">PP를 사용해도 여러 사용자 요청이 엔진에 들어오므로 대기열과 토큰 스케줄링이 필요하다. 하지만 ‘요청이 엔진에서 대기한다’와 ‘PP의 다음 단계가 중간 결과를 기다린다’는 서로 다른 상태다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">vLLM이 요청과 실행을 조정한다</a>
+        <a href="#section-2">A가 끝날 때까지 B 전체를 미룰 필요는 없다</a>
+        <a href="#section-3">P/D도 겹칠 수 있는데 PP가 별개인 이유</a>
+        <a href="#section-4">어느 단계가 느리면 무엇이 대기하는가</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>PP를 사용해도 여러 사용자 요청이 엔진에 들어오므로 대기열과 토큰 스케줄링이 필요하다. 하지만 ‘요청이 엔진에서 대기한다’와 ‘PP의 다음 단계가 중간 결과를 기다린다’는 서로 다른 상태다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>vLLM이 요청과 실행을 조정한다</h2>
+<p>이 구성에서는 하나의 논리적 모델 엔진이 요청 상태·KV 공간·실행할 토큰을 조정하고, 여러 PP 워커가 그 실행을 나눠 수행한다. 각 PP 워커가 독립된 API 서버처럼 임의의 요청을 골라 처리하는 구조가 아니다.</p>
+<p>엔진의 요청 대기열에는 아직 실행 자원을 받지 못한 요청이 있을 수 있다. 실행 중인 요청도 자기 앞 단계의 결과나 통신 완료를 기다릴 수 있다. 이 둘을 모두 하나의 ‘PP 큐 길이’로 표현하면 병목 위치를 잃는다. <a href="https://github.com/vllm-project/vllm/blob/main/docs/design/arch_overview.md" rel="noopener noreferrer">vLLM 아키텍처의 scheduler·worker 구분</a>.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>A가 끝날 때까지 B 전체를 미룰 필요는 없다</h2>
+<p>요청 이름을 A·B, PP 단계를 앞·뒤라고 하면 가능한 개념적 겹침은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th>앞 단계</th>
+<th>뒤 단계</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>요청 A의 계산</td>
+<td>입력 대기</td>
+</tr>
+<tr>
+<td>2</td>
+<td>요청 B의 계산</td>
+<td>요청 A의 계산</td>
+</tr>
+<tr>
+<td>3</td>
+<td>다음 실행 단위 계산</td>
+<td>요청 B의 계산</td>
+</tr>
+</tbody></table>
+</div>
+<p>이것이 요청이나 마이크로배치를 파이프라인에 겹치는 아이디어다. 실제 vLLM이 어떤 크기의 실행 단위와 겹침을 사용하는지는 버전·설정·부하에 달린다. 이 자료의 단일 요청 실험으로 위 시간표가 실제로 실현되었다고 주장하지 않는다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>P/D도 겹칠 수 있는데 PP가 별개인 이유</h2>
+<p>P/D에서는 Prefill 서버가 B의 입력을 처리하는 동안 Decode 서버가 A를 생성할 수 있다. PP에서는 앞 레이어 단계가 B를 처리하는 동안 뒤 레이어 단계가 A를 처리할 수 있다.</p>
+<p>둘 다 동시 실행이 가능하다는 점은 같다. 다른 것은 경계다. P/D는 전체 모델의 처리 단계와 KV를 인계하고, PP는 모델 레이어의 중간 결과를 인계한다. 단순히 ‘여러 요청을 순서대로 하지 않는다’는 사실이 PP만의 장점은 아니다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>어느 단계가 느리면 무엇이 대기하는가</h2>
+<p>한 단계의 계산이나 단계 사이 전송이 늦으면 다른 단계가 기다릴 수 있다. 빈 단계가 생기는 현상을 pipeline bubble이라고 부른다. 단계별 처리 시간이 불균형하거나 요청이 적어 파이프라인을 채우지 못하면 활용률이 낮아질 수 있다.</p>
+<p>많은 요청이 들어오면 요청 대기까지 더해진다. <code>max-num-seqs</code>나 토큰 예산은 실행 단위에 영향을 주지만 시스템 전체에서 무한히 요청을 받아도 된다는 허용치는 아니다. 요청률·전송량과 타임아웃의 관계는 <a href="../performance/capacity.html">용량과 대기열</a>에 정리했다.</p>
+<p><a href="../operations/README.html">부하·대기열과 구성 선택</a> · <a href="README.html">모델 실행 구조</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

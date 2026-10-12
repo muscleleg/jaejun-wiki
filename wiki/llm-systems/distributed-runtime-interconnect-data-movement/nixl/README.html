@@ -1,0 +1,198 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.md. Do not edit directly. source-sha256:3607afa987e641e84a27c8070aec8c20cbd6cb6faca71bd0d562ca7a2c8e24a2 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prefill·Decode 요청 인계와 NIXL·UCX의 KV 읽기 경로를 검증한다.">
+  <meta name="source-sha256" content="3607afa987e641e84a27c8070aec8c20cbd6cb6faca71bd0d562ca7a2c8e24a2">
+  <title>NIXL로 KV Cache를 가져오는 과정과 검증</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="NIXL로 KV Cache를 가져오는 과정과 검증">
+  <meta property="og:description" content="Prefill·Decode 요청 인계와 NIXL·UCX의 KV 읽기 경로를 검증한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html","name":"NIXL로 KV Cache를 가져오는 과정과 검증","description":"Prefill·Decode 요청 인계와 NIXL·UCX의 KV 읽기 경로를 검증한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html"},"headline":"NIXL로 KV Cache를 가져오는 과정과 검증","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/nixl/README.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"GPU 통신 경로가 LLM 성능에 미치는 영향 — NCCL·NIXL에서 실제 데이터 이동까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/distributed-runtime-interconnect-data-movement/README.html"},{"@type":"ListItem","position":5,"name":"NIXL로 KV Cache를 가져오는 과정과 검증"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/llm-systems/distributed-runtime-interconnect-data-movement/README.html">GPU 통신 경로가 LLM 성능에 미치는 영향 — NCCL·NIXL에서 실제 데이터 이동까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">NIXL로 KV Cache를 가져오는 과정과 검증</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>NIXL로 KV Cache를 가져오는 과정과 검증</h1>
+      <p class="lead">Prefill·Decode 요청 인계와 NIXL·UCX의 KV 읽기 경로를 검증한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">HTTP 요청은 KV 자체가 아니라 KV를 찾을 정보를 전달한다</a>
+        <a href="#section-2">서버·커넥터·라이브러리는 서로 다른 일을 맡는다</a>
+        <a href="#section-3">Decode 서버 로그 안의 UCX 기록을 읽는다</a>
+        <a href="#section-4">TCP 로그가 함께 있어도 KV가 TCP로 이동했다고 단정하지 않는다</a>
+        <a href="#section-5">응답 성공과 KV 수신 성공은 별도로 확인한다</a>
+        <a href="#section-6">실패를 로컬 재계산 성공으로 숨기지 않는다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Prefill/Decode 분리는 입력 처리와 이후 토큰 생성을 서로 다른 모델 서버에 맡기는 구성이다. Decode가 기존 입력의 Attention 상태를 재사용하려면 Prefill이 계산한 KV Cache를 가져와야 한다. 이 문서는 vLLM의 NixlConnector와 UCX 백엔드를 사용한 같은 서버 내 전송을 대상으로, 요청의 연결과 실제 데이터 이동을 구분한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>HTTP 요청은 KV 자체가 아니라 KV를 찾을 정보를 전달한다</h2>
+<p>Prefill은 입력 토큰에서 각 레이어의 K·V 텐서를 계산하고 GPU 메모리에 보관한다. 요청 조정 코드는 Prefill 응답에서 KV 전달 정보를 받아, 원래 입력과 함께 Decode에 전달한다.</p>
+<pre><code class="language-text">요청 조정 코드 ── 원래 입력·KV 제공 요청 ──▶ Prefill
+요청 조정 코드 ◀── KV 위치·엔진·블록 정보 ── Prefill
+       │
+       └── 원래 입력·생성 조건·KV 전달 정보 ──▶ Decode
+                                                │
+                           Prefill의 KV 메모리 ◀─┘ 읽기 요청
+                           Prefill의 KV 메모리 ──▶ Decode의 KV 메모리
+                                                │
+요청 조정 코드 ◀──────────── 생성 결과 ───────────┘
+</code></pre>
+<p>검증 구성은 <code>transfer_mode: pull</code>이다. Decode가 전달받은 정보로 Prefill 쪽 KV를 가져온다. HTTP 응답에 거대한 KV 텐서 자체가 JSON으로 들어오는 것이 아니다.</p>
+<p>Prefill 응답의 <code>remote_host</code>, <code>remote_port</code>는 KV를 제공하는 쪽의 연결 정보다. <strong>새로 요청을 보낼 Decode HTTP 서버 주소가 아니다.</strong> 요청 조정 코드가 Decode HTTP 목적지를 별도로 알고 있어야 한다.</p>
+<p>Decode 요청에는 원래 입력 토큰과 생성 조건도 남는다. KV 위치 정보만으로 입력 토큰의 정체성·순서·요청 조건 전체를 대신할 수 없기 때문이다. 저장된 예시에서는 원래 입력을 그대로 전달했고 Prefill의 첫 출력 토큰을 임의로 덧붙이지 않았다. 이 동작을 다른 커넥터의 요청 계약에 그대로 일반화하지 않는다.</p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>서버·커넥터·라이브러리는 서로 다른 일을 맡는다</h2>
+<ul>
+<li><a href="../../rdma-rkey-nixl-handshake-authentication.html">KV Cache 접근 정보는 어떻게 전달되는가 — RDMA의 rkey와 TCP 내부 통신을 보호해야 하는 이유</a></li>
+</ul>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>주체</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>요청 조정 코드 또는 프록시</td>
+<td>Prefill 요청 후 전달 정보를 받아 Decode 요청을 구성</td>
+</tr>
+<tr>
+<td>vLLM 엔진</td>
+<td>모델 계산, KV 블록 관리, 요청 스케줄링</td>
+</tr>
+<tr>
+<td>NixlConnector</td>
+<td>vLLM의 KV 블록과 전송 요청을 연결</td>
+</tr>
+<tr>
+<td>NIXL</td>
+<td>메모리 전송을 제공하는 라이브러리</td>
+</tr>
+<tr>
+<td>UCX 백엔드</td>
+<td>사용 가능한 전송 수단에서 연산·메모리에 맞는 경로 선택</td>
+</tr>
+<tr>
+<td>GPU·인터커넥트</td>
+<td>선택된 경로의 실제 데이터 이동 수행</td>
+</tr>
+</tbody></table>
+</div>
+<p>NIXL이라는 이름 자체가 NVLink나 PCIe를 뜻하지 않는다. NixlConnector의 설정·지원 범위는 버전에 따라 확인해야 한다. <a href="https://docs.vllm.ai/en/latest/features/nixl_connector_usage/" rel="noopener noreferrer">vLLM NixlConnector 가이드</a></p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>Decode 서버 로그 안의 UCX 기록을 읽는다</h2>
+<ul>
+<li><a href="../../ucx-cuda-ipc-gpu-transfer-path-verification.html">UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지</a></li>
+</ul>
+<p>검증 환경에서는 서버 실행 시 <code>UCX_LOG_LEVEL=info</code>, <code>UCX_PROTO_INFO=y</code>를 사용했다. 별도 “UCX 서버 프로세스”의 로그를 찾은 것이 아니라, <strong>Decode 실행에 포함된 NIXL/UCX 라이브러리가 Decode 로그에 남긴 기록</strong>을 확인했다.</p>
+<p>GPU 메모리 읽기와 선택된 전송 프로토콜이 함께 나온 부분은 다음과 같다.</p>
+<pre><code class="language-text">remote memory read by ucp_get*(multi) into cuda/GPU0 from cuda/dev[0]
+0..inf | zero-copy | cuda_ipc/cuda
+</code></pre>
+<p>해석은 다음과 같다.</p>
+<ul>
+<li>원격 메모리 읽기 연산이 CUDA 메모리를 대상으로 한다.</li>
+<li>해당 읽기에 <code>cuda_ipc/cuda</code>가 선택됐다.</li>
+<li>이 구성에서 상대 KV 제공자는 Prefill이다.</li>
+<li><code>zero-copy</code>는 데이터 이동이 없다는 뜻이 아니라, 해당 경로의 중간 복사를 생략하는 방식이라는 뜻이다.</li>
+</ul>
+<p>CUDA IPC는 같은 호스트의 서로 다른 프로세스가 GPU 메모리를 공유·접근하는 수단이다. UCX도 GPU 전송 지원에 CUDA IPC를 포함한다. <a href="https://openucx.readthedocs.io/en/master/faq.html" rel="noopener noreferrer">UCX GPU 지원 설명</a></p>
+<p>원본은 <a href="https://github.com/muscleleg/transformer-practice/blob/80d7c6eb718846ae2d9ca089b740797aa29dc6b1/transformer/research/distributed_runtime_interconnect_data_movement/runs/nixl-20261010-110258-393400/decode.log" rel="noopener noreferrer">decode.log</a>의 578행 부근부터다. 단순히 모듈 목록에 <code>cuda_ipc</code>가 등장한 것이 아니라 <strong>읽기 연산의 프로토콜 표에 선택된 것</strong>을 근거로 삼는다. 각 프로세스 안의 <code>GPU0</code>은 로컬 번호일 수 있으므로, 두 서버 로그에 모두 GPU0이라고 나온다고 같은 물리 GPU라고 판단하지 않는다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>TCP 로그가 함께 있어도 KV가 TCP로 이동했다고 단정하지 않는다</h2>
+<p>같은 Decode 로그에는 호스트 메모리의 active message에 <code>tcp/eth0</code>가 선택된 표도 있다. 제어 메시지와 GPU KV 데이터는 서로 다른 경로를 사용할 수 있다.</p>
+<p>따라서 로그 단어 하나를 검색한 결과만으로 전체 통신을 “TCP 전송”이나 “전부 CUDA IPC”라고 부르지 않는다. 연산 종류, 출발·도착 메모리 유형, 선택 프로토콜을 한 묶음으로 읽어야 한다. 이 로그는 소프트웨어 경로의 선택 근거이며 모든 데이터의 NVSwitch 홉을 추적한 하드웨어 계측은 아니다.</p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>응답 성공과 KV 수신 성공은 별도로 확인한다</h2>
+<p>Decode가 HTTP 200을 반환했다는 사실만으로 원격 KV 재사용을 증명할 수는 없다. 로컬 입력 재계산과 구분하려면 같은 측정 구간에서 다음을 함께 확인한다.</p>
+<ul>
+<li>Prefill 응답에 KV 블록·엔진·연결 정보가 있다.</li>
+<li>Decode 측의 전송 건수와 전송 바이트가 증가한다.</li>
+<li><code>external_kv_transfer</code> 출처의 입력 토큰 수가 증가한다.</li>
+<li>실패 전송 수가 늘지 않는다.</li>
+</ul>
+<p>검증 예시에서는 673토큰 요청 1건에 전송 1건, 101,449,728바이트, 외부 KV 입력 673토큰이 관측됐다. 이 크기는 블록 단위 KV 배치와 일치한다. 계산은 <a href="kv-size.html">KV 전송량이 토큰 계산값보다 커지는 이유</a>, 시간과 카운터의 해석은 <a href="metrics.html">NIXL 전송 메트릭과 요청 시간을 구분하는 법</a>에 있다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>실패를 로컬 재계산 성공으로 숨기지 않는다</h2>
+<p>검증 코드는 Prefill 응답에 필요한 KV 정보가 없으면 중단한다. 서버에는 <code>kv_load_failure_policy: fail</code>을 설정해, 실패를 조용히 로컬 계산으로 대체한 결과를 전송 성공으로 세지 않도록 했다. 이는 이 검증의 정책이며 모든 vLLM 구성의 기본 동작이라는 뜻은 아니다.</p>
+<p>KV 로드 오류가 나면 요청 전달 정보와 엔진 식별자, 블록 수명, 연결 주소, 수신 로그를 확인해야 한다. 경로 선택 성공도 해당 KV 블록이 유효하다는 보장은 아니다.</p>
+<p>전송 비용과 전체 응답을 함께 해석한 결과는 <a href="../results/README.html">검증 결과와 해석의 경계</a>에 있다.</p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="kv-size.html">KV 전송량이 토큰 계산값보다 커지는 이유</a></li>
+<li><a href="metrics.html">NIXL 전송 메트릭과 요청 시간을 구분하는 법</a></li>
+<li><a href="../../ucx-cuda-ipc-gpu-transfer-path-verification.html">UCX 로그로 GPU 통신 경로 읽기 — CUDA IPC·P2P·SHM에서 PCIe·NVLink까지</a></li>
+<li><a href="../../rdma-rkey-nixl-handshake-authentication.html">KV Cache 접근 정보는 어떻게 전달되는가 — RDMA의 rkey와 TCP 내부 통신을 보호해야 하는 이유</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/33-school-route.md. Do not edit directly. source-sha256:5ec10f6552fa5d5164b7e5918fbc85a605e52c824ad076b03f94705d9a80dbd2 -->
+<!-- Generated from content/wiki/coding-test/33-school-route.md. Do not edit directly. source-sha256:ff3a7fc1899564844a818c30fd4dddcc252622aa7901455a36073d6f949a5e3c -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="오른쪽·아래 이동만 가능한 격자에서 모든 성공 경로의 길이가 고정됨을 확인하고, 각 칸까지의 경로 수를 위쪽과 왼쪽 상태의 합으로 누적했다. 첫 제출은 조건부 오타로 80점이었으며 수정본의 전체 통과와 자료 없는 재구현은 남아 있다.">
-  <meta name="source-sha256" content="5ec10f6552fa5d5164b7e5918fbc85a605e52c824ad076b03f94705d9a80dbd2">
+  <meta name="source-sha256" content="ff3a7fc1899564844a818c30fd4dddcc252622aa7901455a36073d6f949a5e3c">
   <title>등굣길</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
@@ -72,6 +72,8 @@
         <a href="#correction">80점 제출에서 찾은 오류</a>
         <a href="#complexity">시간·공간 복잡도</a>
         <a href="#evidence">현재 확인된 것과 남은 검증</a>
+        <a href="#review-2026-10-08-modulo">2026-10-08 재풀이: 나머지 연산을 빠뜨렸다</a>
+        <a href="#complexity-review-2026-10-08">2026-10-08 시간복잡도 복습: 세 단계의 비용 더하기</a>
       </nav>
       <article class="markdown-content">
         <div class="markdown-lead"><p><a href="https://school.programmers.co.kr/learn/courses/30/lessons/42898" rel="noopener noreferrer">프로그래머스 문제 ↗</a> · <a href="index.html">← 전체 문제</a></p>
@@ -197,6 +199,72 @@
 <li>시간 <code>O(nm)</code>, 공간 <code>O(nm)</code>을 직접 설명하고 필요하면 1차원 최적화 비교</li>
 </ul>
 <p>완전한 문제 해결로 기록하려면 먼저 수정본을 다시 제출해 전체 통과 결과를 확인해야 한다.</p>
+
+</section>
+<section id="review-2026-10-08-modulo" class="markdown-section">
+<h2>2026-10-08 재풀이: 나머지 연산을 빠뜨렸다</h2>
+<p>다시 풀면서 물웅덩이를 -1로 표시하고, 시작점을 1로 초기화하며, 위·왼쪽의 경로 수를 더하는 DP를 구현했다. 이번에 놓친 것은 점화식이 아니라 정답을 1,000,000,007로 나눈 나머지로 반환해야 한다는 조건이었다.</p>
+<p>공유한 채점 결과는 정확성 10개 통과, 효율성 10개 실패로 50점이었다. 효율성 테스트의 실행 시간은 0.82~2.14ms였으며 시간 초과로 표시된 결과가 아니다. 코드가 경로 수 원본을 그대로 반환했으므로, 경로 수가 큰 입력에서 요구하는 나머지와 달라진 것이 원인이다.</p>
+<h3>빠뜨린 줄과 수정 위치</h3>
+<p>제출한 코드의 마지막 줄은 다음과 같았다.</p>
+<pre><code class="language-python">return dp[-1][-1]
+</code></pre>
+<p>최소 수정은 반환할 때 나머지를 구하는 것이다.</p>
+<pre><code class="language-python">return dp[-1][-1] % 1000000007
+</code></pre>
+<p>누적 값도 작게 유지하려면 각 칸에서 위·왼쪽 값을 모두 더한 뒤, 안쪽 반복문 안에 다음 줄을 둔다. 물웅덩이는 앞의 continue로 건너뛴다.</p>
+<pre><code class="language-python">if i &gt; 0 and dp[i - 1][j] != -1:
+    dp[i][j] += dp[i - 1][j]
+if j &gt; 0 and dp[i][j - 1] != -1:
+    dp[i][j] += dp[i][j - 1]
+
+dp[i][j] %= 1000000007
+</code></pre>
+<p>덧셈으로 경로 수를 누적하므로 중간에 나머지를 취해도 최종 나머지는 같다. 이 변경은 DP 전략을 바꾸는 최적화가 아니라 정답의 출력 조건을 지키는 수정이다.</p>
+<h3>다음 제출 전 확인할 것</h3>
+<ul>
+<li>경우의 수를 묻는 문제에서는 반환 조건에 나머지 연산이 있는지 먼저 확인한다.</li>
+<li>작은 테스트만 통과할 때는 시간복잡도뿐 아니라 큰 값의 반환 조건도 확인한다.</li>
+<li>‘효율성 실패’를 곧바로 ‘시간 초과’라고 해석하지 않는다.</li>
+<li>DP 상태·초기값·물웅덩이 처리와 마지막 반환 조건을 별도로 검산한다.</li>
+</ul>
+<p>이번 재풀이에 대해 “다시 푸니까 맞췄다”고 표현했으며, DP 구조를 다시 구현한 성과와 나머지 연산 누락을 구분해 남긴다. 위 50점 이후 나머지 연산을 반영한 최종 채점 화면은 공유되지 않았으므로, 이번 시도의 공식 전체 통과 결과로 확대하지 않는다. 앞선 대화에서 공유했던 100점 결과와도 구분한다.</p>
+
+</section>
+<section id="complexity-review-2026-10-08" class="markdown-section">
+<h2>2026-10-08 시간복잡도 복습: 세 단계의 비용 더하기</h2>
+<p>열 개수를 <code>m</code>, 행 개수를 <code>n</code>, 웅덩이 개수를 <code>p</code>로 둔다. 2026-10-08 재풀이에서 사용한 2차원 DP의 실행 횟수를 초기화·웅덩이 표시·경로 수 계산으로 나누어 확인했다.</p>
+<h3>DP 초기화와 웅덩이 표시</h3>
+<pre><code class="language-python">dp = [[0] * m for _ in range(n)]
+
+for col_idx, row_idx in puddles:
+    dp[row_idx - 1][col_idx - 1] = -1
+</code></pre>
+<p>한 행의 <code>m</code>개 값을 만드는 작업을 <code>n</code>번 하므로 초기화는 <code>O(m × n)</code>이다. 웅덩이 표시는 좌표마다 리스트의 한 칸에 값을 넣고, 웅덩이 <code>p</code>개를 확인하므로 <code>O(p)</code>다.</p>
+<h3>모든 칸에서 경로 수 계산</h3>
+<pre><code class="language-python">for i in range(n):
+    for j in range(m):
+        if i == 0 and j == 0:
+            dp[0][0] = 1
+            continue
+        if dp[i][j] == -1:
+            continue
+
+        if i &gt; 0 and dp[i - 1][j] != -1:
+            dp[i][j] += dp[i - 1][j]
+        if j &gt; 0 and dp[i][j - 1] != -1:
+            dp[i][j] += dp[i][j - 1]
+
+        dp[i][j] %= 1000000007
+</code></pre>
+<p>행 반복은 <code>n</code>번이고 각 행에서 열을 <code>m</code>번 확인한다. 칸마다 하는 경계 검사·비교·최대 두 번의 덧셈은 고정된 양이므로 이 부분은 <code>O(m × n)</code>이다. 코드의 나머지 연산은 오늘 빠뜨렸던 반환 조건을 보완한 것이다.</p>
+<p>세 단계는 차례로 실행되므로 비용을 더한다.</p>
+<pre><code class="language-text">DP 초기화 + 웅덩이 표시 + DP 계산
+= O(mn + p + mn)
+= O(mn + p)
+</code></pre>
+<p>웅덩이는 격자의 칸에 놓이고 중복되지 않으므로 <code>p &lt;= mn</code>이다. 따라서 최종 시간복잡도는 <code>O(mn)</code>, DP 배열의 추가 공간은 <code>O(mn)</code>이다. 순차적인 두 번의 격자 순회를 서로 곱하지 않는다.</p>
+<p>복습에서 초기화를 <code>m × n</code>, 웅덩이 표시를 <code>p</code>, DP 계산을 <code>m × n</code>으로 각각 계산했다. 위 분석은 정수 연산을 상수 시간으로 세는 기준이며, 각 칸에서 나머지를 취하면 누적 정수의 크기도 제한된다. 나머지를 생략한 Python 큰 정수 덧셈까지 엄밀히 분석할 때는 비트 길이 비용이 별도로 생긴다.</p>
 
 </section>
         

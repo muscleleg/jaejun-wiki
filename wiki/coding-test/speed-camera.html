@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/coding-test/speed-camera.md. Do not edit directly. source-sha256:5f559b134eb673467219ad461bf0a7b333caa67851b263bfe8cf7f60b6686016 -->
+<!-- Generated from content/wiki/coding-test/speed-camera.md. Do not edit directly. source-sha256:9eac5c3993dd08b124f3530161ed52b9323942e671f1af0355a9501724c5def1 -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="최대 겹침 좌표 탐색의 한계를 확인하고 진출 지점 기준 구간 그리디로 전환한 풀이 기록">
-  <meta name="source-sha256" content="5f559b134eb673467219ad461bf0a7b333caa67851b263bfe8cf7f60b6686016">
+  <meta name="source-sha256" content="9eac5c3993dd08b124f3530161ed52b9323942e671f1af0355a9501724c5def1">
   <title>단속카메라</title>
   <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
   <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
@@ -67,6 +67,7 @@
         <a href="#interval-greedy">진출 지점 기준의 구간 그리디</a>
         <a href="#reference-code">기억할 코드</a>
         <a href="#status-and-review">풀이 상태와 다시 확인할 점</a>
+        <a href="#complexity-review-2026-10-08">2026-10-08 시간복잡도 복습: 정렬과 한 번의 순회</a>
       </nav>
       <article class="markdown-content">
         
@@ -112,6 +113,51 @@ start &gt; camera          → 새 카메라 필요
 <h2>풀이 상태와 다시 확인할 점</h2>
 <p>최초의 최대 겹침 방식만으로는 완성하지 못했고, 설명과 예시를 함께 보며 구간 그리디 구조를 이해해 코드를 완성했다. 아직 프로그래머스 전체 테스트 통과 결과는 확인하지 않았다.</p>
 <p>다시 풀 때는 <code>겹침이 가장 많은 좌표</code>를 찾지 말고 <code>가장 먼저 끝나는 구간을 놓치지 않으면서 뒤의 구간과 최대한 함께 잡는 위치</code>를 먼저 생각한다.</p>
+
+</section>
+<section id="complexity-review-2026-10-08" class="markdown-section">
+<h2>2026-10-08 시간복잡도 복습: 정렬과 한 번의 순회</h2>
+<p>차량 수를 <code>n = len(routes)</code>으로 둔다. 오늘 제출한 코드는 아래처럼 기본 정렬과 나가는 위치 기준 정렬을 연달아 수행한 뒤 차량을 한 번씩 확인했다.</p>
+<pre><code class="language-python">def solution(routes):
+    answer = 1
+    routes.sort()
+    routes.sort(key=lambda route: route[1])
+    camera = routes[0][1]
+
+    for index, (start, end) in enumerate(routes):
+        if start &lt;= camera:
+            continue
+        else:
+            camera = end
+            answer += 1
+
+    return answer
+</code></pre>
+<h3>정렬 비용</h3>
+<p>차량 경로는 시작·끝의 두 값으로 구성된다. 기본 정렬과 나가는 위치 기준 정렬은 각각 최악 <code>O(n log n)</code>이다. <code>lambda route: route[1]</code>은 한 원소의 고정 위치 값 하나를 꺼내므로 원소당 <code>O(1)</code>이고, 전체 키 생성 비용 <code>O(n)</code>은 정렬 상한에 포함된다.</p>
+<p>첫 <code>routes.sort()</code>는 정답에 필요하지 않다. 나가는 위치 기준 정렬 한 번만 남겨도 충분하다. 나가는 위치가 같은 차량들의 순서는 이 그리디의 카메라 수에 영향을 주지 않는다.</p>
+<h3>차량 확인 비용</h3>
+<pre><code class="language-python">for index, (start, end) in enumerate(routes):
+    if start &lt;= camera:
+        continue
+    else:
+        camera = end
+        answer += 1
+</code></pre>
+<p>차량 <code>n</code>대를 각각 한 번 확인한다. 차량 한 대에서 하는 비교·대입·덧셈은 상수 시간이므로 반복문 전체는 <code>O(n)</code>이다. <code>continue</code>는 다음 차량으로 이동하므로 반복 횟수를 곱하는 추가 순회가 아니다.</p>
+<h3>전체 비용</h3>
+<pre><code class="language-text">오늘 제출 코드:
+기본 정렬 + 나가는 위치 정렬 + 차량 확인
+= O(n log n + n log n + n)
+= O(n log n)
+
+불필요한 기본 정렬을 제거한 코드:
+나가는 위치 정렬 + 차량 확인
+= O(n log n + n)
+= O(n log n)
+</code></pre>
+<p>두 정렬을 차례로 실행하므로 비용을 더한다. 상수 배수와 같은 입력 크기의 더 작은 차수 항을 정리하면 두 버전 모두 <code>O(n log n)</code>이다. 정렬 하나를 제거하면 수행하는 작업은 줄지만 점근적 시간복잡도의 등급은 같다.</p>
+<p>복습에서 정렬을 <code>n log n</code>, 차량 확인을 <code>n</code>으로 각각 계산했다.</p>
 
 </section>
         
