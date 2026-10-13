@@ -29,10 +29,10 @@
   const endGap = pagination.querySelector('[data-wiki-gap="end"]');
   let category = "all";
   let currentPage = 1;
-  let view = "tree";
+  let view = "recent";
   let openFilter = null;
   try {
-    if (localStorage.getItem(viewStorageKey) === "recent") view = "recent";
+    if (localStorage.getItem(viewStorageKey) === "tree") view = "tree";
   } catch {
     // Browsers that block local storage can still switch views for this visit.
   }
