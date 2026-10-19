@@ -1,0 +1,445 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/loop-lvm-cinder-storage.md. Do not edit directly. source-sha256:c31d14c617b590aaf4da900b6656ab9a7f7af2b847a4f88152ffd2e49da8af89 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="파일시스템과 블록 장치, loop와 LVM의 차이, PV·VG·LV와 장치 표시를 설명하고 여러 논리 볼륨의 요청이 원본 파일 하나로 매핑되는 과정과 Cinder의 관리 역할을 SVG로 정리한다.">
+  <meta name="source-sha256" content="c31d14c617b590aaf4da900b6656ab9a7f7af2b847a4f88152ffd2e49da8af89">
+  <title>하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder">
+  <meta property="og:description" content="파일시스템과 블록 장치, loop와 LVM의 차이, PV·VG·LV와 장치 표시를 설명하고 여러 논리 볼륨의 요청이 원본 파일 하나로 매핑되는 과정과 Cinder의 관리 역할을 SVG로 정리한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html","name":"하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder","description":"파일시스템과 블록 장치, loop와 LVM의 차이, PV·VG·LV와 장치 표시를 설명하고 여러 논리 볼륨의 요청이 원본 파일 하나로 매핑되는 과정과 Cinder의 관리 역할을 SVG로 정리한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html"},"headline":"하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-linux-architecture","name":"Linux·Namespace·검색","identifier":"topics-linux-architecture"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/loop-lvm-cinder-storage.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Linux 아키텍처·네임스페이스·파일 검색","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html"},{"@type":"ListItem","position":5,"name":"하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux_architecture_namespaces_search.html">Linux 아키텍처·네임스페이스·파일 검색</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>하나의 파일이 여러 가상 디스크가 되는 원리: loop·LVM·OpenStack Cinder</h1>
+      <p class="lead">파일시스템과 블록 장치, loop와 LVM의 차이, PV·VG·LV와 장치 표시를 설명하고 여러 논리 볼륨의 요청이 원본 파일 하나로 매핑되는 과정과 Cinder의 관리 역할을 SVG로 정리한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">1. 파일시스템은 파일 경로를 저장 위치로 연결한다</a>
+        <a href="#section-2-loop">2. loop는 파일을 블록 장치로 사용할 수 있게 연결한다</a>
+        <a href="#section-3-lvm">3. LVM은 블록 장치의 공간을 논리적으로 나눠 제공한다</a>
+        <a href="#section-4-loop-lvm">4. loop와 LVM은 서로 다른 일을 한다</a>
+        <a href="#section-5-lvm-pv-vg-lv">5. LVM은 PV·VG·LV로 저장 공간을 관리한다</a>
+        <a href="#section-6-vg-lv-ubuntu">6. VG를 만들 때와 LV를 만들 때 Ubuntu에서 보이는 것은 다르다</a>
+        <a href="#section-7-lv">7. 전체 구성: 파일 하나에서 여러 LV를 제공한다</a>
+        <a href="#section-8-lv">8. 여러 LV의 요청은 어떻게 파일 하나로 연결되는가?</a>
+        <a href="#section-9-cinder">9. Cinder의 관리 작업과 실제 읽기·쓰기는 구분된다</a>
+        <a href="#section-10">10. 씬 풀에서는 데이터를 기록하면서 공간을 할당한다</a>
+        <a href="#section-11-ssd-loop">11. 전용 SSD가 있으면 loop를 생략할 수 있다</a>
+        <a href="#section-12">12. 현재 서버에서 확인된 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>리눅스가 설치된 SSD의 여유 공간으로도 OpenStack VM에 제공할 저장 공간을 만들 수 있다. <strong>파일을 준비하고, loop로 블록 장치처럼 사용할 수 있게 연결한 다음, LVM으로 여러 논리 디스크를 만드는 방식</strong>이다.</p>
+<p>이 구성을 이해하려면 먼저 파일시스템과 블록 장치를 구분하고, loop와 LVM이 각각 어떤 역할을 하는지 살펴봐야 한다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>1. 파일시스템은 파일 경로를 저장 위치로 연결한다</h2>
+<p>사용자와 일반적인 프로그램은 <code>/home/user/photos/cat.jpg</code> 같은 파일 경로로 데이터에 접근한다.</p>
+<p>하지만 SSD나 HDD가 그 경로를 해석해서 파일을 찾는 것은 아니다. 장치에 전달되는 일반적인 읽기 요청은 다음과 같은 형태다.</p>
+<blockquote>
+<p>“이 논리 블록 위치부터 지정한 양의 데이터를 읽어 줘.”</p>
+</blockquote>
+<p><strong>파일 이름과 폴더 구조를 관리하고, 파일 내용이 저장된 위치를 찾아 주는 것이 파일시스템</strong>이다. Linux의 ext4가 대표적인 예다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>계층</th>
+<th>다루는 정보</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>사용자·프로그램</td>
+<td>파일 이름과 경로</td>
+</tr>
+<tr>
+<td>파일시스템</td>
+<td>폴더 구조, 파일 정보, 데이터 위치</td>
+</tr>
+<tr>
+<td>블록 장치</td>
+<td>읽거나 쓸 위치와 데이터 크기</td>
+</tr>
+</tbody></table>
+</div>
+<p>파일 이름과 폴더 정보도 저장 장치에 기록된다. 다만 장치에는 그것 역시 바이트 데이터이며, 그 의미를 해석하는 주체가 파일시스템이다.</p>
+<p><strong>블록 장치는 위치를 지정해서 데이터를 읽고 쓸 수 있도록 제공되는 장치 종류</strong>다. 실제 SSD뿐 아니라 소프트웨어로 만든 장치도 같은 인터페이스를 제공하면 블록 장치로 사용할 수 있다.</p>
+
+</section>
+<section id="section-2-loop" class="markdown-section">
+<h2>2. loop는 파일을 블록 장치로 사용할 수 있게 연결한다</h2>
+<p>기존 파일시스템의 여유 공간을 활용하려면 그 안에 저장 공간 역할을 할 파일을 만들 수 있다. 예를 들어 충분한 크기의 <code>storage.img</code> 파일을 준비한다.</p>
+<p>그러나 파일을 만들거나 확장자를 <code>.img</code>로 붙였다고 디스크가 되는 것은 아니다.</p>
+<p><strong>loop는 이미 만들어진 일반 파일을 블록 장치로 사용할 수 있게 연결하는 Linux 기능</strong>이다. 파일 생성과 공간 확보는 별도로 수행한다.</p>
+<p><code>losetup</code>으로 <code>storage.img</code>를 <code>/dev/loop14</code>에 연결하면 커널에 다음 관계를 설정한다.</p>
+<blockquote>
+<p>“<code>/dev/loop14</code>로 들어오는 블록 읽기·쓰기 요청을 <code>storage.img</code> 파일에 처리해 줘.”</p>
+</blockquote>
+<p>이 동작은 Linux 커널의 loop 드라이버가 담당한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>접근 경로</th>
+<th>사용하는 방식</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>storage.img</code></td>
+<td>일반 파일로 접근</td>
+</tr>
+<tr>
+<td><code>/dev/loop14</code></td>
+<td>블록 장치로 접근</td>
+</tr>
+</tbody></table>
+</div>
+<p>파일 자체가 다른 종류로 바뀌거나 복사되는 것은 아니다. <strong>같은 파일을 저장 공간으로 사용하는 블록 장치가 생기는 것</strong>이다.</p>
+<p>loop 장치에 데이터를 쓰면 원본 파일에 기록되고, 최종적으로는 호스트 파일시스템을 거쳐 실제 SSD에 저장된다.</p>
+
+</section>
+<section id="section-3-lvm" class="markdown-section">
+<h2>3. LVM은 블록 장치의 공간을 논리적으로 나눠 제공한다</h2>
+<p>loop를 이용하면 파일 하나를 디스크처럼 사용할 수 있다. 하지만 이 공간을 여러 VM에 각각 별도의 디스크로 제공하려면, 공간을 나눠 관리하는 기능이 필요하다.</p>
+<p>이 역할을 하는 것이 LVM(Logical Volume Manager, 논리 볼륨 관리자)이다.</p>
+<p><strong>LVM은 블록 장치의 공간을 논리적으로 나눠 여러 디스크처럼 사용할 수 있게 해 준다.</strong> 하나의 장치를 나누는 것뿐 아니라 여러 장치의 공간을 모아서 나눌 수도 있다.</p>
+<p>예를 들어 100GB 장치를 LVM에 제공하고, 그 공간에서 VM A용 20GB와 VM B용 30GB 논리 디스크를 만들 수 있다. 나머지 공간은 나중에 할당하도록 남겨 둘 수 있다.</p>
+<p>LVM은 일반 Linux에서도 사용하는 저장 공간 관리 소프트웨어다. OpenStack 전용 기능이 아니며, Cinder가 LVM을 이용해 볼륨을 관리하는 것이다.</p>
+
+</section>
+<section id="section-4-loop-lvm" class="markdown-section">
+<h2>4. loop와 LVM은 서로 다른 일을 한다</h2>
+<p>두 기능의 차이는 다음과 같다.</p>
+<blockquote>
+<p><strong>loop는 파일을 블록 장치로 사용할 수 있게 연결한다.</strong><br><strong>LVM은 블록 장치의 공간을 모으고, 논리적으로 나눠 여러 블록 장치로 제공한다.</strong></p>
+</blockquote>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>loop</th>
+<th>LVM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>입력</td>
+<td>일반 파일</td>
+<td>SSD·파티션·loop 같은 블록 장치</td>
+</tr>
+<tr>
+<td>역할</td>
+<td>파일을 디스크 인터페이스로 제공</td>
+<td>저장 공간을 모으고 나눠 관리</td>
+</tr>
+<tr>
+<td>결과</td>
+<td>loop 블록 장치</td>
+<td>논리 볼륨 블록 장치</td>
+</tr>
+<tr>
+<td>서로 필요한가?</td>
+<td>LVM 없이 사용 가능</td>
+<td>loop 없이 사용 가능</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>LVM이 파일을 만든 뒤 loop로 감싸는 것은 아니다.</strong> LVM이 만든 논리 볼륨은 이미 블록 장치이므로 다시 loop로 연결할 필요가 없다.</p>
+<p>현재처럼 두 기능을 함께 사용하는 경우에는 순서가 다음과 같다.</p>
+<p><strong>일반 파일을 준비한다 → loop로 블록 장치로 연결한다 → LVM이 그 장치의 공간을 나눠 제공한다.</strong></p>
+
+</section>
+<section id="section-5-lvm-pv-vg-lv" class="markdown-section">
+<h2>5. LVM은 PV·VG·LV로 저장 공간을 관리한다</h2>
+<p>LVM의 구성은 <strong>재료가 되는 장치 → 공간을 관리하는 풀 → 사용할 논리 디스크</strong> 순서로 이해하면 된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>용어</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PV — 물리 볼륨</strong></td>
+<td>LVM이 사용하도록 준비한 블록 장치나 파티션</td>
+</tr>
+<tr>
+<td><strong>VG — 볼륨 그룹</strong></td>
+<td>하나 이상의 PV가 제공하는 공간을 모아 관리하는 풀</td>
+</tr>
+<tr>
+<td><strong>LV — 논리 볼륨</strong></td>
+<td>VG 안에서 생성하는 개별 논리 블록 장치</td>
+</tr>
+</tbody></table>
+</div>
+<h3>PV: LVM에 제공하는 기반 장치</h3>
+<p>SSD, 파티션, loop 장치 등을 LVM이 사용할 수 있도록 준비하면 PV가 된다.</p>
+<p>이름에 ‘물리’가 들어가지만 반드시 실제 SSD 한 개와 일치하는 것은 아니다. 현재 구성에서는 <code>loop14</code> 같은 가상 블록 장치도 PV로 사용할 수 있다.</p>
+<h3>VG: 기반 장치의 공간을 관리하는 풀</h3>
+<p>PV들을 VG에 넣으면 LVM은 그 공간을 하나의 풀로 관리한다.</p>
+<p>VG의 용량은 이미 존재하는 PV들이 제공한다. VG를 만들 때 별도의 디스크나 저장 공간이 새로 생기는 것은 아니다.</p>
+<p><strong>VG는 어떤 PV들이 속해 있는지, 어느 공간이 할당돼 있는지 등을 관리하는 메타데이터로 정의된다.</strong> 이 메타데이터는 디스크에 저장된다.</p>
+<h3>LV: 풀에서 만들어 사용하는 논리 디스크</h3>
+<p>VG 안에서 LV를 만들면, LVM은 풀의 공간을 해당 LV에 연결한다.</p>
+<p><strong>LV를 생성하고 활성화하면 Ubuntu에서 별도의 블록 장치로 보인다.</strong> 파일시스템을 만들거나 마운트할 수 있고, VM에 디스크로 제공할 수도 있다.</p>
+
+</section>
+<section id="section-6-vg-lv-ubuntu" class="markdown-section">
+<h2>6. VG를 만들 때와 LV를 만들 때 Ubuntu에서 보이는 것은 다르다</h2>
+<p>핵심 차이는 다음과 같다.</p>
+<blockquote>
+<p><strong>VG만 만들면 추가 디스크는 나타나지 않는다.</strong><br><strong>LV를 만들고 활성화해야 추가 블록 장치가 나타난다.</strong></p>
+</blockquote>
+<p>100GB 장치 하나를 사용하는 단순한 예로 보면 다음과 같다. 관리 정보에 사용하는 용량은 생략했다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>작업</th>
+<th>LVM의 상태</th>
+<th>Ubuntu에서 보이는 장치</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>100GB 장치 준비</td>
+<td>아직 LVM에 등록하지 않음</td>
+<td>기존 장치</td>
+</tr>
+<tr>
+<td>PV 등록 후 VG 생성</td>
+<td>100GB를 저장 공간 풀로 관리</td>
+<td>기존 장치는 그대로이며, VG를 대표하는 새 장치는 없음</td>
+</tr>
+<tr>
+<td>20GB LV 생성·활성화</td>
+<td>풀에서 LV에 공간을 할당</td>
+<td>기존 장치에 더해 20GB 논리 블록 장치가 나타남</td>
+</tr>
+</tbody></table>
+</div>
+<p>VG 생성 후 <code>lsblk</code>에 SSD나 loop 장치가 보이는 것은 <strong>기존 기반 장치가 계속 보이는 것</strong>이다. VG 때문에 새 디스크가 생긴 것이 아니다.</p>
+<ul>
+<li><code>vgs</code>는 VG와 그 용량을 보여 준다.</li>
+<li><code>lvs</code>는 생성한 LV 정보를 보여 준다.</li>
+<li><code>lsblk</code>는 기반 장치와 활성화된 LV 등의 블록 장치 관계를 보여 준다.</li>
+</ul>
+<p>VG 자체는 포맷하거나 마운트하지 않는다. <strong>파일시스템을 만들고 사용할 대상은 VG 안에서 생성한 LV</strong>다.</p>
+
+</section>
+<section id="section-7-lv" class="markdown-section">
+<h2>7. 전체 구성: 파일 하나에서 여러 LV를 제공한다</h2>
+<p>이제 각 구성 요소를 연결하면 다음 구조가 된다.</p>
+<p><img src="../../assets/images/storage-loop-lvm/01-storage-structure.svg" alt="파일 하나에서 loop와 LVM을 거쳐 여러 VM에 논리 볼륨을 제공하는 구조" loading="lazy"></p>
+<p>호스트 파일시스템에 만든 파일을 loop 장치로 연결하고, 그 장치를 LVM에 등록한다. VG 안에서 만든 LV들은 각각 별도의 블록 장치로 제공된다.</p>
+<p>Cinder는 사용할 VG를 설정으로 지정받는다. 사용자가 OpenStack에서 볼륨을 요청하면 Cinder가 LVM을 통해 LV를 만들고, OpenStack의 연결 절차를 통해 VM에 제공한다.</p>
+<p><strong>“Cinder에게 VG를 준다”는 것은 장치를 옮기는 것이 아니라, 사용할 VG를 설정에 지정한다는 의미</strong>다.</p>
+
+</section>
+<section id="section-8-lv" class="markdown-section">
+<h2>8. 여러 LV의 요청은 어떻게 파일 하나로 연결되는가?</h2>
+<p>각 LV는 자기만의 주소 공간을 가진다. VM A와 VM B가 각각 자기 디스크의 ‘블록 0’에 쓰더라도 같은 기반 위치를 덮어쓰지는 않는다.</p>
+<p>중간에서 볼륨별 주소를 서로 다른 저장 위치로 변환하기 때문이다.</p>
+<p><img src="../../assets/images/storage-loop-lvm/02-request-mapping.svg" alt="여러 논리 볼륨의 요청이 device mapper와 loop를 거쳐 원본 파일 하나에 연결되는 과정" loading="lazy"></p>
+<p>그림의 X와 Y는 설명을 위한 서로 다른 저장 영역이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>원본 파일에서 연결되는 곳</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>볼륨 A의 블록 0에 쓰기</td>
+<td>영역 X</td>
+</tr>
+<tr>
+<td>볼륨 B의 블록 0에 쓰기</td>
+<td>영역 Y</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>새로운 물리 블록이 생기는 것이 아니라, 각 LV의 주소를 기반 저장 공간의 위치에 연결하는 것</strong>이다.</p>
+<p>Linux 커널에서 이 변환을 처리하는 기능이 <strong>device mapper</strong>다. LVM 관리 도구는 저장 공간 구성에 맞춰 매핑을 설정한다.</p>
+<p>실제 쓰기 요청은 다음 순서로 이어진다.</p>
+<ol>
+<li>VM이 자기 디스크의 특정 위치에 쓰기를 요청한다.</li>
+<li>구성된 저장 연결을 통해 해당 LV로 요청이 전달된다.</li>
+<li>device mapper가 LV의 위치를 기반 장치의 위치로 변환한다.</li>
+<li>loop가 기반 장치 위치를 원본 파일의 위치로 연결한다.</li>
+<li>호스트 파일시스템이 파일의 해당 부분을 실제 저장 위치로 연결한다.</li>
+<li>SSD에 데이터를 기록한다.</li>
+</ol>
+<p>따라서 <strong>논리 디스크가 100개여도 원본 파일은 하나일 수 있다.</strong> 여러 LV의 요청이 서로 다른 매핑을 거쳐 같은 파일 안의 서로 다른 영역에 도달하는 구조다.</p>
+
+</section>
+<section id="section-9-cinder" class="markdown-section">
+<h2>9. Cinder의 관리 작업과 실제 읽기·쓰기는 구분된다</h2>
+<p>Cinder는 볼륨 생성·삭제·연결을 관리한다. 볼륨이 연결된 이후의 읽기·쓰기는 구성된 저장 경로를 따라 처리된다.</p>
+<p><strong>매번 Cinder API가 데이터를 받아 파일 위치를 계산하고 전달하는 것은 아니다.</strong></p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>담당하는 일</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cinder</td>
+<td>볼륨 생성·삭제·연결 관리</td>
+</tr>
+<tr>
+<td>LVM 관리 도구</td>
+<td>PV·VG·LV 구성과 매핑 설정</td>
+</tr>
+<tr>
+<td>커널의 device mapper</td>
+<td>실제 블록 요청의 위치 변환</td>
+</tr>
+<tr>
+<td>커널의 loop 드라이버</td>
+<td>블록 요청을 원본 파일에 연결</td>
+</tr>
+</tbody></table>
+</div>
+<p>VM에서는 전달받은 볼륨에 파일시스템을 만들고 마운트해서 사용할 수 있다. 마운트는 파일시스템을 폴더에 연결하는 작업이다.</p>
+<p>이 구성에서는 <strong>VM 파일시스템이 VM 내부의 파일을 관리하고, 호스트 파일시스템은 기반이 되는 원본 이미지 파일을 관리</strong>한다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>10. 씬 풀에서는 데이터를 기록하면서 공간을 할당한다</h2>
+<p>지금까지의 단순한 용량 예시는 고정 할당을 기준으로 설명했다. <strong>씬 프로비저닝에서는 실제 데이터를 기록하면서 필요한 공간을 할당한다.</strong></p>
+<p>LVM에서는 VG 안에 씬 풀을 만들고, 그 풀에서 씬 볼륨을 제공할 수 있다.</p>
+<ul>
+<li><strong>VG:</strong> PV들이 제공한 공간을 관리하는 상위 풀</li>
+<li><strong>씬 풀:</strong> VG 안에 생성되는 특수한 LV 구성으로, 씬 볼륨의 데이터와 매핑 정보를 관리</li>
+<li><strong>씬 볼륨:</strong> 씬 풀에서 필요에 따라 공간을 할당받는 개별 LV</li>
+</ul>
+<p>따라서 <code>lsblk</code>에 씬 풀 관련 장치가 보인다고 해서 VG 자체가 블록 장치로 나타난 것은 아니다.</p>
+<p>또한 원본 파일이 희소 파일이라면 실제 SSD 공간도 데이터 기록에 따라 점차 할당될 수 있다. 이 경우 볼륨의 논리 용량, 씬 풀의 실제 사용량, 원본 파일의 실제 디스크 사용량은 서로 다를 수 있다.</p>
+<p>논리 볼륨을 많이 만들어도 물리 용량이나 성능이 늘어나지는 않는다. 같은 원본 파일과 SSD를 사용하는 볼륨은 기반 저장 공간의 용량·성능·장애 영향을 공유한다.</p>
+
+</section>
+<section id="section-11-ssd-loop" class="markdown-section">
+<h2>11. 전용 SSD가 있으면 loop를 생략할 수 있다</h2>
+<p>파일과 loop를 사용하는 이유는 기존 파일시스템의 여유 공간을 활용하기 위해서다.</p>
+<p>이미 파일시스템이 사용하는 영역을 그대로 LVM용으로 초기화하면 관리 정보와 데이터를 덮어쓸 수 있다. 문제는 그 장치가 블록 장치가 아니라서가 아니라, <strong>같은 영역을 파일시스템과 LVM이 각각 자기 방식으로 사용하려 하기 때문</strong>이다.</p>
+<p>파일 기반 구성에서는 호스트 파일시스템이 원본 파일을 관리하고, LVM은 loop로 제공받은 파일 내부를 관리하므로 범위가 구분된다.</p>
+<p>별도의 SSD나 전용 파티션을 준비할 수 있다면 이를 LVM에 직접 제공할 수 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>저장 공간 제공 경로</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>기존 파일시스템의 여유 공간 활용</td>
+<td>파일 → loop → LVM</td>
+</tr>
+<tr>
+<td>전용 SSD 또는 파티션 활용</td>
+<td>장치 또는 파티션 → LVM</td>
+</tr>
+</tbody></table>
+</div>
+<p>전용 장치를 사용하면 파일과 loop 단계는 없어지지만, LV의 위치를 기반 장치의 위치로 변환하는 device mapper의 역할은 유지된다.</p>
+
+</section>
+<section id="section-12" class="markdown-section">
+<h2>12. 현재 서버에서 확인된 범위</h2>
+<p>제공된 장치 목록에서는 다음 상태가 확인됐다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>관찰된 상태</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>loop14</code></td>
+<td>용량 <code>100G</code>, <code>LVM2_member</code> 표시</td>
+</tr>
+<tr>
+<td><code>cinder-volumes</code></td>
+<td>Cinder용 LVM 볼륨 그룹</td>
+</tr>
+<tr>
+<td>LVM 씬 풀</td>
+<td>약 <code>95G</code></td>
+</tr>
+<tr>
+<td>개별 논리 볼륨</td>
+<td><code>1G</code>, ext4 파일시스템 표시</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 출력으로 <strong>loop 장치를 LVM에 제공하고, 씬 풀 안에서 Cinder용 LV를 관리하는 구조</strong>는 확인할 수 있다.</p>
+<p><code>loop14</code>는 원본 파일을 연결한 기존 블록 장치다. <code>cinder-volumes</code>는 LVM의 관리 메타데이터로 정의되는 VG이며, 그 안에서 생성·활성화된 LV들이 추가 블록 장치로 나타난다.</p>
+<p>같은 loop 기반 풀의 LV에 대한 요청은 매핑을 거쳐 원본 파일로 연결된다. 다만 원본 파일이 어느 SSD에 있는지, 해당 볼륨이 어느 VM에 연결되거나 마운트됐는지는 아직 확인하지 않았다. 이를 확정하려면 원본 파일 경로와 호스트 파일시스템, OpenStack의 볼륨 연결 상태를 추가로 확인해야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
