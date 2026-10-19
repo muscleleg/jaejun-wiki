@@ -1,0 +1,223 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.md. Do not edit directly. source-sha256:9affba5473c40e0d221c099270391db8e10ae5d352d1593079cfb04d326debb7 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="loop와 LVM의 차이, 특수한 LV인 Thin pool과 공간을 할당받는 Thin LV의 관계 및 Cinder의 생성 책임을 설명한다.">
+  <meta name="source-sha256" content="9affba5473c40e0d221c099270391db8e10ae5d352d1593079cfb04d326debb7">
+  <title>loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?">
+  <meta property="og:description" content="loop와 LVM의 차이, 특수한 LV인 Thin pool과 공간을 할당받는 Thin LV의 관계 및 Cinder의 생성 책임을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html","name":"loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?","description":"loop와 LVM의 차이, 특수한 LV인 Thin pool과 공간을 할당받는 Thin LV의 관계 및 Cinder의 생성 책임을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html"},"headline":"loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-loop-lvm","name":"loop·LVM","identifier":"project-loop-lvm"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/02-loop-thin-pool-lv.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/README.html"},{"@type":"ListItem","position":6,"name":"loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack-ssd-cinder-guide/README.html">SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>loop·VG·Thin pool·LV는 저장 공간을 어떻게 연결하는가?</h1>
+      <p class="lead">loop와 LVM의 차이, 특수한 LV인 Thin pool과 공간을 할당받는 Thin LV의 관계 및 Cinder의 생성 책임을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">파일을 블록 장치로 연결하는 loop</a>
+        <a href="#section-02">LVM은 파일을 만들어 loop로 감싸는 프로그램이 아니다</a>
+        <a href="#section-03">VG 안에 Thin pool이 따로 필요한 이유</a>
+        <a href="#section-04">Thin pool은 VG 생성 후 Cinder가 만들었다</a>
+        <a href="#section-05">Cinder가 만든 Thin pool을 읽는 방법</a>
+        <a href="#section-06">논리 용량은 물리 용량보다 커질 수 있다</a>
+        <a href="#section-07">볼륨 연결과 파일시스템 마운트는 별도 단계다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>OpenStack Cinder의 LVM 백엔드를 이해하려면 블록 장치를 만드는 기능과 그 장치의 공간을 할당하는 기능을 구분해야 한다. loop는 파일을 블록 장치로 연결하고, LVM은 제공받은 블록 장치의 공간을 논리 볼륨으로 관리한다. Cinder는 LVM 드라이버를 통해 그 볼륨의 생명주기를 관리한다.</p>
+<p><a href="README.html">전체 구성으로 돌아가기</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>파일을 블록 장치로 연결하는 loop</h2>
+<p>블록 장치 인터페이스에서는 저장 공간의 위치를 지정해 데이터를 읽고 쓴다. 파일 이름과 디렉터리의 의미는 파일시스템이 제공한다. 일반 파일도 위치를 지정해 읽을 수 있지만, 블록 장치는 LVM이나 파일시스템 같은 계층이 저장 장치로 다룰 수 있는 별도의 인터페이스를 제공한다.</p>
+<p>loop는 준비된 파일을 <code>/dev/loopN</code> 같은 블록 장치로 연결한다. loop에 전달된 읽기·쓰기 요청은 원본 파일의 해당 위치로 이어진다. 파일을 복사하거나 물리 공간을 새로 만드는 기능은 아니다.</p>
+<p>운영체제가 SSD의 파일시스템을 사용 중인 환경에서는 그 파일시스템 안에 큰 파일을 만들고 loop로 연결해 LVM에 제공할 수 있다. 원래 SSD를 다시 PV로 초기화하지 않고 파일 단위로 실습용 저장 공간을 마련하는 방식이다. 파일의 논리 크기와 실제 할당된 물리 공간은 파일 생성 방법에 따라 다를 수 있다.</p>
+<p>예시의 기존 백엔드에는 100 GiB <code>/dev/loop14</code>가 <code>cinder-volumes</code> VG의 PV로 등록돼 있었다. backing file의 정확한 경로와 물리 할당량은 이 문서의 확인 범위에 포함하지 않는다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>LVM은 파일을 만들어 loop로 감싸는 프로그램이 아니다</h2>
+<p>전용 SSD를 LVM에 직접 제공하면 loop가 필요 없다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>저장 공간의 기반</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>기존 <code>cinder-volumes</code></td>
+<td>파일 → loop 블록 장치 → PV → VG</td>
+</tr>
+<tr>
+<td>새 <code>cinder-ssd</code></td>
+<td>SSD 블록 장치 두 개 → PV 두 개 → VG</td>
+</tr>
+</tbody></table>
+</div>
+<p>LVM의 VG는 PV의 구성과 할당 정보를 관리한다. 일반 파일이나 마운트할 파일시스템이 아니다. LV를 생성하고 활성화하면 Linux의 device-mapper가 논리 주소를 기반 장치의 주소로 연결하는 블록 장치를 제공한다.</p>
+<p>따라서 loop 하나 위에 여러 LV를 만들면 각각의 요청이 매핑을 거쳐 같은 backing file의 서로 다른 영역으로 이어질 수 있다. Thin LV의 경우에는 Thin pool의 추가 매핑도 거친다. 새 SSD 백엔드는 마지막 기반이 파일이 아니라 SSD다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>VG 안에 Thin pool이 따로 필요한 이유</h2>
+<p>일반적인 LV는 설정된 크기에 해당하는 VG 공간을 할당받는다. Thin provisioning은 LV의 논리 크기와 실제 데이터가 소비하는 공간을 구분한다.</p>
+<p><strong>Thin pool도 LVM이 관리하는 특수한 LV다.</strong> 내부적으로 데이터용 LV와 매핑 메타데이터용 LV를 사용해 저장 공간을 관리한다. 개별 Thin LV는 이 풀을 공유하면서 쓰기가 필요한 논리 영역에 실제 블록을 할당받는다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>역할</th>
+<th>이 구성의 예</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Thin pool</td>
+<td>여러 Thin LV에 실제 저장 공간을 제공하는 특수한 LV</td>
+<td><code>cinder-ssd-pool</code></td>
+</tr>
+<tr>
+<td>Thin LV</td>
+<td>풀에서 공간을 할당받는 개별 논리 디스크</td>
+<td><code>ssd-test</code>에 대응하는 <code>volume-…</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>“LV 안에 또 LV를 만든다”는 표현은 이 <strong>공간 할당 관계를 추상적으로 나타내는 말</strong>로는 이해할 수 있다. 다만 폴더처럼 포함되는 구조이거나, 일반 LV 위에 다시 PV와 VG를 만들어 별도의 LVM 계층을 구성한 것은 아니다. 같은 LVM의 Thin provisioning 계층이 각 Thin LV의 논리 블록을 Thin pool의 실제 데이터 블록에 매핑한다.</p>
+<p><img src="../../../assets/images/openstack-ssd-cinder-guide/thin-pool-allocation.svg" alt="VG 안의 특수한 LV인 Thin pool과 공간을 할당받는 Thin LV" loading="lazy"></p>
+<p>VG를 용량 풀이라고 부를 수 있지만, <code>thin pool</code>은 LVM에서 구체적인 의미를 가진 구성이다. VG 자체의 타입을 thin으로 바꾼 것이 아니다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Thin pool은 VG 생성 후 Cinder가 만들었다</h2>
+<p>관리자가 직접 실행한 <code>vgcreate cinder-ssd ...</code>는 두 PV를 VG에 묶는 명령이었다. 이 시점의 출력은 <code>#LV=0</code>이므로 Thin pool도 없었다.</p>
+<p>이후 Cinder 백엔드에 다음 설정을 적용했다.</p>
+<pre><code class="language-ini">[lvm-ssd]
+volume_group = cinder-ssd
+lvm_type = thin
+</code></pre>
+<p><strong>이 설정을 읽은 Cinder의 LVM 드라이버가 백엔드를 초기화하면서, 필요한 Thin pool이 없으면 LVM을 통해 생성한다.</strong> 이 구성에서 생성된 이름은 <code>cinder-ssd-pool</code>이다. Thin pool은 LVM의 저장소 구조이며, 그 생성을 요청한 관리 주체가 Cinder라는 뜻이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th>작업 주체와 동작</th>
+<th>생기는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SSD 공간 준비</td>
+<td>관리자가 <code>vgcreate</code> 실행</td>
+<td><code>cinder-ssd</code> VG</td>
+</tr>
+<tr>
+<td>Thin 백엔드 설정 적용</td>
+<td>Cinder LVM 드라이버가 LVM을 통해 생성</td>
+<td><code>cinder-ssd-pool</code> Thin pool</td>
+</tr>
+<tr>
+<td>Horizon에서 볼륨 생성</td>
+<td>Cinder LVM 드라이버가 해당 풀에 볼륨 생성</td>
+<td>개별 Thin LV</td>
+</tr>
+</tbody></table>
+</div>
+<p>볼륨 타입 <code>ssd</code>를 만든 것이 Thin pool을 생성한 것도 아니다. 볼륨 타입은 이미 준비된 백엔드를 선택할 조건을 제공한다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>Cinder가 만든 Thin pool을 읽는 방법</h2>
+<p>아래 명령은 VG 안의 LV와 각 LV가 사용하는 Thin pool을 보여 준다.</p>
+<pre><code class="language-bash">lvs -o lv_name,vg_name,lv_size,pool_lv cinder-ssd
+</code></pre>
+<p>볼륨 생성 후 출력은 다음과 같았다.</p>
+<pre><code class="language-text">LV                                           VG          LSize   Pool
+cinder-ssd-pool                              cinder-ssd  679.64g
+volume-edd1855b-558c-407e-a3eb-5cdd9c15214b    cinder-ssd    1.00g cinder-ssd-pool
+</code></pre>
+<p><code>VG</code> 열은 소속 볼륨 그룹이다. <code>Pool</code> 열은 <code>pool_lv</code>를 요청한 결과로, 그 LV가 어느 Thin pool을 사용하는지 나타낸다. Thin pool 자체 행의 <code>Pool</code>이 비어 있는 것은 다른 Thin pool에 속한 Thin LV가 아니기 때문이다.</p>
+<p><strong>첫 행의 <code>cinder-ssd-pool</code>이 특수한 LV인 Thin pool이고, 두 번째 행이 그 공간을 할당받는 Thin LV다.</strong> 둘 다 <code>lvs</code>에 표시되지만 위 출력에는 종류를 구분하는 열이 없다. 다음처럼 <code>segtype</code>을 추가하면 풀은 <code>thin-pool</code>, 개별 볼륨은 <code>thin</code>으로 구분할 수 있다.</p>
+<pre><code class="language-bash">lvs -o lv_name,vg_name,lv_size,segtype,pool_lv cinder-ssd
+</code></pre>
+<p>초기 VG 용량 715.41 GiB에 비해 Cinder가 보고한 풀 용량은 약 679.64 GiB였다. 이 초기화 결과는 약 95%에 해당한다. 차이 전체를 이미 사용된 메타데이터라고 해석하면 안 된다. 실제 할당은 다음 명령으로 조회할 수 있다.</p>
+<pre><code class="language-bash">vgs cinder-ssd
+lvs -a -o lv_name,vg_name,lv_size,segtype,pool_lv,data_percent,metadata_percent,devices cinder-ssd
+</code></pre>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>논리 용량은 물리 용량보다 커질 수 있다</h2>
+<p>Thin pool이 100 GiB여도 100 GiB Thin LV 두 개를 선언하는 구성은 가능하다. 두 LV의 논리 용량 합계가 200 GiB라고 해서 물리 데이터 200 GiB를 저장할 수 있는 것은 아니다. LVM에서 가능하더라도 Cinder를 통한 생성은 스케줄링 설정·프로젝트 쿼터·남은 용량 조건 등을 함께 만족해야 한다.</p>
+<p>예시 백엔드는 <code>max_over_subscription_ratio=&#39;20.0&#39;</code>을 보고했다. 이는 스케줄러의 Thin provisioning 용량 판단에 쓰이는 설정이며, SSD의 물리 용량이 20배가 되거나 그만큼 안전하게 써도 된다는 뜻이 아니다.</p>
+<p>VM 안의 파일시스템은 자기 디스크의 논리 용량을 보고 빈 공간을 계산한다. 따라서 게스트에 빈 공간이 보여도 여러 볼륨이 공유하는 Thin pool이 먼저 가득 찰 수 있다. 새로운 블록 할당에 필요한 데이터 공간이나 메타데이터 공간이 부족하면 쓰기가 대기하거나 오류가 발생할 수 있고, 게스트의 파일시스템과 애플리케이션에도 영향을 준다.</p>
+<p><code>Data%</code>와 <code>Meta%</code>는 각각 풀 데이터와 메타데이터의 사용 상태를 확인하는 지표다. <code>VFree</code>는 VG의 미할당 용량이므로 풀 내부의 남은 공간과 구분한다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>볼륨 연결과 파일시스템 마운트는 별도 단계다</h2>
+<p>Cinder의 데이터 볼륨은 VM에 블록 장치로 제공할 수 있다. 호스트가 그 볼륨을 일반 디렉터리에 마운트해야 VM에 줄 수 있는 것은 아니다. VM 내부에서 파일로 사용하려면 게스트가 디스크를 인식하고, 필요에 따라 파일시스템을 준비해 마운트해야 한다.</p>
+<p>물리 블록 장치든 가상 블록 장치든 파일시스템을 만든 뒤 마운트하는 기본 원리는 같다. 다만 장치 이름과 데이터의 실제 저장 위치는 다르다. 현재 기록은 <a href="06-volume-create-and-attach.html">VM 연결 단계</a>까지이며 게스트 마운트는 아직 수행 결과가 없다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

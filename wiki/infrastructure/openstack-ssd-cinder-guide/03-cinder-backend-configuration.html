@@ -1,0 +1,183 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.md. Do not edit directly. source-sha256:c04b53ade831a709d0d38bf406f1367715dcae9ffdf16cfd1c51e91c9b581004 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="기존 loop 백엔드를 보존하면서 SSD VG를 새 Cinder LVM 백엔드로 추가하는 설정과 각 이름의 의미를 설명한다.">
+  <meta name="source-sha256" content="c04b53ade831a709d0d38bf406f1367715dcae9ffdf16cfd1c51e91c9b581004">
+  <title>새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정">
+  <meta property="og:description" content="기존 loop 백엔드를 보존하면서 SSD VG를 새 Cinder LVM 백엔드로 추가하는 설정과 각 이름의 의미를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html","name":"새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정","description":"기존 loop 백엔드를 보존하면서 SSD VG를 새 Cinder LVM 백엔드로 추가하는 설정과 각 이름의 의미를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html"},"headline":"새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-cinder","name":"Cinder LVM","identifier":"project-cinder"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/03-cinder-backend-configuration.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/README.html"},{"@type":"ListItem","position":6,"name":"새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack-ssd-cinder-guide/README.html">SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>새 LVM VG를 기존 Cinder 백엔드와 함께 사용하는 설정</h1>
+      <p class="lead">기존 loop 백엔드를 보존하면서 SSD VG를 새 Cinder LVM 백엔드로 추가하는 설정과 각 이름의 의미를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">Cinder는 준비된 VG를 드라이버로 관리한다</a>
+        <a href="#section-02">세 가지 이름의 책임을 구분한다</a>
+        <a href="#section-03">Kolla의 사용자 정의 설정에 새 백엔드를 추가한다</a>
+        <a href="#section-04">전체 생성 파일을 복사하지 않은 이유</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>LVM에서 VG를 생성한 뒤에는 Cinder가 어떤 드라이버로 어느 VG를 사용할지 지정해야 한다. 이 구성은 기존 <code>cinder-volumes</code>를 유지하면서 <code>cinder-ssd</code>를 새 백엔드로 추가한다. 기존 볼륨을 새 VG로 이동하는 작업은 포함하지 않는다.</p>
+<p><a href="README.html">전체 구성으로 돌아가기</a></p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>Cinder는 준비된 VG를 드라이버로 관리한다</h2>
+<p>관리자가 호스트에서 PV와 VG를 준비하고, Cinder LVM 드라이버가 지정된 VG 안의 Thin pool과 볼륨을 관리하는 구조다. Cinder에 SSD 장치 경로 자체를 전달하는 대신 <code>volume_group</code>으로 준비된 VG를 참조한다.</p>
+<p>서비스 설정을 확인할 때는 생성된 Cinder 설정의 백엔드 항목을 읽는다. 인증 정보가 함께 들어 있을 수 있으므로 전체 파일을 외부에 붙여 넣지 않고 필요한 항목만 확인한다.</p>
+<pre><code class="language-bash">less /etc/kolla/cinder-volume/cinder.conf
+</code></pre>
+<p><code>less</code> 안에서 <code>/enabled_backends</code>를 입력하면 해당 단어를 찾고, <code>/[lvm-1]</code> 대신 <code>/lvm-1</code>로 섹션 이름을 찾을 수 있다. <code>n</code>은 다음 검색 결과, <code>q</code>는 종료다.</p>
+<p>기존 구성에는 다음 항목이 있었다.</p>
+<pre><code class="language-ini">[DEFAULT]
+enabled_backends = lvm-1
+
+[lvm-1]
+volume_group = cinder-volumes
+volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+volume_backend_name = lvm-1
+target_helper = tgtadm
+target_protocol = iscsi
+</code></pre>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>세 가지 이름의 책임을 구분한다</h2>
+<p><code>[lvm-ssd]</code>는 Cinder가 읽을 설정 섹션의 이름이다. 관리자가 정할 수 있지만 <code>enabled_backends</code>에 정확히 같은 이름으로 포함해야 한다.</p>
+<p><code>volume_group = cinder-ssd</code>는 Linux에 실제로 존재하는 VG를 지정한다. <code>volume_backend_name = ssd-storage</code>는 백엔드가 스케줄러에 보고할 이름이며, 볼륨 타입의 선택 조건과 연결한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>enabled_backends</code></td>
+<td>활성화할 백엔드 설정 섹션 목록</td>
+</tr>
+<tr>
+<td><code>volume_driver</code></td>
+<td>볼륨 작업을 처리할 드라이버 클래스</td>
+</tr>
+<tr>
+<td><code>volume_group</code></td>
+<td>LVM 드라이버가 사용할 VG</td>
+</tr>
+<tr>
+<td><code>volume_backend_name</code></td>
+<td>스케줄링 조건에 사용할 백엔드 이름</td>
+</tr>
+<tr>
+<td><code>lvm_type = thin</code></td>
+<td>Thin provisioning을 사용하는 LVM 방식</td>
+</tr>
+<tr>
+<td><code>target_helper = tgtadm</code></td>
+<td>iSCSI target 관리에 사용할 도구</td>
+</tr>
+<tr>
+<td><code>target_protocol = iscsi</code></td>
+<td>볼륨을 컴퓨트 측에 제공할 연결 프로토콜</td>
+</tr>
+</tbody></table>
+</div>
+<p>Cinder 멀티 백엔드에서 설정 섹션 이름과 <code>volume_backend_name</code>은 구분되며, 볼륨 타입의 Extra Spec으로 백엔드 조건을 지정할 수 있다. <a href="https://docs.openstack.org/cinder/latest/admin/multi-backend.html" rel="noopener noreferrer">Cinder 멀티 백엔드 문서</a></p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Kolla의 사용자 정의 설정에 새 백엔드를 추가한다</h2>
+<p><code>/etc/kolla/cinder-volume/cinder.conf</code>는 Kolla가 생성한 서비스 설정이다. 사용자 변경을 유지하려면 override 입력을 작성하고 Kolla로 다시 생성·적용한다. Kolla는 지원하는 서비스 설정의 섹션과 키를 병합하는 방식을 제공한다. <a href="https://docs.openstack.org/kolla-ansible/2026.1/admin/advanced-configuration.html#openstack-service-configuration-in-kolla" rel="noopener noreferrer">Kolla 사용자 정의 설정</a></p>
+<p>예시에서는 다음 사용자 정의 파일을 사용했다.</p>
+<pre><code class="language-text">/etc/kolla/config/cinder/cinder-volume.conf
+</code></pre>
+<p>이 사용자 정의 디렉터리는 처음에는 없을 수 있다. 디렉터리를 만들고 파일을 편집한다.</p>
+<pre><code class="language-bash">mkdir -p /etc/kolla/config/cinder
+vi /etc/kolla/config/cinder/cinder-volume.conf
+</code></pre>
+<p>추가한 내용은 다음과 같다. 이미 사용자 정의 파일이 존재하는 환경에서는 기존 내용을 보존하며 병합해야 한다.</p>
+<pre><code class="language-ini">[DEFAULT]
+enabled_backends = lvm-1,lvm-ssd
+
+[lvm-ssd]
+volume_group = cinder-ssd
+volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+volume_backend_name = ssd-storage
+lvm_type = thin
+target_helper = tgtadm
+target_protocol = iscsi
+</code></pre>
+<p><code>enabled_backends</code>에는 기존 <code>lvm-1</code>과 신규 <code>lvm-ssd</code>를 모두 넣었다. <code>[lvm-1]</code>의 상세 설정은 생성 과정의 기존 설정을 사용한다. 실제 결과에서 두 섹션이 모두 남았는지는 반드시 생성 후 확인한다.</p>
+<p><code>lvm_type = thin</code>은 VG 생성 옵션이 아니라 <strong>Cinder LVM 드라이버의 동작 설정</strong>이다. 설정을 적용한 Cinder는 지정한 VG에 필요한 Thin pool이 없으면 LVM을 통해 생성하고, 이후 개별 볼륨을 그 풀의 Thin LV로 만든다. 예시에서는 관리자가 VG를 만들고 Cinder가 <code>cinder-ssd-pool</code>을 생성했다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>전체 생성 파일을 복사하지 않은 이유</h2>
+<p>Kolla가 관리하는 공통 설정과 운영자가 변경할 값을 분리하면, 배포 도구가 제공하는 기본값·템플릿 변경을 유지하면서 필요한 항목만 지정할 수 있다. 생성 파일 전체를 override로 복사하면 변경하지 않은 예전 설정과 인증 정보까지 별도로 관리하게 될 수 있다.</p>
+<p>이 병합은 문장의 앞뒤를 찾아 바꾸는 텍스트 패치가 아니라 설정의 섹션과 키를 기준으로 한다. 다만 override 파일 자체가 변경 이력을 자동 보관하는 것은 아니다. Git 기반 변경 관리와 배포 기록은 별도 운영 과제다.</p>
+<p>파일 저장만으로 실행 중인 Cinder에 반영되지는 않는다. <a href="04-kolla-apply-and-check.html">설정 생성·적용과 검증</a>에서 변경된 결과와 실제 백엔드 상태를 확인한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
