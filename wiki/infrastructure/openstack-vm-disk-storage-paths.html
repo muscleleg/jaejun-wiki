@@ -1,0 +1,457 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/openstack-vm-disk-storage-paths.md. Do not edit directly. source-sha256:2ad262bdbb676d50938bad0eeedaee05625c9ecd1087668d11fe0ca0edc18422 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261007-history-year-1">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="이미지와 루트 디스크, 파일 기반 디스크와 Cinder LVM 볼륨, loop·iSCSI·overlay의 역할 및 실제 읽기·쓰기 경로를 비교한다.">
+  <meta name="source-sha256" content="2ad262bdbb676d50938bad0eeedaee05625c9ecd1087668d11fe0ca0edc18422">
+  <title>OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261007-history-year-1">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261007-history-year-1">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로">
+  <meta property="og:description" content="이미지와 루트 디스크, 파일 기반 디스크와 Cinder LVM 볼륨, loop·iSCSI·overlay의 역할 및 실제 읽기·쓰기 경로를 비교한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html","name":"OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로","description":"이미지와 루트 디스크, 파일 기반 디스크와 Cinder LVM 볼륨, loop·iSCSI·overlay의 역할 및 실제 읽기·쓰기 경로를 비교한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html"},"headline":"OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-openstack-nova-runtime","name":"Nova·libvirt·KVM","identifier":"project-openstack-nova-runtime"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-cinder","name":"Cinder LVM","identifier":"project-cinder"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-vm-disk-storage-paths.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>OpenStack VM 디스크의 두 저장 방식: 이미지 파일과 Cinder 볼륨의 읽기·쓰기 경로</h1>
+      <p class="lead">이미지와 루트 디스크, 파일 기반 디스크와 Cinder LVM 볼륨, loop·iSCSI·overlay의 역할 및 실제 읽기·쓰기 경로를 비교한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">1. 이미지와 루트 디스크는 무엇이 다른가?</a>
+        <a href="#section-2-vm">2. VM의 루트 디스크를 준비하는 두 방식</a>
+        <a href="#section-3-vm">3. 파일 하나가 어떻게 VM의 디스크가 되는가?</a>
+        <a href="#section-4-qemu-loop">4. QEMU의 파일 기반 디스크에는 loop가 필요하지 않다</a>
+        <a href="#section-5-cinder">5. 파일로 디스크를 제공할 수 있는데 왜 Cinder가 필요한가?</a>
+        <a href="#section-6-cinder-lvm-qemu">6. Cinder와 LVM, QEMU의 역할</a>
+        <a href="#section-7-iscsi">7. iSCSI는 무엇이며 같은 호스트에서도 왜 사용하는가?</a>
+        <a href="#section-8-cinder">8. 이미지 파일과 Cinder 볼륨의 실제 읽기·쓰기 경로</a>
+        <a href="#section-9-cinder-kvm">9. Cinder와 KVM은 매번 디스크 데이터를 전달하는가?</a>
+        <a href="#section-10-vm">10. 같은 이미지를 여러 VM에서 사용하면 데이터도 공유되는가?</a>
+        <a href="#section-11">11. 운영 관점에서 두 방식의 차이</a>
+        <a href="#section-12">12. 현재 개인 서버 구성에서 확인된 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>VM 안에서 보이는 디스크가 호스트에서도 반드시 물리 디스크나 LVM의 논리 볼륨인 것은 아니다. <strong>호스트의 일반 파일도 VM의 디스크가 될 수 있고, Cinder가 제공하는 블록 볼륨도 VM의 디스크가 될 수 있다.</strong></p>
+<p>QEMU는 이러한 저장 공간을 VM의 가상 디스크에 연결한다. VM 내부에서는 비슷하게 보이지만, 호스트 쪽의 저장 형태와 관리 주체, 실제 읽기·쓰기 경로가 다르다.</p>
+<p>이 글에서는 다음 두 구성을 비교한다.</p>
+<ul>
+<li><strong>Nova의 파일 기반 디스크</strong>: 컴퓨트 호스트의 이미지 파일을 사용하는 구성</li>
+<li><strong>Cinder LVM 볼륨</strong>: LVM의 LV를 만들고 iSCSI로 컴퓨트 호스트에 연결하는 구성</li>
+</ul>
+<p>Cinder에는 다양한 저장 백엔드가 있다. 따라서 아래의 <strong>LV·iSCSI 설명은 Cinder 전체의 공통 구조가 아니라 LVM 백엔드를 사용하는 예시</strong>다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>1. 이미지와 루트 디스크는 무엇이 다른가?</h2>
+<p>Ubuntu 이미지로 VM을 생성할 때는 <strong>초기 상태의 원본</strong>과 <strong>실제로 사용할 디스크</strong>를 구분해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>운영체제 이미지</strong></td>
+<td>VM의 초기 운영체제 상태를 제공하는 원본</td>
+</tr>
+<tr>
+<td><strong>루트 디스크</strong></td>
+<td>각 VM이 부팅하고 운영체제와 데이터를 읽고 쓰는 디스크</td>
+</tr>
+</tbody></table>
+</div>
+<p>Ubuntu 이미지 하나로 VM A와 VM B를 만들면, 두 VM은 같은 초기 상태에서 시작할 수 있다. 이후 A에서 프로그램을 설치해도 B나 원본 이미지가 함께 변경되지는 않는다.</p>
+<p>루트 디스크에는 일반적으로 Linux의 최상위 디렉터리 <code>/</code>에 해당하는 파일시스템이 들어 있다. 운영체제 설정과 프로그램, 별도 디스크로 분리하지 않은 사용자 데이터도 여기에 저장된다.</p>
+<p><strong>루트 디스크는 부팅할 때만 사용하는 공간이 아니라, VM이 실행되는 동안 계속 사용하는 기본 디스크다.</strong></p>
+<p>또한 ‘이미지’라는 단어는 두 가지 의미로 쓰인다.</p>
+<ul>
+<li>Glance에 등록된 <strong>운영체제 원본 이미지</strong></li>
+<li>실행 중인 VM의 디스크 내용을 저장하는 <strong>디스크 이미지 파일</strong></li>
+</ul>
+<p>둘 다 이미지라고 부를 수 있지만, 역할은 다르다.</p>
+
+</section>
+<section id="section-2-vm" class="markdown-section">
+<h2>2. VM의 루트 디스크를 준비하는 두 방식</h2>
+<p>Ubuntu 이미지의 내용을 어디에 준비하느냐에 따라 부팅 방식이 달라진다.</p>
+<h3>컴퓨트 호스트의 파일로 준비하기</h3>
+<p>Nova가 이미지로 인스턴스 디스크를 준비하고, QEMU가 해당 파일을 VM의 루트 디스크로 사용한다.</p>
+<h3>Cinder 볼륨으로 준비하기</h3>
+<p>이미지의 내용으로 Cinder 부팅 볼륨을 준비하고, 이를 VM에 연결해 루트 디스크로 사용한다.</p>
+<p>Nova의 블록 장치 매핑에서도 이미지로 로컬 디스크를 준비하는 경우와 이미지로 볼륨을 준비하는 경우를 구분한다. <a href="https://docs.openstack.org/nova/latest/user/block-device-mapping.html" rel="noopener noreferrer">Nova 블록 장치 매핑 문서</a></p>
+<p><strong>추가 데이터 볼륨은 부팅 방식과 별개다.</strong> 파일 기반 루트 디스크로 부팅한 VM에도 Cinder 볼륨을 추가로 연결할 수 있다.</p>
+
+</section>
+<section id="section-3-vm" class="markdown-section">
+<h2>3. 파일 하나가 어떻게 VM의 디스크가 되는가?</h2>
+<p>컴퓨트 호스트에 <code>vm-a.qcow2</code>라는 파일이 있다고 가정하자.</p>
+<p>이 파일을 QEMU의 가상 디스크에 연결하면, 호스트와 VM에서는 같은 저장 공간을 서로 다르게 보게 된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>보는 위치</th>
+<th>보이는 형태</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>호스트 Linux</td>
+<td><code>vm-a.qcow2</code>라는 일반 파일</td>
+</tr>
+<tr>
+<td>VM 내부 Linux</td>
+<td><code>/dev/vda</code> 같은 디스크 장치</td>
+</tr>
+</tbody></table>
+</div>
+<p>QEMU는 VM에서 전달된 디스크 읽기·쓰기 요청을 해석하고, 해당 데이터를 이미지 파일에서 읽거나 파일에 기록한다.</p>
+<p>예를 들어 VM이 다음과 같이 요청한다고 생각할 수 있다.</p>
+<blockquote>
+<p>“가상 디스크의 이 위치에서 데이터를 읽어 줘.”</p>
+</blockquote>
+<p>QEMU는 그 가상 디스크 위치에 대응하는 이미지 파일의 데이터를 찾아 반환한다. <code>qcow2</code>는 내부 매핑 정보를 사용하는 형식이므로, 가상 디스크 위치와 호스트 파일의 위치가 단순히 같은 숫자로 대응하는 것은 아니다.</p>
+<p><strong>파일에는 게스트의 데이터뿐 아니라 파티션 정보, 파일시스템 정보, 운영체제 파일도 저장될 수 있다.</strong> QEMU는 raw·qcow2 등 여러 디스크 이미지 형식을 지원한다. <a href="https://www.qemu.org/docs/master/system/images.html" rel="noopener noreferrer">QEMU 디스크 이미지 문서</a></p>
+<p>파일은 VM마다 반드시 하나인 것이 아니라 <strong>가상 디스크마다 저장 대상이 연결되는 구조</strong>다. VM에 디스크가 여러 개 있다면 각각 다른 이미지 파일이나 블록 장치를 사용할 수 있다.</p>
+
+</section>
+<section id="section-4-qemu-loop" class="markdown-section">
+<h2>4. QEMU의 파일 기반 디스크에는 loop가 필요하지 않다</h2>
+<p>loop와 QEMU는 모두 파일을 디스크처럼 사용할 수 있게 하지만, 제공하는 대상이 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>제공 대상</th>
+<th>처리 주체</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>loop</strong></td>
+<td>호스트 Linux에 <code>/dev/loopN</code> 블록 장치 제공</td>
+<td>호스트 커널의 loop 드라이버</td>
+</tr>
+<tr>
+<td><strong>QEMU의 파일 기반 가상 디스크</strong></td>
+<td>VM 내부에 가상 디스크 제공</td>
+<td>QEMU의 가상 장치·이미지 처리 기능</td>
+</tr>
+</tbody></table>
+</div>
+<p>LVM은 블록 장치를 입력으로 사용한다. 따라서 일반 파일을 LVM의 저장 공간으로 사용하려면 먼저 loop 블록 장치로 연결하는 과정이 필요하다.</p>
+<p>반면 <strong>QEMU는 이미지 파일을 직접 사용할 수 있다.</strong> 호스트에 <code>/dev/loopN</code>을 만든 뒤 그 장치를 QEMU에 넘길 필요가 없다.</p>
+<p>파일 기반 VM 디스크를 위해 Cinder용 PV·VG를 반드시 준비해야 하는 것도 아니다. 해당 파일을 저장할 호스트 파일시스템과 여유 공간이 있으면 된다.</p>
+
+</section>
+<section id="section-5-cinder" class="markdown-section">
+<h2>5. 파일로 디스크를 제공할 수 있는데 왜 Cinder가 필요한가?</h2>
+<p>파일을 디스크로 제공하는 기능만으로도 VM을 실행할 수 있다. 하지만 클라우드에서는 저장 공간을 여러 사용자와 VM에 걸쳐 관리해야 한다.</p>
+<p>예를 들어 다음과 같은 요구가 생긴다.</p>
+<ul>
+<li>특정 프로젝트 소유의 100GB 볼륨을 생성한다.</li>
+<li>VM을 삭제해도 볼륨은 유지한다.</li>
+<li>데이터 볼륨을 기존 VM에서 분리해 다른 VM에 연결한다.</li>
+<li>볼륨 타입에 따라 사용할 저장 백엔드를 선택한다.</li>
+<li>볼륨의 크기와 연결 상태를 API로 조회한다.</li>
+</ul>
+<p><strong>Cinder는 저장 공간을 독립적인 클라우드 자원으로 관리하는 서비스다.</strong> Horizon이나 CLI, API를 통해 볼륨을 생성하고 관리할 수 있게 한다. <a href="https://docs.openstack.org/cinder/latest/" rel="noopener noreferrer">Cinder 공식 문서</a></p>
+<p>파일로는 데이터를 보존할 수 없어서 Cinder를 쓰는 것이 아니다. <strong>파일도 보존할 수 있지만, Cinder는 저장 공간의 소유권·생명주기·연결 상태를 일관되게 관리하는 체계를 제공한다.</strong></p>
+
+</section>
+<section id="section-6-cinder-lvm-qemu" class="markdown-section">
+<h2>6. Cinder와 LVM, QEMU의 역할</h2>
+<p>Cinder LVM 백엔드에서는 다음과 같이 역할이 나뉜다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LVM</strong></td>
+<td>물리 저장 공간을 관리하고 LV라는 논리 블록 장치를 제공</td>
+</tr>
+<tr>
+<td><strong>Cinder</strong></td>
+<td>볼륨 생성·삭제·연결 등을 관리하고 LVM 드라이버를 통해 저장 공간 준비</td>
+</tr>
+<tr>
+<td><strong>QEMU</strong></td>
+<td>연결된 저장 공간을 VM의 가상 디스크로 제공</td>
+</tr>
+</tbody></table>
+</div>
+<p>저장 공간을 준비하는 과정은 다음과 같다.</p>
+<ol>
+<li>SSD나 파티션을 <strong>LVM의 PV로 등록</strong>한다.</li>
+<li>PV들을 <strong>VG로 묶는다.</strong></li>
+<li>Cinder 설정에 <strong>사용할 VG 이름을 지정</strong>한다.</li>
+<li>Cinder LVM 드라이버가 그 저장 공간에서 볼륨을 생성한다.</li>
+</ol>
+<p>따라서 ‘PV를 Cinder에 등록한다’기보다는 <strong>LVM에 PV·VG를 준비하고, Cinder에 사용할 VG를 지정한다</strong>고 표현하는 것이 정확하다.</p>
+<p>Thin 구성을 사용하면 Cinder 볼륨은 thin pool의 공간을 사용하는 thin LV로 만들어질 수 있다. QEMU가 사용하는 것은 이 저장 공간에 연결된 블록 장치다.</p>
+
+</section>
+<section id="section-7-iscsi" class="markdown-section">
+<h2>7. iSCSI는 무엇이며 같은 호스트에서도 왜 사용하는가?</h2>
+<p>iSCSI는 <strong>SCSI 저장장치 명령과 데이터를 TCP/IP로 전달하는 프로토콜</strong>이다.</p>
+<p>다른 서버의 저장 공간을 사용하는 쪽에서도 블록 장치로 접근할 수 있게 한다. 파일 이름을 전달하는 방식이 아니라, 디스크의 위치와 길이를 지정하는 읽기·쓰기 요청을 전달한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>iSCSI target</strong></td>
+<td>저장 공간을 제공하는 쪽</td>
+</tr>
+<tr>
+<td><strong>iSCSI initiator</strong></td>
+<td>해당 저장 공간에 연결해 사용하는 쪽</td>
+</tr>
+</tbody></table>
+</div>
+<p>Cinder LVM 백엔드에서 iSCSI를 선택하면 저장소 쪽이 LV를 제공하고, 컴퓨트 호스트가 이에 연결한다. <a href="https://docs.openstack.org/cinder/latest/configuration/block-storage/drivers/lvm-volume-driver.html" rel="noopener noreferrer">Cinder LVM 드라이버 문서</a></p>
+<p>컴퓨트와 저장소가 같은 PC에 있어도 선택한 연결 방식이 자동으로 로컬 LV 직접 접근으로 바뀌지는 않는다.</p>
+<p><strong>QEMU가 로컬 LV를 직접 사용하는 것은 기술적으로 가능하다.</strong> 다만 그것은 로컬 블록 장치를 직접 연결하는 구성이며, Cinder의 iSCSI 연결 절차와는 다르다.</p>
+<p>같은 호스트의 주소로 iSCSI에 연결한다면 일반적으로 호스트 내부에서 통신이 처리된다. <strong>iSCSI를 사용한다고 반드시 공유기나 외부 네트워크까지 패킷이 나가는 것은 아니다.</strong></p>
+
+</section>
+<section id="section-8-cinder" class="markdown-section">
+<h2>8. 이미지 파일과 Cinder 볼륨의 실제 읽기·쓰기 경로</h2>
+<p>다음 그림은 <strong>QEMU가 가상 디스크의 I/O를 처리하는 구성</strong>을 비교한다. 캐시와 완료 통지, 세부 드라이버 동작은 생략했다.</p>
+<p><img src="../../assets/images/openstack-vm-disk-storage-paths/storage-io-paths.svg" alt="이미지 파일과 Cinder LVM 볼륨의 읽기·쓰기 경로 비교" loading="lazy"></p>
+<p><a href="../../assets/images/openstack-vm-disk-storage-paths/storage-io-paths.svg">비교 구조도 SVG 원본</a></p>
+<h3>두 방식에 공통인 게스트 내부 처리</h3>
+<p>VM의 프로그램이 <code>/home/ubuntu/memo.txt</code>를 읽는다고 가정하자.</p>
+<ol>
+<li>프로그램이 <strong>게스트 커널</strong>에 파일 읽기를 요청한다.</li>
+<li><strong>게스트 파일시스템</strong>이 파일 데이터의 위치를 찾는다.</li>
+<li>게스트 디스크 드라이버가 <strong>가상 디스크에 블록 읽기 요청</strong>을 보낸다.</li>
+</ol>
+<p>이 시점에 QEMU가 처리하는 것은 일반적으로 게스트의 파일 이름이 아니라 <strong>가상 디스크 위치에 대한 요청</strong>이다.</p>
+<h3>A. 이미지 파일을 사용하는 경우</h3>
+<p>QEMU는 가상 디스크 위치를 이미지 파일 내부 위치로 연결한다. 이후 호스트의 파일 I/O 기능을 사용해 데이터를 읽는다.</p>
+<blockquote>
+<p><strong>게스트 파일시스템 → 가상 디스크 → QEMU → 호스트 이미지 파일 → 호스트 파일시스템·블록 계층 → SSD</strong></p>
+</blockquote>
+<p>여기에는 서로 다른 두 파일시스템이 있다.</p>
+<ul>
+<li><strong>게스트 파일시스템</strong>: <code>memo.txt</code> 같은 VM 내부 파일을 관리한다.</li>
+<li><strong>호스트 파일시스템</strong>: <code>vm-a.qcow2</code>라는 호스트 파일을 관리한다.</li>
+</ul>
+<p>게스트 파일시스템의 내용은 호스트 이미지 파일 안에 데이터로 저장된다.</p>
+<h3>B. Cinder LVM 볼륨을 사용하는 경우</h3>
+<p>QEMU는 컴퓨트 호스트에 연결된 iSCSI 블록 장치에 I/O를 수행한다. 요청은 저장소 쪽으로 전달되고, 해당 LV의 데이터에 접근한다.</p>
+<blockquote>
+<p><strong>게스트 파일시스템 → 가상 디스크 → QEMU → 호스트 iSCSI 블록 장치 → iSCSI target → LV → SSD</strong></p>
+</blockquote>
+<p>이 구성에서는 볼륨 데이터를 저장하기 위해 <strong>호스트 파일시스템의 이미지 파일을 거치지 않는다.</strong> LV를 직접 블록 저장 공간으로 제공한다.</p>
+<p>다만 LV의 데이터 안에는 VM이 사용하는 <strong>게스트 파일시스템</strong>이 들어 있을 수 있다. ‘호스트 이미지 파일이 없다’는 것이 ‘게스트에도 파일시스템이 없다’는 뜻은 아니다.</p>
+<h3>쓰기도 같은 저장 대상으로 이어진다</h3>
+<p>쓰기 요청도 각각 이미지 파일 또는 LV에 반영된다. 다만 게스트·호스트·저장장치의 캐시가 개입할 수 있으므로, <strong>프로그램의 쓰기 호출이 반환된 순간과 실제 SSD에 영구 기록된 순간이 항상 같은 것은 아니다.</strong></p>
+<p>또한 모든 가상화 구성에서 데이터가 반드시 QEMU 프로세스를 통과하는 것은 아니다. 장치 처리를 커널이나 별도 프로세스에 맡기거나, 장치를 VM에 직접 할당하면 경로가 달라진다.</p>
+
+</section>
+<section id="section-9-cinder-kvm" class="markdown-section">
+<h2>9. Cinder와 KVM은 매번 디스크 데이터를 전달하는가?</h2>
+<p><strong>Cinder API는 디스크 데이터의 전달 경로가 아니다.</strong></p>
+<p>Cinder는 볼륨을 생성하고 연결에 필요한 정보를 제공하며, 연결·해제 상태를 관리한다. 연결이 끝난 뒤의 데이터는 iSCSI 같은 저장장치 통신 경로로 전달된다.</p>
+<p>KVM 역시 모든 디스크 데이터를 직접 읽고 쓰는 역할을 맡지 않는다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>주된 책임</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Cinder</strong></td>
+<td>볼륨 자원의 생성·연결·삭제 관리</td>
+</tr>
+<tr>
+<td><strong>QEMU</strong></td>
+<td>가상 디스크 요청과 저장 대상 연결·처리</td>
+</tr>
+<tr>
+<td><strong>KVM</strong></td>
+<td>게스트 CPU 실행과 메모리 가상화의 핵심 기능</td>
+</tr>
+<tr>
+<td><strong>호스트 커널의 I/O 기능</strong></td>
+<td>파일·블록 장치·네트워크 요청 처리</td>
+</tr>
+</tbody></table>
+</div>
+<p>가상 장치 요청을 처리하기 위해 KVM에서 QEMU로 제어가 돌아올 수는 있다. 하지만 <strong>그 뒤 QEMU가 파일이나 블록 장치에 수행하는 모든 I/O가 다시 KVM을 통과하는 것은 아니다.</strong></p>
+
+</section>
+<section id="section-10-vm" class="markdown-section">
+<h2>10. 같은 이미지를 여러 VM에서 사용하면 데이터도 공유되는가?</h2>
+<p>같은 Ubuntu 이미지를 선택했다는 것은 <strong>동일한 초기 상태를 사용한다는 뜻</strong>이다. 실행 중인 모든 VM이 하나의 디스크에 함께 쓰는 것은 아니다.</p>
+<p>대표적으로 두 가지 준비 방식이 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>구조</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>독립 복사</strong></td>
+<td>각 VM에 원본 내용을 담은 독립 디스크를 준비</td>
+</tr>
+<tr>
+<td><strong>원본 공유와 변경분 분리</strong></td>
+<td>읽기 전용 원본을 공유하고, VM마다 별도의 overlay를 준비</td>
+</tr>
+</tbody></table>
+</div>
+<h3>원본 공유와 overlay</h3>
+<p>QEMU의 qcow2는 backing file을 이용해 원본과 변경분을 나눌 수 있다.</p>
+<p>예를 들어 VM A와 VM B가 같은 원본을 참조하더라도:</p>
+<ul>
+<li>A의 쓰기는 <strong>A의 overlay</strong>에 기록한다.</li>
+<li>B의 쓰기는 <strong>B의 overlay</strong>에 기록한다.</li>
+<li>읽을 데이터가 자신의 overlay에 있으면 그 데이터를 읽는다.</li>
+<li>자신의 overlay에 없으면 원본에서 읽는다.</li>
+</ul>
+<p>VM 내부에서는 원본과 overlay가 합쳐진 <strong>디스크 하나</strong>로 보인다. <a href="https://www.qemu.org/docs/master/tools/qemu-img.html" rel="noopener noreferrer">QEMU 이미지 도구 문서</a></p>
+<p>변경분에는 새로 추가한 파일뿐 아니라 기존 파일 수정과 삭제에 따른 파일시스템 정보 변경도 포함된다.</p>
+<p>이 구조에서는 원본도 해당 VM 디스크의 구성 요소다. <strong>overlay 파일만 보관한다고 디스크 전체가 보존되는 것은 아니며, 원본 의존성도 함께 관리해야 한다.</strong></p>
+<p>원본이 항상 Glance 서버에서 실시간으로 읽히는 것도 아니다. 컴퓨트 호스트에 캐시된 원본을 참조하는 구성도 가능하다.</p>
+<p><strong>특정 VM이 독립 복사인지 원본 공유인지 확인하려면 실제 디스크 설정과 backing chain을 조회해야 한다.</strong> <code>qcow2</code>라는 확장자나 같은 이미지 이름만으로 판단할 수는 없다.</p>
+
+</section>
+<section id="section-11" class="markdown-section">
+<h2>11. 운영 관점에서 두 방식의 차이</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>Nova의 파일 기반 디스크</th>
+<th>Cinder LVM 볼륨</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>예시 저장 형태</td>
+<td>호스트의 이미지 파일</td>
+<td>저장소의 LV</td>
+</tr>
+<tr>
+<td>관리 단위</td>
+<td>VM에 종속된 인스턴스 디스크</td>
+<td>별도 ID를 가진 볼륨 자원</td>
+</tr>
+<tr>
+<td>Cinder용 PV·VG</td>
+<td>필요 없음</td>
+<td>LVM 백엔드에서는 필요</td>
+</tr>
+<tr>
+<td>VM 삭제 시</td>
+<td>일반적으로 함께 삭제</td>
+<td>연결의 삭제 옵션에 따라 유지 또는 삭제</td>
+</tr>
+<tr>
+<td>다른 VM에서 재사용</td>
+<td>파일 복사·연결 등을 별도로 관리</td>
+<td>볼륨 연결·해제 절차로 관리</td>
+</tr>
+<tr>
+<td>저장소 위치</td>
+<td>이 예시에서는 컴퓨트 호스트</td>
+<td>컴퓨트와 같거나 다른 호스트</td>
+</tr>
+<tr>
+<td>데이터 접근</td>
+<td>파일 I/O</td>
+<td>이 예시에서는 iSCSI 블록 I/O</td>
+</tr>
+</tbody></table>
+</div>
+<p>파일 기반 디스크를 ‘임시 디스크’라고 부르더라도, <strong>일반적인 VM 재부팅이나 전원 끄기만으로 내용이 사라진다는 뜻은 아니다.</strong> 주로 VM의 생명주기와 함께 관리된다는 의미다.</p>
+<p>반대로 Cinder 볼륨을 사용한다고 데이터 복제나 고가용성이 자동으로 생기는 것은 아니다. 단일 서버의 LVM 저장소라면 그 서버나 SSD의 장애에 영향을 받는다.</p>
+<p>파일 기반인지 블록 기반인지 만으로 어느 쪽이 더 빠르다고 단정할 수도 없다. 이미지 형식, 캐시, 네트워크, SSD, 저장 백엔드 구성이 성능에 함께 영향을 준다.</p>
+
+</section>
+<section id="section-12" class="markdown-section">
+<h2>12. 현재 개인 서버 구성에서 확인된 범위</h2>
+<p>제공된 설정과 출력에서는 다음이 확인됐다.</p>
+<ul>
+<li>SSD 두 개가 <code>cinder-ssd</code> VG에 포함되어 있다.</li>
+<li>Cinder의 SSD 백엔드는 LVM과 thin 구성을 사용한다.</li>
+<li><code>ssd-test</code> 볼륨에 대응하는 thin LV가 생성됐다.</li>
+<li>해당 볼륨이 VM에 연결되어 <code>in-use</code> 상태로 바뀌었다.</li>
+<li>Cinder 설정에는 iSCSI 전송 방식이 지정되어 있다.</li>
+</ul>
+<p>따라서 추가 볼륨은 <strong>Cinder LVM + iSCSI 구성으로 제공하도록 설정되어 있다</strong>고 설명할 수 있다.</p>
+<p>다만 <code>test-vm</code>의 루트 디스크가 독립 복사인지, backing file을 참조하는 overlay인지에 대해서는 실제 디스크 조회가 완료되지 않았다. 현재 실행 중인 I/O 경로를 추적한 결과도 없으므로, <strong>설정과 개념으로 설명한 구조를 런타임 검증 결과와 구분해야 한다.</strong></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
