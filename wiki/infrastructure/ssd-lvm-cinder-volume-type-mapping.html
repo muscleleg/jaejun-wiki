@@ -1,0 +1,274 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.md. Do not edit directly. source-sha256:60e625750651e59691d7c075cfcd85b57fdddbe8edce5452a9461436fa718626 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SSD의 PV 등록·VG 구성부터 Cinder 백엔드와 thin pool, 볼륨 타입 추가 사양을 연결하고 Terraform·Kubernetes StorageClass가 같은 타입을 선택하는 관계를 설명한다.">
+  <meta name="source-sha256" content="60e625750651e59691d7c075cfcd85b57fdddbe8edce5452a9461436fa718626">
+  <title>SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기">
+  <meta property="og:description" content="SSD의 PV 등록·VG 구성부터 Cinder 백엔드와 thin pool, 볼륨 타입 추가 사양을 연결하고 Terraform·Kubernetes StorageClass가 같은 타입을 선택하는 관계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html","name":"SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기","description":"SSD의 PV 등록·VG 구성부터 Cinder 백엔드와 thin pool, 볼륨 타입 추가 사양을 연결하고 Terraform·Kubernetes StorageClass가 같은 타입을 선택하는 관계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html"},"headline":"SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-cinder","name":"Cinder LVM","identifier":"project-cinder"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/ssd-lvm-cinder-volume-type-mapping.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ssd-cinder-guide/README.html"},{"@type":"ListItem","position":6,"name":"SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack-ssd-cinder-guide/README.html">SSD를 OpenStack Cinder 저장소로 구성하고 VM에 연결하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>SSD를 LVM에 등록하고 Cinder 볼륨 타입으로 연결하기</h1>
+      <p class="lead">SSD의 PV 등록·VG 구성부터 Cinder 백엔드와 thin pool, 볼륨 타입 추가 사양을 연결하고 Terraform·Kubernetes StorageClass가 같은 타입을 선택하는 관계를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-ssd-pv">1. SSD를 PV로 등록한다</a>
+        <a href="#section-2-pv-vg">2. PV들을 VG로 묶는다</a>
+        <a href="#section-3-cinder-vg">3. Cinder에 이 VG를 사용하는 백엔드를 등록한다</a>
+        <a href="#section-4-thin-pool-cinder">4. thin pool은 Cinder가 준비한다</a>
+        <a href="#section-5-cinder">5. Cinder 볼륨 타입을 만든다</a>
+        <a href="#section-6-ssd">6. 사용자가 <code>ssd</code> 타입으로 볼륨을 요청하면</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>OpenStack에서 볼륨을 만들 때 <code>ssd</code> 타입을 선택하면 실제 SSD에 공간이 할당되도록 구성하려면, 물리 저장장치부터 사용자가 선택할 볼륨 타입까지 연결해야 한다.</p>
+<p>전체 관계는 다음과 같다.</p>
+<pre><code class="language-text">SSD 두 개
+    ↓ LVM이 관리하도록 등록
+PV 두 개
+    ↓ 저장 공간을 하나의 그룹으로 묶음
+VG: cinder-ssd
+    ↑ 이 VG를 사용하도록 Cinder 설정
+Cinder 백엔드
+  설정 섹션: lvm-ssd
+  백엔드 이름: ssd-storage
+    ↑ 이 백엔드를 선택하도록 연결
+Cinder 볼륨 타입: ssd
+    ↑
+사용자가 볼륨 생성 시 선택
+</code></pre>
+<p>여기서 <strong>PV·VG는 LVM의 개념이고, 백엔드·볼륨 타입은 Cinder의 개념</strong>이다.</p>
+</div>
+        <section id="section-1-ssd-pv" class="markdown-section">
+<h2>1. SSD를 PV로 등록한다</h2>
+<p>SSD는 Linux에서 이미 블록장치로 보인다. <code>pvcreate</code>는 SSD를 새 블록장치로 만드는 명령이 아니라, <strong>그 장치를 LVM이 관리할 수 있도록 메타데이터를 기록하는 명령</strong>이다.</p>
+<p>데이터를 지워도 되는 대상 SSD임을 확인하고 초기화한 뒤, 당시에는 다음 명령으로 등록했다.</p>
+<pre><code class="language-bash">pvcreate &quot;$MICRON_SSD&quot; &quot;$SAMSUNG_SSD&quot;
+</code></pre>
+<p>두 변수에는 각각 SSD의 <code>/dev/disk/by-id/...</code> 경로를 넣어둔 상태였다.</p>
+<p>등록 결과는 다음 명령으로 확인한다.</p>
+<pre><code class="language-bash">pvs -o pv_name,vg_name,pv_size,pv_free
+</code></pre>
+<pre><code class="language-text">PV             VG   PSize     PFree
+/dev/nvme2n1        238.47g   238.47g
+/dev/nvme3n1       &lt;476.94g  &lt;476.94g
+</code></pre>
+<p><code>VG</code>가 비어 있다는 것은 <strong>LVM에 PV로 등록했지만 아직 어느 볼륨 그룹에도 포함하지 않았다는 뜻</strong>이다.</p>
+<p>여기서 PV는 LVM의 <strong>Physical Volume</strong>이다. Kubernetes의 PersistentVolume과는 다른 개념이다.</p>
+
+</section>
+<section id="section-2-pv-vg" class="markdown-section">
+<h2>2. PV들을 VG로 묶는다</h2>
+<p>PV 두 개의 공간을 하나의 그룹에서 관리하도록 VG를 만든다.</p>
+<pre><code class="language-bash">vgcreate cinder-ssd &quot;$MICRON_SSD&quot; &quot;$SAMSUNG_SSD&quot;
+</code></pre>
+<p><code>cinder-ssd</code>는 우리가 정한 VG 이름이다.</p>
+<pre><code class="language-text">PV: 약 238GiB ─┐
+               ├─ VG: cinder-ssd, 약 715GiB
+PV: 약 477GiB ─┘
+</code></pre>
+<p>확인은 다음과 같이 한다.</p>
+<pre><code class="language-bash">vgs
+pvs -o pv_name,vg_name,pv_size,pv_free
+</code></pre>
+<p>당시 결과는 다음과 같았다.</p>
+<pre><code class="language-text">VG           #PV  #LV   VSize    VFree
+cinder-ssd      2    0   715.41g  715.41g
+</code></pre>
+<ul>
+<li><code>#PV 2</code>: 두 PV가 이 VG에 속한다.</li>
+<li><code>#LV 0</code>: 아직 논리 볼륨은 없다.</li>
+<li><code>VFree 715.41g</code>: LV에 할당할 수 있는 공간이 남아 있다.</li>
+</ul>
+<p><strong>VG를 만들었다고 새 디스크가 하나 더 나타나는 것은 아니다.</strong> VG는 실제 PV의 공간을 묶어 관리하는 메타데이터로 정의된다. 나중에 활성화된 LV를 만들면 Linux에서 사용할 블록장치가 나타난다.</p>
+<p>또한 PV를 VG 하나로 묶는 것만으로 RAID나 데이터 복제가 구성되지는 않는다.</p>
+
+</section>
+<section id="section-3-cinder-vg" class="markdown-section">
+<h2>3. Cinder에 이 VG를 사용하는 백엔드를 등록한다</h2>
+<p>LVM에 VG를 만들어도 Cinder가 자동으로 그 공간을 사용하는 것은 아니다. Cinder에 “<strong>이 드라이버로 이 VG를 관리하라</strong>”고 설정해야 한다.</p>
+<p>Cinder 백엔드 설정의 핵심은 다음과 같았다.</p>
+<pre><code class="language-ini">[lvm-ssd]
+volume_driver = cinder.volume.drivers.lvm.LVMVolumeDriver
+volume_group = cinder-ssd
+volume_backend_name = ssd-storage
+lvm_type = thin
+target_helper = tgtadm
+target_protocol = iscsi
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>[lvm-ssd]</code></td>
+<td>이 백엔드 설정을 구분하는 섹션 이름</td>
+</tr>
+<tr>
+<td><code>volume_driver</code></td>
+<td>LVM으로 볼륨을 관리하는 Cinder 드라이버</td>
+</tr>
+<tr>
+<td><code>volume_group = cinder-ssd</code></td>
+<td>사용할 기존 LVM VG</td>
+</tr>
+<tr>
+<td><code>volume_backend_name = ssd-storage</code></td>
+<td>볼륨 타입에서 백엔드를 선택할 때 사용하는 이름</td>
+</tr>
+<tr>
+<td><code>lvm_type = thin</code></td>
+<td>thin provisioning 방식으로 볼륨 생성</td>
+</tr>
+<tr>
+<td><code>target_helper</code>, <code>target_protocol</code></td>
+<td>생성한 볼륨을 iSCSI로 제공하기 위한 설정</td>
+</tr>
+</tbody></table>
+</div>
+<p>설정 섹션을 실제로 사용하도록 <code>enabled_backends</code>에도 추가했다.</p>
+<pre><code class="language-ini">[DEFAULT]
+enabled_backends = lvm-1,lvm-ssd
+</code></pre>
+<p>여기서 <code>lvm-1</code>은 기존 백엔드이며, <code>lvm-ssd</code>가 추가한 백엔드다.</p>
+<p>이름들의 역할을 구분하는 것이 중요하다.</p>
+<pre><code class="language-text">lvm-ssd      → Cinder 설정 섹션을 선택하는 이름
+cinder-ssd   → LVM의 VG 이름
+ssd-storage  → Cinder 백엔드를 선택하는 데 사용하는 이름
+</code></pre>
+<p>Kolla 환경에서는 이러한 사용자 설정을 Kolla가 읽는 오버라이드 파일에 작성한다. Kolla가 기본 설정과 합쳐 서비스용 설정 파일을 생성하고 적용한다.</p>
+
+</section>
+<section id="section-4-thin-pool-cinder" class="markdown-section">
+<h2>4. thin pool은 Cinder가 준비한다</h2>
+<p>앞에서 실행한 <code>vgcreate</code>는 VG만 만들었다. 그 명령으로 thin pool까지 만든 것은 아니다.</p>
+<p>Cinder의 LVM 백엔드를 <code>lvm_type = thin</code>으로 구성했기 때문에, <strong>Cinder가 해당 VG 안에 필요한 thin pool을 준비하고 그 공간을 사용하는 thin LV를 만든다.</strong></p>
+<p>이 환경에서는 이후 다음과 같은 구조가 확인됐다.</p>
+<pre><code class="language-text">VG: cinder-ssd
+ ├─ thin pool: cinder-ssd-pool
+ └─ thin LV: volume-&lt;볼륨 UUID&gt;
+       └─ cinder-ssd-pool에서 저장 공간을 할당받음
+</code></pre>
+<p>thin pool도 LVM의 특수한 LV다. 다만 <strong>thin LV 안에 다시 LV를 만드는 구조는 아니다.</strong> thin LV는 thin pool의 데이터 공간에서 실제 저장 공간을 할당받는다.</p>
+<p>이 시점까지 준비한 것은 Cinder가 사용할 저장소다. 사용자가 볼륨을 생성할 때 이 백엔드를 선택할 방법은 다음 단계에서 만든다.</p>
+
+</section>
+<section id="section-5-cinder" class="markdown-section">
+<h2>5. Cinder 볼륨 타입을 만든다</h2>
+<p>볼륨 타입은 <strong>볼륨을 생성할 때 선택할 수 있는 저장소 특성의 묶음</strong>이다. 타입 자체가 디스크이거나 저장 공간을 예약하는 것은 아니다.</p>
+<p>Horizon에서는 다음 메뉴에서 관리한다.</p>
+<pre><code class="language-text">관리자 → 볼륨 → 볼륨 타입
+</code></pre>
+<p>먼저 이름이 <code>ssd</code>인 볼륨 타입을 만든다. 그다음 해당 타입의 <strong>추가 사양(View Extra Specs)에</strong> 다음 항목을 넣는다.</p>
+<pre><code class="language-text">Key:   volume_backend_name
+Value: ssd-storage
+</code></pre>
+<p>그러면 다음 연결이 생긴다.</p>
+<pre><code class="language-text">볼륨 타입: ssd
+  추가 사양:
+    volume_backend_name = ssd-storage
+                    ↓
+조건에 맞는 Cinder 백엔드
+    volume_backend_name = ssd-storage
+    volume_group = cinder-ssd
+</code></pre>
+<p><code>ssd</code>라는 이름 자체가 SSD를 감지하거나 선택하는 것은 아니다. <strong>추가 사양에 적은 백엔드 이름이 연결의 핵심</strong>이다.</p>
+<p>CLI에서는 기존 타입의 설정을 이렇게 확인할 수 있다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab volume type show ssd
+</code></pre>
+<p>출력에서 다음 관계를 확인한다.</p>
+<pre><code class="language-text">name: ssd
+properties: volume_backend_name=&#39;ssd-storage&#39;
+</code></pre>
+
+</section>
+<section id="section-6-ssd" class="markdown-section">
+<h2>6. 사용자가 <code>ssd</code> 타입으로 볼륨을 요청하면</h2>
+<p>이제 사용자는 SSD의 장치 경로나 LVM VG 이름을 알 필요 없이, 볼륨 생성 시 <code>ssd</code> 타입을 선택하면 된다.</p>
+<pre><code class="language-text">“ssd 타입으로 10GiB 볼륨을 만들어줘”
+    ↓
+Cinder가 ssd 타입의 추가 사양 확인
+    ↓
+ssd-storage 조건과 용량 등 요구사항을 만족하는 백엔드 선택
+    ↓
+해당 백엔드의 LVM 드라이버가 cinder-ssd VG 사용
+    ↓
+thin pool을 사용하는 thin LV 생성
+    ↓
+Cinder 볼륨으로 관리하고, 요청 시 VM에 연결
+</code></pre>
+<p>Terraform에서 사용했던 다음 설정도 같은 의미다.</p>
+<pre><code class="language-hcl">volume_type = &quot;ssd&quot;
+</code></pre>
+<p>Kubernetes StorageClass에서 지정하는 다음 값도 <strong>같은 Cinder 볼륨 타입을 선택하는 설정</strong>이다.</p>
+<pre><code class="language-yaml">parameters:
+  type: ssd
+</code></pre>
+<p>따라서 StorageClass에 물리 SSD 경로나 VG 이름을 다시 적을 필요는 없다. Kubernetes는 Cinder에 <code>ssd</code> 타입의 볼륨을 요청하고, 실제 저장소 선택과 LV 생성은 이미 구성한 Cinder 백엔드가 담당한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

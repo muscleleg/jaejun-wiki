@@ -1,0 +1,164 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.md. Do not edit directly. source-sha256:f4ab8faf08ac0f26bcdd24d6a54f584a68c850277650ff145055c99e6bab6e30 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SSH 키 인증과 ProxyJump, 직접 라우팅을 통한 접속의 차이를 설명한다.">
+  <meta name="source-sha256" content="f4ab8faf08ac0f26bcdd24d6a54f584a68c850277650ff145055c99e6bab6e30">
+  <title>SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가">
+  <meta property="og:description" content="SSH 키 인증과 ProxyJump, 직접 라우팅을 통한 접속의 차이를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html","name":"SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가","description":"SSH 키 인증과 ProxyJump, 직접 라우팅을 통한 접속의 차이를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html"},"headline":"SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/06-ssh-authentication.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/README.html"},{"@type":"ListItem","position":6,"name":"SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/terraform-openstack-foundation/README.html">Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가</h1>
+      <p class="lead">SSH 키 인증과 ProxyJump, 직접 라우팅을 통한 접속의 차이를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">개인키는 맥에 두고 공개키를 등록한다</a>
+        <a href="#section-02">서버는 개인키를 받지 않고 서명을 검증한다</a>
+        <a href="#section-03">ProxyJump는 개인키를 중간 서버에 복사하지 않는다</a>
+        <a href="#section-04">직접 라우팅 이후에는 중간 SSH 통로를 생략할 수 있다</a>
+        <a href="#section-05">오류는 발생한 층에서 해석한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>VM의 IP로 패킷이 도착해도 게스트 계정에 로그인할 권한이 없으면 SSH 접속은 실패한다. <strong>네트워크 경로는 목적지에 도달하는 문제이고, 공개키 인증은 접속자가 허용된 개인키를 보유했는지 확인하는 문제다.</strong> 이 문서는 키 생성·등록과 ProxyJump를 설명하며 서명 알고리즘의 수학적 증명은 범위에 포함하지 않는다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>개인키는 맥에 두고 공개키를 등록한다</h2>
+<p>맥에서 전용 키를 생성한 명령은 다음과 같다. 같은 경로에 키가 이미 있다면 덮어쓰는 용도로 재실행하지 않는다.</p>
+<pre><code class="language-bash">ssh-keygen -t ed25519 \
+  -f ~/.ssh/openstack-k8s-lab \
+  -C &quot;openstack-k8s-lab&quot;
+</code></pre>
+<p><code>-t</code>는 키 알고리즘, <code>-f</code>는 저장 경로, 대문자 <code>-C</code>는 구분용 설명이다. 개인키와 <code>.pub</code> 공개키가 생성된다. passphrase는 로컬 개인키 파일을 보호하는 암호이며 VM 계정 비밀번호와 다르다.</p>
+<p>Terraform의 키페어 자원은 공개키만 읽는다.</p>
+<pre><code class="language-hcl">resource &quot;openstack_compute_keypair_v2&quot; &quot;lab&quot; {
+  name       = &quot;k8s-lab-key&quot;
+  public_key = file(pathexpand(&quot;~/.ssh/openstack-k8s-lab.pub&quot;))
+}
+</code></pre>
+<p>Nova VM은 이 키페어 이름을 참조한다. 사용한 Ubuntu 클라우드 이미지는 초기화 과정에서 키를 <code>ubuntu</code> 계정에 반영했다. 다른 이미지에서는 계정명이나 초기화 지원이 다를 수 있다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>서버는 개인키를 받지 않고 서명을 검증한다</h2>
+<p>SSH 클라이언트는 계정과 공개키 정보를 제시하고, 현재 SSH 세션에 묶인 인증 데이터를 개인키로 서명한다. 서버는 허용된 공개키로 서명을 검증해 해당 개인키의 보유를 확인한다. 공개키를 안다는 사실만으로 유효한 서명을 새로 만들 수는 없다.</p>
+<p>클라이언트가 개인키를 서버로 보내는 방식도 아니고, 임의의 고정 문자열을 한 번 서명해 영구적으로 재사용하는 방식도 아니다. 세션에 결합된 인증이므로 캡처한 과거 인증을 그대로 반복하는 것과 구분된다.</p>
+<p>최초 접속의 서버 fingerprint 확인은 반대 방향의 신원 확인이다. <code>known_hosts</code>는 접속한 서버의 키를 기록하고, 사용자의 개인키 passphrase는 사용자의 키를 보호한다. 사용자에게 나타나는 두 질문은 역할이 다르다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>ProxyJump는 개인키를 중간 서버에 복사하지 않는다</h2>
+<p>초기 cp-01 접속은 다음 경로를 사용했다. 주소는 예시 환경의 사설 주소다.</p>
+<pre><code class="language-bash">ssh -J dev@192.168.50.217 \
+  -i ~/.ssh/openstack-k8s-lab \
+  ubuntu@172.24.4.122
+</code></pre>
+<p>맥은 먼저 OpenStack 호스트에 SSH 접속하고, 호스트를 통해 VM의 SSH 포트까지 TCP 전달 통로를 연다. 그 통로 위에서 맥의 SSH 클라이언트가 최종 VM과 SSH 연결 및 인증을 수행한다. 따라서 VM용 개인키를 점프 호스트에 저장할 필요가 없다.</p>
+<p>점프 호스트의 <code>dev</code> 로그인과 VM의 <code>ubuntu</code> 로그인은 별도 인증이다. <code>-i</code>로 지정한 키는 최종 대상용이며 점프 호스트 인증은 로컬 SSH 설정·기본 키 등으로 충족해야 한다. ProxyJump를 쓰기 위해 agent forwarding을 켤 필요도 없다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>직접 라우팅 이후에는 중간 SSH 통로를 생략할 수 있다</h2>
+<p>집 공유기와 OpenStack 호스트에 내부 VM 대역 경로를 추가한 뒤에는 다음 형태로 직접 접속할 수 있게 됐다.</p>
+<pre><code class="language-bash">ssh -i ~/.ssh/openstack-k8s-lab ubuntu@10.0.0.12
+</code></pre>
+<p>SSH 점프 연결을 생략하는 것이며, 패킷이 물리적으로 OpenStack 호스트를 지나지 않는다는 뜻은 아니다. 호스트의 커널 라우팅과 Neutron 네트워크가 여전히 경로에 있다. 패킷 흐름은 <a href="05-network-access.html">Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가</a>를 참고한다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>오류는 발생한 층에서 해석한다</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>현상</th>
+<th>먼저 볼 영역</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>연결 시간 초과</td>
+<td>라우팅, 방화벽·보안 그룹, 대상 전원</td>
+</tr>
+<tr>
+<td>연결 거부</td>
+<td>목적지에 도달했지만 SSH가 수신하지 않거나 명시적 거부</td>
+</tr>
+<tr>
+<td><code>Permission denied (publickey)</code></td>
+<td>게스트 계정, 키페어, cloud-init, 선택한 개인키</td>
+</tr>
+<tr>
+<td>개인키 passphrase 요청</td>
+<td>로컬 개인키 잠금 해제</td>
+</tr>
+<tr>
+<td>호스트 키 변경 경고</td>
+<td>서버 교체·재설치 여부와 서버 신원 확인</td>
+</tr>
+</tbody></table>
+</div>
+<p>cp-01의 로그인 성공과 cloud-init 완료 출력은 키 반영과 해당 접속 경로가 동작했다는 근거다. 모든 노드의 동일 시점 로그인이나 모든 네트워크 경로를 한 번에 증명하지는 않는다.</p>
+<p><a href="README.html">상위 문서로 돌아가기</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

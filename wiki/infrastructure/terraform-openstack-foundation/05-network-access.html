@@ -1,0 +1,247 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/terraform-openstack-foundation/05-network-access.md. Do not edit directly. source-sha256:f447b8fa05635ae903f862ab2b85d874692096e7c36c3aaeca71d4a0071cde2c -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Floating IP와 내부 IP 직접 라우팅의 경로 및 보안 그룹 책임을 구분한다.">
+  <meta name="source-sha256" content="f447b8fa05635ae903f862ab2b85d874692096e7c36c3aaeca71d4a0071cde2c">
+  <title>Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가">
+  <meta property="og:description" content="Floating IP와 내부 IP 직접 라우팅의 경로 및 보안 그룹 책임을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html","name":"Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가","description":"Floating IP와 내부 IP 직접 라우팅의 경로 및 보안 그룹 책임을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html"},"headline":"Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/README.html"},{"@type":"ListItem","position":6,"name":"Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/terraform-openstack-foundation/README.html">Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가</h1>
+      <p class="lead">Floating IP와 내부 IP 직접 라우팅의 경로 및 보안 그룹 책임을 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">예시 환경의 세 주소 영역</a>
+        <a href="#section-02">Floating IP를 만들고 VM 포트와 연결한다</a>
+        <a href="#section-03">직접 라우팅은 목적지 10.0.0.x를 유지한다</a>
+        <a href="#section-04">Neutron과 OVS와 Linux는 다른 역할을 맡는다</a>
+        <a href="#section-05">보안 그룹은 경로가 아니라 허용 정책이다</a>
+        <a href="#section-06">같은 내부 IP가 다른 네트워크에 존재하는 경우</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>OpenStack VM에 고정 IP가 있어도 클라이언트가 그 네트워크로 가는 경로를 모르면 접속할 수 없다. <strong>Floating IP는 외부 네트워크의 주소를 VM의 내부 주소에 연결하고, 직접 라우팅은 목적지 주소를 유지한 채 내부 네트워크까지 경로를 제공한다.</strong> 이 문서는 맥에서 VM에 도달하는 경로와 포트 보안의 역할을 설명한다. SSH 인증이나 VIP 담당자 선출은 별도 문제다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>예시 환경의 세 주소 영역</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>주소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>집 LAN</td>
+<td>192.168.50.0/24</td>
+<td>맥·공유기·OpenStack 호스트가 연결된 네트워크</td>
+</tr>
+<tr>
+<td>OpenStack public</td>
+<td>172.24.4.0/24</td>
+<td>Neutron 라우터 외부 인터페이스와 Floating IP의 대역</td>
+</tr>
+<tr>
+<td>OpenStack private</td>
+<td>10.0.0.0/24</td>
+<td>VM 고정 IP가 배치된 네트워크</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>public</code>은 이 환경에서 붙인 Neutron 네트워크 이름이다. 공인 인터넷 주소라는 뜻이 아니며 <code>172.24.4.0/24</code>도 사설 대역이다. 외부 대역이 호스트의 LAN 대역과 반드시 같아야 하는 것은 아니다.</p>
+<p>Wi-Fi를 사용하는 호스트에는 <code>veth-host</code>와 OVS 쪽 <code>veth-ex</code>를 연결해 외부 실습 네트워크를 만들었다. 호스트는 <code>veth-host</code>에 <code>172.24.4.1/24</code>를 사용하고, Neutron 라우터의 외부 인터페이스는 <code>172.24.4.167/24</code>를 사용한다. 이는 기존 OpenStack 설치 단계의 구성이며 Terraform이 새로 만든 것은 아니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>Floating IP를 만들고 VM 포트와 연결한다</h2>
+<p>첫 VM은 <code>cp-01</code>의 포트에 Floating IP <code>172.24.4.122</code>를 연결했다. Terraform에서는 주소 확보와 연결을 서로 다른 자원으로 표현했다.</p>
+<pre><code class="language-hcl">resource &quot;openstack_networking_floatingip_v2&quot; &quot;cp01&quot; {
+  pool = data.openstack_networking_network_v2.public.name
+}
+
+resource &quot;openstack_networking_floatingip_associate_v2&quot; &quot;cp01&quot; {
+  floating_ip = openstack_networking_floatingip_v2.cp01.address
+  port_id     = openstack_networking_port_v2.nodes[&quot;cp-01&quot;].id
+}
+</code></pre>
+<p><code>pool</code>은 주소를 확보할 외부 네트워크이고, <code>port_id</code>는 연결할 VM의 Neutron 포트다. 이 환경의 Linux L3 라우터는 Floating IP와 내부 고정 IP 사이의 NAT를 처리한다. 외부 주소를 생성했다고 모든 VM에 자동으로 연결되는 것은 아니다.</p>
+<p>맥은 처음에 <code>172.24.4.0/24</code>로 직접 가는 경로가 없었지만 OpenStack 호스트는 <code>veth-host</code>로 도달할 수 있었다. 그래서 호스트를 경유하는 SSH ProxyJump를 사용했다. Floating IP가 라우팅을 없애 주는 것이 아니라, 목적지 Floating IP까지 도달할 수 있는 호스트를 이용한 것이다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>직접 라우팅은 목적지 10.0.0.x를 유지한다</h2>
+<p>여러 VM에 각자 Floating IP를 추가하는 대신, 맥이 사용하는 공유기와 OpenStack 호스트에 경로를 넣었다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정 위치</th>
+<th>목적지</th>
+<th>다음 홉</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>집 공유기</td>
+<td>10.0.0.0/24</td>
+<td>OpenStack 호스트 192.168.50.217</td>
+</tr>
+<tr>
+<td>OpenStack 호스트</td>
+<td>10.0.0.0/24</td>
+<td>Neutron 라우터 외부 주소 172.24.4.167</td>
+</tr>
+<tr>
+<td>Neutron 라우터</td>
+<td>10.0.0.0/24</td>
+<td>private 쪽 직접 연결 인터페이스</td>
+</tr>
+</tbody></table>
+</div>
+<p>호스트의 IP forwarding은 이미 활성화돼 있었다. 호스트 경로는 NetworkManager의 <code>kolla-veth-host</code> 연결에 저장했다. 다음 명령은 그 영구 설정을 추가하고 현재 장치에 반영한 예시다.</p>
+<pre><code class="language-bash">sudo nmcli connection modify kolla-veth-host \
+  +ipv4.routes &quot;10.0.0.0/24 172.24.4.167&quot;
+sudo nmcli device reapply veth-host
+</code></pre>
+<p>설정과 커널의 경로 선택은 다음처럼 구분해 조회한다.</p>
+<pre><code class="language-bash">nmcli -f connection.autoconnect,ipv4.routes connection show kolla-veth-host
+ip route get 10.0.0.12
+</code></pre>
+<p>관찰된 출력은 <code>10.0.0.12 via 172.24.4.167 dev veth-host src 172.24.4.1</code>이었다. 여기의 <code>src</code>는 <strong>호스트 자신이 새 연결을 만들 때</strong> 선택할 출발지 주소다. 맥에서 전달된 패킷도 자동으로 이 주소로 바뀐다는 뜻이 아니다. 출발지 변환은 NAT 규칙의 별도 역할이다.</p>
+<p>공유기에는 경로 행을 추가하는 동작과 최종 적용이 모두 필요했다. 목록에 행이 실제로 저장되지 않았던 상태를 수정한 뒤 사용자가 맥에서 VM 직접 접속 성공을 보고했다. 영구 경로 설정은 확인됐지만 재부팅 후 재접속 검증까지 수행한 기록은 없다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>Neutron과 OVS와 Linux는 다른 역할을 맡는다</h2>
+<p>이 환경은 OVS와 Linux 라우터 네임스페이스를 사용하는 구성이다. 직접 라우팅의 논리적 흐름은 다음과 같다.</p>
+<pre><code class="language-mermaid">flowchart LR
+  M[맥] --&gt; R[집 공유기]
+  R --&gt; H[OpenStack 호스트의 Linux 라우팅]
+  H --&gt; V[veth-host와 veth-ex]
+  V --&gt; E[OVS 외부 네트워크]
+  E --&gt; Q[qrouter의 qg 인터페이스]
+  Q --&gt; L[Linux 라우팅]
+  L --&gt; P[qr 인터페이스]
+  P --&gt; I[OVS private 네트워크]
+  I --&gt; B[qvo와 qvb 및 qbr 브리지]
+  B --&gt; T[TAP과 가상 NIC]
+  T --&gt; VM[VM]
+</code></pre>
+<p>Neutron은 원하는 포트·라우터·정책을 관리한다. 실제 데이터 전달은 OVS와 Linux 커널의 라우팅·필터링 등이 수행한다. 관리 API 프로세스가 매 패킷을 받아 재전송하는 것은 아니다. qrouter 안의 <code>qg</code>와 <code>qr</code>은 OVS에 연결된 인터페이스이며, 이 경로의 모든 연결을 veth라고 부르면 정확하지 않다.</p>
+<p>qbr Linux 브리지는 이 환경의 hybrid iptables 보안 그룹 구현에 사용된다. 모든 OpenStack 배포에 항상 존재하는 구조는 아니다. TAP 이후의 전송도 설정에 따라 QEMU 또는 vhost 가속이 관여한다.</p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>보안 그룹은 경로가 아니라 허용 정책이다</h2>
+<p>VM 포트에는 공통 <code>k8s-lab</code> 보안 그룹을 연결했다. 작성 시점의 규칙은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방향</th>
+<th>조건</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>egress</td>
+<td>IPv4 전체</td>
+<td>VM에서 나가는 IPv4 통신 허용</td>
+</tr>
+<tr>
+<td>ingress</td>
+<td>172.24.4.1/32에서 TCP 22</td>
+<td>호스트를 경유한 SSH 허용</td>
+</tr>
+<tr>
+<td>ingress</td>
+<td>192.168.50.13/32에서 TCP 22</td>
+<td>맥의 직접 SSH 허용</td>
+</tr>
+<tr>
+<td>ingress</td>
+<td>같은 보안 그룹</td>
+<td>그룹 구성원 간 IPv4 통신 허용</td>
+</tr>
+<tr>
+<td>ingress</td>
+<td>192.168.50.13/32에서 TCP 6443</td>
+<td>맥의 Kubernetes API 진입 허용</td>
+</tr>
+</tbody></table>
+</div>
+<p>여기의 <code>192.168.50.13</code>은 맥 컴퓨터의 출발지 IP 조건이다. DHCP로 맥의 IP 주소가 바뀌면 해당 규칙도 검토해야 한다. TCP 6443 규칙은 현재 공통 그룹에 있어 LB·CP·워커 포트 전체에 적용된다. 서비스가 수신하지 않는 노드에 실제 TCP 서버가 생기는 것은 아니지만, 그 포트의 통신 정책은 허용 상태다.</p>
+<p>LB 두 대도 같은 그룹에 있고 고정 IP로 unicast VRRP를 주고받으므로 기존 내부 규칙이 이를 허용한다. VRRP는 TCP나 UDP 112번 포트가 아니라 IP 프로토콜 번호 112다. 이후 그룹을 분리하면 이 통신도 다시 고려해야 한다.</p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>같은 내부 IP가 다른 네트워크에 존재하는 경우</h2>
+<p>격리된 별도 Neutron 네트워크에는 같은 <code>10.0.0.12</code>의 VM이 존재할 수 있다. 현재 호스트 경로는 특정 라우터 <code>172.24.4.167</code>로 향하므로, 다른 격리 네트워크에 같은 주소를 만드는 것만으로 기존 VM 접속이 망가지지는 않는다.</p>
+<p>다만 동일한 목적지 주소만으로 두 VM 중 하나를 자유롭게 고를 수 있는 것은 아니다. 다른 VM에 접근하려면 라우팅 맥락을 분리하거나, 주소 대역을 다르게 잡거나, 별도 Floating IP 등의 구분이 필요하다.</p>
+<p>네트워크 도달 이후의 인증 과정은 <a href="06-ssh-authentication.html">SSH 키와 점프 호스트는 어떻게 VM 로그인을 연결하는가</a>, 같은 네트워크 안의 공통 진입점은 <a href="07-vip-ownership.html">VIP 예약과 allowed_address_pairs는 무엇을 준비하는가</a>에서 다룬다.</p>
+<p><a href="README.html">상위 문서로 돌아가기</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

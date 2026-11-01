@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.md. Do not edit directly. source-sha256:a2fc3cad23d2470d5be3a2b8d9c4c1fb3ce56bbf393bc826cd77f23ad99af7dc -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NodePort 요청의 노드별 전달 규칙과 externalTrafficPolicy Cluster·Local의 차이, EnvoyProxy 기본값을 HAProxy·Envoy·EPP 구성으로 설명한다.">
+  <meta name="source-sha256" content="a2fc3cad23d2470d5be3a2b8d9c4c1fb3ce56bbf393bc826cd77f23ad99af7dc">
+  <title>NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할">
+  <meta property="og:description" content="NodePort 요청의 노드별 전달 규칙과 externalTrafficPolicy Cluster·Local의 차이, EnvoyProxy 기본값을 HAProxy·Envoy·EPP 구성으로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html","name":"NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할","description":"NodePort 요청의 노드별 전달 규칙과 externalTrafficPolicy Cluster·Local의 차이, EnvoyProxy 기본값을 HAProxy·Envoy·EPP 구성으로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html"},"headline":"NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-network","name":"네트워크·Service·Multus","identifier":"topics-kubernetes-network"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-nodeport-external-traffic-policy.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html"},{"@type":"ListItem","position":5,"name":"외부 클라이언트에서 Pod에 접속하는 두 경로: Service와 Port Forward","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/kubernetes-external-service-vs-port-forward.html"},{"@type":"ListItem","position":6,"name":"NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-components-and-pod-lifecycle.html">Kubernetes는 무엇을 해결하며, 왜 이런 컴포넌트로 구성될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/kubernetes-external-service-vs-port-forward.html">외부 클라이언트에서 Pod에 접속하는 두 경로: Service와 Port Forward</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>NodePort 요청은 마스터를 거치지 않는다: externalTrafficPolicy의 역할</h1>
+      <p class="lead">NodePort 요청의 노드별 전달 규칙과 externalTrafficPolicy Cluster·Local의 차이, EnvoyProxy 기본값을 HAProxy·Envoy·EPP 구성으로 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-025b501c7167">마스터가 요청마다 목적지를 찾아주는 구조가 아니다</a>
+        <a href="#cluster-pod">Cluster는 다른 노드의 Pod까지 전달한다</a>
+        <a href="#local-pod">Local은 요청을 받은 노드 안의 Pod만 사용한다</a>
+        <a href="#envoy-local">우리 Envoy 설정에서는 생략하면 Local이다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>NodePort로 서비스를 노출하면 노드의 IP와 포트를 통해 클러스터 안의 Pod에 접근할 수 있다. 이때 요청이 반드시 컨트롤플레인, 흔히 말하는 마스터 노드를 거쳐야 하는 것은 아니다.</p>
+<p>각 노드에는 Service 트래픽을 전달하는 규칙이 설정되어 있다. <strong>요청을 받은 노드가 그 규칙에 따라 대상 Pod로 전달한다.</strong> 대상 Pod가 다른 노드에 있어도 전달할 수 있지만, 외부 요청의 전달 범위는 <code>externalTrafficPolicy</code> 설정에 따라 달라진다.</p>
+</div>
+        <section id="section-025b501c7167" class="markdown-section">
+<h2>마스터가 요청마다 목적지를 찾아주는 구조가 아니다</h2>
+<p>다음과 같이 생각하기 쉽다.</p>
+<pre><code class="language-text">외부 요청
+  → 마스터 노드
+  → Pod가 있는 워커를 찾아 전달
+</code></pre>
+<p>하지만 우리 환경에서는 각 노드의 <code>kube-proxy</code>가 Kubernetes API를 통해 Service와 대상 Pod 정보를 받아 네트워크 규칙을 설정한다. 실제 요청이 들어오면 노드는 이미 설정된 규칙을 사용한다.</p>
+<pre><code class="language-text">Kubernetes API의 Service·대상 Pod 정보
+  → 각 노드의 kube-proxy가 전달 규칙 설정
+
+외부 요청
+  → 특정 노드의 NodePort
+  → 설정된 규칙에 따라 대상 Pod로 전달
+</code></pre>
+<p>컨트롤플레인은 이 구성을 관리하는 역할을 한다. 애플리케이션 요청마다 중간에서 패킷을 받아 전달하는 중앙 라우터는 아니다.</p>
+
+</section>
+<section id="cluster-pod" class="markdown-section">
+<h2>Cluster는 다른 노드의 Pod까지 전달한다</h2>
+<p>Envoy Pod가 <code>worker-02</code>에만 있다고 가정하자.</p>
+<pre><code class="language-text">worker-01: Envoy Pod 없음
+worker-02: Envoy Pod 있음
+</code></pre>
+<p>다음 설정을 사용하면:</p>
+<pre><code class="language-yaml">envoyService:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+</code></pre>
+<p>HAProxy가 <code>worker-01:30080</code>으로 요청을 보내도 처리할 수 있다.</p>
+<pre><code class="language-text">HAProxy
+  → worker-01:30080
+  → worker-02에 있는 Envoy Pod
+</code></pre>
+<p><strong><code>Cluster</code>는 요청을 받은 노드 밖의 준비된 Pod도 전달 대상으로 사용할 수 있다는 뜻이다.</strong> 모든 노드에 Envoy Pod를 하나씩 배치해야 한다는 뜻은 아니다.</p>
+
+</section>
+<section id="local-pod" class="markdown-section">
+<h2>Local은 요청을 받은 노드 안의 Pod만 사용한다</h2>
+<p>같은 환경에서 설정을 <code>Local</code>로 바꾸면 결과가 달라진다.</p>
+<pre><code class="language-yaml">envoyService:
+  type: NodePort
+  externalTrafficPolicy: Local
+</code></pre>
+<pre><code class="language-text">HAProxy → worker-01:30080
+           → 로컬 Envoy Pod 없음
+           → 다른 노드로 전달하지 못함
+
+HAProxy → worker-02:30080
+           → 로컬 Envoy Pod 있음
+           → 전달 가능
+</code></pre>
+<p>NodePort를 사용하더라도 <code>Local</code>이면 그 노드에 준비된 대상 Pod가 있어야 한다.</p>
+<p>따라서 <strong>NodePort가 노출되는 것과, 다른 노드의 Pod로 전달할 수 있는 것은 서로 다른 문제</strong>다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>외부 요청을 전달할 수 있는 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Cluster</code></td>
+<td>다른 노드를 포함한 Service의 준비된 Pod</td>
+</tr>
+<tr>
+<td><code>Local</code></td>
+<td>요청을 받은 노드 안의 준비된 Pod</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="envoy-local" class="markdown-section">
+<h2>우리 Envoy 설정에서는 생략하면 Local이다</h2>
+<p>여기서는 설정을 작성하는 자원을 구분해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정 위치</th>
+<th><code>externalTrafficPolicy</code> 기본값</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kubernetes Service</td>
+<td><code>Cluster</code></td>
+</tr>
+<tr>
+<td>현재 사용하는 EnvoyProxy의 <code>envoyService</code></td>
+<td><code>Local</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>우리는 Service를 직접 작성하는 대신, <strong>EnvoyProxy에 원하는 구성을 적고 Envoy Gateway가 Service를 생성하도록</strong> 하고 있다.</p>
+<p>따라서 이 환경에서 다음처럼 생략하면:</p>
+<pre><code class="language-yaml">envoyService:
+  type: NodePort
+</code></pre>
+<p>EnvoyProxy의 기본값인 <code>Local</code>이 적용된다. Envoy Pod가 없는 워커의 NodePort로 들어온 요청은 다른 워커의 Envoy로 전달되지 않는다.</p>
+<p>우리가 <code>Cluster</code>를 명시한 이유는 HAProxy가 두 워커 중 어디로 요청을 보내더라도 Envoy에 도달하게 하기 위해서다.</p>
+<pre><code class="language-text">VPN 클라이언트
+  → VIP와 HAProxy
+  → worker-01 또는 worker-02의 NodePort
+  → Envoy가 있는 노드의 Pod
+  → EPP에 모델 대상 선택 요청
+  → 선택된 Qwen Pod
+</code></pre>
+<p>이 구성에서 HAProxy가 선택하는 것은 <strong>클러스터로 들어갈 노드 진입점</strong>이고, NodePort Service가 전달하는 대상은 <strong>Envoy Pod</strong>다. 이후 모델 요청을 어느 Qwen Pod에 보낼지는 Envoy와 EPP의 연동이 담당한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

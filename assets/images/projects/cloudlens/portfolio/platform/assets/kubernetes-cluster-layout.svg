@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="984" viewBox="0 0 1200 984" role="img" aria-labelledby="title desc">
+  <title id="title">OpenStack VM 위에 Kubernetes를 구축한 과정과 클러스터 구성</title>
+  <desc id="desc">Terraform으로 VM을 준비하고, Kubespray 인벤토리와 SSH로 컨트롤 플레인 3대와 워커 3대에 Kubernetes, containerd, Cilium을 설치했다. 클러스터 외부의 LB VM 2대는 HAProxy와 Keepalived로 API VIP를 제공한다. 일반 워커 2대와 GPU 워커 1대가 앱을 실행하며, OpenStack CCM은 Node와 VM을 식별자로 연결한다. Cinder CSI는 PVC와 SSD 볼륨을 연결하고 GPU Operator와 DRA는 GPU 드라이버 및 Pod의 GPU 할당을 관리한다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 8 5 1 9" fill="none" stroke="#739184" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="api-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 8 5 1 9" fill="none" stroke="#5682b0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <symbol id="nodes" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5"/></symbol>
+    <symbol id="disk" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></symbol>
+    <symbol id="gpu" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><rect x="8" y="9" width="8" height="6" rx="1"/><path d="M8 2v3M12 2v3M16 2v3M8 19v3M12 19v3M16 19v3M1 9h3M1 15h3M20 9h3M20 15h3"/></symbol>
+  </defs>
+  <style>
+    text { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; fill: #203e34; }
+    .title { font-size: 28px; font-weight: 700; }
+    .heading { font-size: 21px; font-weight: 700; }
+    .body { font-size: 18px; }
+    .small { font-size: 16px; fill: #61766d; }
+    .blue { fill: #35648e; }
+    .purple { fill: #7751aa; }
+    .line { fill: none; stroke: #739184; stroke-width: 2; stroke-linejoin: round; marker-end: url(#arrow); }
+    .api { stroke: #5682b0; marker-end: url(#api-arrow); }
+    .icon { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+  <rect width="1200" height="984" rx="20" fill="#f6f9f7"/>
+  <text x="32" y="45" class="title">OpenStack VM을 Kubernetes 클러스터로 구성</text>
+  <text x="32" y="75" class="body">VM 준비 → 노드 설치 → 스토리지·GPU 연동</text>
+
+  <!-- Provisioning workflow: separate from the runtime request paths below. -->
+  <rect x="32" y="100" width="348" height="120" rx="12" fill="#ffffff" stroke="#d5e2dc"/>
+  <text x="52" y="134" class="heading">01 · Terraform</text>
+  <text x="52" y="166" class="body">VM · 고정 IP · 부팅 볼륨 생성</text>
+  <text x="52" y="194" class="small">노드 역할별 Flavor와 네트워크 정의</text>
+  <path d="M386 160H418" class="line"/>
+  <rect x="426" y="100" width="348" height="120" rx="12" fill="#edf6f1" stroke="#c9e1d4"/>
+  <text x="446" y="134" class="heading">02 · Kubespray</text>
+  <text x="446" y="166" class="body">인벤토리 + SSH로 노드 6대 설치</text>
+  <text x="446" y="194" class="small">Kubernetes · containerd · Cilium</text>
+  <path d="M780 160H812" class="line"/>
+  <rect x="820" y="100" width="348" height="120" rx="12" fill="#ffffff" stroke="#d5e2dc"/>
+  <text x="840" y="134" class="heading">03 · Helm / YAML</text>
+  <text x="840" y="166" class="body">Cinder CSI · GPU Operator 설치</text>
+  <text x="840" y="194" class="small">StorageClass · DRA 자원 구성</text>
+
+  <text x="32" y="262" class="heading">구축된 클러스터</text>
+  <text x="1168" y="262" text-anchor="end" class="small">모든 VM은 같은 OpenStack 물리 호스트에서 실행</text>
+
+  <!-- External API access: two LB VMs are not Kubernetes nodes. -->
+  <rect x="32" y="282" width="276" height="76" rx="12" fill="#ffffff" stroke="#d5e2dc"/>
+  <text x="52" y="312" class="heading">관리 클라이언트</text>
+  <text x="52" y="340" class="small">Mac · kubectl · kubeconfig</text>
+  <path d="M170 358V400" class="line api"/>
+  <rect x="32" y="400" width="276" height="204" rx="12" fill="#f1f6fc" stroke="#ccdef0"/>
+  <text x="52" y="433" class="heading blue">LB VM × 2</text>
+  <text x="52" y="465" class="body">lb-01 · lb-02</text>
+  <text x="52" y="496" class="small">HAProxy · Keepalived</text>
+  <rect x="52" y="519" width="236" height="65" rx="8" fill="#ffffff" stroke="#d3e1ee"/>
+  <text x="68" y="545" class="small">Kubernetes API 공통 주소</text>
+  <text x="68" y="572" class="body blue">10.0.0.30:6443</text>
+  <text x="52" y="631" class="small">HAProxy: API 서버로 TCP 전달</text>
+  <text x="52" y="657" class="small">Keepalived: LB 간 VIP 전환</text>
+
+  <!-- Cluster boundary and roles. -->
+  <rect x="352" y="282" width="816" height="438" rx="16" fill="#ffffff" stroke="#c9dfd3" stroke-width="1.5"/>
+  <use href="#nodes" x="376" y="298" width="24" height="24" class="icon" color="#28755e"/>
+  <text x="411" y="319" class="heading">Kubernetes</text>
+  <text x="1144" y="317" text-anchor="end" class="small">컨트롤 플레인 3대 · 워커 3대</text>
+
+  <rect x="376" y="338" width="768" height="116" rx="10" fill="#eef5fc" stroke="#ccdef0"/>
+  <text x="396" y="370" class="heading blue">컨트롤 플레인 VM × 3</text>
+  <text x="1124" y="368" text-anchor="end" class="small">cp-01 · cp-02 · cp-03</text>
+  <text x="396" y="404" class="body">API Server · Scheduler · Controller Manager</text>
+  <text x="396" y="432" class="small">etcd × 3 · 클러스터 상태 저장</text>
+  <path d="M308 420H376" class="line api"/>
+  <text x="342" y="409" text-anchor="middle" class="small blue">API</text>
+
+  <path d="M760 454V480H559V506" class="line"/>
+  <path d="M760 480H955V506" class="line"/>
+  <rect x="681" y="465" width="158" height="29" rx="6" fill="#ffffff"/>
+  <text x="760" y="486" text-anchor="middle" class="small">Pod 배치 · 노드 관리</text>
+
+  <rect x="376" y="506" width="366" height="132" rx="10" fill="#f0f8f4" stroke="#c9e3d6"/>
+  <text x="396" y="536" class="heading">일반 워커 VM × 2</text>
+  <text x="396" y="566" class="body">worker-01 · worker-02</text>
+  <text x="396" y="595" class="small">kubelet · containerd</text>
+  <text x="396" y="621" class="small">일반 앱 · 운영 구성요소 실행</text>
+
+  <rect x="766" y="506" width="378" height="132" rx="10" fill="#f7f3fc" stroke="#ddcfef"/>
+  <text x="786" y="536" class="heading purple">GPU 워커 VM × 1</text>
+  <text x="786" y="566" class="body">gpu-worker-01 · RTX 2060 SUPER</text>
+  <text x="786" y="595" class="small">kubelet · containerd (CDI)</text>
+  <text x="786" y="621" class="small">NVIDIA 드라이버 · GPU 모델 Pod</text>
+
+  <rect x="376" y="662" width="768" height="40" rx="8" fill="#edf6f1"/>
+  <text x="396" y="688" class="body">Cilium · 노드 간 Pod 네트워크</text>
+  <text x="1124" y="687" text-anchor="end" class="small">Kubespray에서 CNI로 설치</text>
+
+  <!-- Resource integration responsibilities, not traffic forwarding stages. -->
+  <text x="32" y="764" class="heading">VM·볼륨·GPU를 Kubernetes에서 사용하도록 연동</text>
+
+  <rect x="32" y="786" width="362" height="166" rx="12" fill="#ffffff" stroke="#c9e1d4"/>
+  <use href="#nodes" x="52" y="806" width="24" height="24" class="icon" color="#28755e"/>
+  <text x="87" y="828" class="heading">OpenStack CCM</text>
+  <text x="52" y="865" class="body">Node providerID ↔ Nova VM UUID</text>
+  <text x="52" y="896" class="small">노드가 실행되는 VM을 식별</text>
+  <text x="52" y="926" class="small">Kubespray의 외부 CCM 설정으로 배포</text>
+
+  <rect x="419" y="786" width="362" height="166" rx="12" fill="#ffffff" stroke="#c9e1d4"/>
+  <use href="#disk" x="439" y="806" width="24" height="24" class="icon" color="#28755e"/>
+  <text x="474" y="828" class="heading">Cinder CSI</text>
+  <text x="439" y="865" class="body">PVC → StorageClass → SSD 볼륨</text>
+  <text x="439" y="896" class="small">볼륨 생성·노드 연결·Pod 마운트</text>
+  <text x="439" y="926" class="small">Helm 드라이버 + cinder-ssd 클래스</text>
+
+  <rect x="806" y="786" width="362" height="166" rx="12" fill="#f7f3fc" stroke="#ddcfef"/>
+  <use href="#gpu" x="826" y="806" width="24" height="24" class="icon" color="#7751aa"/>
+  <text x="861" y="828" class="heading purple">GPU Operator + DRA</text>
+  <text x="826" y="865" class="body">DeviceClass · ResourceClaim</text>
+  <text x="826" y="896" class="small">GPU 드라이버 준비·장치 선택·Pod 할당</text>
+  <text x="826" y="926" class="small">CDI로 컨테이너에 장치 전달</text>
+</svg>
