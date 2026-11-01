@@ -1,0 +1,282 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.md. Do not edit directly. source-sha256:9024ca600b93e747bb8307ec647a41eef16644729327cbfcf26e752b39b5d7a5 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Envoy ext_proc 필터와 AI Gateway 처리 프로그램의 역할, API·인증·사용량 처리, Mutating Webhook의 보조 컨테이너 추가 조건 및 EPP와의 차이를 설명한다.">
+  <meta name="source-sha256" content="9024ca600b93e747bb8307ec647a41eef16644729327cbfcf26e752b39b5d7a5">
+  <title>AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가">
+  <meta property="og:description" content="Envoy ext_proc 필터와 AI Gateway 처리 프로그램의 역할, API·인증·사용량 처리, Mutating Webhook의 보조 컨테이너 추가 조건 및 EPP와의 차이를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html","name":"AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가","description":"Envoy ext_proc 필터와 AI Gateway 처리 프로그램의 역할, API·인증·사용량 처리, Mutating Webhook의 보조 컨테이너 추가 조건 및 EPP와의 차이를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html"},"headline":"AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-serving","name":"서빙","identifier":"topics-serving"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/ai-gateway-extproc-request-processing-sidecar.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/README.html"},{"@type":"ListItem","position":6,"name":"Envoy·AI Gateway·EPP는 어떻게 연결되는가: 설정 변환, 훅, includeAll의 역할","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/kubernetes-serving-gateway-epp/envoy-ai-gateway-epp-hooks-includeall.html"},{"@type":"ListItem","position":7,"name":"AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/README.html">GPU 모델 서버까지 요청은 Gateway와 llm-d에서 어떻게 전달될까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/llm-systems/kubernetes-serving-gateway-epp/envoy-ai-gateway-epp-hooks-includeall.html">Envoy·AI Gateway·EPP는 어떻게 연결되는가: 설정 변환, 훅, includeAll의 역할</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>AI Gateway의 ExtProc는 무엇을 하는가: 요청 가공과 보조 컨테이너 자동 추가</h1>
+      <p class="lead">Envoy ext_proc 필터와 AI Gateway 처리 프로그램의 역할, API·인증·사용량 처리, Mutating Webhook의 보조 컨테이너 추가 조건 및 EPP와의 차이를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">1. 목적지로 전달하는 것만으로 부족한 경우</a>
+        <a href="#section-2-extproc">2. ExtProc는 요청 처리 중 호출하는 외부 프로그램이다</a>
+        <a href="#section-3-ai-gateway-extproc">3. ai-gateway-extproc로 어떤 일을 할 수 있는가</a>
+        <a href="#section-4">4. 호출 설정과 실행 프로그램이 모두 있어야 한다</a>
+        <a href="#section-5-mutating-webhook">5. Mutating Webhook이 보조 컨테이너를 추가한다</a>
+        <a href="#section-6-envoy-pod">6. 모든 Envoy Pod에 항상 추가되는 것은 아니다</a>
+        <a href="#section-7-epp-ai-gateway-extproc">7. EPP와 ai-gateway-extproc는 목적이 다르다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>AI Gateway를 사용하면 모델 서버로 요청을 전달하는 과정에서 API 형식을 변환하거나, 공급자별 인증 정보를 적용하거나, 응답에서 토큰 사용량을 추출할 수 있다.</p>
+<p>이런 처리는 설정 파일만으로 실행되지 않는다. <strong>설정에 따라 실제 요청과 응답을 읽고 처리할 프로그램</strong>이 필요하다. Envoy AI Gateway에서는 <code>ai-gateway-extproc</code>가 그 역할을 맡는다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>1. 목적지로 전달하는 것만으로 부족한 경우</h2>
+<p>클라이언트와 모델 서버가 같은 API 형식을 사용한다면 요청을 그대로 전달할 수 있다.</p>
+<pre><code class="language-text">OpenAI 형식으로 요청하는 클라이언트
+                ↓
+           Envoy Proxy
+                ↓
+OpenAI 호환 API를 제공하는 vLLM
+</code></pre>
+<p>그러나 다른 공급자의 모델까지 함께 사용하려면 상황이 달라진다.</p>
+<p>클라이언트는 같은 형식으로 요청하더라도, 실제 목적지에서는 다른 요청 본문이나 인증 방식을 요구할 수 있다. 응답 형식도 다를 수 있다.</p>
+<p>이때 게이트웨이가 차이를 처리하면 클라이언트가 공급자마다 별도의 연동 코드를 작성하는 부담을 줄일 수 있다.</p>
+
+</section>
+<section id="section-2-extproc" class="markdown-section">
+<h2>2. ExtProc는 요청 처리 중 호출하는 외부 프로그램이다</h2>
+<p>ExtProc는 <strong>External Processing</strong>, 즉 외부 처리라는 뜻이다.</p>
+<p>Envoy에는 요청·응답 처리 중 외부 프로그램을 호출하는 <code>ext_proc</code> 필터가 있다. 설정에 따라 헤더나 본문 등을 외부 프로그램에 보내고, 반환된 처리 결과를 반영한다.</p>
+<pre><code class="language-text">클라이언트 요청
+      ↓
+Envoy Proxy
+      ├─ 요청 정보를 외부 처리 프로그램에 전달
+      │                ↓
+      │      변경할 헤더·본문 등의 결과 반환
+      ↓
+변경 내용을 반영하여 목적지로 전달
+</code></pre>
+<p>외부 프로그램은 Envoy 자체를 수정하지 않고도 추가 처리 로직을 제공할 수 있다. 통신에는 gRPC를 사용하며, 무엇을 전달할지는 필터 설정에 따라 달라진다. <a href="https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_proc_filter" rel="noopener noreferrer">Envoy External Processing 문서</a></p>
+<p>여기서 구분할 이름은 두 가지다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>이름</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Envoy의 <code>ext_proc</code> 필터</td>
+<td>외부 처리 프로그램을 호출하는 범용 기능</td>
+</tr>
+<tr>
+<td><code>ai-gateway-extproc</code></td>
+<td>그 기능을 통해 호출되는 AI Gateway의 처리 프로그램</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>ext_proc</code>가 있다는 것만으로 특정 AI 기능이 생기는 것은 아니다. 연결된 프로그램이 그 기능을 구현해야 한다.</p>
+
+</section>
+<section id="section-3-ai-gateway-extproc" class="markdown-section">
+<h2>3. ai-gateway-extproc로 어떤 일을 할 수 있는가</h2>
+<p>AI Gateway의 외부 처리 프로그램은 AI API 연동에 필요한 처리를 담당한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>필요한 상황</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>요청 형식 변환</td>
+<td>클라이언트와 모델 공급자의 API 형식이 다를 때</td>
+</tr>
+<tr>
+<td>응답 형식 변환</td>
+<td>공급자별 응답을 클라이언트가 기대하는 형식으로 맞출 때</td>
+</tr>
+<tr>
+<td>공급자 인증 처리</td>
+<td>목적지에 맞는 API 키·인증 정보를 적용할 때</td>
+</tr>
+<tr>
+<td>토큰 사용량 추출</td>
+<td>사용량 관찰이나 토큰 기반 제한에 필요한 정보를 얻을 때</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 지원되는 공급자 연동에서는 다음과 같은 구성을 생각할 수 있다.</p>
+<pre><code class="language-text">클라이언트
+  “항상 같은 API 형식으로 요청”
+              ↓
+Envoy + AI Gateway ExtProc
+  “목적지 공급자에 맞게 요청·인증 처리”
+              ↓
+선택한 공급자의 모델 API
+              ↓
+ExtProc가 응답 형식을 맞춤
+              ↓
+클라이언트
+</code></pre>
+<p>이런 기능은 지원되는 API·모델·설정 범위 안에서 동작한다. 임의의 모든 모델 API를 자동으로 변환해 주는 것은 아니다.</p>
+<p>또한 토큰 사용량을 추출하는 것과 사용량 제한을 집행하는 것은 별개의 역할이다. 토큰 기반 제한에는 별도의 정책과 Rate Limit Service 연동 등이 필요할 수 있다. <a href="https://aigateway.envoyproxy.io/docs/concepts/architecture/data-plane/" rel="noopener noreferrer">공식 데이터 처리 구조</a></p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>4. 호출 설정과 실행 프로그램이 모두 있어야 한다</h2>
+<p>ExtProc를 사용하려면 두 가지가 준비되어야 한다.</p>
+<pre><code class="language-text">① Envoy 설정
+   “이 요청을 처리할 때 외부 처리 프로그램을 호출하라.”
+
+② 실행 환경
+   실제 처리 프로그램과 설정 파일, 통신 경로
+</code></pre>
+<p>Envoy에 호출 설정만 넣고 프로그램을 실행하지 않으면 호출 대상이 없다. 반대로 프로그램만 실행해 두고 Envoy에 연결하지 않으면 요청 처리에 참여하지 않는다.</p>
+<p>이 두 부분을 담당하는 기능이 서로 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>변경 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>xDS 변환 훅</td>
+<td>Envoy가 실행할 Listener·Route·Cluster 등의 설정</td>
+</tr>
+<tr>
+<td>Mutating Webhook</td>
+<td>Kubernetes에서 생성할 Pod의 구성</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+<section id="section-5-mutating-webhook" class="markdown-section">
+<h2>5. Mutating Webhook이 보조 컨테이너를 추가한다</h2>
+<p>Kubernetes의 Mutating Webhook은 대상 자원의 생성 요청을 처리하는 도중, 그 자원의 내용을 변경할 수 있는 기능이다.</p>
+<p>AI Gateway는 이 기능을 이용해 조건에 맞는 Envoy Proxy Pod에 보조 컨테이너를 추가한다. 같은 Pod에서 주 프로그램을 돕는 컨테이너를 흔히 <strong>사이드카</strong>라고 부른다.</p>
+<pre><code class="language-text">추가 전
+Envoy Proxy Pod
+└─ envoy
+
+추가 후
+Envoy Proxy Pod
+├─ envoy
+├─ ai-gateway-extproc
+├─ ExtProc가 읽을 설정 파일
+└─ 두 컨테이너가 통신할 공유 소켓 경로
+</code></pre>
+<p>AI Gateway v1.0.0 구현은 설정을 담은 Secret을 볼륨으로 연결하고, 두 컨테이너가 Unix 소켓으로 통신하도록 공유 공간도 추가한다. Unix 소켓은 같은 호스트 안의 프로그램끼리 통신하는 방법이다.</p>
+<p>이 과정은 사용자가 Envoy Pod YAML에 컨테이너와 볼륨을 일일이 추가하지 않아도 실행 구성을 갖추도록 해 준다. <a href="https://github.com/envoyproxy/ai-gateway/blob/v1.0.0/internal/controller/gateway_mutator.go" rel="noopener noreferrer">Pod 변경 구현</a></p>
+
+</section>
+<section id="section-6-envoy-pod" class="markdown-section">
+<h2>6. 모든 Envoy Pod에 항상 추가되는 것은 아니다</h2>
+<p>Webhook이 설치되어 있다고 해서 모든 Pod에 <code>ai-gateway-extproc</code>가 들어가는 것은 아니다.</p>
+<p>확인한 v1.0.0 구현은 해당 Gateway에 연결된 <code>AIGatewayRoute</code>나 <code>MCPRoute</code>가 없으면 Pod를 수정하지 않고 반환한다. 관련 경로가 있어도 필요한 설정 Secret이 준비되어 있지 않으면 추가를 건너뛴다.</p>
+<p>따라서 <strong>일반 HTTPRoute와 InferencePool로 EPP를 연결한다는 이유만으로 이 사이드카가 반드시 추가되는 것은 아니다.</strong> <a href="https://github.com/envoyproxy/ai-gateway/blob/v1.0.0/internal/controller/gateway_mutator.go#L315" rel="noopener noreferrer">추가 조건을 검사하는 코드</a></p>
+<p>또한 다음 values는 사이드카를 무조건 추가하라는 설정이 아니다.</p>
+<pre><code class="language-yaml">controller:
+  mutatingWebhook:
+    certManager:
+      enable: true
+</code></pre>
+<p>이는 <strong>Kubernetes API 서버가 Webhook을 HTTPS로 호출할 때 사용할 인증서를 cert-manager가 관리하도록 하는 설정</strong>이다.</p>
+
+</section>
+<section id="section-7-epp-ai-gateway-extproc" class="markdown-section">
+<h2>7. EPP와 ai-gateway-extproc는 목적이 다르다</h2>
+<p>둘 다 Envoy의 외부 처리 기능과 연결될 수 있지만, 같은 프로그램은 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>EPP</th>
+<th>AI Gateway ExtProc</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>핵심 질문</td>
+<td>어느 모델 서버가 이 요청을 처리할까?</td>
+<td>목적지에 맞게 요청·응답을 어떻게 처리할까?</td>
+</tr>
+<tr>
+<td>대표 역할</td>
+<td>후보 모델 서버 중 목적지 선택</td>
+<td>API 변환, 공급자 인증, 사용량 추출</td>
+</tr>
+<tr>
+<td>실행 형태</td>
+<td>별도의 EPP 서비스</td>
+<td>조건에 따라 Envoy Pod에 추가되는 보조 컨테이너</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 동일한 API를 제공하는 vLLM 서버들 중 처리할 서버를 고르는 문제는 EPP의 역할이다.</p>
+<p>반면 하나의 클라이언트가 자체 vLLM과 외부 모델 공급자를 같은 접점으로 사용하면서 API·인증 차이를 게이트웨이에 맡기려는 경우에는 AI Gateway ExtProc의 기능을 살펴볼 만하다.</p>
+<p>향후 실습에서는 <strong>지원되는 서로 다른 백엔드 두 개를 연결하고, 클라이언트 요청 형식은 유지한 채 게이트웨이가 목적지별 차이를 처리하는지</strong> 확인해 볼 수 있다. 다만 이 글에서는 개념과 구현 구조를 설명했으며, 해당 변환 기능을 현재 클러스터에서 검증한 것은 아니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

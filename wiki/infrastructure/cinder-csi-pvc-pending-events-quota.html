@@ -1,0 +1,241 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.md. Do not edit directly. source-sha256:5aafeb3a83c4d15980f7370a9687d26b7963fb617f1ea85c0d9c3a7896293bcf -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PVC·Pod 이벤트의 ProvisioningFailed·VolumeLimitExceeded를 OpenStack 프로젝트의 볼륨 quota·사용량에 대조하고, 한도 조정 뒤 재시도와 후속 상태를 확인하는 절차를 설명한다.">
+  <meta name="source-sha256" content="5aafeb3a83c4d15980f7370a9687d26b7963fb617f1ea85c0d9c3a7896293bcf">
+  <title>Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기">
+  <meta property="og:description" content="PVC·Pod 이벤트의 ProvisioningFailed·VolumeLimitExceeded를 OpenStack 프로젝트의 볼륨 quota·사용량에 대조하고, 한도 조정 뒤 재시도와 후속 상태를 확인하는 절차를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html","name":"Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기","description":"PVC·Pod 이벤트의 ProvisioningFailed·VolumeLimitExceeded를 OpenStack 프로젝트의 볼륨 quota·사용량에 대조하고, 한도 조정 뒤 재시도와 후속 상태를 확인하는 절차를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html"},"headline":"Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes-storage","name":"스토리지·Stateful·MariaDB","identifier":"topics-kubernetes-storage"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-cinder","name":"Cinder LVM","identifier":"project-cinder"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/cinder-csi-pvc-pending-events-quota.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"OpenStack의 사용자·프로젝트·역할: Cinder 볼륨은 어디에 속할까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-user-project-role-cinder-quota.html"},{"@type":"ListItem","position":6,"name":"Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack-user-project-role-cinder-quota.html">OpenStack의 사용자·프로젝트·역할: Cinder 볼륨은 어디에 속할까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Cinder CSI의 PVC Pending 원인을 이벤트와 quota로 확인하기</h1>
+      <p class="lead">PVC·Pod 이벤트의 ProvisioningFailed·VolumeLimitExceeded를 OpenStack 프로젝트의 볼륨 quota·사용량에 대조하고, 한도 조정 뒤 재시도와 후속 상태를 확인하는 절차를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-pending">1. <code>Pending</code>은 상태이고, 원인은 이벤트에서 확인한다</a>
+        <a href="#section-2-pvc-quota">2. PVC 이벤트에 quota 오류가 명시돼 있었다</a>
+        <a href="#section-3-kubernetes-openstack">3. Kubernetes 이벤트에 OpenStack 오류가 보이는 이유</a>
+        <a href="#section-4-openstack">4. OpenStack에서도 한도와 실제 사용량을 확인한다</a>
+        <a href="#section-5-pod">5. 볼륨 생성 실패 때문에 Pod도 대기한다</a>
+        <a href="#section-6">6. 한도를 조정한 뒤 자동 재시도를 확인한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Kubernetes에서 PVC나 Pod가 <code>Pending</code>이라고 해서 원인을 바로 알 수는 없다. 볼륨 생성 실패, 노드 배치 조건, 자원 부족 등 여러 이유로 대기할 수 있기 때문이다.</p>
+<p>Cinder CSI로 볼륨을 요청한 이번 사례에서는 <strong>PVC 이벤트에 기록된 오류를 먼저 읽고, OpenStack의 실제 한도와 사용량을 확인하여 볼륨 개수 quota 초과를 발견했다.</strong></p>
+</div>
+        <section id="section-1-pending" class="markdown-section">
+<h2>1. <code>Pending</code>은 상태이고, 원인은 이벤트에서 확인한다</h2>
+<p>테스트 PVC와 Pod를 생성한 뒤 상태를 조회했다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n llm-d \
+  get pvc,pod | grep cinder-csi-smoke
+</code></pre>
+<p>PVC와 Pod가 모두 <code>Pending</code>이었다.</p>
+<p>이 출력만으로는 아직 이유를 알 수 없다. 특히 <code>WaitForFirstConsumer</code>를 사용하는 StorageClass에서는 사용할 Pod가 정해질 때까지 PVC가 정상적으로 대기할 수도 있다.</p>
+<p>볼륨 생성 과정에서 무슨 일이 있었는지 확인하려면 PVC의 상세 정보를 조회한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab \
+  -n llm-d describe pvc cinder-csi-smoke
+</code></pre>
+<p><code>describe</code>는 자원의 설정과 상태뿐 아니라, 관련된 <strong>Events</strong>도 보여준다.</p>
+
+</section>
+<section id="section-2-pvc-quota" class="markdown-section">
+<h2>2. PVC 이벤트에 quota 오류가 명시돼 있었다</h2>
+<p>출력 아래쪽의 Events에는 다음 내용이 있었다.</p>
+<pre><code class="language-text">Warning  ProvisioningFailed
+
+CreateVolume failed due to exceeded quota
+
+VolumeLimitExceeded:
+Maximum number of volumes allowed (10) exceeded for quota &#39;volumes&#39;.
+</code></pre>
+<p>각 문구는 실패 지점을 구체적으로 알려준다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>문구</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ProvisioningFailed</code></td>
+<td>PVC에 제공할 볼륨 생성 실패</td>
+</tr>
+<tr>
+<td><code>CreateVolume failed</code></td>
+<td>CSI의 볼륨 생성 작업 실패</td>
+</tr>
+<tr>
+<td><code>exceeded quota</code></td>
+<td>OpenStack의 허용량 초과</td>
+</tr>
+<tr>
+<td><code>Maximum number of volumes allowed (10)</code></td>
+<td>허용된 최대 볼륨 개수는 10개</td>
+</tr>
+<tr>
+<td><code>quota &#39;volumes&#39;</code></td>
+<td>제한 대상은 볼륨 개수</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 오류에서 핵심은 <strong><code>volumes</code>라는 제한 항목</strong>이다. SSD의 남은 용량이 부족하다는 내용이 아니라, 프로젝트에서 만들 수 있는 볼륨 개수를 초과했다는 뜻이다.</p>
+
+</section>
+<section id="section-3-kubernetes-openstack" class="markdown-section">
+<h2>3. Kubernetes 이벤트에 OpenStack 오류가 보이는 이유</h2>
+<p>PVC는 Kubernetes 자원이지만 실제 볼륨은 Cinder가 만든다. 생성 요청과 오류는 다음 경로로 전달된다.</p>
+<pre><code class="language-text">PVC 생성
+    ↓
+CSI provisioner가 Cinder CSI에 볼륨 생성 요청
+    ↓
+Cinder CSI가 OpenStack Cinder API 호출
+    ↓
+Cinder가 프로젝트 quota 검사
+    ↓
+볼륨 개수 한도 초과로 요청 거절
+    ↓
+CSI가 오류를 반환
+    ↓
+PVC 이벤트에 ProvisioningFailed 기록
+</code></pre>
+<p>따라서 이 이벤트는 <strong>요청이 Cinder까지 도달했고, Cinder가 quota를 이유로 거절했다는 근거</strong>다.</p>
+<p>이 정보만으로 마운트나 데이터 읽기·쓰기까지 검증된 것은 아니다. 볼륨 생성 단계에서 멈췄으므로 그 이후 단계는 아직 진행되지 않았다.</p>
+
+</section>
+<section id="section-4-openstack" class="markdown-section">
+<h2>4. OpenStack에서도 한도와 실제 사용량을 확인한다</h2>
+<p>오류 메시지를 확인한 뒤에는 실제 OpenStack 상태와 일치하는지 확인한다.</p>
+<p>먼저 <code>admin</code> 프로젝트의 볼륨 quota를 조회한다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab quota show --volume admin
+</code></pre>
+<p>당시 결과의 주요 항목은 다음과 같았다.</p>
+<pre><code class="language-text">Resource    Limit
+volumes        10
+gigabytes    1000
+</code></pre>
+<ul>
+<li><code>volumes</code>: 생성 가능한 볼륨 개수 제한.</li>
+<li><code>gigabytes</code>: 볼륨 용량 합계에 대한 제한.</li>
+</ul>
+<p>그다음 현재 프로젝트의 볼륨 목록을 확인한다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab volume list
+</code></pre>
+<p>실제 볼륨은 다음과 같이 총 10개였다.</p>
+<pre><code class="language-text">Kubernetes·LB VM의 루트 볼륨: 8개
+기존 테스트 볼륨:             2개
+합계:                       10개
+</code></pre>
+<p>Kubernetes에서 만든 볼륨만 개수에 포함되는 것이 아니다. <strong>같은 OpenStack 프로젝트에 있는 VM 루트 볼륨과 기존 테스트 볼륨도 함께 계산된다.</strong></p>
+<p>이렇게 이벤트의 오류와 실제 상태가 일치하는지 확인했다.</p>
+<pre><code class="language-text">이벤트: 최대 볼륨 개수 10개 초과
+조회한 quota: 10개
+조회한 기존 볼륨: 10개
+</code></pre>
+
+</section>
+<section id="section-5-pod" class="markdown-section">
+<h2>5. 볼륨 생성 실패 때문에 Pod도 대기한다</h2>
+<p>테스트 Pod는 해당 PVC를 <code>/data</code>에 마운트해야 실행될 수 있다. 볼륨을 확보하지 못하면 Pod도 준비될 수 없다.</p>
+<p>Pod의 상세 이벤트는 다음 명령으로 확인한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab \
+  -n llm-d describe pod cinder-csi-smoke
+</code></pre>
+<p>당시에는 다음과 같은 오류가 있었다.</p>
+<pre><code class="language-text">FailedScheduling
+
+running PreBind plugin &quot;VolumeBinding&quot;:
+binding volumes: provisioning failed for PVC &quot;cinder-csi-smoke&quot;
+</code></pre>
+<p>이 사례에서 Pod의 배치가 실패한 원인은 CPU나 메모리 부족이 아니라, <strong>필요한 PVC의 볼륨 생성 실패</strong>였다.</p>
+<pre><code class="language-text">OpenStack quota 초과
+    ↓
+볼륨 생성 실패
+    ↓
+PVC Pending
+    ↓
+해당 PVC를 사용하는 Pod도 Pending
+</code></pre>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>6. 한도를 조정한 뒤 자동 재시도를 확인한다</h2>
+<p>기존 볼륨이 모두 필요한 상황이라면, 관리자 권한으로 프로젝트의 볼륨 개수 제한을 늘릴 수 있다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab quota set --volumes 30 admin
+</code></pre>
+<p>이 명령은 최대 허용 개수를 바꾼다. 실제 볼륨 30개를 만들거나 디스크 공간을 미리 확보하는 것은 아니다.</p>
+<p>quota를 변경하면 CSI provisioner가 실패한 요청을 다시 시도하므로, 일반적으로 PVC를 삭제하거나 YAML을 다시 적용할 필요는 없다. 재시도 간격 때문에 상태가 바뀌기까지 시간이 걸릴 수 있다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n llm-d \
+  get pvc,pod | grep cinder-csi-smoke
+</code></pre>
+<p>다음 상태로 바뀌는지 확인한다.</p>
+<ul>
+<li>PVC: <code>Bound</code></li>
+<li>Pod: <code>1/1 Running</code></li>
+</ul>
+<p>계속 대기한다면 같은 <code>describe</code> 명령으로 최신 이벤트를 다시 확인한다. quota 문제가 해소된 뒤 다른 생성·연결·마운트 문제가 드러날 수도 있기 때문이다.</p>
+<p>이번 진단에서 중요한 근거는 <code>Pending</code> 자체가 아니라, <strong>PVC 이벤트의 구체적인 실패 메시지와 OpenStack의 실제 quota·사용량이 일치했다는 점</strong>이다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

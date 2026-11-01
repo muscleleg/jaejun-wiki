@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- Generated from content/wiki/projects/cloudlens/platform/05-model-serving.md. Do not edit directly. source-sha256:e4380bf2f1c5e2986b691fec0874f1841eb0f8188c424db156cc3de29fbb7c36 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="모델 서버는 고정 Pod 주소를 클라이언트에 알려주는 구성보다, 모델 배포와 요청 진입점·추론 대상 선택을 나누는 구조로 만들고 싶었습니다. 그래서 llm-d 아키텍처의 배포·라우팅 구성을 참고해 KServe LLMInferenceService, Envoy Gateway·AI Gateway, InferencePool과 endpoint picker를 조합했습니다.">
+  <meta name="source-sha256" content="e4380bf2f1c5e2986b691fec0874f1841eb0f8188c424db156cc3de29fbb7c36">
+  <title>llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축</title>
+  <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html">
+  <link rel="alternate" type="application/json" href="../../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축">
+  <meta property="og:description" content="모델 서버는 고정 Pod 주소를 클라이언트에 알려주는 구성보다, 모델 배포와 요청 진입점·추론 대상 선택을 나누는 구조로 만들고 싶었습니다. 그래서 llm-d 아키텍처의 배포·라우팅 구성을 참고해 KServe LLMInferenceService, Envoy Gateway·AI Gateway, InferencePool과 endpoint picker를 조합했습니다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html","name":"llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축","description":"모델 서버는 고정 Pod 주소를 클라이언트에 알려주는 구성보다, 모델 배포와 요청 진입점·추론 대상 선택을 나누는 구조로 만들고 싶었습니다. 그래서 llm-d 아키텍처의 배포·라우팅 구성을 참고해 KServe LLMInferenceService, Envoy Gateway·AI Gateway, InferencePool과 endpoint picker를 조합했습니다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html"},"headline":"llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/05-model-serving.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"개인 프로젝트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-projects"},{"@type":"ListItem","position":4,"name":"OpenStack·Kubernetes 기반 클라우드 및 GPU 모델 서빙 환경 구축과 자연어 자원 탐색·장애 진단을 지원하는 AI 인프라 관리 애플리케이션 개발","item":"https://muscleleg.github.io/jaejun-wiki/wiki/projects/cloudlens/platform/README.html"},{"@type":"ListItem","position":5,"name":"llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki.html#wiki-category-projects">개인 프로젝트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../../wiki/projects/cloudlens/platform/README.html">OpenStack·Kubernetes 기반 클라우드 및 GPU 모델 서빙 환경 구축과 자연어 자원 탐색·장애 진단을 지원하는 AI 인프라 관리 애플리케이션 개발</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>llm-d 아키텍처를 바탕으로 GPU 모델 서버 구축</h1>
+      <p class="lead">모델 서버는 고정 Pod 주소를 클라이언트에 알려주는 구성보다, 모델 배포와 요청 진입점·추론 대상 선택을 나누는 구조로 만들고 싶었습니다. 그래서 llm-d 아키텍처의 배포·라우팅 구성을 참고해 KServe LLMInferenceService, Envoy Gateway·AI Gateway, InferencePool과 endpoint picker를 조합했습니다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#introduction">구축 개요</a>
+        <a href="#heading-kserve-gateway">KServe와 Gateway 구성요소 설치·연결</a>
+        <a href="#heading-gpu-api">모델 가중치·GPU 메모리·API 경로 구성</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p><a href="README.html">프로젝트 소개</a> · <a href="../contents.html">전체 문서</a></p>
+</div>
+        <section id="introduction" class="markdown-section">
+<h2>구축 개요</h2>
+<p>모델 서버는 고정 Pod 주소를 클라이언트에 알려주는 구성보다, 모델 배포와 요청 진입점·추론 대상 선택을 나누는 구조로 만들고 싶었습니다. 그래서 llm-d 아키텍처의 배포·라우팅 구성을 참고해 KServe LLMInferenceService, Envoy Gateway·AI Gateway, InferencePool과 endpoint picker를 조합했습니다.</p>
+<p>이 환경에서는 GPU가 한 장이므로 실제 추론은 단일 Pod에서 실행합니다. 그 위에 모델 배포를 관리하는 컨트롤러와 요청을 받을 API 경로를 분리했습니다. 클라이언트는 모델명과 Gateway 주소를 사용하고, 모델 Pod가 재생성되더라도 실제 endpoint 연결은 서빙 구성요소가 담당합니다.</p>
+<span class="md-anchor" id="section-01" aria-hidden="true"></span>
+
+</section>
+<section id="heading-kserve-gateway" class="markdown-section">
+<h2>KServe와 Gateway 구성요소 설치·연결</h2>
+<p>KServe의 <code>LLMInferenceService</code>는 모델 서버와 추론 라우팅에 필요한 자원을 관리합니다. Envoy Gateway는 Gateway API의 설정을 실제 Envoy 프록시에 반영합니다. Envoy AI Gateway는 모델명을 기준으로 추론 경로를 연결하고, Gateway API Inference Extension의 <code>InferencePool</code>과 endpoint picker(EPP)는 요청을 받을 모델 Pod를 선택하는 데 사용합니다.</p>
+<p><img src="../../../../assets/images/projects/cloudlens/portfolio/platform/assets/serving-control-request-path.svg" alt="KServe와 Gateway 컨트롤러의 설정 관리, Envoy·EPP·모델 서버의 실제 추론 요청 처리" loading="lazy"></p>
+<p>각 컨트롤러는 자신이 처리하는 CRD가 먼저 있어야 합니다. 다음 의존 관계에 맞춰 <a href="serving-components.html">서빙 컨트롤러와 Gateway를 설치</a>했습니다.</p>
+<ol>
+<li><strong>cert-manager와 Gateway API·Inference Extension CRD</strong>를 준비합니다.</li>
+<li><strong>Envoy Gateway와 Envoy AI Gateway</strong>의 CRD·컨트롤러를 설치하고 확장 연동을 설정합니다.</li>
+<li><strong>LeaderWorkerSet(LWS)를</strong> 설치합니다.</li>
+<li><strong>KServe LLMInferenceService CRD·컨트롤러·runtime configs</strong>를 설치합니다.</li>
+<li><strong>Gateway, 모델 PVC·GPU Claim, LLMInferenceService, 모델 Route</strong>를 적용합니다.</li>
+</ol>
+<p>현재 Envoy Gateway는 v1.8.1, Envoy AI Gateway는 v1.0.0, KServe의 LLMInferenceService 구성요소는 v0.20.0, LWS는 v0.11.0입니다. KServe가 Inference Extension CRD를 중복 설치하지 않도록 설정하고, runtime configs도 별도 차트로 적용했습니다.</p>
+<p><strong>CRD는 Kubernetes API에 새 자원의 형식과 스키마를 등록하고, 컨트롤러는 그 선언이 실제로 동작하게 만듭니다.</strong> <code>LLMInferenceService</code> YAML을 저장하는 것만으로 API 서버가 모델을 실행하는 것은 아닙니다. KServe 컨트롤러가 선언을 읽어 필요한 워크로드와 서빙 자원을 만들고, Deployment 컨트롤러와 kubelet이 Pod와 컨테이너를 실행합니다. 이후에도 원하는 상태와 실제 상태를 반복해서 맞추는 reconcile이 이어집니다. 그래서 자동 생성된 하위 Deployment만 바꾸기보다 상위 모델 선언과 runtime 설정을 관리했습니다.</p>
+<p>cert-manager를 먼저 설치한 이유도 외부 웹사이트의 HTTPS만을 위해서는 아니었습니다. Kubernetes의 admission webhook은 API 서버가 자원을 저장하기 전에 기본값을 넣거나 입력을 검증하는 호출입니다. 이 호출도 HTTPS를 쓰므로 내부 webhook 서버의 인증서와 신뢰할 CA가 필요합니다. cert-manager는 인증서를 Secret으로 준비하고 CA 주입·갱신을 관리합니다. <strong>API 서버와 webhook이 직접 통신하며 cert-manager가 그 요청을 중계하지는 않습니다.</strong> 뒤에서 WebUI용으로 만드는 HTTPS 인증서와는 사용 위치가 다릅니다.</p>
+<p>LWS는 여러 Pod를 leader·worker 그룹으로 관리하는 워크로드 컨트롤러입니다. KServe 서빙 환경의 구성요소로 준비했으며, 현재 Qwen 모델 자체는 분산 실행하지 않고 단일 추론 Pod로 실행합니다. LLMInferenceService가 관리하는 모델 워크로드 Deployment와 요청의 endpoint를 선택하는 router-scheduler Deployment도 서로 별개의 역할입니다.</p>
+<p>여기서 설치만큼 중요한 작업은 <strong>Gateway와 추론 확장의 연결</strong>이었습니다. Envoy Gateway가 <code>InferencePool</code>을 backend 자원으로 인식하도록 등록하고, AI Gateway의 extension manager를 연결했습니다. xDS 변환 훅에는 <code>includeAll: true</code>를 설정해 확장 처리에 필요한 구성을 전달합니다. AI Gateway의 external processing 구성도 Envoy에 연결해 요청에서 모델명을 추출하고 추론 라우팅에 사용할 수 있게 했습니다.</p>
+<p>이 연결을 이해할 때는 설정을 만드는 경로와 사용자 요청이 흐르는 경로를 나눠 봐야 했습니다. <code>Gateway</code>, <code>HTTPRoute</code>, <code>AIGatewayRoute</code>, <code>InferencePool</code>은 Kubernetes에 저장하는 설정 객체입니다. 이 객체들이 각각 별도의 프록시 서버인 것은 아닙니다. 컨트롤러와 확장이 이 설정을 Envoy의 실행 설정인 xDS로 바꾸고, <strong>실제 HTTP 요청은 Envoy가 받습니다.</strong></p>
+<p>일반 웹 요청은 Host·Path 같은 정보로 구분할 수 있지만, OpenAI 호환 요청의 모델명은 JSON 본문의 <code>model</code> 필드에 들어갑니다. AI Gateway의 external processor는 Envoy가 전달한 요청 정보를 처리해 모델 라우팅에 사용할 수 있게 합니다. <code>includeAll</code>을 통한 설정 변환 연동과 요청 시점의 external processing은 서로 다른 과정입니다. 필요한 CRD를 설치했더라도 이 연결이 빠지면 모델명과 InferencePool을 선언한 의도가 실제 프록시 동작까지 이어지지 않습니다.</p>
+<p>Envoy가 외부 요청을 받는 Service는 NodePort <code>30080</code>·<code>30443</code>을 사용합니다. 이 주소를 앞서 구성한 HAProxy의 웹 backend로 연결했습니다. Service의 <code>externalTrafficPolicy: Cluster</code> 설정으로 HAProxy가 선택한 워커에 Envoy Pod가 직접 떠 있지 않아도 클러스터 안의 Envoy endpoint로 전달할 수 있습니다.</p>
+<span class="md-anchor" id="section-02" aria-hidden="true"></span>
+
+</section>
+<section id="heading-gpu-api" class="markdown-section">
+<h2>모델 가중치·GPU 메모리·API 경로 구성</h2>
+<span class="md-anchor" id="section-02-01" aria-hidden="true"></span>
+<h3>가중치와 실행 프로세스를 분리</h3>
+<p>모델 가중치는 <code>llm-d</code> Namespace의 <code>gguf-comparison-models</code> PVC에 저장했습니다. 크기는 15 GiB이고 <code>cinder-ssd</code>를 사용합니다. 모델 다운로드 작업에서 파일을 이 볼륨에 준비한 뒤, 모델 Pod는 같은 PVC를 <code>/mnt/models</code>에 마운트해 읽습니다.</p>
+<p>사용하는 파일은 <code>Qwen3.5-9B-Q4_K_M.gguf</code>입니다. 다운로드한 모델의 revision과 파일 검증값을 기록하고, 추론 엔진 이미지도 digest로 고정했습니다. Pod 재생성 때 가중치를 다시 내려받지 않고 같은 파일을 읽으며, 실행 이미지와 모델 파일을 각각 교체할 수 있습니다.</p>
+<p>KServe에는 <code>LLMInferenceService/qwen35-9b</code>를 생성했습니다. 이 자원은 <code>pvc://gguf-comparison-models/</code>를 모델 위치로 참조하고, 모델 API 이름은 <code>qwen3.5-9b-q4</code>로 지정합니다. 사용자 정의 모델 컨테이너는 <code>llama-server</code>를 실행하며, GPU 워커와 DRA Claim을 참조합니다.</p>
+<p>저장소·배치·GPU 참조는 다음처럼 연결합니다.</p>
+<pre><code class="language-yaml">apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: qwen35-9b
+  namespace: llm-d
+spec:
+  model:
+    name: qwen3.5-9b-q4
+    uri: pvc://gguf-comparison-models/
+  replicas: 1
+  template:
+    nodeSelector:
+      kubernetes.io/hostname: gpu-worker-01
+    resourceClaims:
+      - name: gpu
+        resourceClaimName: qwen25-3b-gpu
+    containers:
+      - name: main
+        resources:
+          claims:
+            - name: gpu
+</code></pre>
+<p><code>qwen3.5-9b-q4</code>는 API 모델명이고 <code>qwen35-9b</code>는 Kubernetes 자원명입니다. <a href="model-files.html">모델 파일 준비</a>에서 PVC와 가중치를 먼저 준비합니다.</p>
+<span class="md-anchor" id="section-02-02" aria-hidden="true"></span>
+<h3>GPU 8 GiB에 맞춘 추론 설정</h3>
+<p>Qwen3.5-9B는 4비트 계열의 Q4_K_M 가중치를 사용합니다. GPU 메모리에는 가중치만 올라가는 것이 아니라 대화 문맥을 유지하는 KV 캐시와 실행 버퍼도 필요합니다. 그래서 모델 크기뿐 아니라 문맥 길이, KV 캐시 타입, 동시 처리 수를 함께 맞췄습니다.</p>
+<p><img src="../../../../assets/images/projects/cloudlens/portfolio/platform/assets/inference-context-budget.svg" alt="전체 컨텍스트를 6개 요청 슬롯으로 나누는 설정과 가중치·KV 캐시·연산용 GPU 메모리의 구분" loading="lazy"></p>
+<p>엔진 선택은 이 GPU에서 모델·KV 캐시·실행 버퍼를 함께 수용할 수 있는지를 기준으로 했습니다. 같은 장비에서 vLLM도 비교했고, 선택한 Qwen3.5-9B와 GPU 조합에서는 llama.cpp가 원하는 문맥 길이와 동시 처리 설정을 유지하는 데 더 적합했습니다. 서빙 아키텍처의 Gateway·InferencePool은 유지하고, 실제 토큰을 생성하는 엔진은 장비에 맞춰 선택한 것입니다. 현재 선택은 다음 설정의 llama.cpp입니다.</p>
+<pre><code class="language-text">--model /mnt/models/Qwen3.5-9B-Q4_K_M.gguf
+--alias qwen3.5-9b-q4
+--host 0.0.0.0
+--port 8000
+--n-gpu-layers 99
+--ctx-size 98304
+--parallel 6
+--cache-type-k q8_0
+--cache-type-v q8_0
+--batch-size 512
+--ubatch-size 128
+--flash-attn on
+--jinja
+--reasoning off
+--fit off
+--metrics
+--cache-ram 256
+--ctx-checkpoints 2
+</code></pre>
+<p>전체 context 98,304 토큰을 6개 slot에 나눠 <strong>요청 하나당 입력과 출력을 합쳐 16,384 토큰</strong>을 사용할 수 있게 구성했습니다. 모델 Pod를 6개 실행하는 것이 아니라, GPU 한 장을 사용하는 모델 서버 하나가 6개 slot으로 요청을 처리합니다. Q4_K_M은 가중치 형식이고, <code>q8_0</code>은 K·V 캐시 형식이므로 서로 다른 메모리 영역의 설정입니다.</p>
+<p>모델 컨테이너의 CPU request는 1코어, 메모리 request는 3 GiB, limit은 6 GiB입니다. 모델 파일을 읽고 GPU에 적재하는 시간을 고려해 startup probe의 대기 시간을 확보하고, 준비 상태가 확인된 뒤 요청을 받게 했습니다.</p>
+<p>GPU 메모리와 함께 VM의 RAM도 제한되어 있으므로 CPU 측 prompt cache는 256 MiB, 문맥 checkpoint는 2개로 제한했습니다. GPU에 모델이 올라가더라도 호스트 측 캐시가 VM의 메모리 예산을 넘지 않도록 함께 조정했습니다.</p>
+<span class="md-anchor" id="section-02-03" aria-hidden="true"></span>
+<h3>모델명에서 실제 추론 Pod까지 연결</h3>
+<p><code>AIGatewayRoute/model-api</code>에는 외부 Host인 <code>llm.k8s.test</code>와 WebUI가 사용할 내부 Envoy Service 이름을 등록했습니다. 요청의 모델명 <code>qwen3.5-9b-q4</code>에 해당하는 규칙은 <code>qwen35-9b-inference-pool</code>을 backend로 사용합니다.</p>
+<pre><code class="language-text">model: qwen3.5-9b-q4
+  → AIGatewayRoute/model-api의 모델 선택 조건
+  → InferencePool/qwen35-9b-inference-pool
+  → EPP가 선택한 모델 Pod의 주소
+  → Envoy가 해당 Pod의 llama-server:8000으로 전송
+</code></pre>
+<p>InferencePool은 모델 Pod 집합을 선언하는 자원이고, EPP는 그중 어느 endpoint를 사용할지 결정하는 구성요소입니다. <strong>EPP가 추론 요청 본문을 대신 전달하는 것은 아닙니다. 실제 요청과 응답은 Envoy와 모델 서버 사이를 흐릅니다.</strong> 현재 추론 Pod는 하나입니다. EPP는 <code>/v1/models</code>로 모델 정보를 읽고 <code>random-picker</code>를 사용하도록 설정했으며, llama.cpp가 제공하지 않는 vLLM의 큐·KV 캐시 지표를 전제로 한 기본 수집은 끄도록 구성했습니다.</p>
+<p>이 과정에는 이름이 비슷하지만 시점이 다른 선택이 세 번 있습니다. Kubernetes scheduler와 DRA는 <strong>모델 Pod가 실행될 노드와 GPU</strong>를 정합니다. EPP는 준비된 모델 Pod 중 <strong>이번 HTTP 요청을 받을 endpoint</strong>를 고릅니다. llama.cpp는 전달받은 요청들의 <strong>토큰 계산과 배치</strong>를 처리합니다. 사용자 질문이 올 때마다 OpenStack VM이나 GPU Claim을 새로 할당하는 구조가 아닙니다.</p>
+<p>모델명과 InferencePool의 연결은 다음 Route에 선언했습니다.</p>
+<pre><code class="language-yaml">apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIGatewayRoute
+metadata:
+  name: model-api
+  namespace: llm-d
+spec:
+  parentRefs:
+    - name: llm-gateway
+  hostnames:
+    - llm.k8s.test
+    - envoy-llm-d-llm-gateway-075beb82.envoy-gateway-system.svc.cluster.local
+  rules:
+    - matches:
+        - headers:
+            - name: x-ai-eg-model
+              type: Exact
+              value: qwen3.5-9b-q4
+      backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: qwen35-9b-inference-pool
+</code></pre>
+<p>CloudLens의 도구 선택 요청에는 긴 도구 정의가 포함되므로 Gateway의 요청 본문 버퍼를 256 KiB로, 모델 Route의 요청 시간 한도를 300초로 맞췄습니다. 모델이 처리할 수 있는 입력도 Gateway에서 먼저 거절되면 사용할 수 없기 때문에 함께 조정한 값입니다.</p>
+<p>배포 저장소 루트에서 모델과 Route를 적용합니다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab apply -f infra/llm-d/qwen35-9b-llmisvc.yaml
+kubectl --context openstack-k8s-llmd-lab apply -f infra/llm-d/model-api-aigatewayroute.yaml
+kubectl --context openstack-k8s-llmd-lab apply -f infra/helm/envoy-gateway/model-request-buffer.yaml
+</code></pre>
+<p><a href="06-open-webui.html">Open WebUI</a>는 이 모델 API를 채팅 화면에 연결하고, <a href="07-monitoring.html">Prometheus·DCGM</a>은 실행 중인 Pod와 GPU의 지표를 수집합니다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../../" aria-label="공통 학습 문서 이동"><a href="../../../../index.html">홈</a><a href="../../../../projects.html">프로젝트</a><a href="../../../../blog.html">블로그</a><a href="../../../../wiki.html" aria-current="page">위키</a><a href="../../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../../learning_history.html">학습 기록</a><a href="../../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

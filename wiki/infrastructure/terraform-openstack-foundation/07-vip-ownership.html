@@ -1,0 +1,195 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.md. Do not edit directly. source-sha256:56908fde7e78bf72553c5db3c59657d2d828996ec0b7a1caa4160c7bfb9d0ad6 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="예약용 포트와 allowed_address_pairs가 VIP 사용을 준비하는 원리를 설명한다.">
+  <meta name="source-sha256" content="56908fde7e78bf72553c5db3c59657d2d828996ec0b7a1caa4160c7bfb9d0ad6">
+  <title>VIP 예약과 allowed_address_pairs는 무엇을 준비하는가</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="VIP 예약과 allowed_address_pairs는 무엇을 준비하는가">
+  <meta property="og:description" content="예약용 포트와 allowed_address_pairs가 VIP 사용을 준비하는 원리를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html","name":"VIP 예약과 allowed_address_pairs는 무엇을 준비하는가","description":"예약용 포트와 allowed_address_pairs가 VIP 사용을 준비하는 원리를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html"},"headline":"VIP 예약과 allowed_address_pairs는 무엇을 준비하는가"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/07-vip-ownership.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/README.html"},{"@type":"ListItem","position":6,"name":"VIP 예약과 allowed_address_pairs는 무엇을 준비하는가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/terraform-openstack-foundation/README.html">Terraform으로 OpenStack 기반 Kubernetes 실습 환경 구성하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">VIP 예약과 allowed_address_pairs는 무엇을 준비하는가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>VIP 예약과 allowed_address_pairs는 무엇을 준비하는가</h1>
+      <p class="lead">예약용 포트와 allowed_address_pairs가 VIP 사용을 준비하는 원리를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-01">VIP는 기존 NIC에 추가하는 주소다</a>
+        <a href="#section-02">VM 내부 설정만으로는 OpenStack의 주소 관리와 일치하지 않는다</a>
+        <a href="#section-03">Terraform에서 VIP 주소를 확보한다</a>
+        <a href="#section-04">기존 LB 포트에만 VIP 사용을 허용한다</a>
+        <a href="#section-05">dynamic은 조건에 맞는 포트 안에 블록을 만든다</a>
+        <a href="#section-06">주소 사용 허용과 통신 허용은 다른 검사다</a>
+        <a href="#section-07">적용 결과가 보장하는 범위</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>로드밸런서 두 대가 있어도 클라이언트가 한 대의 고유 IP만 바라보면 그 VM의 장애 때 접속 주소를 바꿔야 한다. VIP는 담당 VM이 바뀌어도 사용할 공통 접속 주소다. <strong>OpenStack은 VIP를 예약하고 사용을 허용하며, Keepalived는 VM 안에서 실제로 주소를 붙이고 담당자를 바꾼다.</strong> 이 문서는 두 책임이 왜 분리되는지와 Terraform 표현을 설명한다.</p>
+</div>
+        <section id="section-01" class="markdown-section">
+<h2>VIP는 기존 NIC에 추가하는 주소다</h2>
+<p>예시에서 lb-01의 고유 IP는 <code>10.0.0.31</code>, lb-02는 <code>10.0.0.32</code>, VIP는 <code>10.0.0.30</code>이다. 각 VM의 NIC는 <code>ens3</code>다. 평소에는 lb-01의 ens3에 <code>.31</code>과 <code>.30</code>이 있고 lb-02에는 <code>.32</code>만 있다. 담당자가 바뀌면 lb-02의 ens3에 <code>.30</code>이 추가된다.</p>
+<p>다음은 Linux에서 주소를 추가하는 원리를 보여 주는 명령이다. 실제 운영은 Keepalived에 맡기므로 수동 명령을 함께 실행하지 않는다.</p>
+<pre><code class="language-bash"># 원리 설명용이며 실제 설정 절차에는 포함하지 않는다.
+sudo ip addr add 10.0.0.30/24 dev ens3
+</code></pre>
+<p>VIP를 넘긴다는 표현은 이런 IP 설정과 네트워크 알림의 담당이 바뀐다는 뜻이다. 별도 VM을 만들거나 예약용 Neutron 포트를 한 VM에서 다른 VM으로 분리·재연결하는 동작이 아니다.</p>
+
+</section>
+<section id="section-02" class="markdown-section">
+<h2>VM 내부 설정만으로는 OpenStack의 주소 관리와 일치하지 않는다</h2>
+<p>게스트 OS 관리자는 NIC에 추가 주소를 설정할 수 있다. 하지만 OpenStack이 그 주소를 여유 주소로 알고 있다면 다른 자원에 할당할 수 있다. 또한 포트 보안은 등록되지 않은 출발지 IP·MAC을 사용하는 통신을 사칭으로 판단할 수 있다.</p>
+<p>따라서 두 문제를 각각 해결한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>문제</th>
+<th>해결</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Neutron이 VIP를 다른 자원에 할당할 수 있음</td>
+<td>연결하지 않은 포트에 고정 IP를 할당해 예약</td>
+</tr>
+<tr>
+<td>LB가 자기 고유 IP 외의 VIP로 응답해야 함</td>
+<td>LB 포트에 allowed_address_pairs 추가</td>
+</tr>
+</tbody></table>
+</div>
+<p>예약 포트는 Neutron의 주소 관리에 VIP를 등록한다. 임의로 같은 IP를 수동 설정한 모든 장치를 물리적으로 막아 주는 기능까지 뜻하지는 않는다.</p>
+
+</section>
+<section id="section-03" class="markdown-section">
+<h2>Terraform에서 VIP 주소를 확보한다</h2>
+<p><code>vip.tf</code>에는 다음 자원을 선언했다. 이 포트를 <code>instances.tf</code>의 network 블록에서 참조하지 않는다.</p>
+<pre><code class="language-hcl">resource &quot;openstack_networking_port_v2&quot; &quot;lb_vip&quot; {
+  name       = &quot;k8s-lb-vip-reservation&quot;
+  network_id = data.openstack_networking_network_v2.private.id
+
+  fixed_ip {
+    subnet_id  = data.openstack_networking_subnet_v2.private.id
+    ip_address = &quot;10.0.0.30&quot;
+  }
+}
+</code></pre>
+<p>포트가 VM에 연결되지 않으므로 예약만으로 <code>.30</code>에 응답할 게스트가 생기지는 않는다. 예약 포트의 <code>admin_state_up</code>과 실제 바인딩·트래픽 상태도 별개다. 이 구성의 데이터는 기존 LB 포트를 통과한다.</p>
+
+</section>
+<section id="section-04" class="markdown-section">
+<h2>기존 LB 포트에만 VIP 사용을 허용한다</h2>
+<p>모든 노드의 포트를 같은 resource로 생성하므로 LB인지 조건을 확인해 설정 블록을 넣는다. 다음은 <code>ports.tf</code>의 전체 노드 포트 정의다.</p>
+<pre><code class="language-hcl">resource &quot;openstack_networking_port_v2&quot; &quot;nodes&quot; {
+  for_each = local.nodes
+
+  name           = &quot;${each.key}-port&quot;
+  network_id     = data.openstack_networking_network_v2.private.id
+  admin_state_up = true
+
+  security_group_ids = [
+    openstack_networking_secgroup_v2.k8s_lab.id
+  ]
+
+  fixed_ip {
+    subnet_id  = data.openstack_networking_subnet_v2.private.id
+    ip_address = each.value.fixed_ip
+  }
+
+  dynamic &quot;allowed_address_pairs&quot; {
+    for_each = contains([&quot;lb-01&quot;, &quot;lb-02&quot;], each.key) ? [
+      openstack_networking_port_v2.lb_vip.all_fixed_ips[0]
+    ] : []
+
+    content {
+      ip_address = allowed_address_pairs.value
+    }
+  }
+}
+</code></pre>
+<p><code>allowed_address_pairs</code>는 해당 포트에서 추가로 사용할 IP·MAC 조합을 지정한다. 여기서는 IP만 지정하고 기존 LB 포트의 MAC을 사용하는 구성으로 맞췄다. Keepalived에서도 별도 가상 MAC을 만드는 <code>use_vmac</code>을 사용하지 않는다. <a href="https://github.com/terraform-provider-openstack/terraform-provider-openstack/blob/v3.4.0/docs/resources/networking_port_v2.md" rel="noopener noreferrer">OpenStack Provider의 포트 설정</a></p>
+
+</section>
+<section id="section-05" class="markdown-section">
+<h2>dynamic은 조건에 맞는 포트 안에 블록을 만든다</h2>
+<p>바깥의 <code>for_each = local.nodes</code>는 <strong>포트 자원</strong>을 노드별로 만든다. 안쪽의 <code>dynamic</code>은 각 포트 자원 내부에 <strong>설정 블록</strong>을 만든다.</p>
+<p><code>contains([&quot;lb-01&quot;, &quot;lb-02&quot;], each.key)</code>는 현재 포트가 LB용인지 검사한다. 참이면 VIP 주소 하나가 들어 있는 목록, 거짓이면 빈 목록을 반환한다. 항목 하나당 블록 하나가 생성되므로 LB에는 아래 블록 하나가 생기고 CP·워커에는 생기지 않는다.</p>
+<pre><code class="language-hcl">allowed_address_pairs {
+  ip_address = &quot;10.0.0.30&quot;
+}
+</code></pre>
+<p><code>all_fixed_ips[0]</code>는 예약 포트의 첫 IP를 선택한다. 예약 자원을 참조하므로 그 자원에 대한 의존 관계도 생긴다. 안쪽 <code>allowed_address_pairs.value</code>는 현재 블록 반복의 IP 값이며 바깥 노드 객체인 <code>each.value</code>와 다르다. <a href="https://developer.hashicorp.com/terraform/language/expressions/dynamic-blocks" rel="noopener noreferrer">Terraform dynamic blocks 문서</a></p>
+
+</section>
+<section id="section-06" class="markdown-section">
+<h2>주소 사용 허용과 통신 허용은 다른 검사다</h2>
+<p><code>allowed_address_pairs</code>는 <code>.30</code> 사용을 허용해도 TCP 6443이나 VRRP 통신을 자동으로 모두 열어 주지 않는다. 보안 그룹·라우팅·게스트 방화벽도 정상이어야 한다. 반대로 보안 그룹에 TCP 6443을 열어도 포트의 사칭 방지 검사까지 해제되는 것은 아니다.</p>
+<p>두 LB에 VIP를 허용했다고 두 VM에 IP가 자동으로 붙지도 않는다. 실제 주소 소유는 Keepalived가 결정한다. 관련 설정과 선점 동작은 <a href="08-load-balancer.html">HAProxy와 Keepalived는 어떻게 공통 API 진입점을 구성하는가</a>에서 다룬다.</p>
+
+</section>
+<section id="section-07" class="markdown-section">
+<h2>적용 결과가 보장하는 범위</h2>
+<p>VIP 변경 계획은 예약 포트 1개 생성과 LB 포트 2개 수정으로 구성됐다. 적용 후 로컬 state에는 예약 포트의 <code>.30</code>, lb-01과 lb-02의 allowed address <code>.30</code>이 기록돼 있고 다른 노드 포트에는 추가 주소가 없다.</p>
+<p>이는 OpenStack 구성의 기록이며 VIP 담당자나 HAProxy의 실제 응답을 조회한 결과는 아니다. 운영 확인에는 각 VM의 <code>ip addr</code>와 Keepalived 상태를 별도로 확인해야 한다.</p>
+<p><a href="README.html">상위 문서로 돌아가기</a></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

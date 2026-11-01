@@ -1,0 +1,349 @@
+<!doctype html>
+<!-- Generated from content/wiki/llm-systems/iommu-dma-groups-domains.md. Do not edit directly. source-sha256:cab9cab2f8e2ebf837266279f2a4cf5a3f9f1209023072c194fe2a7d66106275 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DMA·IOVA부터 장치별 주소 변환과 접근 보호, IOMMU 그룹·도메인의 차이와 GPU 패스스루의 격리 경계까지 설명한다.">
+  <meta name="source-sha256" content="cab9cab2f8e2ebf837266279f2a4cf5a3f9f1209023072c194fe2a7d66106275">
+  <title>IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지">
+  <meta property="og:description" content="DMA·IOVA부터 장치별 주소 변환과 접근 보호, IOMMU 그룹·도메인의 차이와 GPU 패스스루의 격리 경계까지 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html","name":"IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지","description":"DMA·IOVA부터 장치별 주소 변환과 접근 보호, IOMMU 그룹·도메인의 차이와 GPU 패스스루의 격리 경계까지 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html"},"headline":"IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지"},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/iommu-dma-groups-domains.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"LLM 시스템·에이전트","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-llm-systems"},{"@type":"ListItem","position":4,"name":"모델 파일·추론 엔진·API 서버를 분리해서 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/llm_serving_stack_learning.html"},{"@type":"ListItem","position":5,"name":"PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html"},{"@type":"ListItem","position":6,"name":"PCI Passthrough와 vfio-pci가 하는 일","item":"https://muscleleg.github.io/jaejun-wiki/wiki/llm-systems/pci_passthrough_vfio_pci.html"},{"@type":"ListItem","position":7,"name":"IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-llm-systems">LLM 시스템·에이전트</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/llm_serving_stack_learning.html">모델 파일·추론 엔진·API 서버를 분리해서 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/cuda_driver_gpu_compatibility_investigation.html">PyTorch CUDA 오류에서 GPU Driver·GPU Operator·VFIO·MIG까지</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/llm-systems/pci_passthrough_vfio_pci.html">PCI Passthrough와 vfio-pci가 하는 일</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>IOMMU 이해하기: DMA 주소 변환에서 장치 격리·그룹·도메인까지</h1>
+      <p class="lead">DMA·IOVA부터 장치별 주소 변환과 접근 보호, IOMMU 그룹·도메인의 차이와 GPU 패스스루의 격리 경계까지 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-dma-ram">1. DMA: 장치가 RAM에 데이터를 읽고 쓰는 방식</a>
+        <a href="#section-2-iommu-dma">2. IOMMU: DMA 주소를 변환하고 접근을 제한한다</a>
+        <a href="#section-3">3. 매핑은 드라이버와 커널이 준비한다</a>
+        <a href="#section-4">4. 도메인: 어느 주소 매핑을 적용할지 정하는 영역</a>
+        <a href="#section-5">5. 주소 매핑이 어떻게 격리로 이어지는가?</a>
+        <a href="#section-6">6. 그룹: 장치를 독립적으로 격리할 수 있는 경계</a>
+        <a href="#section-7">7. 그룹과 도메인은 서로 다른 역할을 한다</a>
+        <a href="#section-8">8. 서로 다른 그룹도 같은 도메인을 사용할 수 있다</a>
+        <a href="#section-9-gpu">9. GPU 패스스루에서 그룹을 확인하는 이유</a>
+        <a href="#section-c3a2f370fdde">참고 자료</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>GPU·SSD·네트워크 카드 같은 장치는 시스템 RAM에 직접 데이터를 읽고 쓸 수 있다. 그런데 장치가 잘못된 주소에 접근하면 운영체제나 다른 프로그램의 메모리를 손상시킬 수 있다.</p>
+<p><strong>IOMMU는 장치의 메모리 접근에 주소 변환과 접근 보호를 제공하는 기능</strong>이다. 여기에 Linux의 <strong>도메인과 그룹</strong> 개념을 연결하면, GPU를 VM에 넘길 때 왜 IOMMU 그룹을 확인하는지도 이해할 수 있다.</p>
+</div>
+        <section id="section-1-dma-ram" class="markdown-section">
+<h2>1. DMA: 장치가 RAM에 데이터를 읽고 쓰는 방식</h2>
+<p><strong>DMA</strong>(Direct Memory Access)는 CPU가 데이터를 일일이 복사하지 않아도 장치가 RAM을 읽거나 쓸 수 있게 하는 방식이다.</p>
+<p>예를 들어 호스트 RAM의 데이터를 GPU로 옮겨 연산하는 경우에는 다음 과정이 일어난다.</p>
+<ol>
+<li>애플리케이션과 드라이버가 RAM에 입력 데이터를 준비한다.</li>
+<li>드라이버가 GPU에 전송할 주소와 작업을 전달한다.</li>
+<li>GPU의 복사 엔진이 DMA로 데이터를 VRAM에 옮긴다.</li>
+<li>GPU가 VRAM에 있는 데이터를 사용해 연산한다.</li>
+</ol>
+<pre><code class="language-text">호스트 RAM
+    │
+    │ DMA 전송
+    ▼
+GPU VRAM
+    │
+    ▼
+GPU 연산
+</code></pre>
+<p>CPU는 작업을 준비하고 결과를 처리하지만, 전송 중 모든 바이트를 직접 옮기지는 않는다.</p>
+<p>또한 GPU가 연산할 때마다 RAM에서 데이터를 가져오는 것은 아니다. 모델 가중치처럼 이미 VRAM에 올라간 데이터는 여러 연산에서 재사용할 수 있다.</p>
+<p><strong>DMA의 “직접”은 CPU의 일일이 복사를 거치지 않는다는 뜻이다.</strong> 주소 변환이나 접근 보호를 우회한다는 의미는 아니다.</p>
+
+</section>
+<section id="section-2-iommu-dma" class="markdown-section">
+<h2>2. IOMMU: DMA 주소를 변환하고 접근을 제한한다</h2>
+<p><strong>IOMMU</strong>(Input–Output Memory Management Unit)는 장치가 메모리에 접근할 때 두 가지 역할을 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>주소 변환</td>
+<td>장치가 사용하는 DMA 주소를 실제 RAM의 물리 주소로 연결</td>
+</tr>
+<tr>
+<td>접근 보호</td>
+<td>유효한 매핑과 읽기·쓰기 권한이 있는 접근만 허용</td>
+</tr>
+</tbody></table>
+</div>
+<p>IOMMU 주소 변환을 사용하는 구성에서는 장치가 사용하는 주소와 실제 RAM 주소가 다를 수 있다. 장치 측 주소를 <strong>IOVA</strong>(I/O Virtual Address)라고 부른다.</p>
+<p>아래 주소는 설명용 예시다.</p>
+<pre><code class="language-text">GPU의 요청: DMA 주소 0x1000에서 읽기
+                    │
+                    ▼
+IOMMU
+  • 이 주소에 매핑이 있는가?
+  • 읽기 권한이 있는가?
+  • 실제 RAM 주소 0x9000으로 변환
+                    │
+                    ▼
+RAM의 0x9000에 접근
+</code></pre>
+<p>매핑이 없거나 해당 접근 권한이 없으면 요청을 차단한다.</p>
+<p>따라서 IOMMU는 단순히 숫자를 바꾸는 번역기가 아니다. <strong>어떤 메모리를 장치에 연결해 주느냐를 통해 접근 가능한 범위도 제한한다.</strong></p>
+<p>IOMMU 자체가 데이터를 복사하거나 GPU 연산을 수행하는 것은 아니다.</p>
+<p><img src="../../assets/images/iommu-dma-groups-domains/dma-translation.svg" alt="IOMMU가 요청한 장치를 식별하고 DMA 주소와 권한을 확인해 RAM에 접근시키는 과정" loading="lazy"></p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>3. 매핑은 드라이버와 커널이 준비한다</h2>
+<p>IOMMU가 스스로 어떤 데이터를 GPU에 허용할지 결정하는 것은 아니다.</p>
+<p>호스트에서 장치를 사용하는 일반적인 흐름은 다음과 같다.</p>
+<ol>
+<li>드라이버가 데이터 전송에 사용할 RAM 버퍼를 준비한다.</li>
+<li>드라이버가 Linux의 DMA API로 버퍼의 DMA 매핑을 요청한다.</li>
+<li>커널이 필요한 매핑을 준비하고 장치에서 사용할 DMA 주소를 제공한다.</li>
+<li>드라이버가 그 주소를 장치에 전달한다.</li>
+<li>장치가 DMA 요청을 보내면 IOMMU가 설정된 매핑과 권한을 적용한다.</li>
+</ol>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>주체</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>드라이버</td>
+<td>사용할 버퍼와 작업을 준비하고 장치에 DMA 주소 전달</td>
+</tr>
+<tr>
+<td>커널</td>
+<td>DMA·IOMMU 매핑 관리</td>
+</tr>
+<tr>
+<td>장치</td>
+<td>전달받은 주소로 DMA 요청</td>
+</tr>
+<tr>
+<td>IOMMU 하드웨어</td>
+<td>요청의 주소 변환과 접근 보호</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>드라이버는 장치에 사용할 주소를 알려주고, IOMMU는 그 주소로 발생하는 접근을 통제한다.</strong></p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>4. 도메인: 어느 주소 매핑을 적용할지 정하는 영역</h2>
+<p>장치 A와 B가 모두 DMA 주소 <code>0x1000</code>을 사용한다고 해서 같은 RAM에 접근해야 하는 것은 아니다.</p>
+<p>서로 다른 메모리에 접근하도록 구성하려면 각각 다른 주소 매핑을 적용하면 된다. Linux에서 이런 주소 공간과 매핑을 관리하는 개념이 <strong>IOMMU 도메인</strong>(Domain)이다.</p>
+<pre><code class="language-text">장치 A → 도메인 1
+          DMA 0x1000 → RAM 0x9000
+
+장치 B → 도메인 2
+          DMA 0x1000 → RAM 0xD000
+</code></pre>
+<p>IOMMU는 DMA 주소 숫자만 보고 번역하지 않는다. 일반적인 PCIe 구성에서는 요청자 식별 정보인 <strong>Requester ID</strong> 등을 바탕으로 요청에 적용할 변환 문맥을 찾는다. 커널은 장치와 도메인의 연결을 설정한다.</p>
+<p>개념적으로는 두 단계다.</p>
+<pre><code class="language-text">요청한 장치 식별 → 적용할 도메인 선택
+요청의 DMA 주소 → 그 도메인의 매핑으로 RAM 주소 변환
+</code></pre>
+<p>따라서 장치 A가 B의 DMA 주소 숫자를 알아내서 사용해도 B의 매핑을 선택할 수는 없다.</p>
+<ul>
+<li>A의 도메인에 그 주소가 있으면 A에게 매핑된 RAM에 접근한다.</li>
+<li>A의 도메인에 그 주소가 없으면 접근이 차단된다.</li>
+</ul>
+<p><strong>DMA 주소는 적용할 주소 공간까지 정해져야 실제 RAM 위치가 결정된다.</strong></p>
+
+</section>
+<section id="section-5" class="markdown-section">
+<h2>5. 주소 매핑이 어떻게 격리로 이어지는가?</h2>
+<p>GPU를 VM A에 할당한다고 가정하자.</p>
+<p>그 GPU에 적용할 도메인에 VM A의 메모리를 매핑하고, VM B의 메모리는 매핑하지 않으면 된다. 정상적으로 보호되는 DMA 경로에서 GPU는 VM B의 RAM으로 연결되는 주소를 갖지 못한다.</p>
+<pre><code class="language-text">VM A에 할당한 GPU
+        │
+        ▼
+도메인 A
+├── VM A에 허용된 RAM: 매핑 있음
+└── VM B의 RAM: 매핑 없음
+</code></pre>
+<p>이것이 주소 변환과 격리의 연결이다.</p>
+<blockquote>
+<p><strong>접근을 허용할 메모리만 매핑하면, 주소 변환표가 메모리 접근을 제한하는 경계가 된다.</strong></p>
+</blockquote>
+<p>이 기능은 VM 전용이 아니다. 호스트가 GPU를 직접 사용할 때도 드라이버가 준비한 RAM 버퍼에 대한 접근을 변환하고 제한할 수 있다.</p>
+<p>다만 IOMMU 비활성화나 통과 모드 등 설정에 따라 동작은 달라진다. IOMMU 지원 여부와 실제 보호 구성을 구분해야 한다.</p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>6. 그룹: 장치를 독립적으로 격리할 수 있는 경계</h2>
+<p>장치마다 다른 도메인을 연결하면 항상 안전하게 분리할 수 있을까?</p>
+<p>그러려면 하드웨어가 다음 조건을 만족해야 한다.</p>
+<ul>
+<li>어느 장치가 보낸 요청인지 구별할 수 있어야 한다.</li>
+<li>장치 사이에 IOMMU의 보호를 우회할 수 있는 경로가 없어야 한다.</li>
+</ul>
+<p>하지만 일부 하드웨어 연결 구조에서는 여러 장치의 요청이 같은 식별자로 보이거나, 장치 사이의 통신을 충분히 통제할 수 없는 경우가 있다.</p>
+<p>Linux는 독립적으로 격리할 수 있다고 보장하기 어려운 장치들을 <strong>IOMMU 그룹</strong>(Group)으로 묶는다.</p>
+<p><strong>그룹은 다른 장치들로부터 안전하게 격리할 수 있는 최소 장치 묶음</strong>이다.</p>
+<pre><code class="language-text">그룹 A
+├── GPU 본체
+├── GPU 오디오
+└── GPU USB 기능
+
+그룹 B
+└── NVMe 컨트롤러
+</code></pre>
+<p>이 예시에서는 그룹 A와 B를 서로 독립적으로 다룰 수 있다. 하지만 그룹 A 내부의 기능들을 서로 다른 신뢰 영역으로 나눠도 안전하다고 보장하지는 않는다.</p>
+<p>그룹 번호 자체는 식별자일 뿐이다. <code>16</code>이라는 번호가 특별한 권한이나 메모리 범위를 뜻하지는 않는다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>7. 그룹과 도메인은 서로 다른 역할을 한다</h2>
+<p>그룹에 주소 매핑 정보가 저장되는 것으로 생각하면 두 개념이 섞인다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>개념</th>
+<th>답하는 질문</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>그룹</td>
+<td>어떤 장치들을 하나의 격리 단위로 취급해야 하는가?</td>
+</tr>
+<tr>
+<td>도메인</td>
+<td>연결된 장치들의 DMA 주소를 어떤 RAM 주소로 변환하고, 어떤 접근을 허용할 것인가?</td>
+</tr>
+</tbody></table>
+</div>
+<p>일반적인 VFIO 패스스루에서는 그룹을 같은 격리 영역으로 다루며, 그에 맞는 도메인에 연결한다.</p>
+<pre><code class="language-text">그룹 A: GPU·오디오 ─── 도메인 1
+                         └── 주소 매핑·접근 권한
+
+그룹 B: 다른 장치 ─── 도메인 2
+                         └── 별도의 주소 매핑·접근 권한
+</code></pre>
+<p>이 그림은 관리상의 연결 관계다. DMA 요청이 “그룹”이라는 하드웨어 부품을 통과한다는 뜻은 아니다.</p>
+<p><img src="../../assets/images/iommu-dma-groups-domains/separate-domains.svg" alt="그룹 A와 B를 별도 도메인에 연결하면 같은 DMA 주소도 서로 다른 RAM으로 변환되는 구조" loading="lazy"></p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>8. 서로 다른 그룹도 같은 도메인을 사용할 수 있다</h2>
+<p>그룹이 다르다는 것은 <strong>필요하면 독립적으로 격리할 수 있다</strong>는 뜻이다. 반드시 서로 분리해서 사용해야 한다는 뜻은 아니다.</p>
+<p>여러 그룹을 같은 도메인에 연결할 수도 있다.</p>
+<pre><code class="language-text">그룹 A ──┐
+         ├── 도메인 1
+그룹 B ──┘      └── 공통 주소 매핑·접근 권한
+</code></pre>
+<p>이 경우 두 그룹의 장치가 같은 DMA 주소를 요청하면 같은 RAM 위치로 연결된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>공통 도메인의 매핑 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>그룹 A의 장치가 <code>0x1000</code>에 접근</td>
+<td>RAM <code>0x9000</code></td>
+</tr>
+<tr>
+<td>그룹 B의 장치가 <code>0x1000</code>에 접근</td>
+<td>RAM <code>0x9000</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>장치들이 서로의 주소나 작업을 이해하는 것은 아니다. <strong>IOMMU가 두 장치의 요청에 같은 매핑을 적용하는 것</strong>이다.</p>
+<p>반대로 두 그룹을 다른 도메인에 연결하면 서로 다른 주소 공간을 적용할 수 있다.</p>
+<p><img src="../../assets/images/iommu-dma-groups-domains/shared-domain.svg" alt="서로 다른 두 그룹을 하나의 도메인에 연결하면 동일한 DMA 주소에 같은 매핑을 적용하는 구조" loading="lazy"></p>
+
+</section>
+<section id="section-9-gpu" class="markdown-section">
+<h2>9. GPU 패스스루에서 그룹을 확인하는 이유</h2>
+<p>GPU를 VM에 넘길 때는 먼저 GPU가 존재하는지 확인한다. 그다음에는 같은 IOMMU 그룹에 어떤 장치가 들어 있는지 확인해야 한다.</p>
+<p>GPU 본체와 오디오·USB 기능이 같은 그룹이라면, GPU 본체만 넘기고 나머지를 호스트가 계속 사용하는 구성을 아무 검토 없이 선택할 수는 없다.</p>
+<p>일반적인 VFIO 패스스루에서는 같은 그룹의 다른 기능도 호스트 드라이버에서 분리하는 등 그룹 전체의 사용 상태를 고려해야 한다. <strong>모든 기능을 반드시 VM에 노출해야 한다는 뜻은 아니지만, 같은 그룹의 나머지 기능을 무시할 수는 없다.</strong></p>
+<p>만약 호스트에 필요한 SSD나 네트워크 장치까지 같은 그룹에 있다면, 그 장치들과의 분리 가능성부터 다시 검토해야 한다.</p>
+<p>따라서 GPU 패스스루에서 확인하는 흐름은 다음과 같다.</p>
+<pre><code class="language-text">GPU의 PCI 주소 확인
+        ↓
+GPU가 속한 IOMMU 그룹 확인
+        ↓
+같은 그룹의 장치와 호스트 사용 상태 확인
+        ↓
+그룹의 격리 경계를 고려해 VFIO·VM 할당 구성
+</code></pre>
+<p>IOMMU의 핵심 기능은 <strong>DMA 주소 변환과 접근 보호</strong>, 도메인은 <strong>그 매핑을 관리하는 영역</strong>, 그룹은 <strong>독립적으로 격리해서 취급할 수 있는 장치의 경계</strong>다.</p>
+
+</section>
+<section id="section-c3a2f370fdde" class="markdown-section">
+<h2>참고 자료</h2>
+<ul>
+<li><a href="https://docs.kernel.org/driver-api/vfio.html" rel="noopener noreferrer">Linux Kernel — VFIO, IOMMU와 장치 그룹</a></li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

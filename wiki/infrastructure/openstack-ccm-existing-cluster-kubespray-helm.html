@@ -1,0 +1,758 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.md. Do not edit directly. source-sha256:4d58cfadfbb7c7cf00a80adf224ff6d7337f579f5431a0b42cfbe3e782262292 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="기존 OpenStack VM 기반 Kubernetes 클러스터에 CCM을 추가하는 Kubespray 방식과 Ansible 없이 Helm·수동 kubelet 설정을 사용하는 방식을 분리하고 providerID 초기화와 검증을 설명한다.">
+  <meta name="source-sha256" content="4d58cfadfbb7c7cf00a80adf224ff6d7337f579f5431a0b42cfbe3e782262292">
+  <title>기존 Kubernetes 클러스터에 OpenStack CCM 추가하기</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="기존 Kubernetes 클러스터에 OpenStack CCM 추가하기">
+  <meta property="og:description" content="기존 OpenStack VM 기반 Kubernetes 클러스터에 CCM을 추가하는 Kubespray 방식과 Ansible 없이 Helm·수동 kubelet 설정을 사용하는 방식을 분리하고 providerID 초기화와 검증을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html","name":"기존 Kubernetes 클러스터에 OpenStack CCM 추가하기","description":"기존 OpenStack VM 기반 Kubernetes 클러스터에 CCM을 추가하는 Kubespray 방식과 Ansible 없이 Helm·수동 kubelet 설정을 사용하는 방식을 분리하고 providerID 초기화와 검증을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html"},"headline":"기존 Kubernetes 클러스터에 OpenStack CCM 추가하기","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-kubernetes","name":"Kubernetes 원문","identifier":"topics-kubernetes"},{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-openstack-services","name":"핵심 서비스","identifier":"project-openstack-services"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-ccm-existing-cluster-kubespray-helm.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"기존 Kubernetes 클러스터에 OpenStack CCM 추가하기"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">기존 Kubernetes 클러스터에 OpenStack CCM 추가하기</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>기존 Kubernetes 클러스터에 OpenStack CCM 추가하기</h1>
+      <p class="lead">기존 OpenStack VM 기반 Kubernetes 클러스터에 CCM을 추가하는 Kubespray 방식과 Ansible 없이 Helm·수동 kubelet 설정을 사용하는 방식을 분리하고 providerID 초기화와 검증을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#kubespray-helm">Kubespray 방식과 Helm·수동 설정 방식</a>
+        <a href="#section-1-ccm">1. CCM이 연결하는 것은 무엇인가?</a>
+        <a href="#section-2-ccm">2. CCM 설치만으로 끝나지 않는 이유</a>
+        <a href="#section-3">3. 예시 환경과 적용 범위</a>
+        <a href="#section-4-openstack">4. 공통 준비: OpenStack 인증정보 만들기</a>
+        <a href="#section-5-a-kubespray-ccm-kubelet">5. 방법 A — Kubespray로 CCM과 kubelet을 관리한다</a>
+        <a href="#section-6-b-ansible-helm">6. 방법 B — Ansible 없이 Helm과 수동 설정으로 구성한다</a>
+        <a href="#section-7-node">7. 두 방식 공통: 기존 Node의 클라우드 정보를 초기화한다</a>
+        <a href="#section-8">8. 완료 여부 확인</a>
+        <a href="#section-9">9. 이 작업으로 확인한 범위</a>
+      </nav>
+      <article class="markdown-content">
+        
+        <section id="kubespray-helm" class="markdown-section">
+<h2>Kubespray 방식과 Helm·수동 설정 방식</h2>
+<p>OpenStack에서 생성한 VM에 Kubernetes를 설치했다고 해서 Kubernetes가 해당 VM의 OpenStack ID까지 자동으로 아는 것은 아니다.</p>
+<p>OpenStack에는 <strong>VM 자원</strong>이 있고, Kubernetes에는 <strong>Node 자원</strong>이 있다. OpenStack CCM은 두 시스템을 연결해 Node에 VM의 식별 정보와 클라우드 관련 정보를 기록한다.</p>
+<p>이 글에서는 기존 클러스터에 CCM을 추가하는 방법을 두 경로로 구분한다.</p>
+<ul>
+<li><strong>방법 A — Kubespray:</strong> 인벤토리에 설정을 선언하고, Ansible로 CCM 설치와 kubelet 설정을 관리한다.</li>
+<li><strong>방법 B — Helm과 수동 설정:</strong> Helm으로 CCM을 설치하고, 각 VM에 SSH로 접속해 kubelet 설정을 직접 변경한다. Ansible은 실행하지 않는다.</li>
+</ul>
+<p>두 방법은 대안 관계다. <strong>하나를 선택해서 진행하며 같은 클러스터에 CCM을 중복 설치하지 않는다.</strong></p>
+<p>현재 예시 클러스터는 방법 A로 설정이 완료됐다. 방법 B는 공식 Helm 차트의 설정과 렌더링을 확인한 별도 구성 예시이며, 같은 클러스터에서 추가로 실행할 절차가 아니다.</p>
+<hr>
+
+</section>
+<section id="section-1-ccm" class="markdown-section">
+<h2>1. CCM이 연결하는 것은 무엇인가?</h2>
+<p>Kubernetes Node에는 <code>spec.providerID</code>라는 필드가 있다.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Node
+metadata:
+  name: cp-01
+spec:
+  providerID: openstack:///fc29da8c-ba00-45c4-bfbb-6bd8f88d4fdb
+</code></pre>
+<p><code>openstack:///</code> 뒤의 UUID가 OpenStack VM의 ID다.</p>
+<pre><code class="language-text">Kubernetes Node
+  이름: cp-01
+  providerID: openstack:///fc29da8c-...
+                     │
+                     │ 같은 UUID
+                     ▼
+OpenStack VM
+  이름: cp-01
+  ID: fc29da8c-...
+</code></pre>
+<p>이 값이 있으면 관리 애플리케이션에서도 이름이나 IP로 추측하지 않고 UUID로 Node와 VM을 연결할 수 있다.</p>
+<p>CCM은 단순히 이름을 연결하는 프로그램에 그치지 않는다. 활성화한 컨트롤러에 따라 노드의 클라우드 정보와 생명주기, 로드밸런서 등의 연동을 담당한다.</p>
+<p>이 글에서는 다음 두 컨트롤러만 사용한다.</p>
+<pre><code class="language-text">cloud-node
+cloud-node-lifecycle
+</code></pre>
+<p>노드의 클라우드 정보 초기화와 VM 생명주기 연동을 사용하고, OpenStack 로드밸런서와 클라우드 라우트 관리는 활성화하지 않는다.</p>
+<p><strong>VM 메모리를 늘리거나 Flavor를 변경하는 작업은 CCM의 역할이 아니다.</strong></p>
+
+</section>
+<section id="section-2-ccm" class="markdown-section">
+<h2>2. CCM 설치만으로 끝나지 않는 이유</h2>
+<p>기존 클러스터에 CCM을 추가할 때는 서로 다른 세 대상을 설정해야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>작업</th>
+<th>변경 대상</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CCM 설치</td>
+<td>Kubernetes의 DaemonSet·Secret·RBAC</td>
+<td>CCM 실행 및 API 접근 준비</td>
+</tr>
+<tr>
+<td>kubelet 설정</td>
+<td>각 VM의 kubelet 실행 옵션</td>
+<td>외부 CCM 사용 모드 활성화</td>
+</tr>
+<tr>
+<td>기존 Node 초기화</td>
+<td>Kubernetes의 Node 자원</td>
+<td>OpenStack VM 정보 등록</td>
+</tr>
+</tbody></table>
+</div>
+<p>전체 흐름은 다음과 같다.</p>
+<pre><code class="language-text">CCM 설치와 인증 준비
+        ↓
+각 노드의 kubelet에 --cloud-provider=external 반영
+        ↓
+기존 Node를 클라우드 초기화 대상으로 표시
+        ↓
+CCM이 OpenStack에서 VM 조회
+        ↓
+providerID 등 기록 후 초기화 표시 제거
+</code></pre>
+<p>CCM Pod가 <code>Running</code>이어도 kubelet 설정과 Node 초기화가 끝나지 않았을 수 있다.</p>
+<p>또한 여기서 <strong>초기화는 노드를 재설치하거나 데이터를 지운다는 뜻이 아니다.</strong> 기존 Node에 클라우드 정보를 처음 채우는 작업이다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>3. 예시 환경과 적용 범위</h2>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>구성</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Kubernetes</td>
+<td>v1.36.4</td>
+</tr>
+<tr>
+<td>OpenStack CCM</td>
+<td>v1.36.0</td>
+</tr>
+<tr>
+<td>노드</td>
+<td>컨트롤플레인 3대, 워커 3대</td>
+</tr>
+<tr>
+<td>기존 클러스터 설치 도구</td>
+<td>Kubespray</td>
+</tr>
+<tr>
+<td>Pod 네트워크</td>
+<td>Cilium</td>
+</tr>
+<tr>
+<td>외부 요청 진입</td>
+<td>HAProxy·Envoy</td>
+</tr>
+<tr>
+<td>스토리지</td>
+<td>별도 Helm 릴리스의 Cinder CSI</td>
+</tr>
+<tr>
+<td>Octavia</td>
+<td>사용하지 않음</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 글은 <strong>CCM 없이 운영하던 기존 클러스터에 외부 CCM을 추가하는 경우</strong>를 다룬다. 과거의 in-tree OpenStack cloud provider에서 이관하는 절차와는 구분해야 한다.</p>
+<p>적용 전에 확인할 조건은 다음과 같다.</p>
+<ul>
+<li>기존 노드가 정상적으로 <code>Ready</code>인지 확인한다.</li>
+<li>기존 CCM이 설치돼 있지 않은지 확인한다.</li>
+<li>CCM을 실행할 노드에서 OpenStack 인증·Compute API에 접근할 수 있어야 한다.</li>
+<li>인증정보로 대상 VM을 조회할 수 있어야 한다.</li>
+<li>Node 이름과 OpenStack VM 정보로 올바른 VM을 식별할 수 있어야 한다.</li>
+<li>Kubernetes 버전에 맞는 CCM 버전을 선택한다.</li>
+</ul>
+<p>맥에서 OpenStack CLI가 성공한다고 해서 CCM의 통신까지 보장되지는 않는다. <strong>실제로 CCM이 실행될 노드의 접속 경로</strong>도 확인해야 한다.</p>
+<hr>
+
+</section>
+<section id="section-4-openstack" class="markdown-section">
+<h2>4. 공통 준비: OpenStack 인증정보 만들기</h2>
+<p>CCM은 두 API에 접근한다.</p>
+<pre><code class="language-text">CCM
+ ├─ Kubernetes API
+ │    ServiceAccount + RBAC 사용
+ │
+ └─ OpenStack API
+      Application Credential 사용
+</code></pre>
+<p>Kubernetes 쪽 권한은 Kubespray 또는 Helm 차트가 생성한다. OpenStack 인증정보는 별도로 준비한다.</p>
+<h3>4.1. Application Credential 생성</h3>
+<p>OpenStack CLI에 <code>lab</code>이라는 cloud 설정이 등록돼 있다고 가정한다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab application credential create \
+  ccm-k8s-lab \
+  --role reader
+</code></pre>
+<p>발급 결과의 <code>id</code>와 <code>secret</code>을 보관한다. 이미 사용할 인증정보가 있다면 다시 만들지 않는다.</p>
+<p>이 예시는 노드 조회 중심의 구성이다. <code>reader</code> 역할이 필요한 조회를 허용하는지는 해당 OpenStack의 정책에 따라 확인해야 한다. 나중에 로드밸런서 관리까지 활성화하면 필요한 권한도 달라진다.</p>
+<h3>4.2. CCM용 설정 파일 작성</h3>
+<p>맥에서 파일을 작성한다.</p>
+<pre><code class="language-bash">mkdir -p ~/.config/openstack
+vi ~/.config/openstack/ccm-cloud.conf
+</code></pre>
+<p>내용은 다음과 같다.</p>
+<pre><code class="language-ini">[Global]
+auth-url = http://OPENSTACK_AUTH_HOST:5000/v3
+region = RegionOne
+application-credential-id = 발급받은-ID
+application-credential-secret = 발급받은-SECRET
+</code></pre>
+<p>이 파일은 OpenStack CLI의 <code>clouds.yaml</code>이 아니다. <strong>CCM이 읽는 형식으로 작성한 인증·접속 설정</strong>이다.</p>
+<p>비밀정보가 있으므로 파일 권한을 제한한다.</p>
+<pre><code class="language-bash">chmod 600 ~/.config/openstack/ccm-cloud.conf
+</code></pre>
+<p>이후 이 파일을 Kubernetes Secret으로 전달하는 방법이 설치 경로에 따라 달라진다.</p>
+<hr>
+
+</section>
+<section id="section-5-a-kubespray-ccm-kubelet" class="markdown-section">
+<h2>5. 방법 A — Kubespray로 CCM과 kubelet을 관리한다</h2>
+<p>이 방식에서는 인벤토리를 설정 원본으로 사용한다.</p>
+<pre><code class="language-text">Kubespray 인벤토리
+ ├─ CCM 설치 설정
+ ├─ OpenStack 인증정보 참조
+ └─ kubelet 외부 CCM 사용 설정
+        ↓
+Ansible 실행
+        ↓
+클러스터와 각 VM에 반영
+</code></pre>
+<h3>5.1. 인벤토리에 OpenStack 설정 작성</h3>
+<p>예시 파일 위치는 다음과 같다.</p>
+<pre><code class="language-text">~/openstack-k8s-llmd-lab/infra/kubespray/inventory/lab/group_vars/all/openstack.yml
+</code></pre>
+<p><code>group_vars/all/</code> 아래의 변수는 인벤토리 전체 호스트에 적용된다.</p>
+<pre><code class="language-yaml">---
+cloud_provider: external
+external_cloud_provider: openstack
+
+external_openstack_cloud_controller_image_tag: v1.36.0
+external_openstack_cloud_controller_dns_policy: ClusterFirstWithHostNet
+
+# 노드 연동 기능만 사용한다.
+external_openstack_lbaas_enabled: false
+external_openstack_cloud_controller_extra_args:
+  controllers: cloud-node,cloud-node-lifecycle
+
+# 기존 Cinder CSI는 별도 Helm 릴리스에서 관리한다.
+cinder_csi_enabled: false
+
+# 실제 인증정보는 로컬 파일에서 읽는다.
+lab_ccm_cloud_config_file: &quot;{{ lookup(&#39;env&#39;, &#39;HOME&#39;) }}/.config/openstack/ccm-cloud.conf&quot;
+
+external_openstack_auth_url: &quot;{{ lookup(&#39;ansible.builtin.ini&#39;, &#39;auth-url&#39;, section=&#39;Global&#39;, file=lab_ccm_cloud_config_file) }}&quot;
+external_openstack_region: &quot;{{ lookup(&#39;ansible.builtin.ini&#39;, &#39;region&#39;, section=&#39;Global&#39;, file=lab_ccm_cloud_config_file) }}&quot;
+external_openstack_application_credential_id: &quot;{{ lookup(&#39;ansible.builtin.ini&#39;, &#39;application-credential-id&#39;, section=&#39;Global&#39;, file=lab_ccm_cloud_config_file) }}&quot;
+external_openstack_application_credential_secret: &quot;{{ lookup(&#39;ansible.builtin.ini&#39;, &#39;application-credential-secret&#39;, section=&#39;Global&#39;, file=lab_ccm_cloud_config_file) }}&quot;
+external_openstack_application_credential_name: ccm-k8s-lab
+
+# 셸의 다른 OpenStack 인증 설정을 가져오지 않도록 한다.
+external_openstack_username: &quot;&quot;
+external_openstack_password: &quot;&quot;
+external_openstack_tenant_id: &quot;&quot;
+external_openstack_tenant_name: &quot;&quot;
+external_openstack_domain_name: &quot;&quot;
+external_openstack_domain_id: &quot;&quot;
+external_openstack_cacert: &quot;&quot;
+</code></pre>
+<p>주요 설정의 의미는 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cloud_provider: external</code></td>
+<td>kubelet을 외부 CCM 사용 모드로 설정</td>
+</tr>
+<tr>
+<td><code>external_cloud_provider: openstack</code></td>
+<td>Kubespray가 OpenStack CCM 설치</td>
+</tr>
+<tr>
+<td><code>controllers</code></td>
+<td>CCM에서 실행할 컨트롤러 제한</td>
+</tr>
+<tr>
+<td><code>external_openstack_lbaas_enabled: false</code></td>
+<td>OpenStack 로드밸런서 연동 비활성화</td>
+</tr>
+<tr>
+<td><code>cinder_csi_enabled: false</code></td>
+<td>Kubespray를 통한 Cinder CSI 추가 설치 비활성화</td>
+</tr>
+<tr>
+<td><code>lookup(...)</code></td>
+<td>Ansible을 실행하는 맥의 파일에서 값을 읽음</td>
+</tr>
+</tbody></table>
+</div>
+<p>CCM이 맥의 파일을 직접 읽는 구조는 아니다. Ansible이 로컬 파일을 읽어서 Kubernetes Secret을 만들고, CCM은 그 Secret을 사용한다.</p>
+<p>변수 이름과 지원 범위는 사용하는 Kubespray 버전에 맞춰 확인해야 한다. <a href="https://github.com/kubernetes-sigs/kubespray/blob/master/docs/cloud_controllers/openstack.md" rel="noopener noreferrer">Kubespray OpenStack 공식 문서</a></p>
+<h3>5.2. CCM 설치</h3>
+<p>기존에 준비한 Kubespray 실행 환경을 활성화한다.</p>
+<pre><code class="language-bash">cd ~/openstack-k8s-llmd-lab/infra/kubespray/upstream
+source ../.venv/bin/activate
+</code></pre>
+<p>CCM 관련 작업만 실행한다.</p>
+<pre><code class="language-bash">ansible-playbook -i ../inventory/lab/hosts.yaml cluster.yml \
+  --tags external-cloud-controller \
+  --limit cp-01
+</code></pre>
+<p>이 명령에서 <code>--limit cp-01</code>은 Kubernetes 자원을 적용하는 Ansible 실행 대상을 제한한다.</p>
+<p><strong>CCM이 cp-01만 관리한다는 의미는 아니다.</strong> 생성된 DaemonSet은 배치 조건에 맞는 컨트롤플레인에 Pod를 실행하고, 선출된 리더는 워커까지 포함해 전체 노드를 관리한다.</p>
+<p>예시 Kubespray 역할은 다음 Secret을 생성한다.</p>
+<pre><code class="language-text">kube-system/external-openstack-cloud-config
+</code></pre>
+<p>따라서 이 경로에서는 Helm용 Secret을 별도로 만들 필요가 없다.</p>
+<h3>5.3. CCM 실행 확인</h3>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n kube-system \
+  get pods -l k8s-app=openstack-cloud-controller-manager -o wide
+</code></pre>
+<p>컨트롤플레인 3대에 CCM Pod가 배치됐는지 확인한다.</p>
+<p>로그에서는 리더 선출, 컨트롤러 시작, 인증·통신 오류를 확인한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n kube-system \
+  logs -l k8s-app=openstack-cloud-controller-manager \
+  --prefix --tail=100
+</code></pre>
+<h3>5.4. Ansible로 kubelet 설정 반영</h3>
+<p>CCM이 정상 실행되는 것을 확인한 뒤, 각 VM의 kubelet 설정을 반영한다.</p>
+<pre><code class="language-bash">ansible-playbook -i ../inventory/lab/hosts.yaml cluster.yml \
+  --tags download,kubelet
+</code></pre>
+<p>이 명령은 다음 작업을 수행한다.</p>
+<pre><code class="language-text">필요한 설치 파일 준비
+        ↓
+kubelet 관련 설치 상태와 설정 반영
+        ↓
+변경 사항에 따라 kubelet 재시작
+</code></pre>
+<p>핵심적으로 반영되는 실행 옵션은 다음과 같다.</p>
+<pre><code class="language-text">--cloud-provider=external
+</code></pre>
+<p>예시 환경에서는 <code>/etc/kubernetes/kubelet.env</code>에 다음 값이 들어간다.</p>
+<pre><code class="language-bash">KUBELET_CLOUDPROVIDER=&quot;--cloud-provider=external&quot;
+</code></pre>
+<p>이 설정은 컨트롤플레인과 워커 모두에 필요하다. 한 대씩 적용하려면 명령에 <code>--limit cp-01</code>처럼 대상 노드를 지정할 수 있다.</p>
+<p>단, <code>--tags kubelet</code>은 설정 한 줄만 수정하는 작업이 아니다. 바이너리 복사와 kubelet 설정 파일·systemd 서비스 관리도 포함한다.</p>
+<p>실제 환경에서는 다운로드 단계를 생략했을 때 다음 오류가 발생했다.</p>
+<pre><code class="language-text">Source /tmp/releases/kubeadm-1.36.4-amd64 not found
+</code></pre>
+<p>이는 이미 설치된 <code>kubeadm</code>이 없다는 뜻이 아니라, Kubespray가 복사하려는 <strong>임시 설치 원본 파일이 없다는 뜻</strong>이었다. <code>download,kubelet</code>을 함께 실행해 해결했다.</p>
+<p>모든 대상에서 <code>failed=0</code>으로 완료된 뒤, 아래의 <strong>기존 Node 초기화 및 검증 절차</strong>로 진행한다.</p>
+<hr>
+
+</section>
+<section id="section-6-b-ansible-helm" class="markdown-section">
+<h2>6. 방법 B — Ansible 없이 Helm과 수동 설정으로 구성한다</h2>
+<p>이 방식에서는 역할을 다음처럼 나눈다.</p>
+<pre><code class="language-text">kubectl
+ └─ OpenStack 인증 Secret 생성
+
+Helm
+ └─ CCM·ServiceAccount·RBAC 설치
+
+관리자 SSH 접속
+ └─ 각 VM의 kubelet 설정 변경 및 재시작
+</code></pre>
+<p><strong>이 경로에서는 Ansible 플레이북을 실행하지 않는다.</strong></p>
+<h3>6.1. 인증 파일을 Secret으로 등록</h3>
+<p>공통 준비에서 작성한 파일을 사용한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n kube-system \
+  create secret generic openstack-ccm-cloud-config \
+  --from-file=cloud.conf=&quot;$HOME/.config/openstack/ccm-cloud.conf&quot;
+</code></pre>
+<p>Secret 안에는 <code>cloud.conf</code>라는 키로 파일 내용이 저장된다.</p>
+<pre><code class="language-text">로컬 ccm-cloud.conf
+        ↓
+Secret의 cloud.conf
+        ↓
+CCM 컨테이너에 파일로 마운트
+        ↓
+CCM이 인증정보를 읽음
+</code></pre>
+<h3>6.2. Helm 저장소 등록</h3>
+<pre><code class="language-bash">helm repo add cpo https://kubernetes.github.io/cloud-provider-openstack
+helm repo update cpo
+</code></pre>
+<h3>6.3. Helm values 작성</h3>
+<p>작업 디렉터리에 <code>ccm-values.yaml</code>을 작성한다.</p>
+<pre><code class="language-yaml">image:
+  tag: v1.36.0
+
+cluster:
+  name: openstack-k8s-llmd-lab
+
+secret:
+  enabled: true
+  create: false
+  name: openstack-ccm-cloud-config
+
+enabledControllers:
+  - cloud-node
+  - cloud-node-lifecycle
+
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
+
+nodeSelector:
+  node-role.kubernetes.io/control-plane: &quot;&quot;
+
+tolerations:
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    operator: Equal
+    value: &quot;true&quot;
+    effect: NoSchedule
+
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+resources:
+  requests:
+    cpu: 200m
+</code></pre>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>secret.create: false</code></td>
+<td>직접 만든 Secret 사용</td>
+</tr>
+<tr>
+<td><code>enabledControllers</code></td>
+<td>노드 연동 기능만 실행</td>
+</tr>
+<tr>
+<td><code>nodeSelector</code></td>
+<td>CCM Pod를 컨트롤플레인에 배치</td>
+</tr>
+<tr>
+<td><code>tolerations</code></td>
+<td>컨트롤플레인·초기화 taint가 있어도 CCM 실행 허용</td>
+</tr>
+<tr>
+<td><code>hostNetwork</code></td>
+<td>노드 네트워크 사용</td>
+</tr>
+<tr>
+<td><code>ClusterFirstWithHostNet</code></td>
+<td>노드 네트워크를 사용하면서 클러스터 DNS 이용</td>
+</tr>
+</tbody></table>
+</div>
+<p>CCM이 초기화 taint를 허용하는 이유는 <strong>초기화를 수행할 CCM 자신이 그 taint 때문에 실행되지 못하는 상황을 피하기 위해서</strong>다.</p>
+<p>해당 설정은 <a href="https://github.com/kubernetes/cloud-provider-openstack/blob/master/charts/openstack-cloud-controller-manager/values.yaml" rel="noopener noreferrer">OpenStack CCM 공식 Helm 차트</a>를 기준으로 한다.</p>
+<h3>6.4. Helm으로 CCM 설치</h3>
+<p>예시 환경에서는 CCM v1.36.0을 사용하는 차트 2.36.5를 선택한다.</p>
+<pre><code class="language-bash">helm install openstack-ccm cpo/openstack-cloud-controller-manager \
+  --kube-context openstack-k8s-llmd-lab \
+  --namespace kube-system \
+  --version 2.36.5 \
+  -f ccm-values.yaml \
+  --wait --timeout 5m
+</code></pre>
+<p>다른 Kubernetes 버전에서는 해당 환경에 맞는 CCM·차트 버전을 선택해야 한다.</p>
+<p>Pod 배치를 확인한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n kube-system \
+  get pods -l app=openstack-cloud-controller-manager -o wide
+</code></pre>
+<p>로그도 확인한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab -n kube-system \
+  logs -l app=openstack-cloud-controller-manager \
+  --prefix --tail=100
+</code></pre>
+<h3>6.5. 노드에 SSH로 접속한다</h3>
+<p>이제 kubelet 설정을 직접 변경한다. 먼저 cp-01에 접속한다.</p>
+<pre><code class="language-bash">ssh -i ~/.ssh/openstack-k8s-lab ubuntu@10.0.0.11
+</code></pre>
+<p>kubelet이 어떤 설정을 읽고 실행되는지 확인한다.</p>
+<pre><code class="language-bash">sudo systemctl cat kubelet
+</code></pre>
+<p>예시 환경의 서비스 구조는 다음과 같다. <code>ExecStart</code>는 설명을 위해 일부를 생략했다.</p>
+<pre><code class="language-ini">[Service]
+EnvironmentFile=-/etc/kubernetes/kubelet.env
+
+ExecStart=/usr/local/bin/kubelet \
+    ... \
+    $KUBELET_CLOUDPROVIDER
+</code></pre>
+<p>두 항목을 연결해서 읽는다.</p>
+<ul>
+<li><code>EnvironmentFile</code>: <code>/etc/kubernetes/kubelet.env</code>에서 환경변수를 읽는다.</li>
+<li><code>ExecStart</code>: <code>KUBELET_CLOUDPROVIDER</code> 값을 kubelet 실행 인자로 사용한다.</li>
+</ul>
+<p>따라서 이 환경에서는 해당 변수의 값을 바꾸면 된다.</p>
+<p><strong>설치 방식에 따라 파일 경로와 변수 이름은 다르다.</strong> 예를 들어 다른 kubeadm 설치 환경은 <code>/etc/default/kubelet</code>의 <code>KUBELET_EXTRA_ARGS</code>를 사용할 수 있다. 경로를 외워서 수정하기보다 <code>systemctl cat kubelet</code>에 나온 실제 연결 관계를 확인해야 한다.</p>
+<h3>6.6. kubelet 설정을 직접 변경한다</h3>
+<p>기존 파일을 백업한다.</p>
+<pre><code class="language-bash">sudo cp -p /etc/kubernetes/kubelet.env \
+  /etc/kubernetes/kubelet.env.before-ccm
+</code></pre>
+<p>파일을 편집한다.</p>
+<pre><code class="language-bash">sudo vi /etc/kubernetes/kubelet.env
+</code></pre>
+<p>기존 항목을 찾아 다음처럼 변경한다.</p>
+<pre><code class="language-bash"># 변경 전
+KUBELET_CLOUDPROVIDER=&quot;&quot;
+
+# 변경 후
+KUBELET_CLOUDPROVIDER=&quot;--cloud-provider=external&quot;
+</code></pre>
+<p>파일 전체를 위 한 줄로 교체하는 것이 아니다. 다른 kubelet 설정은 유지하고 해당 항목만 변경한다.</p>
+<h3>6.7. kubelet을 재시작한다</h3>
+<pre><code class="language-bash">sudo systemctl restart kubelet
+</code></pre>
+<p>이번에는 systemd 서비스 정의가 아니라 서비스가 읽는 환경변수 파일을 수정했다. 이 변경만으로는 <code>systemctl daemon-reload</code>가 필요하지 않다.</p>
+<p>반면 서비스 파일이나 systemd drop-in 자체를 수정했다면 <code>daemon-reload</code>가 필요하다.</p>
+<p>서비스가 실행 중인지 확인한다.</p>
+<pre><code class="language-bash">systemctl is-active kubelet
+</code></pre>
+<p>실제 프로세스에 옵션이 들어갔는지도 확인한다.</p>
+<pre><code class="language-bash">ps -ww -C kubelet -o args=
+</code></pre>
+<p>출력에 다음 항목이 있어야 한다.</p>
+<pre><code class="language-text">--cloud-provider=external
+</code></pre>
+<p><strong>파일에 설정이 적혀 있는 것과 실행 중인 프로세스에 반영된 것은 구분해서 확인한다.</strong></p>
+<h3>6.8. 나머지 노드에도 적용한다</h3>
+<p>예시 환경의 대상은 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>노드</th>
+<th>주소</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>cp-01</td>
+<td><code>10.0.0.11</code></td>
+</tr>
+<tr>
+<td>cp-02</td>
+<td><code>10.0.0.12</code></td>
+</tr>
+<tr>
+<td>cp-03</td>
+<td><code>10.0.0.13</code></td>
+</tr>
+<tr>
+<td>worker-01</td>
+<td><code>10.0.0.21</code></td>
+</tr>
+<tr>
+<td>worker-02</td>
+<td><code>10.0.0.22</code></td>
+</tr>
+<tr>
+<td>gpu-worker-01</td>
+<td><code>10.0.0.23</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>각 노드에 접속해 다음 작업을 반복한다.</p>
+<pre><code class="language-text">kubelet 실행 구조 확인
+→ 설정 백업
+→ 외부 CCM 옵션 추가
+→ kubelet 재시작
+→ 실제 실행 옵션 확인
+</code></pre>
+<p>이 경로에서는 설치 파일을 다시 다운로드하거나 kubelet 바이너리를 교체하지 않는다. 기존 kubelet의 실행 옵션을 변경한다.</p>
+<p>Kubespray로 생성한 클러스터를 수동으로 수정하는 경우에는 한 가지 관리 경계가 남는다. <strong>나중에 Kubespray로 kubelet 설정을 다시 적용하면 수동 변경이 인벤토리 값으로 덮어써질 수 있다.</strong> 수동 관리 경로를 선택했다면 이후 자동화 재실행 시 이 차이를 확인해야 한다.</p>
+<p>모든 대상 노드의 설정이 완료되면 다음 초기화 절차로 진행한다.</p>
+<hr>
+
+</section>
+<section id="section-7-node" class="markdown-section">
+<h2>7. 두 방식 공통: 기존 Node의 클라우드 정보를 초기화한다</h2>
+<p>CCM 없이 먼저 등록된 기존 Node에는 다음 표시가 없을 수 있다.</p>
+<pre><code class="language-text">node.cloudprovider.kubernetes.io/uninitialized
+</code></pre>
+<p>CCM은 이 표시를 보고 클라우드 정보 초기화 대상을 판단한다.</p>
+<pre><code class="language-text">uninitialized 표시 있음
+→ OpenStack VM 조회
+→ providerID 등 기록
+→ 초기화 표시 제거
+</code></pre>
+<p>반대로 표시가 없으면 해당 초기화 경로를 건너뛴다. <strong><code>providerID</code>가 비어 있다는 사실만으로 초기화가 실행되지는 않는다.</strong> <a href="https://github.com/kubernetes/cloud-provider/blob/release-1.36/controllers/node/node_controller.go" rel="noopener noreferrer">Kubernetes cloud-node 컨트롤러 구현</a></p>
+<p>처음부터 외부 CCM 사용 모드로 등록되는 노드는 kubelet이 초기화 표시를 추가한다. 하지만 기존 Node에 kubelet 옵션을 변경했다고 해서 신규 등록 과정이 다시 실행되는 것은 아니다.</p>
+<p>따라서 기존 노드는 CCM의 초기화 대상으로 표시해 준다.</p>
+<h3>초기화 표시 추가</h3>
+<p>CCM이 정상 실행되고, 전체 대상 노드의 kubelet 설정이 반영된 뒤 맥에서 실행한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab taint nodes --all \
+  node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule
+</code></pre>
+<p><code>--all</code>은 클러스터의 모든 노드가 해당 OpenStack 연동 대상이라는 전제다. 일부 노드만 대상이면 노드 이름을 명시한다.</p>
+<p>이 명령은 VM 파일을 수정하지 않는다. Kubernetes API에 저장된 Node 자원에 taint를 추가한다.</p>
+<pre><code class="language-yaml">spec:
+  taints:
+    - key: node.cloudprovider.kubernetes.io/uninitialized
+      value: &quot;true&quot;
+      effect: NoSchedule
+</code></pre>
+<p><code>NoSchedule</code>은 해당 taint를 허용하지 않는 새 Pod의 배치를 제한한다. 이미 실행 중인 Pod를 퇴거시키는 효과는 아니다.</p>
+<p>CCM이 초기화에 성공하면 이 표시를 자동으로 제거한다. 실패하면 표시가 남을 수 있으므로 결과를 확인해야 한다.</p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>8. 완료 여부 확인</h2>
+<h3>providerID와 초기화 표시 확인</h3>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab get nodes \
+  -o custom-columns=&#39;NAME:.metadata.name,PROVIDER_ID:.spec.providerID,TAINTS:.spec.taints&#39; \
+  --watch
+</code></pre>
+<p>정상적인 결과는 다음과 같다.</p>
+<pre><code class="language-text">cp-01          openstack:///VM-UUID   control-plane:NoSchedule
+cp-02          openstack:///VM-UUID   control-plane:NoSchedule
+cp-03          openstack:///VM-UUID   control-plane:NoSchedule
+worker-01      openstack:///VM-UUID   &lt;none&gt;
+worker-02      openstack:///VM-UUID   &lt;none&gt;
+gpu-worker-01  openstack:///VM-UUID   &lt;none&gt;
+</code></pre>
+<p>확인할 항목은 다음과 같다.</p>
+<ul>
+<li>대상 노드에 <code>providerID</code>가 기록됐다.</li>
+<li><code>node.cloudprovider.kubernetes.io/uninitialized</code> taint가 제거됐다.</li>
+</ul>
+<p>컨트롤플레인에 남는 다음 taint는 다른 설정이다.</p>
+<pre><code class="language-text">node-role.kubernetes.io/control-plane:NoSchedule
+</code></pre>
+<p>일반 워크로드가 컨트롤플레인에 배치되지 않도록 하는 기존 설정이다. <strong>CCM 초기화가 끝나도 이 taint는 제거하지 않는다.</strong></p>
+<p><code>--watch</code>에서 같은 노드가 반복 출력되는 것은 변경 이벤트를 계속 표시하기 때문이다. 조회 종료는 <code>Ctrl+C</code>다.</p>
+<h3>노드 상태와 VM ID 확인</h3>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab get nodes
+</code></pre>
+<p>모든 대상 노드가 <code>Ready</code>인지 확인한다.</p>
+<p>OpenStack VM 목록과 UUID도 비교한다.</p>
+<pre><code class="language-bash">openstack --os-cloud lab server list
+</code></pre>
+<p>다음 값이 일치해야 한다.</p>
+<pre><code class="language-text">Node.spec.providerID의 openstack:/// 뒤 UUID
+                    =
+OpenStack VM의 ID
+</code></pre>
+<p>초기화 표시가 남아 있으면 CCM 로그와 Node 이벤트에서 원인을 확인한다.</p>
+<pre><code class="language-bash">kubectl --context openstack-k8s-llmd-lab describe node cp-01
+</code></pre>
+<p>주요 점검 대상은 인증 실패, OpenStack API 통신 실패, 대상 VM 조회 실패, Kubernetes RBAC 권한 오류다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>9. 이 작업으로 확인한 범위</h2>
+<p>예시 환경에서는 Kubespray 방식으로 구성한 뒤 <strong>6개 노드 모두 OpenStack VM UUID가 기록되고 초기화 taint가 제거된 것</strong>을 확인했다.</p>
+<p>이 결과는 기존 Kubernetes Node와 OpenStack VM의 연결 정보 초기화가 성공했다는 근거다. Octavia 로드밸런서 생성이나 VM 삭제 상황의 생명주기 처리까지 검증했다는 의미는 아니다.</p>
+<p>설치 방식과 관계없이 최종 책임은 다음처럼 나뉜다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>관리 주체</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM·Flavor·OpenStack 네트워크</td>
+<td>Terraform·OpenStack</td>
+</tr>
+<tr>
+<td>kubelet 실행 설정</td>
+<td>Kubespray 또는 관리자 수동 설정</td>
+</tr>
+<tr>
+<td>Node의 OpenStack 연결 정보</td>
+<td>CCM</td>
+</tr>
+<tr>
+<td>Pod 네트워크</td>
+<td>Cilium</td>
+</tr>
+<tr>
+<td>외부 요청 진입</td>
+<td>HAProxy·Envoy</td>
+</tr>
+<tr>
+<td>Kubernetes 볼륨 연동</td>
+<td>별도 Cinder CSI</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>Kubespray 방식은 CCM과 kubelet 설정을 하나의 자동화 원본에서 관리하고, Helm·수동 방식은 CCM 배포와 VM 내부 설정을 나눠 관리한다.</strong> 두 방식 모두 CCM 설치, kubelet 설정, 기존 Node 초기화라는 세 작업을 완료해야 한다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
