@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/projects/cloudlens/platform/networking.md. Do not edit directly. source-sha256:8ba53e97339449b951dbe9da008ffed5218eedd7cf70e619a939bb3cbeab8d07 -->
+<!-- Generated from content/wiki/projects/cloudlens/platform/networking.md. Do not edit directly. source-sha256:b123384d40f848e88756b7b4da2f36bdc4738c04e25f096e542bbd25551cb2cd -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,7 +25,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="집의 데스크탑에 OpenStack을 설치할 때 먼저 해결해야 했던 것은 VM의 인터넷 연결이었습니다. 데스크탑은 wlo1이라는 Wi-Fi 인터페이스로 집 공유기에 연결돼 있었습니다. VM도 이 연결을 통해 이미지를 내려받고 외부 API를 호출할 수 있어야 했습니다.">
-  <meta name="source-sha256" content="8ba53e97339449b951dbe9da008ffed5218eedd7cf70e619a939bb3cbeab8d07">
+  <meta name="source-sha256" content="b123384d40f848e88756b7b4da2f36bdc4738c04e25f096e542bbd25551cb2cd">
   <title>Wi-Fi 호스트에서 OpenStack VM의 외부 통신 경로 만들기</title>
   <link rel="stylesheet" href="../../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
   <link rel="stylesheet" href="../../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
@@ -72,7 +72,10 @@
         <a href="#heading-vm">주소를 바꿨는데 응답은 어떻게 VM을 찾을까?</a>
       </nav>
       <article class="markdown-content">
-        <div class="markdown-lead"><p><a href="README.html">프로젝트 소개</a> · <a href="01-openstack.html">OpenStack 구축</a> · <a href="../contents.html">전체 문서</a></p>
+        <div class="markdown-lead"><blockquote>
+<p>개인정보 보호를 위해 집 네트워크 주소를 <code>192.0.2.0/24</code>의 문서용 예시 주소로 바꿨다. 본문·명령어·그림의 주소는 실제 접속 정보가 아니다.</p>
+</blockquote>
+<p><a href="README.html">프로젝트 소개</a> · <a href="01-openstack.html">OpenStack 구축</a> · <a href="../contents.html">전체 문서</a></p>
 </div>
         <section id="introduction" class="markdown-section">
 <h2>구성 배경</h2>
@@ -125,6 +128,9 @@
 </section>
 <section id="브리지-대신-호스트-라우팅으로-연결한-이유" class="markdown-section">
 <h2>브리지 대신 호스트 라우팅으로 연결한 이유</h2>
+<ul>
+<li><a href="wired-egress-incident.html">유선 연결 이후 발생한 VM 외부 통신 장애와 NAT 설정 복구</a></li>
+</ul>
 <p>해결의 핵심은 <strong>OpenStack에서 받은 Ethernet 프레임을 그대로 Wi-Fi로 넘기지 않는 것</strong>입니다. 아래 전체 구성도에서 <code>br-ex</code>는 <code>wlo1</code> 대신 <code>veth-ex</code>에 연결됩니다. 그 상대편인 <code>veth-host</code>가 프레임을 받아 호스트의 IP 네트워크 처리로 넘깁니다.</p>
 <p>호스트는 프레임 안의 IP 패킷을 읽고, 기존 기본 경로에 따라 <code>wlo1</code>으로 전달합니다. 무선 구간에서는 실제 AP에 연결된 <code>wlo1</code>을 송신자로 하는 새 프레임을 사용하므로, OpenStack의 원래 MAC을 Wi-Fi에 그대로 실어 보내야 하는 문제가 사라집니다.</p>
 <p>IP 경로도 맞춰야 합니다. 집 공유기는 OpenStack 외부망인 <code>172.24.4.0/24</code>로 돌아오는 경로를 모르므로, 호스트에서 출발지를 자신의 Wi-Fi IP로 바꾸는 NAT를 적용했습니다. 공유기는 호스트가 보낸 요청으로 보고 응답하고, 호스트는 NAT 연결 기록으로 그 응답을 OpenStack에 돌려줍니다.</p>
@@ -285,15 +291,18 @@ openstack router set --external-gateway public lab-router
 <p><img src="../../../../assets/images/projects/cloudlens/portfolio/platform/assets/nat-connection-return.svg" alt="요청의 출발지와 응답의 목적지가 Neutron·호스트·집 공유기의 NAT 기록에 따라 대응되는 과정" loading="lazy"></p>
 <p>그림의 포트와 공인 IP는 동작을 설명하기 위한 예시입니다. 집 공유기도 NAT하는 일반적인 환경을 가정했습니다. 실제 NAT는 가능하면 포트를 유지하며, 연결을 구분하는 데 필요하면 포트도 바꿉니다.</p>
 <p>예를 들어 VM의 TCP 연결 <code>10.0.0.23:51000</code>은 Neutron에서 <code>172.24.4.167:51000</code>, 호스트에서 <code>192.0.2.20:62000</code>, 집 공유기에서 공인 주소 <code>198.51.100.10:63000</code>으로 변환될 수 있습니다. 인터넷 서버가 응답을 보내는 목적지는 마지막으로 본 <code>198.51.100.10:63000</code>입니다.</p>
-<p>응답이 돌아오면 집 공유기는 목적지를 <code>192.0.2.20:62000</code>으로 되돌립니다. 호스트의 conntrack은 다시 <code>172.24.4.167:51000</code>으로 복원합니다. 호스트는 그 목적지가 연결된 <code>172.24.4.0/24</code> 대역에 있으므로 **<code>veth-host → veth-ex → br-ex → phy-br-ex → int-br-ex → br-int의 public망 → qg</code>**로 전달합니다.</p>
-<p>Neutron 라우터는 목적지를 <code>10.0.0.23:51000</code>으로 되돌리고 private망으로 라우팅합니다. 이어서 **<code>qr → br-int의 private망 → qvo → qvb → qbr → TAP → 가상 NIC 백엔드 → VM의 가상 NIC</code>**를 거쳐 게스트 커널에 도착합니다. 반환 패킷도 같은 연결 요소를 반대 방향으로 지납니다.</p>
+<p>응답이 돌아오면 집 공유기는 목적지를 <code>192.0.2.20:62000</code>으로 되돌립니다. 호스트의 conntrack은 다시 <code>172.24.4.167:51000</code>으로 복원합니다. 호스트는 그 목적지가 연결된 <code>172.24.4.0/24</code> 대역에 있으므로 <strong><code>veth-host → veth-ex → br-ex → phy-br-ex → int-br-ex → br-int의 public망 → qg</code></strong>로 전달합니다.</p>
+<p>Neutron 라우터는 목적지를 <code>10.0.0.23:51000</code>으로 되돌리고 private망으로 라우팅합니다. 이어서 <strong><code>qr → br-int의 private망 → qvo → qvb → qbr → TAP → 가상 NIC 백엔드 → VM의 가상 NIC</code></strong>를 거쳐 게스트 커널에 도착합니다. 반환 패킷도 같은 연결 요소를 반대 방향으로 지납니다.</p>
 <p><strong>호스트가 OpenStack 내부의 모든 VM 변환을 알 필요는 없습니다.</strong> 호스트는 자신이 받은 Neutron 주소와 Wi-Fi 주소 사이의 관계만, Neutron은 VM과 외부망 주소 사이의 관계만 관리합니다. 각 지점이 자신의 변환을 되돌리면 원래 연결에 도착합니다.</p>
 <p>같은 호스트를 여러 VM이 사용해도 출발지 IP 하나만 보고 구분하지 않습니다. TCP·UDP에서는 프로토콜과 양쪽 IP·포트의 조합으로 연결을 추적합니다. 같은 포트가 겹치면 NAT가 외부 포트를 다르게 배정해 충돌을 피할 수 있습니다.</p>
 <p>IP 목적지가 VM으로 복원된 뒤에는 사설망에서 VM의 MAC 주소를 사용해 프레임을 전달합니다. 인터넷을 건너며 원래 MAC 주소를 계속 보관했다가 복구하는 방식은 아닙니다. <strong>NAT는 IP·포트의 연결 관계를 복원하고, 각 네트워크 구간의 MAC 주소는 그 구간의 다음 홉에 맞게 사용됩니다.</strong></p>
 <p>이 동작으로 VM이 시작한 다운로드와 API 요청의 응답을 받을 수 있습니다. Mac에서 VM으로 SSH에 접속할 때의 경로와 설정은 <a href="02-virtual-machines.html">VM 사설망 라우팅과 접속 주소 구성</a>에서 확인할 수 있습니다.</p>
 
 </section>
-        
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="wired-egress-incident.html">유선 연결 이후 발생한 VM 외부 통신 장애와 NAT 설정 복구</a></li></ul>
+  </section>
       </article>
     </div>
   </main>

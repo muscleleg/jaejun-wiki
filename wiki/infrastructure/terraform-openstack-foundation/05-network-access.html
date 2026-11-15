@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Generated from content/wiki/infrastructure/terraform-openstack-foundation/05-network-access.md. Do not edit directly. source-sha256:f447b8fa05635ae903f862ab2b85d874692096e7c36c3aaeca71d4a0071cde2c -->
+<!-- Generated from content/wiki/infrastructure/terraform-openstack-foundation/05-network-access.md. Do not edit directly. source-sha256:ebe91a1fb4db8a8fc3ff9fe47230ea57e69a2451196a3787461c1a74e91a3eeb -->
 <html lang="ko">
 <head>
 <!-- static-shell:styles:start -->
@@ -25,10 +25,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Floating IP와 내부 IP 직접 라우팅의 경로 및 보안 그룹 책임을 구분한다.">
-  <meta name="source-sha256" content="f447b8fa05635ae903f862ab2b85d874692096e7c36c3aaeca71d4a0071cde2c">
+  <meta name="source-sha256" content="ebe91a1fb4db8a8fc3ff9fe47230ea57e69a2451196a3787461c1a74e91a3eeb">
   <title>Floating IP와 직접 라우팅은 VM 접속을 어떻게 만드는가</title>
   <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
   <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/mermaid-diagram.css?v=20261114-mermaid-fit">
+  <script defer src="../../../assets/vendor/mermaid/mermaid.tiny.js?v=12.3.0"></script>
+  <script defer src="../../../assets/js/mermaid-diagrams.js?v=20261114-mermaid-fit"></script>
   <!-- machine-readable-metadata:start -->
   <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/terraform-openstack-foundation/05-network-access.html">
   <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
@@ -71,7 +74,10 @@
         <a href="#section-06">같은 내부 IP가 다른 네트워크에 존재하는 경우</a>
       </nav>
       <article class="markdown-content">
-        <div class="markdown-lead"><p>OpenStack VM에 고정 IP가 있어도 클라이언트가 그 네트워크로 가는 경로를 모르면 접속할 수 없다. <strong>Floating IP는 외부 네트워크의 주소를 VM의 내부 주소에 연결하고, 직접 라우팅은 목적지 주소를 유지한 채 내부 네트워크까지 경로를 제공한다.</strong> 이 문서는 맥에서 VM에 도달하는 경로와 포트 보안의 역할을 설명한다. SSH 인증이나 VIP 담당자 선출은 별도 문제다.</p>
+        <div class="markdown-lead"><blockquote>
+<p>개인정보 보호를 위해 집 네트워크 주소를 <code>192.0.2.0/24</code>의 문서용 예시 주소로 바꿨다. 본문·명령어·그림의 주소는 실제 접속 정보가 아니다.</p>
+</blockquote>
+<p>OpenStack VM에 고정 IP가 있어도 클라이언트가 그 네트워크로 가는 경로를 모르면 접속할 수 없다. <strong>Floating IP는 외부 네트워크의 주소를 VM의 내부 주소에 연결하고, 직접 라우팅은 목적지 주소를 유지한 채 내부 네트워크까지 경로를 제공한다.</strong> 이 문서는 맥에서 VM에 도달하는 경로와 포트 보안의 역할을 설명한다. SSH 인증이나 VIP 담당자 선출은 별도 문제다.</p>
 </div>
         <section id="section-01" class="markdown-section">
 <h2>예시 환경의 세 주소 영역</h2>
@@ -166,7 +172,12 @@ ip route get 10.0.0.12
 <section id="section-04" class="markdown-section">
 <h2>Neutron과 OVS와 Linux는 다른 역할을 맡는다</h2>
 <p>이 환경은 OVS와 Linux 라우터 네임스페이스를 사용하는 구성이다. 직접 라우팅의 논리적 흐름은 다음과 같다.</p>
-<pre><code class="language-mermaid">flowchart LR
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
   M[맥] --&gt; R[집 공유기]
   R --&gt; H[OpenStack 호스트의 Linux 라우팅]
   H --&gt; V[veth-host와 veth-ex]
@@ -179,6 +190,8 @@ ip route get 10.0.0.12
   B --&gt; T[TAP과 가상 NIC]
   T --&gt; VM[VM]
 </code></pre>
+  </details>
+</figure>
 <p>Neutron은 원하는 포트·라우터·정책을 관리한다. 실제 데이터 전달은 OVS와 Linux 커널의 라우팅·필터링 등이 수행한다. 관리 API 프로세스가 매 패킷을 받아 재전송하는 것은 아니다. qrouter 안의 <code>qg</code>와 <code>qr</code>은 OVS에 연결된 인터페이스이며, 이 경로의 모든 연결을 veth라고 부르면 정확하지 않다.</p>
 <p>qbr Linux 브리지는 이 환경의 hybrid iptables 보안 그룹 구현에 사용된다. 모든 OpenStack 배포에 항상 존재하는 구조는 아니다. TAP 이후의 전송도 설정에 따라 QEMU 또는 vhost 가속이 관여한다.</p>
 

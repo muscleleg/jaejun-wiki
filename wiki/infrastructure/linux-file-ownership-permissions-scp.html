@@ -1,0 +1,213 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/linux-file-ownership-permissions-scp.md. Do not edit directly. source-sha256:a8dbc6f359690eb31b8cf7b060ff7232031efc2a18d0d662f4e94dd91f8aa5cb -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="UID·GID와 그룹 소속, rwx 권한 선택, chmod·chown 권한, scp의 원본 읽기와 목적지 생성 권한, 복사 후 소유권을 설명한다.">
+  <meta name="source-sha256" content="a8dbc6f359690eb31b8cf7b060ff7232031efc2a18d0d662f4e94dd91f8aa5cb">
+  <title>Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?">
+  <meta property="og:description" content="UID·GID와 그룹 소속, rwx 권한 선택, chmod·chown 권한, scp의 원본 읽기와 목적지 생성 권한, 복사 후 소유권을 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html","name":"Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?","description":"UID·GID와 그룹 소속, rwx 권한 선택, chmod·chown 권한, scp의 원본 읽기와 목적지 생성 권한, 복사 후 소유권을 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html"},"headline":"Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-linux-shell-operations","name":"Shell 확장·권한·Job control","identifier":"topics-linux-shell-operations"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-file-ownership-permissions-scp.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Linux 아키텍처·네임스페이스·파일 검색","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html"},{"@type":"ListItem","position":5,"name":"스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html"},{"@type":"ListItem","position":6,"name":"source는 되는데 직접 실행은 Permission denied가 나는 이유","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-source-read-execute-permissions.html"},{"@type":"ListItem","position":7,"name":"Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux_architecture_namespaces_search.html">Linux 아키텍처·네임스페이스·파일 검색</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/shell-script-execution-vs-source.html">스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/shell-source-read-execute-permissions.html">source는 되는데 직접 실행은 Permission denied가 나는 이유</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?</h1>
+      <p class="lead">UID·GID와 그룹 소속, rwx 권한 선택, chmod·chown 권한, scp의 원본 읽기와 목적지 생성 권한, 복사 후 소유권을 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-9a857cc21e3c">소유자·그룹과 사용자 정보</a>
+        <a href="#rwx">rwx 권한을 적용하는 기준</a>
+        <a href="#section-2b9f78931f5d">권한을 변경할 수 있는 사용자</a>
+        <a href="#scp">scp 전송에 필요한 권한</a>
+        <a href="#section-c50d03b4e4e9">파일 복사와 다른 호스트의 소유권</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Linux에서는 여러 사용자가 같은 호스트를 사용할 수 있다. 이때 다른 사용자의 파일을 누구나 읽거나 수정할 수 없도록, 파일마다 소유자와 그룹, 접근 권한을 지정한다. 운영체제는 파일에 접근하는 프로세스의 사용자·그룹 정보와 파일의 권한을 비교해 작업을 허용하거나 거부한다.</p>
+</div>
+        <section id="section-9a857cc21e3c" class="markdown-section">
+<h2>소유자·그룹과 사용자 정보</h2>
+<p>예를 들어 <code>ls -l notes.txt</code>의 결과가 다음과 같다고 가정하자. 이름과 숫자는 설명을 위한 예시다.</p>
+<pre><code class="language-text">-rw-r-----  1  jaejun  developers  120  Nov 12 10:00  notes.txt
+                 │        │
+              소유자    소유 그룹
+</code></pre>
+<p>이 파일의 소유자는 <code>jaejun</code>, 소유 그룹은 <code>developers</code>다. 기본 파일 소유 정보에는 소유 사용자 한 명과 소유 그룹 하나가 지정된다. <code>developers</code>에 누가 속하는지에 대한 명단은 파일 안에 넣지 않고, 운영체제가 별도로 관리한다.</p>
+<p>파일에 실제로 기록되는 소유 정보는 이름이 아니라 사용자 식별 번호인 <strong>UID</strong>, 그룹 식별 번호인 <strong>GID</strong>다. 운영체제가 이 번호에 해당하는 이름을 찾아 <code>jaejun</code>, <code>developers</code>처럼 표시한다.</p>
+<p>현재 사용자의 식별 정보와 그룹 소속은 다음 명령으로 확인한다.</p>
+<pre><code class="language-bash">id
+</code></pre>
+<p>예를 들어 다음과 같이 나온다면 현재 사용자는 <code>mina</code>이고, <code>mina</code> 그룹과 <code>developers</code> 그룹에 속한다.</p>
+<pre><code class="language-text">uid=1001(mina) gid=1001(mina) groups=1001(mina),1002(developers)
+</code></pre>
+<p>일반적인 Ubuntu 로컬 계정에서는 사용자 정보는 <code>/etc/passwd</code>, 그룹과 추가 구성원 정보는 <code>/etc/group</code> 등에 저장된다. 기본 그룹은 사용자 정보에 지정된 GID로 연결된다. 실제 권한을 확인할 때는 이 파일들을 직접 대조하기보다 <code>ls -l</code>과 <code>id</code>를 함께 보면 된다.</p>
+
+</section>
+<section id="rwx" class="markdown-section">
+<h2>rwx 권한을 적용하는 기준</h2>
+<p>파일 앞의 <code>-rw-r-----</code>는 다음처럼 나눠 읽는다.</p>
+<pre><code class="language-text">-  rw-  r--  ---
+│   │    │    └─ 그 외 사용자
+│   │    └────── 소유 그룹에 속한 사용자
+│   └─────────── 파일 소유자
+└─────────────── 파일 종류: 일반 파일
+</code></pre>
+<p>권한 자리의 순서는 읽기 <code>r</code>, 쓰기 <code>w</code>, 실행 <code>x</code>다. <code>-</code>는 해당 권한이 없다는 뜻이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>적용되는 권한</th>
+<th>가능한 작업</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>소유자 <code>jaejun</code></td>
+<td><code>rw-</code></td>
+<td>파일 내용 읽기·수정</td>
+</tr>
+<tr>
+<td><code>developers</code> 구성원</td>
+<td><code>r--</code></td>
+<td>파일 내용 읽기</td>
+</tr>
+<tr>
+<td>그 외 사용자</td>
+<td><code>---</code></td>
+<td>읽기·수정·실행 불가</td>
+</tr>
+</tbody></table>
+</div>
+<p>운영체제는 먼저 파일 소유자인지 확인한다. 소유자가 아니라면 파일의 소유 그룹에 속하는지 확인하고, 그것도 아니라면 그 외 사용자 권한을 적용한다. 세 권한을 합쳐서 적용하는 것은 아니다.</p>
+<p>따라서 앞의 <code>mina</code>가 <code>notes.txt</code>에 접근하면 다음처럼 판단한다.</p>
+<pre><code class="language-text">mina는 파일 소유자 jaejun인가?
+    → 아니오
+        ↓
+mina는 developers 그룹에 속하는가?
+    → 예
+        ↓
+그룹 권한 r-- 적용
+    → 읽기 가능, 수정·실행 불가
+</code></pre>
+
+</section>
+<section id="section-2b9f78931f5d" class="markdown-section">
+<h2>권한을 변경할 수 있는 사용자</h2>
+<p>이 권한을 아무 사용자나 바꿀 수 있다면 접근 제한은 의미가 없을 것이다. 그래서 <strong>권한 설정을 바꾸는 행위 자체에도 제한이 있다.</strong> 일반적인 Linux 파일에서 <code>chmod</code>로 권한을 변경할 수 있는 주체는 파일 소유자 또는 관리자다. 소유자를 다른 사용자로 바꾸는 <code>chown</code>은 일반적으로 관리자 권한이 필요하다.</p>
+<p>파일 내용을 수정할 권한과 파일의 접근 권한을 변경할 권한도 구분된다. 어떤 사용자가 그룹 권한으로 파일을 수정할 수 있더라도, 파일 소유자가 아니라면 그 이유만으로 <code>chmod</code>까지 사용할 수 있는 것은 아니다.</p>
+<p>반면 소유자는 자기 파일의 권한을 변경할 수 있다. 자기 파일의 쓰기 권한을 제거했다가 다시 추가하는 것도 가능하다. 소유자는 그 파일을 누구에게 허용할지 정하는 주체이기 때문이다. 기본 파일 권한은 소유자나 관리자까지 막기 위한 기능이 아니라, <strong>허용받지 않은 다른 계정의 접근을 제한하는 보안 기능</strong>이다.</p>
+
+</section>
+<section id="scp" class="markdown-section">
+<h2>scp 전송에 필요한 권한</h2>
+<p>이 규칙은 <code>scp</code>로 파일을 전송할 때도 적용된다. 다음 명령으로 로컬 파일을 다른 서버에 보낸다고 해보자.</p>
+<pre><code class="language-bash">scp notes.txt mina@server:/home/mina/
+</code></pre>
+<p>보내는 호스트에서는 <strong>명령을 실행한 현재 사용자</strong>의 권한으로 원본 파일에 접근한다. <code>scp</code>는 내용을 읽어야 전송할 수 있으므로 <code>notes.txt</code>에 읽기 권한 <code>r</code>이 필요하다. 원본 파일에 쓰기나 실행 권한이 있을 필요는 없다.</p>
+<p>받는 호스트에서는 <strong>SSH로 로그인한 <code>mina</code> 계정</strong>의 권한으로 저장한다. <code>/home/mina/</code> 안에 새 파일을 만들려면 해당 디렉터리에 쓰기 <code>w</code>와 실행 <code>x</code> 권한이 필요하다.</p>
+<p>파일과 디렉터리는 같은 권한 문자를 사용하지만 의미가 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>권한</th>
+<th>일반 파일</th>
+<th>디렉터리</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>읽기 <code>r</code></td>
+<td>파일 내용 읽기</td>
+<td>내부 항목의 이름 목록 읽기</td>
+</tr>
+<tr>
+<td>쓰기 <code>w</code></td>
+<td>파일 내용 수정</td>
+<td>내부 항목 생성·삭제·이름 변경</td>
+</tr>
+<tr>
+<td>실행 <code>x</code></td>
+<td>프로그램으로 실행</td>
+<td>디렉터리를 통과해 내부 경로에 접근</td>
+</tr>
+</tbody></table>
+</div>
+<p>디렉터리 안의 파일을 생성하거나 삭제하는 작업에는 보통 <code>w</code>와 <code>x</code>가 함께 필요하다. 원본이나 목적지에 도달하기 위해 거치는 중간 디렉터리에도 <code>x</code>가 필요하다.</p>
+<pre><code class="language-text">보내는 호스트
+현재 사용자가 원본 경로에 접근하고 파일을 읽음
+    ↓
+SSH 연결로 내용 전송
+    ↓
+받는 호스트
+mina가 목적지 경로에 접근하고 새 파일을 생성함
+</code></pre>
+<p>이미 존재하는 파일의 내용을 덮어쓰는 경우에는 대상 파일의 쓰기 권한도 확인해야 한다. 도구가 기존 파일을 삭제하고 새 파일로 교체하는 방식이라면 디렉터리 권한도 영향을 준다. <strong>파일 자체를 수정하는 권한과, 디렉터리에서 파일을 삭제·교체하는 권한은 서로 다른 검사</strong>다.</p>
+<p>SSH 로그인에 성공했다고 이 검사가 사라지지는 않는다. 서버 접속을 위한 인증과, 접속 후 파일을 읽고 쓰는 권한은 별개다.</p>
+
+</section>
+<section id="section-c50d03b4e4e9" class="markdown-section">
+<h2>파일 복사와 다른 호스트의 소유권</h2>
+<p>또한 읽기 권한을 허용했다면 일반적으로 복사도 가능하다. <code>mina</code>가 <code>jaejun</code>의 파일을 읽을 수 있다면, 내용을 읽어 자기 소유의 복사본으로 저장하거나 다른 서버로 전송할 수 있다. 이것은 원본의 권한을 변경한 것이 아니라, 허용된 읽기를 통해 얻은 내용을 새 파일에 기록한 것이다.</p>
+<p><code>scp</code>로 다른 서버에 새 파일을 만들면 보통 목적지에 로그인한 계정이 새 파일의 소유자가 된다. 원본의 소유자와 그룹이 자동으로 그대로 유지되는 것은 아니다. 반면 디스크나 백업을 통해 UID·GID를 보존해서 가져온 경우에는 목적지 운영체제가 그 번호를 자신의 사용자·그룹 정보로 해석한다. 같은 번호가 서버마다 다른 계정을 가리킬 수 있으므로 주의가 필요하다.</p>
+<p>파일 권한은 <strong>각 호스트에서 어떤 계정이 원본 파일을 읽고, 수정하고, 실행할 수 있는지</strong>를 통제한다. 읽은 내용의 외부 반출까지 제한해야 한다면 별도의 보안 정책이 필요하다. 일반 계정의 <code>chmod</code>나 <code>scp</code> 명령을 무조건 막는 것이 아니라, 그 명령이 수행하려는 작업에 필요한 권한이 있는지를 운영체제가 검사하는 구조다.</p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

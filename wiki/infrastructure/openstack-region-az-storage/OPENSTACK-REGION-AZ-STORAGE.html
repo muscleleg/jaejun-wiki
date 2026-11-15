@@ -1,0 +1,526 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.md. Do not edit directly. source-sha256:acb62b8bf245e1fb7d7c7e47d52c55c509cc868801a2b248d10bc825f801c7b4 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="리전·컴퓨트 AZ·스토리지 AZ와 Nova·Cinder의 배치, LVM·iSCSI 및 Ceph·HCI의 저장·복제·장애 대응 관계를 설명한다.">
+  <meta name="source-sha256" content="acb62b8bf245e1fb7d7c7e47d52c55c509cc868801a2b248d10bc825f801c7b4">
+  <title>OpenStack의 리전·가용 영역과 VM·스토리지의 관계</title>
+  <link rel="stylesheet" href="../../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html">
+  <link rel="alternate" type="application/json" href="../../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="OpenStack의 리전·가용 영역과 VM·스토리지의 관계">
+  <meta property="og:description" content="리전·컴퓨트 AZ·스토리지 AZ와 Nova·Cinder의 배치, LVM·iSCSI 및 Ceph·HCI의 저장·복제·장애 대응 관계를 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html","name":"OpenStack의 리전·가용 영역과 VM·스토리지의 관계","description":"리전·컴퓨트 AZ·스토리지 AZ와 Nova·Cinder의 배치, LVM·iSCSI 및 Ceph·HCI의 저장·복제·장애 대응 관계를 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html"},"headline":"OpenStack의 리전·가용 영역과 VM·스토리지의 관계","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#project-openstack-services","name":"핵심 서비스","identifier":"project-openstack-services"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack-region-az-storage/OPENSTACK-REGION-AZ-STORAGE.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"서비스 이름보다 한 요청의 흐름으로 이해하기","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/openstack_learning.html"},{"@type":"ListItem","position":5,"name":"OpenStack의 리전·가용 영역과 VM·스토리지의 관계"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../../wiki/infrastructure/openstack_learning.html">서비스 이름보다 한 요청의 흐름으로 이해하기</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">OpenStack의 리전·가용 영역과 VM·스토리지의 관계</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>OpenStack의 리전·가용 영역과 VM·스토리지의 관계</h1>
+      <p class="lead">리전·컴퓨트 AZ·스토리지 AZ와 Nova·Cinder의 배치, LVM·iSCSI 및 Ceph·HCI의 저장·복제·장애 대응 관계를 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1-vm">1. VM을 실행할 서버와 디스크를 저장할 곳을 따로 생각한다</a>
+        <a href="#section-2-openstack">2. 리전은 자원을 만들 OpenStack 서비스의 범위를 정한다</a>
+        <a href="#section-3-az">3. AZ는 리전 안에서 자원을 배치할 후보를 나눈다</a>
+        <a href="#section-4-az-vm">4. 서로 다른 컴퓨트 AZ의 VM도 같은 가상 네트워크에 연결할 수 있다</a>
+        <a href="#section-5-nova-cinder">5. Nova와 Cinder는 요청을 받는 쪽과 실제 작업하는 쪽으로 나뉜다</a>
+        <a href="#section-6-vm">6. VM 호스트와 볼륨 백엔드는 각각 조건에 맞춰 선택한다</a>
+        <a href="#section-7-cinder-lvm-vm">7. Cinder LVM 볼륨은 저장소에서 만든 뒤 VM 호스트에 연결한다</a>
+        <a href="#section-8">8. 같은 물리 서버에 있어도 디스크 관리 방식은 따로 정한다</a>
+        <a href="#section-9-ceph">9. Ceph는 여러 서버의 디스크를 하나의 저장 시스템으로 운영한다</a>
+        <a href="#section-10-hci-vm">10. HCI는 VM 실행과 공동 저장소 기능을 같은 물리 서버에 둔다</a>
+        <a href="#section-11-ceph">11. Ceph는 데이터를 나누어 저장하면서 각 조각의 복제본을 유지할 수 있다</a>
+        <a href="#section-12-vm">12. 한 호스트가 고장 났을 때 디스크와 VM에 생기는 영향을 나누어 본다</a>
+        <a href="#section-13">13. 생성 요청부터 실제 데이터 저장까지 연결한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>클라우드에서 VM 한 대와 100 GiB 디스크 하나를 만든다고 생각해 보자. 화면에서는 몇 가지 값을 고르고 생성 버튼을 누르지만, 실제 장비에서는 세 가지를 결정해야 한다. VM을 어느 서버에서 실행할지, 디스크 데이터를 어디에 저장할지, 그리고 VM이 그 디스크를 어떻게 사용할지다.</p>
+<p>VM과 디스크가 같은 물리 서버에 있을 수도 있고, 서로 다른 서버에 있을 수도 있다. 여러 서버의 디스크가 하나의 저장소로 동작할 수도 있다. 이 차이를 따라가면 리전·가용 영역이 나누는 범위, Nova·Cinder가 수행하는 작업, Ceph가 데이터를 저장하고 보호하는 방식을 연결해서 이해할 수 있다.</p>
+<p>공식 자료 확인일은 2026-11-08이다. 예시는 KVM·libvirt·QEMU를 사용하는 OpenStack을 기준으로 하며, 서버 이름·주소·용량·배치는 설명을 위해 정한 값이다. 실제 설치·성능 측정·장애 시험의 결과는 아니다. <code>latest</code> 공식 문서에는 개발 중인 기능이 포함될 수 있으므로 실제 적용 시 사용하는 릴리스의 지원 범위도 확인해야 한다.</p>
+<p>그림을 클릭하면 SVG 원본을 열어 확대할 수 있다.</p>
+</div>
+        <section id="section-1-vm" class="markdown-section">
+<h2>1. VM을 실행할 서버와 디스크를 저장할 곳을 따로 생각한다</h2>
+<p><strong>물리 호스트</strong>는 CPU·RAM·SSD·네트워크 장치가 장착된 실제 서버다. 베어메탈 서버라고도 부른다. <strong>VM</strong>은 이 서버의 CPU·RAM 등을 사용해 실행하는 가상 컴퓨터다. VM 안에서 실행하는 운영체제는 게스트 운영체제라고 한다.</p>
+<p>호스트 A에서 <code>vm-01</code>을 실행한다고 하자. CPU·RAM은 A의 자원을 사용하지만, VM에 보이는 모든 디스크가 A의 SSD에 저장돼야 하는 것은 아니다. 별도 서버 S에 저장 공간을 만들고, A가 그곳에 접근해 VM에 가상 디스크로 제공할 수 있다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/vm-and-disk-location.svg"><img src="../../../assets/images/openstack-region-az-storage/vm-and-disk-location.svg" alt="VM이 실행되는 물리 호스트 A와 100 GiB 디스크 데이터를 저장하는 별도 서버 S의 연결 구조" loading="lazy"></a></p>
+<p><em>그림 1. VM은 A의 CPU·RAM으로 실행되고, 디스크 데이터는 S에 둔 예시다.</em></p>
+<p>VM에 연결할 수 있도록 독립적으로 관리하는 디스크 자원을 <strong>볼륨</strong>이라고 한다. <code>data-01</code>은 볼륨 이름의 예시다. GiB는 용량 단위로 1 GiB는 1,024³바이트이며, 1 TiB는 1,024 GiB다.</p>
+<p>이 예시의 <code>data-01</code>은 추가 데이터 디스크다. VM 운영체제가 들어 있는 부팅 디스크는 따로 준비한다고 가정한다. OpenStack에서는 볼륨에 운영체제를 넣어 부팅하는 방식도 가능하다. 어느 쪽이든 <strong>VM 실행 위치와 디스크 데이터의 저장 위치는 구분해서 정한다.</strong> <a href="https://docs.openstack.org/nova/latest/admin/architecture.html#block-storage" rel="noopener noreferrer">Nova의 VM과 스토리지 구조</a></p>
+
+</section>
+<section id="section-2-openstack" class="markdown-section">
+<h2>2. 리전은 자원을 만들 OpenStack 서비스의 범위를 정한다</h2>
+<p>OpenStack은 여러 물리 서버의 자원을 VM·네트워크·볼륨 등의 형태로 생성하고 관리하는 클라우드 플랫폼이다. 서버가 여러 곳에 있다면, 먼저 어느 운영 환경에 생성을 요청할지 정해야 한다.</p>
+<p>사용자는 OpenStack의 웹 콘솔인 <strong>Horizon</strong>, 명령줄 도구, 프로그램 등을 통해 자원을 생성한다. 이 도구들은 각 관리 서비스의 <strong>API</strong>, 즉 프로그램 간 요청·응답 인터페이스를 호출한다. API의 접속 주소를 엔드포인트라고 하고, API를 호출하는 도구나 프로그램을 클라이언트라고 한다.</p>
+<p>OpenStack에서는 VM 관리 서비스가 <strong>Nova</strong>, 가상 네트워크 관리 서비스가 <strong>Neutron</strong>, 볼륨 관리 서비스가 <strong>Cinder</strong>다. <strong>리전</strong>은 이러한 서비스 엔드포인트와 자원을 구분하는 논리적인 운영 범위다. 일반적인 다중 리전 구성은 다음과 같다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/regions-and-services.svg"><img src="../../../assets/images/openstack-region-az-storage/regions-and-services.svg" alt="RegionOne과 RegionTwo 각각에 Nova Neutron Cinder가 있고 선택한 리전의 서비스 주소로 요청하는 구성" loading="lazy"></a></p>
+<p><em>그림 2. 선택한 리전의 서비스로 요청한다. 인증과 콘솔의 공유 여부는 별도로 정한다.</em></p>
+<p>RegionOne을 선택하면 클라이언트는 그 리전에 등록된 서비스 주소로 요청한다. 리전을 지리적인 데이터센터 단위로 나누는 경우가 많지만, 리전이라는 설정 자체가 물리적인 거리나 장비 분리를 강제하지는 않는다.</p>
+<p>인증과 서비스 주소 목록을 관리하는 <strong>Keystone</strong>은 여러 리전이 공유할 수 있다. Horizon도 하나의 화면에서 여러 리전을 보여줄 수 있다. 같은 계정과 화면을 사용하더라도 각 리전의 네트워크·볼륨이 자동으로 같은 자원이 되는 것은 아니다. <a href="https://docs.openstack.org/api-ref/identity/v3/" rel="noopener noreferrer">Keystone의 서비스 카탈로그</a>, <a href="https://docs.openstack.org/kolla-ansible/2026.1/user/multi-regions.html" rel="noopener noreferrer">다중 리전 배치</a></p>
+<p>또한 OpenStack의 <strong>프로젝트</strong>는 자원 소유권·권한·사용 한도를 관리하는 단위다. 어느 프로젝트의 자원인지와 어느 리전에 만들지는 별도의 조건이다.</p>
+
+</section>
+<section id="section-3-az" class="markdown-section">
+<h2>3. AZ는 리전 안에서 자원을 배치할 후보를 나눈다</h2>
+<h3>컴퓨트 AZ를 선택하면 VM이 갈 수 있는 호스트가 제한된다</h3>
+<p>하나의 리전에도 VM을 실행할 호스트가 여러 대 있다. 운영자가 이 호스트들을 묶어 사용자에게 배치 대상으로 제공하는 구분을 <strong>가용 영역</strong>, Availability Zone(AZ)이라고 한다. Nova의 AZ는 컴퓨트 AZ라고 부른다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/compute-az-candidates.svg"><img src="../../../assets/images/openstack-region-az-storage/compute-az-candidates.svg" alt="compute-a를 선택하면 호스트 A가 생성 후보가 되고 compute-b의 호스트 B는 해당 요청에서 제외되는 구조" loading="lazy"></a></p>
+<p><em>그림 3. 보라색은 선택한 AZ, 회색은 해당 요청에서 제외되는 AZ다.</em></p>
+<p>이 예시에서는 AZ마다 호스트가 한 대지만 실제로는 여러 호스트가 속할 수 있다. AZ 선택은 후보 범위를 정하는 작업이고, 그 안에서 VM 사양을 만족하는 호스트를 고르는 것은 Nova의 역할이다.</p>
+<p>이 구분은 운영 편의뿐 아니라 장애 영향을 나누어 배치할 때도 사용한다. 예를 들어 서버를 수납하는 랙마다 전원이 분리돼 있다면, 서로 다른 랙의 호스트들을 다른 AZ로 제공해 사용자가 VM을 나눠 만들게 할 수 있다. 같은 장애를 함께 겪을 수 있는 범위를 <strong>장애 영역</strong>이라고 한다.</p>
+<p>그러나 AZ 이름만 나눈다고 실제 전원·스위치·저장소가 분리되지는 않는다. 장애 영역에 맞는 물리 구성이 필요하다. 필요한 때 서비스를 사용할 수 있는 성질이 가용성이며, 일부 장애에도 서비스를 유지하도록 설계하는 것을 <strong>고가용성</strong>, High Availability(HA)라고 한다. AZ는 이런 설계에 쓰는 배치 구분이며, 그 자체로 HA를 제공하지는 않는다. <a href="https://docs.openstack.org/nova/latest/admin/availability-zones.html" rel="noopener noreferrer">Nova의 AZ와 장애 격리 범위</a></p>
+<p>관리자가 호스트를 묶는 일반적인 수단은 <strong>호스트 애그리게이트</strong>다. 여기에 AZ 정보를 지정하면 사용자에게 컴퓨트 AZ로 제공할 수 있다. 한 호스트는 여러 애그리게이트에 참여할 수 있지만 컴퓨트 AZ는 하나에 속한다. <a href="https://docs.openstack.org/nova/latest/admin/aggregates.html" rel="noopener noreferrer">호스트 애그리게이트</a></p>
+<h3>Cinder AZ는 VM 호스트 대신 볼륨을 제공할 저장소의 범위를 정한다</h3>
+<p>VM을 실행할 곳을 나눈 것처럼, 볼륨을 제공할 저장소도 나눌 수 있다. Cinder에서 실제 저장 방식과 연동 대상을 <strong>스토리지 백엔드</strong>라고 한다. 서버 S의 디스크 공간을 백엔드로 제공하는 것이 한 가지 예다. Cinder의 스토리지 AZ는 볼륨 서비스·백엔드의 배치 범위를 구분한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>생성할 때 고르는 범위</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nova의 컴퓨트 AZ</td>
+<td>VM을 실행할 컴퓨트 호스트</td>
+</tr>
+<tr>
+<td>Cinder의 스토리지 AZ</td>
+<td>볼륨을 만들 스토리지 서비스·백엔드</td>
+</tr>
+</tbody></table>
+</div>
+<p>두 서비스의 AZ는 각각 관리된다. Nova의 <code>compute-a</code>와 Cinder의 <code>storage-b</code>를 함께 사용할 수 있고, 운영자가 같은 이름의 AZ를 만들어 대응시킬 수도 있다. 이름이 같다는 사실만으로 같은 물리 서버나 같은 전원에 속한다는 뜻은 아니다. <a href="https://docs.openstack.org/nova/latest/admin/availability-zones.html" rel="noopener noreferrer">서비스별 AZ 차이</a></p>
+
+</section>
+<section id="section-4-az-vm" class="markdown-section">
+<h2>4. 서로 다른 컴퓨트 AZ의 VM도 같은 가상 네트워크에 연결할 수 있다</h2>
+<p>AZ가 호스트 후보를 나눈다면, 다른 AZ에 있는 두 VM의 통신도 막히는지 궁금해진다. VM의 배치 구분과 네트워크 연결은 별도로 설정한다.</p>
+<p>Neutron의 <strong>네트워크</strong>는 가상 네트워크 장치들이 연결되는 논리적인 공간이다. <strong>서브넷</strong>은 그 네트워크에서 사용할 IP 주소 범위와 다른 네트워크로 나가는 출구인 게이트웨이 등의 설정이다. 장치가 네트워크에 연결되는 지점을 <strong>포트</strong>라고 하며, VM의 가상 네트워크 인터페이스와 IP 주소 등을 연결해 관리한다. NIC는 이런 네트워크 인터페이스를 가리키는 이름이다.</p>
+<p>같은 리전에서 <code>net-app</code>이라는 네트워크와 <code>10.0.0.0/24</code> 서브넷을 만들었다고 하자. <code>/24</code>는 주소 범위를 나타내는 CIDR 표기이며, 이 예시에서는 <code>10.0.0</code>으로 시작하는 IPv4 주소 범위를 사용한다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/network-across-az.svg"><img src="../../../assets/images/openstack-region-az-storage/network-across-az.svg" alt="같은 리전의 compute-a와 compute-b에 있는 두 VM이 net-app 네트워크와 같은 서브넷에 연결되는 구조" loading="lazy"></a></p>
+<p><em>그림 4. 점선은 컴퓨트 AZ의 경계다. 같은 가상 네트워크가 두 AZ의 VM을 연결한다.</em></p>
+<p>운영자가 A·B 양쪽에서 해당 네트워크를 사용할 수 있게 구성하면 이 연결이 가능하다. 물리 네트워크를 논리적으로 구분하는 VLAN이나, 물리 네트워크 위에서 VM 통신을 다른 패킷에 담아 전달하는 VXLAN 같은 터널 방식을 사용할 수 있다. AZ를 구분하는 설정만으로 이런 경로가 만들어지는 것은 아니다. VM의 통신 규칙인 보안 그룹과 방화벽 설정도 통신을 허용해야 한다. <a href="https://docs.openstack.org/neutron/latest/admin/intro-os-networking.html" rel="noopener noreferrer">Neutron의 네트워크 모델</a></p>
+<p>라우터로 연결하는 경우에는 다음처럼 서로 다른 서브넷 사이에서도 통신할 수 있다. 라우터의 경로를 추가하는 것과 두 VM을 같은 서브넷에 연결하는 것은 구분해야 한다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/routing-between-subnets.svg"><img src="../../../assets/images/openstack-region-az-storage/routing-between-subnets.svg" alt="서로 다른 10.10.0.0/24와 10.20.0.0/24 서브넷의 VM이 라우터를 거쳐 통신하는 구조" loading="lazy"></a></p>
+<p><em>그림 5. 라우터로 통신하는 두 서브넷은 각각 별도의 주소 범위로 유지된다.</em></p>
+<p>리전마다 독립적인 Neutron을 운영한다면 RegionOne의 네트워크 ID를 RegionTwo의 VM에 그대로 사용할 수 없다. 두 리전의 별도 네트워크를 라우팅·VPN 등으로 연결할 수는 있다. 동일한 CIDR을 각각 입력했다고 하나의 서브넷이 되는 것은 아니며, 리전 간 네트워크 확장은 별도의 설계다. <a href="https://docs.openstack.org/kolla-ansible/2026.1/user/multi-regions.html" rel="noopener noreferrer">리전별 서비스 구성</a></p>
+<p>Neutron에도 네트워크 AZ가 있다. 이때는 DHCP처럼 VM에 IP 설정을 제공하는 기능이나 라우터 기능을 수행할 노드, 즉 해당 역할의 서버 등의 배치를 다룬다. 네트워크의 AZ를 지정하는 것이 그 네트워크에 접속할 VM의 컴퓨트 AZ를 하나로 제한한다는 의미는 아니다. <a href="https://docs.openstack.org/neutron/latest/admin/config-az.html" rel="noopener noreferrer">Neutron의 AZ</a></p>
+<p>Horizon에서 보이는 AZ 선택도 자원별로 대상을 읽어야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>생성 대상</th>
+<th>AZ 선택의 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM</td>
+<td>컴퓨트 호스트의 배치 범위</td>
+</tr>
+<tr>
+<td>Cinder 볼륨</td>
+<td>볼륨 서비스·백엔드의 배치 범위</td>
+</tr>
+<tr>
+<td>Neutron 네트워크·라우터</td>
+<td>관련 확장이 있을 때 DHCP·라우터 처리 노드 등의 <code>Availability Zone Hints</code></td>
+</tr>
+<tr>
+<td>Octavia 로드밸런서</td>
+<td>대시보드 플러그인과 공급자 등이 지원할 때 로드밸런서 배치 범위</td>
+</tr>
+</tbody></table>
+</div>
+<p>화면의 항목 유무는 설치된 기능과 플러그인에 따라 달라진다. <a href="https://docs.openstack.org/horizon/latest/user/launch-instances.html" rel="noopener noreferrer">Horizon의 VM 생성</a>, <a href="https://docs.openstack.org/horizon/latest/user/manage-volumes.html" rel="noopener noreferrer">Horizon의 볼륨 생성</a>, <a href="https://docs.openstack.org/releasenotes/octavia-dashboard/2023.1.html" rel="noopener noreferrer">Octavia 대시보드의 AZ 지원</a></p>
+
+</section>
+<section id="section-5-nova-cinder" class="markdown-section">
+<h2>5. Nova와 Cinder는 요청을 받는 쪽과 실제 작업하는 쪽으로 나뉜다</h2>
+<p>리전과 AZ는 요청의 범위를 정한다. 그 안에서 실제 VM과 볼륨을 만들려면, 요청을 받아 대상 장비를 고르고 작업을 전달하는 프로그램들이 필요하다.</p>
+<p>사용자는 VM의 <strong>이미지</strong>와 <strong>플레이버</strong> 등을 선택한다. 이미지는 운영체제 등 디스크 내용의 원본이고, 플레이버는 CPU·RAM·디스크 등 VM 사양의 정의다. <strong>스케줄러</strong>는 이 사양과 배치 조건에 맞는 후보를 찾고 작업할 대상을 선택한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>역할</th>
+<th>Nova</th>
+<th>Cinder</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>API 요청 접수</td>
+<td><code>nova-api</code></td>
+<td><code>cinder-api</code></td>
+</tr>
+<tr>
+<td>대상 선택</td>
+<td><code>nova-scheduler</code>: VM 호스트 선택</td>
+<td><code>cinder-scheduler</code>: 볼륨 백엔드 선택</td>
+</tr>
+<tr>
+<td>실제 작업 수행</td>
+<td><code>nova-compute</code>: 담당 호스트의 VM 관리</td>
+<td><code>cinder-volume</code>: 담당 백엔드의 볼륨 관리</td>
+</tr>
+</tbody></table>
+</div>
+<p>예를 들어 관리 서버 M, 컴퓨트 호스트 A·B, 스토리지 서버 S를 다음처럼 배치할 수 있다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/nova-cinder-placement.svg"><img src="../../../assets/images/openstack-region-az-storage/nova-cinder-placement.svg" alt="관리 서버 M의 Nova는 컴퓨트 호스트의 nova-compute에, Cinder는 선택된 백엔드의 cinder-volume에 생성 작업을 전달하는 구조" loading="lazy"></a></p>
+<p><em>그림 6. Nova는 A·B 중 한 호스트를 선택하고, Cinder는 조건에 맞는 스토리지 백엔드를 고른다.</em></p>
+<p><code>nova-compute</code>는 자신이 설치된 호스트의 VM을 관리한다. 이 글의 구성에서 KVM은 Linux의 가상화 기능을 제공하고, QEMU는 VM 프로세스와 가상 장치를 구현하며, libvirt는 이를 관리하는 인터페이스를 제공한다. <code>nova-compute</code>가 이 기능을 사용해 VM을 실행한다. <a href="https://docs.openstack.org/nova/latest/admin/architecture.html" rel="noopener noreferrer">Nova의 구성</a></p>
+<p><code>cinder-volume</code>은 설정한 <strong>드라이버</strong>로 저장소에 볼륨 생성·삭제 등의 작업을 요청한다. 드라이버는 Cinder의 공통 작업을 각 저장 방식에 맞는 호출로 바꾸는 연동 코드다. <strong><code>cinder-volume</code>은 프로그램이고, <code>data-01</code>은 그 프로그램이 관리하는 볼륨 자원</strong>이다. Cinder의 관리 데이터베이스(DB)에는 자원 ID·크기·상태·연결 정보 등을 기록하며, 사용자 파일의 내용은 실제 백엔드에 저장한다. <a href="https://docs.openstack.org/cinder/latest/contributor/architecture.html" rel="noopener noreferrer">Cinder의 구성과 생성 흐름</a></p>
+<p>이 배치는 관리 기능을 한 서버에 둔 설명용 예시다. 실제 운영에서는 관리 프로그램을 여러 대에 배치할 수 있고, 내부 작업 전달에는 메시징 등도 사용한다. 각 컴퓨트 호스트에 Nova와 Cinder 전체를 한 벌씩 설치하는 구조를 뜻하지 않는다.</p>
+
+</section>
+<section id="section-6-vm" class="markdown-section">
+<h2>6. VM 호스트와 볼륨 백엔드는 각각 조건에 맞춰 선택한다</h2>
+<h3>볼륨 생성은 선택된 백엔드의 cinder-volume이 담당한다</h3>
+<p>호스트 A에 VM을 만들었다고 해서 A의 <code>cinder-volume</code>을 찾아 디스크 생성을 맡기는 것은 아니다. A에는 <code>nova-compute</code>만 있고 <code>cinder-volume</code>은 S에 있을 수 있다. 두 프로그램을 A에 함께 설치해도 기본적인 배치 결정은 각각의 스케줄러가 수행한다.</p>
+<p><strong>볼륨 종류</strong>, volume type은 저장소의 기능·성능·배치 정책 등을 요청에서 선택할 수 있도록 정의한 항목이다. 볼륨 타입이라는 표현도 같은 대상을 가리킨다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>선택 담당</th>
+<th>확인할 조건의 예</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM 생성</td>
+<td>Nova</td>
+<td>이미지·플레이버, CPU·RAM·GPU, 컴퓨트 AZ, 로컬 디스크가 필요하면 해당 자원</td>
+</tr>
+<tr>
+<td>볼륨 생성</td>
+<td>Cinder</td>
+<td>볼륨 크기·종류, 스토리지 AZ, 백엔드의 기능·가용 용량</td>
+</tr>
+</tbody></table>
+</div>
+<p><code>cinder-volume</code>은 드라이버로 백엔드의 상태와 용량을 수집해 보고한다. Cinder 스케줄러는 이 정보로 후보를 판단하고 선택된 백엔드의 담당 프로그램에 작업을 전달한다. 보고값은 주기적으로 갱신되므로 조회와 실제 생성 사이의 자원 변화도 고려해야 한다. <a href="https://github.com/openstack/cinder/blob/master/cinder/volume/manager.py" rel="noopener noreferrer">백엔드 용량 정보 수집</a></p>
+<p>생성 가능 용량에는 일부 공간을 운영용으로 남기는 예약 정책도 반영된다. 또한 실제 공간보다 많은 논리 용량을 제공하도록 허용하는 <strong>초과 할당</strong> 정책이 영향을 줄 수 있다. 모든 사용자가 약속받은 공간을 동시에 채워도 충분하다는 보장은 아니므로 실제 사용량을 관리해야 한다. <a href="https://docs.openstack.org/cinder/latest/admin/over-subscription.html" rel="noopener noreferrer">Cinder의 용량 정책</a></p>
+<h3>사용자가 AZ를 생략해도 생성할 수 있다</h3>
+<p>사용자가 특정 위치를 원하지 않으면 VM과 볼륨 모두 AZ를 생략할 수 있다. 이 경우 서비스가 설정에 따라 후보 범위를 정한다. <strong>AZ 생략이 언제나 모든 AZ 탐색을 뜻하는 것은 아니다.</strong></p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상과 운영 정책</th>
+<th>AZ를 생략한 요청의 배치 범위</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM의 기본 배치 AZ를 지정하지 않음</td>
+<td>특정 컴퓨트 AZ로 제한하지 않고, 여러 AZ에서 나머지 조건을 만족하는 호스트를 찾을 수 있다.</td>
+</tr>
+<tr>
+<td>VM의 기본 배치 AZ를 <code>compute-a</code>로 지정</td>
+<td><code>compute-a</code> 안에서 호스트를 선택한다.</td>
+</tr>
+<tr>
+<td>새 볼륨의 종류에 별도 AZ 조건이 없음</td>
+<td>Cinder에 설정한 기본 스토리지 AZ에서 백엔드를 찾는다. 공간이 부족해도 자동으로 모든 AZ까지 탐색하지는 않는다.</td>
+</tr>
+<tr>
+<td>새 볼륨의 종류에 여러 AZ를 후보로 지정</td>
+<td>지정한 AZ들의 백엔드를 후보로 삼는다.</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 표의 볼륨은 기존 볼륨의 복사 등 추가 배치 조건이 없는 새 볼륨이다. VM의 기본 배치 정책과 볼륨의 기본 배치 정책은 따로 설정한다.</p>
+<h3>Cinder도 여러 AZ에서 용량을 보고 선택하도록 설정할 수 있다</h3>
+<p>운영자가 <code>standard</code>라는 볼륨 종류의 후보를 <code>storage-a</code>·<code>storage-b</code>·<code>storage-c</code>로 정했다고 하자. 사용자가 이 종류를 선택하고 AZ를 생략하면 세 AZ 안에서 생성 가능한 백엔드를 찾는다.</p>
+<p>100 GiB를 요청하고 AZ마다 조건이 같은 백엔드가 하나씩 있다고 가정하자. 아래 값은 예약 공간·초과 할당 정책 등을 반영한 생성 가능 용량의 설명용 예시다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>후보의 AZ</th>
+<th>생성 가능 용량</th>
+<th>100 GiB 요청 판단</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>storage-a</code></td>
+<td>30 GiB</td>
+<td>30 &lt; 100이므로 제외</td>
+</tr>
+<tr>
+<td><code>storage-b</code></td>
+<td>500 GiB</td>
+<td>500 ≥ 100이므로 후보</td>
+</tr>
+<tr>
+<td><code>storage-c</code></td>
+<td>300 GiB</td>
+<td>300 ≥ 100이므로 후보</td>
+</tr>
+</tbody></table>
+</div>
+<p>Cinder는 용량·기능 조건으로 후보를 걸러내고 남은 후보를 가중치로 평가한다. 기본 용량 평가 설정은 여유가 많은 백엔드를 선호하지만, 실제 선택은 구성한 필터·가중치와 보고 정보에 따른다. 여러 AZ의 용량을 합산해 볼륨을 만드는 것이 아니라 <strong>한 백엔드를 선택하는 동작</strong>이다. <a href="https://docs.openstack.org/cinder/latest/admin/multi-backend.html#configure-block-storage-scheduler-multi-back-end" rel="noopener noreferrer">Cinder의 필터와 가중치</a></p>
+<p>기본값·후보 AZ 목록을 설정하는 방법과 요청 조건의 우선순위는 <a href="details/AZ-PLACEMENT-SETTINGS.html">VM과 볼륨의 AZ 생략·자동 배치 설정</a>에 정리했다.</p>
+<h3>VM과 볼륨의 AZ가 달라도 연결 조건을 만족하면 사용할 수 있다</h3>
+<p>같은 리전에서 Nova의 기본 배치 AZ는 미설정이고 Cinder의 기본 AZ는 <code>storage-b</code>라고 가정하자. 볼륨 종류에는 별도 AZ 조건이 없고, VM과 볼륨의 AZ가 달라도 연결을 허용하는 정책이다. 사용자가 두 요청에서 AZ를 모두 생략하면 다음과 같은 결과가 가능하다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/default-az-placement.svg"><img src="../../../assets/images/openstack-region-az-storage/default-az-placement.svg" alt="AZ를 생략한 VM은 Nova의 후보 호스트에 배치되고 볼륨은 Cinder의 기본 AZ에 배치되는 예시" loading="lazy"></a></p>
+<p><em>그림 7. 볼륨 종류에 별도 AZ 조건이 없는 예시다. 두 자원의 AZ를 생략해도 같은 AZ로 배치된다는 보장은 없다.</em></p>
+<p>운영자는 VM과 볼륨의 AZ 이름이 일치해야 연결하도록 제한할 수도 있다. 이 경우에는 AZ를 생략한 VM 요청이라도 함께 사용할 볼륨 때문에 배치 범위가 좁아질 수 있다. <a href="https://docs.openstack.org/nova/latest/admin/availability-zones.html#resource-affinity" rel="noopener noreferrer">Nova의 VM·볼륨 AZ 일치 정책</a></p>
+<p>연결을 허용하는 정책만으로 디스크를 읽을 수 있는 것은 아니다. 컴퓨트 호스트가 저장소에 접근할 실제 통신 경로와 인증도 필요하다. 이 경로는 디스크를 제공하는 방식에 따라 달라진다.</p>
+
+</section>
+<section id="section-7-cinder-lvm-vm" class="markdown-section">
+<h2>7. Cinder LVM 볼륨은 저장소에서 만든 뒤 VM 호스트에 연결한다</h2>
+<h3>서버 S에서 저장 공간을 만든다</h3>
+<p>물리 디스크 공간을 관리하는 한 가지 방법이 <strong>LVM</strong>이다. Linux에서 디스크 공간을 묶어 <strong>볼륨 그룹</strong>으로 준비하고, 그 안에서 필요한 크기의 <strong>논리 볼륨</strong>을 만드는 기능이다.</p>
+<p>운영자가 서버 S의 SSD로 LVM 볼륨 그룹을 준비하고 Cinder 백엔드로 등록했다고 하자. 스케줄러가 이 백엔드를 선택하면 S의 <code>cinder-volume</code>이 LVM 드라이버를 사용해 <code>data-01</code>의 공간을 만든다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/cinder-lvm-creation.svg"><img src="../../../assets/images/openstack-region-az-storage/cinder-lvm-creation.svg" alt="관리 서버 M의 Cinder API와 스케줄러가 선택한 서버 S의 cinder-volume으로 작업을 보내 LVM 논리 볼륨을 만드는 흐름" loading="lazy"></a></p>
+<p><em>그림 8. M은 요청 접수와 대상 선택을 처리하고, 선택된 S에서 논리 볼륨을 생성한다.</em></p>
+<p>이 단계에서는 S에 공간이 생겼다. A에서 실행하는 VM이 그 공간을 사용하려면 저장소와 연결하는 작업이 더 필요하다. <a href="https://docs.openstack.org/cinder/latest/install/cinder-storage-install-ubuntu.html" rel="noopener noreferrer">Cinder의 LVM 백엔드 구성</a></p>
+<h3>A가 S의 디스크에 접속하고 VM에 가상 디스크로 제공한다</h3>
+<p>이 예시에서는 <strong>iSCSI</strong>를 사용한다. iSCSI는 디스크 읽기·쓰기 명령을 IP 네트워크로 전달하는 방식이다.</p>
+<p>Cinder는 볼륨의 접속 주소·식별 정보·인증 등을 준비한다. A의 컴퓨트 기능은 그 정보를 이용해 S의 iSCSI 서비스에 연결하고, QEMU가 해당 장치를 VM에 가상 디스크로 제공하도록 구성한다. 연결 후 읽기·쓰기는 다음 경로를 따른다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/iscsi-data-path.svg"><img src="../../../assets/images/openstack-region-az-storage/iscsi-data-path.svg" alt="호스트 A의 VM과 QEMU 및 iSCSI 클라이언트가 서버 S의 iSCSI 서비스와 LVM 볼륨 및 SSD에 연결되는 데이터 경로" loading="lazy"></a></p>
+<p><em>그림 9. 초록색 화살표는 연결 후 디스크 명령과 데이터가 오가는 경로다.</em></p>
+<p>Cinder는 생성·연결을 조정한다. 연결 후의 디스크 데이터가 매번 <code>cinder-api</code>나 <code>cinder-volume</code> 프로세스를 통과하는 것은 아니다. <strong>생성·연결 작업의 경로와 이후 데이터 읽기·쓰기 경로를 구분해야 한다.</strong> <a href="https://docs.openstack.org/cinder/latest/contributor/attach_detach_conventions.html" rel="noopener noreferrer">Cinder의 볼륨 연결 흐름</a></p>
+<p>여기서 저장소에 접속하는 쪽은 우선 <strong>VM을 실행하는 호스트 A</strong>다. VM의 Neutron 사설망이 스토리지 서버와 같은 서브넷일 필요는 없다. 운영자가 A에서 S까지 스토리지 통신 경로·포트·인증을 준비해야 한다.</p>
+<p>게스트 운영체제에서 디스크가 <code>/dev/vdb</code> 같은 장치로 보인 뒤에는 파일 시스템과 마운트를 준비해야 할 수 있다. <strong>파일 시스템</strong>은 디스크에 파일을 저장·관리하는 구조이고, <strong>마운트</strong>는 그 파일 시스템을 특정 디렉터리에서 사용할 수 있게 연결하는 작업이다. 호스트의 원격 디스크 연결과 게스트의 파일 시스템 마운트는 별도 작업이며, 이미지나 초기화 도구가 후자를 자동화할 수도 있다. <a href="https://docs.openstack.org/horizon/latest/user/manage-volumes.html" rel="noopener noreferrer">볼륨 연결 후 게스트에서 사용하기</a></p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>8. 같은 물리 서버에 있어도 디스크 관리 방식은 따로 정한다</h2>
+<h3>같은 서버의 iSCSI는 외부 스위치를 거치지 않을 수 있다</h3>
+<p>서버 S의 역할을 A로 옮겨 A가 VM 실행과 LVM 스토리지를 함께 제공한다고 가정하자. Cinder LVM+iSCSI 설정을 유지했다면 볼륨 연결에도 그 방식을 사용한다.</p>
+<p>같은 Linux OS가 자기 자신의 로컬 IP로 접속하는 단순 구성에서는 패킷이 커널 내부에서 전달되므로 물리 NIC와 외부 스위치를 왕복하지 않는다. 그래도 TCP/IP와 iSCSI 처리는 남아 있다. 로컬 장치를 직접 사용하는 경로와 처리 과정이 다르며, 실제 속도 차이는 측정해야 한다. 컨테이너별 네트워크 공간이나 특수 라우팅을 사용하면 경로도 달라질 수 있다. <a href="https://man7.org/linux/man-pages/man8/ip-route.8.html" rel="noopener noreferrer">Linux의 로컬 라우팅</a></p>
+<h3>호스트의 로컬 디스크를 Nova가 직접 준비하는 방식도 있다</h3>
+<p>VM과 함께 관리할 호스트 로컬 디스크가 필요하면 Nova가 해당 호스트의 LVM을 사용하도록 구성할 수 있다. 이때는 A의 <code>nova-compute</code>가 호스트 설정에 따라 디스크를 준비한다. Cinder 볼륨 생성과는 다른 경로다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>디스크를 준비하는 곳</th>
+<th>자원의 수명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nova가 관리하는 일반적인 로컬 VM 디스크</td>
+<td>VM 실행 호스트</td>
+<td>보통 VM 삭제 시 정리</td>
+</tr>
+<tr>
+<td>Cinder 볼륨</td>
+<td>선택된 스토리지 백엔드</td>
+<td>독립 자원으로 보존 가능하며 VM 삭제 시 함께 삭제하도록 설정할 수도 있음</td>
+</tr>
+</tbody></table>
+</div>
+<p>저장 위치와 보존 정책은 각각 확인해야 한다. 원격 저장소에 둔 Nova 관리 디스크도 VM 삭제 시 정리할 수 있고, VM을 정지·재부팅하는 것과 자원을 삭제하는 것도 다르다. Nova 디스크를 Ceph에 두는 구성도 지원된다. <a href="https://docs.openstack.org/nova/latest/admin/architecture.html#block-storage" rel="noopener noreferrer">Nova 디스크와 Cinder 볼륨의 수명</a>, <a href="https://docs.openstack.org/kolla-ansible/latest/reference/storage/external-ceph-guide.html#nova" rel="noopener noreferrer">Nova의 Ceph 디스크 지원</a></p>
+<p>호스트의 SSD에 디스크를 직접 만들고 싶다면 Nova의 LVM 설정과 Cinder의 LVM 백엔드를 구분해야 한다. 구체적인 설정·연결 경로·이동 제약은 <a href="details/LOCAL-LVM-AND-ISCSI.html">로컬 LVM 디스크와 Cinder LVM 볼륨의 생성·연결 경로</a>에서 이어서 확인할 수 있다.</p>
+
+</section>
+<section id="section-9-ceph" class="markdown-section">
+<h2>9. Ceph는 여러 서버의 디스크를 하나의 저장 시스템으로 운영한다</h2>
+<h3>호스트마다 독립적인 LVM을 두는 것과 공동 저장소는 다르다</h3>
+<p>이제 저장소 후보를 늘리기 위해 A·B에 C 한 대를 추가하고, 세 서버 각각에 LVM 백엔드를 만든다고 가정하자. Cinder가 선택할 수 있는 독립 저장소가 세 개 생긴다. Cinder는 그중 어디에 볼륨을 만들지 정할 수 있다. 그러나 세 서버의 LVM 공간을 자동으로 합치거나 같은 데이터를 서로 복제하지는 않는다. <a href="https://docs.openstack.org/cinder/latest/admin/multi-backend.html" rel="noopener noreferrer">여러 Cinder 백엔드의 관리</a></p>
+<p>여러 서버의 디스크를 함께 사용하고 데이터를 나누어 저장하려면 그 일을 수행하는 저장 시스템이 필요하다. <strong>Ceph</strong>는 이런 분산 저장 시스템이다. 여러 프로그램이 협력해 하나의 시스템을 이루는 구성을 <strong>클러스터</strong>라고 한다.</p>
+<p>Ceph에서 실제 디스크를 담당해 데이터를 읽고 쓰고 복제하는 프로그램은 <strong>OSD</strong>다. 각 스토리지 서버에 OSD를 두고 디스크를 맡긴다. <strong>MON</strong>은 클러스터의 구성·상태 지도 등을 관리하며, <strong>MGR</strong>은 상태 수집과 관리 기능을 제공한다. OSD만 설치해 서로 고립된 디스크로 쓰는 것이 아니라, 이 프로그램들이 통신하며 공동 저장소를 운영한다. <a href="https://docs.ceph.com/en/latest/architecture/storage-cluster/" rel="noopener noreferrer">Ceph 저장 클러스터의 구성</a></p>
+<h3>디스크를 준비할 때와 사용자 볼륨을 만들 때의 작업이 다르다</h3>
+<p>Ceph의 생성 과정을 보기 위해, 여기서는 컴퓨트 호스트 A·B와 별도 스토리지 서버 S1·S2·S3로 역할을 나눈다고 가정한다. 운영자는 설치·증설 시 각 스토리지 서버의 SSD를 OSD가 사용할 공간으로 준비한다. 이 과정에서 LVM을 사용할 수 있다. 준비된 공간에 사용자 볼륨의 데이터를 저장하게 된다.</p>
+<p>사용자가 볼륨을 만들 때는 Ceph의 <strong>RBD</strong> 기능을 사용한다. RBD는 Ceph 저장 공간을 가상 디스크로 제공하는 기능이다. Cinder의 Ceph 드라이버는 RBD 가상 디스크를 생성한다. VM 실행 호스트의 SSD에 사용자 볼륨 크기만큼 LVM 논리 볼륨을 하나씩 만드는 동작과 구분해야 한다. <a href="https://docs.ceph.com/en/latest/ceph-volume/lvm/prepare/" rel="noopener noreferrer">Ceph 디스크 준비</a>, <a href="https://docs.ceph.com/en/latest/rbd/rados-rbd-cmds/" rel="noopener noreferrer">RBD 가상 디스크 생성</a></p>
+<p><a href="../../../assets/images/openstack-region-az-storage/ceph-volume-stages.svg"><img src="../../../assets/images/openstack-region-az-storage/ceph-volume-stages.svg" alt="OSD용 디스크 준비와 사용자 RBD 볼륨 생성 및 데이터 기록 시 저장과 복제를 세 단계로 나눈 흐름" loading="lazy"></a></p>
+<p><em>그림 10. OSD 공간 준비는 설치·증설 작업이고, RBD 볼륨 생성은 사용자 요청에 따른 작업이다.</em></p>
+<p>Ceph의 논리적인 저장 영역을 <strong>풀</strong>(pool)이라고 한다. Cinder 백엔드 하나를 특정 Ceph 풀에 연결할 수 있다. 그 풀의 데이터는 여러 서버의 디스크에 걸쳐 있을 수 있다. 따라서 Cinder의 백엔드 한 개가 물리 서버 한 대를 뜻하지는 않는다. <a href="https://docs.openstack.org/cinder/latest/configuration/block-storage/drivers/ceph-rbd-volume-driver.html#rbd-pool" rel="noopener noreferrer">Cinder의 Ceph 풀 연결</a></p>
+<p>이 구성을 기준으로 공간 부족도 판단해야 한다. A·B의 VM이 같은 Ceph 풀을 사용한다면, A의 VM을 B로 옮겨도 그 풀의 공간은 늘어나지 않는다. 풀의 공간 확보·증설이나 사용 가능한 다른 백엔드 선택이 필요하다. <strong>VM 실행 자원이 부족한 문제와 공동 저장소의 공간이 부족한 문제는 해결할 대상이 다르다.</strong></p>
+<h3>VM 호스트에는 Ceph에 접속할 클라이언트 기능을 둔다</h3>
+<p>컴퓨트 호스트 A·B에는 Ceph 주소·인증 정보·접속 라이브러리 등을 준비한다. Nova가 VM의 장치 연결을 조정하고, QEMU는 <code>librbd</code>라는 라이브러리로 Ceph 디스크를 읽고 쓸 수 있다. 이 구성에서는 Ceph 볼륨을 사용하기 위해 반드시 iSCSI를 거치는 것은 아니다.</p>
+<p>A의 <code>vm-01</code>이 데이터를 쓰는 과정을 따라가 보자. RBD의 디스크 데이터는 객체(object)라는 저장 단위로 나뉘며, 여기서는 이를 데이터 조각이라고 부른다. 같은 조각을 맡는 OSD들 가운데 클라이언트의 쓰기 요청을 받는 OSD를 <strong>주 담당 OSD</strong>(Primary)라고 한다. 주 담당 OSD가 같은 내용을 다른 OSD에도 보관하는 복제를 수행한다. 아래는 조각 X의 사본을 서로 다른 세 서버에 하나씩 두는 예시다. 다른 조각은 다른 OSD가 주 담당일 수 있다. <a href="https://docs.ceph.com/en/squid/architecture/" rel="noopener noreferrer">Ceph의 쓰기·복제 경로</a></p>
+<p><a href="../../../assets/images/openstack-region-az-storage/ceph-control-and-data.svg"><img src="../../../assets/images/openstack-region-az-storage/ceph-control-and-data.svg" alt="RBD 볼륨 생성과 데이터 조각 X 쓰기를 구분하고 클라이언트에서 주 담당 OSD로 향하는 쓰기와 OSD 사이 복제를 별도 화살표로 표시한 구조" loading="lazy"></a></p>
+<p><em>그림 11. 아래쪽 실선은 클라이언트의 쓰기 요청, 점선은 OSD 사이의 복제다. 조각 X 하나의 쓰기만 표시했으며 읽기와 완료 응답은 생략했다.</em></p>
+<p>VM 실행 요청을 받아 처리하는 프로그램은 A의 <code>nova-compute</code>다. 디스크에 접속하는 클라이언트 기능은 QEMU·librbd가 제공하고, 실제 데이터를 저장·복제하는 역할은 OSD가 담당한다. VM이 A에서 실행된다고 디스크 데이터 전체가 A에 있어야 하는 것은 아니다. <a href="https://docs.ceph.com/en/latest/rbd/rbd-openstack/" rel="noopener noreferrer">OpenStack과 Ceph의 클라이언트 연동</a></p>
+<p><strong>Rook</strong>은 Kubernetes에서 Ceph의 설치·운영을 자동화하는 도구다. Rook으로 구축한 Ceph도 OpenStack의 저장소로 사용하려면 클라이언트 접근·인증·드라이버 호환성을 준비해야 한다. Kubernetes의 저장공간 요청 자체를 Cinder에 등록하는 관계는 아니다. <a href="https://rook.io/docs/rook/latest-release/Getting-Started/intro/" rel="noopener noreferrer">Rook의 역할</a></p>
+
+</section>
+<section id="section-10-hci-vm" class="markdown-section">
+<h2>10. HCI는 VM 실행과 공동 저장소 기능을 같은 물리 서버에 둔다</h2>
+<h3>분리형에서는 컴퓨트 서버와 스토리지 서버가 따로 있다</h3>
+<p>앞 절의 컴퓨트 호스트 A·B에 C를 추가해 VM 실행용 서버를 세 대로 늘린다고 하자. 저장소용 서버 S1·S2·S3는 그대로 둔다. 관리 서버 M에는 API·스케줄러와 Ceph 연동 <code>cinder-volume</code>을 두고, A·B·C에는 VM 실행 기능을 둔다. SSD는 S1·S2·S3의 OSD가 담당한다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/separated-layout.svg"><img src="../../../assets/images/openstack-region-az-storage/separated-layout.svg" alt="VM 실행용 컴퓨트 서버 A B C와 Ceph OSD가 있는 스토리지 서버 S1 S2 S3를 별도 장비로 배치한 구조" loading="lazy"></a></p>
+<p><em>그림 12. 연산과 저장 역할을 서로 다른 베어메탈 서버에 둔 예시다.</em></p>
+<p>이 구성에서는 컴퓨트와 스토리지를 따로 증설할 수 있다. VM 디스크가 외부에 있으면 컴퓨트 호스트를 교체할 때도 디스크를 그 호스트에서 따로 회수하지 않아도 된다. 다만 실행 중인 VM은 여전히 그 호스트의 CPU·RAM에 의존하므로, 호스트 정비 전에 이동·종료 등의 조치가 필요하다. <a href="https://docs.openstack.org/arch-design/design-compute/design-compute-storage.html" rel="noopener noreferrer">컴퓨트·스토리지 분리 배치</a></p>
+<p>VM을 옮긴 뒤 호스트의 영구 데이터에 의존하지 않고 교체할 수 있다면 컴퓨트를 무상태(stateless)에 가깝게 운영한다고 표현할 수 있다. 사용자가 서버를 직접 관리하지 않는 서버리스(serverless) 서비스 모델과는 별개의 의미다.</p>
+<h3>HCI에서는 A·B·C가 VM도 실행하고 저장소에도 디스크를 제공한다</h3>
+<p>이제 S1·S2·S3가 맡던 저장 역할을 A·B·C로 옮긴다고 생각하자. 관리 서버 M은 유지하고, A·B·C 각각에 <code>nova-compute</code>와 OSD를 함께 설치한다. Ceph 관리 기능도 이 서버들에 분산한 설명용 배치다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/hci-layout.svg"><img src="../../../assets/images/openstack-region-az-storage/hci-layout.svg" alt="물리 서버 A B C 각각에 nova-compute와 VM 및 Ceph OSD와 SSD를 함께 둔 HCI 구조" loading="lazy"></a></p>
+<p><em>그림 13. A·B·C의 바깥 테두리 하나가 물리 서버 한 대다. VM 실행 기능과 OSD가 같은 장비에 있다.</em></p>
+<p>이처럼 <strong>같은 베어메탈 서버들에서 연산과 공동 스토리지 기능을 함께 운영하는 배치</strong>를 하이퍼컨버지드 인프라, Hyper-Converged Infrastructure(HCI)라고 한다. A의 OSD는 A의 SSD를 담당하지만, 그 SSD가 반드시 A의 VM 전용인 것은 아니다. B의 VM이 사용하는 데이터 조각도 A의 SSD에 있을 수 있다. <a href="https://docs.openstack.org/charm-guide/latest/admin/ops-replace-hyperconverged-compute-node.html" rel="noopener noreferrer">Nova와 Ceph OSD를 함께 운영하는 HCI</a></p>
+<p>VM이 접근할 데이터의 OSD가 다른 서버에 있으면 서버 간 네트워크를 사용한다. 복제본을 다른 서버에 보관할 때도 통신이 필요하다. <strong>역할을 같은 물리 장비에 배치한다는 사실과, 모든 디스크 처리가 자기 서버 안에서 끝난다는 것은 다르다.</strong></p>
+<p>Ceph를 쓰는 이 예시에서는 <code>cinder-volume</code>이 M에서 Ceph에 접속해 볼륨 작업을 수행한다. 모든 OSD 호스트에 하나씩 둘 필요는 없다. 분리형과 HCI 모두 같은 Ceph 풀을 Cinder 백엔드 하나로 제공할 수 있으므로, 백엔드 개수로 물리 배치를 판별하지 않는다. <a href="https://docs.openstack.org/kolla-ansible/latest/reference/storage/external-ceph-guide.html#cinder" rel="noopener noreferrer">관리 노드의 Cinder와 외부 Ceph 연동</a></p>
+<p>위 그림은 프로그램의 물리 위치를 보여준다. A·B·C의 랙·전원·AZ가 분리돼 있는지는 별도 조건이다.</p>
+
+</section>
+<section id="section-11-ceph" class="markdown-section">
+<h2>11. Ceph는 데이터를 나누어 저장하면서 각 조각의 복제본을 유지할 수 있다</h2>
+<h3>분산과 복제는 동시에 적용할 수 있다</h3>
+<p>데이터를 여러 서버의 디스크로 나누는 것이 <strong>분산</strong>이고, 같은 데이터를 여러 벌 보관하는 것이 <strong>복제</strong>다. Ceph의 복제 풀은 볼륨 데이터를 조각으로 다루고, 조각마다 정해진 수의 복제본을 배치한다. 여기서 복제하는 대상은 디스크 데이터다. 실행 중인 VM의 CPU·RAM 상태까지 복제하는 것은 아니다. <a href="https://docs.ceph.com/en/latest/rbd/" rel="noopener noreferrer">Ceph RBD의 저장 방식</a></p>
+<p>호스트 A·B·C 세 대에 각 조각의 복제본을 총 세 개씩, 서로 다른 호스트에 하나씩 둔다고 가정하자. X·Y는 원리를 설명하기 위한 데이터 조각 이름이며 실제 배치 결과가 아니다.</p>
+<p>이 조건에서는 각 호스트가 전체 디스크 데이터의 한 벌에 해당하는 조각들을 보관한다. 다만 VM 디스크 파일 하나가 통째로 복사된 형태일 필요는 없다.</p>
+<p>이제 <strong>복제본 수는 세 개로 유지하고 호스트만 여섯 대로 늘린다.</strong> 배치 규칙에 따라 다음과 같은 분산이 가능하다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/ceph-replica-distribution.svg"><img src="../../../assets/images/openstack-region-az-storage/ceph-replica-distribution.svg" alt="호스트가 3대인 구성과 6대인 구성 모두 데이터 조각 X와 Y의 복제본 수를 각각 3개로 유지하는 비교" loading="lazy"></a></p>
+<p><em>그림 14. 두 구성 모두 조각당 사본 수는 3개다. X·Y의 배치는 설명용으로 단순화했다.</em></p>
+<p>각 호스트는 데이터 일부를 보관하지만, 각 조각은 여전히 세 개씩 존재한다. 호스트를 늘렸다고 모든 호스트에 전체 볼륨이 한 벌씩 생기지는 않는다. 복제본 수와 배치는 풀의 정책으로 정한다. <a href="https://docs.ceph.com/en/latest/rados/operations/pools/" rel="noopener noreferrer">Ceph 풀의 복제·배치 설정</a></p>
+<h3>차지하는 공간은 실제 저장량과 복제본 수로 계산한다</h3>
+<p>Ceph RBD는 일반적으로 실제 사용한 영역에 따라 공간을 할당하는 <strong>씬 프로비저닝</strong> 방식이다. 100 GiB는 VM이 사용할 수 있는 가상 디스크의 크기이며, 생성하자마자 그만큼의 물리 공간이 전부 할당됐다는 뜻은 아니다. <a href="https://docs.ceph.com/en/latest/rbd/" rel="noopener noreferrer">RBD의 공간 할당 방식</a></p>
+<p>100 GiB 볼륨에서 실제 할당돼 저장된 데이터가 10 GiB라고 가정하자. 총 복제본 수는 세 개다. 특정 시점의 디스크 상태를 보존하는 <strong>스냅샷</strong>은 없으며, 압축·관리 정보·내부 할당 단위 등의 차이도 계산에서 제외한다.</p>
+<pre><code class="language-text">데이터의 물리 사용량 ≈ 실제 저장된 데이터양 × 총 복제본 수
+                    = 10 GiB × 3
+                    = 약 30 GiB
+</code></pre>
+<p>같은 볼륨의 실제 저장 데이터를 100 GiB로 늘리고 복제본 수를 유지하면 다음과 같다.</p>
+<pre><code class="language-text">데이터의 물리 사용량 ≈ 100 GiB × 3
+                    = 약 300 GiB
+</code></pre>
+<p>같은 100 GiB 볼륨에서도 실제 저장량이 10 GiB에서 100 GiB로 늘면서 물리 사용량은 약 30 GiB에서 약 300 GiB로 바뀐다. 위 조건에서 저장 공간의 배수는 호스트 수가 아니라 복제본 수인 3이다.</p>
+<p>물리 공간으로 제공 가능한 사용자 용량을 계산할 때도 복제를 반영해야 한다. 세 서버가 각각 1 TiB를 제공하고 복제본을 세 개 유지한다면, 여유 공간 등을 제외한 이론적 상한은 다음과 같다.</p>
+<pre><code class="language-text">물리 공간 합계 = 1 TiB + 1 TiB + 1 TiB = 3 TiB
+사용자 데이터의 이론적 상한 ≈ 3 TiB ÷ 3 = 약 1 TiB
+</code></pre>
+<p>운영에서는 복구 여유 공간과 디스크별 불균형 등도 필요하므로 이론적 상한을 전부 판매 가능한 용량으로 잡을 수는 없다. 파일 삭제 후 공간 회수·스냅샷·초과 할당·복제 설정까지 포함한 조건은 <a href="details/CEPH-REPLICATION-AND-FAILURE.html">Ceph 볼륨의 분산·복제와 가용 용량·장애 조건</a>에서 더 자세히 다룬다.</p>
+
+</section>
+<section id="section-12-vm" class="markdown-section">
+<h2>12. 한 호스트가 고장 났을 때 디스크와 VM에 생기는 영향을 나누어 본다</h2>
+<h3>복제본이 남으면 다른 VM이 저장소를 계속 사용할 수 있다</h3>
+<p>HCI 서버 A·B·C 각각에 VM과 OSD가 있고, 데이터 조각마다 총 세 복제본을 호스트별로 하나씩 보관한다고 하자. 장애 전에는 필요한 데이터가 정상적으로 복제된 상태다. A 전체가 중단되면 두 사건이 함께 발생한다.</p>
+<ol>
+<li>A의 CPU·RAM에서 실행하던 VM이 중단된다.</li>
+<li>A의 SSD에 있는 Ceph 복제본에 접근할 수 없게 된다.</li>
+</ol>
+<p>두 번째 사건을 견디기 위해 B·C에도 복제본을 둔 것이다. 복제 풀의 <code>size</code>는 <strong>각 데이터 조각마다</strong> 정상 상태에서 유지할 총 사본 수이고, <code>min_size</code>는 그 조각의 입출력을 허용할 최소 사본 수다. <code>size=3</code>, <code>min_size=2</code>라고 가정하면 다음과 같다.</p>
+<p><a href="../../../assets/images/openstack-region-az-storage/ceph-host-failure.svg"><img src="../../../assets/images/openstack-region-az-storage/ceph-host-failure.svg" alt="HCI 호스트 A 중단 후 각 데이터 조각의 사본이 B와 C에 하나씩 남아 최소 두 사본 조건을 충족하며 A의 VM 실행은 별도로 복구해야 하는 구조" loading="lazy"></a></p>
+<p><em>그림 15. 사본 수는 데이터 조각 하나를 기준으로 센다. A의 VM은 중단되며, B·C의 디스크 입출력은 표시한 조건이 유지되면 계속할 수 있다.</em></p>
+<p>따라서 A가 고장 났다고 B·C에서 실행하던 VM까지 반드시 디스크를 잃는 것은 아니다. 다만 장애 감지·복구 과정에서 지연이나 부하는 발생할 수 있다. A·B가 모두 중단돼 조각마다 사본이 하나만 남으면, 데이터가 남아 있어도 위 <code>min_size=2</code> 조건을 충족하지 못한다. <a href="https://docs.ceph.com/en/latest/rados/operations/pools/" rel="noopener noreferrer">Ceph의 size·min_size 설정</a></p>
+<p>복제본 외에 관리 기능도 필요하다. MON들은 다수의 동의를 확보하는 <strong>정족수</strong>, quorum으로 클러스터 상태를 관리한다. 서로 다른 세 호스트에 MON을 하나씩 둔 예시에서는 두 개가 남으면 다수를 확보한다. OSD·클라이언트가 기존 정보로 일부 동작할 수 있는 상황과 정상적인 클러스터 관리·복구가 가능한 상태는 구분해야 한다. <a href="https://docs.ceph.com/en/latest/rados/operations/add-or-rm-mons/" rel="noopener noreferrer">MON의 정족수</a></p>
+<h3>디스크가 남아 있어도 A의 VM은 따로 복구해야 한다</h3>
+<p>Ceph가 보존하는 것은 디스크 데이터다. A에서 실행 중이던 VM의 메모리와 실행 상태가 B로 자동 이전되는 것은 아니다. A를 복구하거나 다른 호스트에서 VM을 다시 실행하려면 Nova의 복구 기능과 별도의 장애 감지·자동화 등이 필요하다. 대상 호스트의 CPU·RAM·GPU와 네트워크·볼륨 접근 조건도 충족해야 한다. <a href="https://docs.openstack.org/nova/latest/admin/evacuate.html" rel="noopener noreferrer">Nova의 장애 호스트 VM 복구</a></p>
+<p>VM을 옮길 때도 같은 원리가 적용된다. 공유 디스크는 대상 호스트에서 데이터에 접근하는 데 도움이 되지만, CPU·GPU·네트워크 등의 제약을 없애지는 않는다. 물리 GPU를 VM에 직접 연결하는 GPU 패스스루 구성의 무중단 이동도 공유 스토리지만으로 보장되지 않는다.</p>
+<h3>장애를 견디는 것과 원래 보호 수준을 복원하는 것은 다르다</h3>
+<p>A가 중단된 동안 B·C의 두 복제본으로 서비스할 수 있어도, 서로 다른 세 호스트에 세 복제본을 두려는 정상 목표에는 미달한다. 스토리지 호스트가 정확히 세 대뿐이면 B·C에 공간이 남아 있어도 이 목표를 복원할 수 없다. A가 돌아오거나 다른 적격 호스트가 추가되어야 한다. 복제·재배치 작업은 디스크와 네트워크를 사용하므로 실행 중인 VM의 성능에도 영향을 줄 수 있다. <a href="https://docs.ceph.com/en/latest/rados/operations/monitoring-osd-pg/" rel="noopener noreferrer">Ceph의 저하·복구 상태</a></p>
+<p>같은 랙의 전원 장애를 견디려면 복제본과 관리 기능을 그 랙 밖에도 배치해야 한다. Nova나 Cinder에 AZ 이름을 추가하는 것만으로 Ceph가 그 이름대로 데이터를 분산하지는 않는다. Cinder 백엔드의 AZ와 Ceph의 실제 데이터 배치 규칙을 의도한 장애 영역에 맞춰 구성해야 한다. <a href="https://docs.ceph.com/en/latest/rados/operations/crush-map/" rel="noopener noreferrer">Ceph의 데이터 배치 규칙</a></p>
+<p>복제는 정상적인 쓰기·삭제 결과도 다른 복제본에 반영하므로 독립 백업을 대신하지 않는다. 과거 상태를 남기는 스냅샷·백업, 디스크 접근의 가용성, VM 실행 복구는 각각 다른 목적을 가진다.</p>
+
+</section>
+<section id="section-13" class="markdown-section">
+<h2>13. 생성 요청부터 실제 데이터 저장까지 연결한다</h2>
+<p>Ceph를 사용하는 HCI 구성에서 <code>data-01</code>을 먼저 만들고 VM에 연결하는 예시를 끝까지 따라가 보자. 같은 리전 안에서 자원을 생성하며, 사용자 지정 AZ는 생략하고 Nova의 기본 배치 AZ도 미설정이라고 가정한다. 교차 AZ 연결은 허용하며, 컴퓨트 호스트에는 Ceph 접근 경로와 인증을 준비해 두었다.</p>
+<ol>
+<li>클라이언트가 선택한 리전의 Cinder에 볼륨 생성을 요청한다. <code>standard</code> 볼륨 종류에는 여러 스토리지 AZ가 후보로 설정돼 있다.</li>
+<li>Cinder 스케줄러가 종류·AZ·용량 조건을 만족하는 백엔드를 고른다. 그 백엔드가 연결된 Ceph 풀에 <code>cinder-volume</code>이 100 GiB RBD 볼륨을 생성한다.</li>
+<li>클라이언트가 이미지·플레이버·네트워크와 <code>data-01</code>을 지정해 Nova에 VM을 요청한다. Nova는 기본 배치 설정과 연결 조건을 적용해 실행 가능한 호스트 A를 선택한다.</li>
+<li>A의 <code>nova-compute</code>가 VM과 장치 연결을 준비한다. Neutron이 관리하는 포트·네트워크 설정에 따라 가상 NIC를 연결하고, libvirt·QEMU가 볼륨을 사용할 수 있도록 구성한다.</li>
+<li>VM이 디스크에 쓰면 A의 QEMU·librbd가 Ceph에 접근한다. 조각마다 담당 OSD에 쓰기를 요청하고 OSD들이 복제를 수행한다. VM 실행 호스트를 고른 결정이 실제 데이터 조각의 저장 위치까지 정하는 것은 아니다.</li>
+<li>A가 고장 나면 디스크 데이터의 접근 가능성은 남은 Ceph 복제본·관리 기능·연결 상태로 판단한다. A의 VM 실행 복구는 별도로 처리한다.</li>
+</ol>
+<p>VM과 함께 부팅 볼륨을 만드는 요청도 가능하므로 위 순서가 모든 API 호출의 고정 순서는 아니다. 각 결정의 담당과 대상은 다음처럼 구분할 수 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>결정할 내용</th>
+<th>담당과 확인할 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>어느 운영 환경에 요청할지</td>
+<td>리전과 서비스 엔드포인트</td>
+</tr>
+<tr>
+<td>어느 범위의 호스트·저장소를 후보로 삼을지</td>
+<td>서비스별 AZ와 기본 배치 정책</td>
+</tr>
+<tr>
+<td>어느 호스트에서 VM을 실행할지</td>
+<td>Nova의 실행 자원·이미지·플레이버·배치 조건</td>
+</tr>
+<tr>
+<td>어느 저장소에 볼륨을 만들지</td>
+<td>Cinder의 종류·기능·용량·AZ 조건</td>
+</tr>
+<tr>
+<td>VM의 네트워크를 어떻게 연결할지</td>
+<td>Neutron과 실제 통신 경로·보안 규칙</td>
+</tr>
+<tr>
+<td>볼륨 데이터를 어느 디스크에 저장·복제할지</td>
+<td>선택한 백엔드와 Ceph 등의 데이터 배치 정책</td>
+</tr>
+<tr>
+<td>호스트 장애 후 서비스를 어떻게 복구할지</td>
+<td>저장소 가용성과 VM 복구 절차를 각각 확인</td>
+</tr>
+</tbody></table>
+</div>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="details/AZ-PLACEMENT-SETTINGS.html">VM과 볼륨의 AZ 생략·자동 배치 설정</a></li>
+<li><a href="details/LOCAL-LVM-AND-ISCSI.html">로컬 LVM 디스크와 Cinder LVM 볼륨의 생성·연결 경로</a></li>
+<li><a href="details/CEPH-REPLICATION-AND-FAILURE.html">Ceph 볼륨의 분산·복제와 가용 용량·장애 조건</a></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../../" aria-label="공통 학습 문서 이동"><a href="../../../index.html">홈</a><a href="../../../projects.html">프로젝트</a><a href="../../../blog.html">블로그</a><a href="../../../wiki.html" aria-current="page">위키</a><a href="../../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../../learning_history.html">학습 기록</a><a href="../../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/shell-script-execution-vs-source.md. Do not edit directly. source-sha256:0a6817c9c6bd99c4ca12a33a92d4d259c352a324d243f86a2304e2b6122968fc -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="스크립트를 별도 셸에서 실행하는 이유와 source가 현재 셸의 환경을 변경하는 방식, 환경변수의 부모·자식 전달 방향을 백업 스크립트와 OpenStack OpenRC로 설명한다.">
+  <meta name="source-sha256" content="0a6817c9c6bd99c4ca12a33a92d4d259c352a324d243f86a2304e2b6122968fc">
+  <title>스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가">
+  <meta property="og:description" content="스크립트를 별도 셸에서 실행하는 이유와 source가 현재 셸의 환경을 변경하는 방식, 환경변수의 부모·자식 전달 방향을 백업 스크립트와 OpenStack OpenRC로 설명한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html","name":"스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가","description":"스크립트를 별도 셸에서 실행하는 이유와 source가 현재 셸의 환경을 변경하는 방식, 환경변수의 부모·자식 전달 방향을 백업 스크립트와 OpenStack OpenRC로 설명한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html"},"headline":"스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-linux-shell-operations","name":"Shell 확장·권한·Job control","identifier":"topics-linux-shell-operations"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/shell-script-execution-vs-source.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Linux 아키텍처·네임스페이스·파일 검색","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html"},{"@type":"ListItem","position":5,"name":"스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux_architecture_namespaces_search.html">Linux 아키텍처·네임스페이스·파일 검색</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>스크립트 실행과 source — 작업을 수행할 것인가, 현재 셸의 환경을 바꿀 것인가</h1>
+      <p class="lead">스크립트를 별도 셸에서 실행하는 이유와 source가 현재 셸의 환경을 변경하는 방식, 환경변수의 부모·자식 전달 방향을 백업 스크립트와 OpenStack OpenRC로 설명한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-076b2a852b87">일반 실행은 현재 셸의 환경을 유지하며 작업을 수행한다</a>
+        <a href="#section-38208f1a8ddf">자식 프로세스의 환경변수는 부모 셸로 돌아오지 않는다</a>
+        <a href="#source">source는 현재 셸의 환경을 바꾸기 위해 사용한다</a>
+        <a href="#section-f8b2fd6a625a">실행 방법은 파일의 목적에 따라 선택한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>터미널에서 명령을 입력하면 셸이 그 명령을 해석하고 실행한다. 셸도 하나의 프로세스이며, 현재 작업 디렉터리와 변수, 환경변수 같은 실행 환경을 가지고 있다.</p>
+<p>스크립트는 여러 명령을 파일에 적어둔 것이다. 이 파일을 일반적으로 실행할 때와 <code>source</code>로 읽을 때의 차이는 <strong>어느 셸에서 그 명령들을 처리하느냐</strong>에 있다.</p>
+</div>
+        <section id="section-076b2a852b87" class="markdown-section">
+<h2>일반 실행은 현재 셸의 환경을 유지하며 작업을 수행한다</h2>
+<ul>
+<li><a href="shell-source-read-execute-permissions.html">source는 되는데 직접 실행은 Permission denied가 나는 이유</a></li>
+</ul>
+<p>파일을 백업하는 <code>backup.sh</code>가 있다고 가정하자.</p>
+<pre><code class="language-bash">#!/bin/bash
+
+cd /tmp
+backup_name=&quot;backup.tar&quot;
+# 백업 작업 수행
+</code></pre>
+<p>다음과 같이 실행하면 별도의 셸 프로세스가 파일 안의 명령을 처리한다.</p>
+<pre><code class="language-bash">./backup.sh
+</code></pre>
+<p>스크립트 안에서 <code>/tmp</code>로 이동하고 변수를 설정하더라도, 명령을 입력했던 원래 셸의 디렉터리와 변수는 바뀌지 않는다.</p>
+<pre><code class="language-text">현재 셸
+  │
+  ├─ 별도 셸에서 backup.sh 실행
+  │    ├─ 작업 디렉터리를 /tmp로 변경
+  │    ├─ backup_name 변수 설정
+  │    └─ 백업 작업 후 종료
+  │
+  └─ 기존 디렉터리와 설정으로 다음 명령을 받음
+</code></pre>
+<p>이렇게 분리하면 스크립트가 내부 작업을 위해 바꾼 설정이 사용자의 터미널에 남지 않는다. 백업 프로그램은 백업을 수행하면 되고, 사용자가 이후 어떤 디렉터리에서 어떤 변수를 가지고 작업할지까지 바꿀 필요는 없기 때문이다.</p>
+<p>다만 <strong>스크립트가 생성하거나 수정한 파일은 그대로 남는다.</strong> 별도 프로세스라는 이유로 모든 작업이 취소되는 것은 아니다. 현재 셸에 전달되지 않는 것은 작업 디렉터리나 변수처럼 각 프로세스가 따로 관리하는 실행 환경이다.</p>
+
+</section>
+<section id="section-38208f1a8ddf" class="markdown-section">
+<h2>자식 프로세스의 환경변수는 부모 셸로 돌아오지 않는다</h2>
+<p>현재 셸이 프로그램을 실행할 때, 그 프로그램은 현재 셸의 환경변수를 전달받을 수 있다. 하지만 실행된 프로그램이 자신의 환경변수를 변경해도 부모 셸의 환경변수가 자동으로 바뀌지는 않는다.</p>
+<p>예를 들어 별도로 실행한 스크립트에 다음 명령이 있다고 하자.</p>
+<pre><code class="language-bash">export STUDY_TOPIC=&quot;linux&quot;
+</code></pre>
+<p>이 환경변수는 스크립트를 실행하는 셸과 그 셸이 이후 실행하는 자식 프로세스에 적용된다. 스크립트를 호출한 원래 셸에는 거슬러 올라가지 않는다.</p>
+<pre><code class="language-text">현재 셸
+  ↓ 환경변수 전달
+스크립트를 실행하는 셸
+  ↓ 환경변수 전달
+스크립트가 실행한 프로그램
+</code></pre>
+<p><code>export</code>는 <strong>이후 실행할 자식 프로세스에 변수를 전달하도록 지정하는 명령</strong>이지, 부모 프로세스의 변수를 수정하는 명령이 아니다.</p>
+
+</section>
+<section id="source" class="markdown-section">
+<h2>source는 현재 셸의 환경을 바꾸기 위해 사용한다</h2>
+<p>어떤 스크립트는 작업을 수행하는 것보다 <strong>현재 셸을 설정하는 것</strong>이 목적이다. OpenStack 인증 정보를 설정하는 <code>admin-openrc.sh</code>가 그런 예다.</p>
+<p>OpenRC에는 접속할 API 주소와 계정·프로젝트 등의 정보를 환경변수로 설정하는 명령이 들어 있다. 이후 실행할 Terraform이나 OpenStack CLI가 그 정보를 사용해야 한다.</p>
+<p>이 파일을 별도 셸에서 실행하면 인증 정보는 그 별도 셸에만 설정된다. 해당 셸이 종료되면, 원래 셸에서 실행하는 Terraform은 그 설정을 전달받지 못한다.</p>
+<p>그래서 다음과 같이 사용한다.</p>
+<pre><code class="language-bash">source admin-openrc.sh
+</code></pre>
+<p><code>source</code>는 별도 셸을 만들어 파일을 실행하는 대신, <strong>현재 셸에서 파일 안의 명령을 처리한다.</strong> 따라서 설정한 환경변수가 현재 셸에 남고, 이후 실행하는 프로그램에도 전달된다.</p>
+<pre><code class="language-text">현재 셸에서 source admin-openrc.sh
+  ↓
+현재 셸에 OpenStack 인증 환경변수 설정
+  ↓
+같은 셸에서 Terraform 실행
+  ↓
+Terraform이 환경변수를 전달받아 인증에 사용
+</code></pre>
+
+</section>
+<section id="section-f8b2fd6a625a" class="markdown-section">
+<h2>실행 방법은 파일의 목적에 따라 선택한다</h2>
+<p>백업이나 데이터 처리처럼 <strong>작업을 수행하는 스크립트</strong>는 일반적으로 별도 프로세스로 실행한다. 스크립트 내부의 임시 설정과 사용자의 셸 환경을 분리할 수 있다.</p>
+<p>반면 인증 정보나 개발 환경 설정처럼 <strong>현재 셸에 설정을 남겨야 하는 파일</strong>은 <code>source</code>로 읽는다. 파일 안에 <code>cd</code>가 있다면 현재 셸의 디렉터리가 바뀌고, 변수를 설정하면 현재 셸에 그 값이 남는다.</p>
+<p>셸이 두 방식을 구분하는 이유는, <strong>작업을 실행하는 것과 현재 작업 환경을 변경하는 것을 사용자가 명시적으로 선택할 수 있게 하기 위해서다.</strong></p>
+
+</section>
+        <section class="markdown-related-documents" aria-labelledby="related-child-documents">
+    <h2 id="related-child-documents">이 문서에서 이어지는 내용</h2>
+    <ul><li><a href="shell-source-read-execute-permissions.html">source는 되는데 직접 실행은 Permission denied가 나는 이유</a><ul><li><a href="linux-file-ownership-permissions-scp.html">Linux 파일의 소유자·그룹·권한 — 권한 변경과 scp 전송은 어떻게 제한될까?</a></li></ul></li></ul>
+  </section>
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

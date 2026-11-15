@@ -1,0 +1,1992 @@
+<!doctype html>
+<!-- Generated from content/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.md. Do not edit directly. source-sha256:ece4abb21cad28a806b26c3628713e33ad966f3ebe9d554694c31dec0cc46f1d -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Linux의 커널·FD·드라이버부터 virtio·QEMU·TAP·OVS와 Neutron qrouter를 거쳐, Wi-Fi 환경의 라우팅·NAT와 응답 복원까지 실제 구성의 통신 경로를 설명한다. 집 네트워크 주소는 문서용 예시로 대체했다.">
+  <meta name="source-sha256" content="ece4abb21cad28a806b26c3628713e33ad966f3ebe9d554694c31dec0cc46f1d">
+  <title>Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/mermaid-diagram.css?v=20261114-mermaid-fit">
+  <script defer src="../../assets/vendor/mermaid/mermaid.tiny.js?v=12.3.0"></script>
+  <script defer src="../../assets/js/mermaid-diagrams.js?v=20261114-mermaid-fit"></script>
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정">
+  <meta property="og:description" content="Linux의 커널·FD·드라이버부터 virtio·QEMU·TAP·OVS와 Neutron qrouter를 거쳐, Wi-Fi 환경의 라우팅·NAT와 응답 복원까지 실제 구성의 통신 경로를 설명한다. 집 네트워크 주소는 문서용 예시로 대체했다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html","name":"Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정","description":"Linux의 커널·FD·드라이버부터 virtio·QEMU·TAP·OVS와 Neutron qrouter를 거쳐, Wi-Fi 환경의 라우팅·NAT와 응답 복원까지 실제 구성의 통신 경로를 설명한다. 집 네트워크 주소는 문서용 예시로 대체했다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html"},"headline":"Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-linux-architecture","name":"Linux·Namespace·검색","identifier":"topics-linux-architecture"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-vm-qemu-tap-ovs-network-flow.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Cloud·Infrastructure","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-infrastructure"},{"@type":"ListItem","position":4,"name":"Linux 아키텍처·네임스페이스·파일 검색","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux_architecture_namespaces_search.html"},{"@type":"ListItem","position":5,"name":"Linux 프로세스는 어떻게 데이터를 네트워크로 내보낼까?","item":"https://muscleleg.github.io/jaejun-wiki/wiki/infrastructure/linux-process-socket-kernel-network-send.html"},{"@type":"ListItem","position":6,"name":"Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-infrastructure">Cloud·Infrastructure</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux_architecture_namespaces_search.html">Linux 아키텍처·네임스페이스·파일 검색</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/infrastructure/linux-process-socket-kernel-network-send.html">Linux 프로세스는 어떻게 데이터를 네트워크로 내보낼까?</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Linux 기초부터 이해하는 OpenStack VM 네트워크 — 우리 집 Wi-Fi 환경의 구성과 통신 과정</h1>
+      <p class="lead">Linux의 커널·FD·드라이버부터 virtio·QEMU·TAP·OVS와 Neutron qrouter를 거쳐, Wi-Fi 환경의 라우팅·NAT와 응답 복원까지 실제 구성의 통신 경로를 설명한다. 집 네트워크 주소는 문서용 예시로 대체했다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#introduction-1">프로그램은 커널에 작업을 요청한다</a>
+        <a href="#introduction-2">데이터를 보낸다는 것은 메모리에 있는 데이터를 처리하도록 요청하는 일이다</a>
+        <a href="#introduction-3">FD는 준비한 대상을 다시 지정하는 번호다</a>
+        <a href="#introduction-4">일반 파일을 열 때 무엇을 준비할까?</a>
+        <a href="#introduction-5">소켓도 FD로 사용하지만, 파일과 하는 일이 다르다</a>
+        <a href="#introduction-6">같은 write라도 입력 데이터의 의미는 대상에 따라 다르다</a>
+        <a href="#introduction-7">장치 파일은 드라이버 기능을 사용하는 진입점이다</a>
+        <a href="#introduction-8">FD와 드라이버는 역할이 다르다</a>
+        <a href="#section-1-nic">1. 물리 컴퓨터에서는 NIC 드라이버가 실제 장치에 전송을 맡긴다</a>
+        <a href="#section-2-vm-virtio-net">2. VM에서는 virtio-net 드라이버가 호스트에 전송을 맡긴다</a>
+        <a href="#section-3-vm">3. 큐도 실제 데이터도 VM 메모리에 있다</a>
+        <a href="#section-4">4. 큐에 넣는 동작과 호스트에 알리는 동작은 다르다</a>
+        <a href="#section-5-qemu-tap">5. QEMU는 VM의 프레임을 TAP으로 전달한다</a>
+        <a href="#section-6-fd">6. TAP을 열고 연결하는 과정에서 커널과 드라이버가 하는 일</a>
+        <a href="#section-7-tap-skb">7. 커널은 받은 프레임을 skb로 관리한다</a>
+        <a href="#section-8-linux-ovs">8. Linux 브리지와 OVS는 서로 다른 가상 스위치다</a>
+        <a href="#section-9">9. OVS가 출력 포트를 고르면 커널이 해당 인터페이스의 전송 처리를 실행한다</a>
+        <a href="#section-10-br-int">10. br-int라는 스위치와 br-int라는 인터페이스는 구분해야 한다</a>
+        <a href="#section-11-nic-vm">11. 다른 VM으로 보낼 때와 물리 NIC로 보낼 때는 출력 처리가 다르다</a>
+        <a href="#section-12-vm">12. 다른 VM에 전달할 때는 수신 큐와 버퍼를 사용한다</a>
+        <a href="#network-flow-13">13. 우리 OpenStack 환경에서는 TAP과 br-int 사이에 qbr과 veth가 들어간다</a>
+        <a href="#network-flow-14">14. 같은 네트워크의 VM과 인터넷 서버는 첫 목적지 MAC부터 다르다</a>
+        <a href="#network-flow-15">15. qrouter는 별도 네트워크 설정을 가진 Linux 네임스페이스다</a>
+        <a href="#network-flow-16">16. br-int는 qrouter 안의 qr 포트로 스위칭한다</a>
+        <a href="#network-flow-17">17. qr과 qg는 서로 다른 네트워크에 붙은 양방향 인터페이스다</a>
+        <a href="#network-flow-18">18. qr에서 qg로 갈 때 IP와 MAC은 서로 다른 처리로 바뀐다</a>
+        <a href="#network-flow-19">19. 규칙은 미리 등록하고, 커널은 해당 처리 단계에서 적용한다</a>
+        <a href="#network-flow-20">20. qg에서 나온 프레임은 br-int와 br-ex 사이의 patch 연결을 지난다</a>
+        <a href="#network-flow-21">21. Wi-Fi에서는 qg의 MAC을 그대로 내보내는 브리징이 문제가 된다</a>
+        <a href="#network-flow-22">22. veth-host는 OVS의 프레임을 호스트 IP 처리로 받는 접점이다</a>
+        <a href="#network-flow-23">23. veth가 필수는 아니며 br-ex internal도 같은 역할을 할 수 있다</a>
+        <a href="#network-flow-24">24. 호스트에서 적용하는 라우팅·NAT와 방향별 정책</a>
+        <a href="#network-flow-25">25. 응답은 연결 추적에 남은 NAT 기록을 따라 돌아온다</a>
+        <a href="#network-flow-26">26. 전체 경로에서 각 주소가 바뀌는 위치</a>
+        <a href="#network-flow-27">27. 실제 설정을 볼 때는 연결·경로·정책을 나눠 확인한다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>집의 Wi-Fi 환경에 OpenStack을 구축하고 VM의 외부 통신을 연결했다. 구성도에는 TAP, qbr, br-int, qrouter, br-ex, veth 같은 요소가 등장한다.</p>
+<p>각 요소의 이름만 알아서는 왜 이런 연결이 필요한지 이해하기 어렵다. VM이 보낸 데이터가 어디에 있고, 누가 읽으며, 어느 단계에서 IP와 MAC이 바뀌는지까지 따라가야 구성도가 실제 동작으로 보인다.</p>
+<p>출발점은 Linux 프로그램의 전송 요청이다. 프로그램이 커널에 작업을 요청하는 방식부터 VM과 호스트 사이의 전달, OpenStack의 가상 네트워크, 우리 환경의 Wi-Fi 연결과 NAT까지 순서대로 살펴본다.</p>
+<p>앞부분에서는 원리를 이해하기 위한 단순한 구성을 사용한다. 이후 그 구조에 우리 OpenStack 환경의 qbr·qrouter·외부망 연결을 추가한다.</p>
+</div>
+        <section id="introduction-1" class="markdown-section">
+<h2>프로그램은 커널에 작업을 요청한다</h2>
+<p>프로그램이 파일을 저장하거나 인터넷으로 데이터를 보낼 때, 보통 SSD나 NIC를 직접 조작하지 않는다.</p>
+<p>프로그램은 Linux 커널이 제공하는 기능에 작업을 요청한다. 커널은 접근 권한을 확인하고 필요한 자원을 관리한다. 장치를 사용해야 한다면 해당 장치를 제어하는 드라이버의 코드를 실행한다.</p>
+<p>프로그램이 커널의 기능을 요청하는 통로를 <strong>시스템 호출</strong>이라고 한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    P[&quot;프로그램&lt;br/&gt;저장·전송 요청&quot;]
+    K[&quot;Linux 커널&lt;br/&gt;권한·자원·작업 관리&quot;]
+    D[&quot;드라이버 코드&lt;br/&gt;장치별 제어 방법&quot;]
+    H[&quot;장치&lt;br/&gt;실제 작업 수행&quot;]
+
+    P --&gt;|&quot;시스템 호출&quot;| K
+    K --&gt;|&quot;필요한 코드 실행&quot;| D
+    D --&gt;|&quot;작업 등록·제어&quot;| H
+    H -.-&gt;|&quot;완료·상태 알림&quot;| D
+</code></pre>
+  </details>
+</figure>
+<p>일반적인 커널 드라이버는 커널 안에서 실행되는 코드다. 특정 장치를 사용하는 방법을 구현한다.</p>
+<p>예를 들어 NIC 드라이버는 다음 일을 한다.</p>
+<ul>
+<li>NIC를 사용할 수 있도록 초기화한다.</li>
+<li>전송할 데이터가 있는 메모리를 장치가 읽을 수 있도록 준비한다.</li>
+<li>NIC에 전송 작업을 등록한다.</li>
+<li>작업 완료나 오류를 확인한다.</li>
+</ul>
+<p>따라서 <strong>커널은 드라이버를 통해 장치를 제어하고, 장치는 실제 작업을 수행한다.</strong></p>
+<p>커널이 장치의 모든 동작을 하나씩 대신 실행한다는 의미는 아니다. NIC·SSD·GPU 같은 장치는 전달받은 작업을 자신이 가진 하드웨어와 내부 처리 기능으로 수행한다.</p>
+
+</section>
+<section id="introduction-2" class="markdown-section">
+<h2>데이터를 보낸다는 것은 메모리에 있는 데이터를 처리하도록 요청하는 일이다</h2>
+<p>프로그램이 보내려는 <code>hello</code>라는 데이터는 먼저 메모리에 있다.</p>
+<p>프로그램은 커널에 다음과 같은 의미의 요청을 한다.</p>
+<blockquote>
+<p>“이 메모리에 있는 데이터를, 준비해 둔 통신 대상을 통해 보내 줘.”</p>
+</blockquote>
+<p>커널은 요청을 처리하면서 필요한 데이터를 복사하거나 참조하고, 통신 규칙에 맞춰 전송을 준비한다.</p>
+<p>물리 NIC를 사용한다면 드라이버가 NIC에 작업을 등록하고, NIC가 준비된 메모리에서 데이터를 읽어 전송할 수 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    P[&quot;프로그램 메모리&lt;br/&gt;보낼 데이터: hello&quot;]
+    K[&quot;커널&lt;br/&gt;요청을 받아 전송 데이터 준비&quot;]
+    D[&quot;NIC 드라이버&lt;br/&gt;메모리 접근·전송 작업 설정&quot;]
+    N[&quot;NIC&lt;br/&gt;준비된 데이터를 읽어 전송&quot;]
+
+    P --&gt;|&quot;데이터 위치·길이와 함께 요청&quot;| K
+    K --&gt; D --&gt; N
+</code></pre>
+  </details>
+</figure>
+<p>드라이버의 역할은 데이터를 장치가 이해할 모양으로 바꾸는 것에 그치지 않는다. <strong>어느 데이터를 처리할지, 어떤 작업을 시작할지, 완료 결과를 어떻게 받을지까지 제어한다.</strong></p>
+<p>다른 장치도 커널과 드라이버가 작업을 준비하고 장치가 수행한다는 관계는 비슷하다. 다만 사용하는 메모리와 명령 방식은 다르다. GPU는 별도의 장치 메모리를 사용할 수 있고, SSD에는 저장할 위치와 읽기·쓰기 명령이 필요하다.</p>
+
+</section>
+<section id="introduction-3" class="markdown-section">
+<h2>FD는 준비한 대상을 다시 지정하는 번호다</h2>
+<p>프로그램은 같은 파일이나 통신 대상을 여러 번 사용한다.</p>
+<p>매번 대상을 처음부터 설명하지 않도록, 커널은 사용 준비가 끝난 대상을 번호로 참조하게 해 준다.</p>
+<p>이 번호가 <strong>FD, File Descriptor</strong>다.</p>
+<p>예를 들어 커널이 <code>7</code>을 반환했다면 이후 요청에서 이렇게 사용할 수 있다.</p>
+<blockquote>
+<p>“아까 준비한 7번 대상으로 이 작업을 해 줘.”</p>
+</blockquote>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    P[&quot;프로그램&lt;br/&gt;7번 대상으로 쓰기 요청&quot;]
+    T[&quot;커널의 FD 목록&lt;br/&gt;이 프로세스의 7번 확인&quot;]
+    O[&quot;7번에 연결된 대상&lt;br/&gt;사용 상태·처리 방법&quot;]
+
+    P --&gt; T --&gt; O
+</code></pre>
+  </details>
+</figure>
+<p><strong>FD는 데이터를 담는 상자가 아니다.</strong> 커널이 요청 대상을 찾는 데 사용하는 정수 번호다.</p>
+<p>FD는 프로세스별로 관리한다. 프로그램 A의 <code>7</code>과 프로그램 B의 <code>7</code>이 같은 대상을 뜻하지 않는다. 사용을 마치고 닫은 번호가 나중에 다른 대상으로 재사용될 수도 있다.</p>
+<p>파일·소켓·장치 파일처럼 서로 다른 종류의 대상을 FD로 사용할 수 있다.</p>
+
+</section>
+<section id="introduction-4" class="markdown-section">
+<h2>일반 파일을 열 때 무엇을 준비할까?</h2>
+<p>다음은 이미 존재하는 파일을 쓰기용으로 여는 예다.</p>
+<pre><code class="language-c">fd = open(&quot;memo.txt&quot;, O_WRONLY);
+</code></pre>
+<p>이 요청은 다음 의미다.</p>
+<blockquote>
+<p>“memo.txt를 쓰기용으로 사용할 수 있게 준비해 줘.”</p>
+</blockquote>
+<p>커널은 파일을 찾고 접근 권한을 확인한다. 어떤 파일을 사용하는지, 쓰기가 가능한지, 다음 읽기·쓰기 위치가 어디인지 같은 상태도 관리한다.</p>
+<p>성공해서 <code>7</code>을 받았다면 다음처럼 요청할 수 있다.</p>
+<pre><code class="language-c">write(7, &quot;hello&quot;, 5);
+</code></pre>
+<p>의미는 다음과 같다.</p>
+<blockquote>
+<p>“7번에 연결된 파일에 hello의 5바이트를 써 줘.”</p>
+</blockquote>
+<p>여기서 <code>write()</code>의 반환값은 새로운 FD가 아니라 실제로 쓴 바이트 수 또는 오류다. 사용을 마치면 <code>close(7)</code>로 그 FD를 닫는다.</p>
+<p>파일에 쓴 데이터는 커널 메모리에 먼저 보관됐다가 저장 장치에 반영될 수 있다. 따라서 쓰기 요청이 성공한 시점과 SSD에 영구 저장된 시점이 항상 같은 것은 아니다.</p>
+
+</section>
+<section id="introduction-5" class="markdown-section">
+<h2>소켓도 FD로 사용하지만, 파일과 하는 일이 다르다</h2>
+<p>TCP 통신을 시작하려는 프로그램은 다음과 같이 소켓을 요청한다.</p>
+<pre><code class="language-c">fd = socket(AF_INET, SOCK_STREAM, 0);
+</code></pre>
+<p>이 예에서는 IPv4 TCP 통신에 사용할 소켓을 요청한다.</p>
+<p>커널은 소켓 상태를 준비하고 FD를 반환한다. 이후 프로그램이 <code>connect()</code>로 상대 서버의 IP와 포트를 지정해 연결을 요청한다.</p>
+<p>연결됐다면 다음처럼 데이터를 보낼 수 있다.</p>
+<pre><code class="language-c">write(fd, &quot;hello&quot;, 5);
+</code></pre>
+<p>파일에 쓸 때와 같은 형태의 요청이지만, 커널이 FD를 따라가서 찾는 대상은 TCP 소켓이다. 따라서 데이터를 파일에 기록하는 대신 TCP 통신으로 처리한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;socket()&lt;br/&gt;TCP 소켓 준비 요청&quot;]
+    B[&quot;커널&lt;br/&gt;소켓 상태 준비·FD 반환&quot;]
+    C[&quot;connect(fd, 서버 주소)&lt;br/&gt;상대 IP·포트로 연결 요청&quot;]
+    D[&quot;write(fd, 데이터, 길이)&lt;br/&gt;연결된 소켓으로 전송 요청&quot;]
+    E[&quot;커널의 TCP·IP 처리&lt;br/&gt;경로와 출력 인터페이스 사용&quot;]
+
+    A --&gt; B --&gt; C --&gt; D --&gt; E
+</code></pre>
+  </details>
+</figure>
+<p>일반적인 TCP 프로그램은 데이터를 보낼 때마다 NIC 이름을 지정하지 않는다. 목적지 주소와 시스템의 경로 설정 등을 바탕으로 커널이 출력 인터페이스를 선택한다.</p>
+<p>또한 <code>connect()</code>에서도 TCP 연결을 위한 패킷이 나갈 수 있다. 드라이버가 반드시 첫 <code>write()</code>부터 사용되는 것은 아니다.</p>
+
+</section>
+<section id="introduction-6" class="markdown-section">
+<h2>같은 write라도 입력 데이터의 의미는 대상에 따라 다르다</h2>
+<p>다음 요청 형태는 여러 입출력 대상에서 사용할 수 있다.</p>
+<pre><code class="language-c">write(fd, data, length);
+</code></pre>
+<p>하지만 <code>data</code>에 무엇을 넣어야 하는지는 대상의 규약에 따라 달라진다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>프로그램이 제공하는 내용</th>
+<th>처리 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>일반 파일</td>
+<td>저장할 바이트</td>
+<td>파일 내용으로 기록</td>
+</tr>
+<tr>
+<td>연결된 TCP 소켓</td>
+<td><code>hello</code> 같은 애플리케이션 데이터</td>
+<td>TCP·IP 처리를 거쳐 전송</td>
+</tr>
+<tr>
+<td>TAP</td>
+<td>설정에 맞는 Ethernet 프레임</td>
+<td>가상 인터페이스로 수신한 프레임으로 처리</td>
+</tr>
+</tbody></table>
+</div>
+<p>프로그램 개발자는 <strong>사용하는 기능이 어떤 입력을 받는지 알고 그 형식에 맞춰 요청해야 한다.</strong></p>
+<p>TCP 소켓에는 보통 애플리케이션 데이터만 제공한다. 커널이 TCP·IP 처리를 담당하기 때문이다.</p>
+<p>반면 TAP은 Ethernet 프레임을 받는 기능이다. TAP을 사용하는 프로그램은 그 규약에 맞는 프레임을 제공해야 한다.</p>
+<p>FD는 서로 다른 대상을 번호로 지정하는 공통 방식을 제공한다. 모든 대상의 입력 데이터 형식까지 같게 만드는 것은 아니다.</p>
+
+</section>
+<section id="introduction-7" class="markdown-section">
+<h2>장치 파일은 드라이버 기능을 사용하는 진입점이다</h2>
+<p>TAP을 사용할 때는 다음과 같은 요청이 등장한다.</p>
+<pre><code class="language-c">tap_fd = open(&quot;/dev/net/tun&quot;, O_RDWR);
+</code></pre>
+<p>통신을 하려는데 왜 파일을 여는 것일까?</p>
+<p><code>/dev/net/tun</code>은 문서 내용을 저장하는 일반 파일이 아니다. <strong>프로그램이 커널의 TUN/TAP 기능을 사용하도록 연결해 주는 장치 파일</strong>이다.</p>
+<p>Linux는 파일과 여러 입출력 대상을 <code>open</code>, <code>read</code>, <code>write</code>, <code>close</code> 같은 공통 요청 방식으로 사용할 수 있게 한다. 같은 “열기”와 “쓰기”라도 실제 처리는 대상에 따라 달라진다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    O[&quot;open()으로 사용 요청&quot;]
+
+    F[&quot;일반 파일&lt;br/&gt;파일을 읽고 쓸 상태 준비&quot;]
+    D[&quot;장치 파일&lt;br/&gt;드라이버 기능을 사용할 상태 준비&quot;]
+
+    FW[&quot;write()&lt;br/&gt;파일 내용 기록&quot;]
+    DW[&quot;write()·ioctl()&lt;br/&gt;데이터 전달·설정·제어&quot;]
+
+    O --&gt; F --&gt; FW
+    O --&gt; D --&gt; DW
+</code></pre>
+  </details>
+</figure>
+<p>장치 파일 안에 드라이버 코드가 저장돼 있는 것은 아니다. 커널은 장치 파일의 식별 정보와 등록된 드라이버의 관계를 따라 요청을 처리한다.</p>
+<p>TUN/TAP에서는 파일을 여는 준비 단계부터 드라이버의 코드가 실행된다.</p>
+<p>여기서 <strong>열기 처리 함수</strong>는 다음 일을 하도록 구현된 코드다.</p>
+<blockquote>
+<p>“프로그램이 이 기능을 열었으니, 앞으로 사용할 상태를 준비한다.”</p>
+</blockquote>
+<p>준비가 성공하면 커널이 FD를 반환한다. 이후 그 FD로 요청하면 연결된 처리 코드가 실행된다.</p>
+<p>모든 시스템 호출이 FD를 반환하는 것은 아니다. FD는 Linux에서 여러 입출력 대상을 반복해서 사용하는 대표적인 방식이다.</p>
+
+</section>
+<section id="introduction-8" class="markdown-section">
+<h2>FD와 드라이버는 역할이 다르다</h2>
+<p>FD는 <strong>프로세스가 커널에 요청할 대상을 지정하는 번호</strong>다.</p>
+<p>드라이버는 <strong>특정 장치나 가상 장치의 동작을 구현한 코드</strong>다.</p>
+<p>따라서 FD를 받는 단계와 드라이버가 개입하는 단계가 항상 같은 것은 아니다.</p>
+<ul>
+<li>TCP 소켓을 만드는 데 특정 물리 NIC 드라이버의 호출이 반드시 필요한 것은 아니다.</li>
+<li>TUN/TAP 장치 파일을 열 때는 FD 반환 전부터 드라이버가 준비 작업을 수행한다.</li>
+<li>데이터를 인터페이스로 전송할 때는 해당 인터페이스의 전송 처리가 실행된다.</li>
+<li>커널 내부 코드끼리는 새 FD를 만들지 않고도 드라이버 함수를 호출할 수 있다.</li>
+</ul>
+<p>드라이버를 호출하는 것과 새로 로드하는 것도 다르다. 드라이버가 사용할 수 있도록 준비된 뒤에는 그 코드를 작업마다 실행한다.</p>
+<p>이 관계를 바탕으로 물리 컴퓨터와 VM의 전송 과정을 비교해 보자.</p>
+<hr>
+
+</section>
+<section id="section-1-nic" class="markdown-section">
+<h2>1. 물리 컴퓨터에서는 NIC 드라이버가 실제 장치에 전송을 맡긴다</h2>
+<p>Linux를 물리 컴퓨터에 직접 설치한 환경에서 프로그램이 TCP로 연결된 서버에 <code>hello</code>를 보내려 한다고 하자.</p>
+<p>프로그램은 연결된 소켓의 FD로 데이터를 보낸다. 커널은 이 데이터를 통신에 필요한 정보와 함께 처리한다.</p>
+<p>설명을 위해 <code>hello</code>가 하나의 TCP 세그먼트에 담기고 Ethernet으로 전송된다고 가정하면 다음과 같다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;애플리케이션 데이터&lt;br/&gt;hello&quot;]
+    B[&quot;TCP 세그먼트&lt;br/&gt;TCP 헤더 │ hello&quot;]
+    C[&quot;IP 패킷&lt;br/&gt;IP 헤더 │ TCP 헤더 │ hello&quot;]
+    D[&quot;Ethernet 프레임&lt;br/&gt;Ethernet 헤더 │ IP 헤더 │ TCP 헤더 │ hello&quot;]
+
+    A --&gt;|&quot;커널의 TCP 처리&quot;| B
+    B --&gt;|&quot;커널의 IP 처리&quot;| C
+    C --&gt;|&quot;다음 장치로 전송할 헤더 준비&quot;| D
+</code></pre>
+  </details>
+</figure>
+<p>각 헤더는 서로 다른 범위의 정보를 담는다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>헤더</th>
+<th>주요 역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TCP</td>
+<td>통신을 구분하는 포트, 데이터 순서와 수신 확인 등</td>
+</tr>
+<tr>
+<td>IP</td>
+<td>출발지와 최종 목적지 IP</td>
+</tr>
+<tr>
+<td>Ethernet</td>
+<td>현재 네트워크에서 다음으로 받을 장치의 MAC</td>
+</tr>
+</tbody></table>
+</div>
+<p>인터넷 서버에 보낸다면 IP 목적지는 서버의 IP다. 하지만 그 서버가 같은 LAN에 있지 않으므로 첫 Ethernet 프레임은 보통 게이트웨이로 보낸다.</p>
+<p>따라서 <strong>목적지 IP는 인터넷 서버이고, 목적지 MAC은 게이트웨이의 MAC</strong>일 수 있다.</p>
+<p>커널은 경로에 따라 출력 인터페이스를 선택하고 해당 드라이버에 전송을 맡긴다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    P[&quot;프로그램&lt;br/&gt;소켓으로 hello 전송 요청&quot;]
+
+    subgraph K[&quot;Linux 커널&quot;]
+        N[&quot;TCP·IP 처리&lt;br/&gt;경로와 출력 인터페이스 선택&quot;]
+        E[&quot;Ethernet 전송 준비&quot;]
+        D[&quot;물리 NIC 드라이버&lt;br/&gt;메모리 접근·전송 작업 등록&quot;]
+        N --&gt; E --&gt; D
+    end
+
+    H[&quot;실제 NIC&lt;br/&gt;데이터를 읽어 전송&quot;]
+    O[&quot;랜선 너머의 스위치·공유기&quot;]
+
+    P --&gt; N
+    D --&gt; H --&gt; O
+</code></pre>
+  </details>
+</figure>
+<p>일반적인 PCIe NIC는 드라이버가 준비한 메모리에서 데이터를 직접 읽을 수 있다. 이런 메모리 접근 방식을 <strong>DMA</strong>라고 한다.</p>
+<p>CPU가 데이터를 한 바이트씩 NIC에 전달하는 대신, 드라이버가 장치에서 사용할 메모리와 작업을 준비하고 NIC가 전송을 수행한다.</p>
+<p>실제 장치에서는 일부 계산이나 데이터 분할을 하드웨어가 돕기도 한다. 그래도 프로그램이 소켓으로 요청하고 커널과 드라이버가 전송을 준비한다는 관계는 같다.</p>
+
+</section>
+<section id="section-2-vm-virtio-net" class="markdown-section">
+<h2>2. VM에서는 virtio-net 드라이버가 호스트에 전송을 맡긴다</h2>
+<p>VM 안에서도 앞부분은 같다.</p>
+<p>프로그램은 소켓으로 데이터를 보내고, <strong>VM의 Linux 커널</strong>이 TCP·IP 처리를 수행한다.</p>
+<p>차이는 출력 인터페이스가 실제 물리 NIC가 아니라 가상 NIC라는 점이다.</p>
+<p>가상 NIC 이름이 <code>ens3</code>이고 virtio 방식이라면 게스트 커널은 <code>virtio-net</code> 드라이버의 전송 코드를 실행한다.</p>
+<ul>
+<li>물리 NIC 드라이버는 하드웨어에 전송을 맡긴다.</li>
+<li>virtio-net 드라이버는 VM 메모리에 작업을 남겨 호스트 쪽 담당에게 전송을 맡긴다.</li>
+</ul>
+<p>이때 실제 데이터와 큐 기록을 구분해야 한다.</p>
+<p><strong>데이터 버퍼</strong>에는 보낼 Ethernet 프레임이 있다.</p>
+<p><strong>송신 virtqueue</strong>에는 그 버퍼의 위치와 길이 등, 호스트가 처리할 작업 정보가 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    P[&quot;VM 프로그램&lt;br/&gt;소켓으로 전송 요청&quot;]
+    K[&quot;VM의 Linux 커널&lt;br/&gt;TCP·IP·Ethernet 처리&quot;]
+    D[&quot;ens3의 virtio-net 드라이버&quot;]
+
+    subgraph M[&quot;VM 메모리&quot;]
+        B[&quot;① 실제 Ethernet 프레임&lt;br/&gt;데이터 버퍼에 준비&quot;]
+        Q[&quot;② 송신 virtqueue&lt;br/&gt;버퍼의 주소·길이 기록&quot;]
+        Q -.-&gt;|&quot;이 데이터를 처리하라는 참조&quot;| B
+    end
+
+    A{&quot;③ 새 작업 알림이 필요한가?&quot;}
+    W[&quot;기다리는 처리 담당에게 알림&quot;]
+    C[&quot;이미 처리 중이라면&lt;br/&gt;설정에 따라 추가 알림 생략&quot;]
+    H[&quot;호스트의 처리 담당&lt;br/&gt;큐를 읽고 프레임에 접근&quot;]
+
+    P --&gt; K --&gt; D --&gt; Q
+    Q --&gt; A
+    A --&gt;|&quot;필요&quot;| W
+    A --&gt;|&quot;생략 가능&quot;| C
+    W --&gt; H
+    C --&gt; H
+</code></pre>
+  </details>
+</figure>
+<p>“큐에 데이터를 넣었다”는 말을 구체적으로 풀면 다음과 같다.</p>
+<blockquote>
+<p>실제 프레임은 VM 메모리에 있고, 큐에는 그 프레임이 있는 위치와 길이를 기록한다.</p>
+</blockquote>
+<p><code>ens3</code>를 통과한 데이터를 다른 프로그램이 나중에 받아 큐에 넣는 것도 아니다. <strong>ens3의 전송을 구현한 virtio-net 드라이버가 큐 등록을 수행한다.</strong></p>
+<p>VM의 프로그램은 이 구조를 몰라도 된다. 같은 소켓 요청을 사용하면 커널이 인터페이스에 맞는 전송 코드를 실행한다.</p>
+
+</section>
+<section id="section-3-vm" class="markdown-section">
+<h2>3. 큐도 실제 데이터도 VM 메모리에 있다</h2>
+<p>송신 큐와 데이터 버퍼는 모두 VM 메모리에 있다.</p>
+<p>큐 안에서 버퍼의 주소와 길이 등을 표현하는 기록을 <strong>디스크립터</strong>라고 한다.</p>
+<p>호스트 쪽 담당은 다음 순서로 처리한다.</p>
+<ol>
+<li>큐에서 새 작업의 기록을 읽는다.</li>
+<li>기록된 주소로 데이터 버퍼를 찾는다.</li>
+<li>그 버퍼의 프레임을 처리한다.</li>
+</ol>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    H[&quot;호스트의 처리 담당&quot;]
+
+    subgraph M[&quot;VM 메모리&quot;]
+        Q[&quot;송신 virtqueue&lt;br/&gt;버퍼 주소·길이&quot;]
+        B[&quot;데이터 버퍼&lt;br/&gt;실제 Ethernet 프레임&quot;]
+        Q -.-&gt;|&quot;버퍼 위치&quot;| B
+    end
+
+    H --&gt;|&quot;① 작업 읽기&quot;| Q
+    H --&gt;|&quot;② 실제 데이터 접근&quot;| B
+</code></pre>
+  </details>
+</figure>
+<p>호스트가 VM 메모리 전체를 검색해 큐를 찾아내는 것은 아니다.</p>
+<p>가상 NIC를 초기화할 때 VM 드라이버가 큐를 준비하고, 가상 장치의 설정을 통해 큐 위치를 호스트 쪽에 알려 준다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;QEMU&lt;br/&gt;VM 메모리와 가상 NIC 준비&quot;]
+    B[&quot;VM 부팅&lt;br/&gt;virtio-net 드라이버 실행&quot;]
+    C[&quot;VM 드라이버&lt;br/&gt;큐용 메모리 마련&quot;]
+    D[&quot;가상 장치 설정&lt;br/&gt;큐 위치 등록&quot;]
+    E[&quot;VM과 호스트가&lt;br/&gt;사용할 큐를 알게 됨&quot;]
+
+    A --&gt; B --&gt; C --&gt; D --&gt; E
+</code></pre>
+  </details>
+</figure>
+<p>VM의 RAM은 호스트가 제공한 메모리를 기반으로 한다. QEMU는 게스트 메모리와 호스트 메모리의 대응 관계를 이용해 큐와 버퍼에 접근할 수 있다.</p>
+<p>VM 메모리 전체가 virtqueue인 것은 아니다. 프로그램과 커널 등이 사용하는 메모리 중 일부를 큐와 버퍼로 사용한다.</p>
+<p>큐도 VM마다 하나만 있는 것이 아니다. 각 virtio 장치에 큐가 준비되며, 네트워크 장치에는 송신·수신 큐가 있고 설정에 따라 여러 큐를 사용할 수 있다.</p>
+
+</section>
+<section id="section-4" class="markdown-section">
+<h2>4. 큐에 넣는 동작과 호스트에 알리는 동작은 다르다</h2>
+<p><strong>큐 등록은 작업을 남기는 일이고, 알림은 그 작업을 확인하도록 알려 주는 일이다.</strong></p>
+<p>호스트의 처리 담당이 새 작업을 기다리고 있다면 알림을 보내 처리를 시작하게 한다.</p>
+<p>이미 큐를 처리하면서 새 작업을 확인할 수 있고 알림을 생략하도록 설정돼 있다면 추가 알림을 줄일 수 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    Q[&quot;큐에 새 작업 등록 완료&quot;]
+    A[&quot;새 작업을 기다리는 상황&quot;]
+    B[&quot;이미 큐를 처리하는 상황&quot;]
+    N[&quot;알림을 보내 처리 담당을 깨움&quot;]
+    S[&quot;알림 생략이 허용되면&lt;br/&gt;진행 중인 처리에서 계속 확인&quot;]
+    R[&quot;큐의 작업과 데이터 버퍼 처리&quot;]
+
+    Q --&gt; A --&gt; N --&gt; R
+    Q --&gt; B --&gt; S --&gt; R
+</code></pre>
+  </details>
+</figure>
+<p>여기서 “깨어 있다”, “자고 있다”는 표현은 처리 담당이 작업 중인지 기다리는지를 설명하는 표현이다. 호스트 컴퓨터 전체의 절전 상태를 말하는 것이 아니다.</p>
+<p>실제 VM 드라이버는 호스트의 실행 상태를 직접 들여다보는 대신, 공유된 알림 설정과 큐 상태에 따라 알림 여부를 결정한다.</p>
+<p>어느 경우든 작업은 큐에 남는다. 알림에 Ethernet 프레임 전체를 실어 보내는 것도 아니다.</p>
+<hr>
+
+</section>
+<section id="section-5-qemu-tap" class="markdown-section">
+<h2>5. QEMU는 VM의 프레임을 TAP으로 전달한다</h2>
+<p>VM은 전송할 프레임을 준비했고 호스트는 그 프레임에 접근할 수 있게 됐다. 이제 이 프레임을 호스트의 네트워크 처리에 넣어야 한다.</p>
+<p>QEMU는 호스트에서 실행되는 프로세스다. 우선 QEMU가 가상 NIC의 큐를 직접 처리하는 구성을 따라가 보자. 실제 환경에서는 데이터 처리를 호스트 커널의 <code>vhost-net</code>이 맡을 수도 있다.</p>
+<p>QEMU가 받은 것은 VM 커널이 이미 만든 Ethernet 프레임이다. 최종 서버에 TCP 연결을 새로 맺고 <code>hello</code>를 다시 보내는 역할이 아니다.</p>
+<p><strong>VM의 프레임을 호스트 커널의 네트워크 수신 처리에 넣는 접점이 TAP이다.</strong></p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    V[&quot;VM 메모리&lt;br/&gt;송신 큐·프레임&quot;]
+    Q[&quot;QEMU&lt;br/&gt;큐와 버퍼 읽기&quot;]
+    T[&quot;TAP&lt;br/&gt;프레임 수신 처리&quot;]
+    N[&quot;호스트 커널의&lt;br/&gt;네트워크 처리&quot;]
+
+    V --&gt; Q
+    Q --&gt;|&quot;TAP FD로 프레임 쓰기&quot;| T
+    T --&gt; N
+</code></pre>
+  </details>
+</figure>
+<p>물리 NIC는 랜선에서 받은 프레임을 커널에 전달한다.</p>
+<p>TAP은 프로그램이 제공한 프레임을 커널에 전달한다.</p>
+<p>따라서 <strong>QEMU가 TAP FD에 쓰면, 호스트 커널 입장에서는 TAP으로 프레임을 수신한 것</strong>이 된다.</p>
+<p>반대 방향도 가능하다. 호스트 네트워크가 TAP으로 프레임을 출력하면 QEMU가 TAP FD에서 읽을 수 있다. <a href="https://docs.kernel.org/networking/tuntap.html" rel="noopener noreferrer">Linux TUN/TAP 설명</a></p>
+
+</section>
+<section id="section-6-fd" class="markdown-section">
+<h2>6. TAP을 열고 연결하는 과정에서 커널과 드라이버가 하는 일</h2>
+<p>도입부에서 FD는 준비한 대상을 다시 지정하는 번호라고 했다. QEMU에서는 그 대상이 특정 TAP에 연결된 사용 상태다.</p>
+<p>이 연결은 준비 단계에서 만들어지고, 이후 같은 FD로 프레임을 읽고 쓴다.</p>
+<p>먼저 <code>/dev/net/tun</code>을 연다.</p>
+<pre><code class="language-c">tap_fd = open(&quot;/dev/net/tun&quot;, O_RDWR);
+</code></pre>
+<p>커널은 권한을 확인하고 TUN/TAP 드라이버의 열기 처리를 실행한다. 드라이버가 이번 사용에 필요한 상태를 준비하고, 성공하면 커널이 FD를 반환한다.</p>
+<p>이 시점에는 아직 특정 이름의 TAP에 연결되지 않았을 수 있다.</p>
+<p>그다음 <code>ioctl()</code>이라는 설정 요청으로 TAP 방식과 인터페이스 이름을 지정한다.</p>
+<pre><code class="language-c">ioctl(tap_fd, TUNSETIFF, &amp;ifr);
+</code></pre>
+<p><code>ifr</code>에는 TAP을 사용한다는 설정과 <code>tap0</code> 같은 이름이 들어간다. 드라이버는 요청에 따라 TAP을 만들거나 기존 TAP에 연결한다.</p>
+<h3>사용 준비</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;프로그램&lt;br/&gt;/dev/net/tun 열기 요청&quot;]
+    B[&quot;커널&lt;br/&gt;권한·장치 연결 확인&quot;]
+    C[&quot;TUN/TAP 드라이버&lt;br/&gt;사용 상태 준비&quot;]
+    D[&quot;커널&lt;br/&gt;FD 반환&quot;]
+    E[&quot;프로그램&lt;br/&gt;FD에 TAP 방식·이름 설정 요청&quot;]
+    F[&quot;드라이버&lt;br/&gt;특정 TAP 생성 또는 연결&quot;]
+
+    A --&gt; B --&gt; C --&gt; D --&gt; E --&gt; F
+</code></pre>
+  </details>
+</figure>
+<h3>준비한 TAP으로 프레임 전달</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;QEMU&lt;br/&gt;write(fd, frame, length)&quot;]
+    B[&quot;커널&lt;br/&gt;FD에 연결된 대상 확인&quot;]
+    C[&quot;TUN/TAP 드라이버&lt;br/&gt;쓰기 요청 처리&quot;]
+    D[&quot;tap0로 수신한 프레임으로&lt;br/&gt;네트워크 처리에 전달&quot;]
+
+    A --&gt; B --&gt; C --&gt; D
+</code></pre>
+  </details>
+</figure>
+<p><code>write()</code>할 때마다 TAP 이름을 다시 지정하지 않는다. 준비 단계에서 FD와 TAP의 연결이 만들어졌기 때문이다.</p>
+<p>장치 파일 자체에 프레임 내용을 저장하는 것도 아니다. <strong>FD로 사용 대상을 지정하면 커널이 연결된 드라이버의 쓰기 기능을 실행한다.</strong></p>
+<p>실제 VM 관리 환경에서는 관리 프로그램이 TAP을 준비하고 열린 FD를 QEMU에 넘겨주기도 한다. 어느 프로그램이 준비했든 QEMU는 TAP에 연결된 FD를 사용한다.</p>
+<p>입력 형식은 TAP 설정에 따라 달라진다. <code>IFF_TAP | IFF_NO_PI</code>처럼 부가 패킷 정보를 제외한 기본 예에서는 Ethernet 프레임을 제공한다. 다른 옵션을 사용하면 추가 정보가 필요할 수 있다.</p>
+
+</section>
+<section id="section-7-tap-skb" class="markdown-section">
+<h2>7. 커널은 받은 프레임을 skb로 관리한다</h2>
+<p>TAP 쓰기 요청이 처리되면 프레임은 호스트 커널의 네트워크 처리 대상이 된다.</p>
+<p>커널도 자신의 작업 정보를 메모리에 보관한다. 이를 커널 메모리라고 한다. 별도의 RAM 장치가 있는 것이 아니라 일반 프로그램이 함부로 접근하지 못하도록 보호되는 영역이다.</p>
+<p>커널은 인터페이스 목록, 라우팅 정보, FD와 대상의 연결, 처리 중인 패킷 등의 정보를 관리한다.</p>
+<p>Linux의 일반적인 네트워크 경로에서는 패킷을 관리하는 데 <code>sk_buff</code>, 줄여서 <strong>skb</strong>라는 구조를 사용한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    S[&quot;skb&lt;br/&gt;데이터 위치·길이&lt;br/&gt;수신 인터페이스·처리 정보&quot;]
+    D[&quot;실제 데이터 버퍼&lt;br/&gt;Ethernet·IP·TCP 헤더와 hello&quot;]
+
+    S --&gt;|&quot;데이터 참조&quot;| D
+</code></pre>
+  </details>
+</figure>
+<p>Ethernet 프레임은 전달할 통신 데이터다. skb는 커널이 그 데이터와 처리 정보를 관리하는 구조다.</p>
+<p>skb 자체가 새로운 헤더처럼 프레임 앞에 붙어 인터넷으로 나가는 것은 아니다.</p>
+<p>TAP 드라이버가 프레임을 받으면 커널의 네트워크 코드가 skb를 통해 다룰 수 있도록 준비한다. 그 이후에는 이미 커널이 관리하는 데이터를 다음 처리 함수가 이어서 다룬다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    T[&quot;TAP 입력 처리&quot;]
+    S[&quot;skb로 데이터 관리&quot;]
+    O[&quot;스위칭·라우팅 등&lt;br/&gt;필요한 처리&quot;]
+    X[&quot;출력 인터페이스의&lt;br/&gt;전송 처리&quot;]
+
+    T --&gt; S --&gt; O --&gt; X
+</code></pre>
+  </details>
+</figure>
+<p>“다음 처리로 넘긴다”는 것은 다음 코드에 이런 정보를 전달한다는 뜻이다.</p>
+<blockquote>
+<p>“처리할 데이터는 이 skb가 가리키는 프레임이다.”</p>
+</blockquote>
+<p>따라서 인터페이스를 옮길 때마다 TAP 전용 입력을 다른 인터페이스 전용 입력으로 다시 만드는 것이 아니다.</p>
+<p>입력 단계에서 커널의 공통 처리 구조로 받아들이고, 커널 안에서는 그 데이터를 처리하며, 마지막에 출력 인터페이스의 방식에 맞게 내보낸다.</p>
+<p>실제 구현에서는 데이터 복사나 큐 대기가 발생할 수 있다. 하지만 매번 사용자 프로그램용 FD를 만들고 다시 쓰는 구조는 아니다.</p>
+
+</section>
+<section id="section-8-linux-ovs" class="markdown-section">
+<h2>8. Linux 브리지와 OVS는 서로 다른 가상 스위치다</h2>
+<p>네트워크 인터페이스가 여러 개 있다고 해서 서로 자동으로 연결되지는 않는다.</p>
+<p>Ethernet 프레임을 인터페이스 사이에서 전달하려면 어떤 관계로 연결할지 정해야 한다. 이때 사용하는 것이 가상 스위치다.</p>
+<p>물리 스위치가 랜포트를 연결하듯, 가상 스위치는 네트워크 인터페이스를 포트로 연결해 프레임을 전달한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구현</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Linux 브리지</td>
+<td>Linux 커널이 제공하는 가상 스위치 구현</td>
+</tr>
+<tr>
+<td>Open vSwitch, OVS</td>
+<td>관리 기능과 데이터 전달 기능을 가진 별도의 가상 스위치 구현</td>
+</tr>
+</tbody></table>
+</div>
+<p>OVS로 Linux 브리지를 만드는 것은 아니다. 둘은 비슷한 역할을 수행하는 서로 다른 구현이다.</p>
+<p>OVS에서도 가상 스위치를 “브리지”라고 부르므로 Linux 브리지와 OVS 브리지라는 표현이 모두 등장한다.</p>
+<p>아래는 원리를 설명하기 위해 TAP 두 개를 하나의 OVS 브리지에 연결한 예다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    A[&quot;VM A&lt;br/&gt;QEMU A&quot;]
+    B[&quot;VM B&lt;br/&gt;QEMU B&quot;]
+
+    subgraph O[&quot;OVS 브리지 — 스위치 소속&quot;]
+        T0[&quot;tap0 포트&quot;]
+        S[&quot;스위칭 처리&quot;]
+        T1[&quot;tap1 포트&quot;]
+        T0 &lt;--&gt; S &lt;--&gt; T1
+    end
+
+    A &lt;--&gt; T0
+    T1 &lt;--&gt; B
+</code></pre>
+  </details>
+</figure>
+<p>그림의 OVS 상자는 인터페이스가 어느 스위치에 연결됐는지를 나타낸다.</p>
+<p>TAP이 본래 OVS 전용 인터페이스인 것은 아니다. TAP을 OVS 포트로 등록했기 때문에 이 연결이 생긴다.</p>
+<p>일반적인 Linux 커널 기반 OVS에서는 관리 프로세스가 규칙과 상태를 관리하고, 커널의 데이터 처리 부분이 설치된 규칙에 따라 프레임을 전달한다. 모든 프레임이 매번 사용자 공간의 OVS 프로세스를 거치는 것은 아니다.</p>
+
+</section>
+<section id="section-9" class="markdown-section">
+<h2>9. OVS가 출력 포트를 고르면 커널이 해당 인터페이스의 전송 처리를 실행한다</h2>
+<p>OVS가 <code>eth0</code>로 보내기로 결정했다면 커널은 어떤 드라이버를 사용할지 어떻게 알까?</p>
+<p>인터페이스가 준비될 때 커널에는 그 인터페이스의 정보와 전송 처리 함수가 연결된다.</p>
+<p>그다음 해당 인터페이스를 OVS 포트로 등록한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    P[&quot;OVS 출력 포트&quot;]
+    I[&quot;연결된 인터페이스&lt;br/&gt;eth0&quot;]
+    D[&quot;eth0에 등록된&lt;br/&gt;드라이버 전송 함수&quot;]
+    H[&quot;실제 NIC&quot;]
+
+    P --&gt; I --&gt; D --&gt; H
+</code></pre>
+  </details>
+</figure>
+<p>사람이 OVS 포트 등록 때 드라이버 이름까지 직접 입력하는 것은 아니다. 이미 드라이버와 연결된 인터페이스를 OVS가 사용하는 것이다.</p>
+<p>OVS는 출력 포트를 선택하고 커널의 전송 경로에 skb와 출력 대상을 넘긴다. 이후 해당 인터페이스의 전송 처리가 실행된다.</p>
+<ul>
+<li>물리 NIC라면 하드웨어 전송을 준비한다.</li>
+<li>TAP이라면 QEMU가 읽을 수 있도록 프레임을 준비한다.</li>
+<li>veth라면 상대편 인터페이스의 수신으로 연결된다.</li>
+</ul>
+<h3>커널 내부에서는 왜 FD가 필요하지 않을까?</h3>
+<p>QEMU는 커널 밖의 프로세스다. 커널에 요청할 때 대상을 FD로 지정한다.</p>
+<p>반면 OVS의 커널 처리 코드는 이미 커널이 관리하는 skb와 인터페이스 정보를 참조하고 있다. 그래서 다음과 같이 작업을 이어갈 수 있다.</p>
+<blockquote>
+<p>“이 skb를 저 인터페이스의 전송 경로로 넘겨라.”</p>
+</blockquote>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    Q[&quot;QEMU&lt;br/&gt;FD로 쓰기 요청&quot;]
+
+    subgraph K[&quot;호스트 커널&quot;]
+        F[&quot;FD에 연결된 대상 찾기&quot;]
+        T[&quot;TAP 수신 처리&quot;]
+        O[&quot;OVS 출력 선택&quot;]
+        X[&quot;내부 함수로&lt;br/&gt;skb와 출력 대상 전달&quot;]
+        D[&quot;출력 인터페이스의 전송 처리&quot;]
+
+        F --&gt; T --&gt; O --&gt; X --&gt; D
+    end
+
+    Q --&gt; F
+</code></pre>
+  </details>
+</figure>
+<p>FD가 필요 없는 이유는 단순히 드라이버가 이미 로드됐기 때문이 아니다. <strong>커널 내부 코드가 자신이 관리하는 대상을 직접 참조할 수 있기 때문</strong>이다.</p>
+<p>FD를 만들지 않아도 드라이버의 처리 함수는 실행될 수 있다.</p>
+
+</section>
+<section id="section-10-br-int" class="markdown-section">
+<h2>10. br-int라는 스위치와 br-int라는 인터페이스는 구분해야 한다</h2>
+<p>OVS에서 <code>br-int</code>라는 브리지를 만들면 기본적으로 같은 이름의 internal 인터페이스도 생긴다.</p>
+<p>이름은 같지만 가리키는 대상이 다르다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>이름</th>
+<th>가리키는 대상</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OVS 브리지 <code>br-int</code></td>
+<td>여러 포트를 연결하는 가상 스위치 전체</td>
+</tr>
+<tr>
+<td>internal 인터페이스 <code>br-int</code></td>
+<td>스위치와 Linux의 네트워크 처리를 연결하는 접점</td>
+</tr>
+</tbody></table>
+</div>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    subgraph O[&quot;OVS 브리지 br-int — 스위치 전체&quot;]
+        A[&quot;tap0 포트&quot;]
+        S[&quot;스위칭 처리&quot;]
+        B[&quot;tap1 포트&quot;]
+        I[&quot;internal 포트&lt;br/&gt;인터페이스 이름도 br-int&quot;]
+
+        A &lt;--&gt; S &lt;--&gt; B
+        S &lt;--&gt; I
+    end
+
+    H[&quot;호스트의 IP 처리&lt;br/&gt;호스트 프로그램&quot;]
+    I &lt;--&gt; H
+</code></pre>
+  </details>
+</figure>
+<p><code>tap0 → tap1</code> 통신은 스위칭 처리로 전달할 수 있다. 모든 프레임이 <code>br-int</code> internal 인터페이스를 지나야 하는 것은 아니다.</p>
+<p>internal 인터페이스는 스위치를 설정하는 전용 관리 통로도 아니다. <strong>Linux 자신이 그 스위치와 데이터를 주고받는 접점</strong>이다.</p>
+<p>적절한 IP와 경로를 설정했다면 호스트의 SSH 프로그램이 이 접점을 통해 VM과 통신할 수 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    H[&quot;호스트 SSH&quot;]
+    K[&quot;호스트 TCP·IP 처리&quot;]
+    I[&quot;br-int internal&quot;]
+    S[&quot;OVS 스위칭&quot;]
+    T[&quot;VM 쪽 TAP&quot;]
+    V[&quot;QEMU·VM&quot;]
+
+    H --&gt; K --&gt; I --&gt; S --&gt; T --&gt; V
+</code></pre>
+  </details>
+</figure>
+<p>internal 인터페이스가 존재한다고 자동으로 게이트웨이가 되는 것은 아니다. IP와 라우팅 등의 구성이 추가돼야 한다.</p>
+<p><code>ip link</code>에 보이는 <code>br-int</code>는 이 Linux 네트워크 인터페이스다. 어느 포트가 어느 OVS 브리지에 속하는지는 <code>ovs-vsctl show</code> 같은 OVS 조회로 확인한다.</p>
+
+</section>
+<section id="section-11-nic-vm" class="markdown-section">
+<h2>11. 다른 VM으로 보낼 때와 물리 NIC로 보낼 때는 출력 처리가 다르다</h2>
+<p>동일 호스트의 VM A가 VM B로 보낸다고 하자. 두 VM이 같은 가상 네트워크에 있고 통신이 허용돼 있다면 물리 NIC로 나갈 필요가 없다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    A[&quot;VM A&lt;br/&gt;QEMU A&quot;]
+    T0[&quot;tap0 수신&quot;]
+    O[&quot;OVS 스위칭&lt;br/&gt;출력 tap1 선택&quot;]
+    T1[&quot;tap1 출력&quot;]
+    B[&quot;QEMU B&lt;br/&gt;VM B&quot;]
+
+    A --&gt; T0 --&gt; O --&gt; T1 --&gt; B
+</code></pre>
+  </details>
+</figure>
+<p><code>tap0</code>에서는 QEMU가 제공한 프레임을 호스트 네트워크로 받아들인다.</p>
+<p><code>tap1</code>에서는 호스트 네트워크가 출력한 프레임을 QEMU B가 읽을 수 있도록 전달한다.</p>
+<p>OVS가 TAP용 FD를 새로 열어 <code>write()</code>하는 것이 아니다. 커널의 전송 경로를 통해 TAP의 출력 처리를 실행한다.</p>
+<p>외부 유선망으로 보낸다면 출력 대상이 물리 NIC가 된다. 다음 역시 TAP과 유선 NIC를 같은 OVS에 연결한 단순한 예시다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    T[&quot;TAP 수신&quot;]
+    O[&quot;OVS 스위칭&lt;br/&gt;출력 eth0 선택&quot;]
+    D[&quot;eth0 드라이버&lt;br/&gt;장치 전송 준비&quot;]
+    N[&quot;실제 NIC&quot;]
+    E[&quot;외부 유선망&quot;]
+
+    T --&gt; O --&gt; D --&gt; N --&gt; E
+</code></pre>
+  </details>
+</figure>
+<p>단순한 Ethernet 스위칭에서는 원래 출발지 MAC을 유지해 전달할 수 있다. 라우터를 거치는 경우의 MAC 처리는 뒤에서 살펴본다.</p>
+
+</section>
+<section id="section-12-vm" class="markdown-section">
+<h2>12. 다른 VM에 전달할 때는 수신 큐와 버퍼를 사용한다</h2>
+<p>QEMU B가 TAP에서 프레임을 읽었다면 VM B가 받을 수 있도록 넣어 줘야 한다.</p>
+<p>VM B의 virtio-net 드라이버는 미리 수신 버퍼를 마련하고 그 버퍼의 주소와 길이를 수신 virtqueue에 등록한다.</p>
+<p>호스트 쪽 담당은 이 정보를 보고 어느 버퍼에 데이터를 넣을지 안다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    T[&quot;호스트 TAP&lt;br/&gt;QEMU B가 프레임 읽기&quot;]
+
+    subgraph M[&quot;VM B 메모리&quot;]
+        Q[&quot;수신 virtqueue&lt;br/&gt;사용할 수신 버퍼 정보&quot;]
+        B[&quot;수신 버퍼&lt;br/&gt;프레임 기록&quot;]
+        C[&quot;사용 완료 정보&quot;]
+        Q -.-&gt;|&quot;쓸 수 있는 위치&quot;| B
+        B --&gt; C
+    end
+
+    D[&quot;VM B의 virtio-net 드라이버&lt;br/&gt;수신 완료 확인&quot;]
+    K[&quot;게스트 커널&lt;br/&gt;Ethernet·IP·TCP 수신 처리&quot;]
+    P[&quot;VM B 프로그램&lt;br/&gt;소켓에서 hello 읽기&quot;]
+
+    T --&gt;|&quot;버퍼 정보 확인&quot;| Q
+    T --&gt;|&quot;프레임 기록&quot;| B
+    C --&gt;|&quot;필요한 알림·완료 확인&quot;| D
+    D --&gt; K --&gt; P
+</code></pre>
+  </details>
+</figure>
+<p>TAP이 직접 VM의 virtqueue를 조작하는 것은 아니다. QEMU 또는 해당 가상 장치 처리 담당이 VM 메모리의 버퍼와 큐를 다룬다.</p>
+<p>호스트의 skb 자체가 VM으로 옮겨지는 것도 아니다. VM에는 수신 데이터가 전달되고, 게스트 커널은 자기 처리 정보를 별도로 관리한다.</p>
+<p>송신 큐의 완료는 해당 송신 버퍼를 처리했다는 의미다. 목적지 TCP가 받았는지, 목적지 프로그램이 읽었는지는 그 이후의 일이다.</p>
+<hr>
+
+</section>
+<section id="network-flow-13" class="markdown-section">
+<h2>13. 우리 OpenStack 환경에서는 TAP과 br-int 사이에 qbr과 veth가 들어간다</h2>
+<p>지금까지는 TAP을 OVS에 직접 연결한 예로 기본 동작을 살펴봤다.</p>
+<p>우리 OpenStack 환경에서는 보안 그룹을 적용하는 경로에 Linux 브리지 <code>qbr</code>과 veth 쌍이 추가된다. 여기서는 기록된 OVS·<code>iptables_hybrid</code> 구성을 기준으로 설명한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    V[&quot;VM의 가상 NIC&quot;]
+    Q[&quot;QEMU 또는&lt;br/&gt;vhost-net&quot;]
+
+    subgraph B[&quot;Linux 브리지 qbr — 스위치 소속&quot;]
+        T[&quot;TAP&quot;]
+        VB[&quot;qvb&quot;]
+        T &lt;--&gt;|&quot;스위칭&quot;| VB
+    end
+
+    subgraph O[&quot;OVS br-int — 스위치 소속&quot;]
+        VO[&quot;qvo&quot;]
+        S[&quot;스위칭 처리&quot;]
+        VO &lt;--&gt; S
+    end
+
+    V &lt;--&gt; Q &lt;--&gt; T
+    VB &lt;--&gt;|&quot;veth 쌍&quot;| VO
+</code></pre>
+  </details>
+</figure>
+<p>연결을 순서대로 보면 다음과 같다.</p>
+<ol>
+<li>QEMU 또는 vhost-net이 TAP을 통해 프레임을 호스트 네트워크에 전달한다.</li>
+<li>TAP과 qvb는 같은 qbr의 포트다.</li>
+<li>qbr이 qvb로 내보내면 veth 반대편 qvo로 수신된다.</li>
+<li>qvo는 br-int의 포트이므로 OVS가 이후 전달을 맡는다.</li>
+</ol>
+<p><strong>veth는 서로 연결된 가상 인터페이스 두 개다.</strong> 한쪽으로 송신하면 반대쪽에서 수신된다.</p>
+<p>기존 TAP과 물리 NIC를 이름으로 지정해 연결하는 기능이 아니다. veth를 만들 때 생긴 두 인터페이스를 각각 필요한 곳에 연결하는 것이다.</p>
+<p>qbr은 네트워크 네임스페이스가 아니다. 이 구성에서는 TAP·qbr·qvb·qvo가 호스트의 기본 네트워크 네임스페이스에 있다.</p>
+<p>또한 qbr은 VM 개수보다 VM의 Neutron 포트, 즉 가상 NIC에 대응한다. VM에 NIC가 여러 개면 qbr도 여러 개일 수 있다.</p>
+<p>다른 방화벽 구성을 사용하면 TAP을 OVS에 직접 연결할 수도 있다. qbr이 모든 OpenStack 환경에서 반드시 필요한 것은 아니다. <a href="https://docs.openstack.org/os-vif/latest/user/plugins/ovs.html" rel="noopener noreferrer">OpenStack의 OVS 연결 방식</a></p>
+
+</section>
+<section id="network-flow-14" class="markdown-section">
+<h2>14. 같은 네트워크의 VM과 인터넷 서버는 첫 목적지 MAC부터 다르다</h2>
+<p>VM은 목적지 IP와 자신의 라우팅 설정을 보고 어디로 보낼지 결정한다.</p>
+<p>같은 서브넷의 VM B로 보낸다면 VM B의 MAC을 알아내 그쪽으로 프레임을 보낸다.</p>
+<p>다른 네트워크의 서버라면 게이트웨이로 먼저 보낸다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>IP 목적지</th>
+<th>첫 프레임의 목적지 MAC</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>같은 서브넷의 VM B</td>
+<td>VM B IP</td>
+<td>VM B MAC</td>
+</tr>
+<tr>
+<td>인터넷 서버</td>
+<td>서버 IP</td>
+<td>게이트웨이 qr의 MAC</td>
+</tr>
+</tbody></table>
+</div>
+<p>같은 호스트·같은 가상 네트워크의 VM끼리 통신하는 경로는 다음과 같다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    A[&quot;VM A&quot;]
+    LA[&quot;TAP A → qbr A → qvb A&quot;]
+
+    subgraph O[&quot;OVS br-int&quot;]
+        VA[&quot;qvo A&quot;]
+        S[&quot;같은 네트워크 안에서 스위칭&quot;]
+        VB[&quot;qvo B&quot;]
+        VA --&gt; S --&gt; VB
+    end
+
+    LB[&quot;qvb B → qbr B → TAP B&quot;]
+    B[&quot;VM B&quot;]
+
+    A --&gt; LA
+    LA --&gt;|&quot;veth 쌍&quot;| VA
+    VB --&gt;|&quot;veth 쌍&quot;| LB
+    LB --&gt; B
+</code></pre>
+  </details>
+</figure>
+<p>이 경우에는 목적지 VM까지 같은 네트워크 안에서 전달할 수 있으므로 Neutron 라우터를 거칠 필요가 없다.</p>
+<p>인터넷 서버로 보낼 때는 게이트웨이의 MAC으로 전송한다. br-int는 그 프레임을 라우터의 내부망 인터페이스인 qr 쪽으로 전달한다.</p>
+<p>qr이 어느 네트워크 공간에 있는지 이해하려면 네트워크 네임스페이스를 알아야 한다.</p>
+
+</section>
+<section id="network-flow-15" class="markdown-section">
+<h2>15. qrouter는 별도 네트워크 설정을 가진 Linux 네임스페이스다</h2>
+<p>Linux의 <strong>네트워크 네임스페이스</strong>는 같은 커널 안에서 네트워크 상태를 분리하는 기능이다.</p>
+<p>각 네임스페이스는 자신의 인터페이스, IP 주소, 라우팅 테이블, 이웃·ARP 정보, 방화벽·NAT 규칙 등을 가진다.</p>
+<p>VM처럼 별도의 커널을 실행하는 것은 아니다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    subgraph HOST[&quot;하나의 호스트 Linux 커널&quot;]
+        subgraph ROOT[&quot;기본 네트워크 네임스페이스&quot;]
+            A[&quot;TAP·qbr·qvb·qvo&quot;]
+            B[&quot;veth-host·wlo1&quot;]
+            C[&quot;기본 네임스페이스의&lt;br/&gt;라우팅·방화벽·NAT&quot;]
+        end
+
+        subgraph R[&quot;qrouter 네트워크 네임스페이스&quot;]
+            QR[&quot;qr&quot;]
+            QG[&quot;qg&quot;]
+            P[&quot;독립된 IP·라우팅·방화벽·NAT&quot;]
+            QR --- P --- QG
+        end
+    end
+</code></pre>
+  </details>
+</figure>
+<p>Neutron의 일반적인 L3 agent 방식에서는 라우터 자원을 만들면 <code>qrouter-라우터ID</code>라는 네임스페이스를 만들고, 인터페이스와 Linux 라우팅 설정을 구성한다.</p>
+<p>따라서 이 방식에서 qrouter의 실체는 다음 조합이다.</p>
+<blockquote>
+<p>독립된 네트워크 네임스페이스 + 연결 인터페이스 + IP 포워딩·라우팅·방화벽·NAT 설정.</p>
+</blockquote>
+<p>qrouter라는 이름의 Linux 브리지가 라우터 역할을 하는 것은 아니다.</p>
+<p>Horizon에서 여러 라우터를 만들 수 있고, 이 방식에서는 각각에 대응하는 네임스페이스를 구성할 수 있다.</p>
+<p>기본 네임스페이스의 <code>ip link</code>에서 qr·qg가 보이지 않을 수 있다. 해당 인터페이스가 qrouter 네임스페이스에 있기 때문이다.</p>
+<p>네임스페이스 목록과 그 안의 인터페이스는 다음처럼 조회한다.</p>
+<pre><code class="language-bash">sudo ip netns list
+sudo ip netns exec QROUTER_NAME ip -br address
+</code></pre>
+<p><code>QROUTER_NAME</code>에는 실제 목록에 나온 이름을 넣는다.</p>
+
+</section>
+<section id="network-flow-16" class="markdown-section">
+<h2>16. br-int는 qrouter 안의 qr 포트로 스위칭한다</h2>
+<p>우리 구성의 qr은 <strong>OVS internal 인터페이스</strong>다. Linux 인터페이스의 소속은 qrouter 네임스페이스이며, br-int의 OVS 포트 연결도 유지한다.</p>
+<p>즉, br-int에는 VM 쪽 qvo 포트도 있고 라우터 쪽 qr 포트도 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    V[&quot;VM 쪽&lt;br/&gt;qbr·qvb&quot;]
+
+    subgraph O[&quot;OVS br-int — 스위치 소속&quot;]
+        QVO[&quot;qvo 포트&lt;br/&gt;기본 네임스페이스&quot;]
+        S[&quot;스위칭&quot;]
+        QR[&quot;qr internal 포트&lt;br/&gt;qrouter 네임스페이스&quot;]
+        QVO --&gt; S --&gt; QR
+    end
+
+    R[&quot;qrouter 네임스페이스의&lt;br/&gt;Linux IP 수신 처리&quot;]
+
+    V --&gt;|&quot;veth 쌍&quot;| QVO
+    QR --&gt;|&quot;qr로 수신&quot;| R
+</code></pre>
+  </details>
+</figure>
+<p>그림의 OVS 상자는 스위치 소속을 나타낸다. Linux 네임스페이스 소속은 각 포트에 따로 표시했다.</p>
+<p>br-int가 먼저 이름 없는 포트로 보낸 다음 별도 통로를 거쳐 qr에 도착하는 것이 아니다. <strong>qr 자체가 br-int에 연결된 포트</strong>다.</p>
+<p>그래서 qvo에서 qr로 스위칭할 때 추가 veth가 필요하지 않다.</p>
+<p>반면 qbr과 br-int는 서로 다른 스위치이므로 qvb·qvo veth 쌍으로 연결했다.</p>
+<p>internal은 “다른 네임스페이스로 이동시키는 기능”이라는 뜻이 아니다. <strong>OVS와 Linux의 네트워크 처리를 연결하는 인터페이스 종류</strong>다. 그 인터페이스를 qrouter 네임스페이스에 배치했기 때문에, qr로 받은 프레임이 해당 네임스페이스의 IP 처리로 들어가는 것이다.</p>
+<p>같은 커널에 있다는 이유로 모든 인터페이스가 자동으로 연결되는 것도 아니다. 실제 포트 연결과 네트워크 분리, 전달 규칙에 따라 이동한다.</p>
+
+</section>
+<section id="network-flow-17" class="markdown-section">
+<h2>17. qr과 qg는 서로 다른 네트워크에 붙은 양방향 인터페이스다</h2>
+<p>qr은 내부 VM 네트워크와 라우터를 연결한다.</p>
+<p>qg는 외부 네트워크와 라우터를 연결한다.</p>
+<p>둘은 들어오기 전용과 나가기 전용이 아니다. <strong>각각 다른 네트워크에 붙어 있고, 둘 다 송수신한다.</strong></p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    I[&quot;VM 내부 네트워크&lt;br/&gt;10.0.0.0/24&quot;]
+    QR[&quot;qr&lt;br/&gt;내부망 접점&quot;]
+    R[&quot;qrouter의&lt;br/&gt;Linux IP 라우팅&quot;]
+    QG[&quot;qg&lt;br/&gt;외부망 접점&quot;]
+    E[&quot;외부 네트워크&lt;br/&gt;172.24.4.0/24&quot;]
+
+    I &lt;--&gt; QR &lt;--&gt; R &lt;--&gt; QG &lt;--&gt; E
+</code></pre>
+  </details>
+</figure>
+<p>인터넷 요청과 응답에서는 다음처럼 사용된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방향</th>
+<th>qrouter가 받는 인터페이스</th>
+<th>qrouter가 내보내는 인터페이스</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM → 인터넷</td>
+<td>qr</td>
+<td>qg</td>
+</tr>
+<tr>
+<td>인터넷 → VM 응답</td>
+<td>qg</td>
+<td>qr</td>
+</tr>
+</tbody></table>
+</div>
+<h3>qr로 받은 뒤 다시 qr로 보내면 왜 외부망으로 가지 않을까?</h3>
+<p>현재 구성에서 qr은 내부 네트워크의 포트다.</p>
+<p>처리한 프레임을 다시 qr로 내보내면 OVS는 그 프레임을 내부 네트워크 쪽에서 들어온 것으로 취급한다. 자동으로 외부 네트워크로 바뀌지 않는다.</p>
+<p>qg로 내보내면 외부 네트워크에 연결된 포트에서 들어온 것이므로 외부망 경로를 따라 전달한다.</p>
+<p>br-int 하나 안에도 여러 네트워크가 분리돼 있다. 같은 스위치에 연결됐다고 모든 포트가 같은 네트워크인 것은 아니다.</p>
+<p>인터페이스 하나로 여러 네트워크를 처리하는 설계도 가능하지만, 그 경우에도 VLAN 같은 구분 방식이나 추가 전달 구성이 필요하다. 지금 구성에서는 qr과 qg라는 별도 접점으로 네트워크를 구분한다.</p>
+<h3>내부망끼리도 라우터를 거칠 수 있다</h3>
+<p>내부망 A와 내부망 B의 서브넷이 다르다면 라우터를 거쳐 통신할 수 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    A[&quot;내부망 A&lt;br/&gt;10.0.0.0/24&quot;]
+    QA[&quot;qr-A&quot;]
+    R[&quot;qrouter의 라우팅&quot;]
+    QB[&quot;qr-B&quot;]
+    B[&quot;내부망 B&lt;br/&gt;10.1.0.0/24&quot;]
+
+    A &lt;--&gt; QA &lt;--&gt; R &lt;--&gt; QB &lt;--&gt; B
+</code></pre>
+  </details>
+</figure>
+<p>이 통신에는 외부망 qg가 필요하지 않다. 일반적인 내부망 간 라우팅에 출발지 NAT가 반드시 필요한 것도 아니다.</p>
+<p>Linux는 들어온 인터페이스의 반대편을 기계적으로 선택하지 않는다. 목적지 IP와 라우팅 테이블을 보고 출구를 선택한다.</p>
+
+</section>
+<section id="network-flow-18" class="markdown-section">
+<h2>18. qr에서 qg로 갈 때 IP와 MAC은 서로 다른 처리로 바뀐다</h2>
+<p>인터넷 서버에 보내는 예를 하나 정해 보자.</p>
+<p>아래 주소는 통신 흐름을 설명하기 위한 예시다. 집의 실제 IP는 공개하지 않고, 호스트 Wi-Fi 주소와 공유기 주소는 문서용 대역인 <code>192.0.2.0/24</code>의 예시 주소로 바꿨다. 현재 실행 상태를 조회한 값이 아니며 실제 설정에 그대로 적용하는 값도 아니다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>설명에 사용할 IP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM</td>
+<td><code>10.0.0.23</code></td>
+</tr>
+<tr>
+<td>qr</td>
+<td><code>10.0.0.1</code></td>
+</tr>
+<tr>
+<td>qg</td>
+<td><code>172.24.4.167</code></td>
+</tr>
+<tr>
+<td>호스트의 veth-host</td>
+<td><code>172.24.4.1</code></td>
+</tr>
+<tr>
+<td>호스트의 wlo1</td>
+<td><code>192.0.2.20</code></td>
+</tr>
+<tr>
+<td>집 공유기</td>
+<td><code>192.0.2.1</code></td>
+</tr>
+<tr>
+<td>인터넷 서버</td>
+<td><code>203.0.113.10</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>이 예에서는 Neutron 라우터의 출발지 NAT가 활성화돼 있다고 가정한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;① qr로 수신&lt;br/&gt;목적지 MAC은 qr&quot;]
+    B[&quot;② IP 목적지로 경로 선택&lt;br/&gt;출구 qg·다음 홉 172.24.4.1&quot;]
+    C[&quot;③ 출발지 NAT&lt;br/&gt;10.0.0.23 → 172.24.4.167&quot;]
+    D[&quot;④ 다음 구간의 프레임 준비&lt;br/&gt;출발지 MAC: qg&lt;br/&gt;목적지 MAC: veth-host&quot;]
+    E[&quot;⑤ qg로 출력&lt;br/&gt;OVS 외부 네트워크에 전달&quot;]
+
+    A --&gt; B --&gt; C --&gt; D --&gt; E
+</code></pre>
+  </details>
+</figure>
+<p><strong>① qr로 받는다.</strong><br>VM이 만든 프레임의 목적지 MAC은 qr이다. 안에 담긴 IP 패킷의 목적지는 인터넷 서버다.</p>
+<p><strong>② 라우팅으로 출구를 고른다.</strong><br>IP 목적지가 라우터 자신이 아니므로 전달 경로를 조회한다. 이 예에서는 qg를 사용하며 다음 홉은 <code>172.24.4.1</code>이다.</p>
+<p><strong>③ 출발지 NAT를 적용한다.</strong><br>SNAT 규칙에 따라 VM의 출발지 IP를 qg IP로 바꾼다. 응답을 되돌릴 연결 정보도 관리한다.</p>
+<p><strong>④ 다음 링크에 맞는 프레임을 준비한다.</strong><br>출발지 MAC은 qg의 MAC, 목적지 MAC은 다음 홉인 veth-host의 MAC이다. 다음 홉의 MAC을 모르면 ARP로 알아낸다.</p>
+<p><strong>⑤ qg로 내보낸다.</strong><br>qg에서 출력한 프레임은 OVS의 외부 네트워크 쪽 입력이 된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>qr로 받을 때</th>
+<th>qg로 보낼 때</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>출발지 MAC</td>
+<td>VM MAC</td>
+<td>qg MAC</td>
+</tr>
+<tr>
+<td>목적지 MAC</td>
+<td>qr MAC</td>
+<td>veth-host MAC</td>
+</tr>
+<tr>
+<td>출발지 IP</td>
+<td><code>10.0.0.23</code></td>
+<td><code>172.24.4.167</code></td>
+</tr>
+<tr>
+<td>목적지 IP</td>
+<td><code>203.0.113.10</code></td>
+<td>그대로</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>NAT가 MAC을 바꾸는 것은 아니다.</strong></p>
+<p>출발지 IP 변경은 SNAT 규칙의 결과다. MAC은 IP 패킷을 다음 네트워크로 전송하면서 그 링크에 맞는 헤더를 구성하기 때문에 달라진다.</p>
+<p>NAT가 없는 일반 라우팅에서도 다음 링크의 MAC 헤더는 달라질 수 있다.</p>
+
+</section>
+<section id="network-flow-19" class="markdown-section">
+<h2>19. 규칙은 미리 등록하고, 커널은 해당 처리 단계에서 적용한다</h2>
+<p>관리자가 <code>iptables</code>나 <code>nft</code> 명령을 실행하는 것은 메모리에 있는 패킷 하나를 직접 골라 수정하는 일이 아니다.</p>
+<blockquote>
+<p>“앞으로 이 조건에 맞는 패킷이나 연결을 이렇게 처리해라.”</p>
+</blockquote>
+<p>이 규칙을 커널에 등록하는 것이다.</p>
+<p>명령 프로그램이 종료돼도 규칙은 남는다. 커널의 네트워크 처리 코드가 해당 단계에서 규칙을 사용한다.</p>
+<p>일반적인 IP 전달 경로는 다음과 같다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    I[&quot;인터페이스로 수신&quot;]
+    P[&quot;PREROUTING&lt;br/&gt;연결 추적·필요한 목적지 변환&quot;]
+    R[&quot;라우팅&lt;br/&gt;목적지로 출력 경로 선택&quot;]
+    F[&quot;FORWARD&lt;br/&gt;전달 허용·차단&quot;]
+    N[&quot;POSTROUTING&lt;br/&gt;필요한 출발지 NAT&quot;]
+    O[&quot;출력 인터페이스&lt;br/&gt;다음 링크로 전송&quot;]
+
+    I --&gt; P --&gt; R --&gt; F --&gt; N --&gt; O
+</code></pre>
+  </details>
+</figure>
+<p>PREROUTING·FORWARD·POSTROUTING은 별도 장치가 아니다. 커널이 규칙을 적용하는 처리 지점이다.</p>
+<p>규칙은 인터페이스를 조건으로 삼을 수 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>iptables</th>
+<th>nftables</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>어느 인터페이스로 들어왔는가</td>
+<td><code>-i</code></td>
+<td><code>iifname</code></td>
+</tr>
+<tr>
+<td>어느 인터페이스로 나갈 것인가</td>
+<td><code>-o</code></td>
+<td><code>oifname</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>출발지·목적지 IP, TCP·UDP 포트, 연결 상태 등도 조건으로 사용할 수 있다.</p>
+<p>예를 들어 “VM 대역에서 왔고 qg로 나가는 연결의 출발지 IP를 바꿔라”라는 규칙을 만들 수 있다.</p>
+<p>다음은 그 의미를 표현한 명령 예시다. Neutron이 관리 중인 라우터에 중복 적용하는 실습 지시는 아니다.</p>
+<pre><code class="language-bash">sudo ip netns exec QROUTER_NAME \
+  iptables -t nat -A POSTROUTING \
+  -s 10.0.0.0/24 -o QG_NAME \
+  -j SNAT --to-source 172.24.4.167
+</code></pre>
+<p>각 부분의 의미는 다음과 같다.</p>
+<ul>
+<li><code>ip netns exec</code>: 지정한 네임스페이스에서 명령 실행.</li>
+<li><code>POSTROUTING</code>: 출력 경로가 정해진 뒤의 NAT 처리 지점.</li>
+<li><code>-s 10.0.0.0/24</code>: VM 대역에서 시작한 트래픽.</li>
+<li><code>-o QG_NAME</code>: qg로 나가는 트래픽.</li>
+<li><code>SNAT --to-source</code>: 출발지 IP를 지정한 주소로 변환.</li>
+</ul>
+<p>기본 경로를 정하는 설정은 별개다.</p>
+<pre><code class="language-bash">sudo ip netns exec QROUTER_NAME \
+  ip route replace default via 172.24.4.1 dev QG_NAME
+</code></pre>
+<p>이 명령은 기본 경로의 다음 홉을 <code>172.24.4.1</code>, 출력 인터페이스를 qg로 지정한다.</p>
+<p>첫 번째는 주소 변환 규칙이고 두 번째는 전달 경로다. MAC은 이 경로와 출력 인터페이스, 다음 홉의 ARP 정보를 사용해 준비한다.</p>
+<p>규칙과 경로는 네트워크 네임스페이스별로 다르게 구성할 수 있다. qrouter의 규칙과 호스트 기본 네임스페이스의 규칙은 구분된다.</p>
+
+</section>
+<section id="network-flow-20" class="markdown-section">
+<h2>20. qg에서 나온 프레임은 br-int와 br-ex 사이의 patch 연결을 지난다</h2>
+<p>우리 환경에서 br-int와 br-ex는 서로 다른 OVS 스위치다.</p>
+<p>br-ex가 br-int 안에 있는 포트 이름인 것은 아니다. 두 스위치를 연결하는 포트 쌍은 <code>int-br-ex</code>와 <code>phy-br-ex</code>다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    subgraph I[&quot;OVS br-int&quot;]
+        QG[&quot;qg&lt;br/&gt;외부망 포트&quot;]
+        P1[&quot;int-br-ex&quot;]
+        QG --&gt;|&quot;스위칭&quot;| P1
+    end
+
+    subgraph E[&quot;OVS br-ex&quot;]
+        P2[&quot;phy-br-ex&quot;]
+        VE[&quot;veth-ex&quot;]
+        P2 --&gt;|&quot;스위칭&quot;| VE
+    end
+
+    P1 &lt;--&gt;|&quot;OVS patch 쌍&quot;| P2
+</code></pre>
+  </details>
+</figure>
+<p>br-int에서는 VM과 라우터 등 여러 가상 네트워크를 연결한다. br-ex는 이 구성의 provider 네트워크를 호스트 쪽 외부 연결에 이어 준다.</p>
+<p>이 연결과 전달 규칙을 Neutron이 관리한다. 기존 연결을 무시하고 br-int에 외부 인터페이스를 임의로 붙이는 것은 같은 구성이 아니다.</p>
+<h3>qbr 연결에는 veth, OVS 사이에는 patch를 쓰는 이유</h3>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>veth</th>
+<th>OVS patch</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>실체</td>
+<td>서로 연결된 Linux 인터페이스 두 개</td>
+<td>서로 연결된 OVS 전용 포트</td>
+</tr>
+<tr>
+<td>연결 대상</td>
+<td>Linux 브리지·OVS·일반 IP 처리 등</td>
+<td>OVS 브리지</td>
+</tr>
+<tr>
+<td>우리 환경의 예</td>
+<td>qvb↔qvo, veth-ex↔veth-host</td>
+<td>int-br-ex↔phy-br-ex</td>
+</tr>
+<tr>
+<td>일반적인 조회</td>
+<td><code>ip link</code></td>
+<td>OVS 조회 명령</td>
+</tr>
+</tbody></table>
+</div>
+<p>qbr은 Linux 브리지이므로 OVS 전용 patch를 그대로 포트로 사용할 수 없다. 양쪽에서 사용할 수 있는 Linux 인터페이스인 veth로 연결한다.</p>
+<p>OVS끼리도 veth로 연결할 수 있지만 patch는 OVS 내부에서 상대 브리지의 처리로 이어갈 수 있다. 별도 veth 인터페이스의 송수신 경로를 추가하지 않는 연결 방식이다.</p>
+
+</section>
+<section id="network-flow-21" class="markdown-section">
+<h2>21. Wi-Fi에서는 qg의 MAC을 그대로 내보내는 브리징이 문제가 된다</h2>
+<p>일반 유선 환경에서는 물리 NIC를 br-ex 포트로 등록하고 프레임을 외부 스위치로 보낼 수 있다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    subgraph O[&quot;OVS br-ex&quot;]
+        P[&quot;외부망에서 온 프레임&quot;]
+        E[&quot;eth0 포트&quot;]
+        P --&gt;|&quot;스위칭&quot;| E
+    end
+
+    N[&quot;유선 NIC&quot;]
+    S[&quot;집의 스위치·공유기&quot;]
+
+    E --&gt; N --&gt;|&quot;랜선&quot;| S
+</code></pre>
+  </details>
+</figure>
+<p>하지만 일반적인 Wi-Fi 클라이언트 연결에서는 호스트 뒤 장치의 MAC을 그대로 전달하는 브리징에 제약이 있다.</p>
+<p>wlo1이 MAC <code>AA</code>로 AP에 연결돼 있고, qg에서 온 프레임의 출발지 MAC은 <code>BB</code>라고 하자.</p>
+<p>일반적인 클라이언트→AP의 3-address 프레임에서는 무선 송신자와 원래 출발지가 같은 주소 필드를 사용한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    Q[&quot;qg의 프레임&lt;br/&gt;원래 출발지 MAC: BB&quot;]
+    W[&quot;AP에 연결된 무선 단말&lt;br/&gt;wlo1의 MAC: AA&quot;]
+    B[&quot;BB를 사용&lt;br/&gt;연결된 무선 송신자 AA와 맞지 않음&quot;]
+    A[&quot;AA를 사용&lt;br/&gt;원래 출발지 BB를 보존하지 못함&quot;]
+
+    Q --&gt; W
+    W --&gt; B
+    W --&gt; A
+</code></pre>
+  </details>
+</figure>
+<p>따라서 호스트 뒤 장치의 프레임을 투명하게 전달하는 Ethernet 브리지처럼 쓰기 어렵다.</p>
+<p>4-address/WDS처럼 원래 출발지와 무선 송신자를 구분하는 방법도 있지만 장치·드라이버·AP의 지원과 설정이 필요하다.</p>
+<p>wlo1 자신의 MAC을 AA로 설정했다는 사실만으로 통과하는 모든 프레임의 출발지 MAC이 자동으로 AA가 되는 것도 아니다. 인터페이스의 주소와 전달하는 프레임의 주소는 구분된다. <a href="https://docs.openvswitch.org/en/stable/faq/issues/" rel="noopener noreferrer">OVS의 Wi-Fi 브리징 설명</a></p>
+<p>우리 환경에서는 호스트의 Linux가 IP 패킷을 라우팅해 wlo1으로 전송하도록 구성했다. 이때 실제 무선 송신자는 wlo1이 된다.</p>
+<p>별도로 출발지 IP도 호스트 주소로 변환해 응답이 호스트까지 돌아오도록 했다.</p>
+<p><strong>Wi-Fi의 송신자 MAC 문제와 응답의 IP 경로 문제는 서로 다른 처리로 해결한다.</strong></p>
+
+</section>
+<section id="network-flow-22" class="markdown-section">
+<h2>22. veth-host는 OVS의 프레임을 호스트 IP 처리로 받는 접점이다</h2>
+<p>기록된 연결은 다음과 같다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    subgraph E[&quot;OVS br-ex&quot;]
+        P[&quot;phy-br-ex&quot;]
+        VE[&quot;veth-ex&lt;br/&gt;OVS 포트&quot;]
+        P --&gt;|&quot;스위칭&quot;| VE
+    end
+
+    VH[&quot;veth-host&lt;br/&gt;172.24.4.1&quot;]
+    L[&quot;기본 네임스페이스&lt;br/&gt;Linux IP 라우팅·NAT&quot;]
+    W[&quot;wlo1&quot;]
+    AP[&quot;집 공유기&quot;]
+
+    VE &lt;--&gt;|&quot;veth 쌍&quot;| VH
+    VH --&gt;|&quot;IP 수신 처리&quot;| L
+    L --&gt;|&quot;라우팅한 패킷 출력&quot;| W
+    W --&gt; AP
+</code></pre>
+  </details>
+</figure>
+<p>veth-host는 또 다른 스위치에 연결한 포트가 아니다. IP를 가진 일반 인터페이스로 사용한다.</p>
+<p>qg는 외부 네트워크의 게이트웨이를 <code>172.24.4.1</code>로 알고 있다. 따라서 qg에서 나온 프레임의 목적지 MAC은 veth-host의 MAC이다.</p>
+<p>OVS가 veth-ex로 프레임을 내보내면 veth 반대편인 veth-host에서 수신한다. 이 프레임을 기본 네임스페이스의 IP 처리로 받아 인터넷 목적지에 따라 wlo1으로 전달한다.</p>
+<p><strong>veth-ex↔veth-host를 지나는 것만으로 MAC이나 IP가 바뀌지는 않는다.</strong></p>
+<p>주소 변경은 이후의 라우팅·NAT 처리에서 일어난다. veth-host와 wlo1 사이에 또 다른 veth가 있는 것도 아니다. 두 인터페이스 사이의 전달은 Linux IP 라우팅이다.</p>
+<h3>같은 커널 안인데 왜 별도 접점이 필요할까?</h3>
+<p>OVS 처리도 호스트 커널 안에 있다. 하지만 커널 안에 있다는 이유로 모든 패킷이 Linux의 모든 네트워크 기능을 거치는 것은 아니다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    I[&quot;OVS에 프레임 도착&quot;]
+
+    S[&quot;스위칭 경로&lt;br/&gt;출력 포트 선택&quot;]
+    N[&quot;등록된 포트로 출력&quot;]
+
+    H[&quot;Linux IP 수신 경로&quot;]
+    R[&quot;라우팅·FORWARD·NAT&quot;]
+    W[&quot;선택된 인터페이스로 출력&quot;]
+
+    I --&gt; S --&gt; N
+    I --&gt;|&quot;internal 또는 veth 반대편으로 수신&quot;| H
+    H --&gt; R --&gt; W
+</code></pre>
+  </details>
+</figure>
+<p>OVS가 일반 포트로 스위칭하는 경로에 호스트의 일반 IP 포워딩·NAT 처리가 자동으로 추가되는 것은 아니다.</p>
+<p>“OVS에서 잠깐 나와 Linux 라우팅을 사용한다”는 설계를 실제로 만들려면 <strong>Linux가 어느 인터페이스로 수신하는지</strong>를 구성해야 한다.</p>
+<p>우리 환경에서는 그 접점이 veth-host다.</p>
+<p>여기서 OVS 밖으로 나온다는 것은 물리 컴퓨터나 커널 밖으로 나온다는 뜻이 아니다. 같은 커널 안에서 OVS 전달 경로를 Linux IP 수신 경로에 연결한다는 의미다.</p>
+
+</section>
+<section id="network-flow-23" class="markdown-section">
+<h2>23. veth가 필수는 아니며 br-ex internal도 같은 역할을 할 수 있다</h2>
+<p>br-ex 브리지를 만들면 같은 이름의 internal 인터페이스가 기본적으로 생긴다.</p>
+<p>이 인터페이스에 외부망 게이트웨이 IP를 주면 veth 없이도 호스트 IP 처리와 연결할 수 있다.</p>
+<h3>현재 veth 방식</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    O[&quot;OVS br-ex&quot;]
+    E[&quot;veth-ex&quot;]
+    H[&quot;veth-host&lt;br/&gt;게이트웨이 IP&quot;]
+    L[&quot;Linux 라우팅·NAT&quot;]
+    W[&quot;wlo1&quot;]
+
+    O --&gt;|&quot;출력 포트&quot;| E
+    E &lt;--&gt;|&quot;veth 쌍&quot;| H
+    H --&gt;|&quot;IP 수신&quot;| L
+    L --&gt; W
+</code></pre>
+  </details>
+</figure>
+<h3>internal 방식</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    O[&quot;OVS br-ex&quot;]
+    I[&quot;br-ex internal&lt;br/&gt;게이트웨이 IP&quot;]
+    L[&quot;Linux 라우팅·NAT&quot;]
+    W[&quot;wlo1&quot;]
+
+    O --&gt;|&quot;internal 포트로 출력&quot;| I
+    I --&gt;|&quot;IP 수신&quot;| L
+    L --&gt; W
+</code></pre>
+  </details>
+</figure>
+<p>두 방식 모두 OVS에서 Linux IP 처리로 연결한다. 이후 라우팅·NAT와 출력 프레임을 준비하는 원리는 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>veth 방식</th>
+<th>internal 방식</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>호스트의 IP 수신 접점</td>
+<td>veth-host</td>
+<td>br-ex internal</td>
+</tr>
+<tr>
+<td>게이트웨이 IP 위치</td>
+<td>veth-host</td>
+<td>br-ex internal</td>
+</tr>
+<tr>
+<td>OVS 접점</td>
+<td>veth-ex</td>
+<td>internal 포트</td>
+</tr>
+<tr>
+<td>전달 규칙의 인터페이스 조건</td>
+<td>veth-host 사용</td>
+<td>br-ex 사용</td>
+</tr>
+<tr>
+<td>외부 출력</td>
+<td>wlo1</td>
+<td>wlo1</td>
+</tr>
+<tr>
+<td>출발지 NAT 조건</td>
+<td>출발지 대역과 wlo1</td>
+<td>같은 조건 사용 가능</td>
+</tr>
+</tbody></table>
+</div>
+<p>이 둘은 대안 관계다. 같은 게이트웨이 IP를 양쪽에 동시에 넣는 구성을 뜻하지 않는다.</p>
+<h3>veth 방식과 Kolla 설정의 관계</h3>
+<p>기록된 Kolla 설정은 다음과 같다.</p>
+<pre><code class="language-yaml">network_interface: wlo1
+neutron_external_interface: veth-ex
+neutron_plugin_agent: openvswitch
+enable_neutron_provider_networks: &quot;yes&quot;
+</code></pre>
+<p>Kolla는 외부 포트로 지정한 veth-ex를 br-ex에 연결한다.</p>
+<p>veth 반대편인 veth-host의 IP와 호스트의 라우팅·NAT는 별도 Linux 설정으로 관리한다.</p>
+<p>이 구조에서는 Kolla가 기대하는 “외부 브리지에 인터페이스를 연결한다”는 흐름을 사용하면서, 호스트의 IP 접점은 반대편에 둘 수 있다.</p>
+<p>이것은 현재 구성을 설명할 수 있는 관리상의 이점이다. veth가 기술적으로 필수라는 뜻이나, 당시 선택의 유일한 이유가 이것이었다는 뜻은 아니다.</p>
+<p>internal 방식도 가능하지만 Kolla의 포트 등록과 internal IP의 생성 순서·영구 설정을 함께 맞춰야 한다. <code>neutron_external_interface</code>에 단순히 <code>br-ex</code>를 넣는 것으로 바뀌지는 않는다.</p>
+<p>중요한 것은 선언한 구성과 실제 구성을 일치시키는 것이다. veth 방식도 Kolla 설정만으로 끝나지 않는다. veth 생성, IP, 포워딩, NAT의 영구 설정까지 함께 관리해야 재현할 수 있다.</p>
+<h3>OVS에서 Linux 기능을 이용하고 다시 OVS로 돌아오는 방법도 있다</h3>
+<p>OVS는 <code>ct</code> 동작으로 Linux의 연결 추적·NAT 기능을 이용하고 OVS 처리를 이어갈 수 있다. 이 경우 veth가 필요하지 않다.</p>
+<p>다만 기존 nftables 체인과 일반 IP 라우팅 전체를 그대로 호출하는 것과는 다르다. OVS 전달 규칙 안에 연결 추적과 NAT 동작을 구성한다.</p>
+<p>일반 Linux 라우팅을 거쳐 다시 OVS로 들어오도록 internal 접점들을 구성하는 방법도 있다. 이때는 어느 포트로 나갔다가 어느 포트로 들어오는지, 재입력된 패킷을 어디로 전달할지까지 정해야 한다.</p>
+<p>우리 환경은 기본 네임스페이스의 Linux IP 처리가 wlo1으로 직접 라우팅하는 경로를 사용한다.</p>
+
+</section>
+<section id="network-flow-24" class="markdown-section">
+<h2>24. 호스트에서 적용하는 라우팅·NAT와 방향별 정책</h2>
+<p>우리 호스트의 IP 처리에서는 방향을 다음과 같이 구분할 수 있다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>방향</th>
+<th>수신 인터페이스</th>
+<th>출력 인터페이스</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OpenStack → 인터넷</td>
+<td>veth-host</td>
+<td>wlo1</td>
+</tr>
+<tr>
+<td>인터넷 응답 → OpenStack</td>
+<td>wlo1</td>
+<td>veth-host</td>
+</tr>
+</tbody></table>
+</div>
+<p>인터페이스를 송신 전용과 수신 전용으로 나눈 것이 아니다. 둘 다 양방향으로 동작하며, 개별 패킷이 어디서 들어와 어디로 나가는지를 구분한다.</p>
+<p>기존 구축 문서에 기록된 nftables 규칙은 다음과 같다.</p>
+<pre><code class="language-nft">table ip kolla_lab_nat {
+  chain forward {
+    type filter hook forward priority filter; policy accept;
+
+    iifname &quot;veth-host&quot; oifname &quot;wlo1&quot; accept
+    iifname &quot;wlo1&quot; oifname &quot;veth-host&quot; ct state established,related accept
+  }
+
+  chain postrouting {
+    type nat hook postrouting priority srcnat; policy accept;
+
+    ip saddr 172.24.4.0/24 oifname &quot;wlo1&quot; masquerade
+  }
+}
+</code></pre>
+<p>첫 번째 방향 규칙은 veth-host로 들어와 wlo1으로 나가는 트래픽을 허용한다.</p>
+<p>두 번째는 wlo1으로 들어와 veth-host로 나가는 트래픽 중 기존 연결이나 관련된 연결의 패킷을 허용한다.</p>
+<p>다만 이 체인의 기본 정책은 <code>accept</code>다. 이 두 규칙만으로 나머지 모든 트래픽을 차단하는 구성은 아니다. 다른 체인의 규칙도 최종 결과에 영향을 줄 수 있다.</p>
+<p>NAT 규칙은 다음 의미다.</p>
+<blockquote>
+<p>출발지 IP가 <code>172.24.4.0/24</code>이고 wlo1으로 나가는 연결의 출발지를 출력 인터페이스의 IP로 변환한다.</p>
+</blockquote>
+<p><code>masquerade</code>는 출력 인터페이스의 주소를 사용하는 출발지 NAT다.</p>
+<p>따라서 <strong>NAT의 출력 조건에는 실제로 wlo1을 사용한다.</strong></p>
+<p>veth를 따로 둔 이유는 NAT를 veth에서만 할 수 있어서가 아니다. OpenStack 쪽 프레임을 호스트의 IP 처리 경로로 받아들이기 위한 접점을 구성한 것이다.</p>
+<p>같은 wlo1을 사용하는 모든 호스트 프로그램이 이 규칙의 대상이 되는 것도 아니다. 출발지 대역 조건까지 맞아야 한다.</p>
+
+</section>
+<section id="network-flow-25" class="markdown-section">
+<h2>25. 응답은 연결 추적에 남은 NAT 기록을 따라 돌아온다</h2>
+<p>출발지 IP를 호스트 주소로 바꾸면 응답은 호스트까지 돌아올 수 있다.</p>
+<p>그렇다면 호스트는 어느 연결로 돌려보낼지 어떻게 알까?</p>
+<p>NAT는 주소를 바꿀 때 연결 추적 정보에 변환 관계를 남긴다. 이 기능을 <strong>conntrack, 연결 추적</strong>이라고 한다.</p>
+<p>TCP·UDP에서는 IP뿐 아니라 포트와 프로토콜 등으로 연결을 구분한다.</p>
+<p>예를 들어 호스트에 들어온 요청과 NAT 이후 요청이 다음과 같다고 하자.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>위치</th>
+<th>출발지</th>
+<th>목적지</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>qg에서 나온 요청</td>
+<td><code>172.24.4.167:50000</code></td>
+<td><code>203.0.113.10:443</code></td>
+</tr>
+<tr>
+<td>호스트 NAT 이후</td>
+<td><code>192.0.2.20:61000</code></td>
+<td><code>203.0.113.10:443</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>포트 변환은 설명용 예시다. NAT가 항상 포트를 바꾸는 것은 아니다.</p>
+<p><code>IP:포트</code>라는 표기도 IP 헤더 안에 포트가 있다는 뜻은 아니다. 포트는 TCP·UDP 헤더에 있다.</p>
+<p>집 공유기의 NAT를 거쳐 인터넷으로 나간 뒤, 공유기가 응답을 호스트로 돌려주면 다음처럼 처리한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>응답 출발지</th>
+<th>응답 목적지</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>호스트에 도착</td>
+<td><code>203.0.113.10:443</code></td>
+<td><code>192.0.2.20:61000</code></td>
+</tr>
+<tr>
+<td>호스트 NAT 역변환</td>
+<td>그대로</td>
+<td><code>172.24.4.167:50000</code></td>
+</tr>
+</tbody></table>
+</div>
+<p>목적지가 qg 쪽 주소로 복원되면 Linux는 경로를 조회해 veth-host로 보낸다.</p>
+<h3>호스트에서 qg까지</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    W[&quot;wlo1 수신&quot;]
+    N[&quot;연결 기록으로&lt;br/&gt;목적지 IP·포트 복원&quot;]
+    R[&quot;라우팅&lt;br/&gt;veth-host 선택&quot;]
+    H[&quot;veth-host&quot;]
+    E[&quot;veth-ex → br-ex&quot;]
+
+    W --&gt; N --&gt; R --&gt; H
+    H --&gt;|&quot;veth 쌍&quot;| E
+</code></pre>
+  </details>
+</figure>
+<h3>qg에서 VM까지</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    E[&quot;br-ex&quot;]
+    I[&quot;patch → br-int&quot;]
+    G[&quot;qg 수신&quot;]
+    N[&quot;qrouter&lt;br/&gt;NAT 역변환·라우팅&quot;]
+    Q[&quot;qr 송신&quot;]
+    V[&quot;br-int → VM 쪽 경로&quot;]
+
+    E --&gt; I --&gt; G --&gt; N --&gt; Q --&gt; V
+</code></pre>
+  </details>
+</figure>
+<p>qrouter도 자신이 수행했던 NAT를 역변환한다. 목적지를 VM IP로 되돌리고 qr로 내보내면 OVS가 VM 쪽 포트로 전달한다.</p>
+<p>호스트와 qrouter가 각각 수행한 변환을 각각의 연결 기록으로 복원하는 것이다.</p>
+<p>이것은 이미 시작한 연결의 응답을 되돌리는 처리다. 외부에서 새 연결을 시작하도록 공개 주소나 포트를 VM에 연결하는 포트 포워딩과는 구분된다.</p>
+<p>NAT 규칙은 일반적으로 새 연결의 변환 관계를 정하고, 이후 패킷과 응답은 연결 추적에 남은 관계를 사용한다.</p>
+
+</section>
+<section id="network-flow-26" class="markdown-section">
+<h2>26. 전체 경로에서 각 주소가 바뀌는 위치</h2>
+<p>VM이 인터넷으로 보내는 요청을 세 구간으로 나누면 전체 연결을 따라가기 쉽다.</p>
+<h3>VM에서 Neutron 라우터까지</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    V[&quot;VM&lt;br/&gt;virtio 큐·버퍼&quot;]
+    Q[&quot;QEMU 또는&lt;br/&gt;vhost-net&quot;]
+    T[&quot;TAP&quot;]
+    B[&quot;qbr&quot;]
+    P[&quot;qvb ↔ qvo&quot;]
+    I[&quot;br-int&quot;]
+    R[&quot;qr 수신&quot;]
+
+    V --&gt;|&quot;메모리 작업 처리&quot;| Q
+    Q --&gt; T
+    T --&gt;|&quot;스위칭&quot;| B
+    B --&gt; P
+    P --&gt; I
+    I --&gt;|&quot;스위칭&quot;| R
+</code></pre>
+  </details>
+</figure>
+<p>이 구간의 연결을 펼치면 다음과 같다.</p>
+<ul>
+<li>VM 드라이버가 큐에 작업을 등록한다.</li>
+<li>QEMU 또는 vhost-net이 프레임을 처리한다.</li>
+<li>TAP으로 받은 프레임을 qbr이 qvb로 스위칭한다.</li>
+<li>veth 반대편 qvo로 수신한다.</li>
+<li>br-int가 qr 포트로 스위칭한다.</li>
+</ul>
+<p>VM은 인터넷 서버를 IP 목적지로, qr을 첫 Ethernet 목적지로 사용한다.</p>
+<h3>Neutron 라우터에서 호스트 IP 처리까지</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    R[&quot;qr 수신&quot;]
+    N[&quot;qrouter&lt;br/&gt;라우팅·SNAT&quot;]
+    G[&quot;qg 송신&quot;]
+    I[&quot;br-int&quot;]
+    P[&quot;int-br-ex ↔ phy-br-ex&quot;]
+    E[&quot;br-ex&quot;]
+    H[&quot;veth-ex ↔ veth-host&quot;]
+
+    R --&gt; N --&gt; G
+    G --&gt; I
+    I --&gt;|&quot;스위칭&quot;| P
+    P --&gt;|&quot;patch 연결&quot;| E
+    E --&gt;|&quot;스위칭·veth 연결&quot;| H
+</code></pre>
+  </details>
+</figure>
+<p>qrouter에서 VM IP가 qg IP로 변환된다.</p>
+<p>다음 구간 프레임의 출발지 MAC은 qg, 목적지 MAC은 veth-host다. 이 프레임은 br-int·patch·br-ex·veth 쌍을 지나 veth-host에 도착한다.</p>
+<h3>호스트에서 인터넷까지</h3>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart LR
+    H[&quot;veth-host 수신&quot;]
+    L[&quot;기본 네임스페이스&lt;br/&gt;라우팅·SNAT&quot;]
+    W[&quot;wlo1&quot;]
+    A[&quot;집 공유기&lt;br/&gt;인터넷 경로·NAT&quot;]
+    S[&quot;인터넷 서버&quot;]
+
+    H --&gt;|&quot;IP 처리&quot;| L
+    L --&gt;|&quot;출력&quot;| W
+    W --&gt; A --&gt; S
+</code></pre>
+  </details>
+</figure>
+<p>기본 네임스페이스에서 출발지 IP는 wlo1의 주소로 변환된다. 무선 전송에는 AP에 연결된 wlo1의 MAC을 사용한다.</p>
+<p>주소 변화만 따로 보면 다음과 같다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>위치</th>
+<th>출발지 IP</th>
+<th>다음 링크의 출발지 MAC</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM에서 qr로 전송</td>
+<td>VM IP</td>
+<td>VM MAC</td>
+</tr>
+<tr>
+<td>qg에서 veth-host로 전송</td>
+<td>qg IP로 SNAT</td>
+<td>qg MAC</td>
+</tr>
+<tr>
+<td>wlo1에서 집 공유기로 전송</td>
+<td>호스트 IP로 SNAT</td>
+<td>wlo1 MAC</td>
+</tr>
+</tbody></table>
+</div>
+<p>스위칭 구간에서는 설정된 포트 연결을 따라 프레임을 전달한다. 라우팅 구간에서는 목적지 IP로 출구를 선택하고, 필요한 NAT를 적용한 뒤 다음 링크의 전송을 준비한다.</p>
+<p>이 구분을 유지하면 “같은 호스트 안에 있는데 왜 접점이 필요한가”, “왜 MAC과 IP가 다른 단계에서 바뀌는가”, “왜 응답이 원래 VM으로 돌아오는가”를 같은 경로 위에서 설명할 수 있다.</p>
+
+</section>
+<section id="network-flow-27" class="markdown-section">
+<h2>27. 실제 설정을 볼 때는 연결·경로·정책을 나눠 확인한다</h2>
+<p>인터페이스 목록만으로는 전체 통신 경로를 알 수 없다.</p>
+<p>어느 스위치에 연결됐는지, 어느 네임스페이스에 있는지, 목적지에 따라 어떤 경로를 사용하는지, 그 경로에서 어떤 규칙이 적용되는지를 함께 봐야 한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>알고 싶은 내용</th>
+<th>명령</th>
+<th>확인할 항목</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>호스트 인터페이스와 IP</td>
+<td><code>ip -br address</code></td>
+<td>veth-host·wlo1 등의 주소</td>
+</tr>
+<tr>
+<td>인터페이스 종류와 연결</td>
+<td><code>ip -d link</code></td>
+<td>veth 등 인터페이스의 상세 정보</td>
+</tr>
+<tr>
+<td>OVS 스위치와 포트</td>
+<td><code>sudo ovs-vsctl show</code></td>
+<td>br-int·br-ex와 포트·patch</td>
+</tr>
+<tr>
+<td>네임스페이스 목록</td>
+<td><code>sudo ip netns list</code></td>
+<td>qrouter 등</td>
+</tr>
+<tr>
+<td>qrouter의 인터페이스</td>
+<td><code>sudo ip netns exec QROUTER_NAME ip -br address</code></td>
+<td>qr·qg와 IP</td>
+</tr>
+<tr>
+<td>qrouter의 경로</td>
+<td><code>sudo ip netns exec QROUTER_NAME ip route</code></td>
+<td>내부망 경로와 외부 기본 경로</td>
+</tr>
+<tr>
+<td>호스트의 경로</td>
+<td><code>ip route</code></td>
+<td>외부망 연결과 wlo1 기본 경로</td>
+</tr>
+<tr>
+<td>호스트 IP 포워딩</td>
+<td><code>sysctl net.ipv4.ip_forward</code></td>
+<td>패킷 전달 기능 활성화 여부</td>
+</tr>
+<tr>
+<td>호스트 방화벽·NAT</td>
+<td><code>sudo nft list ruleset</code></td>
+<td>처리 지점·방향 조건·NAT·기본 정책</td>
+</tr>
+<tr>
+<td>다음 홉의 MAC</td>
+<td><code>ip neigh</code></td>
+<td>IP와 MAC의 대응</td>
+</tr>
+</tbody></table>
+</div>
+<p>Kolla처럼 관리 도구가 컨테이너 안에 있는 구성에서는 OVS 명령을 해당 도구가 있는 컨테이너에서 실행해야 할 수 있다.</p>
+<p>각 조회 결과는 서로 다른 질문에 답한다.</p>
+<ul>
+<li><strong>포트 연결:</strong> 프레임이 어떤 통로로 이동할 수 있는가?</li>
+<li><strong>라우팅:</strong> 이 목적지 IP에는 어느 인터페이스와 다음 홉을 사용하는가?</li>
+<li><strong>방화벽:</strong> 해당 전달을 허용하는가?</li>
+<li><strong>NAT:</strong> 어느 연결의 주소를 어떻게 바꾸는가?</li>
+<li><strong>연결 추적:</strong> 응답을 어느 연결로 복원해야 하는가?</li>
+<li><strong>드라이버:</strong> 선택된 인터페이스에서 실제 송수신을 어떻게 수행하는가?</li>
+</ul>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>
