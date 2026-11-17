@@ -1,0 +1,454 @@
+<!doctype html>
+<!-- Generated from content/wiki/python/jupyter-notebook-kernel-remote-execution.md. Do not edit directly. source-sha256:835b497107ac219b285b5c3bfd5336a5ee897c7e7e04e3c608a8f117ed8795f0 -->
+<html lang="ko">
+<head>
+<!-- static-shell:styles:start -->
+  <link rel="stylesheet" href="../../assets/css/site-theme.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-breadcrumb.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/site-title.css?v=20261101-project-covers-2">
+<!-- static-shell:styles:end -->
+  <!-- search-indexing:start -->
+  <meta name="robots" content="noindex">
+  <!-- search-indexing:end -->
+
+  <!-- google-tag:start -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2ENL37HEDE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2ENL37HEDE');
+  </script>
+  <!-- google-tag:end -->
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="노트북 파일과 커널 프로세스의 관계, 원격 실행과 저장 위치, 두 노트북의 커널 공유 및 파일·GPU 자원에 따른 영향을 구분한다.">
+  <meta name="source-sha256" content="835b497107ac219b285b5c3bfd5336a5ee897c7e7e04e3c608a8f117ed8795f0">
+  <title>Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향</title>
+  <link rel="stylesheet" href="../../assets/css/wiki-reference.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/markdown-document.css?v=20261101-project-covers-2">
+  <link rel="stylesheet" href="../../assets/css/mermaid-diagram.css?v=20261117-mermaid-orthogonal-compact">
+  <script defer src="../../assets/vendor/mermaid/mermaid.tiny.js?v=12.3.0"></script>
+  <script defer src="../../assets/js/mermaid-diagrams.js?v=20261117-mermaid-orthogonal-compact"></script>
+  <!-- machine-readable-metadata:start -->
+  <link rel="canonical" href="https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html">
+  <link rel="alternate" type="application/json" href="../../site_manifest.json" title="사이트 문서 색인">
+  <link rel="alternate" type="application/json" href="../../knowledge_manifest.json" title="기술 위키 문서 색인">
+  <link rel="alternate" type="application/json" href="../../concept_graph.json" title="지식 개념 그래프">
+  <link rel="alternate" type="text/plain" href="../../llms.txt" title="LLM용 사이트 안내">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향">
+  <meta property="og:description" content="노트북 파일과 커널 프로세스의 관계, 원격 실행과 저장 위치, 두 노트북의 커널 공유 및 파일·GPU 자원에 따른 영향을 구분한다.">
+  <meta property="og:url" content="https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html#page","url":"https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html","name":"Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향","description":"노트북 파일과 커널 프로세스의 관계, 원격 실행과 저장 위치, 두 노트북의 커널 공유 및 파일·GPU 자원에 따른 영향을 구분한다.","inLanguage":"ko","isPartOf":{"@id":"https://muscleleg.github.io/jaejun-wiki/#website"},"mainEntityOfPage":{"@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html"},"headline":"Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향","about":[{"@type":"Thing","@id":"https://muscleleg.github.io/jaejun-wiki/concept_graph.json#topics-python-language-runtime","name":"언어 객체·리소스","identifier":"topics-python-language-runtime"}]},{"@type":"WebSite","@id":"https://muscleleg.github.io/jaejun-wiki/#website","url":"https://muscleleg.github.io/jaejun-wiki/","name":"공부의 흐름을 기록하는 기술 위키","inLanguage":"ko"},{"@type":"BreadcrumbList","@id":"https://muscleleg.github.io/jaejun-wiki/wiki/python/jupyter-notebook-kernel-remote-execution.html#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://muscleleg.github.io/jaejun-wiki/"},{"@type":"ListItem","position":2,"name":"기술 위키","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html"},{"@type":"ListItem","position":3,"name":"Python","item":"https://muscleleg.github.io/jaejun-wiki/wiki.html#wiki-category-python"},{"@type":"ListItem","position":4,"name":"Python `globals()`는 현재 프로그램의 전역 변수 목록을 반환한다","item":"https://muscleleg.github.io/jaejun-wiki/wiki/python_globals_namespace.html"},{"@type":"ListItem","position":5,"name":"Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향"}]}]}
+  </script>
+  <!-- machine-readable-metadata:end -->
+  <link rel="stylesheet" href="../../assets/css/navigation.css?v=20260903-static-shell-1">
+</head>
+<body class="wiki-reference markdown-document site-breadcrumb-shell">
+<!-- static-shell:breadcrumb:start -->
+<nav class="site-breadcrumb" aria-label="문서 경로"><a href="../../index.html">⌂ 홈</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html">기술 위키</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki.html#wiki-category-python">Python</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><a href="../../wiki/python_globals_namespace.html">Python `globals()`는 현재 프로그램의 전역 변수 목록을 반환한다</a><span class="site-breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향</span></nav>
+<!-- static-shell:breadcrumb:end -->
+
+  <main class="wrap">
+    <header id="overview" class="hero site-page-header">
+      <h1>Jupyter의 노트북·커널·저장 위치 이해하기: 원격 실행과 노트북 간 영향</h1>
+      <p class="lead">노트북 파일과 커널 프로세스의 관계, 원격 실행과 저장 위치, 두 노트북의 커널 공유 및 파일·GPU 자원에 따른 영향을 구분한다.</p>
+    </header>
+    <div class="markdown-document-meta">
+      
+      <div class="markdown-actions"><a href="../../wiki.html">← 기술 위키</a></div>
+    </div>
+    <div class="markdown-layout">
+      <nav class="markdown-toc" aria-label="문서 목차">
+        <p>문서 목차</p>
+        <a href="#section-1">1. 노트북 파일과 커널은 서로 다른 대상이다</a>
+        <a href="#section-2">2. 원격 실행은 셀의 코드를 원격 커널로 보내는 방식이다</a>
+        <a href="#section-3">3. 앞선 셀을 먼저 실행해야 하는 이유는 커널의 메모리 때문이다</a>
+        <a href="#section-4-a-b">4. A와 B가 별도 커널을 사용하면 변수가 분리된다</a>
+        <a href="#section-5-a-b">5. A와 B가 같은 커널에 연결되면 상태를 공유한다</a>
+        <a href="#section-6">6. 커널이 달라도 파일과 하드웨어를 통해 영향을 줄 수 있다</a>
+        <a href="#section-7">7. 노트북 저장과 실행 상태 저장은 다르다</a>
+        <a href="#section-8">8. 파일 접근은 코드를 실행하는 커널 기준이다</a>
+        <a href="#section-9-jupyterlab-vs-code">9. 브라우저 JupyterLab과 VS Code는 파일 위치가 다를 수 있다</a>
+        <a href="#section-10">10. 화면을 닫는 것과 커널을 종료하는 것도 다르다</a>
+      </nav>
+      <article class="markdown-content">
+        <div class="markdown-lead"><p>Jupyter에서는 노트북을 편집하는 컴퓨터와 Python 코드를 실행하는 컴퓨터가 다를 수 있다. 예를 들어 로컬 VS Code에서 노트북을 작성하면서, 원격 서버의 Python 환경과 GPU로 셀을 실행할 수 있다.</p>
+<p>이때 다음 세 가지는 각각 구분해야 한다.</p>
+<ul>
+<li><strong>노트북 파일:</strong> 코드와 설명, 저장된 출력 결과를 담는 문서</li>
+<li><strong>커널:</strong> 코드를 실행하고 변수와 모델 상태를 메모리에 유지하는 프로세스</li>
+<li><strong>파일 시스템과 하드웨어:</strong> 코드가 읽고 쓰는 파일, CPU·RAM·GPU 같은 자원</li>
+</ul>
+<p>노트북 파일의 저장 위치는 코드 실행 위치와 다를 수 있다. 또한 A 노트북에서 실행한 코드가 B에 영향을 주는지는 <strong>같은 커널을 사용하는지, 어떤 외부 자원을 공유하는지</strong>에 따라 달라진다.</p>
+</div>
+        <section id="section-1" class="markdown-section">
+<h2>1. 노트북 파일과 커널은 서로 다른 대상이다</h2>
+<p><code>.ipynb</code> 파일에는 코드 셀, 설명을 작성하는 Markdown 셀, 저장된 출력 결과와 설정 정보가 들어 있다. 파일 자체가 Python을 실행하는 것은 아니다.</p>
+<p>코드를 실행하는 주체는 <strong>Python 커널</strong>이다. 커널은 실행 중인 Python 프로세스이며, 셀에서 만든 변수와 불러온 라이브러리·모델을 메모리에 유지한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구성 요소</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>노트북 파일 <code>.ipynb</code></td>
+<td>코드·설명·출력 결과를 문서로 보관</td>
+</tr>
+<tr>
+<td>VS Code 또는 브라우저 화면</td>
+<td>노트북 편집, 실행 요청, 결과 표시</td>
+</tr>
+<tr>
+<td>Jupyter 서버</td>
+<td>인증, 커널 시작·관리, 실행 요청과 결과 중계</td>
+</tr>
+<tr>
+<td>Python 커널</td>
+<td>코드 실행, 변수 유지, 라이브러리 사용, GPU 계산</td>
+</tr>
+</tbody></table>
+</div>
+<p>Jupyter의 커널은 서버가 시작하고 관리하는 별도 프로세스다. 노트북이나 다른 편집 화면이 이 프로세스에 연결해 코드를 실행한다. <a href="https://jupyterlab.readthedocs.io/en/stable/user/documents_kernels.html" rel="noopener noreferrer">Jupyter의 문서와 커널 설명</a></p>
+
+</section>
+<section id="section-2" class="markdown-section">
+<h2>2. 원격 실행은 셀의 코드를 원격 커널로 보내는 방식이다</h2>
+<p>로컬 VS Code에서 다음 셀을 실행한다고 하자.</p>
+<pre><code class="language-python">x = 10
+print(x * 2)
+</code></pre>
+<p>실행 환경으로 원격 Jupyter 서버의 커널을 선택했다면, VS Code는 셀의 코드 내용을 원격으로 보낸다. 원격 커널은 코드를 실행하고 출력 결과를 반환한다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    subgraph LOCAL[&quot;로컬 컴퓨터&quot;]
+        FILE[&quot;로컬 .ipynb 파일&quot;]
+        EDITOR[&quot;VS Code&lt;br/&gt;편집·실행 요청·결과 표시&quot;]
+        FILE --&gt;|&quot;열기&quot;| EDITOR
+        EDITOR --&gt;|&quot;저장&quot;| FILE
+    end
+
+    subgraph REMOTE[&quot;원격 서버&quot;]
+        SERVER[&quot;Jupyter 서버&quot;]
+        KERNEL[&quot;Python 커널&lt;br/&gt;코드 실행·변수 유지&quot;]
+        SERVER --&gt;|&quot;실행 요청 전달&quot;| KERNEL
+        KERNEL --&gt;|&quot;출력 결과 반환&quot;| SERVER
+    end
+
+    EDITOR --&gt;|&quot;셀의 코드 내용 전송&quot;| SERVER
+    SERVER --&gt;|&quot;출력 결과 전달&quot;| EDITOR
+</code></pre>
+  </details>
+</figure>
+<p>이 예제에서 <code>x = 10</code>을 메모리에 저장하고 곱셈을 수행하는 곳은 원격 커널이다. 로컬 VS Code는 반환된 <code>20</code>을 화면에 표시한다.</p>
+<p><strong>셀의 Python 코드 전체가 원격에서 실행된다.</strong> 로컬에서 Python을 실행하다가 GPU 연산 부분만 서버에 맡기는 구조가 아니다. Jupyter의 실행 요청에는 실행할 코드가 들어가고, 커널은 실행 결과와 출력을 메시지로 반환한다. <a href="https://jupyter-client.readthedocs.io/en/stable/messaging.html#execute" rel="noopener noreferrer">Jupyter 실행 메시지 규약</a></p>
+<p>또한 노트북 전체를 매번 업로드해서 실행하는 것으로 이해할 필요는 없다. 셀을 실행할 때 해당 코드가 전달되고, 실행으로 만들어진 상태는 연결된 커널에 남는다.</p>
+
+</section>
+<section id="section-3" class="markdown-section">
+<h2>3. 앞선 셀을 먼저 실행해야 하는 이유는 커널의 메모리 때문이다</h2>
+<p>첫 번째 셀에서 다음 코드를 실행했다고 하자.</p>
+<pre><code class="language-python">data = [1, 2, 3]
+</code></pre>
+<p>커널은 자신의 메모리에 <code>data</code> 변수를 만든다. 이어서 같은 커널에서 두 번째 셀을 실행하면 이 변수를 사용할 수 있다.</p>
+<pre><code class="language-python">print(sum(data))
+</code></pre>
+<p>출력은 다음과 같다.</p>
+<pre><code class="language-text">6
+</code></pre>
+<p>두 번째 셀이 첫 번째 셀의 코드를 자동으로 읽어 실행하는 것은 아니다. <strong>첫 번째 셀을 실행했을 때 만들어진 <code>data</code>가 커널 메모리에 남아 있어서 사용할 수 있는 것</strong>이다.</p>
+<p>따라서 노트북에서는 화면상 위치와 실제 실행 순서를 구분해야 한다.</p>
+<ul>
+<li>위쪽 셀을 작성만 하고 실행하지 않았다면 변수가 만들어지지 않는다.</li>
+<li>위쪽 셀의 코드를 수정했더라도 다시 실행하지 않았다면 이전 값이 남아 있다.</li>
+<li>아래쪽 셀에서 변수를 바꾸면, 이후 실행하는 위쪽 셀도 바뀐 값을 사용한다.</li>
+</ul>
+<p>노트북의 현재 동작은 코드가 배치된 순서뿐 아니라 <strong>그 커널에서 지금까지 무엇을 어떤 순서로 실행했는지</strong>에 영향을 받는다.</p>
+
+</section>
+<section id="section-4-a-b" class="markdown-section">
+<h2>4. A와 B가 별도 커널을 사용하면 변수가 분리된다</h2>
+<p>일반적으로는 노트북마다 별도 커널을 시작해 사용한다. 이 경우 A와 B의 Python 변수는 분리된다.</p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;A.ipynb&quot;] --&gt;|&quot;셀 실행&quot;| K1
+    B[&quot;B.ipynb&quot;] --&gt;|&quot;셀 실행&quot;| K2
+
+    subgraph SERVER[&quot;같은 Jupyter 서버가 관리&quot;]
+        K1[&quot;커널 1 · 별도 Python 프로세스&lt;br/&gt;x = 10&quot;]
+        K2[&quot;커널 2 · 별도 Python 프로세스&lt;br/&gt;x가 정의되지 않음&quot;]
+    end
+</code></pre>
+  </details>
+</figure>
+<p>A에서 다음 코드를 실행했다고 하자.</p>
+<pre><code class="language-python">x = 10
+</code></pre>
+<p>B의 커널에서는 아직 <code>x</code>를 정의하지 않았다. 이 상태에서 B가 다음 코드를 실행하면:</p>
+<pre><code class="language-python">print(x)
+</code></pre>
+<p>B에는 <code>x</code>가 없으므로 <code>NameError</code>가 발생한다.</p>
+<p><strong>같은 Jupyter 서버를 사용한다고 변수가 자동으로 공유되지는 않는다.</strong> 두 노트북이 모두 같은 이름의 <code>Python 3</code> 환경을 선택했더라도 별도의 커널 프로세스가 시작될 수 있다.</p>
+<p>여기서 구분해야 할 것은 다음 두 가지다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>같은 Python 환경 사용</td>
+<td>같은 Python 실행 파일과 설치된 패키지를 사용</td>
+</tr>
+<tr>
+<td>같은 실행 중인 커널 사용</td>
+<td>같은 프로세스의 변수와 실행 상태를 사용</td>
+</tr>
+</tbody></table>
+</div>
+<p>같은 환경에서 Python을 두 번 실행하면 별도 프로세스가 생기는 것처럼, 같은 커널 종류로 시작해도 실행 상태는 분리될 수 있다.</p>
+
+</section>
+<section id="section-5-a-b" class="markdown-section">
+<h2>5. A와 B가 같은 커널에 연결되면 상태를 공유한다</h2>
+<p>하나의 실행 중인 커널에 여러 화면이나 노트북을 연결할 수도 있다. Jupyter는 하나의 커널에 여러 클라이언트가 연결되는 구조를 지원한다. <a href="https://jupyter-client.readthedocs.io/en/stable/messaging.html#introduction" rel="noopener noreferrer">Jupyter 커널 연결 구조</a></p>
+<figure class="markdown-mermaid">
+  <div class="markdown-mermaid-diagram" role="region" aria-label="Mermaid 다이어그램" tabindex="0" hidden></div>
+  <p class="markdown-mermaid-error" role="status" hidden></p>
+  <details class="markdown-mermaid-source" open>
+    <summary>다이어그램 원문</summary>
+    <pre><code class="language-mermaid">flowchart TB
+    A[&quot;A.ipynb&quot;] --&gt;|&quot;셀 실행&quot;| K
+    B[&quot;B.ipynb&quot;] --&gt;|&quot;셀 실행&quot;| K
+
+    K[&quot;같은 실행 중인 Python 커널&quot;]
+    K --&gt; STATE[&quot;공유하는 실행 상태&lt;br/&gt;변수·함수·불러온 모델&quot;]
+</code></pre>
+  </details>
+</figure>
+<p>이 조건에서는 A와 B가 같은 변수에 접근한다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>실행 순서</th>
+<th>실행한 코드</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A에서 실행</td>
+<td><code>x = 10</code></td>
+<td>공유 커널에 <code>x</code> 생성</td>
+</tr>
+<tr>
+<td>B에서 실행</td>
+<td><code>print(x)</code></td>
+<td><code>10</code> 출력</td>
+</tr>
+<tr>
+<td>B에서 실행</td>
+<td><code>x = 20</code></td>
+<td>공유 커널의 <code>x</code> 변경</td>
+</tr>
+<tr>
+<td>A에서 실행</td>
+<td><code>print(x)</code></td>
+<td><code>20</code> 출력</td>
+</tr>
+</tbody></table>
+</div>
+<p>변수뿐 아니라 함수 정의, 불러온 모델, 현재 작업 디렉터리 같은 커널의 상태도 서로 영향을 줄 수 있다.</p>
+<p>같은 커널을 재시작하면 A와 B가 함께 사용하던 메모리 상태도 사라진다. 한쪽 노트북의 작업만 초기화하는 것으로 생각하면 다른 작업에도 영향을 줄 수 있다.</p>
+<p><strong>공유 여부를 결정하는 기준은 노트북 파일 이름이나 서버 주소가 아니라, 같은 실행 중인 커널에 연결돼 있는지다.</strong></p>
+
+</section>
+<section id="section-6" class="markdown-section">
+<h2>6. 커널이 달라도 파일과 하드웨어를 통해 영향을 줄 수 있다</h2>
+<p>별도 커널은 Python 변수의 상태를 분리한다. 하지만 두 커널이 같은 파일 시스템이나 하드웨어를 사용한다면 다른 방식으로 영향을 줄 수 있다.</p>
+<h3>같은 파일을 읽고 쓰는 경우</h3>
+<p>A와 B가 같은 파일 경로에 접근할 수 있다고 하자. A가 <code>result.json</code>을 덮어쓴 뒤 B가 그 파일을 다시 읽으면, B는 변경된 내용을 읽는다.</p>
+<p>이것은 변수 공유가 아니라 <strong>디스크에 저장된 파일을 통한 영향</strong>이다.</p>
+<p>단, B가 이전에 파일을 읽어 변수에 담아둔 상태라면 A의 파일 변경만으로 그 변수까지 자동 갱신되지는 않는다. 새 내용을 사용하려면 B에서 파일을 다시 읽어야 한다.</p>
+<h3>같은 GPU나 서버 메모리를 사용하는 경우</h3>
+<p>A와 B의 커널이 같은 GPU를 사용하면, A가 모델을 올리면서 GPU 메모리를 많이 차지할 수 있다. 그 결과 B는 모델을 올릴 공간이 부족해질 수 있다.</p>
+<p>이 경우에도 A의 모델 변수가 B에 공유되는 것은 아니다. <strong>서로 다른 프로세스가 같은 하드웨어 용량을 나눠 쓰는 것</strong>이다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>공유 대상</th>
+<th>별도 커널 사이에 생길 수 있는 영향</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>같은 파일</td>
+<td>덮어쓰기, 삭제, 다른 결과 읽기</td>
+</tr>
+<tr>
+<td>같은 GPU</td>
+<td>VRAM 부족, 연산 자원 경쟁</td>
+</tr>
+<tr>
+<td>같은 CPU·RAM</td>
+<td>실행 속도 저하, 사용 가능한 메모리 감소</td>
+</tr>
+</tbody></table>
+</div>
+<p>따라서 “변수가 분리된다”와 “작업이 서로 영향을 주지 않는다”는 같은 뜻이 아니다.</p>
+
+</section>
+<section id="section-7" class="markdown-section">
+<h2>7. 노트북 저장과 실행 상태 저장은 다르다</h2>
+<p>로컬 노트북을 VS Code에서 열고 원격 커널로 실행했다면, 노트북을 저장해도 파일은 로컬에 저장된다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>동작</th>
+<th>저장되거나 유지되는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>셀 실행</td>
+<td>원격 커널의 변수·모델 상태가 변경됨</td>
+</tr>
+<tr>
+<td>노트북 저장</td>
+<td>편집 중인 <code>.ipynb</code>에 코드·설명·출력 결과가 저장됨</td>
+</tr>
+<tr>
+<td>코드에서 결과 파일 저장</td>
+<td>커널이 접근하는 파일 시스템에 파일이 생성됨</td>
+</tr>
+<tr>
+<td>모델 저장 코드 실행</td>
+<td>지정한 경로에 모델·어댑터 등의 파일이 생성됨</td>
+</tr>
+</tbody></table>
+</div>
+<p><strong>노트북을 저장해도 실행 중인 Python 메모리 전체가 저장되지는 않는다.</strong></p>
+<p>예를 들어 노트북에 모델 로딩 코드와 실행 결과가 저장돼 있더라도, 커널을 재시작하면 모델은 다시 불러와야 한다. 별도로 파일에 저장한 모델이나 결과만 해당 저장소에 남는다.</p>
+<p>로컬 VS Code의 원격 Jupyter 연결도 원격 노트북 파일의 자동 저장·동기화를 의미하지 않는다. 실행할 셀의 코드는 전달되지만, 로컬 프로젝트의 다른 데이터 파일이나 Python 모듈까지 자동으로 복사되지는 않는다. <a href="https://github.com/microsoft/vscode-jupyter/issues/1601" rel="noopener noreferrer">VS Code Jupyter의 파일 동기화 관련 설명</a></p>
+
+</section>
+<section id="section-8" class="markdown-section">
+<h2>8. 파일 접근은 코드를 실행하는 커널 기준이다</h2>
+<p>로컬 노트북에 다음 코드가 있다고 하자.</p>
+<pre><code class="language-python">with open(&quot;data.json&quot;, encoding=&quot;utf-8&quot;) as f:
+    data = f.read()
+</code></pre>
+<p>이 셀이 원격 커널에서 실행되면 <strong>원격 커널의 현재 작업 디렉터리에서 <code>data.json</code>을 찾는다.</strong></p>
+<p>로컬의 노트북 옆에 파일이 있어도 원격 커널이 그 파일을 볼 수 있는 것은 아니다. 데이터는 업로드, 공유 저장소 등으로 원격에서 접근할 수 있도록 준비해야 한다.</p>
+<p>파일을 만드는 경우도 원격 기준이다.</p>
+<pre><code class="language-python">from pathlib import Path
+
+Path(&quot;result.txt&quot;).write_text(
+    &quot;실행 결과&quot;,
+    encoding=&quot;utf-8&quot;,
+)
+</code></pre>
+<p>이 코드는 커널의 현재 작업 디렉터리에 <code>result.txt</code>를 만든다. 원격 커널이라면 파일도 원격에 생기며, 로컬로 자동 다운로드되지 않는다.</p>
+<p>상대 경로가 어느 위치를 가리키는지 확인하려면 다음처럼 현재 작업 디렉터리를 출력할 수 있다.</p>
+<pre><code class="language-python">from pathlib import Path
+
+print(Path.cwd())
+</code></pre>
+
+</section>
+<section id="section-9-jupyterlab-vs-code" class="markdown-section">
+<h2>9. 브라우저 JupyterLab과 VS Code는 파일 위치가 다를 수 있다</h2>
+<p>브라우저에서 원격 JupyterLab에 접속해 서버의 파일 목록에서 노트북을 열었다면, 편집 중인 파일 자체가 서버에 있다.</p>
+<p>반면 로컬 VS Code에서 로컬 노트북을 열고 원격 커널만 선택했다면, 파일은 로컬에 있고 실행은 원격에서 일어난다.</p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>일반적인 사용 구성</th>
+<th>노트북 파일 위치</th>
+<th>코드 실행 위치</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>로컬 VS Code + 원격 Jupyter 커널</td>
+<td>로컬 컴퓨터</td>
+<td>원격 커널</td>
+</tr>
+<tr>
+<td>브라우저로 원격 JupyterLab 사용</td>
+<td>원격 서버의 저장소</td>
+<td>원격 커널</td>
+</tr>
+<tr>
+<td>Remote-SSH로 원격 폴더를 열고 해당 환경의 커널 사용</td>
+<td>원격 서버의 저장소</td>
+<td>원격 커널</td>
+</tr>
+</tbody></table>
+</div>
+<p>VS Code의 <strong>기존 Jupyter 서버 연결</strong>은 실행할 커널을 연결하는 기능이다. 서버의 파일 시스템을 VS Code 탐색기에 자동으로 여는 기능과는 구분된다. <a href="https://code.visualstudio.com/docs/datascience/jupyter-kernel-management#_existing-jupyter-server" rel="noopener noreferrer">VS Code의 커널 연결 설명</a></p>
+<p>원격에 있는 노트북 파일 자체를 직접 열어 수정하고 같은 위치에 저장하려면, Remote-SSH나 컨테이너 연결처럼 해당 파일에 접근하는 방법도 필요하다.</p>
+
+</section>
+<section id="section-10" class="markdown-section">
+<h2>10. 화면을 닫는 것과 커널을 종료하는 것도 다르다</h2>
+<p>JupyterLab에서 노트북 탭을 닫아도 서버의 커널은 계속 실행될 수 있다. 따라서 화면을 닫았다는 이유만으로 변수와 모델이 메모리에서 사라지거나 GPU가 비었다고 판단할 수 없다. <a href="https://jupyterlab.readthedocs.io/en/stable/user/running.html" rel="noopener noreferrer">JupyterLab의 커널 관리</a></p>
+<div class="markdown-table-scroll" role="region" aria-label="표" tabindex="0">
+<table>
+<thead>
+<tr>
+<th>동작</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>노트북 저장</td>
+<td>문서 내용을 파일에 보존</td>
+</tr>
+<tr>
+<td>노트북 화면 닫기</td>
+<td>편집 화면을 닫음. 커널 종료 여부는 별개</td>
+</tr>
+<tr>
+<td>커널 재시작</td>
+<td>기존 메모리 상태를 버리고 실행 환경을 다시 시작</td>
+</tr>
+<tr>
+<td>커널 종료</td>
+<td>해당 실행 프로세스를 종료</td>
+</tr>
+</tbody></table>
+</div>
+<p>자동 종료 정책이나 편집기의 동작에 따라 커널 수명은 달라질 수 있으므로, 실행 중인 커널 목록에서 실제 상태를 확인해야 한다.</p>
+<p>노트북 간 영향을 판단할 때도 같은 기준을 적용할 수 있다. <strong>변수와 모델 상태는 커널을 기준으로, 문서 저장은 파일 위치를 기준으로, 자원 경쟁은 공유하는 저장소와 하드웨어를 기준으로 확인한다.</strong></p>
+
+</section>
+        
+      </article>
+    </div>
+  </main>
+  <a class="home-fab" href="../../index.html" aria-label="학습 홈으로 이동">⌂ 홈</a>
+  <!-- static-shell:global-navigation:start -->
+<nav class="global-learning-nav" data-project-root="../../" aria-label="공통 학습 문서 이동"><a href="../../index.html">홈</a><a href="../../projects.html">프로젝트</a><a href="../../blog.html">블로그</a><a href="../../wiki.html" aria-current="page">위키</a><a href="../../roadmap.html">로드맵</a><div class="global-learning-nav-record"><button type="button" class="global-learning-nav-record-trigger" aria-expanded="false" aria-controls="globalLearningRecordMenu" aria-haspopup="true" aria-label="기록 메뉴 열기">기록</button><div id="globalLearningRecordMenu" class="global-learning-nav-record-menu" hidden aria-label="학습 기록 이동"><a href="../../learning_history.html">학습 기록</a><a href="../../learning_backlog.html">학습 백로그</a></div></div></nav>
+<!-- static-shell:global-navigation:end -->
+  <script src="../../assets/js/global_nav.js?v=20260903-static-ui-1"></script>
+</body>
+</html>

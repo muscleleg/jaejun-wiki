@@ -1,3 +1,54 @@
+// Remove avoidable orthogonal detours while retaining ports, nodes and labels.
+function jwikiCompactOrthogonal(points, obstacles = [], label = null) {
+  const equal = (a, b) => Math.abs(a - b) < 0.02;
+  const compact = values => values.filter((p, i) => !i || !equal(p.x, values[i - 1].x) || !equal(p.y, values[i - 1].y));
+  const direction = (a, b) => equal(a.x, b.x) ? (b.y >= a.y ? "down" : "up") : (b.x >= a.x ? "right" : "left");
+  const turns = values => {
+    let last, count = 0;
+    for (let i = 1; i < values.length; i++) {
+      const next = direction(values[i - 1], values[i]);
+      if (last && next !== last) count++;
+      last = next;
+    }
+    return count;
+  };
+  const clear = (a, b) => !obstacles.some(r => equal(a.x, b.x)
+    ? a.x > r.x + 0.02 && a.x < r.x + r.width - 0.02 && Math.max(Math.min(a.y, b.y), r.y) < Math.min(Math.max(a.y, b.y), r.y + r.height) - 0.02
+    : a.y > r.y + 0.02 && a.y < r.y + r.height - 0.02 && Math.max(Math.min(a.x, b.x), r.x) < Math.min(Math.max(a.x, b.x), r.x + r.width) - 0.02);
+  const distance = (p, a, b) => Math.hypot(
+    p.x - Math.max(Math.min(a.x, b.x), Math.min(Math.max(a.x, b.x), p.x)),
+    p.y - Math.max(Math.min(a.y, b.y), Math.min(Math.max(a.y, b.y), p.y)),
+  );
+  const nearest = (values, p) => Math.min(...values.slice(1).map((b, i) => distance(p, values[i], b)));
+  let result = compact(points);
+  if (result.length > 80) return result;
+  while (true) {
+    let best = turns(result), replacement;
+    for (let i = 0; i < result.length - 2; i++) {
+      for (let j = result.length - 1; j >= i + 2; j--) {
+        const a = result[i], b = result[j];
+        const choices = equal(a.x, b.x) || equal(a.y, b.y)
+          ? [[a, b]] : [[a, { x: a.x, y: b.y }, b], [a, { x: b.x, y: a.y }, b]];
+        for (const choice of choices) {
+          const line = compact(choice);
+          if (line.length < 2 || line.slice(1).some((p, k) => !clear(line[k], p))) continue;
+          if (i === 0 && direction(line[0], line[1]) !== direction(result[0], result[1])) continue;
+          if (j === result.length - 1 && direction(line.at(-2), line.at(-1)) !== direction(result.at(-2), result.at(-1))) continue;
+          if (label) {
+            const oldDistance = nearest(result.slice(i, j + 1), label);
+            if (oldDistance < 12 && nearest(line, label) > oldDistance + 0.5) continue;
+          }
+          const candidate = compact([...result.slice(0, i), ...line, ...result.slice(j + 1)]);
+          const count = turns(candidate);
+          if (count < best) { best = count; replacement = candidate; }
+        }
+      }
+    }
+    if (!replacement) return result;
+    result = replacement;
+  }
+}
+
 (() => {
   const figures = [...document.querySelectorAll(".markdown-mermaid")];
   if (!figures.length) return;
@@ -25,6 +76,31 @@
       background.setAttribute("height", height + 8);
     }
     return document.importNode(parsed.documentElement, true);
+  }
+
+  function simplifyEdges(svg) {
+    const matrix = svg.getCTM();
+    if (!matrix) return;
+    const inverse = matrix.inverse();
+    const bounds = element => {
+      const b = element.getBBox(), transform = inverse.multiply(element.getCTM());
+      const a = new DOMPoint(b.x, b.y).matrixTransform(transform);
+      const z = new DOMPoint(b.x + b.width, b.y + b.height).matrixTransform(transform);
+      return { x: a.x, y: a.y, width: z.x - a.x, height: z.y - a.y };
+    };
+    const nodes = [...svg.querySelectorAll(".node")].map(bounds);
+    const labels = [...svg.querySelectorAll(".edgeLabel .label")].filter(e => e.textContent.trim())
+      .map(e => ({ id: e.getAttribute("data-id"), ...bounds(e) }));
+    for (const path of svg.querySelectorAll("path.flowchart-link")) {
+      const d = path.getAttribute("d");
+      if ((d.match(/[a-zA-Z]/g) || []).some(c => !["M", "L"].includes(c))) continue;
+      const points = [...d.matchAll(/[ML](-?[0-9.]+),(-?[0-9.]+)/g)].map(m => ({ x: +m[1], y: +m[2] }));
+      const ownLabel = labels.find(l => l.id === path.getAttribute("data-id"));
+      const label = ownLabel ? { x: ownLabel.x + ownLabel.width / 2, y: ownLabel.y + ownLabel.height / 2 } : null;
+      const obstacles = [...nodes, ...labels.filter(l => l !== ownLabel)];
+      const result = jwikiCompactOrthogonal(points, obstacles, label);
+      path.setAttribute("d", result.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(""));
+    }
   }
 
   function addSizeControl(figure, target) {
@@ -151,7 +227,7 @@
       flowchart: {
         htmlLabels: false, useMaxWidth: false, look: "classic",
         padding: 16, wrappingWidth: 220, nodeSpacing: 36, rankSpacing: 48,
-        diagramPadding: 16, subGraphTitleMargin: { top: 12, bottom: 12 }, curve: "rounded",
+        diagramPadding: 16, subGraphTitleMargin: { top: 12, bottom: 12 }, curve: "stepAfter",
       },
       sequence: { useMaxWidth: false, look: "classic", actorFontSize: 14, messageFontSize: 13, noteFontSize: 14 },
       secure: ["securityLevel", "startOnLoad", "maxTextSize", "maxEdges", "suppressErrorRendering", "htmlLabels", "flowchart", "dompurifyConfig", "themeCSS"],
@@ -165,6 +241,7 @@
         const target = figure.querySelector(".markdown-mermaid-diagram");
         target.replaceChildren(diagramElement(svg));
         target.hidden = false;
+        simplifyEdges(target.querySelector("svg"));
         if (!target.id) target.id = `${id}-viewport`;
         addSizeControl(figure, target);
         figure.querySelector(".markdown-mermaid-source").open = false;
